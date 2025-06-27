@@ -123,4 +123,4 @@ When switching language layers:
 
 ## Design Philosophy
 
-The language layer embodies a key principle: **logical structure is universal, but representation is personal**. By separating what proofs are from how they look, Proof Editor becomes a truly universal platform for logical reasoning across all domains, cultures, and preferences.
+The language layer embodies a key design choice: **separate logical structure from its representation**. By decoupling proof data from display format, Proof Editor becomes an adaptable tool for formal reasoning that can be customized for different domains, notations, and preferences.

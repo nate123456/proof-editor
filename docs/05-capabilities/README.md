@@ -26,7 +26,7 @@ Publishing and presenting argument trees clearly.
 
 ## Design Philosophy
 
-These capabilities work together to create a cohesive experience. Visual construction makes logic approachable, IDE features make it powerful, accessibility makes it universal, and validation makes it reliable.
+These capabilities work together to create a cohesive experience. Visual construction makes logic approachable, IDE features make it powerful, accessibility makes it widely usable, and validation makes it reliable.
 
 ## Integration
 

@@ -4,6 +4,10 @@
 
 This documentation presents the conceptual design for Proof Editor - a platform combining visual representation of logical structures with integrated development environment capabilities and extensible logic systems.
 
+## Technical Foundation
+
+**[Technical Definitions](technical-definitions.md)** - Start here for precise definitions of all key terms.
+
 ## Document Organization
 
 ### Sequential Reading

@@ -138,7 +138,7 @@ When formal logic becomes accessible and engaging, it transforms from a niche ac
 ## Societal Impact
 
 ### Logic Literacy
-- **Universal skill**: Everyone reasons well
+- **Foundational skill**: Everyone reasons well
 - **Better decisions**: Personal and professional
 - **Clear communication**: Understand each other
 - **Reduced manipulation**: Spot fallacies

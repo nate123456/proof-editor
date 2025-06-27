@@ -3,7 +3,7 @@
 ## 1. Visual Primacy
 
 ### Spatial Representation
-Logical relationships are represented through spatial arrangement and visual connections. Symbolic notation serves as supplementary information rather than primary content.
+Logical relationships are displayed through spatial arrangement and visual connections, while symbolic notation captures the logical content itself. Both work together: strings express statements, spatial arrangement shows their logical relationships.
 
 ### Direct Manipulation
 Interface elements can be repositioned, connected, and modified through direct interaction. The manipulation metaphor corresponds to the conceptual operation being performed.
