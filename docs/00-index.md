@@ -19,6 +19,7 @@ This documentation presents the conceptual design for Proof Editor - a platform 
 5. **[Capabilities](05-capabilities/README.md)** - Platform functionality
 6. **[Ecosystem](06-ecosystem/README.md)** - Distribution and collaboration mechanisms
 7. **[Future Considerations](07-future/README.md)** - Research directions
+8. **[Technical Design](08-technical-design/README.md)** - Implementation specifications
 
 ### Topical Access
 
@@ -29,6 +30,7 @@ This documentation presents the conceptual design for Proof Editor - a platform 
 
 **Core Components:**
 - [Atomic Arguments](03-concepts/atomic-arguments.md)
+- [DAG Data Model](08-technical-design/dag-data-model.md)
 - [Visual Construction](05-capabilities/visual-proof.md)
 - [IDE Features](05-capabilities/ide-features.md)
 - [Custom Logic Systems](06-ecosystem/custom-logic.md)

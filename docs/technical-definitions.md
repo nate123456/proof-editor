@@ -5,31 +5,66 @@ This document provides precise technical definitions for key terms used througho
 ## Core Data Structures
 
 ### Atomic Argument
-**Definition**: A data structure representing a single inference step.
+**Definition**: A data structure representing a single inference step with unique identification and spatial position.
 ```
 {
+  id: string,              // Unique identifier (UUID)
   premises: string[],      // Array of premise statements
   conclusions: string[],   // Array of conclusion statements
   metadata?: {            // Optional metadata
     ruleName?: string,
-    sideLabels?: string[]
+    sideLabels?: string[],
+    validationState?: ValidationState
+  },
+  position: {x: number, y: number}  // Spatial position in document
+}
+```
+**Example**: `{id: "a1b2c3", premises: ["A", "A→B"], conclusions: ["B"], metadata: {ruleName: "MP"}, position: {x: 100, y: 200}}`
+**See**: [DAG Data Model](08-technical-design/dag-data-model.md) for complete specification
+
+### Connection
+**Definition**: An explicit link between two atomic arguments connecting a specific conclusion in one argument to a specific premise in another.
+```
+{
+  id: string,
+  source: {
+    atomicArgumentId: string,
+    conclusionIndex: number
+  },
+  target: {
+    atomicArgumentId: string,
+    premiseIndex: number
   }
 }
 ```
-**Example**: `{premises: ["A", "A→B"], conclusions: ["B"], metadata: {ruleName: "MP"}}`
-
-### Connection
-**Definition**: A link between two atomic arguments where a string in one argument's conclusions array matches a string in another argument's premises array.
+**Note**: Connections are stored explicitly rather than computed from string matching to support manual overrides and semantic equivalence.
 
 ### Argument Tree
-**Definition**: A directed acyclic graph (DAG) of atomic arguments linked by connections. Stored as a set of atomic arguments with their connection relationships.
-
-### Document
-**Definition**: A container holding multiple argument trees with layout information.
+**Definition**: A computed view representing a connected component within the DAG. All atomic arguments that share any connection path belong to the same tree.
 ```
 {
-  trees: ArgumentTree[],
-  layout: LayoutData,
+  id: string,
+  atomicArgumentIds: Set<string>,
+  metadata: {
+    rootIds: string[],    // Arguments with no incoming connections
+    leafIds: string[],    // Arguments with no outgoing connections
+    depth: number         // Longest path from root to leaf
+  }
+}
+```
+
+### Document
+**Definition**: The complete DAG structure containing all atomic arguments and their connections, along with spatial layout and metadata.
+```
+{
+  atomicArguments: Map<string, AtomicArgument>,
+  connections: Map<string, Connection>,
+  indices: {
+    outgoingConnections: Map<string, Set<string>>,
+    incomingConnections: Map<string, Set<string>>,
+    stringIndex: Map<string, Set<string>>,
+    treeIndex: Map<string, Set<string>>
+  },
   metadata: DocumentMetadata
 }
 ```
