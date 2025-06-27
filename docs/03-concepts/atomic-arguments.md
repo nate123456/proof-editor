@@ -108,6 +108,8 @@ Like atoms in chemistry, these atomic arguments are:
 - Empty tuples allow for axioms and contradictions
 - Ordered for precise reference
 
+**Implementation Note**: The pure atomic argument contains only logical content (premises, conclusions, metadata). Spatial positioning, unique identifiers, and other implementation concerns are handled separately to maintain the separation between logical structure and presentation. See [Technical Design](../08-technical-design/conceptual-data-model.md).
+
 ## Interaction Properties
 
 ### Direct Manipulation

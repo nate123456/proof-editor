@@ -73,6 +73,8 @@ Connections are established when:
 - The system recognizes semantic equivalence (based on the language layer's rules)
 - Users explicitly create connections between compatible statements
 
+**Implementation Note**: While connections conceptually *emerge* from string relationships, they may be *stored* as explicit entities for performance and to support features like manual override, confidence scoring, and connection metadata. See [Technical Design](../08-technical-design/conceptual-data-model.md) for details.
+
 ### Connection Operations
 - Create new connections
 - Remove existing connections

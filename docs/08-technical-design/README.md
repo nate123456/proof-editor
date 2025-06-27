@@ -6,8 +6,11 @@ This section contains detailed technical specifications for the Proof Editor pla
 
 ## Contents
 
+### [Conceptual Data Model](conceptual-data-model.md)
+Entity-relationship model showing the core entities and their relationships, maintaining alignment with the project's conceptual vision while addressing implementation needs.
+
 ### [DAG Data Model](dag-data-model.md)
-Complete specification of the data structures for representing argument trees as directed acyclic graphs, including atomic arguments, connections, and performance considerations.
+Detailed implementation specification of the data structures for representing argument trees as directed acyclic graphs, including atomic arguments, connections, and performance considerations.
 
 ## Design Approach
 

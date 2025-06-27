@@ -15,7 +15,7 @@ The analysis capability allows users to create, edit, and share custom scripts t
 ### Basic Use Cases
 
 #### Validity Checking
-The fundamental use case involves checking whether some argument is valid according to specified logical systems:
+The fundamental use case involves checking whether an argument (a path-complete set of atomic arguments) is valid according to specified logical systems:
 - Parse the strings in premises and conclusions
 - Apply user-defined validity rules
 - Support multiple definitions of validity
@@ -41,7 +41,7 @@ Scripts operate on entire argument trees to:
 - Trace logical dependencies
 - Identify proof strategies
 - Find redundant reasoning paths
-- Optimize argument tree structures
+- Analyze argument tree structures for optimization opportunities
 
 ### Metrics and Statistics
 Generate quantitative analyses:

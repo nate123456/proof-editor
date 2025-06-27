@@ -5,7 +5,7 @@ This document provides precise technical definitions for key terms used througho
 ## Core Data Structures
 
 ### Atomic Argument
-**Definition**: A data structure representing a single inference step with unique identification and spatial position.
+**Definition**: A data structure representing a single inference step.
 ```
 {
   id: string,              // Unique identifier (UUID)
@@ -13,14 +13,13 @@ This document provides precise technical definitions for key terms used througho
   conclusions: string[],   // Array of conclusion statements
   metadata?: {            // Optional metadata
     ruleName?: string,
-    sideLabels?: string[],
-    validationState?: ValidationState
-  },
-  position: {x: number, y: number}  // Spatial position in document
+    sideLabels?: string[]
+  }
 }
 ```
-**Example**: `{id: "a1b2c3", premises: ["A", "A→B"], conclusions: ["B"], metadata: {ruleName: "MP"}, position: {x: 100, y: 200}}`
-**See**: [DAG Data Model](08-technical-design/dag-data-model.md) for complete specification
+**Example**: `{id: "a1b2c3", premises: ["A", "A→B"], conclusions: ["B"], metadata: {ruleName: "MP"}}`
+**Note**: Position and dimensions are stored separately in spatial_position, not in the atomic argument itself. Validation state is computed, not stored.
+**See**: [Conceptual Data Model](08-technical-design/conceptual-data-model.md) for complete specification
 
 ### Connection
 **Definition**: An explicit link between two atomic arguments connecting a specific conclusion in one argument to a specific premise in another.
@@ -39,8 +38,16 @@ This document provides precise technical definitions for key terms used througho
 ```
 **Note**: Connections are stored explicitly rather than computed from string matching to support manual overrides and semantic equivalence.
 
+### Argument
+**Definition**: A set of atomic arguments where every pair in the set is connected AND all atomic arguments in the paths connecting those pairs are included. An argument maintains path-completeness but may be a subset of a larger structure.
+
+**Key Properties**:
+- Path-complete: No missing intermediate steps
+- May be extracted from a larger proof
+- Useful for creating reusable sub-proofs
+
 ### Argument Tree
-**Definition**: A computed view representing a connected component within the DAG. All atomic arguments that share any connection path belong to the same tree.
+**Definition**: A special type of argument that contains ALL atomic arguments connected to any of its members. Represents the maximal connected component in the DAG.
 ```
 {
   id: string,
@@ -53,21 +60,26 @@ This document provides precise technical definitions for key terms used througho
 }
 ```
 
+**Key Properties**:
+- Maximal: Contains every connected atomic argument
+- Unique: If two trees share any member, they are identical
+- Complete: No atomic arguments can be added without breaking the tree boundary
+
 ### Document
-**Definition**: The complete DAG structure containing all atomic arguments and their connections, along with spatial layout and metadata.
+**Definition**: A workspace container with metadata. The actual atomic arguments and connections exist independently and are referenced through spatial positions.
 ```
 {
-  atomicArguments: Map<string, AtomicArgument>,
-  connections: Map<string, Connection>,
-  indices: {
-    outgoingConnections: Map<string, Set<string>>,
-    incomingConnections: Map<string, Set<string>>,
-    stringIndex: Map<string, Set<string>>,
-    treeIndex: Map<string, Set<string>>
-  },
-  metadata: DocumentMetadata
+  id: string,
+  title: string,
+  metadata: {
+    created_at: timestamp,
+    modified_at: timestamp,
+    author?: string,
+    description?: string
+  }
 }
 ```
+**Note**: Documents don't "contain" atomic arguments - they provide a canvas where atomic arguments are positioned. The DAG structure (atomic arguments + connections) exists independently of any particular document view.
 
 ## System Components
 

@@ -6,7 +6,7 @@ This documentation presents the conceptual design for Proof Editor - a platform 
 
 ## Technical Foundation
 
-**[Technical Definitions](technical-definitions.md)** - Start here for precise definitions of all key terms.
+**[Technical Definitions](08-technical-design/technical-definitions.md)** - Precise definitions of all key terms with implementation details.
 
 ## Document Organization
 

@@ -94,17 +94,17 @@ Just as IDEs revolutionized programming, Proof Editor brings intelligent assista
 
 ## Extensibility
 
-### Plugin Architecture
-- **Custom validators**: Domain-specific rules
-- **New visualizations**: Alternative views
-- **Tool integrations**: Connect external tools
-- **Automation scripts**: Repetitive task handling
+### Extensibility Approach
+- Support for domain-specific validators
+- Alternative visualization methods
+- Integration with external tools
+- Automation of repetitive tasks
 
-### Language Server Protocol
-- **Standard interface**: Works with any editor
-- **Custom languages**: Define your own logic
-- **Community extensions**: Share capabilities
-- **Future-proof**: Evolves with standards
+### Standards-Based Design
+- Use established protocols for compatibility
+- Support custom logic systems
+- Enable community contributions
+- Design for future evolution
 
 ## Learning and Discovery
 

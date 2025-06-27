@@ -2,14 +2,14 @@
 
 ## Definition
 
-A document is the canvas where argument trees exist. It provides spatial organization, persistent storage, and contextual grouping for related proofs and logical work.
+A document is the canvas where atomic arguments are placed and connected. It provides spatial organization, persistent storage, and contextual grouping for related logical work. Argument trees emerge from the connections between atomic arguments within the document.
 
 ## Document as Workspace
 
 ### Infinite Canvas
 - No artificial boundaries
 - Zoom and pan freely
-- Place atomic arguments and argument trees anywhere
+- Place atomic arguments anywhere
 - Natural spatial organization
 
 ### Multiple Trees
@@ -43,7 +43,7 @@ A document is the canvas where argument trees exist. It provides spatial organiz
 
 ### Content Management
 - Add new atomic arguments anywhere
-- Move trees as units
+- Move connected atomic arguments (argument trees) as units
 - Group related content
 - Layer management
 

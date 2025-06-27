@@ -4,6 +4,33 @@
 
 An argument is a set of atomic arguments where every pair of atomic arguments in the set is connected and all atomic arguments in the path that connects that pair are also in the set. An argument tree is an argument which contains all atomic arguments connected to any of its members. It represents a complete, self-contained proof or reasoning structure.
 
+**Implementation Note**: Trees are *discovered* through analysis of connections rather than explicitly created. They may be computed on-demand and cached for performance. See [Technical Design](../08-technical-design/conceptual-data-model.md) for how trees are identified and tracked.
+
+## Key Distinction: Argument vs Argument Tree
+
+Consider this example structure:
+```
+    A
+   / \
+  B   C
+  |   |
+  D   E
+   \ /
+    F
+    |
+    G
+```
+
+- **Atomic Arguments**: A→B, A→C, B→D, C→E, D→F, E→F, F→G (7 total)
+- **Valid Arguments** (examples):
+  - {A→B, B→D} (path from A to D)
+  - {A→B, B→D, D→F} (path from A to F via B)
+  - {D→F, E→F, F→G} (convergent paths to G)
+- **Invalid Argument**: {A, F} (missing intermediate steps)
+- **Argument Tree**: The entire structure {A→B, A→C, B→D, C→E, D→F, E→F, F→G}
+
+An argument maintains path-completeness but can be a subset. An argument tree is the maximal set containing ALL connected atomic arguments.
+
 ## Characteristics
 
 ### Completeness

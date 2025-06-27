@@ -2,7 +2,9 @@
 
 ## Overview
 
-This document specifies the concrete data structures for representing argument trees as directed acyclic graphs (DAGs). It addresses the technical requirements for efficient storage, manipulation, and validation of proof structures.
+This document provides an **implementation-focused** specification of the data structures for representing atomic arguments and their connections as directed acyclic graphs (DAGs). It addresses technical requirements for efficient storage, manipulation, and validation of proof structures including arguments and argument trees.
+
+**Note**: For the conceptual model that aligns with the project vision, see [Conceptual Data Model](conceptual-data-model.md). This document includes implementation details like caching, indices, and performance optimizations that go beyond the pure conceptual model.
 
 ## Core Data Structures
 
@@ -29,21 +31,8 @@ interface AtomicArgument {
     validationState?: ValidationState;
   };
   
-  // Position in document space
-  position: {
-    x: number;
-    y: number;
-    z?: number; // For future 3D layouts
-  };
-  
-  // Dimensions for rendering
-  dimensions?: {
-    width: number;
-    height: number;
-  };
-  
-  // Tree membership (computed field)
-  treeId?: string;
+  // Note: Position and dimensions are stored separately in SPATIAL_POSITION
+  // This keeps logical content separate from view-specific properties
 }
 ```
 
@@ -112,32 +101,37 @@ interface ArgumentDAG {
 }
 ```
 
-### ArgumentTree
+### ArgumentTree (Computed Concept)
 
-A computed view representing a connected component of the DAG:
+An argument tree is the maximal connected component - all atomic arguments that share any connection path. This is a conceptual entity discovered through graph analysis, not a stored data structure.
+
+In implementation, you might compute trees as:
+```typescript
+// Example: Find all trees in the DAG
+function computeArgumentTrees(dag: ArgumentDAG): Map<string, Set<string>> {
+  // Returns a map where each key is a computed tree identifier
+  // and the value is the set of atomic argument IDs in that tree
+}
+```
+
+Note: Trees are discovered, not created. They exist as a logical consequence of the connections between atomic arguments.
+
+### Argument (Computed Subset)
+
+An argument is any path-complete subset of atomic arguments. Not defined as a separate interface because:
+- Arguments are computed views, not stored entities
+- Any valid subset can be extracted from the DAG on demand
+- Operations work directly on sets of atomic argument IDs
 
 ```typescript
-interface ArgumentTree {
-  id: string;
-  
-  // Member atomic arguments
-  atomicArgumentIds: Set<string>;
-  
-  // Tree-specific metadata
-  metadata: {
-    computedAt: number;
-    rootIds: string[]; // Atomic arguments with no incoming connections
-    leafIds: string[]; // Atomic arguments with no outgoing connections
-    depth: number; // Longest path from root to leaf
-    isValid?: boolean;
-  };
-  
-  // Cached tree analysis
-  analysis?: {
-    hasCycles: boolean; // Should always be false for valid DAG
-    criticalPath: string[]; // IDs forming longest path
-    branchingFactor: number;
-  };
+// Example: Extracting an argument
+function extractArgument(
+  dag: ArgumentDAG, 
+  startId: string, 
+  endId: string
+): Set<string> {
+  // Returns all atomic argument IDs in the path-complete subset
+  // connecting startId to endId
 }
 ```
 
@@ -300,9 +294,9 @@ Rather than computing connections on-the-fly from string matching:
 
 Trees are computed views because:
 - Tree membership changes as connections change
-- Multiple valid tree decompositions may exist
+- Trees are discovered from the connection structure, not created
 - Caching avoids recomputation
-- Allows different tree computation strategies
+- Trees are unique - if atomic arguments are connected, they belong to the same tree
 
 ### Why Extensive Indices?
 

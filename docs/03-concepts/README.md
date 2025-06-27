@@ -6,8 +6,14 @@ These fundamental concepts form the foundation of how Proof Editor represents an
 
 ## In This Section
 
+### [Key Terms](key-terms.md)
+Essential definitions and concepts - start here for a conceptual overview.
+
 ### [Atomic Arguments](atomic-arguments.md)
 The fundamental unit of reasoning - a single logical step.
+
+### [Argument Hierarchy](argument-hierarchy.md)
+**CRITICAL**: The three-level distinction between atomic arguments, arguments, and argument trees.
 
 ### [Connections](connections.md)
 How atomic arguments link together to form chains of reasoning.

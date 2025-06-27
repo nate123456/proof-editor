@@ -9,7 +9,8 @@ This approach represents logical structures through spatial arrangement and grap
 ## Core Visual Elements
 
 ### Spatial Representation
-- In this visualization, atomic arguments and argument trees are positioned in 2D space
+- In this visualization, atomic arguments are positioned in 2D space
+- Argument trees emerge from the connections between positioned atomic arguments
 - Relationships shown through position
 - Logical flow follows visual flow
 - Structure emerges naturally
@@ -54,7 +55,7 @@ This approach represents logical structures through spatial arrangement and grap
 1. **Create**: Begin with a new atomic argument (shown here as an implication line)
 2. **Add Content**: Type or enter characters into areas above and/or below the line
 3. **Add Side Text**: Enter text into fields on either side of the line
-4. **Branch**: Create new atomic arguments branching from selected strings or as independent trees
+4. **Branch**: Create new atomic arguments branching from selected strings or as unconnected atomic arguments
 5. **Connect**: Drag between statements to establish logical flow
 6. **Arrange**: Position for clarity
 7. **Refine**: Iterate on structure

@@ -77,15 +77,11 @@ The visualization layer renders the interpreted structures:
 ## Implementation Considerations
 
 ### Pluggable Architecture
-Language layers are plugins that implement a standard interface:
-```
-interface LanguageLayer {
-  parse(tuple: string[]): ParsedExpression[]
-  format(expressions: ParsedExpression[]): DisplayElement
-  validate(expression: ParsedExpression): ValidationResult
-  getSymbols(): SymbolDictionary
-}
-```
+Language layers are modular components that can be swapped out or customized. Each language layer defines:
+- How to interpret the strings in atomic arguments
+- How to display those strings to users  
+- What validation rules apply
+- What symbols and operators are available
 
 ### User Control
 Users can:

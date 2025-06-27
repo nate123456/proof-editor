@@ -18,11 +18,11 @@ Validation in Proof Editor goes beyond simple correctness checking. It provides 
 - **Logic level**: Sound reasoning
 - **Style level**: Best practices
 
-### Performance
-- **Sub-second response**: Feels instantaneous
-- **Background processing**: UI stays responsive
-- **Intelligent caching**: Avoid redundant checks
-- **Scalable**: Works on large proofs
+### Responsive Experience
+- **Immediate feedback**: Users see results as they work
+- **Non-blocking**: Interface remains responsive during validation
+- **Smart updates**: Only recheck what changed
+- **Handles complexity**: Works smoothly regardless of proof size
 
 ## Intelligent Feedback
 
@@ -124,19 +124,19 @@ Validation in Proof Editor goes beyond simple correctness checking. It provides 
 - **Completeness analysis**: Coverage metrics
 - **Soundness verification**: Deep checks
 
-## Integration Features
+## Integration Possibilities
 
-### External Validators
-- **Coq integration**: Formal verification
-- **Z3 integration**: SAT solving
-- **Custom tools**: Domain-specific
-- **API access**: Programmatic validation
+### External Validation
+- Connect with formal verification tools
+- Support domain-specific validators
+- Enable custom validation rules
+- Provide programmatic access
 
-### Validation Workflows
-- **CI/CD integration**: Automated checking
-- **Batch validation**: Multiple proofs
-- **Regression testing**: Maintain correctness
-- **Version comparison**: Track changes
+### Collaborative Validation
+- Automated checking in team workflows
+- Batch processing for multiple proofs
+- Track correctness over time
+- Compare different approaches
 
 ## Philosophy
 
