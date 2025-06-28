@@ -8,12 +8,12 @@ This document provides implementation-level specifications for how the Proof Edi
 
 ### AtomicArgumentEntity
 **Purpose**: Data structure that stores the information defining an atomic argument relation.
-**Domain concept**: Represents an atomic argument (a relation between two ordered n-tuples of strings).
+**Domain concept**: Represents an atomic argument (a relation between two ordered n-tuples of statements).
 ```typescript
 interface AtomicArgumentEntity {
   id: string;              // Unique identifier (UUID)
-  premises: string[];      // Array storing the premise n-tuple
-  conclusions: string[];   // Array storing the conclusion n-tuple
+  premise_ids: string[];   // Array of Statement IDs (ordered)
+  conclusion_ids: string[]; // Array of Statement IDs (ordered)
   metadata?: {
     sideLabels?: {
       left?: string;      // Text extending left from implication line
@@ -25,44 +25,46 @@ interface AtomicArgumentEntity {
   };
 }
 ```
-**Key insight**: Positions are computed from tree structure. The implication line (stroke) is the focusable UI element for creating connections.
+**Key insight**: Atomic arguments reference Statement entities by ID. Connections exist implicitly when atomic arguments share Statement IDs. The implication line (stroke) is the focusable UI element for creating connections.
 
-### ConnectionEntity
-**Purpose**: Data structure that explicitly stores an intentional parent-child relationship between atomic arguments.
-**Domain concept**: Represents a direct connection - when a user explicitly decides that a conclusion from one atomic argument functions as a premise in another.
+### StatementEntity
+**Purpose**: Data structure representing a reusable piece of logical content.
+**Domain concept**: A Statement that can function as a premise or conclusion in multiple atomic arguments.
 ```typescript
-interface ConnectionEntity {
-  id: string;
-  parentArgumentId: string;
-  parentConclusionIndex: number;
-  childArgumentId: string;  
-  childPremiseIndex: number;
+interface StatementEntity {
+  id: string;              // Unique identifier (UUID)
+  text: string;            // The actual string content
   metadata: {
     createdAt: number;
-    createdBy: 'branch' | 'connect' | 'import';
-    creatorId?: string;
+    modifiedAt: number;
+    usage: {
+      as_premise_in: string[];    // Atomic argument IDs
+      as_conclusion_in: string[]; // Atomic argument IDs
+    };
   };
 }
 ```
 **Critical understanding**: 
-- Connections are NOT discovered through string matching
-- They represent intentional user decisions
-- Created through explicit UI actions (selecting stroke, pressing branch key)
-- Persist even if string content changes
+- Statements are first-class entities with stable IDs
+- Connections exist implicitly when atomic arguments share Statement IDs
+- A Statement appearing as a conclusion in one argument and a premise in another creates a connection
+- Editing Statement text doesn't break connections (ID remains stable)
 
 ### Argument (Computed Concept)
 **Purpose**: Algorithm output representing a path-complete subset of atomic arguments.
 **Domain concept**: An argument (a set of atomic arguments with complete paths between all pairs).
-**Implementation**: Computed on-demand by traversing parent-child connections.
+**Implementation**: Computed on-demand by analyzing shared Statement IDs.
 
 ```typescript
-// Not a stored entity - computed by traversing connections
+// Not a stored entity - computed by discovering connections through shared Statements
 function computeArgument(
   startId: string,
   endId: string,
-  connections: Map<string, ConnectionEntity>
+  atomicArguments: Map<string, AtomicArgumentEntity>,
+  statements: Map<string, StatementEntity>
 ): Set<string> {
   // Returns all atomic argument IDs in path-complete subset
+  // by traversing implicit connections via shared Statement IDs
 }
 ```
 
@@ -160,36 +162,38 @@ interface LanguageLayer {
 1. User selects stroke (implication line)
 2. User presses branch key (e.g., 'b')
 3. System identifies the selected conclusion Statement
-4. System creates child atomic argument referencing this Statement as its first premise
-5. System creates connection recording the shared Statement relationship
+4. System creates child atomic argument referencing this Statement ID as its first premise
+5. Connection now exists implicitly through the shared Statement ID
 
 ## Key Implementation Concepts
 
-### Parent-Child Reference Model
-**What it is**: Connections store direct references between atomic arguments, not string matches.
+### Statement-Based Connection Model
+**What it is**: Connections exist implicitly through shared Statement IDs between atomic arguments.
 **Why**: 
-- Preserves user intent
-- Survives content edits
-- Enables O(1) traversal
-- No ambiguity
+- Simpler data model (no separate connection entities)
+- Connections emerge naturally from the data
+- Survives content edits (Statement IDs are stable)
+- Efficient lookups via Statement ID indexing
 
 ### Intentional Construction
 **What it means**: Every connection represents an explicit user decision.
 **How it works**:
 - User selects specific stroke
 - User initiates branch/connect action
-- System creates connection with full context
+- System creates new atomic argument sharing Statement IDs
+- Connection exists through this intentional Statement sharing
 - No automatic detection
 
 ### Computed vs Stored
 **Stored (Empirical)**:
-- Atomic arguments (user creates)
-- Connections (user creates)
+- Statements (created when users enter text)
+- Atomic arguments (reference Statement IDs)
 - Tree positions (user places trees)
 - Position overrides (user adjusts)
 - Documents (user manages)
 
 **Computed (Derived)**:
+- Connections (from shared Statement IDs)
 - Arguments (from connection traversal)
 - Trees (from connected components)
 - Tree properties (roots, leaves, depth)
@@ -198,24 +202,24 @@ interface LanguageLayer {
 ## Implementation Philosophy
 
 ### What This Implementation Does
-- **Stores intentional relationships**: Every connection is a user decision
-- **Separates concerns**: Logic, layout, and metadata in different structures
-- **Optimizes performance**: Indices for fast traversal
-- **Preserves intent**: Connections persist through edits
+- **Enables intentional relationships**: Users create connections by sharing Statement IDs
+- **Simplifies data model**: No separate connection entities needed
+- **Optimizes performance**: Statement ID indexing for fast connection discovery
+- **Preserves intent**: Statement IDs remain stable through text edits
 
 ### What This Implementation Doesn't Do
-- **No string matching**: Connections aren't discovered
-- **No automatic linking**: Users create all connections
-- **No magic**: Everything is explicit and traceable
+- **No string matching**: Same text doesn't create connections
+- **No automatic linking**: Users explicitly share Statement IDs
+- **No complex algorithms**: Connections found through simple ID matching
 - **No philosophical claims**: Just engineering
 
 ## Critical Distinctions
 
 ### Connection ≠ String Match
-A connection is NOT "these strings are the same". It's "the user decided this conclusion flows into this premise".
+A connection is NOT "these strings are the same". It's "the user intentionally used the same Statement ID in both places".
 
 ### Tree ≠ Hierarchy
-Trees emerge from connections, they're not imposed. Multiple parents are allowed (DAG property).
+Trees emerge from connections, they're not imposed. Multiple parents are allowed (the system uses a graph structure internally).
 
 ### Validation ≠ Connection
 Language layers validate correctness. Users create connections. These are independent concerns.
@@ -227,25 +231,29 @@ Language layers validate correctness. Users create connections. These are indepe
 function computeAtomicArgumentPosition(
   atomicArgumentId: string,
   treePosition: TreePositionEntity,
-  connections: Map<string, ConnectionEntity>,
+  atomicArguments: Map<string, AtomicArgumentEntity>,
+  statements: Map<string, StatementEntity>,
   overrides: Map<string, PositionOverrideEntity>
 ): { x: number, y: number } {
-  // 1. Find path from root to this atomic argument
+  // 1. Build connection graph from shared Statement IDs
+  const connectionGraph = buildConnectionGraph(atomicArguments);
+  
+  // 2. Find path from root to this atomic argument
   const path = findPathFromRoot(
     treePosition.rootArgumentId,
     atomicArgumentId,
-    connections
+    connectionGraph
   );
   
-  // 2. Start at tree anchor
+  // 3. Start at tree anchor
   let x = treePosition.x;
   let y = treePosition.y;
   
-  // 3. Follow path, computing position at each step
+  // 4. Follow path, computing position at each step
   for (let i = 1; i < path.length; i++) {
     const parent = path[i - 1];
     const current = path[i];
-    const siblings = getChildren(parent, connections);
+    const siblings = connectionGraph.getChildren(parent);
     const siblingIndex = siblings.indexOf(current);
     
     // Compute based on layout style
@@ -272,7 +280,7 @@ function computeAtomicArgumentPosition(
     }
   }
   
-  // 4. Apply any override
+  // 5. Apply any override
   const override = overrides.get(atomicArgumentId);
   if (override) {
     x += override.xOffset;
@@ -287,56 +295,73 @@ function computeAtomicArgumentPosition(
 ```typescript
 function branchFromConclusion(
   parentId: string,
-  conclusionIndex: number
-): { child: AtomicArgumentEntity, connection: ConnectionEntity } {
-  // 1. Get conclusion string from parent
-  const parent = getAtomicArgument(parentId);
-  const conclusionString = parent.conclusions[conclusionIndex];
+  conclusionIndex: number,
+  atomicArguments: Map<string, AtomicArgumentEntity>
+): AtomicArgumentEntity {
+  // 1. Get conclusion Statement ID from parent
+  const parent = atomicArguments.get(parentId);
+  const conclusionStatementId = parent.conclusion_ids[conclusionIndex];
   
-  // 2. Create child with conclusion as first premise
+  // 2. Create child with same Statement ID as first premise
   const child = {
     id: generateId(),
-    premises: [conclusionString],  // User can add more
-    conclusions: [],  // User will fill in
+    premise_ids: [conclusionStatementId],  // Reuses parent's Statement
+    conclusion_ids: [],  // User will add new Statements
     metadata: { createdAt: Date.now() }
   };
   
-  // 3. Create connection
-  const connection = {
-    id: generateId(),
-    parentArgumentId: parentId,
-    parentConclusionIndex: conclusionIndex,
-    childArgumentId: child.id,
-    childPremiseIndex: 0,
-    metadata: {
-      createdAt: Date.now(),
-      createdBy: 'branch'
-    }
-  };
+  // 3. Connection now exists implicitly because both atomic arguments
+  //    reference the same Statement ID
   
-  return { child, connection };
+  return child;
 }
 ```
 
-### Traversing Connections
+### Discovering Connections Through Shared Statements
 ```typescript
 function getChildren(
   atomicArgumentId: string,
-  connections: Map<string, ConnectionEntity>
+  atomicArguments: Map<string, AtomicArgumentEntity>
 ): AtomicArgumentEntity[] {
+  const parent = atomicArguments.get(atomicArgumentId);
   const children = [];
   
-  for (const conn of connections.values()) {
-    if (conn.parentArgumentId === atomicArgumentId) {
-      const child = getAtomicArgument(conn.childArgumentId);
-      children.push(child);
+  // For each conclusion Statement in the parent
+  for (const conclusionId of parent.conclusion_ids) {
+    // Find atomic arguments that use this Statement as a premise
+    for (const [id, arg] of atomicArguments) {
+      if (id !== atomicArgumentId && arg.premise_ids.includes(conclusionId)) {
+        children.push(arg);
+      }
     }
   }
   
   return children;
 }
+
+// More efficient with Statement entity tracking:
+function getChildrenEfficient(
+  atomicArgumentId: string,
+  atomicArguments: Map<string, AtomicArgumentEntity>,
+  statements: Map<string, StatementEntity>
+): AtomicArgumentEntity[] {
+  const parent = atomicArguments.get(atomicArgumentId);
+  const children = new Set<AtomicArgumentEntity>();
+  
+  // Use Statement metadata for efficient lookup
+  for (const conclusionId of parent.conclusion_ids) {
+    const statement = statements.get(conclusionId);
+    for (const childId of statement.metadata.usage.as_premise_in) {
+      if (childId !== atomicArgumentId) {
+        children.add(atomicArguments.get(childId));
+      }
+    }
+  }
+  
+  return Array.from(children);
+}
 ```
 
 ## Summary
 
-The Proof Editor implementation is built on a foundation of intentional parent-child relationships. Users explicitly create connections through UI interactions, and these connections are stored as first-class entities. The system never infers connections from string content - every link represents a deliberate user decision about logical flow.
+The Proof Editor implementation is built on a foundation of shared Statement entities. Users create connections by intentionally reusing Statement IDs across atomic arguments - when a Statement appears as a conclusion in one argument and as a premise in another, a connection exists implicitly. The system discovers these connections by analyzing Statement ID usage, not through string matching. This approach provides a clean, simple data model where connections emerge naturally from the data structure itself.

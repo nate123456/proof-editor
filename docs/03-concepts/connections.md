@@ -15,7 +15,7 @@ The primary way users create connections is through the **implication line** (st
 3. **Connection created** - The system:
    - Creates a new atomic argument
    - References the selected conclusion Statement as its first premise
-   - Records the connection showing both arguments share this Statement
+   - The connection now exists implicitly through the shared Statement
 
 ## Visual Example
 
@@ -28,11 +28,11 @@ C₁, C₂
    [branches to]
        ↓
 [Atomic Argument B]
-C₂, P₃   ← C₂ is the same Statement from parent
+C₂, P₃   ← C₂ is the same Statement ID from parent
 ────────
 C₃
 
-Connection stored: Statement at A.conclusions[1] shared with B.premises[0]
+Connection exists because: Statement ID at A.conclusions[1] is also at B.premises[0]
 ```
 
 ## Key Properties
@@ -61,7 +61,7 @@ Connection stored: Statement at A.conclusions[1] shared with B.premises[0]
 1. Navigate to atomic argument (arrow keys)
 2. Select its stroke (Enter/Space)
 3. Branch (b key) or Connect (c key)
-4. System creates connection
+4. System creates connection through Statement sharing
 ```
 
 ### Visual Feedback
@@ -72,16 +72,16 @@ Connection stored: Statement at A.conclusions[1] shared with B.premises[0]
 ## What Connections Are NOT
 
 - **Not string matching** - Same text doesn't automatically create connections
-- **Not discovered** - Users explicitly create Statement sharing
+- **Not separate entities** - Connections emerge from shared Statement IDs
 - **Not fragile** - Editing Statement text doesn't break connections
 - **Not ambiguous** - Each connection links specific Statement references
 
 ## Technical Implementation
 
-Connections are stored as first-class entities with:
-- The shared Statement ID
-- Parent argument ID and conclusion index
-- Child argument ID and premise index
-- Creation metadata (when, how, by whom)
+Connections are **implicit relationships** that exist when atomic arguments share Statement IDs:
+- No separate connection table or entities needed
+- Connections discovered by analyzing which atomic arguments reference the same Statement IDs
+- When a Statement appears as a conclusion in one argument and a premise in another, a connection exists
+- The system efficiently finds these relationships through Statement ID lookups
 
-This Statement-based model allows precise tracking of logical flow and supports features like Statement reuse analysis, connection history, and collaborative editing.
+This Statement-based model allows precise tracking of logical flow and supports features like Statement reuse analysis, connection visualization, and collaborative editing.

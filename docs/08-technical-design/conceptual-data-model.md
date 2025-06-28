@@ -28,17 +28,6 @@ erDiagram
         json metadata "side_labels, references, timestamps"
     }
     
-    CONNECTION {
-        string id PK
-        string statement_id FK "the shared Statement"
-        string parent_argument_id FK
-        number parent_conclusion_index
-        string child_argument_id FK
-        number child_premise_index
-        timestamp created_at
-        string created_by "user action that created this"
-    }
-    
     DOCUMENT {
         string id PK
         string title
@@ -65,15 +54,16 @@ erDiagram
         number y_offset "offset from computed position"
     }
     
-    STATEMENT ||--o{ ATOMIC_ARGUMENT : "referenced by"
-    STATEMENT ||--o{ CONNECTION : "shared in"
-    ATOMIC_ARGUMENT ||--o{ CONNECTION : "parent"
-    ATOMIC_ARGUMENT ||--o{ CONNECTION : "child"
+    STATEMENT ||--o{ ATOMIC_ARGUMENT : "referenced as premise"
+    STATEMENT ||--o{ ATOMIC_ARGUMENT : "referenced as conclusion"
     ATOMIC_ARGUMENT ||--o| TREE_POSITION : "root of tree at"
     ATOMIC_ARGUMENT ||--o{ POSITION_OVERRIDE : "may have override"
     DOCUMENT ||--o{ TREE_POSITION : "contains trees"
     DOCUMENT ||--o{ POSITION_OVERRIDE : "contains overrides"
+    DOCUMENT ||--o{ STATEMENT : "contains"
 ```
+
+**Key Insight**: No CONNECTION table! Connections emerge naturally from shared Statement references. When an atomic argument references a Statement as a conclusion and another references that same Statement as a premise, a connection exists implicitly.
 
 ## Conceptual Entities
 
@@ -93,18 +83,18 @@ A relation between two ordered n-tuples of Statements:
 
 The implication line is crucial - it's the **focusable element** that users select when creating connections. Atomic arguments don't contain text directly - they reference Statement entities.
 
-### Connection (Shared Statement)
-Represents a **shared Statement** between atomic arguments:
-- Records which Statement is shared
-- Identifies the parent (where Statement is a conclusion) and child (where it's a premise)
-- Tracks the specific indices for precise rendering
-- Created through user interaction (keyboard commands on selected stroke)
+### Connection (Implicit Relationship)
+Connections are **implicit relationships** that exist when atomic arguments share Statements:
+- No separate entity needed - connections emerge from the data
+- When Statement S appears in argument A's conclusions and argument B's premises, a connection exists
+- The platform discovers these relationships by analyzing Statement references
+- Visual rendering draws lines between atomic arguments that share Statements
 
-**Why a separate CONNECTION entity?** Connections record more than just "these arguments share a Statement":
-1. **Indices**: Where exactly the Statement appears (for rendering connection lines)
-2. **Direction**: Which argument is parent vs child (logical flow)
-3. **Metadata**: When/how the connection was created
-4. **Intent**: The user's specific decision to reuse this Statement
+**How connections work without a CONNECTION table:**
+1. **Discovery**: Platform scans atomic arguments to find shared Statements
+2. **Direction**: Conclusion→premise flow determines parent→child relationship
+3. **Visualization**: Language layer decides how to render these relationships
+4. **Performance**: Statement IDs make connection discovery efficient
 
 ### Document (Workspace)
 The canvas containing positioned argument trees:
@@ -117,7 +107,7 @@ The canvas containing positioned argument trees:
 A path-complete set of atomic arguments connected through parent-child relationships. Computed by traversing the connection graph.
 
 ### Argument Tree (Computed View)
-The maximal connected component containing all atomic arguments reachable through connections. Discovered through graph analysis.
+The maximal connected component containing all atomic arguments reachable through connections. While users think in terms of "trees," the implementation uses a DAG structure to handle cases where premises have multiple parents.
 
 ## Interaction Model
 
@@ -128,13 +118,14 @@ sequenceDiagram
     participant Editor
     participant DataModel
     
-    User->>UI: Select implication line (stroke)
-    UI->>UI: Highlight selected atomic argument
-    User->>UI: Press connection key (e.g., 'b' for branch)
-    UI->>Editor: Create child atomic argument
+    User->>UI: Select Statement in atomic argument
+    UI->>UI: Highlight selected Statement
+    User->>UI: Press branch key (e.g., 'b')
+    UI->>Editor: Branch from Statement
     Editor->>DataModel: Create new atomic argument
-    Editor->>DataModel: Create connection (parent→child)
-    DataModel->>UI: Update view with new connection
+    Editor->>DataModel: Reference selected Statement in new argument
+    DataModel->>DataModel: Statement now shared between arguments
+    DataModel->>UI: Update view showing implicit connection
 ```
 
 ## Key Design Principles
@@ -161,56 +152,69 @@ Users create connections through:
 
 ### We Store (User-Created):
 - **Statements**: The actual text content as reusable entities
-- **Atomic Arguments**: Relations that reference Statements
-- **Connections**: Records of shared Statements between arguments
+- **Atomic Arguments**: Relations that reference Statement IDs
 - **Documents**: Workspace metadata
 - **Tree Positions**: Where each tree is anchored in documents
 - **Position Overrides**: Optional manual adjustments to computed positions
 
 ### We Compute (Emergent):
+- **Connections**: Discovered from shared Statement references
 - **Arguments**: Path-complete subsets
 - **Argument Trees**: Maximal connected components
 - **Tree Properties**: Roots, leaves, depth
 - **Atomic Argument Positions**: Computed from tree structure and layout algorithm
+- **Connection Graph**: Built by analyzing Statement usage
 
 ## Example: Building a Proof
 
 ```
 Step 1: User creates first atomic argument
 ┌─────────────────────┐
-│ A                   │
-│ A→B                 │
-│ ─────── [MP]        │  ← User can select this stroke
-│ B                   │
+│ A                   │  (Statement s1)
+│ A→B                 │  (Statement s2)
+│ ─────── [MP]        │
+│ B                   │  (Statement s3)
 └─────────────────────┘
 
-Step 2: User selects stroke and presses 'b' to branch
+Stored:
+- Statements: {s1: "A", s2: "A→B", s3: "B"}
+- AtomicArgument aa1: {
+    premise_ids: [s1, s2],
+    conclusion_ids: [s3]
+  }
+
+Step 2: User selects Statement "B" and presses 'b' to branch
 ┌─────────────────────┐
 │ A                   │
 │ A→B                 │
 │ ─────── [MP]        │
-│ B                   │  ← Statement "B" (id: stmt-001)
+│ B                   │  ← User selects this Statement (s3)
 └─────────────────────┘
           ↓
-    [Connection created]
+    [Branch creates new atomic argument]
           ↓
 ┌─────────────────────┐
-│ B                   │  ← Same Statement "B" (id: stmt-001)
-│ B→C                 │
+│ B                   │  ← Same Statement s3 (reused)
+│ B→C                 │  (New Statement s4)
 │ ─────── [MP]        │
-│ C                   │
+│ C                   │  (New Statement s5)
 └─────────────────────┘
 
-Stored Connection:
-{
-  statement_id: "stmt-001",     // The shared Statement "B"
-  parent_argument_id: "aa-001",
-  parent_conclusion_index: 0,   // Position in parent
-  child_argument_id: "aa-002",
-  child_premise_index: 0,       // Position in child
-  created_at: 1703001000,
-  created_by: "branch_command"
-}
+Stored:
+- Statements: {s1: "A", s2: "A→B", s3: "B", s4: "B→C", s5: "C"}
+- AtomicArgument aa1: {
+    premise_ids: [s1, s2],
+    conclusion_ids: [s3]
+  }
+- AtomicArgument aa2: {
+    premise_ids: [s3, s4],  ← Notice s3 is reused here!
+    conclusion_ids: [s5]
+  }
+
+The connection is implicit: Statement s3 appears as:
+- conclusion in aa1
+- premise in aa2
+Therefore aa1 → aa2 connection exists automatically.
 ```
 
 ## Position Computation Model
@@ -236,9 +240,12 @@ Atomic argument positions are computed algorithmically from tree structure:
 ### Example Layout Algorithm (Top-Down)
 
 ```
-function computePositions(treePosition, rootId, connections) {
+function computePositions(treePosition, rootId, atomicArguments, statements) {
   const positions = new Map();
   const visited = new Set();
+  
+  // Build connection graph from shared Statements
+  const connectionGraph = buildConnectionGraph(atomicArguments);
   
   // Start at tree anchor
   positions.set(rootId, {
@@ -252,8 +259,8 @@ function computePositions(treePosition, rootId, connections) {
     const parentId = queue.shift();
     const parentPos = positions.get(parentId);
     
-    // Find children
-    const children = getChildren(parentId, connections);
+    // Find children through shared Statements
+    const children = connectionGraph.getChildren(parentId);
     const childWidth = treePosition.layoutParams.nodeWidth;
     const spacing = treePosition.layoutParams.horizontalSpacing;
     const totalWidth = children.length * childWidth + 
@@ -281,6 +288,24 @@ function computePositions(treePosition, rootId, connections) {
   }
   
   return positions;
+}
+
+function buildConnectionGraph(atomicArguments) {
+  // Discover connections from shared Statement references
+  // This is simple and efficient - no complex algorithms needed
+  const graph = new ConnectionGraph();
+  
+  for (const arg of atomicArguments) {
+    for (const conclusionId of arg.conclusion_ids) {
+      // Find arguments that use this conclusion as a premise
+      const children = atomicArguments.filter(other => 
+        other.premise_ids.includes(conclusionId)
+      );
+      children.forEach(child => graph.addEdge(arg.id, child.id));
+    }
+  }
+  
+  return graph;
 }
 ```
 
@@ -314,4 +339,13 @@ function computePositions(treePosition, rootId, connections) {
 
 ## Summary
 
-This data model reflects the true nature of the Proof Editor: a tool for **constructing logical arguments through shared Statements**. Statements are first-class entities that atomic arguments reference. When users create connections, they're establishing that a Statement functions in multiple roles - as a conclusion in one argument and a premise in another. The system stores these Statement relationships and computes the emergent tree structures that result.
+This data model reflects the true nature of the Proof Editor: a tool for **constructing logical arguments through shared Statements**. Statements are first-class entities that atomic arguments reference. When users branch from a Statement, they're reusing it in a new context - what was a conclusion becomes a premise. 
+
+The beauty of this model is its simplicity: no separate connection table is needed. Connections emerge naturally from the data - when atomic arguments share Statement references, they're connected. The system discovers these relationships and computes the argument trees that result.
+
+This approach provides:
+- **Semantic clarity**: Connections exist because Statements are shared
+- **Data integrity**: No connection/Statement mismatch possible
+- **Edit resilience**: Statement text can change without breaking relationships
+- **Performance**: Direct lookups via Statement IDs
+- **Simplicity**: Fewer entities to manage and synchronize

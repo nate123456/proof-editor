@@ -18,81 +18,43 @@ Proof Editor uses YAML format with `.proof` extension for maximum readability, v
 # Example: Socrates Mortality Proof
 version: "1.0"
 title: "Socrates Mortality Argument"
-author: "Plato"
-created: 2024-01-15T10:30:00Z
-modified: 2024-01-15T14:22:00Z
 
-# Statements are defined once and referenced by ID
+# Statements defined as simple key-value pairs
 statements:
-  - id: stmt1
-    text: "All men are mortal"
-  - id: stmt2  
-    text: "Socrates is a man"
-  - id: stmt3
-    text: "Socrates is mortal"
-  - id: stmt4
-    text: "Humans are biological entities"
-  - id: stmt5
-    text: "All biological entities eventually die"
-  - id: stmt6
-    text: "Socrates is a human"
-  - id: stmt7
-    text: "All humans are men"
+  s1: "All men are mortal"
+  s2: "Socrates is a man"
+  s3: "Socrates is mortal"
+  s4: "Humans are biological entities"
+  s5: "All biological entities eventually die"
+  s6: "Socrates is a human"
+  s7: "All humans are men"
 
-# Document can contain multiple argument trees
+# Atomic arguments reference Statement IDs
+arguments:
+  arg1:
+    premises: [s1, s2]
+    conclusions: [s3]
+    rule: "Modus Ponens"
+  arg2:
+    premises: [s4, s5]
+    conclusions: [s1]  # Reuses Statement s1
+    rule: "Categorical Syllogism"
+  arg3:
+    premises: [s6, s7]
+    conclusions: [s2]  # Reuses Statement s2
+    rule: "Definition"
+
+# Trees define spatial organization
+# When position defaults to [0, 0], use simplified format:
 trees:
-  main:
-    # Root atomic argument
-    - id: arg1
-      premise-ids: [stmt1, stmt2]
-      conclusion-ids: [stmt3]
-      rule: "Modus Ponens"  # Side label
-      
-      # Children of this argument
-      branches:
-        # Child 1: Exploring "All men are mortal"
-        - id: arg2
-          shared-statement: stmt1  # Shares this Statement with parent
-          premise-ids: [stmt4, stmt5]
-          conclusion-ids: [stmt1]  # Same Statement as parent's premise
-          rule: "Categorical Syllogism"
-          
-        # Child 2: Exploring "Socrates is a man"  
-        - id: arg3
-          shared-statement: stmt2  # Shares this Statement with parent
-          premise-ids: [stmt6, stmt7]
-          conclusion-ids: [stmt2]  # Same Statement as parent's premise
-          rule: "Definition"
-
-# Separate tree in same document
-  auxiliary:
-    - id: arg4
-      premise-ids: [stmt8]
-      conclusion-ids: [stmt9]
-      
-# Additional statements for auxiliary tree
-statements:
-  - id: stmt8
-    text: "Mortality implies finite existence"
-  - id: stmt9
-    text: "Finite existence is bounded"
-      
-# Positions stored separately for clean diffs
-positions:
-  main:
-    x: 0
-    y: 0
-    # Individual positions computed from tree structure
-    # Only tree position is stored
-  auxiliary:
-    x: 500
-    y: 0
+  main: arg1  # Simplified format for default position
+  exploration:
+    root: arg2
+    position: [300, 200]  # Explicit format when non-default position
 
 # Optional metadata
-metadata:
-  logic-system: "classical-propositional"
-  tags: ["philosophy", "logic", "example"]
-  description: "Classic syllogism demonstrating modus ponens"
+tags: ["philosophy", "logic", "modus-ponens"]
+description: "Classic syllogism with supporting arguments"
 ```
 
 ## Key Design Decisions
@@ -102,48 +64,59 @@ metadata:
 - Arguments nest naturally within trees
 - Connections implicit through nesting
 
-### 2. **Clean Premise/Conclusion Structure**
+### 2. **Simple Statement Structure**
 ```yaml
-# Statements defined separately
+# Statements as direct key-value pairs
 statements:
-  - id: s1
-    text: "First premise"
-  - id: s2
-    text: "Second premise"
-  - id: s3
-    text: "The conclusion"
+  s1: "First premise"
+  s2: "Second premise"
+  s3: "The conclusion"
 
-# Atomic argument references Statements
-- id: arg1
-  premise-ids: [s1, s2]
-  conclusion-ids: [s3]
-  rule: "Rule name"  # Side label
+# Atomic arguments reference Statement IDs
+arguments:
+  arg1:
+    premises: [s1, s2]
+    conclusions: [s3]
+    rule: "Rule name"  # Side label
 ```
 
-### 3. **Connection Representation**
-Connections exist through shared Statements:
-- Parent-child via nesting under `branches:`
-- Shared Statement indicated by `shared-statement: id`
-- Connection is implicit when same Statement ID appears in both arguments
+### 3. **Implicit Connections**
+Connections emerge from shared Statement references:
+- When Statement appears as conclusion in one argument and premise in another
+- No explicit connection objects needed
+- System discovers connections by analyzing Statement usage
 
-### 4. **Minimal Position Data**
+### 4. **Simplified Tree Format**
+Trees can use a compact format when using default position [0, 0]:
+```yaml
+# Compact format (when position is default)
+trees:
+  main: arg1
+  
+# Explicit format (when position is non-default)
+trees:
+  secondary:
+    root: arg2
+    position: [300, 200]
+```
+
+### 5. **Minimal Position Data**
 - Only store tree positions
 - Compute atomic argument positions from structure
 - Keeps diffs clean when editing logic
 
-### 5. **Inline Comments**
+### 6. **Comment Support**
 ```yaml
 statements:
-  - id: s10
-    text: "Complex premise"  # TODO: Needs clarification
-  - id: s11
-    text: "Simple conclusion"
+  s10: "Complex premise"  # TODO: Needs clarification
+  s11: "Simple conclusion"
 
-- id: arg5
-  premise-ids: [s10]
-  conclusion-ids: [s11]
-  # NOTE: This step might be controversial
-  rule: "Disputed inference"
+arguments:
+  arg5:
+    premises: [s10]
+    conclusions: [s11]
+    # NOTE: This step might be controversial
+    rule: "Disputed inference"
 ```
 
 ## Alternative Structures Considered
@@ -159,7 +132,7 @@ connections:
   - from: arg1.conclusion
     to: arg2.premise[0]
 ```
-**Rejected**: Less readable, worse diffs
+**Rejected**: Less readable, worse diffs, and connections emerge naturally from shared Statement references
 
 ### Option B: Graph-Like
 ```yaml
@@ -182,25 +155,25 @@ edges:
 4. **Validation**: YAML schema can enforce structure
 5. **Extensibility**: Easy to add new fields without breaking
 
-## Migration Path
+## Forward Compatibility
 
 Future versions can add fields while maintaining compatibility:
 ```yaml
 version: "1.1"
+
 statements:
-  - id: s1
-    text: "P"
-    tags: ["axiom"]  # New in v1.1
-  - id: s2
-    text: "Q"
-    
+  s1: "P"
+  s2: "Q"
+
+arguments:
+  arg1:
+    premises: [s1]
+    conclusions: [s2]
+    confidence: 0.95  # New field in v1.1
+    validated: true   # New field in v1.1
+
 trees:
-  main:
-    - id: arg1
-      premise-ids: [s1]
-      conclusion-ids: [s2]
-      confidence: 0.95  # New in v1.1
-      validated: true   # New in v1.1
+  main: arg1  # Simplified format when position is default [0, 0]
 ```
 
 ## File Association
