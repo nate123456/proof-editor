@@ -1,133 +1,39 @@
 # Documents
 
-## Definition
+See [Key Terms](./key-terms.md#document) for the definition.
 
-A document is the canvas where atomic arguments are placed and connected. It provides spatial organization, persistent storage, and contextual grouping for related logical work. Argument trees emerge from the connections between atomic arguments within the document.
+## What Documents Do
 
-## Document as Workspace
+Documents are workspaces where you:
+- Create and position atomic arguments
+- Connect them to form proofs
+- Save and share your logical work
+
+Think of them as infinite canvases for proof construction.
+
+## Key Features
 
 ### Infinite Canvas
-- No artificial boundaries
-- Zoom and pan freely
-- Place atomic arguments anywhere
-- Natural spatial organization
-
-### Multiple Trees
-- Related proofs in one place
-- Independent theorem development
-- Visual separation of concerns
-- Cross-tree connections possible
-
-## Document Properties
-
-### Metadata
-- Title and description
-- Author information
-- Creation/modification dates
-- Tags and categories
-- Version information
+- **Pan**: Click and drag to navigate
+- **Zoom**: Scroll or pinch to zoom in/out
+- **Auto-fit**: Double-click background to fit all content
+- **Mini-map**: Overview panel for large proofs
 
 ### Organization
-- Visual layout preserved
-- Logical grouping of trees
-- Annotation areas
-- Reference sections
+- **Spatial layout**: Place atomic arguments anywhere
+- **Multiple trees**: Work with related proofs in one space
+- **Grouping**: Select and group related arguments
+- **Layers**: Show/hide different parts of complex proofs
 
-## Interaction Model
+### Document Types
+- **Working documents**: Editable spaces for active proof development
+- **Presentation documents**: Read-only views optimized for sharing
+- **Templates**: Pre-structured documents for common proof patterns
 
-### Spatial Navigation
-- Minimap overview
-- Zoom to specific areas
-- Bookmark important locations
-- Smart camera controls
+### Persistence & Sharing
+- **Auto-save**: Changes saved continuously
+- **Version history**: Track and revert changes
+- **Export**: PDF, image, or interactive formats
+- **Collaboration**: Real-time multi-user editing
 
-### Content Management
-- Add new atomic arguments anywhere
-- Move connected atomic arguments (argument trees) as units
-- Group related content
-- Layer management
-
-## Document Types
-
-### Working Documents
-- Active proof development
-- Messy, exploratory
-- Multiple attempts visible
-- Thinking made visible
-
-### Presentation Documents
-- Cleaned up for sharing
-- Clear narrative flow
-- Hidden complexity
-- Publication ready
-
-### Template Documents
-- Reusable proof patterns
-- Domain-specific starters
-- Educational scaffolds
-- Best practices
-
-## Collaboration Features
-
-### Shared Workspace
-- Multiple users simultaneously
-- See others' cursors
-- Real-time updates
-- Conflict resolution
-
-### Permissions
-- View-only access
-- Comment and annotate
-- Edit specific trees
-- Full collaboration
-
-## Document Lifecycle
-
-### Creation
-- Start from blank canvas
-- Use templates
-- Import existing proofs
-- Fork from others
-
-### Development
-- Iterative refinement
-- Save checkpoints
-- Branch explorations
-- Track changes
-
-### Sharing
-- Publish publicly
-- Share with teams
-- Export formats
-- Embed in publications
-
-## Advanced Features
-
-### Cross-References
-- Link between documents
-- Import trees from others
-- Build document libraries
-- Create proof wikis
-
-### Annotations
-- Freeform notes
-- Callouts and explanations
-- Visual markers
-- Teaching annotations
-
-### Automation
-- Auto-layout options
-- Style applications
-- Batch operations
-- Smart organization
-
-## Document Philosophy
-
-### Thinking Space
-Documents aren't just containers - they're thinking spaces where ideas develop, connect, and mature.
-
-### Persistent Context
-Unlike ephemeral whiteboards, documents preserve not just the final proof but the journey of discovery.
-
-### Social Objects
-Documents become objects of collaboration, teaching, and knowledge sharing in the community.
+Documents separate logical structure (the connections) from visual layout (where things appear on screen).

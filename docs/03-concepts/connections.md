@@ -1,121 +1,51 @@
 # Connections
 
-## Definition
+See [Key Terms](./key-terms.md#connections) for definitions of direct connection and connected.
 
-Connections represent the logical flow between atomic arguments. Two atomic arguments are directly connected when a conclusion of one atomic argument functions as a premise in the other. Atomic arguments are connected when there is a path of directly connected atomic arguments between them.
+## How Connections Work
 
-## Types of Connections
+Users create connections by:
+1. Selecting a conclusion string from an atomic argument
+2. Choosing to "branch off" from it
+3. Creating a new atomic argument where that string becomes a premise
 
-### Direct Connection
-Atomic arguments are directly connected when a conclusion of one atomic argument functions as a premise in the other. This forms the basic link in chains of logical reasoning.
+The system tracks these as explicit logical links, not automatic string matching.
 
-*Example visualization (using one possible notation and layout):*
+## Visual Example
+
 ```
-Atomic Argument 1:    P, P → Q        Atomic Argument 2:    Q, Q → R
-                      ─────────                           ─────────
-                          Q ─────────connection────────→ R
-```
+[Atomic Argument A]
+P₁, P₂
+────────
+C₁, C₂ ─────┐
+            │
+            ↓
+      [Atomic Argument B]
+      C₂, P₃
+      ────────
+      C₃
 
-In this example, the conclusion "Q" from Atomic Argument 1 is used as a premise in Atomic Argument 2, creating a direct connection.
-
-### Connected Arguments
-Atomic arguments are connected when there is a path of directly connected atomic arguments between them. This transitive relationship allows for complex proof structures.
-
-### Shared Statement
-Multiple atomic arguments may use the same conclusion as their premise.
-
-*Example of shared statements:*
-```
-                           ┌→ Atomic Argument 2 (uses Q)
-Atomic Argument 1 (produces Q)
-                           └→ Atomic Argument 3 (uses Q)
+Direct connection: C₂ from A becomes premise in B
 ```
 
-This shows how one conclusion can serve as a premise for multiple atomic arguments. The actual visual representation depends on the chosen visualization system.
+## Establishing Connections
 
-## Visualization Options
+### Manual Connection
+1. Click a conclusion in the source atomic argument
+2. Select "Use as premise" from context menu
+3. Position and create the new atomic argument
+4. The conclusion automatically appears as a premise
 
-*Note: How connections are displayed depends entirely on the visualization layer. Here are some possibilities that a visualization system might implement:*
+### Assisted Connection
+1. Select multiple atomic arguments
+2. Choose "Auto-connect" tool
+3. System suggests valid connections based on matching strings
+4. Confirm or modify suggested connections
 
-### Possible Visual Representations
-- Lines or arrows between atomic arguments
-- Color coding to show relationships
-- Proximity-based grouping
-- Animation to show logical flow
-- Highlighting for emphasis
-- Alternative representations (e.g., containment, layering, 3D relationships)
+## Key Properties
 
-### Interaction Possibilities
-- Direct manipulation of connections
-- Visual feedback during editing
-- Multiple viewing modes
-- Filtering and focusing options
+- **Directional**: Conclusions flow INTO premises
+- **Intentional**: Created by user action, not discovered
+- **Acyclic**: No circular reasoning (enforced by DAG structure)
 
-## Connection Rules
-
-### Valid Connections
-- Exact string matching (initially)
-- Type compatibility (in typed systems)
-- No circular dependencies
-- Maintains logical dependency order
-
-### Invalid Connections
-- Cannot connect premise to premise
-- Cannot connect conclusion to conclusion
-- Cannot create circular reasoning
-- Must respect atomic argument dependencies
-
-## Connection Management
-
-### Establishing Connections
-Connections are established when:
-- A string in one atomic argument's conclusion tuple matches a string in another's premise tuple
-- The system recognizes semantic equivalence (based on the language layer's rules)
-- Users explicitly create connections between compatible statements
-
-**Implementation Note**: While connections conceptually *emerge* from string relationships, they may be *stored* as explicit entities for performance and to support features like manual override, confidence scoring, and connection metadata. See [Technical Design](../08-technical-design/conceptual-data-model.md) for details.
-
-### Connection Operations
-- Create new connections
-- Remove existing connections
-- Query connection relationships
-- Validate connection consistency
-
-## Semantic Importance
-
-### Proof Flow
-Connections define how logic flows through a proof. They transform isolated atomic arguments into coherent reasoning.
-
-### Dependency Tracking
-By following connections, we can:
-- Identify what depends on what
-- Find all uses of a statement
-- Trace reasoning paths
-- Detect missing links
-
-### Validation Foundation
-Connections enable:
-- Checking logical consistency
-- Identifying unsupported claims
-- Verifying complete proofs
-- Finding shortest proof paths
-
-## Advanced Features
-
-### Connection Metadata
-- Strength or confidence levels
-- Alternative connection types
-- Temporal ordering
-- Domain-specific properties
-
-### Smart Connections
-- Auto-suggest likely connections
-- Pattern-based matching
-- Fuzzy matching for variants
-- Connection inference
-
-### Layout Independence
-- Connections exist independently of visual layout
-- Multiple visualization strategies possible
-- Layout algorithms can optimize for different goals
-- Semantic structure preserved regardless of visual presentation
+Multiple atomic arguments can use the same conclusion as their premise, creating convergent reasoning paths.

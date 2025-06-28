@@ -4,9 +4,10 @@
 
 This documentation presents the conceptual design for Proof Editor - a platform combining visual representation of logical structures with integrated development environment capabilities and extensible logic systems.
 
-## Technical Foundation
+## Key References
 
-**[Technical Definitions](08-technical-design/technical-definitions.md)** - Precise definitions of all key terms with implementation details.
+**[Key Terms](03-concepts/key-terms.md)** - Canonical definitions of all core concepts.
+**[Technical Implementation](08-technical-design/technical-definitions.md)** - Developer-focused implementation details.
 
 ## Document Organization
 
@@ -30,7 +31,7 @@ This documentation presents the conceptual design for Proof Editor - a platform 
 
 **Core Components:**
 - [Atomic Arguments](03-concepts/atomic-arguments.md)
-- [DAG Data Model](08-technical-design/dag-data-model.md)
+- [Argument Trees](03-concepts/trees.md)
 - [Visual Construction](05-capabilities/visual-proof.md)
 - [IDE Features](05-capabilities/ide-features.md)
 - [Custom Logic Systems](06-ecosystem/custom-logic.md)

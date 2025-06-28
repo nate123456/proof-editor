@@ -1,85 +1,113 @@
-# Technical Definitions
+# Technical Implementation Definitions
 
-This document provides precise technical definitions for key terms used throughout the Proof Editor documentation. These are engineering specifications, not philosophical concepts.
+This document provides implementation-level specifications for how the Proof Editor system realizes domain concepts in code. These are engineering details for developers, not conceptual definitions for users.
+
+**IMPORTANT**: This is an implementation document. For domain concepts and user-facing definitions, see [DDD Glossary](../03-concepts/ddd-glossary.md) and [Key Terms](../03-concepts/key-terms.md).
 
 ## Core Data Structures
 
-### Atomic Argument
-**Definition**: A data structure representing a single inference step.
-```
-{
-  id: string,              // Unique identifier (UUID)
-  premises: string[],      // Array of premise statements
-  conclusions: string[],   // Array of conclusion statements
+### AtomicArgumentEntity
+**Purpose**: Data structure that stores the information defining an atomic argument relation.
+**Domain concept**: Represents an atomic argument (a relation between two ordered n-tuples of strings).
+```typescript
+interface AtomicArgumentEntity {
+  id: string;              // Unique identifier (UUID)
+  premises: string[];      // Array storing the premise n-tuple
+  conclusions: string[];   // Array storing the conclusion n-tuple
   metadata?: {            // Optional metadata
-    ruleName?: string,
-    sideLabels?: string[]
-  }
+    ruleName?: string;
+    sideLabels?: string[];
+    createdAt: number;
+    modifiedAt: number;
+  };
 }
 ```
 **Example**: `{id: "a1b2c3", premises: ["A", "A→B"], conclusions: ["B"], metadata: {ruleName: "MP"}}`
-**Note**: Position and dimensions are stored separately in spatial_position, not in the atomic argument itself. Validation state is computed, not stored.
-**See**: [Conceptual Data Model](08-technical-design/conceptual-data-model.md) for complete specification
+**Implementation notes**: 
+- Position and dimensions are stored separately in SpatialPositionEntity
+- Validation state is computed on demand, not stored
+- The ID enables efficient reference and indexing
 
-### Connection
-**Definition**: An explicit link between two atomic arguments connecting a specific conclusion in one argument to a specific premise in another.
-```
-{
-  id: string,
+### ConnectionEntity
+**Purpose**: Data structure that explicitly stores a direct connection between atomic arguments.
+**Domain concept**: Represents a direct connection (when a conclusion of one atomic argument IS a premise in another - an intentional logical link created by the user).
+```typescript
+interface ConnectionEntity {
+  id: string;
   source: {
-    atomicArgumentId: string,
-    conclusionIndex: number
-  },
+    atomicArgumentId: string;
+    conclusionIndex: number;
+  };
   target: {
-    atomicArgumentId: string,
-    premiseIndex: number
-  }
+    atomicArgumentId: string;
+    premiseIndex: number;
+  };
+  metadata?: {
+    creationMethod: 'manual' | 'assisted' | 'semantic';
+    confidence?: number;
+    createdAt: number;
+  };
 }
 ```
-**Note**: Connections are stored explicitly rather than computed from string matching to support manual overrides and semantic equivalence.
+**Why explicit storage**: 
+- Connections are user-created logical links, not discovered patterns
+- Supports semantic equivalence as determined by users
+- Provides O(1) lookup performance
+- Allows connection-specific metadata and audit trail
 
-### Argument
-**Definition**: A set of atomic arguments where every pair in the set is connected AND all atomic arguments in the paths connecting those pairs are included. An argument maintains path-completeness but may be a subset of a larger structure.
+### Argument (Computed Concept)
+**Purpose**: Algorithm output representing a path-complete subset of atomic arguments.
+**Domain concept**: An argument (a set of atomic arguments with complete paths between all pairs).
+**Implementation**: Not stored as an entity. Computed on-demand through graph traversal.
+
+**Computation Properties**:
+- Path-complete: Algorithm ensures no missing intermediate steps
+- Extractable: Can compute valid sub-arguments from larger structures
+- Cacheable: Results may be cached for performance
+
+### Argument Tree (Computed Concept)
+**Purpose**: Algorithm output representing the maximal connected component.
+**Domain concept**: An argument tree (contains ALL atomic arguments connected to any members).
+**Implementation**: Discovered through connected component analysis of the DAG.
+
+```typescript
+// Example computation result (not stored entity)
+interface ComputedArgumentTree {
+  atomicArgumentIds: Set<string>;  // All members of this tree
+  metadata: {
+    rootIds: string[];    // Computed: nodes with no incoming edges
+    leafIds: string[];    // Computed: nodes with no outgoing edges  
+    depth: number;        // Computed: longest path length
+    size: number;         // Computed: total node count
+  };
+}
+```
 
 **Key Properties**:
-- Path-complete: No missing intermediate steps
-- May be extracted from a larger proof
-- Useful for creating reusable sub-proofs
+- Discovered, not created: Emerges from connection structure
+- Unique: Graph theory guarantees uniqueness
+- Maximal: Cannot add more without connecting separate trees
 
-### Argument Tree
-**Definition**: A special type of argument that contains ALL atomic arguments connected to any of its members. Represents the maximal connected component in the DAG.
-```
-{
-  id: string,
-  atomicArgumentIds: Set<string>,
+### DocumentEntity
+**Purpose**: Data structure storing workspace metadata and configuration.
+**Domain concept**: Represents a document (workspace for viewing and arranging atomic arguments).
+```typescript
+interface DocumentEntity {
+  id: string;
+  title: string;
   metadata: {
-    rootIds: string[],    // Arguments with no incoming connections
-    leafIds: string[],    // Arguments with no outgoing connections
-    depth: number         // Longest path from root to leaf
-  }
+    createdAt: number;
+    modifiedAt: number;
+    author?: string;
+    description?: string;
+    languageLayerId?: string;
+  };
 }
 ```
-
-**Key Properties**:
-- Maximal: Contains every connected atomic argument
-- Unique: If two trees share any member, they are identical
-- Complete: No atomic arguments can be added without breaking the tree boundary
-
-### Document
-**Definition**: A workspace container with metadata. The actual atomic arguments and connections exist independently and are referenced through spatial positions.
-```
-{
-  id: string,
-  title: string,
-  metadata: {
-    created_at: timestamp,
-    modified_at: timestamp,
-    author?: string,
-    description?: string
-  }
-}
-```
-**Note**: Documents don't "contain" atomic arguments - they provide a canvas where atomic arguments are positioned. The DAG structure (atomic arguments + connections) exists independently of any particular document view.
+**Implementation insight**: Documents reference atomic arguments through spatial positions, not direct containment. This enables:
+- Same atomic argument appearing in multiple documents
+- Independent persistence of logical structure and layout
+- Multiple views of the same proof
 
 ## System Components
 
@@ -90,11 +118,12 @@ This document provides precise technical definitions for key terms used througho
 - Validation rules for the specific logic system
 
 **Interface**:
-```
+```typescript
 interface LanguageLayer {
-  parse(content: string[]): ParsedExpression[]
-  format(expressions: ParsedExpression[]): DisplayElement
-  validate(argument: AtomicArgument): ValidationResult
+  parse(content: string[]): ParsedExpression[];
+  format(expressions: ParsedExpression[]): DisplayElement;
+  validate(argumentEntity: AtomicArgumentEntity): ValidationResult;
+  detectEquivalence?(str1: string, str2: string): boolean;
 }
 ```
 
@@ -124,11 +153,15 @@ User interaction through dragging, connecting, and arranging visual elements tha
 - Language layers interpret string content
 - No built-in logical semantics
 
-### Tree Structure Choice
+### DAG Implementation Choice
+**Domain term**: Tree (how users conceptualize proof structures)
+**Implementation**: Directed Acyclic Graph (DAG)
+**Why DAGs**:
+- Prevents circular reasoning (acyclic property)
+- Allows convergent paths (multiple premises → same conclusion)
 - Enables efficient validation algorithms
-- Supports clear visualization layouts
-- Allows hierarchical navigation
-- Not a claim about the nature of logic
+- Supports hierarchical visualization
+- Natural fit for connected component analysis
 
 ### Validation
 - Performed by language layers
@@ -136,9 +169,16 @@ User interaction through dragging, connecting, and arranging visual elements tha
 - Verifies inference rule application
 - User-definable per logic system
 
-## What This System Is NOT
+## Implementation Philosophy
 
-- **Not a theory of logic**: It's a tool for constructing proofs
-- **Not philosophically complete**: It handles tree-structured proofs by design
-- **Not making universal claims**: It's adaptable to many use cases, not all possible ones
-- **Not defining logic**: Users define their logic through language layers
+### What This Implementation Does
+- **Stores user-created entities**: Atomic arguments, connections, documents, positions
+- **Computes derived concepts**: Arguments, trees, validation states
+- **Optimizes for performance**: Indices, caches, incremental updates
+- **Separates concerns**: Logic, layout, and metadata in different structures
+
+### What This Implementation Doesn't Do
+- **Doesn't define logic**: That's the language layer's job
+- **Doesn't enforce one visualization**: That's the visualization layer's job
+- **Doesn't store computed data**: Only caches for performance
+- **Doesn't make philosophical claims**: It's engineering, not philosophy

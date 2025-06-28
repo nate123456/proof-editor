@@ -1,10 +1,22 @@
-# DAG Data Model Specification
+# DAG Implementation Specification
 
 ## Overview
 
-This document provides an **implementation-focused** specification of the data structures for representing atomic arguments and their connections as directed acyclic graphs (DAGs). It addresses technical requirements for efficient storage, manipulation, and validation of proof structures including arguments and argument trees.
+This document specifies the concrete implementation of domain concepts using directed acyclic graphs (DAGs). It details data structures, algorithms, and optimizations for efficiently storing and manipulating proof structures.
 
-**Note**: For the conceptual model that aligns with the project vision, see [Conceptual Data Model](conceptual-data-model.md). This document includes implementation details like caching, indices, and performance optimizations that go beyond the pure conceptual model.
+**CRITICAL**: This is a pure implementation document for developers. Users think in terms of "trees" - we implement these as DAGs. For domain concepts, see [DDD Glossary](../03-concepts/ddd-glossary.md).
+
+## Implementation Context
+
+In the domain language:
+- Users work with **argument trees** (complete connected proofs)
+- Trees **emerge** from connections between atomic arguments
+- Trees are **discovered**, not created
+
+In the implementation:
+- We use **DAGs** to represent these trees
+- DAGs naturally prevent circular reasoning
+- DAGs allow convergent paths (multiple premises → same conclusion)
 
 ## Core Data Structures
 
@@ -258,6 +270,11 @@ interface SerializedDAG {
     premises: string[];
     conclusions: string[];
     metadata: Record<string, unknown>;
+  }[];
+  
+  // Positions stored separately to maintain separation of concerns
+  positions: {
+    atomicArgumentId: string;
     position: Position;
   }[];
   
@@ -307,13 +324,13 @@ The index structures enable:
 - Quick validation checks
 - Incremental updates
 
-### Why Position in AtomicArgument?
+### Spatial Data Separation
 
-Storing position directly:
-- Avoids separate layout structure
-- Simplifies persistence
-- Enables spatial queries
-- Supports multiple views of same DAG
+Position data is stored separately from atomic arguments:
+- AtomicArgument contains logical content only
+- Positions stored in separate collection
+- Enables multiple views of same content
+- Clean separation of concerns
 
 ## Open Questions
 

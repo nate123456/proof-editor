@@ -2,7 +2,16 @@
 
 ## Custom Script Processing for Argument Trees
 
-The analysis capability allows users to create, edit, and share custom scripts to process their argument trees in whatever way is useful to them. This extensibility ensures the platform can adapt to diverse domains and evolving analytical needs.
+**Status**: Future Capability - Requires Design
+
+The analysis capability envisions allowing users to create, edit, and share custom scripts to process their argument trees. This would provide extensibility for diverse domains and evolving analytical needs.
+
+**Note**: This capability requires significant technical design work including:
+- Security model and sandboxing architecture
+- Script language selection or design
+- API design for tree manipulation
+- Performance considerations for large proofs
+- Integration with language layers
 
 ## Core Functionality
 

@@ -2,7 +2,9 @@
 
 ## Overview
 
-This document presents a conceptual model of the Proof Editor data structures, focusing on the essential entities and relationships while maintaining alignment with the project's core concepts.
+This document bridges domain concepts and their technical implementation. It shows how the pure logical concepts (atomic arguments as relations, connections as logical flow, trees as maximal connected components) map to concrete data structures and algorithms.
+
+**Note**: This is a technical design document. For pure domain concepts, see [DDD Glossary](../03-concepts/ddd-glossary.md).
 
 ## Core Principle: Separation of Concerns
 
@@ -185,11 +187,12 @@ These are facts discovered from analyzing empirical data:
 ## Key Design Decisions
 
 ### 1. Connections as First-Class Entities
-While connections *emerge* from string matching, they are *stored* as entities because:
-- Users can override automatic detection
-- Language layers define equivalence beyond string matching
-- Connections carry metadata (confidence, creation method)
-- Performance requires indexed lookups
+Connections (logical relationships) exist when conclusions function as premises. We store these connections explicitly because:
+- Users need to override incorrect automatic detection
+- Language layers define semantic equivalence beyond string equality
+- Connections carry important metadata (confidence scores, creation method)
+- Performance demands O(1) lookup rather than repeated string comparison
+- The stored connection represents the user's confirmation of logical flow
 
 ### 2. Separation of Position from Logic
 Atomic arguments contain only logical content. Spatial information is stored separately:

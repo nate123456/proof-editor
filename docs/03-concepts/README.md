@@ -1,32 +1,21 @@
 # Core Concepts
 
-## The Building Blocks of Proof Editor
+Start with [Key Terms](key-terms.md) - the canonical source for all definitions.
 
-These fundamental concepts form the foundation of how Proof Editor represents and manipulates logical reasoning. Understanding these concepts is essential for grasping the platform's approach.
+## Essential Reading
 
-## In This Section
+1. **[Key Terms](key-terms.md)** - All core definitions in one place
+2. **[DDD Glossary](ddd-glossary.md)** - Domain vs implementation language mappings
+3. **[Argument Hierarchy](argument-hierarchy.md)** - The critical three-level distinction
 
-### [Key Terms](key-terms.md)
-Essential definitions and concepts - start here for a conceptual overview.
+## Concept Deep Dives
 
-### [Atomic Arguments](atomic-arguments.md)
-The fundamental unit of reasoning - a single logical step.
-
-### [Argument Hierarchy](argument-hierarchy.md)
-**CRITICAL**: The three-level distinction between atomic arguments, arguments, and argument trees.
-
-### [Connections](connections.md)
-How atomic arguments link together to form chains of reasoning.
-
-### [Trees](trees.md)
-Collections of connected atomic arguments forming complete proofs.
-
-### [Documents](documents.md)
-The canvas where proof trees live and interact.
-
-### [Language Layer](language-layer.md)
-The customizable system that separates logical structure from presentation.
+- **[Atomic Arguments](atomic-arguments.md)** - Structure and examples
+- **[Connections](connections.md)** - How logical flow works
+- **[Trees](trees.md)** - Complete proof structures
+- **[Documents](documents.md)** - Workspaces for proof construction
+- **[Language Layer](language-layer.md)** - Domain customization system
 
 ## Design Philosophy
 
-These concepts aren't arbitrary - they emerge from how humans naturally think about logical reasoning. By aligning our tool with mental models, we create an intuitive yet powerful system.
+These concepts align with how humans naturally think about logical reasoning, creating an intuitive yet powerful system.

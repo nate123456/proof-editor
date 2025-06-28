@@ -1,31 +1,44 @@
 # Key Terms and Concepts
 
-## Overview
-
-This document provides conceptual definitions for the fundamental terms used throughout the Proof Editor documentation. For technical implementation details, see [Technical Definitions](../08-technical-design/technical-definitions.md).
+This is the canonical source for all conceptual definitions in Proof Editor. Other documents reference these definitions rather than redefining them.
 
 ## Core Concepts
 
 ### Atomic Argument
-A single step of logical inference - the fundamental building block of all proofs. Contains premises (what we start with), conclusions (what we derive), and the logical relationship between them.
+A single step of logical inference - the fundamental building block. Contains:
+- **Premises**: Ordered strings above the line (what we start with)
+- **Conclusions**: Ordered strings below the line (what follows)
+- **Implication line**: Visual separator between premises and conclusions
 
-### Direct Connection
-When a conclusion from one atomic argument serves as a premise in another atomic argument, they are directly connected.
+### Connections
 
-### Connected
-When there is a path of direct connections between two atomic arguments, they are connected.
+#### Direct Connection
+When a conclusion from one atomic argument IS a premise in another through user action. Created by selecting a conclusion and branching off from it.
 
-### Argument
-A set of atomic arguments that is **path-complete** - meaning every pair in the set is connected, and all atomic arguments in the paths between them are included. An argument can be a subset of a larger proof structure.
+#### Connected
+When there's a path of direct connections between atomic arguments (transitive relationship).
 
-### Argument Tree
-A special type of argument that contains ALL atomic arguments connected to any of its members. This is the maximal connected component - if two argument trees share any atomic argument, they are the same tree.
+### Arguments
 
-### Document
-A workspace or canvas where atomic arguments are created, positioned, and connected. Documents provide the visual and organizational context for logical work.
+#### Path
+A directed sequence of atomic arguments where conclusions flow into premises.
 
-### Language Layer
-The customizable component that interprets and displays the logical content. It defines how strings in atomic arguments are understood, validated, and presented to users.
+#### Path-Complete
+A set where ALL atomic arguments in connecting paths are included. No logical steps missing.
+
+#### Argument
+A path-complete set of connected atomic arguments. Can be a subset of a larger proof.
+
+#### Argument Tree
+The maximal connected component - contains ALL atomic arguments connected to any members. If two trees share any atomic argument, they are the same tree.
+
+### System Components
+
+#### Document
+A workspace where atomic arguments are created, positioned, and connected.
+
+#### Language Layer
+Customizable component that interprets strings, provides validation, and defines display formatting.
 
 ## Important Distinctions
 
