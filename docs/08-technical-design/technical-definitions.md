@@ -25,7 +25,7 @@ interface AtomicArgumentEntity {
   };
 }
 ```
-**Key insight**: Position and dimensions are stored separately. The implication line (stroke) is the focusable UI element for creating connections.
+**Key insight**: Positions are computed from tree structure. The implication line (stroke) is the focusable UI element for creating connections.
 
 ### ConnectionEntity
 **Purpose**: Data structure that explicitly stores an intentional parent-child relationship between atomic arguments.
@@ -95,22 +95,41 @@ interface DocumentEntity {
   };
 }
 ```
-**Key design**: Documents don't contain atomic arguments directly - they reference them through spatial positions.
+**Key design**: Documents don't contain atomic arguments directly - they reference argument trees through tree positions.
 
-### SpatialPositionEntity
-**Purpose**: Data structure linking atomic arguments to their visual positions in documents.
+### TreePositionEntity
+**Purpose**: Data structure anchoring argument trees in documents.
 ```typescript
-interface SpatialPositionEntity {
+interface TreePositionEntity {
+  id: string;
+  documentId: string;
+  rootArgumentId: string;  // Which atomic argument is the tree root
+  x: number;               // Tree anchor X coordinate
+  y: number;               // Tree anchor Y coordinate
+  layoutStyle: 'top-down' | 'bottom-up' | 'left-right' | 'right-left' | 'radial';
+  layoutParams: {
+    nodeWidth: number;
+    nodeHeight: number;
+    horizontalSpacing: number;
+    verticalSpacing: number;
+    alignChildren: 'center' | 'left' | 'right';
+  };
+}
+```
+**Key principle**: Individual atomic arguments get their positions computed from the tree structure and layout algorithm.
+
+### PositionOverrideEntity
+**Purpose**: Optional data structure for manual position adjustments.
+```typescript
+interface PositionOverrideEntity {
   id: string;
   atomicArgumentId: string;
   documentId: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
+  xOffset: number;  // Offset from computed position
+  yOffset: number;  // Offset from computed position
 }
 ```
-**Enables**: Same atomic argument appearing in multiple documents with different positions.
+**Enables**: Fine-tuning of automatic layout when needed.
 
 ## System Components
 
@@ -140,8 +159,9 @@ interface LanguageLayer {
 **Connection Creation Flow**:
 1. User selects stroke (implication line)
 2. User presses branch key (e.g., 'b')
-3. System creates child atomic argument
-4. System creates connection linking parent conclusion to child premise
+3. System identifies the selected conclusion Statement
+4. System creates child atomic argument referencing this Statement as its first premise
+5. System creates connection recording the shared Statement relationship
 
 ## Key Implementation Concepts
 
@@ -165,13 +185,15 @@ interface LanguageLayer {
 **Stored (Empirical)**:
 - Atomic arguments (user creates)
 - Connections (user creates)
-- Positions (user places)
+- Tree positions (user places trees)
+- Position overrides (user adjusts)
 - Documents (user manages)
 
 **Computed (Derived)**:
 - Arguments (from connection traversal)
 - Trees (from connected components)
 - Tree properties (roots, leaves, depth)
+- Atomic argument positions (from tree structure + layout)
 
 ## Implementation Philosophy
 
@@ -199,6 +221,67 @@ Trees emerge from connections, they're not imposed. Multiple parents are allowed
 Language layers validate correctness. Users create connections. These are independent concerns.
 
 ## Implementation Patterns
+
+### Position Computation Algorithm
+```typescript
+function computeAtomicArgumentPosition(
+  atomicArgumentId: string,
+  treePosition: TreePositionEntity,
+  connections: Map<string, ConnectionEntity>,
+  overrides: Map<string, PositionOverrideEntity>
+): { x: number, y: number } {
+  // 1. Find path from root to this atomic argument
+  const path = findPathFromRoot(
+    treePosition.rootArgumentId,
+    atomicArgumentId,
+    connections
+  );
+  
+  // 2. Start at tree anchor
+  let x = treePosition.x;
+  let y = treePosition.y;
+  
+  // 3. Follow path, computing position at each step
+  for (let i = 1; i < path.length; i++) {
+    const parent = path[i - 1];
+    const current = path[i];
+    const siblings = getChildren(parent, connections);
+    const siblingIndex = siblings.indexOf(current);
+    
+    // Compute based on layout style
+    switch (treePosition.layoutStyle) {
+      case 'top-down':
+        y += treePosition.layoutParams.verticalSpacing;
+        x = computeHorizontalOffset(
+          x,
+          siblingIndex,
+          siblings.length,
+          treePosition.layoutParams
+        );
+        break;
+      case 'left-right':
+        x += treePosition.layoutParams.horizontalSpacing;
+        y = computeVerticalOffset(
+          y,
+          siblingIndex,
+          siblings.length,
+          treePosition.layoutParams
+        );
+        break;
+      // ... other layout styles
+    }
+  }
+  
+  // 4. Apply any override
+  const override = overrides.get(atomicArgumentId);
+  if (override) {
+    x += override.xOffset;
+    y += override.yOffset;
+  }
+  
+  return { x, y };
+}
+```
 
 ### Creating a Branch
 ```typescript

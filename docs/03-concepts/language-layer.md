@@ -4,20 +4,20 @@ See [Key Terms](./key-terms.md#language-layer) for the definition.
 
 ## What Language Layers Do
 
-Language layers interpret and display the strings in atomic arguments. They define:
-- How to parse premise/conclusion strings
+Language layers interpret and display the Statements referenced by atomic arguments. They define:
+- How to parse Statement text content
 - Display formatting and symbols
 - Validation rules for the domain
 - Available operators and notation
 
 ## Separation of Concerns
 
-The platform stores strings and connections. Language layers provide meaning:
+The platform stores Statements and connections. Language layers provide meaning:
 
 | Platform | Language Layer |
 |----------|----------------|
-| Stores string tuples | Parses expressions |
-| Tracks connections | Validates logic |
+| Stores Statement entities | Parses Statement text |
+| Tracks connections via shared Statements | Validates logic |
 | Computes trees | Formats display |
 | Manages documents | Defines symbols |
 

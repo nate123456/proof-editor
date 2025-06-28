@@ -4,21 +4,29 @@ This is the canonical source for all conceptual definitions in Proof Editor. Oth
 
 ## Core Concepts
 
+### Statement
+A string of text that can function as a premise or conclusion in atomic arguments. Statements are first-class entities that:
+- Have their own unique identifiers
+- Can appear in multiple atomic arguments
+- Track their parent arguments (where they appear as conclusions)
+- Track their child arguments (where they appear as premises)
+- Maintain their logical relationships even if their text content is edited
+
 ### Atomic Argument
-A relation between two ordered n-tuples of strings. Either n-tuple may be empty.
+A relation between two ordered n-tuples of statements. Either n-tuple may be empty.
 
 Visual representation:
-- **Premises**: The ordered n-tuple of strings above the implication line
-- **Conclusions**: The ordered n-tuple of strings below the implication line  
-- **Implication line**: The horizontal line that uniquely identifies the atomic argument along with its premises and conclusions
+- **Premises**: The ordered n-tuple of statements above the implication line
+- **Conclusions**: The ordered n-tuple of statements below the implication line  
+- **Implication line**: The horizontal line that uniquely identifies the atomic argument
 - **Side labels** (optional): Strings of text extending directly left or right from the implication line
 
-Note: There is only one implication line per atomic argument. The line extends as far as needed to accommodate the text.
+Note: There is only one implication line per atomic argument. The line extends as far as needed to accommodate the text. Atomic arguments reference statements by ID, not by copying their text.
 
 ### Connections
 
 #### Direct Connection
-Atomic arguments are directly connected when a conclusion of one argument functions as a premise in the other.
+Atomic arguments are directly connected when they share a statement - specifically, when a statement that appears as a conclusion in one argument also appears as a premise in the other. This shared statement creates the logical flow between arguments.
 
 #### Connected
 Atomic arguments are connected when there is a path of directly connected arguments between them.
@@ -44,7 +52,7 @@ An argument which contains all atomic arguments connected to any of its members.
 ### System Components
 
 #### Document
-A workspace where atomic arguments are created, positioned, and connected.
+A workspace where atomic arguments are created and connected into trees, with each tree positioned on the canvas.
 
 #### Language Layer
 Customizable component that interprets strings, provides validation, and defines display formatting.

@@ -13,8 +13,8 @@ Validation in Proof Editor goes beyond simple correctness checking. It provides 
 - **Incremental**: Only recheck what changed
 
 ### Multi-Level Validation
-- **Syntax level**: Well-formed statements
-- **Structure level**: Valid connections
+- **Syntax level**: Well-formed Statement text
+- **Structure level**: Valid connections via shared Statements
 - **Logic level**: Sound reasoning
 - **Style level**: Best practices
 

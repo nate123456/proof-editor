@@ -20,6 +20,27 @@ In the implementation:
 
 ## Core Data Structures
 
+### Statement
+
+The fundamental unit of logical content:
+
+```typescript
+interface Statement {
+  id: string;              // UUID v4
+  text: string;            // The actual string content
+  
+  // Tracking relationships
+  parentArguments: Set<string>;  // Atomic arguments where this is a conclusion
+  childArguments: Set<string>;   // Atomic arguments where this is a premise
+  
+  metadata: {
+    createdAt: number;
+    modifiedAt: number;
+    createdBy?: string;
+  };
+}
+```
+
 ### AtomicArgument
 
 The complete data structure for an atomic argument:
@@ -29,9 +50,9 @@ interface AtomicArgument {
   // Unique identifier
   id: string; // UUID v4
   
-  // Content
-  premises: string[];     // Ordered n-tuple
-  conclusions: string[];  // Ordered n-tuple
+  // References to Statements
+  premiseIds: string[];    // Ordered array of Statement IDs
+  conclusionIds: string[]; // Ordered array of Statement IDs
   
   // Metadata
   metadata: {
@@ -53,17 +74,20 @@ interface AtomicArgument {
 
 ### Connection
 
-Explicit representation of intentional parent-child relationships:
+Representation of shared Statement relationships:
 
 ```typescript
 interface Connection {
   id: string;
   
-  // Parent atomic argument and specific conclusion
+  // The shared Statement
+  statementId: string;
+  
+  // Parent atomic argument where Statement is a conclusion
   parentArgumentId: string;
   parentConclusionIndex: number;
   
-  // Child atomic argument and specific premise  
+  // Child atomic argument where Statement is a premise  
   childArgumentId: string;
   childPremiseIndex: number;
   
@@ -82,6 +106,9 @@ The complete DAG structure containing atomic arguments and their connections:
 
 ```typescript
 interface ArgumentDAG {
+  // All statements indexed by ID
+  statements: Map<string, Statement>;
+  
   // All atomic arguments indexed by ID
   atomicArguments: Map<string, AtomicArgument>;
   
@@ -95,6 +122,9 @@ interface ArgumentDAG {
     
     // Connections BY child argument  
     connectionsByChild: Map<string, Set<string>>;
+    
+    // Connections BY statement
+    connectionsByStatement: Map<string, Set<string>>;
     
     // Tree membership (computed and cached)
     treeIndex: Map<string, string>; // atomicArgumentId -> treeId
@@ -118,18 +148,25 @@ interface ComputedTree {
 
 ## Key Implementation Insights
 
-### 1. No String Matching
-Unlike what previous documentation suggested, connections are NOT discovered through string matching. They are:
+### 1. Statement-Based Connections
+Connections exist when atomic arguments share Statement entities:
 - Created explicitly by user actions
-- Stored as references between atomic arguments
-- Maintained even if string content changes
+- Maintained through Statement IDs
+- Survive text edits (Statement ID remains constant)
+- Enable tracking of logical flow through shared Statements
 
-### 2. Parent-Child Reference Model
+### 2. Statement Reference Model
 Each connection stores:
-- Which atomic argument is the parent
-- Which specific conclusion (by index) flows to the child
-- Which atomic argument is the child
-- Which specific premise (by index) receives the connection
+- Which Statement is shared
+- Which atomic argument has it as a conclusion (parent)
+- At which index in the parent's conclusions
+- Which atomic argument has it as a premise (child)
+- At which index in the child's premises
+
+**Why track indices when we have Statement IDs?** The index information is crucial for:
+1. **Rendering**: Know exactly which visual position to draw connection lines from/to
+2. **User Intent**: Preserve the specific position where user placed the Statement
+3. **Reordering**: If user reorders premises/conclusions, connections update appropriately
 
 ### 3. The Stroke/Implication Line
 In the UI layer:
@@ -173,16 +210,17 @@ When user selects a stroke and branches:
 
 ```typescript
 interface BranchOperation {
-  // Create child atomic argument with conclusion as premise
+  // Create child atomic argument sharing parent's conclusion Statement
   branchFromConclusion(
     dag: ArgumentDAG,
     parentId: string,
     conclusionIndex: number,
-    additionalPremises?: string[],
-    newConclusions?: string[]
+    additionalPremiseTexts?: string[],  // New Statements to create
+    newConclusionTexts?: string[]       // New Statements to create
   ): {
     childArgument: AtomicArgument;
     connection: Connection;
+    newStatements: Statement[];  // Any newly created Statements
   };
 }
 ```
@@ -225,6 +263,11 @@ class IndexMaintainer {
     const childSet = dag.indices.connectionsByChild.get(connection.childArgumentId) || new Set();
     childSet.add(connection.id);
     dag.indices.connectionsByChild.set(connection.childArgumentId, childSet);
+    
+    // Update connectionsByStatement
+    const statementSet = dag.indices.connectionsByStatement.get(connection.statementId) || new Set();
+    statementSet.add(connection.id);
+    dag.indices.connectionsByStatement.set(connection.statementId, statementSet);
     
     // Invalidate tree cache for affected arguments
     this.invalidateTreeCache(dag, connection);
@@ -302,23 +345,124 @@ class DAGTraversal {
 }
 ```
 
+## Position Management
+
+### TreePosition
+
+Tree positions anchor entire trees in documents:
+
+```typescript
+interface TreePosition {
+  id: string;
+  documentId: string;
+  rootArgumentId: string;  // Which atomic argument is the tree root
+  x: number;               // Anchor point X
+  y: number;               // Anchor point Y
+  layoutStyle: 'top-down' | 'bottom-up' | 'left-right' | 'right-left' | 'radial';
+  layoutParams: {
+    nodeWidth: number;
+    nodeHeight: number;
+    horizontalSpacing: number;
+    verticalSpacing: number;
+    alignChildren: 'center' | 'left' | 'right';
+  };
+}
+```
+
+### PositionOverride
+
+Optional manual adjustments to computed positions:
+
+```typescript
+interface PositionOverride {
+  id: string;
+  atomicArgumentId: string;
+  documentId: string;
+  xOffset: number;  // Offset from computed position
+  yOffset: number;  // Offset from computed position
+}
+```
+
+### Position Computation
+
+```typescript
+interface PositionComputer {
+  // Compute all positions for a tree in a document
+  computeTreePositions(
+    dag: ArgumentDAG,
+    treePosition: TreePosition
+  ): Map<string, { x: number, y: number }>;
+  
+  // Get computed position for single atomic argument
+  getComputedPosition(
+    atomicArgumentId: string,
+    treePosition: TreePosition,
+    overrides: Map<string, PositionOverride>
+  ): { x: number, y: number };
+  
+  // Update positions after structural change
+  recomputePositions(
+    dag: ArgumentDAG,
+    treeId: string,
+    documentId: string
+  ): void;
+}
+```
+
+### Layout Algorithms
+
+Different layout styles for different needs:
+
+```typescript
+abstract class LayoutAlgorithm {
+  abstract compute(
+    tree: ComputedTree,
+    dag: ArgumentDAG,
+    params: LayoutParams
+  ): Map<string, { x: number, y: number }>;
+}
+
+class TopDownLayout extends LayoutAlgorithm {
+  compute(tree, dag, params) {
+    // Start at root, flow downward
+    // Children centered under parents
+    // Siblings spaced horizontally
+  }
+}
+
+class RadialLayout extends LayoutAlgorithm {
+  compute(tree, dag, params) {
+    // Root at center
+    // Children in concentric circles
+    // Angle based on subtree size
+  }
+}
+```
+
 ## Serialization Format
 
 For persistence and interchange:
 
 ```typescript
 interface SerializedDAG {
-  version: '2.0.0';  // Updated version for new model
+  version: '3.0.0';  // Updated version for Statement-based model
+  
+  statements: Array<{
+    id: string;
+    text: string;
+    metadata: Record<string, any>;
+  }>;
   
   atomicArguments: Array<{
     id: string;
-    premises: string[];
-    conclusions: string[];
+    premiseIds: string[];
+    conclusionIds: string[];
     metadata: Record<string, any>;
   }>;
   
   connections: Array<{
     id: string;
+    statementId: string;
     parentArgumentId: string;
     parentConclusionIndex: number;
     childArgumentId: string;
@@ -361,9 +505,13 @@ interface MigrationStrategy {
         for (const parent of atomicArguments) {
           for (let cIndex = 0; cIndex < parent.conclusions.length; cIndex++) {
             if (parent.conclusions[cIndex] === premise) {
+              // Create Statement if not exists
+              const statementId = getOrCreateStatement(premise);
+              
               // Create explicit connection
               connections.push({
                 id: generateId(),
+                statementId: statementId,
                 parentArgumentId: parent.id,
                 parentConclusionIndex: cIndex,
                 childArgumentId: child.id,
@@ -386,11 +534,11 @@ interface MigrationStrategy {
 
 ## Design Rationale
 
-### Why Parent-Child References?
-1. **User Intent**: Connections represent explicit decisions
-2. **Persistence**: Connections survive content edits
-3. **Performance**: Direct traversal without string comparison
-4. **Clarity**: No ambiguity about what connects to what
+### Why Statement-Based Model?
+1. **Logical Clarity**: Connections exist because Statements are shared
+2. **Edit Resilience**: Statement IDs survive text content changes
+3. **Reusability**: Track how Statements flow through arguments
+4. **Performance**: Direct traversal through Statement references
 
 ### Why Separate Connection Entities?
 1. **N-tuple Support**: Track specific index mappings
@@ -402,6 +550,13 @@ interface MigrationStrategy {
 1. **Performance**: Avoid recomputing on every query
 2. **Consistency**: Ensure atomic arguments know their tree
 3. **Navigation**: Quick tree-based operations
+
+### Why Compute Positions Instead of Storing?
+1. **Consistency**: Visual layout always reflects logical structure
+2. **Flexibility**: Change layout algorithms without data migration
+3. **Efficiency**: Store only tree anchors, not every node position
+4. **Correctness**: Impossible for positions to contradict connections
+5. **Simplicity**: One source of truth (connections), not two
 
 ## Implementation Checklist
 
@@ -416,4 +571,4 @@ interface MigrationStrategy {
 
 ## Summary
 
-This implementation specification reflects the true nature of connections as intentional parent-child relationships. The DAG structure efficiently represents these relationships while preventing cycles and enabling fast traversal. All connections are explicitly stored, never inferred from string matching.
+This implementation specification reflects the true nature of connections as shared Statement relationships. Statements are first-class entities that atomic arguments reference. When atomic arguments share a Statement (one has it as a conclusion, another as a premise), a connection exists. The DAG structure efficiently represents these relationships while preventing cycles and enabling fast traversal.

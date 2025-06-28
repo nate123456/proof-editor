@@ -4,12 +4,14 @@ See [Key Terms](./key-terms.md#atomic-argument) for the definition.
 
 ## Structure
 
-An atomic argument is a relation between two ordered n-tuples of strings:
-- **Premises**: The first n-tuple (may be empty)
-- **Conclusions**: The second n-tuple (may be empty)
+An atomic argument is a relation between two ordered n-tuples of Statements:
+- **Premises**: The first n-tuple of Statement references (may be empty)
+- **Conclusions**: The second n-tuple of Statement references (may be empty)
 - **Implication line**: The horizontal line that uniquely identifies the atomic argument
 - **Side labels**: Optional text extending left/right from the implication line
 - **Metadata**: Additional information (timestamps, validation state, etc.)
+
+Note: Atomic arguments reference Statements by ID. When a Statement appears in multiple atomic arguments, they all reference the same Statement entity.
 
 ## Visual Example
 
@@ -88,7 +90,7 @@ The grass gets wet
 ## Design Rationale
 
 - **Atomic**: Indivisible unit of reasoning
-- **Strings**: Maximum flexibility across domains
+- **Statements**: Reusable text entities that enable connection tracking
 - **N-tuples**: Support multiple premises/conclusions
 
 For implementation details, see [Technical Definitions](../08-technical-design/technical-definitions.md).

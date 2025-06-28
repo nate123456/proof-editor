@@ -5,8 +5,8 @@ See [Key Terms](./key-terms.md#document) for the definition.
 ## What Documents Do
 
 Documents are workspaces where you:
-- Create and position atomic arguments
-- Connect them to form proofs
+- Create atomic arguments and connect them into trees
+- Position entire argument trees on the canvas
 - Save and share your logical work
 
 Think of them as infinite canvases for proof construction.
@@ -20,10 +20,10 @@ Think of them as infinite canvases for proof construction.
 - **Mini-map**: Overview panel for large proofs
 
 ### Organization
-- **Spatial layout**: Place atomic arguments anywhere
-- **Multiple trees**: Work with related proofs in one space
-- **Grouping**: Select and group related arguments
-- **Layers**: Show/hide different parts of complex proofs
+- **Tree positioning**: Place entire argument trees anywhere on the canvas
+- **Multiple trees**: Work with multiple separate proofs in one space
+- **Tree-based selection**: Select and move complete argument trees
+- **Layout styles**: Choose how each tree displays (top-down, radial, etc.)
 
 ### Document Types
 - **Working documents**: Editable spaces for active proof development
@@ -36,4 +36,4 @@ Think of them as infinite canvases for proof construction.
 - **Export**: PDF, image, or interactive formats
 - **Collaboration**: Real-time multi-user editing
 
-Documents separate logical structure (the connections) from visual layout (where things appear on screen).
+Documents separate logical structure (the connections) from tree positioning (where each tree is anchored). Individual atomic arguments get their positions computed from tree structure.

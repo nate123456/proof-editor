@@ -10,6 +10,7 @@ Domain concepts exist independently of implementation. An atomic argument IS a r
 
 | Domain Concept | Implementation | Purpose |
 |----------------|----------------|---------|
+| Statement | StatementEntity | Store reusable text content |
 | Atomic argument | AtomicArgumentEntity | Store relation data |
 | Direct connection | ConnectionEntity | Explicit link storage |
 | Argument tree | DAG structure | Graph representation |
@@ -21,7 +22,7 @@ Domain concepts exist independently of implementation. An atomic argument IS a r
 
 | User Says | System Does |
 |-----------|-------------|
-| "Create an atomic argument" | Instantiate AtomicArgumentEntity |
+| "Create an atomic argument" | Instantiate AtomicArgumentEntity, reference or create StatementEntities |
 | "Connect these arguments" | Create ConnectionEntity |
 | "Show the complete tree" | Traverse DAG for maximal component |
 | "Save my document" | Persist entities and positions |
@@ -56,7 +57,7 @@ Domain-Driven Design requires strict separation between different contexts:
 
 ### "Connections are just string matching"
 **Wrong thinking**: If strings match, they're automatically connected.  
-**Right thinking**: Connections are explicit user intentions. String matching might help suggest connections, but doesn't create them.
+**Right thinking**: Connections exist when atomic arguments share the same Statement entity. When users create connections, they're establishing that a specific Statement functions in both arguments.
 
 ### "Everything should be technically accurate"
 **Wrong thinking**: User docs should mention DAGs, entities, indices.  

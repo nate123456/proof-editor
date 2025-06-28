@@ -4,7 +4,7 @@ See [Key Terms](./key-terms.md#connections) for definitions of direct connection
 
 ## Understanding Connections
 
-Connections represent **intentional logical flow** between atomic arguments. When a user creates a connection, they are explicitly stating that a specific conclusion from one atomic argument functions as a specific premise in another.
+Connections represent **shared Statements** between atomic arguments. When a Statement appears as a conclusion in one atomic argument and as a premise in another, a connection exists. This shared Statement creates the logical flow between arguments.
 
 ## How Users Create Connections
 
@@ -14,8 +14,8 @@ The primary way users create connections is through the **implication line** (st
 2. **Branch command** - Press 'b' (or use menu) to create a child atomic argument
 3. **Connection created** - The system:
    - Creates a new atomic argument
-   - Copies the selected conclusion as its first premise
-   - Establishes a parent-child connection between them
+   - References the selected conclusion Statement as its first premise
+   - Records the connection showing both arguments share this Statement
 
 ## Visual Example
 
@@ -28,11 +28,11 @@ C₁, C₂
    [branches to]
        ↓
 [Atomic Argument B]
-C₂, P₃   ← C₂ copied from parent
+C₂, P₃   ← C₂ is the same Statement from parent
 ────────
 C₃
 
-Connection stored: A.conclusions[1] → B.premises[0]
+Connection stored: Statement at A.conclusions[1] shared with B.premises[0]
 ```
 
 ## Key Properties
@@ -50,9 +50,9 @@ Connection stored: A.conclusions[1] → B.premises[0]
 - Multiple parents can connect to the same child (convergence)
 
 ### Persistence
-- Connections are stored as references, not string matches
-- They survive edits to the string content
-- Breaking a connection requires explicit user action
+- Connections exist through shared Statement entities
+- They survive edits to the Statement's text content
+- Breaking a connection requires explicitly removing the Statement reference
 
 ## Interaction Model
 
@@ -71,16 +71,17 @@ Connection stored: A.conclusions[1] → B.premises[0]
 
 ## What Connections Are NOT
 
-- **Not string matching** - Same strings don't automatically connect
-- **Not discovered** - System doesn't find connections for you
-- **Not fragile** - Editing strings doesn't break connections
-- **Not ambiguous** - Each connection links specific indices
+- **Not string matching** - Same text doesn't automatically create connections
+- **Not discovered** - Users explicitly create Statement sharing
+- **Not fragile** - Editing Statement text doesn't break connections
+- **Not ambiguous** - Each connection links specific Statement references
 
 ## Technical Implementation
 
 Connections are stored as first-class entities with:
+- The shared Statement ID
 - Parent argument ID and conclusion index
 - Child argument ID and premise index
 - Creation metadata (when, how, by whom)
 
-This allows precise tracking of logical flow and supports features like connection history, permissions, and collaborative editing.
+This Statement-based model allows precise tracking of logical flow and supports features like Statement reuse analysis, connection history, and collaborative editing.
