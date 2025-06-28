@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document specifies the concrete implementation of domain concepts using directed acyclic graphs (DAGs). It details data structures, algorithms, and optimizations for efficiently storing and manipulating proof structures.
+This document specifies the concrete implementation of domain concepts using directed acyclic graphs (DAGs). It details data structures, algorithms, and optimizations for efficiently storing and manipulating proof structures based on intentional parent-child relationships.
 
 **CRITICAL**: This is a pure implementation document for developers. Users think in terms of "trees" - we implement these as DAGs. For domain concepts, see [DDD Glossary](../03-concepts/ddd-glossary.md).
 
@@ -11,12 +11,12 @@ This document specifies the concrete implementation of domain concepts using dir
 In the domain language:
 - Users work with **argument trees** (complete connected proofs)
 - Trees **emerge** from connections between atomic arguments
-- Trees are **discovered**, not created
+- Connections are **created intentionally** by users
 
 In the implementation:
 - We use **DAGs** to represent these trees
-- DAGs naturally prevent circular reasoning
-- DAGs allow convergent paths (multiple premises → same conclusion)
+- Connections are **stored parent-child references**
+- No automatic detection or string matching
 
 ## Core Data Structures
 
@@ -30,56 +30,55 @@ interface AtomicArgument {
   id: string; // UUID v4
   
   // Content
-  premises: string[];
-  conclusions: string[];
+  premises: string[];     // Ordered n-tuple
+  conclusions: string[];  // Ordered n-tuple
   
   // Metadata
   metadata: {
-    ruleName?: string;
-    sideLabels?: string[];
-    createdAt: number; // Unix timestamp
+    sideLabels?: {
+      left?: string;
+      right?: string;
+    };
+    createdAt: number;  // Unix timestamp
     modifiedAt: number;
     author?: string;
-    validationState?: ValidationState;
+    references?: string[];
   };
   
-  // Note: Position and dimensions are stored separately in SPATIAL_POSITION
-  // This keeps logical content separate from view-specific properties
+  // Cached references for performance (derived from Connections)
+  parentConnections?: string[];  // Connection IDs where this is child
+  childConnections?: string[];   // Connection IDs where this is parent
 }
 ```
 
 ### Connection
 
-Explicit representation of connections between atomic arguments:
+Explicit representation of intentional parent-child relationships:
 
 ```typescript
 interface Connection {
   id: string;
   
-  // Source atomic argument and specific conclusion index
-  source: {
-    atomicArgumentId: string;
-    conclusionIndex: number;
-  };
+  // Parent atomic argument and specific conclusion
+  parentArgumentId: string;
+  parentConclusionIndex: number;
   
-  // Target atomic argument and specific premise index
-  target: {
-    atomicArgumentId: string;
-    premiseIndex: number;
-  };
+  // Child atomic argument and specific premise  
+  childArgumentId: string;
+  childPremiseIndex: number;
   
-  // Connection metadata
+  // Metadata about the intentional act of connection
   metadata: {
     createdAt: number;
-    isAutoDetected: boolean;
-    confidence?: number; // For fuzzy matching
+    createdBy: 'branch' | 'connect' | 'import';  // How user created it
+    creatorId?: string;  // User who created connection
   };
 }
 ```
 
 ### ArgumentDAG
 
-The complete DAG structure containing all atomic arguments and connections:
+The complete DAG structure containing atomic arguments and their connections:
 
 ```typescript
 interface ArgumentDAG {
@@ -91,81 +90,100 @@ interface ArgumentDAG {
   
   // Efficient lookup structures
   indices: {
-    // connections FROM an atomic argument
-    outgoingConnections: Map<string, Set<string>>; // atomicArgumentId -> connectionIds
+    // Connections BY parent argument
+    connectionsByParent: Map<string, Set<string>>;
     
-    // connections TO an atomic argument
-    incomingConnections: Map<string, Set<string>>; // atomicArgumentId -> connectionIds
+    // Connections BY child argument  
+    connectionsByChild: Map<string, Set<string>>;
     
-    // String content to atomic argument IDs (for connection detection)
-    stringIndex: Map<string, Set<string>>; // string content -> atomicArgumentIds
-    
-    // Tree membership index
-    treeIndex: Map<string, Set<string>>; // treeId -> atomicArgumentIds
+    // Tree membership (computed and cached)
+    treeIndex: Map<string, string>; // atomicArgumentId -> treeId
   };
   
   // Cached computations
   cache: {
-    trees: Map<string, ArgumentTree>;
-    validationResults: Map<string, ValidationResult>;
+    trees: Map<string, ComputedTree>;
     lastModified: number;
   };
 }
-```
 
-### ArgumentTree (Computed Concept)
-
-An argument tree is the maximal connected component - all atomic arguments that share any connection path. This is a conceptual entity discovered through graph analysis, not a stored data structure.
-
-In implementation, you might compute trees as:
-```typescript
-// Example: Find all trees in the DAG
-function computeArgumentTrees(dag: ArgumentDAG): Map<string, Set<string>> {
-  // Returns a map where each key is a computed tree identifier
-  // and the value is the set of atomic argument IDs in that tree
+interface ComputedTree {
+  id: string;  // Deterministic from member IDs
+  atomicArgumentIds: Set<string>;
+  rootIds: string[];  // No incoming connections
+  leafIds: string[];  // No outgoing connections
+  depth: number;      // Longest path
 }
 ```
 
-Note: Trees are discovered, not created. They exist as a logical consequence of the connections between atomic arguments.
+## Key Implementation Insights
 
-### Argument (Computed Subset)
+### 1. No String Matching
+Unlike what previous documentation suggested, connections are NOT discovered through string matching. They are:
+- Created explicitly by user actions
+- Stored as references between atomic arguments
+- Maintained even if string content changes
 
-An argument is any path-complete subset of atomic arguments. Not defined as a separate interface because:
-- Arguments are computed views, not stored entities
-- Any valid subset can be extracted from the DAG on demand
-- Operations work directly on sets of atomic argument IDs
+### 2. Parent-Child Reference Model
+Each connection stores:
+- Which atomic argument is the parent
+- Which specific conclusion (by index) flows to the child
+- Which atomic argument is the child
+- Which specific premise (by index) receives the connection
 
-```typescript
-// Example: Extracting an argument
-function extractArgument(
-  dag: ArgumentDAG, 
-  startId: string, 
-  endId: string
-): Set<string> {
-  // Returns all atomic argument IDs in the path-complete subset
-  // connecting startId to endId
-}
-```
+### 3. The Stroke/Implication Line
+In the UI layer:
+- The implication line is the focusable element
+- Users select it to initiate connection operations
+- It represents the atomic argument for interaction purposes
 
 ## Operations
 
-### Connection Detection
+### Connection Creation
 
 ```typescript
-interface ConnectionDetector {
-  // Find potential connections based on string matching
-  detectConnections(dag: ArgumentDAG, options: {
-    exactMatch: boolean;
-    caseSensitive: boolean;
-    languageLayer?: LanguageLayer;
-  }): Connection[];
+interface ConnectionCreator {
+  // Create a new connection between atomic arguments
+  createConnection(
+    dag: ArgumentDAG,
+    parentId: string,
+    parentConclusionIndex: number,
+    childId: string,
+    childPremiseIndex: number,
+    createdBy: 'branch' | 'connect' | 'import'
+  ): Connection;
   
-  // Check if a connection would create a cycle
-  wouldCreateCycle(
-    dag: ArgumentDAG, 
-    source: ConnectionEndpoint, 
-    target: ConnectionEndpoint
-  ): boolean;
+  // Validate connection won't create cycle
+  validateConnection(
+    dag: ArgumentDAG,
+    parentId: string,
+    childId: string
+  ): ValidationResult;
+}
+
+interface ValidationResult {
+  valid: boolean;
+  reason?: 'would-create-cycle' | 'self-reference' | 'invalid-indices';
+}
+```
+
+### Branch Operation
+
+When user selects a stroke and branches:
+
+```typescript
+interface BranchOperation {
+  // Create child atomic argument with conclusion as premise
+  branchFromConclusion(
+    dag: ArgumentDAG,
+    parentId: string,
+    conclusionIndex: number,
+    additionalPremises?: string[],
+    newConclusions?: string[]
+  ): {
+    childArgument: AtomicArgument;
+    connection: Connection;
+  };
 }
 ```
 
@@ -173,87 +191,114 @@ interface ConnectionDetector {
 
 ```typescript
 interface TreeComputer {
-  // Compute all trees in the DAG
-  computeTrees(dag: ArgumentDAG): Map<string, ArgumentTree>;
+  // Compute all trees in the DAG (maximal connected components)
+  computeTrees(dag: ArgumentDAG): Map<string, ComputedTree>;
   
-  // Update tree membership after changes
-  updateTreeMembership(
+  // Find tree containing specific atomic argument
+  findTree(
     dag: ArgumentDAG,
-    affectedArgumentIds: Set<string>
-  ): TreeUpdate[];
+    atomicArgumentId: string
+  ): ComputedTree | null;
   
-  // Extract subtree starting from given node
-  extractSubtree(
+  // Update tree index after connection change
+  updateTreeIndex(
     dag: ArgumentDAG,
-    rootId: string
-  ): ArgumentTree;
+    affectedConnections: Set<string>
+  ): void;
 }
 ```
 
-## Performance Considerations
+## Performance Optimizations
 
 ### Index Maintenance
 
 ```typescript
-interface IndexMaintainer {
-  // Update indices after adding atomic argument
-  onAtomicArgumentAdded(dag: ArgumentDAG, argument: AtomicArgument): void;
+class IndexMaintainer {
+  // After adding connection
+  onConnectionAdded(dag: ArgumentDAG, connection: Connection): void {
+    // Update connectionsByParent
+    const parentSet = dag.indices.connectionsByParent.get(connection.parentArgumentId) || new Set();
+    parentSet.add(connection.id);
+    dag.indices.connectionsByParent.set(connection.parentArgumentId, parentSet);
+    
+    // Update connectionsByChild
+    const childSet = dag.indices.connectionsByChild.get(connection.childArgumentId) || new Set();
+    childSet.add(connection.id);
+    dag.indices.connectionsByChild.set(connection.childArgumentId, childSet);
+    
+    // Invalidate tree cache for affected arguments
+    this.invalidateTreeCache(dag, connection);
+  }
   
-  // Update indices after removing atomic argument
-  onAtomicArgumentRemoved(dag: ArgumentDAG, argumentId: string): void;
-  
-  // Update indices after connection change
-  onConnectionChanged(dag: ArgumentDAG, connection: Connection): void;
-  
-  // Rebuild all indices from scratch
-  rebuildIndices(dag: ArgumentDAG): void;
+  // After removing connection
+  onConnectionRemoved(dag: ArgumentDAG, connectionId: string): void {
+    const connection = dag.connections.get(connectionId);
+    if (!connection) return;
+    
+    // Update indices
+    dag.indices.connectionsByParent.get(connection.parentArgumentId)?.delete(connectionId);
+    dag.indices.connectionsByChild.get(connection.childArgumentId)?.delete(connectionId);
+    
+    // Invalidate tree cache
+    this.invalidateTreeCache(dag, connection);
+  }
 }
 ```
 
-### Incremental Updates
-
-To avoid recomputing the entire DAG on every change:
+### Traversal Algorithms
 
 ```typescript
-interface IncrementalUpdate {
-  type: 'add' | 'remove' | 'modify';
-  targetType: 'atomic-argument' | 'connection';
-  targetId: string;
+class DAGTraversal {
+  // Find all descendants of an atomic argument
+  findDescendants(
+    dag: ArgumentDAG,
+    atomicArgumentId: string,
+    visited = new Set<string>()
+  ): Set<string> {
+    if (visited.has(atomicArgumentId)) return visited;
+    visited.add(atomicArgumentId);
+    
+    const connections = dag.indices.connectionsByParent.get(atomicArgumentId) || new Set();
+    for (const connId of connections) {
+      const conn = dag.connections.get(connId);
+      if (conn) {
+        this.findDescendants(dag, conn.childArgumentId, visited);
+      }
+    }
+    
+    return visited;
+  }
   
-  // Affected tree IDs that need recomputation
-  affectedTrees: Set<string>;
+  // Find all ancestors of an atomic argument
+  findAncestors(
+    dag: ArgumentDAG,
+    atomicArgumentId: string,
+    visited = new Set<string>()
+  ): Set<string> {
+    if (visited.has(atomicArgumentId)) return visited;
+    visited.add(atomicArgumentId);
+    
+    const connections = dag.indices.connectionsByChild.get(atomicArgumentId) || new Set();
+    for (const connId of connections) {
+      const conn = dag.connections.get(connId);
+      if (conn) {
+        this.findAncestors(dag, conn.parentArgumentId, visited);
+      }
+    }
+    
+    return visited;
+  }
   
-  // Invalidated cache entries
-  invalidatedCache: {
-    validationResults: Set<string>;
-    treeAnalysis: Set<string>;
-  };
-}
-```
-
-## Validation State
-
-```typescript
-interface ValidationState {
-  status: 'pending' | 'valid' | 'invalid' | 'error';
-  lastChecked: number;
-  errors?: ValidationError[];
-  warnings?: ValidationWarning[];
-  
-  // Language-layer specific validation data
-  languageLayerData?: unknown;
-}
-
-interface ValidationError {
-  code: string;
-  message: string;
-  severity: 'error' | 'warning';
-  
-  // Location in the atomic argument
-  location?: {
-    premiseIndex?: number;
-    conclusionIndex?: number;
-  };
+  // Check if adding connection would create cycle
+  wouldCreateCycle(
+    dag: ArgumentDAG,
+    parentId: string,
+    childId: string
+  ): boolean {
+    // If child is ancestor of parent, would create cycle
+    const ancestors = this.findAncestors(dag, parentId);
+    return ancestors.has(childId);
+  }
 }
 ```
 
@@ -263,79 +308,112 @@ For persistence and interchange:
 
 ```typescript
 interface SerializedDAG {
-  version: '1.0.0';
+  version: '2.0.0';  // Updated version for new model
   
-  atomicArguments: {
+  atomicArguments: Array<{
     id: string;
     premises: string[];
     conclusions: string[];
-    metadata: Record<string, unknown>;
-  }[];
+    metadata: Record<string, any>;
+  }>;
   
-  // Positions stored separately to maintain separation of concerns
-  positions: {
-    atomicArgumentId: string;
-    position: Position;
-  }[];
-  
-  connections: {
+  connections: Array<{
     id: string;
-    source: ConnectionEndpoint;
-    target: ConnectionEndpoint;
-    metadata?: Record<string, unknown>;
-  }[];
+    parentArgumentId: string;
+    parentConclusionIndex: number;
+    childArgumentId: string;
+    childPremiseIndex: number;
+    metadata: {
+      createdAt: number;
+      createdBy: string;
+    };
+  }>;
   
-  // Document-level metadata
+  // Document metadata
   metadata: {
     createdAt: number;
     modifiedAt: number;
-    languageLayerId?: string;
     title?: string;
     description?: string;
   };
 }
 ```
 
+## Migration from String-Matching Model
+
+If migrating from a system that used string matching:
+
+```typescript
+interface MigrationStrategy {
+  // Convert implicit connections to explicit
+  migrateImplicitConnections(
+    atomicArguments: AtomicArgument[]
+  ): Connection[] {
+    const connections: Connection[] = [];
+    
+    // For each atomic argument
+    for (const child of atomicArguments) {
+      // For each premise
+      for (let pIndex = 0; pIndex < child.premises.length; pIndex++) {
+        const premise = child.premises[pIndex];
+        
+        // Find potential parents (this is the OLD way)
+        for (const parent of atomicArguments) {
+          for (let cIndex = 0; cIndex < parent.conclusions.length; cIndex++) {
+            if (parent.conclusions[cIndex] === premise) {
+              // Create explicit connection
+              connections.push({
+                id: generateId(),
+                parentArgumentId: parent.id,
+                parentConclusionIndex: cIndex,
+                childArgumentId: child.id,
+                childPremiseIndex: pIndex,
+                metadata: {
+                  createdAt: Date.now(),
+                  createdBy: 'migration'
+                }
+              });
+            }
+          }
+        }
+      }
+    }
+    
+    return connections;
+  }
+}
+```
+
 ## Design Rationale
 
-### Why Explicit Connections?
+### Why Parent-Child References?
+1. **User Intent**: Connections represent explicit decisions
+2. **Persistence**: Connections survive content edits
+3. **Performance**: Direct traversal without string comparison
+4. **Clarity**: No ambiguity about what connects to what
 
-Rather than computing connections on-the-fly from string matching:
-- Supports manual connection override
-- Enables fuzzy/semantic matching
-- Allows connection metadata
-- Improves performance via caching
-- Handles equivalence rules from language layers
+### Why Separate Connection Entities?
+1. **N-tuple Support**: Track specific index mappings
+2. **Metadata**: Store creation context
+3. **Flexibility**: Support future connection types
+4. **Auditability**: Track who created what when
 
-### Why Separate Trees from DAG?
+### Why Cache Tree Membership?
+1. **Performance**: Avoid recomputing on every query
+2. **Consistency**: Ensure atomic arguments know their tree
+3. **Navigation**: Quick tree-based operations
 
-Trees are computed views because:
-- Tree membership changes as connections change
-- Trees are discovered from the connection structure, not created
-- Caching avoids recomputation
-- Trees are unique - if atomic arguments are connected, they belong to the same tree
+## Implementation Checklist
 
-### Why Extensive Indices?
+- [ ] Connection CRUD operations
+- [ ] Cycle detection before connection creation
+- [ ] Tree computation algorithm
+- [ ] Index maintenance on mutations
+- [ ] Cache invalidation strategy
+- [ ] Serialization/deserialization
+- [ ] Migration utilities (if needed)
+- [ ] Performance benchmarks for large DAGs
 
-The index structures enable:
-- O(1) connection lookups
-- Efficient tree computation
-- Fast string search
-- Quick validation checks
-- Incremental updates
+## Summary
 
-### Spatial Data Separation
-
-Position data is stored separately from atomic arguments:
-- AtomicArgument contains logical content only
-- Positions stored in separate collection
-- Enables multiple views of same content
-- Clean separation of concerns
-
-## Open Questions
-
-1. **Connection Equivalence**: How do language layers specify when strings are equivalent?
-2. **Large DAG Handling**: Should we support lazy loading of DAG sections?
-3. **Collaborative Editing**: How do we handle concurrent modifications?
-4. **Versioning**: Should we store history within the DAG or externally?
-5. **External References**: How do we handle references to external proofs/theorems?
+This implementation specification reflects the true nature of connections as intentional parent-child relationships. The DAG structure efficiently represents these relationships while preventing cycles and enabling fast traversal. All connections are explicitly stored, never inferred from string matching.

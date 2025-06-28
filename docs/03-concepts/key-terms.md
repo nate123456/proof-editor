@@ -5,18 +5,23 @@ This is the canonical source for all conceptual definitions in Proof Editor. Oth
 ## Core Concepts
 
 ### Atomic Argument
-A single step of logical inference - the fundamental building block. Contains:
-- **Premises**: Ordered strings above the line (what we start with)
-- **Conclusions**: Ordered strings below the line (what follows)
-- **Implication line**: Visual separator between premises and conclusions
+A relation between two ordered n-tuples of strings. Either n-tuple may be empty.
+
+Visual representation:
+- **Premises**: The ordered n-tuple of strings above the implication line
+- **Conclusions**: The ordered n-tuple of strings below the implication line  
+- **Implication line**: The horizontal line that uniquely identifies the atomic argument along with its premises and conclusions
+- **Side labels** (optional): Strings of text extending directly left or right from the implication line
+
+Note: There is only one implication line per atomic argument. The line extends as far as needed to accommodate the text.
 
 ### Connections
 
 #### Direct Connection
-When a conclusion from one atomic argument IS a premise in another through user action. Created by selecting a conclusion and branching off from it.
+Atomic arguments are directly connected when a conclusion of one argument functions as a premise in the other.
 
 #### Connected
-When there's a path of direct connections between atomic arguments (transitive relationship).
+Atomic arguments are connected when there is a path of directly connected arguments between them.
 
 ### Arguments
 
@@ -27,10 +32,14 @@ A directed sequence of atomic arguments where conclusions flow into premises.
 A set where ALL atomic arguments in connecting paths are included. No logical steps missing.
 
 #### Argument
-A path-complete set of connected atomic arguments. Can be a subset of a larger proof.
+A set of atomic arguments where every pair of atomic arguments in the set is connected and all atomic arguments in the path that connects that pair are also in the set.
+
+This ensures path-completeness - you cannot skip logical steps. If atomic arguments A and D are in the argument, and they're connected only through B and C, then B and C must also be in the argument.
 
 #### Argument Tree
-The maximal connected component - contains ALL atomic arguments connected to any members. If two trees share any atomic argument, they are the same tree.
+An argument which contains all atomic arguments connected to any of its members.
+
+**Critical uniqueness property**: Argument trees are distinct if they do not share any members, otherwise they are identical - if they share any members they share every member.
 
 ### System Components
 
@@ -41,6 +50,10 @@ A workspace where atomic arguments are created, positioned, and connected.
 Customizable component that interprets strings, provides validation, and defines display formatting.
 
 ## Important Distinctions
+
+### Atomic Argument vs Argument
+- An **atomic argument** is ONE inference step (single implication line)
+- An **argument** is MULTIPLE atomic arguments connected in a path-complete set
 
 ### Argument vs Argument Tree
 - An **argument** is any valid, path-complete subset (like a sub-proof)

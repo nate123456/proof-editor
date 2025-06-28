@@ -14,83 +14,75 @@ interface AtomicArgumentEntity {
   id: string;              // Unique identifier (UUID)
   premises: string[];      // Array storing the premise n-tuple
   conclusions: string[];   // Array storing the conclusion n-tuple
-  metadata?: {            // Optional metadata
-    ruleName?: string;
-    sideLabels?: string[];
+  metadata?: {
+    sideLabels?: {
+      left?: string;      // Text extending left from implication line
+      right?: string;     // Text extending right from implication line  
+    };
     createdAt: number;
     modifiedAt: number;
+    references?: string[];
   };
 }
 ```
-**Example**: `{id: "a1b2c3", premises: ["A", "A→B"], conclusions: ["B"], metadata: {ruleName: "MP"}}`
-**Implementation notes**: 
-- Position and dimensions are stored separately in SpatialPositionEntity
-- Validation state is computed on demand, not stored
-- The ID enables efficient reference and indexing
+**Key insight**: Position and dimensions are stored separately. The implication line (stroke) is the focusable UI element for creating connections.
 
 ### ConnectionEntity
-**Purpose**: Data structure that explicitly stores a direct connection between atomic arguments.
-**Domain concept**: Represents a direct connection (when a conclusion of one atomic argument IS a premise in another - an intentional logical link created by the user).
+**Purpose**: Data structure that explicitly stores an intentional parent-child relationship between atomic arguments.
+**Domain concept**: Represents a direct connection - when a user explicitly decides that a conclusion from one atomic argument functions as a premise in another.
 ```typescript
 interface ConnectionEntity {
   id: string;
-  source: {
-    atomicArgumentId: string;
-    conclusionIndex: number;
-  };
-  target: {
-    atomicArgumentId: string;
-    premiseIndex: number;
-  };
-  metadata?: {
-    creationMethod: 'manual' | 'assisted' | 'semantic';
-    confidence?: number;
+  parentArgumentId: string;
+  parentConclusionIndex: number;
+  childArgumentId: string;  
+  childPremiseIndex: number;
+  metadata: {
     createdAt: number;
+    createdBy: 'branch' | 'connect' | 'import';
+    creatorId?: string;
   };
 }
 ```
-**Why explicit storage**: 
-- Connections are user-created logical links, not discovered patterns
-- Supports semantic equivalence as determined by users
-- Provides O(1) lookup performance
-- Allows connection-specific metadata and audit trail
+**Critical understanding**: 
+- Connections are NOT discovered through string matching
+- They represent intentional user decisions
+- Created through explicit UI actions (selecting stroke, pressing branch key)
+- Persist even if string content changes
 
 ### Argument (Computed Concept)
 **Purpose**: Algorithm output representing a path-complete subset of atomic arguments.
 **Domain concept**: An argument (a set of atomic arguments with complete paths between all pairs).
-**Implementation**: Not stored as an entity. Computed on-demand through graph traversal.
-
-**Computation Properties**:
-- Path-complete: Algorithm ensures no missing intermediate steps
-- Extractable: Can compute valid sub-arguments from larger structures
-- Cacheable: Results may be cached for performance
-
-### Argument Tree (Computed Concept)
-**Purpose**: Algorithm output representing the maximal connected component.
-**Domain concept**: An argument tree (contains ALL atomic arguments connected to any members).
-**Implementation**: Discovered through connected component analysis of the DAG.
+**Implementation**: Computed on-demand by traversing parent-child connections.
 
 ```typescript
-// Example computation result (not stored entity)
-interface ComputedArgumentTree {
-  atomicArgumentIds: Set<string>;  // All members of this tree
-  metadata: {
-    rootIds: string[];    // Computed: nodes with no incoming edges
-    leafIds: string[];    // Computed: nodes with no outgoing edges  
-    depth: number;        // Computed: longest path length
-    size: number;         // Computed: total node count
-  };
+// Not a stored entity - computed by traversing connections
+function computeArgument(
+  startId: string,
+  endId: string,
+  connections: Map<string, ConnectionEntity>
+): Set<string> {
+  // Returns all atomic argument IDs in path-complete subset
 }
 ```
 
-**Key Properties**:
-- Discovered, not created: Emerges from connection structure
-- Unique: Graph theory guarantees uniqueness
-- Maximal: Cannot add more without connecting separate trees
+### Argument Tree (Computed Concept)
+**Purpose**: Algorithm output representing the maximal connected component.
+**Domain concept**: An argument tree (contains ALL atomic arguments connected through parent-child relationships).
+**Implementation**: Discovered through connected component analysis.
+
+```typescript
+interface ComputedArgumentTree {
+  atomicArgumentIds: Set<string>;
+  rootIds: string[];    // Computed: nodes with no parent connections
+  leafIds: string[];    // Computed: nodes with no child connections
+  depth: number;        // Computed: longest path length
+}
+```
 
 ### DocumentEntity
-**Purpose**: Data structure storing workspace metadata and configuration.
-**Domain concept**: Represents a document (workspace for viewing and arranging atomic arguments).
+**Purpose**: Data structure storing workspace metadata.
+**Domain concept**: A document (workspace for viewing and editing atomic arguments).
 ```typescript
 interface DocumentEntity {
   id: string;
@@ -100,85 +92,168 @@ interface DocumentEntity {
     modifiedAt: number;
     author?: string;
     description?: string;
-    languageLayerId?: string;
   };
 }
 ```
-**Implementation insight**: Documents reference atomic arguments through spatial positions, not direct containment. This enables:
-- Same atomic argument appearing in multiple documents
-- Independent persistence of logical structure and layout
-- Multiple views of the same proof
+**Key design**: Documents don't contain atomic arguments directly - they reference them through spatial positions.
+
+### SpatialPositionEntity
+**Purpose**: Data structure linking atomic arguments to their visual positions in documents.
+```typescript
+interface SpatialPositionEntity {
+  id: string;
+  atomicArgumentId: string;
+  documentId: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+```
+**Enables**: Same atomic argument appearing in multiple documents with different positions.
 
 ## System Components
 
 ### Language Layer
-**Definition**: A pluggable module that defines:
-- How to parse strings in atomic arguments
-- Display formatting rules
-- Validation rules for the specific logic system
+**Definition**: A pluggable module that interprets string content within atomic arguments.
+**Capabilities**:
+- Parse strings for display formatting
+- Validate logical correctness
+- Apply domain-specific rules
 
 **Interface**:
 ```typescript
 interface LanguageLayer {
   parse(content: string[]): ParsedExpression[];
   format(expressions: ParsedExpression[]): DisplayElement;
-  validate(argumentEntity: AtomicArgumentEntity): ValidationResult;
-  detectEquivalence?(str1: string, str2: string): boolean;
+  validate(argument: AtomicArgumentEntity): ValidationResult;
 }
 ```
+**Note**: Language layers do NOT create connections - users do.
 
-### Logic System Package
-**Definition**: A distributable package containing:
-- Language layer implementation
-- Standard inference rules
-- Example proofs
-- Documentation
+### UI Interaction Layer
+**Key Components**:
+- **Stroke/Implication Line**: Focusable element representing atomic argument
+- **Selection System**: Tracks which stroke is selected
+- **Command Handler**: Maps keyboard inputs to connection operations
 
-## Key Design Terms
+**Connection Creation Flow**:
+1. User selects stroke (implication line)
+2. User presses branch key (e.g., 'b')
+3. System creates child atomic argument
+4. System creates connection linking parent conclusion to child premise
 
-### Adaptable (not "Universal")
-The platform can be customized for different domains through language layers and logic system packages. This is extensibility, not universality.
+## Key Implementation Concepts
 
-### Visual Representation
-The spatial arrangement and graphical display of atomic arguments and their connections. This shows logical relationships, while strings contain the logical content.
+### Parent-Child Reference Model
+**What it is**: Connections store direct references between atomic arguments, not string matches.
+**Why**: 
+- Preserves user intent
+- Survives content edits
+- Enables O(1) traversal
+- No ambiguity
 
-### Direct Manipulation
-User interaction through dragging, connecting, and arranging visual elements that map to operations on the underlying data structures.
+### Intentional Construction
+**What it means**: Every connection represents an explicit user decision.
+**How it works**:
+- User selects specific stroke
+- User initiates branch/connect action
+- System creates connection with full context
+- No automatic detection
 
-## Implementation Details
+### Computed vs Stored
+**Stored (Empirical)**:
+- Atomic arguments (user creates)
+- Connections (user creates)
+- Positions (user places)
+- Documents (user manages)
 
-### String Content
-- Atomic arguments contain arrays of strings
-- Strings are opaque to the core system
-- Language layers interpret string content
-- No built-in logical semantics
-
-### DAG Implementation Choice
-**Domain term**: Tree (how users conceptualize proof structures)
-**Implementation**: Directed Acyclic Graph (DAG)
-**Why DAGs**:
-- Prevents circular reasoning (acyclic property)
-- Allows convergent paths (multiple premises → same conclusion)
-- Enables efficient validation algorithms
-- Supports hierarchical visualization
-- Natural fit for connected component analysis
-
-### Validation
-- Performed by language layers
-- Checks syntactic correctness
-- Verifies inference rule application
-- User-definable per logic system
+**Computed (Derived)**:
+- Arguments (from connection traversal)
+- Trees (from connected components)
+- Tree properties (roots, leaves, depth)
 
 ## Implementation Philosophy
 
 ### What This Implementation Does
-- **Stores user-created entities**: Atomic arguments, connections, documents, positions
-- **Computes derived concepts**: Arguments, trees, validation states
-- **Optimizes for performance**: Indices, caches, incremental updates
+- **Stores intentional relationships**: Every connection is a user decision
 - **Separates concerns**: Logic, layout, and metadata in different structures
+- **Optimizes performance**: Indices for fast traversal
+- **Preserves intent**: Connections persist through edits
 
 ### What This Implementation Doesn't Do
-- **Doesn't define logic**: That's the language layer's job
-- **Doesn't enforce one visualization**: That's the visualization layer's job
-- **Doesn't store computed data**: Only caches for performance
-- **Doesn't make philosophical claims**: It's engineering, not philosophy
+- **No string matching**: Connections aren't discovered
+- **No automatic linking**: Users create all connections
+- **No magic**: Everything is explicit and traceable
+- **No philosophical claims**: Just engineering
+
+## Critical Distinctions
+
+### Connection ≠ String Match
+A connection is NOT "these strings are the same". It's "the user decided this conclusion flows into this premise".
+
+### Tree ≠ Hierarchy
+Trees emerge from connections, they're not imposed. Multiple parents are allowed (DAG property).
+
+### Validation ≠ Connection
+Language layers validate correctness. Users create connections. These are independent concerns.
+
+## Implementation Patterns
+
+### Creating a Branch
+```typescript
+function branchFromConclusion(
+  parentId: string,
+  conclusionIndex: number
+): { child: AtomicArgumentEntity, connection: ConnectionEntity } {
+  // 1. Get conclusion string from parent
+  const parent = getAtomicArgument(parentId);
+  const conclusionString = parent.conclusions[conclusionIndex];
+  
+  // 2. Create child with conclusion as first premise
+  const child = {
+    id: generateId(),
+    premises: [conclusionString],  // User can add more
+    conclusions: [],  // User will fill in
+    metadata: { createdAt: Date.now() }
+  };
+  
+  // 3. Create connection
+  const connection = {
+    id: generateId(),
+    parentArgumentId: parentId,
+    parentConclusionIndex: conclusionIndex,
+    childArgumentId: child.id,
+    childPremiseIndex: 0,
+    metadata: {
+      createdAt: Date.now(),
+      createdBy: 'branch'
+    }
+  };
+  
+  return { child, connection };
+}
+```
+
+### Traversing Connections
+```typescript
+function getChildren(
+  atomicArgumentId: string,
+  connections: Map<string, ConnectionEntity>
+): AtomicArgumentEntity[] {
+  const children = [];
+  
+  for (const conn of connections.values()) {
+    if (conn.parentArgumentId === atomicArgumentId) {
+      const child = getAtomicArgument(conn.childArgumentId);
+      children.push(child);
+    }
+  }
+  
+  return children;
+}
+```
+
+## Summary
+
+The Proof Editor implementation is built on a foundation of intentional parent-child relationships. Users explicitly create connections through UI interactions, and these connections are stored as first-class entities. The system never infers connections from string content - every link represents a deliberate user decision about logical flow.

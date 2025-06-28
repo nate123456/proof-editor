@@ -4,11 +4,12 @@ See [Key Terms](./key-terms.md#atomic-argument) for the definition.
 
 ## Structure
 
-An atomic argument consists of:
-- **Premises**: Ordered strings (what we start with)
-- **Conclusions**: Ordered strings (what follows)
-- **Implication line**: Visual separator
-- **Metadata**: Optional (rule names, timestamps, etc.)
+An atomic argument is a relation between two ordered n-tuples of strings:
+- **Premises**: The first n-tuple (may be empty)
+- **Conclusions**: The second n-tuple (may be empty)
+- **Implication line**: The horizontal line that uniquely identifies the atomic argument
+- **Side labels**: Optional text extending left/right from the implication line
+- **Metadata**: Additional information (timestamps, validation state, etc.)
 
 ## Visual Example
 
@@ -18,7 +19,11 @@ P₁, P₂, ..., Pₙ
 C₁, C₂, ..., Cₘ
 ```
 
-This shows premises above, conclusions below, separated by a line. The exact visual representation depends on your chosen display system.
+Visual notes:
+- Premises appear above the line, conclusions below
+- The implication line extends as far as needed to accommodate text
+- A minimum line length is maintained even for empty or short premises/conclusions
+- Side labels (like [Rule]) extend directly left or right from the line
 
 ## Common Patterns
 
