@@ -2,7 +2,7 @@
 
 ## Overview
 
-This documentation presents the conceptual design for Proof Editor - a platform combining visual representation of logical structures with integrated development environment capabilities and extensible logic systems.
+This documentation presents the conceptual design for Proof Editor - a multi-platform tool for constructing and analyzing formal logical arguments. The architecture emphasizes 90%+ code reuse across desktop (VS Code), mobile (iOS/Android), and web platforms through a clean three-layer design.
 
 ## Key References
 
@@ -33,7 +33,7 @@ This documentation presents the conceptual design for Proof Editor - a platform 
 - [Atomic Arguments](03-concepts/atomic-arguments.md)
 - [Argument Trees](03-concepts/trees.md)
 - [Visual Construction](05-capabilities/visual-proof.md)
-- [IDE Features](05-capabilities/ide-features.md)
+- [Platform Capabilities](05-capabilities/platform-capabilities.md)
 - [Custom Logic Systems](06-ecosystem/custom-logic.md)
 
 **User Categories:**
@@ -46,9 +46,10 @@ This documentation presents the conceptual design for Proof Editor - a platform 
 
 The project is in the conceptual design phase, establishing:
 - Problem definition and constraints
-- System requirements and capabilities
-- User needs and workflows
-- Technical feasibility
+- Multi-platform architecture (CORE/LSP/PLATFORM layers)
+- User needs and workflows across devices
+- Platform-agnostic system requirements
+- Technical feasibility for 90%+ code reuse
 
 ## Documentation Scope
 

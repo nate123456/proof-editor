@@ -110,17 +110,17 @@ Build on existing systems:
 - Completeness analysis
 - Example testing
 
-### Community Review
-- Peer evaluation
-- Usage feedback
-- Bug reports
-- Feature requests
+### Community Collaboration
+- Peer evaluation through GitHub issues and pull requests
+- Usage feedback in repository discussions
+- Bug reports and feature requests via GitHub
+- User-driven quality assessment and reputation
 
-### Certification
-- Verified publishers
-- Quality standards
-- Domain expert approval
-- Academic review
+### Quality Assurance
+- User-controlled vetting (install only what you trust)
+- Community reputation through GitHub stars and forks
+- Transparent development via public repositories
+- Collaborative improvement through pull requests
 
 ## Integration Features
 

@@ -9,8 +9,8 @@ This section describes the infrastructure for creating, sharing, and extending l
 ### [Custom Logic Systems](custom-logic.md)
 Mechanisms for defining user-specific logical frameworks.
 
-### [Package Registry](sharing.md)
-Infrastructure for distributing and discovering logic system packages.
+### [Package Sharing](packages.md)
+GitHub-based package distribution for logic system sharing.
 
 ### [Collaboration Features](collaboration.md)
 Tools and protocols for collaborative proof development.
@@ -22,7 +22,7 @@ Specialized logical frameworks for different fields of application.
 
 The ecosystem enables:
 - Definition of custom logical systems through declarative specifications
-- Distribution of logic packages through a central registry
+- User-managed distribution of logic packages via GitHub
 - Version control and dependency management
 - Collaborative development of proofs and systems
 - Cross-domain knowledge sharing
@@ -32,5 +32,5 @@ The ecosystem enables:
 - Modular system composition
 - Version compatibility management
 - Distributed development model
-- Quality assurance through community review
+- User-controlled quality assurance
 - Preservation of formal correctness

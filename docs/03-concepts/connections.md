@@ -1,87 +1,62 @@
-# Connections
+# Connections [CORE]
 
 See [Key Terms](./key-terms.md#connections) for definitions of direct connection and connected.
 
 ## Understanding Connections
 
-Connections represent **shared Statements** between atomic arguments. When a Statement appears as a conclusion in one atomic argument and as a premise in another, a connection exists. This shared Statement creates the logical flow between arguments.
+Connections represent **shared ordered sets** between atomic arguments. When the conclusion ordered set of one atomic argument IS (same reference, not a copy) the premise ordered set of another, a connection exists.
 
-## How Users Create Connections
+**Critical**: This is about object identity, not value equality. Two ordered sets with the same items in the same order are NOT connected unless they are the SAME object.
 
-The primary way users create connections is through the **implication line** (stroke):
-
-1. **Select the stroke** - Click or use keyboard to focus on an atomic argument's implication line
-2. **Branch command** - Press 'b' (or use menu) to create a child atomic argument
-3. **Connection created** - The system:
-   - Creates a new atomic argument
-   - References the selected conclusion Statement as its first premise
-   - The connection now exists implicitly through the shared Statement
-
-## Visual Example
+## Connection Model
 
 ```
-[Atomic Argument A]
-P₁, P₂
-──────── ← User selects this stroke
-C₁, C₂ 
-       ↓
-   [branches to]
-       ↓
-[Atomic Argument B]
-C₂, P₃   ← C₂ is the same Statement ID from parent
-────────
-C₃
+Atomic Argument A:
+  Premises: [P₁, P₂]
+  Conclusions: [C₁, C₂] ← Let's call this object 'setX'
 
-Connection exists because: Statement ID at A.conclusions[1] is also at B.premises[0]
+Atomic Argument B:
+  Premises: [C₁, C₂] ← This IS setX - the SAME object
+  Conclusions: [C₃]
+
+Connection: A.conclusions === B.premises (reference equality)
 ```
 
 ## Key Properties
 
-### Intentional Creation
-- Connections are **created by users**, not discovered by the system
-- Each connection represents a deliberate decision about logical flow
-- No automatic string matching creates connections
+### Shared Reference Model
+- Connections exist through shared ordered set objects
+- The conclusion ordered set of one argument IS the premise ordered set of another
+- Not copies, not equality checks - the actual same object in memory
+- Changes to the shared ordered set affect all referencing atomic arguments
 
 ### Parent-Child Relationships
-- Connections establish clear parent-child relationships
-- Parent: The atomic argument whose conclusion flows out
-- Child: The atomic argument whose premise receives the flow
-- Multiple children can connect to the same parent (branching)
-- Multiple parents can connect to the same child (convergence)
+- **Parent**: The atomic argument whose conclusion ordered set flows out
+- **Child**: The atomic argument whose premise ordered set receives the flow
+- Multiple children can share a parent's conclusion ordered set (branching)
+- Multiple parents can share a child's premise ordered set (convergence)
 
-### Persistence
-- Connections exist through shared Statement entities
-- They survive edits to the Statement's text content
-- Breaking a connection requires explicitly removing the Statement reference
-
-## Interaction Model
-
-### Keyboard-Driven Workflow
-```
-1. Navigate to atomic argument (arrow keys)
-2. Select its stroke (Enter/Space)
-3. Branch (b key) or Connect (c key)
-4. System creates connection through Statement sharing
-```
-
-### Visual Feedback
-- Selected stroke highlights
-- Connection lines show parent-child relationships
-- Tree structure emerges from connections
+### Connection Types
+- **Direct connection**: Immediate sharing of ordered set object
+- **Connected**: Reachable through a path of direct connections
+- **Path-complete**: All intermediate connections included
 
 ## What Connections Are NOT
 
-- **Not string matching** - Same text doesn't automatically create connections
-- **Not separate entities** - Connections emerge from shared Statement IDs
-- **Not fragile** - Editing Statement text doesn't break connections
-- **Not ambiguous** - Each connection links specific Statement references
+- **Not value matching**: Same contents ≠ connection
+- **Not separate entities**: Implicit relationships from shared references
+- **Not partial**: Entire ordered set must be shared
+- **Not discovered**: Created intentionally through shared references
 
-## Technical Implementation
+## Implementation Notes
 
-Connections are **implicit relationships** that exist when atomic arguments share Statement IDs:
-- No separate connection table or entities needed
-- Connections discovered by analyzing which atomic arguments reference the same Statement IDs
-- When a Statement appears as a conclusion in one argument and a premise in another, a connection exists
-- The system efficiently finds these relationships through Statement ID lookups
+Connections are implicit relationships:
+- No separate connection entities needed
+- Found by checking reference equality
+- Enable efficient traversal through shared objects
 
-This Statement-based model allows precise tracking of logical flow and supports features like Statement reuse analysis, connection visualization, and collaborative editing.
+This ordered set-based model ensures:
+- **Unambiguous connections**: Object identity is definitive
+- **Shared state**: Modifications propagate automatically
+- **Simple detection**: Reference comparison only
+- **No false positives**: Different objects never connect

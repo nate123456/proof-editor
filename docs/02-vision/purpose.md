@@ -2,21 +2,23 @@
 
 ## Project Purpose
 
-Proof Editor is a platform for constructing and analyzing logical reasoning through visual representation of atomic arguments and argument trees, incorporating integrated development environment (IDE) capabilities and supporting user-defined logical systems.
+Proof Editor is a multi-platform system for constructing and analyzing logical reasoning through visual representation of atomic arguments and argument trees, bringing modern development capabilities to formal logic across desktop, mobile, and web environments while supporting user-defined logical systems.
 
 ## Core Components
 
 ### Visual Representation
-- Spatial arrangement of logical elements
-- Direct manipulation interface
-- Hierarchical complexity management
-- Graphical notation system
+- Touch-optimized spatial arrangement on mobile devices
+- Mouse-and-keyboard precision on desktop platforms
+- Direct manipulation adapted to each input method
+- Responsive layouts from phone to ultra-wide displays
+- Progressive rendering for device capabilities
 
-### Development Environment Features
-- Symbol and reference tracking
-- Automated error detection
-- Structural refactoring capabilities
-- Navigation and search functionality
+### Multi-Platform Development Features
+- Real-time synchronization across devices
+- Offline-first architecture for mobile reliability
+- Platform-appropriate UI paradigms
+- Cloud-based collaboration with local performance
+- Symbol tracking that works everywhere
 
 ### Extensible Logic Framework
 - User-defined logical systems
@@ -26,17 +28,20 @@ Proof Editor is a platform for constructing and analyzing logical reasoning thro
 
 ## Target Users
 
-The platform serves individuals and groups working with formal reasoning:
-- Students learning formal logic
-- Educators teaching logical reasoning
-- Researchers developing and verifying proofs
-- Professionals applying formal methods
-- Communities creating domain-specific reasoning tools
+The platform serves individuals wherever they work with formal reasoning:
+- Students practicing logic on phones during commutes
+- Educators demonstrating concepts on classroom tablets
+- Researchers sketching proofs on mobile devices in the field
+- Professionals reviewing arguments on any available device
+- Remote teams collaborating across different platforms
+- Communities building tools regardless of their hardware
 
 ## Design Constraints
 
 The platform operates under these constraints:
-- Logical correctness must be verifiable
-- Visual representation must preserve semantic meaning
-- User-defined systems must maintain internal consistency
-- Interface complexity must scale with user expertise
+- Logical correctness must be verifiable on all platforms
+- Visual representations must adapt to screen sizes
+- Touch interactions must be as powerful as keyboard/mouse
+- Offline functionality must preserve full capabilities
+- Platform differences must not fragment the user community
+- Performance must be acceptable on modest mobile hardware

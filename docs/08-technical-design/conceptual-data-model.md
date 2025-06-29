@@ -1,30 +1,32 @@
-# Conceptual Data Model
+# [CORE] Conceptual Data Model
 
 ## Overview
 
-This document bridges domain concepts and their technical implementation. It shows how the pure logical concepts (atomic arguments as relations, connections as parent-child relationships, trees as maximal connected components) map to concrete data structures.
+This document defines the pure data structures and algorithms of the CORE layer. The CORE layer handles logical structure and relationships - it has no knowledge of visualization, user interaction, or platform specifics.
+
+**Layer**: [CORE] - Platform-agnostic data structures and algorithms
 
 **Note**: This is a technical design document. For pure domain concepts, see [DDD Glossary](../03-concepts/ddd-glossary.md).
 
-## Core Principle: Statement-Based Construction
+## Core Principle: Ordered Set-Based Construction
 
-The data model reflects a fundamental insight: **connections exist through shared Statements**. When a user creates a connection, they are establishing that a Statement appearing as a conclusion in one atomic argument also functions as a premise in another. Statements are first-class entities that maintain logical relationships.
+The data model reflects a fundamental insight: **connections exist through shared ordered set objects**. When a connection is created, the conclusion ordered set of one atomic argument IS (same reference, not a copy) the premise ordered set of another. Ordered sets are first-class entities that maintain logical relationships through object identity.
 
 ## Entity Relationship Model
 
-**Terminology Note**: The philosopher describes premises and conclusions as "ordered n-tuples of strings." In our implementation, `string[]` (string array) is the exact representation of an ordered n-tuple - it maintains order and allows variable length where n can be 0, 1, 2, or any number of elements.
+**Terminology Note**: The philosopher describes premises and conclusions as "ordered n-tuples of strings." In our implementation, we use OrderedSet entities that maintain both order AND uniqueness, shared by reference between atomic arguments to create connections.
 
 ```mermaid
 erDiagram
-    STATEMENT {
+    ORDERED_SET {
         string id PK
-        string text "the actual string content"
-        json metadata "creation info, usage tracking"
+        string[] items "ordered array of statement strings"
+        json metadata "creation info, reference tracking"
     }
     ATOMIC_ARGUMENT {
         string id PK
-        string[] premise_ids "ordered Statement IDs"
-        string[] conclusion_ids "ordered Statement IDs"
+        string premise_set_ref FK "reference to OrderedSet (nullable)"
+        string conclusion_set_ref FK "reference to OrderedSet (nullable)"
         json metadata "side_labels, references, timestamps"
     }
     
@@ -36,72 +38,57 @@ erDiagram
         timestamp modified_at
     }
     
-    TREE_POSITION {
+    ARGUMENT_TREE {
         string id PK
         string document_id FK
         string root_argument_id FK "which atomic argument is the tree root"
-        number x "anchor point for tree"
-        number y "anchor point for tree"
-        string layout_style "top-down, bottom-up, left-right, etc."
-        json layout_params "spacing, alignment preferences"
+        json metadata "tree-level properties"
     }
     
-    POSITION_OVERRIDE {
-        string id PK
-        string atomic_argument_id FK
-        string document_id FK
-        number x_offset "offset from computed position"
-        number y_offset "offset from computed position"
-    }
-    
-    STATEMENT ||--o{ ATOMIC_ARGUMENT : "referenced as premise"
-    STATEMENT ||--o{ ATOMIC_ARGUMENT : "referenced as conclusion"
-    ATOMIC_ARGUMENT ||--o| TREE_POSITION : "root of tree at"
-    ATOMIC_ARGUMENT ||--o{ POSITION_OVERRIDE : "may have override"
-    DOCUMENT ||--o{ TREE_POSITION : "contains trees"
-    DOCUMENT ||--o{ POSITION_OVERRIDE : "contains overrides"
-    DOCUMENT ||--o{ STATEMENT : "contains"
+    ORDERED_SET ||--o{ ATOMIC_ARGUMENT : "referenced as premise set"
+    ORDERED_SET ||--o{ ATOMIC_ARGUMENT : "referenced as conclusion set"
+    ATOMIC_ARGUMENT ||--o| ARGUMENT_TREE : "root of tree"
+    DOCUMENT ||--o{ ARGUMENT_TREE : "contains trees"
+    DOCUMENT ||--o{ ORDERED_SET : "contains"
 ```
 
-**Key Insight**: No CONNECTION table! Connections emerge naturally from shared Statement references. When an atomic argument references a Statement as a conclusion and another references that same Statement as a premise, a connection exists implicitly.
+**Key Insight**: No CONNECTION table! Connections emerge naturally from shared ordered set references. When one atomic argument's conclusion ordered set IS (same reference) another's premise ordered set, a connection exists implicitly.
 
 ## Conceptual Entities
 
-### Statement (Content Layer)
+### Ordered Set (Content Layer)
 The fundamental unit of logical content:
-- **Text**: The actual string content
-- **Identity**: Unique ID that survives text edits
-- **Relationships**: Tracks which atomic arguments reference it
-- **Reusability**: Can appear in multiple atomic arguments
+- **Items**: Ordered array of statement strings
+- **Identity**: Unique ID - connections based on object reference
+- **Order matters**: ["P", "Q"] ≠ ["Q", "P"]
+- **Uniqueness**: No duplicate items within a set
+- **Shared reference**: Same object can be referenced by multiple atomic arguments
 
 ### Atomic Argument (Logical Layer)
-A relation between two ordered n-tuples of Statements:
-- **Premises**: Ordered references to Statement entities (may be empty)
-- **Conclusions**: Ordered references to Statement entities (may be empty)
+A relation between two ordered sets:
+- **Premise set**: Reference to an OrderedSet entity (may be null for empty)
+- **Conclusion set**: Reference to an OrderedSet entity (may be null for empty)
 - **Side labels**: Optional text annotations
-- **Implication line (stroke)**: The visual element that users interact with to create connections
 
-The implication line is crucial - it's the **focusable element** that users select when creating connections. Atomic arguments don't contain text directly - they reference Statement entities.
+Atomic arguments don't contain statements directly - they reference OrderedSet entities.
 
 ### Connection (Implicit Relationship)
-Connections are **implicit relationships** that exist when atomic arguments share Statements:
+Connections are **implicit relationships** that exist when atomic arguments share ordered set objects:
 - No separate entity needed - connections emerge from the data
-- When Statement S appears in argument A's conclusions and argument B's premises, a connection exists
-- The platform discovers these relationships by analyzing Statement references
-- Visual rendering draws lines between atomic arguments that share Statements
+- When argument A's conclusion set IS (same reference) argument B's premise set, a connection exists
+- The CORE layer discovers these relationships through reference equality checks
 
 **How connections work without a CONNECTION table:**
-1. **Discovery**: Platform scans atomic arguments to find shared Statements
+1. **Discovery**: CORE checks reference equality between ordered sets
 2. **Direction**: Conclusion→premise flow determines parent→child relationship
-3. **Visualization**: Language layer decides how to render these relationships
-4. **Performance**: Statement IDs make connection discovery efficient
+3. **Graph Building**: CORE constructs the connection graph from references
+4. **Performance**: Direct reference comparison is extremely fast
 
-### Document (Workspace)
-The canvas containing positioned argument trees:
-- Provides spatial context for editing
+### Document (Container)
+The logical container for argument trees:
+- Contains ordered sets and atomic arguments
 - Maintains document-level metadata
-- References argument trees through tree positions
-- Individual atomic arguments have computed positions based on tree structure
+- References argument trees by their root atomic arguments
 
 ### Argument (Computed View)
 A path-complete set of atomic arguments connected through parent-child relationships. Computed by traversing the connection graph.
@@ -109,197 +96,101 @@ A path-complete set of atomic arguments connected through parent-child relations
 ### Argument Tree (Computed View)
 The maximal connected component containing all atomic arguments reachable through connections. While users think in terms of "trees," the implementation uses a DAG structure to handle cases where premises have multiple parents.
 
-## Interaction Model
+## CORE Layer Operations
 
-```mermaid
-sequenceDiagram
-    participant User
-    participant UI
-    participant Editor
-    participant DataModel
-    
-    User->>UI: Select Statement in atomic argument
-    UI->>UI: Highlight selected Statement
-    User->>UI: Press branch key (e.g., 'b')
-    UI->>Editor: Branch from Statement
-    Editor->>DataModel: Create new atomic argument
-    Editor->>DataModel: Reference selected Statement in new argument
-    DataModel->>DataModel: Statement now shared between arguments
-    DataModel->>UI: Update view showing implicit connection
-```
+### Creating Connections
+When creating a new atomic argument that branches from an existing one:
+1. Create the new atomic argument
+2. Set its premise set reference to the parent's conclusion set reference
+3. The connection now exists implicitly through the shared reference
+
+### Discovering Connections
+To find all connections:
+1. Iterate through all atomic arguments
+2. For each pair, check if one's conclusion set reference equals another's premise set reference
+3. Build the connection graph from these relationships
 
 ## Key Design Principles
 
-### 1. Connections are Shared Statements
-Connections exist when atomic arguments share Statement entities:
-- Statements are created once and referenced multiple times
-- Editing a Statement's text doesn't break connections (ID remains)
-- Each connection represents intentional Statement reuse
+### 1. Connections are Shared Ordered Sets
+Connections exist when atomic arguments share ordered set objects:
+- Ordered sets are created once and referenced multiple times
+- The SAME object (not copies) creates the connection
+- Each connection represents intentional ordered set sharing
+- Modifying a shared ordered set affects all referencing arguments
 
-### 2. The Stroke as First-Class UI Element
-The implication line (stroke) is:
-- The focusable element for connection operations
-- The visual representation of the atomic argument
-- The interaction point for creating branches
+### 2. Reference-Based Connection Model
+Connections are discovered through:
+- Reference equality checks between ordered sets
+- No need for separate connection entities
+- Implicit relationships emerge from the data structure
 
-### 3. Keyboard-Driven Connection Creation
-Users create connections through:
-- Selecting a stroke (implication line)
-- Using keyboard commands to branch
-- Explicitly choosing where to connect
+### 3. Tree Structure Discovery
+Argument trees are computed by:
+- Starting from atomic arguments with no incoming connections (roots)
+- Following connections through shared ordered sets
+- Building the complete connected component
 
 ## What We Store vs What We Compute
 
-### We Store (User-Created):
-- **Statements**: The actual text content as reusable entities
-- **Atomic Arguments**: Relations that reference Statement IDs
-- **Documents**: Workspace metadata
-- **Tree Positions**: Where each tree is anchored in documents
-- **Position Overrides**: Optional manual adjustments to computed positions
+### We Store:
+- **Ordered Sets**: Collections of statements with order and uniqueness
+- **Atomic Arguments**: Relations that reference ordered set IDs
+- **Documents**: Container metadata
+- **Argument Trees**: Root references for connected components
 
 ### We Compute (Emergent):
-- **Connections**: Discovered from shared Statement references
+- **Connections**: Discovered from shared ordered set references
 - **Arguments**: Path-complete subsets
 - **Argument Trees**: Maximal connected components
 - **Tree Properties**: Roots, leaves, depth
-- **Atomic Argument Positions**: Computed from tree structure and layout algorithm
-- **Connection Graph**: Built by analyzing Statement usage
+- **DAG Structure**: Built by checking reference equality
+- **Connection Graph**: Derived from shared references
 
 ## Example: Building a Proof
 
 ```
-Step 1: User creates first atomic argument
-┌─────────────────────┐
-│ A                   │  (Statement s1)
-│ A→B                 │  (Statement s2)
-│ ─────── [MP]        │
-│ B                   │  (Statement s3)
-└─────────────────────┘
-
-Stored:
-- Statements: {s1: "A", s2: "A→B", s3: "B"}
+Step 1: First atomic argument created
+Stored data:
+- OrderedSets: {
+    os1: {id: "os1", items: ["A", "A→B"]},
+    os2: {id: "os2", items: ["B"]}
+  }
 - AtomicArgument aa1: {
-    premise_ids: [s1, s2],
-    conclusion_ids: [s3]
+    premiseSetRef: "os1",
+    conclusionSetRef: "os2"
   }
 
-Step 2: User selects Statement "B" and presses 'b' to branch
-┌─────────────────────┐
-│ A                   │
-│ A→B                 │
-│ ─────── [MP]        │
-│ B                   │  ← User selects this Statement (s3)
-└─────────────────────┘
-          ↓
-    [Branch creates new atomic argument]
-          ↓
-┌─────────────────────┐
-│ B                   │  ← Same Statement s3 (reused)
-│ B→C                 │  (New Statement s4)
-│ ─────── [MP]        │
-│ C                   │  (New Statement s5)
-└─────────────────────┘
-
-Stored:
-- Statements: {s1: "A", s2: "A→B", s3: "B", s4: "B→C", s5: "C"}
-- AtomicArgument aa1: {
-    premise_ids: [s1, s2],
-    conclusion_ids: [s3]
+Step 2: Branch operation creates new atomic argument
+New data added:
+- OrderedSets: {
+    os3: {id: "os3", items: ["C"]}
   }
 - AtomicArgument aa2: {
-    premise_ids: [s3, s4],  ← Notice s3 is reused here!
-    conclusion_ids: [s5]
+    premiseSetRef: "os2",      ← SAME reference as aa1's conclusion!
+    conclusionSetRef: "os3"
   }
 
-The connection is implicit: Statement s3 appears as:
-- conclusion in aa1
-- premise in aa2
-Therefore aa1 → aa2 connection exists automatically.
+The connection is implicit: 
+- aa1.conclusionSetRef === aa2.premiseSetRef (both are "os2")
+- They share the SAME ordered set object
+- Therefore aa1 → aa2 connection exists automatically.
 ```
 
-## Position Computation Model
+## Connection Graph Algorithm
 
-### How Positions Are Computed
-
-Atomic argument positions are computed algorithmically from tree structure:
+### Building the Connection Graph
 
 ```
-1. Start with tree anchor position (x, y) from TREE_POSITION
-2. Identify root atomic argument(s) - those with no incoming connections
-3. Position root at anchor point
-4. For each child atomic argument:
-   - Calculate position based on:
-     - Parent position
-     - Number of siblings
-     - Layout direction (top-down, left-right, etc.)
-     - Spacing parameters
-   - Apply position
-5. Apply any POSITION_OVERRIDE offsets if they exist
-```
-
-### Example Layout Algorithm (Top-Down)
-
-```
-function computePositions(treePosition, rootId, atomicArguments, statements) {
-  const positions = new Map();
-  const visited = new Set();
-  
-  // Build connection graph from shared Statements
-  const connectionGraph = buildConnectionGraph(atomicArguments);
-  
-  // Start at tree anchor
-  positions.set(rootId, {
-    x: treePosition.x,
-    y: treePosition.y
-  });
-  
-  // Breadth-first traversal
-  const queue = [rootId];
-  while (queue.length > 0) {
-    const parentId = queue.shift();
-    const parentPos = positions.get(parentId);
-    
-    // Find children through shared Statements
-    const children = connectionGraph.getChildren(parentId);
-    const childWidth = treePosition.layoutParams.nodeWidth;
-    const spacing = treePosition.layoutParams.horizontalSpacing;
-    const totalWidth = children.length * childWidth + 
-                      (children.length - 1) * spacing;
-    
-    // Position children
-    let xOffset = -totalWidth / 2;
-    for (const child of children) {
-      positions.set(child.id, {
-        x: parentPos.x + xOffset + childWidth / 2,
-        y: parentPos.y + treePosition.layoutParams.verticalSpacing
-      });
-      xOffset += childWidth + spacing;
-      queue.push(child.id);
-    }
-  }
-  
-  // Apply any overrides
-  for (const [argId, pos] of positions) {
-    const override = getOverride(argId, treePosition.documentId);
-    if (override) {
-      pos.x += override.x_offset;
-      pos.y += override.y_offset;
-    }
-  }
-  
-  return positions;
-}
-
 function buildConnectionGraph(atomicArguments) {
-  // Discover connections from shared Statement references
-  // This is simple and efficient - no complex algorithms needed
+  // Discover connections from shared ordered set references
   const graph = new ConnectionGraph();
   
   for (const arg of atomicArguments) {
-    for (const conclusionId of arg.conclusion_ids) {
-      // Find arguments that use this conclusion as a premise
+    if (arg.conclusionSetRef) {
+      // Find arguments where premise set IS our conclusion set
       const children = atomicArguments.filter(other => 
-        other.premise_ids.includes(conclusionId)
+        other.premiseSetRef === arg.conclusionSetRef
       );
       children.forEach(child => graph.addEdge(arg.id, child.id));
     }
@@ -309,43 +200,71 @@ function buildConnectionGraph(atomicArguments) {
 }
 ```
 
-### Benefits of Computed Positions
+### Finding Argument Trees
 
-1. **Consistency**: Tree structure automatically maintains visual coherence
-2. **Flexibility**: Change layout algorithm without migrating data
-3. **Performance**: Store less data, compute on demand
-4. **Correctness**: Visual layout always reflects logical structure
+```
+function findArgumentTrees(atomicArguments) {
+  const graph = buildConnectionGraph(atomicArguments);
+  const visited = new Set();
+  const trees = [];
+  
+  // Find all connected components
+  for (const arg of atomicArguments) {
+    if (!visited.has(arg.id)) {
+      const tree = [];
+      const queue = [arg.id];
+      
+      // BFS to find all connected arguments
+      while (queue.length > 0) {
+        const current = queue.shift();
+        if (!visited.has(current)) {
+          visited.add(current);
+          tree.push(current);
+          
+          // Add all connected arguments
+          const connections = graph.getConnections(current);
+          queue.push(...connections);
+        }
+      }
+      
+      trees.push(tree);
+    }
+  }
+  
+  return trees;
+}
+```
 
 ## Design Rationale
 
-### Why Use Statement Entities?
-1. **Logical Clarity**: Connections exist because Statements are shared
-2. **Edit Resilience**: Change text without breaking relationships
-3. **Reuse Tracking**: See how Statements flow through arguments
-4. **Performance**: Direct references without string comparison
+### Why Use Ordered Set Entities?
+1. **Clear Identity**: Connections based on object reference, not value equality
+2. **Order Preservation**: ["P", "Q"] ≠ ["Q", "P"]
+3. **Shared State**: Modifications propagate to all referencing arguments
+4. **Simple Detection**: Just check reference equality (===)
 
-### Why Not Inline Strings?
-1. **Identity**: Statements need stable IDs across edits
-2. **Relationships**: Track which arguments use which Statements
-3. **Efficiency**: Reuse Statements without duplication
-4. **Semantics**: Shared Statements create connections
+### Why Not Arrays or Individual Statements?
+1. **Uniqueness**: Sets prevent duplicate items
+2. **Object Identity**: Reference sharing creates unambiguous connections
+3. **Atomic Unit**: The whole set is shared, not individual parts
+4. **No Ambiguity**: Same values but different objects don't connect
 
-### Why Separate Tree Position from Logic?
-1. **Reusability**: Same proof in multiple documents with different tree positions
-2. **Clean Architecture**: Logic independent of presentation
-3. **Multiple Views**: Different spatial arrangements of same proof
-4. **Computed Layout**: Individual atomic argument positions flow from tree structure
-5. **Flexibility**: Change layout algorithm without changing stored data
+### Why This Architecture?
+1. **Reusability**: Same logical structures can be processed by different systems
+2. **Clean Architecture**: Logic independent of any presentation layer
+3. **Multiple Implementations**: Different platforms can implement their own visualization
+4. **Algorithm Flexibility**: Connection discovery algorithms can evolve independently
+5. **Data Integrity**: Reference-based connections ensure consistency
 
 ## Summary
 
-This data model reflects the true nature of the Proof Editor: a tool for **constructing logical arguments through shared Statements**. Statements are first-class entities that atomic arguments reference. When users branch from a Statement, they're reusing it in a new context - what was a conclusion becomes a premise. 
+This data model reflects the true nature of the CORE layer: a system for **representing logical arguments through shared ordered sets**. Ordered sets are first-class entities that atomic arguments reference. When branching from an argument, the conclusion ordered set becomes the premise ordered set of the child - not a copy, but the SAME object.
 
-The beauty of this model is its simplicity: no separate connection table is needed. Connections emerge naturally from the data - when atomic arguments share Statement references, they're connected. The system discovers these relationships and computes the argument trees that result.
+The beauty of this model is its clarity: no separate connection table is needed. Connections emerge naturally from the data - when atomic arguments share ordered set references, they're connected. The system discovers these relationships through simple reference equality checks.
 
 This approach provides:
-- **Semantic clarity**: Connections exist because Statements are shared
-- **Data integrity**: No connection/Statement mismatch possible
-- **Edit resilience**: Statement text can change without breaking relationships
-- **Performance**: Direct lookups via Statement IDs
-- **Simplicity**: Fewer entities to manage and synchronize
+- **Unambiguous connections**: Object identity is crystal clear
+- **Shared state**: Changes to ordered sets propagate naturally
+- **Order matters**: ["P", "Q"] ≠ ["Q", "P"]
+- **Simple implementation**: Just check if references are ===
+- **No false positives**: Equal values but different objects don't connect

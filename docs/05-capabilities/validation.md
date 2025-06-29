@@ -2,152 +2,312 @@
 
 ## Real-Time Proof Checking and Intelligent Feedback
 
-Validation in Proof Editor goes beyond simple correctness checking. It provides intelligent, educational feedback that helps users understand their reasoning and improve their proofs.
+Validation provides intelligent, educational feedback that helps users understand their reasoning and improve their proofs. The validation system operates across all platforms through coordinated efforts between the core engine, language servers, and platform-specific UI components.
 
 ## Real-Time Validation
 
 ### Continuous Checking
-- **As-you-type validation**: Instant feedback
-- **Visual indicators**: See status immediately
-- **Non-blocking**: Work continues during checks
-- **Incremental**: Only recheck what changed
+- **As-you-type validation** [CORE]: Tracks structural changes and triggers validation
+  - Core engine detects modifications to atomic arguments
+  - Debounced change notifications to prevent excessive validation
+  - Maintains document state for incremental updates
+
+- **Visual indicators** [PLATFORM]: Display validation status to users
+  - Receives validation results from LSP
+  - Renders status using platform-appropriate visual cues
+  - Updates display in real-time as validation completes
+
+- **Non-blocking processing** [LSP]: Validates without freezing the interface
+  - Asynchronous validation processing
+  - Cancellable operations for rapid editing
+  - Progressive results as validation proceeds
+
+- **Incremental validation** [CORE + LSP]: Only validate what changed
+  - Core tracks changed atomic arguments
+  - LSP performs minimal revalidation
+  - Dependency analysis determines affected arguments
+
+### LSP Validation Protocol
+```typescript
+// Custom LSP request for proof validation
+interface ValidateProofRequest {
+  documentId: string;
+  changedAtomicArguments: string[];  // Only validate what changed
+  fullProofContext: ProofDocument;   // Full context for analysis
+}
+
+interface ValidationResponse {
+  diagnostics: ProofDiagnostic[];
+  globalIssues: GlobalIssue[];       // Document-level problems
+  performanceMetrics: ValidationMetrics;
+}
+```
 
 ### Multi-Level Validation
-- **Syntax level**: Well-formed Statement text
-- **Structure level**: Valid connections via shared Statements
-- **Logic level**: Sound reasoning
-- **Style level**: Best practices
+- **Syntax validation** [LSP]: Well-formed text within ordered sets
+  - Parses statement content for syntactic correctness
+  - Validates domain-specific notation
+  - Checks symbol and formula well-formedness
+
+- **Structure validation** [CORE]: Valid connections via shared ordered sets
+  - Validates ordered set reference integrity
+  - Ensures connection validity through shared references
+  - Maintains structural consistency across document
+
+- **Logic validation** [LSP]: Sound reasoning within domain
+  - Validates inference rule applications
+  - Checks logical soundness and validity
+  - Enforces domain-specific logical rules
+
+- **Style validation** [LSP]: Best practices and conventions
+  - Enforces style guidelines
+  - Provides organization recommendations
+  - Checks domain-specific conventions
 
 ### Responsive Experience
-- **Immediate feedback**: Users see results as they work
-- **Non-blocking**: Interface remains responsive during validation
-- **Smart updates**: Only recheck what changed
-- **Handles complexity**: Works smoothly regardless of proof size
+- **Immediate feedback** [PLATFORM]: Display results within 100ms
+  - Optimized rendering pipeline for quick updates
+  - Progressive display of partial results
+  - Smooth animations and transitions
+
+- **Non-blocking interface** [PLATFORM + LSP]: UI remains responsive
+  - Asynchronous communication protocols
+  - Cancellable operations for user control
+  - Background processing with foreground updates
+
+- **Smart updates** [CORE + LSP]: Minimal revalidation
+  - Core tracks fine-grained document changes
+  - LSP validates only affected portions
+  - Result caching for unchanged content
+
+- **Scalable performance** [CORE + LSP]: Handle large proofs
+  - Efficient data structures in core
+  - Optimized algorithms in LSP
+  - Lazy evaluation strategies
 
 ## Intelligent Feedback
 
-### Error Messages That Teach
-- **What went wrong**: Clear problem description
-- **Why it matters**: Explain the issue
-- **How to fix**: Actionable suggestions
-- **Learn more**: Links to concepts
+### Error Messages That Teach [LSP]
+- **Problem identification**: Clear descriptions of what went wrong
+- **Educational context**: Explanations of why issues matter
+- **Solution guidance**: Actionable fix suggestions
+- **Learning resources**: References to relevant concepts
 
-### Contextual Suggestions
-- **Next steps**: What could come next
-- **Alternative approaches**: Different ways forward
-- **Simplifications**: Make proofs cleaner
-- **Missing pieces**: What's needed
+### Contextual Suggestions [LSP]
+- **Next step inference**: Analyze current state to suggest continuations
+- **Alternative analysis**: Identify different proof approaches
+- **Optimization hints**: Suggest cleaner proof structures
+- **Gap detection**: Identify missing logical steps
 
-### Progressive Assistance
-- **Beginner**: More guidance and explanation
-- **Intermediate**: Balance of help and freedom
-- **Expert**: Minimal intrusion, maximum power
-- **Adaptive**: Learn user preferences
+### Progressive Assistance [LSP + PLATFORM]
+- **Skill adaptation** [LSP]: Adjust feedback complexity to user level
+- **UI customization** [PLATFORM]: Display appropriate interface elements
+- **Learning tracking** [CORE]: Store user preference data
+- **Dynamic adjustment** [LSP]: Evolve assistance based on usage patterns
 
 ## Validation Types
 
-### Logical Correctness
-- **Rule application**: Proper use of inference
-- **Premise support**: All claims justified
-- **Conclusion validity**: Follows from premises
-- **Consistency**: No contradictions
+### Logical Correctness [LSP]
+- **Rule validation**: Check proper inference rule application
+- **Premise verification**: Ensure all claims are justified
+- **Conclusion checking**: Verify logical consequence
+- **Consistency analysis**: Detect contradictions
 
-### Structural Validation
-- **Completeness**: No missing steps
-- **Connection validity**: Proper linkages
-- **Circular reasoning**: Detect and flag
-- **Dependency tracking**: Valid ordering
+### Structural Validation [CORE + LSP]
+- **Completeness checking** [LSP]: Identify missing logical steps
+- **Connection validation** [CORE]: Verify ordered set references
+- **Circular detection** [LSP]: Find circular reasoning patterns
+- **Dependency validation** [CORE + LSP]: Ensure valid proof ordering
 
-### Domain Validation
-- **Custom rules**: Field-specific requirements
-- **Notation standards**: Proper formatting
-- **Regulatory compliance**: Meet standards
-- **Best practices**: Domain conventions
+### Domain Validation [LSP]
+- **Custom rules**: Implement field-specific requirements
+- **Notation checking**: Validate proper formatting
+- **Compliance verification**: Check regulatory standards
+- **Convention enforcement**: Apply domain best practices
 
 ## Visual Feedback
 
-### Status Indicators
-- **Green**: Valid and complete
-- **Yellow**: Valid but incomplete
-- **Red**: Errors present
-- **Gray**: Not yet checked
+### Status Indicators [PLATFORM]
+Platforms display validation status using appropriate visual cues:
 
-### Problem Highlighting
-- **Squiggly underlines**: Like spell check
-- **Margin indicators**: Overview of issues
-- **Connection coloring**: Show problem flows
-- **Heat maps**: Complexity visualization
+**Generic Status Types** (determined by [LSP]):
+- **Valid and complete**: All validation passes
+- **Valid but incomplete**: No errors but missing elements
+- **Errors present**: Validation failures detected
+- **Not yet checked**: Awaiting validation
 
-### Success Celebration
-- **Completion animation**: Reward success
-- **Progress indicators**: Show advancement
-- **Milestone markers**: Significant achievements
-- **Shareable moments**: Celebrate publicly
+**Platform Implementations**:
+- **Desktop (VS Code)**: Color-coded indicators in editor gutter
+- **Mobile**: Status badges with haptic feedback
+- **Web**: Icon-based status with tooltips
+
+### Problem Highlighting [PLATFORM]
+Platforms highlight issues based on LSP diagnostics:
+
+**Generic Highlighting** (issues identified by [LSP]):
+- **Inline indicators**: Mark problematic locations
+- **Problem lists**: Aggregate all issues
+- **Flow visualization**: Show error propagation
+- **Complexity indicators**: Display analytical metrics
+
+**Platform Implementations**:
+- **Desktop (VS Code)**: Squiggly underlines and Problems panel
+- **Mobile**: Touch-friendly error cards and swipe navigation
+- **Web**: Hover tooltips and collapsible error panels
+
+### Success Celebration [PLATFORM]
+- **Completion effects**: Visual reward for valid proofs
+- **Progress tracking**: Show proof advancement
+- **Achievement system**: Recognize milestones
+- **Sharing features**: Export successful proofs
 
 ## Educational Features
 
-### Learning Mode
-- **Explain this error**: Detailed breakdowns
-- **Show me why**: Visual demonstrations
-- **Practice problems**: Fix similar issues
-- **Concept links**: Understand theory
+### Learning Mode [LSP + PLATFORM]
+- **Error explanations** [LSP]: Generate detailed error breakdowns
+- **Visual demonstrations** [PLATFORM]: Show error context visually
+- **Practice generation** [LSP]: Create exercises for skill building
+- **Concept references** [LSP]: Link to theoretical foundations
 
-### Guided Validation
-- **Step-by-step**: Check incrementally
-- **Partial credit**: Recognize progress
-- **Hint system**: Gentle nudges
-- **Solution paths**: Show possibilities
+### Guided Validation [LSP + PLATFORM]
+- **Incremental checking** [LSP]: Validate proof step-by-step
+- **Progress recognition** [LSP]: Award credit for partial solutions
+- **Hint generation** [LSP]: Provide contextual guidance
+- **Path suggestions** [LSP]: Show possible proof directions
 
-### Error Patterns
-- **Common mistakes**: Recognize patterns
-- **Personal trends**: Track user errors
-- **Targeted help**: Address weaknesses
-- **Improvement tracking**: Show progress
+### Error Pattern Analysis [CORE + LSP]
+- **Pattern detection** [LSP]: Identify common mistake types
+- **User tracking** [CORE]: Store error history per user
+- **Targeted assistance** [LSP]: Generate personalized help
+- **Progress metrics** [CORE]: Track improvement over time
 
 ## Advanced Validation
 
-### Custom Validators
-- **User-defined rules**: Personal standards
-- **Team standards**: Organizational rules
-- **Research requirements**: Publication needs
-- **Teaching constraints**: Assignment rules
+### Custom Validators [LSP]
+- **User-defined rules**: Extend validation with personal standards
+  - Plugin system for custom validation logic
+  - User-defined inference rule implementations
+  - Personal style and convention enforcement
 
-### Proof Strategies
-- **Strategy detection**: Recognize approaches
-- **Alternative paths**: Suggest other ways
-- **Optimization**: Shorter proofs
-- **Elegance metrics**: Beyond correctness
+- **Team standards**: Share organizational validation rules
+  - Configuration management for teams
+  - Shared validation rule libraries
+  - Organizational style guide enforcement
 
-### Meta-Validation
-- **Proof about proofs**: Validate validators
-- **Consistency checking**: System coherence
-- **Completeness analysis**: Coverage metrics
-- **Soundness verification**: Deep checks
+- **Research requirements**: Meet publication standards
+  - Journal-specific validation rules
+  - Citation and reference checking
+  - Domain notation standards
+
+- **Teaching constraints**: Educational validation modes
+  - Assignment-specific rule sets
+  - Grading integration support
+  - Student progress tracking
+
+### Proof Strategies [LSP]
+- **Strategy recognition**: Identify proof approaches
+  - Pattern-based strategy detection
+  - Common technique identification
+  - Strategy classification system
+
+- **Alternative suggestions**: Explore different paths
+  - Generate alternative strategies
+  - Compare approach effectiveness
+  - Guide proof exploration
+
+- **Optimization analysis**: Improve proof efficiency
+  - Detect redundant steps
+  - Suggest simplifications
+  - Minimize proof length
+
+- **Quality metrics**: Assess beyond correctness
+  - Clarity and readability scores
+  - Elegance measurements
+  - Domain-specific quality criteria
+
+### Meta-Validation [LSP]
+- **Validator validation**: Verify custom validators work correctly
+- **Consistency checking**: Ensure rule system coherence
+- **Coverage analysis**: Measure validation completeness
+- **Soundness verification**: Deep correctness checks
 
 ## Integration Possibilities
 
-### External Validation
-- Connect with formal verification tools
-- Support domain-specific validators
-- Enable custom validation rules
-- Provide programmatic access
+### External Tool Integration [LSP]
+Connect with formal verification tools through LSP extensions:
 
-### Collaborative Validation
-- Automated checking in team workflows
-- Batch processing for multiple proofs
-- Track correctness over time
-- Compare different approaches
+```typescript
+// Generic external validation interface
+interface ExternalValidationRequest {
+  proofContent: string;
+  toolName: string;  // 'coq', 'lean', 'isabelle', etc.
+  timeout: number;
+  options?: Record<string, any>;
+}
+```
+
+**Integration Features**:
+- Plugin architecture for validation engines
+- Domain-specific rule implementations
+- Custom diagnostic formatting
+- Configurable validation levels
+- Batch processing support
+
+### Collaborative Validation [PLATFORM + LSP]
+
+**Team Workflows**:
+- **Automated validation** [LSP]: Integrate with CI/CD pipelines
+- **Batch processing** [LSP]: Handle multiple proofs efficiently
+- **History tracking** [CORE]: Store validation results over time
+- **Comparison tools** [LSP]: Analyze different proof approaches
+
+**Platform Implementations**:
+- **Desktop**: Integration with Git, CI/CD tools
+- **Mobile**: Cloud-based validation services
+- **Web**: Browser-based validation APIs
+
+## LSP Extension Points
+
+### Custom LSP Requests
+```typescript
+// Domain-specific validation requests
+interface CustomValidationRequest {
+  method: 'proof/validateInferenceRule';
+  params: {
+    rule: string;
+    premises: string[];
+    conclusion: string;
+    context: ProofContext;
+  };
+}
+
+// Real-time suggestion requests
+interface SuggestionRequest {
+  method: 'proof/getSuggestions';
+  params: {
+    currentState: ProofState;
+    position: CursorPosition;
+    maxSuggestions: number;
+  };
+}
+```
+
+### Performance Targets
+- **Syntax validation**: < 50ms response time
+- **Logic validation**: < 200ms for single atomic argument
+- **Full document validation**: < 1s for 100 atomic arguments
+- **External tool integration**: < 5s timeout with progress feedback
 
 ## Philosophy
 
 ### Validation as Teaching
-Every error is a learning opportunity. Validation doesn't just say "no" - it shows the path to "yes."
+Every error is a learning opportunity. The validation system doesn't just identify problems - it educates users about logical reasoning through intelligent feedback and constructive suggestions.
 
 ### Encouraging Exploration
-Users should feel safe to experiment. Validation guides rather than punishes.
+Users should feel safe to experiment. Validation guides rather than punishes, providing gentle correction and educational support that encourages learning through trial.
 
 ### Building Confidence
-Clear feedback builds understanding. Users learn to self-validate through experience.
+Clear feedback builds understanding. Users develop their logical intuition through consistent, helpful validation that explains both what went wrong and why it matters.
 
 ### Continuous Improvement
-The system learns from common errors to provide better assistance over time.
+The validation system evolves with usage, learning from common patterns to provide increasingly relevant assistance tailored to specific domains and user needs.

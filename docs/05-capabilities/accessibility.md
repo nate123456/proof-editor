@@ -2,67 +2,67 @@
 
 ## Logic for Everyone, Everywhere
 
-Accessibility in Proof Editor means more than compliance - it means ensuring formal logic tools are available to everyone regardless of device, ability, or circumstance.
+Accessibility in Proof Editor leverages VS Code's mature accessibility infrastructure while adding proof-specific accommodations. By building on VS Code's foundation, we inherit extensive accessibility features and focus our efforts on making proof construction accessible.
 
-## Platform Accessibility
+### Our Approach: Inherit + Enhance
+- **Inherit from VS Code**: Leverage existing accessibility infrastructure
+- **Enhance for proofs**: Add proof-specific accessibility features
+- **Standards compliance**: Build on VS Code's WCAG 2.1 AA compliance
 
-### True Cross-Platform
-- **Desktop**: Full power on Windows, Mac, Linux
-- **Tablet**: Touch-optimized for iPad, Android
-- **Mobile**: Essential features on phones
-- **Web**: No installation required
+## Platform Accessibility [VS CODE]
 
-### Offline First
-- **Local storage**: Work without internet
-- **Sync when connected**: Seamless updates
-- **Progressive Web App**: Install-like experience
-- **Conflict resolution**: Smart merging
+### Cross-Platform Support [VS CODE]
+- **Desktop**: Inherits VS Code's full cross-platform support (Windows, Mac, Linux)
+- **Web**: Runs in VS Code for Web (vscode.dev, GitHub Codespaces)
+- **Remote**: Works with VS Code Remote extensions
+- **Cloud**: Supports cloud development environments
 
-### Performance Everywhere
-- **Low-end devices**: Optimized for constraints
-- **Slow connections**: Minimal bandwidth usage
-- **Battery efficient**: Mobile-friendly
-- **Resource adaptive**: Scale to capability
+### Performance and Efficiency [VS CODE]
+- **Optimized rendering**: Leverages VS Code's performance optimizations
+- **Resource management**: Benefits from VS Code's efficient resource usage
+- **Extension isolation**: Proof Editor runs in VS Code's extension sandbox
+- **Scalability**: Inherits VS Code's ability to handle large workspaces
 
-## User Accessibility
+## User Accessibility [VS CODE + PROOF EDITOR]
 
-### Visual Accessibility
-- **High contrast modes**: Clear visibility
-- **Zoom support**: Interface scales properly
-- **Color blind modes**: Not just color coding
-- **Clear typography**: Readable at all sizes
+### Visual Accessibility [VS CODE + PROOF EDITOR]
+- **High contrast modes**: Inherit VS Code's high contrast themes
+- **Zoom support**: Leverage VS Code's zoom functionality
+- **Color blind support**: Inherit VS Code's color blind accommodations
+- **Typography**: Use VS Code's accessible font settings
+- **Proof-specific**: Custom high contrast for proof elements [PROOF EDITOR]
 
-### Motor Accessibility
-- **Keyboard only**: Full functionality
-- **Large touch targets**: Easy interaction
-- **Gesture alternatives**: Multiple input methods
-- **Customizable controls**: Adapt to needs
+### Motor Accessibility [VS CODE + PROOF EDITOR]
+- **Keyboard navigation**: Full keyboard access to all proof features
+- **Customizable shortcuts**: Use VS Code's keybinding system
+- **Touch support**: Adapt proof interactions for touch interfaces
+- **Alternative input**: Support for voice control and other assistive technologies
 
-### Cognitive Accessibility
-- **Clear language**: No unnecessary jargon
-- **Progressive disclosure**: Not overwhelming
-- **Consistent patterns**: Predictable interface
-- **Help always available**: Context-sensitive
+### Cognitive Accessibility [PROOF EDITOR]
+- **Clear language**: Plain language in proof feedback and help
+- **Progressive disclosure**: Beginner/intermediate/expert modes
+- **Consistent patterns**: Predictable proof construction workflows
+- **Context help**: Integrated help for proof concepts
 
-### Screen Reader Support
-- **Semantic markup**: Proper structure
-- **ARIA labels**: Clear descriptions
-- **Navigation landmarks**: Easy movement
-- **Status announcements**: Know what's happening
+### Screen Reader Support [VS CODE + PROOF EDITOR]
+- **Semantic markup**: Proper ARIA labels for proof elements
+- **Navigation landmarks**: Logical proof structure for screen readers
+- **Status announcements**: Validation results and proof state changes
+- **Structured content**: Meaningful hierarchy for proof navigation
 
-## Language and Localization
+## Language and Localization [VS CODE + PROOF EDITOR]
 
-### Multi-Language Support
-- **Interface translation**: Native languages
-- **Content translation**: Proof descriptions
-- **RTL support**: Right-to-left languages
-- **Cultural adaptation**: Local conventions
+### Multi-Language Support [VS CODE + PROOF EDITOR]
+- **Interface translation**: Leverage VS Code's i18n system
+- **Content translation**: Proof descriptions and help text
+- **RTL support**: Inherit VS Code's RTL layout support
+- **Cultural adaptation**: Domain-specific notation conventions
 
-### Clear Communication
-- **Plain language**: Avoid complexity
-- **Visual communication**: Icons and symbols
-- **Multiple explanations**: Different approaches
-- **Glossary available**: Term definitions
+### Clear Communication [PROOF EDITOR]
+- **Plain language**: Accessible explanations of proof concepts
+- **Visual communication**: Clear icons for proof operations
+- **Multiple explanations**: Different learning approaches for proof concepts
+- **Integrated glossary**: Context-sensitive term definitions
 
 ## Educational Accessibility
 
@@ -92,19 +92,19 @@ Accessibility in Proof Editor means more than compliance - it means ensuring for
 - **Efficient sync**: Only necessary data
 - **Degraded modes**: Functional with less
 
-## Technical Accessibility
+## Technical Accessibility [VS CODE + PROOF EDITOR]
 
-### Standards Compliance
-- **WCAG 2.1 AA**: Minimum target
-- **Section 508**: US compliance
-- **EN 301 549**: EU compliance
-- **Platform guidelines**: iOS, Android, etc.
+### Standards Compliance [VS CODE + PROOF EDITOR]
+- **WCAG 2.1 AA**: Inherit VS Code's compliance and extend for proof features
+- **Section 508**: Leverage VS Code's US compliance
+- **EN 301 549**: Build on VS Code's EU compliance
+- **Platform guidelines**: Follow VS Code's accessibility guidelines
 
 ### Testing and Validation
-- **Automated testing**: Continuous checks
-- **User testing**: Real accessibility users
-- **Expert review**: Accessibility audits
-- **Community feedback**: Ongoing improvement
+- **Automated testing**: Use VS Code's accessibility testing infrastructure
+- **User testing**: Test proof features with accessibility users
+- **Expert review**: Accessibility audits for proof-specific features
+- **Community feedback**: Leverage VS Code's accessibility community
 
 ## Social Accessibility
 

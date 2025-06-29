@@ -38,19 +38,26 @@ The platform's effectiveness can be evaluated along several dimensions that alig
 - Reuse of proof components and patterns
 - Navigation speed in large proof structures
 
-### Accessibility
-- Platform functions across different devices and input methods
-- Visual representations remain clear at different scales
-- Alternative representations available for different needs
-- System operates within standard computational constraints
+### Multi-Platform Accessibility
+- Feature parity across desktop, tablet, mobile, and web
+- Touch interfaces as capable as keyboard/mouse
+- Seamless workflow transitions between devices
+- Visual clarity from 5" phones to 32" monitors
+- Gesture support matching platform conventions
+- Voice input where platform supports
+- Offline functionality on all platforms
+- Performance acceptable on entry-level devices
 
 ## Community Criteria
 
-### Adoption Patterns
-- Creation and sharing of user-defined logic systems
-- Reuse of existing proof libraries and components
-- Cross-domain application of logical tools
-- Development of domain-specific extensions
+### Cross-Platform Adoption Patterns
+- Logic systems shareable via QR codes in classrooms
+- Mobile contributions to proof libraries
+- Field researchers using tablets for on-site work
+- Students practicing on phones between classes
+- Desktop power users creating complex systems
+- Web-based collaboration without installation
+- Platform-agnostic extension ecosystem
 
 ### Knowledge Building
 - Accumulation of verified proof libraries
@@ -60,11 +67,13 @@ The platform's effectiveness can be evaluated along several dimensions that alig
 
 ## Technical Criteria
 
-### Performance
-- Response time for validation operations
-- Scalability to large proof structures
-- Concurrent user support
-- Resource efficiency
+### Multi-Device Performance
+- Validation speed on mobile processors
+- Battery efficiency for extended mobile use
+- Progressive loading for limited bandwidth
+- Adaptive quality for device capabilities
+- Memory management on constrained devices
+- Smooth interactions regardless of platform
 
 ### Reliability
 - System stability under normal use
@@ -72,8 +81,11 @@ The platform's effectiveness can be evaluated along several dimensions that alig
 - Consistent behavior across platforms
 - Predictable performance characteristics
 
-### Interoperability
-- Integration with existing tools and workflows
-- Standard format support for import/export
-- API accessibility for extensions
-- Version compatibility management
+### Platform Interoperability
+- Native share sheets on mobile platforms
+- Desktop IDE integrations
+- Web API for third-party services
+- Cross-platform file format compatibility
+- Cloud sync with local file access
+- Platform-specific integration points
+- Universal extension API

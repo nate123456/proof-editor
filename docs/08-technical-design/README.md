@@ -7,7 +7,7 @@ This section contains detailed technical specifications for the Proof Editor pla
 ## Contents
 
 ### [Conceptual Data Model](conceptual-data-model.md)
-Entity-relationship model showing the core entities and their relationships, maintaining alignment with the project's conceptual vision while addressing implementation needs. Covers the Statement-based data model where connections emerge from shared Statement references.
+Entity-relationship model showing the core entities and their relationships, maintaining alignment with the project's conceptual vision while addressing implementation needs. Covers the ordered set-based data model where connections emerge from shared ordered set references.
 
 ## Design Approach
 

@@ -2,47 +2,60 @@
 
 See [Key Terms](./key-terms.md#language-layer) for the definition.
 
-## What Language Layers Do
+## [LSP] Language Server Protocol Foundation
 
-Language layers interpret and display the Statements referenced by atomic arguments. They define:
-- How to parse Statement text content
-- Display formatting and symbols
-- Validation rules for the domain
-- Available operators and notation
+Language layers are implemented as Language Server Protocol (LSP) servers that provide intelligent analysis and validation for specific logical systems. Each language layer:
+- Parses statement strings within ordered sets
+- Validates logical inferences according to domain rules
+- Provides real-time diagnostics and suggestions
+- Enables code completion and hover information
 
-## Separation of Concerns
+## [LSP] Protocol Capabilities
 
-The platform stores Statements and connections. Language layers provide meaning:
+Language servers provide these capabilities through standard LSP methods:
 
-| Platform | Language Layer |
-|----------|----------------|
-| Stores Statement entities | Parses Statement text |
-| Tracks connections via shared Statements | Validates logic |
-| Computes trees | Formats display |
-| Manages documents | Defines symbols |
+| LSP Feature | Proof-Specific Application |
+|-------------|---------------------------|
+| `textDocument/didChange` | Validates statements as typed |
+| `textDocument/diagnostic` | Reports invalid inferences |
+| `textDocument/completion` | Suggests logical operators |
+| `textDocument/hover` | Explains rules and symbols |
+| `proof/validateArgument` | Custom validation for atomic arguments |
+| `proof/completeInference` | AI-assisted conclusion generation |
 
-## Example Language Layers
+## [LSP] Transport Mechanisms
 
-### Mathematical Logic
-- Symbols: ∧, ∨, →, ¬, ∀, ∃
-- Validation: Check well-formed formulas
-- Display: Traditional horizontal lines
+Language servers communicate via transport-agnostic protocols:
+- **stdio**: Process-based communication for desktop
+- **WebSocket**: Network communication for mobile/web
+- **HTTP**: Stateless validation services
+- **TCP**: Direct socket connections
 
-### Natural Language
-- Symbols: "therefore", "because", "given"
-- Validation: Grammar checking
-- Display: Box-and-arrow diagrams
+## Example Language Implementations
 
-### Programming
-- Symbols: &&, ||, =>, !
-- Validation: Type checking
-- Display: Indented code blocks
+### Mathematical Logic Server
+- **Operators**: ∧, ∨, →, ¬, ∀, ∃
+- **Validation**: Well-formed formula checking via LSP diagnostics
+- **Completion**: Context-aware operator suggestions
+- **Analysis**: Quantifier scope validation
 
-## Key Benefits
+### Natural Language Server
+- **Keywords**: "therefore", "because", "given"
+- **Validation**: Grammar and coherence checking
+- **Completion**: Phrase and connector suggestions
+- **Analysis**: Argument structure verification
 
-- **Domain flexibility**: Customize for any formal system
-- **Notation freedom**: Use familiar symbols
-- **Semantic preservation**: Switch layers without losing meaning
-- **Modular validation**: Domain-specific rules
+### Programming Logic Server
+- **Operators**: &&, ||, =>, !
+- **Validation**: Type checking and consistency
+- **Completion**: Variable and predicate suggestions
+- **Analysis**: Control flow verification
 
-Language layers make Proof Editor adaptable to any text-based formal reasoning system.
+## [LSP] Key Protocol Benefits
+
+- **Language agnostic**: Platform doesn't understand logic, LSP servers do
+- **Hot-swappable**: Change languages without closing documents
+- **Extensible**: Add new validation rules via server updates
+- **Performance**: Async validation doesn't block editing
+
+Language servers make Proof Editor adaptable to any text-based formal reasoning system while maintaining consistent protocol communication.

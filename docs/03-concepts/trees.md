@@ -1,55 +1,39 @@
-# Argument Trees
+# Argument Trees [CORE]
 
 See [Key Terms](./key-terms.md#argument-tree) for definitions of argument and argument tree.
 
 ## Key Distinction: Argument vs Argument Tree
 
-Consider this structure:
-```
-    A
-   / \
-  B   C
-  |   |
-  D   E
-   \ /
-    F
-```
+Consider atomic arguments connected through shared ordered sets:
+- **Atomic Arguments**: Individual inference steps (A→B, B→C, etc.)
+- **Arguments**: Any path-complete subset of connected atomic arguments
+- **Argument Tree**: The maximal connected component containing ALL connected atomic arguments
 
-- **Atomic Arguments**: A→B, A→C, B→D, C→E, D→F, E→F (6 total)
-- **Valid Arguments**: Any path-complete subset (e.g., {A→B, B→D})
-- **Argument Tree**: The entire maximal component (all 6 atomic arguments)
+## Example Structure
+
+Given connections: A→B, A→C, B→D, C→E, D→F, E→F
+
+- **Atomic Arguments**: 6 individual steps
+- **Valid Arguments**: {A→B, B→D}, {D→F, E→F}, etc. (path-complete)
+- **Invalid Arguments**: {A→B, D→F} (missing B→D)
+- **The Argument Tree**: All 6 atomic arguments together
 
 ## Properties
 
-### Discovery, Not Creation
-You create atomic arguments and connections. Trees emerge from the connection structure.
+### Maximality
+An argument tree contains ALL atomic arguments connected to any of its members. No atomic argument connected to the tree exists outside it.
 
 ### Uniqueness
-If two trees share any atomic argument, they are the same tree (by definition of maximal).
+If two trees share any atomic argument, they are identical. Trees are either completely separate or exactly the same.
 
-### Structure Types
+### Emergence
+Trees are discovered from connections, not created directly. You create atomic arguments and connections; trees emerge from the structure.
 
-**Linear**: A → B → C → D
+## Common Patterns
 
-**Branching**: 
-```
-    A
-   / \
-  B   C
-```
+- **Linear**: Sequential reasoning (A→B→C→D)
+- **Branching**: Multiple consequences from one premise
+- **Convergent**: Multiple paths to the same conclusion
+- **Mixed**: Combinations of the above patterns
 
-**Convergent**:
-```
-  A   B
-   \ /
-    C
-```
-
-## Navigation and Analysis
-
-- View complete tree structure
-- Extract valid sub-arguments
-- Count atomic arguments and paths
-- Find longest reasoning chains
-
-Trees represent complete, self-contained proofs that can be saved, shared, and reused.
+Trees represent complete, self-contained logical structures.

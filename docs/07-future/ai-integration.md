@@ -1,54 +1,100 @@
 # AI Integration
 
-## Machine Learning and Formal Reasoning
+## Platform-Aware AI Architecture
 
-Integration of machine learning techniques with formal reasoning systems presents opportunities for automation and analysis. Conversely, formal methods can provide structure for interpreting machine learning outputs.
+AI integration varies dramatically by platform, leveraging each platform's unique capabilities while maintaining logical consistency across all devices.
 
-## AI-Assisted Proof Construction
+## Platform-Specific AI Capabilities
 
-### Intelligent Suggestions
-- **Next step prediction**: What typically follows
-- **Pattern recognition**: Similar proofs in library
-- **Gap identification**: What's missing
-- **Alternative paths**: Different approaches
-- **Optimization**: Shorter, clearer proofs
+### Mobile AI (Phones)
+- **On-device inference**: Privacy-first, works offline
+- **Voice assistants**: Siri/Google Assistant integration
+- **Camera integration**: Photograph whiteboard proofs
+- **Contextual awareness**: Location, time-based suggestions
+- **Battery-optimized**: Efficient AI processing
 
-### Natural Language Interface
-- **Voice input**: Speak your reasoning
-- **Text to logic**: Convert descriptions
-- **Explanation generation**: Describe proofs
-- **Multi-language**: Any human language
-- **Context understanding**: Smart interpretation
+### Tablet AI (Touch-First)
+- **Stylus intelligence**: Handwriting to formal logic
+- **Gesture recognition**: Natural proof manipulation
+- **Split-screen assist**: AI alongside your work
+- **Educational focus**: Adaptive tutoring
+- **Collaborative AI**: Shared tablet sessions
 
-### Learning Systems
-- **Personalized assistance**: Adapt to user style
-- **Skill development**: Targeted practice
-- **Error prediction**: Prevent common mistakes
-- **Progress tracking**: Optimize learning
-- **Collaborative filtering**: Learn from community
+### Desktop AI (Power Users)
+- **GPU acceleration**: Complex proof search
+- **Multi-monitor support**: AI on second screen
+- **IDE integration**: Deep VS Code AI features
+- **Keyboard shortcuts**: Rapid AI invocation
+- **Extension ecosystem**: Custom AI plugins
 
-## AI Reasoning Transparency
+### Cloud AI (Distributed)
+- **Massive models**: Latest AI capabilities
+- **Cross-device learning**: Unified user model
+- **Team intelligence**: Learn from organization
+- **API access**: Custom integrations
+- **Continuous training**: Always improving
 
-### Explainable AI
-- **Logic extraction**: How AI decided
-- **Assumption surfacing**: What AI assumes
-- **Reasoning chains**: Step-by-step logic
-- **Confidence levels**: Certainty mapping
-- **Alternative explanations**: Other possibilities
+## Cross-Platform AI Features
 
-### Verification
-- **Proof generation**: AI creates formal proofs
-- **Consistency checking**: Validate AI logic
-- **Bias detection**: Find hidden assumptions
-- **Safety verification**: Ensure correct behavior
-- **Audit trails**: Complete reasoning history
+### Core AI (All Platforms)
+- **Next step suggestions**: Context-aware hints
+- **Error detection**: Spot logical issues
+- **Pattern matching**: Find similar proofs
+- **Natural language**: Plain English to logic
+- **Personalization**: Adapt to user style
 
-### Human-AI Collaboration
-- **Co-reasoning**: Work together
-- **AI as assistant**: Enhance human capability
-- **Human as validator**: Ensure correctness
-- **Iterative refinement**: Improve together
-- **Trust building**: Understand each other
+### Platform Handoff
+- **Start mobile, finish desktop**: Seamless transition
+- **Cloud sync**: AI state across devices
+- **Context preservation**: Remember where you were
+- **Progressive complexity**: Simple mobile, detailed desktop
+- **Unified preferences**: Consistent AI behavior
+
+## Platform-Adaptive AI Interaction
+
+### Mobile Interaction
+- **Quick queries**: Voice questions on the go
+- **Photo analysis**: Snap a proof, get feedback
+- **Notification intelligence**: Timely suggestions
+- **Offline capability**: AI without connection
+- **Gesture shortcuts**: Swipe for AI help
+
+### Tablet Interaction
+- **Drawing recognition**: Sketch logic diagrams
+- **Multi-touch AI**: Two-finger AI invoke
+- **Screen annotation**: AI marks up your work
+- **Student-teacher mode**: Guided assistance
+- **Group AI sessions**: Collaborative learning
+
+### Desktop Interaction
+- **Command palette**: Quick AI access
+- **Sidebar assistants**: Always-visible help
+- **Floating windows**: AI in separate panes
+- **Keyboard macros**: Custom AI commands
+- **Script integration**: AI in workflows
+
+## Educational AI Across Devices
+
+### Classroom Tablets
+- **Synchronized lessons**: Teacher controls pace
+- **Individual progress**: Personalized difficulty
+- **Peer comparison**: Anonymous rankings
+- **Homework help**: After-hours assistance
+- **Parent visibility**: Progress reports
+
+### Student Phones
+- **Micro-learning**: Quick practice sessions
+- **Commute training**: Learn on the bus
+- **Flash cards**: Spaced repetition
+- **Friend challenges**: Social learning
+- **Achievement sharing**: Motivational system
+
+### Research Workstations
+- **Literature AI**: Find relevant papers
+- **Proof mining**: Extract techniques
+- **Collaboration matching**: Find co-authors
+- **Grant writing**: Proposal assistance
+- **Publication prep**: Format for journals
 
 ## Advanced Capabilities
 

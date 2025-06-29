@@ -50,28 +50,36 @@
 
 ## Technical Constraints
 
-### Platform Restrictions
-- Tools limited to specific operating systems
-- No mobile device support
-- Network connectivity required for operation
-- Platform-specific file formats
+### Platform Accessibility
+- Most tools confined to desktop environments
+- No mobile or tablet support for field work or classroom use
+- Web-based tools require constant connectivity
+- Platform-specific file formats prevent cross-device workflows
+- Touch interfaces completely unsupported
+- No offline capabilities for remote or mobile scenarios
 
 ### System Rigidity
 - Fixed logical systems built into tools
 - No mechanism for user-defined inference rules
 - Cannot extend existing systems
 - New systems require complete reimplementation
+- Platform lock-in prevents switching environments
+- No progressive web capabilities for gradual feature access
 
 ## Usage Patterns
 
-### Academic Focus
-- Tools optimized for theoretical applications
-- Limited support for practical reasoning tasks
-- Missing domain-specific requirements
-- Interface complexity assumes expert knowledge
+### Academic Desktop Bias
+- Tools assume powerful desktop computers
+- No consideration for mobile learning scenarios
+- Field researchers cannot use tools on-site
+- Students limited to computer labs
+- Practitioners need desktop access for basic tasks
+- No support for quick mobile consultations
 
 ### Infrastructure Absence
-- No package management for logical systems
-- No central repository for sharing
-- No versioning for logic definitions
-- Each implementation starts from base principles
+- No cross-platform package management
+- Platform-specific distribution mechanisms
+- No universal sharing protocols
+- Version control limited to desktop tools
+- Mobile users cannot contribute to libraries
+- Each platform requires separate implementations

@@ -16,8 +16,8 @@ An atomic argument represents a single inference step as a relation between two 
 - Each atomic argument represents exactly one logical inference
 
 ### Argument Trees
-Collections of atomic arguments connected through shared statements:
-- Arguments connect when a conclusion from one serves as a premise in another
+Collections of atomic arguments connected through shared ordered sets:
+- Atomic arguments connect when they share the same ordered set object reference
 - Trees contain all transitively connected arguments
 - Each tree represents a complete proof or reasoning structure
 
