@@ -13,20 +13,26 @@ Proof Editor uses YAML files (`.proof` extension) to store logical proofs. The f
 
 That's it! Two atomic arguments where the conclusion of the first (`[C]`) is the premise of the second.
 
-## Connection Model
+## Connection Reconstruction in Files
 
-Arguments connect when they share the same Set (ordered list of statements).
+For the conceptual definition of connections, see [Key Terms](../03-concepts/key-terms.md#connections).
 
-### Implicit Connections (Automatic)
+**Key Understanding**: The file format uses string matching to reconstruct the runtime connection model, which is based on shared object references. String matching in files ≠ string matching in runtime.
+
+When loading proof files, the system reconstructs shared ordered set references through two mechanisms:
+
+### Implicit Reconstruction (String Matching)
 
 ```yaml
 - [All men are mortal, Socrates is a man]: [Socrates is mortal]
 - [Socrates is mortal, All mortals die]: [Socrates will die]
 ```
 
-The system detects that `[Socrates is mortal]` appears as both conclusion and premise, creating the connection automatically via string matching.
+During deserialization, the system detects that `[Socrates is mortal]` appears as both conclusion and premise. It creates a single OrderedSetEntity object that both atomic arguments reference by ID.
 
-### Explicit Connections (Manual)
+**Runtime result**: Two AtomicArgumentEntity objects that share the same OrderedSetEntity reference - this shared reference IS the connection.
+
+### Explicit References (YAML Anchors)
 
 ```yaml
 - [All men are mortal, Socrates is a man]: &s_mortal [Socrates is mortal]
@@ -35,8 +41,26 @@ The system detects that `[Socrates is mortal]` appears as both conclusion and pr
 
 Use anchors (`&`) and aliases (`*`) when:
 - String variations exist ("Ground wet" vs "Ground is wet")
-- You want guaranteed connections
-- You're reusing statements multiple times
+- You want guaranteed shared references
+- You're reusing ordered sets multiple times
+
+**Important**: String matching is just a deserialization mechanism. At runtime, connections exist through shared ordered set object references, not string comparison.
+
+### Statement Reuse vs Connection Reconstruction
+
+**Statement Reuse**: The same statement string can appear in multiple ordered sets:
+```yaml
+- [All men are mortal]: [Humans are mortal]  # First ordered set
+- [All men are mortal]: [Males are mortal]   # Different ordered set, same statement
+```
+Both ordered sets contain the statement "All men are mortal", but they are NOT connected because they represent different OrderedSetEntity objects.
+
+**Connection Reconstruction**: The same ordered set content creates shared references:
+```yaml
+- [P, Q]: [R]     # Creates OrderedSetEntity for [P, Q] and [R]
+- [R]: [S]        # Reuses the OrderedSetEntity for [R], creating connection
+```
+The `[R]` ordered set is the SAME OrderedSetEntity object in both atomic arguments - this shared reference creates the connection.
 
 ## Progressive Enhancement
 
@@ -525,37 +549,41 @@ intuitionistic_proof:
 
 #### Connections Across Import Boundaries
 
-Imported statements can connect with local statements:
+Imported ordered sets can connect with local atomic arguments through shared references:
 
 ```yaml
 # File: lemmas.proof
 lemma1:
-  - [A, B]: &shared_conclusion [C]
+  - [A, B]: &shared_conclusion [C]  # Creates OrderedSetEntity for [C]
 
 # File: main.proof  
 imports:
   - ./lemmas.proof
 
 theorem:
-  - [*shared_conclusion, D]: [E]  # Connects to imported conclusion
+  - [*shared_conclusion, D]: [E]  # References the SAME OrderedSetEntity from lemmas.proof
 ```
+
+**Runtime result**: The `*shared_conclusion` reference points to the same OrderedSetEntity object created in lemmas.proof, creating a connection across file boundaries.
 
 #### Transitive Connections
 
-Connections flow through multiple files:
+Connections flow through multiple files via shared object references:
 
 ```yaml
 # File: base.proof
-- [P]: &q [Q]
+- [P]: &q [Q]  # Creates OrderedSetEntity for [Q]
 
 # File: middle.proof
 imports: [./base.proof]
-- [*q]: &r [R]
+- [*q]: &r [R]  # Uses [Q] OrderedSetEntity from base.proof, creates new [R] OrderedSetEntity
 
 # File: final.proof
 imports: [./middle.proof]
-- [*r]: [S]  # Connected all the way back to P
+- [*r]: [S]  # Uses [R] OrderedSetEntity from middle.proof
 ```
+
+**Statement vs Connection Independence**: Note that statement "Q" could appear in other files without creating connections - connections require shared OrderedSetEntity references, not just shared statement strings.
 
 ### Security Considerations
 
@@ -676,9 +704,12 @@ Default maximum import depth: 10 levels
 8. **Imports** can be packages or local `.proof` files
 9. **Hover text** adds explanatory tooltips to arguments or individual statements
 10. **Import precedence**: Local > Last Import > Earlier Imports
-11. **Connections work across imports**: Imported statements connect naturally
+11. **Connections work across imports**: Imported ordered sets can create shared references
 12. **Optional imports** use `?` suffix for graceful failures
 13. **Namespaces** prevent conflicts: `L1::axiom` vs `L2::axiom`
+14. **Statement reuse**: Same statement strings can appear in different ordered sets without connections
+15. **Connection mechanism**: String matching in files rebuilds shared object references in runtime
+16. **File format ≠ Runtime model**: Connections are about shared references, not string matching
 
 ## Philosophy
 

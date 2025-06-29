@@ -64,26 +64,30 @@ interface ValidationResponse {
   - Provides organization recommendations
   - Checks domain-specific conventions
 
-### Responsive Experience
-- **Immediate feedback** [PLATFORM]: Display results within 100ms
-  - Optimized rendering pipeline for quick updates
-  - Progressive display of partial results
-  - Smooth animations and transitions
+### Ultra-Fast Experience
+- **Sub-10ms validation** [LSP]: Most validations complete in under 10ms
+  - Cache-first architecture with ~0ms hit time
+  - Pattern matching optimizations (1-3ms)
+  - Simple JavaScript rule execution (2-5ms)
+  - Complex validations under 15ms
 
-- **Non-blocking interface** [PLATFORM + LSP]: UI remains responsive
-  - Asynchronous communication protocols
-  - Cancellable operations for user control
-  - Background processing with foreground updates
+- **Hot reload performance** [CORE + LSP]: <100ms language switching
+  - Pre-warmed LSP servers start early
+  - Language contexts cached in memory
+  - Validation results cached aggressively
+  - Incremental compilation and rule parsing
 
-- **Smart updates** [CORE + LSP]: Minimal revalidation
-  - Core tracks fine-grained document changes
-  - LSP validates only affected portions
-  - Result caching for unchanged content
+- **Multi-layer caching** [CORE + LSP]: Zero-latency for common operations
+  - Validation result cache (immediate access)
+  - Compiled rule cache (skip parsing)
+  - Language context cache (avoid reload)
+  - Pattern recognition cache (accelerate matching)
 
-- **Scalable performance** [CORE + LSP]: Handle large proofs
-  - Efficient data structures in core
-  - Optimized algorithms in LSP
-  - Lazy evaluation strategies
+- **Single-user optimization** [CORE + LSP]: Not cloud-scale, ultra-responsive individual
+  - 128MB memory limit per language (generous for single user)
+  - Direct execution vs worker threads where beneficial
+  - Pre-warmed computation contexts
+  - Aggressive prefetching of likely validations
 
 ## Intelligent Feedback
 
@@ -292,11 +296,28 @@ interface SuggestionRequest {
 }
 ```
 
-### Performance Targets
-- **Syntax validation**: < 50ms response time
-- **Logic validation**: < 200ms for single atomic argument
-- **Full document validation**: < 1s for 100 atomic arguments
-- **External tool integration**: < 5s timeout with progress feedback
+### Ultra-Fast Performance Targets
+- **Validation latency**: <10ms (most), <15ms (complex)
+- **Cache hit performance**: ~0ms (immediate access)
+- **Hot reload**: <100ms (language switching)
+- **Language loading**: <50ms (from cache)
+- **LSP startup**: <200ms (one-time, pre-warmed)
+- **External tool integration**: <5s timeout with progress feedback
+
+### Performance Architecture
+```
+Validation Request
+       ↓
+Cache Check (0ms) → Pattern Match (1-3ms) → JS Rule (2-5ms) → Result
+                             ↑
+                    Cache Miss Path Only
+```
+
+### Resource Limits (Single-User Optimization)
+- **Memory per language**: 128MB (generous individual allocation)
+- **Concurrent validations**: Unlimited (single user, no contention)
+- **Cache size**: Generous (battery/memory not shared across users)
+- **Pre-warming**: Aggressive (start early, cache everything)
 
 ## Philosophy
 

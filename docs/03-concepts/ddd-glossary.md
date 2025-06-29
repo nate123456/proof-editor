@@ -1,6 +1,8 @@
 # Domain-Driven Design Glossary
 
-This glossary maps between **Domain Language** (what users say) and **Implementation Language** (how it's built). For concept definitions, see [Key Terms](./key-terms.md).
+This glossary maps between **Domain Language** (what users say) and **Implementation Language** (how it's built). 
+
+**IMPORTANT**: This document does NOT define concepts - it only shows how domain concepts map to implementation. For all conceptual definitions, see [Key Terms](./key-terms.md).
 
 ## Architectural Layers
 
@@ -21,9 +23,10 @@ Domain concepts exist independently of implementation. An atomic argument IS a r
 
 | Domain Concept | Implementation | Layer | Purpose |
 |----------------|----------------|-------|---------|
-| Ordered set | OrderedSetEntity | [CORE] | Store ordered collections with uniqueness |
-| Atomic argument | AtomicArgumentEntity | [CORE] | Store relation between ordered sets |
-| Direct connection | Shared ordered set references | [CORE] | Implicit through object identity |
+| Ordered set | OrderedSetEntity | [CORE] | Store ordered collections with uniqueness, serve as connection mechanism |
+| Atomic argument | AtomicArgumentEntity | [CORE] | Store relation between ordered sets via references |
+| Direct connection | Shared ordered set references | [CORE] | Implicit through object identity, not content matching |
+| Statement | String content | [CORE] | Reusable text that can appear in multiple ordered sets |
 | Argument tree | Graph structure (DAG) | [CORE] | Efficient representation |
 | Document | Spatial positions + metadata | [CORE] | Separate logic from layout |
 | Path-complete | Graph algorithm | [CORE] | Computed property |
@@ -77,6 +80,10 @@ Domain-Driven Design requires strict separation between different contexts:
 **Wrong thinking**: If strings match, they're automatically connected.  
 **Right thinking**: Connections exist when atomic arguments share the SAME ordered set object (by reference). When users create connections, they're establishing that one argument's conclusion set IS another's premise set.
 
+### "Statement reuse creates connections"
+**Wrong thinking**: If the same statement appears in multiple ordered sets, they're connected.
+**Right thinking**: Statement reuse is independent of connections. The same statement string can appear in many different OrderedSetEntity objects without creating any connections. Connections require shared object references, not shared content.
+
 ### "Everything should be technically accurate"
 **Wrong thinking**: User docs should mention graphs, entities, indices.  
 **Right thinking**: User docs use user language exclusively. Technical accuracy belongs in technical docs.
@@ -84,8 +91,12 @@ Domain-Driven Design requires strict separation between different contexts:
 ## Key Implementation Notes
 
 - **Trees are graphs** [CORE]: Users think "trees", code uses graph structures (specifically DAGs)
+  - **Why DAG?** Users need shared conclusions (multiple arguments using same premise), convergent proofs (different paths to same conclusion), and diamond patterns (branching then reconverging). Trees can't express these naturally.
+  - **Why still call them trees?** Users visualize and navigate them as hierarchical tree-like structures. The DAG is an implementation detail that enables their desired features.
 - **Connections are implicit** [CORE]: Exist through shared ordered set references, not separate entities
 - **Reference equality matters** [CORE]: Same object (===), not value equality
 - **Arguments are computed** [CORE]: Not stored as entities
+- **Statement reuse** [CORE]: Same statement strings can appear in multiple ordered sets without connections
+- **Connection vs content separation** [CORE]: Connections are about shared references, not matching content
 - **Semantic neutrality** [LSP]: Platform manipulates strings; language layers provide meaning
 - **Platform abstraction** [PLATFORM]: Core logic works identically across all platforms

@@ -414,3 +414,108 @@ When removing content, also ask:
 - [ ] Have I maintained both domain AND technical documentation?
 
 If any answer is "no", push back and demand clarity. Your reputation as a documentation legend depends on it.
+
+## Using Gemini CLI for Proof Editor Analysis
+
+When analyzing the Proof Editor codebase or documentation that might exceed context limits, use the Gemini CLI with its massive context window. Use `gemini -p` to leverage Google Gemini's large context capacity.
+
+### File and Directory Inclusion Syntax
+
+Use the `@` syntax to include files and directories in your Gemini prompts. The paths should be relative to WHERE you run the gemini command:
+
+### Examples:
+
+**Single file analysis:**
+```bash
+gemini -p "@docs/03-concepts/proof-components.md Explain how atomic arguments relate to ordered sets"
+
+# Multiple concept files:
+gemini -p "@docs/03-concepts/key-terms.md @docs/08-technical-design/technical-definitions.md Are there any contradictions between these term definitions?"
+
+# Entire documentation section:
+gemini -p "@docs/03-concepts/ Summarize the core concepts and their relationships"
+
+# Multiple documentation sections:
+gemini -p "@docs/03-concepts/ @docs/08-technical-design/ How do the conceptual models map to technical implementations?"
+
+# All documentation:
+gemini -p "@docs/ Give me an overview of the entire Proof Editor documentation structure"
+
+# Or use --all_files flag for everything:
+gemini --all_files -p "Analyze the project structure and identify any missing documentation areas"
+```
+
+### Proof Editor Implementation Verification
+
+**Check connection model implementation:**
+```bash
+gemini -p "@docs/08-technical-design/ @docs/03-concepts/proof-components.md Is the ordered set-based connection model properly documented? Show any inconsistencies"
+```
+
+**Verify platform abstraction:**
+```bash
+gemini -p "@docs/08-technical-design/platform/ Does the platform abstraction properly support both VS Code extension and mobile app?"
+```
+
+**Check LSP architecture:**
+```bash
+gemini -p "@docs/08-technical-design/language/ Is the LSP integration designed to work with custom logic languages? List all extension points"
+```
+
+**Verify validation framework:**
+```bash
+gemini -p "@docs/05-capabilities/validation.md @docs/06-ecosystem/custom-logic.md How does user-defined validation integrate with the core system?"
+```
+
+**Check DDD principles:**
+```bash
+gemini -p "@docs/03-concepts/ddd-glossary.md @docs/ Are DDD principles consistently applied throughout the documentation? Find violations of ubiquitous language"
+```
+
+**Verify tree/DAG separation:**
+```bash
+gemini -p "@docs/ Where do we mention DAGs vs trees? Ensure user docs only say 'trees' and technical docs explain DAG implementation"
+```
+
+**Check for contradictions:**
+```bash
+gemini -p "@docs/03-concepts/ @docs/08-technical-design/conceptual-data-model.md Are there any contradictions between the conceptual model and technical design?"
+```
+
+**Analyze package system design:**
+```bash
+gemini -p "@docs/06-ecosystem/packages.md @docs/06-ecosystem/language-packages.md Is the GitHub-based package distribution clearly explained?"
+```
+
+### When to Use Gemini CLI for Proof Editor
+
+Use `gemini -p` when:
+- Analyzing the entire documentation structure for consistency
+- Comparing conceptual models with technical implementations
+- Verifying that DDD principles are maintained across all docs
+- Checking for contradictions between different documentation sections
+- Understanding how all the architectural layers interact
+- Verifying platform abstraction completeness
+- Ensuring domain language doesn't leak into user documentation
+- Working with the entire `docs/` directory (100+ files)
+- Cross-referencing multiple technical design documents
+
+### Important Notes for Proof Editor Analysis
+
+- When checking for term consistency, include both `@docs/03-concepts/key-terms.md` and `@docs/08-technical-design/technical-definitions.md`
+- Always verify that user-facing docs use domain language (e.g., "argument trees") while technical docs can mention implementation details (e.g., "DAG")
+- Check that ordered set-based connections are consistently described across all documentation
+- Ensure platform-specific details are properly abstracted in the architecture docs
+- Verify that the bootstrap mechanism and semantic neutrality are clearly explained without creating false paradoxes
+
+If Gemini returns an error, swap it out for claude code via claude -p "prompt". If you are running as a task agent, use this approach, if you are not, just kick off a task agent. 
+
+Gemini also has access to its google search API- very handy! Ask it to google search stuff if we need to search things online and need a unique high quality perspective. 
+
+Note- Gemini is rate limited to 60 requests per minute. 
+
+You can use gemini or claude to review your work, and this is a good practice- when you have been given a task, once you have made an attempt, hand off all your objectives and parameters to gemini or claude and have it critique your review. If your effort is in a small focused area, use claude. If your work is wide reaching, and could affect the whole repo, use gemini. If you wish to use claude for feedback, use task agents when possible, otherwise, use the CLI.
+
+If you are a task agent, do not make commits or mutate git state at all, read only git commands.
+
+Gemini should only be used for final reviews, significant stages in interative work. Claude is the better workhorse for rapid checking.

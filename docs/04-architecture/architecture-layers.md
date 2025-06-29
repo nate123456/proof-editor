@@ -5,22 +5,31 @@ Platform-agnostic business logic that represents the pure functionality of Proof
 - Ordered set management
 - Atomic argument structures
 - Connection logic (shared ordered set references)
-- Tree/DAG data structures
+- Argument tree structures
 - Proof document model
 - Navigation algorithms
 - Layout calculations
 - Pure validation logic (no LSP)
 
 ## LSP Layer (Language Server Protocol)
-Language-specific validation, analysis, and intelligence features:
-- Language server lifecycle management
-- Validation rule execution
-- Inference completion
-- Syntax checking
-- Custom language capabilities
-- Proof-specific LSP extensions
-- Language hot-swapping
-- Language package management
+**JavaScript Execution Environment for Custom Logic Systems**
+
+The LSP layer serves as a dedicated execution runtime where user-defined language code runs. This is not just validation - it's a complete custom logic execution environment:
+
+### Core Execution Model
+- **JavaScript Runtime**: Dedicated V8 Isolate per language server (sandboxed execution)
+- **User Code Execution**: Runs user-defined JavaScript for logical reasoning
+- **Single Language Per Proof**: One active language with inheritance support
+- **Performance Target**: <10ms validation response time with hot reload capability
+
+### Runtime Responsibilities
+- Language server process lifecycle management
+- JavaScript code execution and sandboxing
+- Custom logic rule implementation (user-defined)
+- Real-time validation and inference completion
+- Language-specific syntax and symbol handling
+- Hot-swapping between different logical systems
+- Package loading and dependency resolution
 
 ## PLATFORM Layer
 Platform-specific integrations and UI implementations:

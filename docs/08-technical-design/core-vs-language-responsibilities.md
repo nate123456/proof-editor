@@ -5,7 +5,7 @@
 This document clearly delineates responsibilities across three layers in our platform-abstracted architecture:
 - **Platform Layer**: Features we inherit from the host platform (VS Code, React Native, etc.)
 - **Proof Editor Core**: Proof-specific features we implement (platform-agnostic)
-- **Language Layers**: Domain-specific features provided through LSP integration
+- **Language Execution Environment**: JavaScript runtime where user-defined logic code executes via LSP
 
 This three-layer architecture with platform abstraction maximizes leverage of platform capabilities while ensuring our core functionality works across different environments (desktop VS Code, mobile React Native, future web apps, etc.).
 
@@ -17,11 +17,11 @@ Every feature we build ourselves creates maintenance burden. Every platform feat
 ### Layer Boundaries
 - **Platform Layer**: Settings, file management, UI framework, collaboration, themes (abstracted through adapters)
 - **Proof Editor Core**: Proof structure, visualization, navigation, document format (platform-agnostic)
-- **Language Layer**: Validation, intelligence, domain-specific rendering (works through LSP across all platforms)
+- **Language Execution Environment**: JavaScript runtime executing user-defined logic in sandboxed V8 Isolates via LSP protocol
 
 ## Comprehensive Responsibility Table
 
-| Concept | Platform Layer | Proof Editor Core | Language Layer | Notes |
+| Concept | Platform Layer | Proof Editor Core | Language Execution Environment | Notes |
 |---------|---------|-------------------|----------------|-------|
 | **Data Storage** |
 | YAML file reading/writing | | ✓ | | Proof Editor handles .proof files |
@@ -45,12 +45,12 @@ Every feature we build ourselves creates maintenance burden. Every platform feat
 | Auto-fit view | ✓ | | Platform fits content to viewport |
 | Atomic argument selection | ✓ | | Platform handles selection state |
 | Ordered set highlighting | ✓ | | Platform shows ordered set usage |
-| Drawing atomic arguments | | ✓ | Language LSP defines visual style |
-| Implication line style | | ✓ | Language LSP chooses lines, turnstiles, etc. |
-| Premise/conclusion visual arrangement | | ✓ | Language LSP decides layout |
-| Side label rendering | | ✓ | Language LSP determines position/style |
-| Connection visualization | | ✓ | Language LSP draws lines between shared ordered sets |
-| Text formatting within atomic arguments | | ✓ | Language LSP handles symbols, wrapping |
+| Drawing atomic arguments | | ✓ | JavaScript execution environment defines visual style |
+| Implication line style | | ✓ | User JavaScript code chooses lines, turnstiles, etc. |
+| Premise/conclusion visual arrangement | | ✓ | User JavaScript code decides layout |
+| Side label rendering | | ✓ | User JavaScript code determines position/style |
+| Connection visualization | | ✓ | User JavaScript code draws lines between shared ordered sets |
+| Text formatting within atomic arguments | | ✓ | User JavaScript code handles symbols, wrapping |
 | Validation visual indicators | ✓ | | Platform renders colored borders |
 | What to highlight as errors | | ✓ | Language identifies problems |
 | **Interaction** |
@@ -63,32 +63,32 @@ Every feature we build ourselves creates maintenance burden. Every platform feat
 | Navigate to ordered set usage | ✓ | | Platform jumps to where ordered set is used |
 | Tree position dragging | ✓ | | Platform moves entire trees |
 | Atomic argument deletion | ✓ | | Platform removes from model |
-| Ordered set deletion rules | | ✓ | Language LSP decides if unused ordered sets can be deleted |
-| Valid branching locations | | ✓ | Language LSP defines where new arguments can be created |
-| Context menu options | | ✓ | Language LSP provides domain actions |
+| Ordered set deletion rules | | ✓ | User JavaScript code decides if unused ordered sets can be deleted |
+| Valid branching locations | | ✓ | User JavaScript code defines where new arguments can be created |
+| Context menu options | | ✓ | User JavaScript code provides domain actions |
 | **Text Editing** |
 | Text input handling | ✓ | | Platform provides text fields |
 | Cursor/selection management | ✓ | | Platform handles text selection |
 | LaTeX escape sequences (\\forall → ∀) | ✓ | | Platform provides text replacement |
 | Symbol palette UI | ✓ | | Platform provides palette interface |
-| Symbol palette contents | | ✓ | Language LSP defines available symbols |
+| Symbol palette contents | | ✓ | User JavaScript code defines available symbols |
 | **Logic & Validation** |
-| Ordered set content parsing | | ✓ | Language LSP understands logical notation |
-| Inference rule validation | | ✓ | Language LSP checks validity |
-| Real-time validation infrastructure | ✓ | | Platform triggers LSP validation |
-| Validation timing | ✓ | | Platform decides when to call LSP |
-| Validation rules | | ✓ | Language LSP implements logic |
-| Completion suggestions | | ✓ | Language LSP provides next steps |
-| Error messages | | ✓ | Language LSP explains problems |
-| Quick fixes | | ✓ | Language LSP suggests corrections |
+| Ordered set content parsing | | ✓ | User JavaScript code understands logical notation |
+| Inference rule validation | | ✓ | User JavaScript code checks validity |
+| Real-time validation infrastructure | ✓ | | Platform triggers JavaScript execution via LSP |
+| Validation timing | ✓ | | Platform decides when to execute user JavaScript |
+| Validation rules | | ✓ | User JavaScript code implements logic |
+| Completion suggestions | | ✓ | User JavaScript code provides next steps |
+| Error messages | | ✓ | User JavaScript code explains problems |
+| Quick fixes | | ✓ | User JavaScript code suggests corrections |
 | **Layout** |
 | Position calculation framework | ✓ | | Platform provides coordinates |
 | Tree positioning | ✓ | | Platform stores tree locations |
 | Atomic argument relative positions | ✓ | | Platform computes from tree |
 | Standard layout algorithms | ✓ | | Platform provides common layouts |
-| Default layout selection | | ✓ | Language LSP chooses layout |
-| Custom layout implementation | | ✓ | Language LSP can override |
-| Layout spacing parameters | | ✓ | Language LSP defines gaps |
+| Default layout selection | | ✓ | User JavaScript code chooses layout |
+| Custom layout implementation | | ✓ | User JavaScript code can override |
+| Layout spacing parameters | | ✓ | User JavaScript code defines gaps |
 | **File Format** |
 | YAML schema definition | ✓ | | Platform defines structure |
 | Serialization/deserialization | ✓ | | Platform handles I/O |

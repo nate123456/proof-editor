@@ -2,7 +2,7 @@
 
 ## Overview
 
-This documentation presents the conceptual design for Proof Editor - a multi-platform tool for constructing and analyzing formal logical arguments. The architecture emphasizes 90%+ code reuse across desktop (VS Code), mobile (iOS/Android), and web platforms through a clean three-layer design.
+This documentation presents the conceptual design for Proof Editor - a focused two-platform tool that empowers domain experts to create and share custom logical reasoning systems through AI collaboration. Philosophy professors, logicians, and students partner with AI to implement their logical ideas without needing programming skills. The architecture emphasizes 90%+ code reuse across VS Code Extension and React Native App through a clean platform abstraction design.
 
 ## Key References
 
@@ -25,7 +25,9 @@ This documentation presents the conceptual design for Proof Editor - a multi-pla
    - [DDD Glossary](03-concepts/ddd-glossary.md) - domain vs implementation language
    - [Argument Hierarchy](03-concepts/argument-hierarchy.md) - critical three-level distinction
 
-4. **[User Research](04-users/README.md)** - User characteristics and requirements
+4. **AI-Augmented Users** - Domain experts collaborating with AI
+   - [AI-Augmented Accessibility](05-capabilities/ai-augmented-accessibility.md) - The new paradigm
+   - [AI-Augmented Paradigm Shift](ai-augmented-paradigm-shift.md) - Complete transformation overview
 
 5. **Capabilities** - Platform functionality
    - [Visual Proof Construction](05-capabilities/visual-proof.md)
@@ -59,20 +61,20 @@ This documentation presents the conceptual design for Proof Editor - a multi-pla
 - [Platform Capabilities](05-capabilities/platform-capabilities.md)
 - [Custom Logic Systems](06-ecosystem/custom-logic.md)
 
-**User Categories:**
-- [Student Users](04-users/student-users.md)
-- [Researcher Users](04-users/researcher.md)
-- [Professional Users](04-users/professional.md)
-- [Educator Users](04-users/educator.md)
+**AI-Augmented User Personas:**
+- Collaborative Philosophy Professors - Describe logical concepts → AI implements systems
+- AI-Assisted Graduate Students - Learn through AI-powered debugging and explanation  
+- Research Collaborators - Partner with AI to explore novel logical frameworks
+- Applied Domain Experts - Use AI to formalize domain-specific reasoning patterns
 
 ## Project Phase
 
 The project is in the conceptual design phase, establishing:
 - Problem definition and constraints
-- Multi-platform architecture (CORE/LSP/PLATFORM layers)
-- User needs and workflows across devices
-- Platform-agnostic system requirements
-- Technical feasibility for 90%+ code reuse
+- Two-platform architecture (VS Code Extension + React Native App)
+- User needs and workflows across desktop and mobile devices
+- Platform-agnostic system requirements with focused abstraction layer
+- Technical feasibility for 90%+ code reuse between platforms
 
 ## Documentation Scope
 
@@ -80,17 +82,23 @@ This documentation addresses conceptual design only. Technical implementation de
 
 ## Key Insights
 
-### Problem Space Findings
+### The AI-Augmented Revolution
 
-Current formal logic tools exhibit significant constraints in:
-- Platform accessibility (desktop-only paradigm)
-- Representation methods (keyboard-centric, not touch-friendly)
-- Operational workflows (fragmented across incompatible platforms)
-- Distribution mechanisms (no universal sharing protocols)
-- Extensibility (platform-specific implementations)
-- Mobility (no support for learning or working on-the-go)
+Traditional formal logic tools assume users must learn programming to create custom systems. With AI assistance, this barrier disappears:
+- **Domain experts describe concepts** → AI generates working implementations
+- **Students get stuck on errors** → AI explains problems and suggests fixes  
+- **Researchers explore novel ideas** → AI helps model and test theoretical frameworks
+- **Applied professionals need custom logic** → AI creates domain-specific reasoning systems
 
-Technical precedents from modern multi-platform applications demonstrate these constraints can be overcome through responsive design and platform abstraction.
+This transforms accessibility from "accommodating different skill levels" to "amplifying domain expertise through AI partnership."
+
+### Platform Independence for AI Collaboration
+
+AI-augmented workflows must work identically across all platforms:
+- Desktop: Full-featured AI collaboration with VS Code integration
+- Mobile: Touch-optimized AI assistance with offline capabilities  
+- Web: Browser-based AI partnership with progressive enhancement
+- Collaboration: AI as shared reasoning partner across distributed teams
 
 ### Design Philosophy
 

@@ -34,7 +34,7 @@ This plan breaks down all documentation into chunks for systematic cleanup and l
 - docs/06-ecosystem/language-packages.md
 - docs/08-technical-design/language-management.md
 - docs/08-technical-design/language/lsp-integration.md
-- docs/08-technical-design/language/lsp-tree-querying.md
+- docs/08-technical-design/language/lsp-graph-querying.md
 - docs/06-ecosystem/custom-logic.md
 
 **Tasks:**

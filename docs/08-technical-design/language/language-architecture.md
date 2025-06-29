@@ -2,78 +2,181 @@
 
 ## Overview
 
-The Language Management System enables proof files to specify their logical language and automatically loads the appropriate Language Server Protocol (LSP) implementation. This document describes the core concepts, package structure, and how languages integrate with Proof Editor.
+The Language Management System enables proof files to specify their logical language and automatically loads the appropriate **JavaScript execution environment** via Language Server Protocol (LSP). This document describes how user-defined logic systems execute as JavaScript code within sandboxed V8 Isolates.
 
-Languages are distributed as packages containing LSP servers, validation rules, and language-specific configurations. The system provides hot-swapping, version management, and platform-specific transport mechanisms.
+**CRITICAL ARCHITECTURAL SHIFT**: Languages are no longer just "configuration + validation rules" - they are **JavaScript execution environments** where user-defined logic code runs. Each language package contains JavaScript implementations of logical reasoning systems that execute within secure V8 Isolates.
 
-## Core Architecture
+### JavaScript Execution Model
+
+Every language package implements custom logic as JavaScript code that executes within:
+- **Dedicated V8 Isolate**: Sandboxed JavaScript runtime per language server
+- **LSP Server Process**: Manages JavaScript execution and protocol communication
+- **Performance Targets**: <10ms validation, <100ms hot reload, <64MB memory
+- **Single Language Per Proof**: One active language with inheritance support
+
+## Core Architecture: JavaScript Execution Environment
 
 ```mermaid
 graph TD
     subgraph "Proof Document"
-        A[.proof file] -->|declares| B[Language Specification]
-        B -->|name + version| C[Language Resolver]
+        A[.proof file] -->|declares| B[Language: package:tag]
+        B -->|example| B1["modal-logic:v1.2.0"]
+        B -->|example| B2["./my-custom-logic"]
+        B -->|example| B3["extends: first-order:v2.1"]
     end
     
-    subgraph "Language Management"
-        C -->|discovers| D[Language Registry]
-        D -->|sources| E[GitHub Repos]
-        D -->|sources| F[Local Files]
-        D -->|sources| G[Package Cache]
+    subgraph "Language Resolution & Loading"
+        B -->|resolves| C[Language Package Manager]
+        C -->|installs| D[Language Package]
+        D -->|contains| E[JavaScript Logic Code]
+        D -->|contains| F[LSP Server Runtime]
+        D -->|contains| G[Package Manifest]
+    end
+    
+    subgraph "JavaScript Execution Environment"
+        F -->|creates| H[V8 Isolate]
+        H -->|loads| E
+        H -->|executes| I[User Logic Functions]
+        F -->|manages| J[Memory/CPU Limits]
+        F -->|handles| K[LSP Protocol]
         
-        C -->|installs| H[Language Installer]
-        H -->|downloads| I[Language Package]
-        I -->|contains| J[LSP Server]
-        I -->|contains| K[Language Spec]
-        I -->|contains| L[Validation Rules]
+        subgraph "Security Sandbox"
+            L[64MB Memory Limit]
+            M[10ms CPU Timeout]
+            N[No Network Access]
+            O[No File System Access]
+        end
+        
+        H --> L
+        H --> M
+        H --> N
+        H --> O
     end
     
-    subgraph "Runtime"
-        J -->|managed by| M[LSP Adapter]
-        M -->|stdio/websocket| N[Active LSP Server]
-        N -->|validates| A
+    subgraph "Language Inheritance"
+        P[Base Language JS] -->|extends| Q[Derived Language JS]
+        Q -->|single chain| R[Specialized Logic]
     end
+    
+    I -->|validation results| K
+    K -->|LSP responses| S[Proof Editor Core]
 ```
 
 ## Key Concepts
 
-### Language
-A language in Proof Editor represents a specific logical system (e.g., propositional logic, modal logic, first-order logic). Each language defines:
-- **Syntax**: What constitutes valid statements
-- **Validation Rules**: How to check argument correctness
-- **LSP Server**: Provides IDE features like completion, hover, diagnostics
-- **Configuration**: Language-specific settings and options
+### JavaScript Execution Environment
 
-### Language Package
-A self-contained bundle that includes everything needed to support a language:
-- LSP server implementation (executable or script)
-- Language specification manifest
-- Validation rule definitions
-- Documentation and examples
-- Default configuration
+Every language package contains JavaScript code that implements a complete logical reasoning system. This code executes within a secure V8 Isolate managed by an LSP server process.
 
-### Language Server Protocol (LSP)
-Standard protocol for communication between the editor and language-specific servers. Proof Editor extends standard LSP with proof-specific capabilities like argument validation and inference completion.
+#### Core Components
+
+**JavaScript Logic Implementation**
+- **Validation Functions**: User-defined JavaScript that checks argument validity
+- **Inference Rules**: Custom logic for completing proofs and suggesting next steps  
+- **Symbol Handling**: JavaScript code for parsing and rendering logical notation
+- **Analysis Functions**: Custom structure analysis and proof checking
+
+**LSP Server Runtime**
+- **V8 Isolate Management**: Creates and manages sandboxed JavaScript contexts
+- **Protocol Handling**: Implements LSP communication with Proof Editor Core
+- **Performance Monitoring**: Enforces 10ms response time targets
+- **Security Enforcement**: Memory limits, CPU timeouts, access restrictions
+
+**Package Structure**
+- **logic.js**: Main JavaScript file with user-defined reasoning functions
+- **server.js**: LSP server that loads and executes logic.js
+- **package.yaml**: Manifest with dependencies and capabilities
+- **examples/**: Sample proofs demonstrating the logical system
+
+#### Language Inheritance Model
+
+**Single Language Per Proof**: Each proof document uses exactly one active language, but that language can inherit from others:
+
+```javascript
+// Base language: first-order-logic
+const baseLogic = {
+  validateArgument(premises, conclusions, rule, context) {
+    // Base first-order logic validation
+  }
+};
+
+// Derived language: modal-logic extends first-order-logic
+const modalLogic = {
+  ...baseLogic, // Inherit base functionality
+  
+  validateArgument(premises, conclusions, rule, context) {
+    // Check modal-specific rules first
+    if (this.isModalRule(rule)) {
+      return this.validateModalRule(premises, conclusions, rule);
+    }
+    // Fall back to base logic
+    return baseLogic.validateArgument(premises, conclusions, rule, context);
+  }
+};
+```
+
+### Docker-Inspired Versioning
+
+#### Package:Tag Format
+```yaml
+# Remote packages with versioning
+language: natural-deduction:latest
+language: modal-logic:v1.2.3
+language: first-order-logic:stable
+
+# Local development
+language: ./my-modal-logic
+language: file:../shared-logic
+
+# Inheritance chains
+extends: natural-deduction:v2.1.0
+```
+
+#### Version Resolution
+- **latest**: Most recent stable version
+- **v1.2.3**: Specific semantic version
+- **stable**: Latest stable (not pre-release)
+- **beta**: Latest beta version
+- **./path**: Local development directory
+
+### Language Inheritance
+
+#### Single Inheritance Chain
+Each proof document uses one inheritance chain:
+```yaml
+# Simple inheritance
+language: epistemic-modal-logic:v1.0
+extends: modal-logic:v2.1.0
+
+# Chain resolution: epistemic-modal-logic -> modal-logic -> base
+```
+
+#### Conflict Resolution
+- **Override rules**: Child language rules take precedence
+- **Additive symbols**: Combine symbol sets from chain
+- **Explicit conflicts**: Clear error messages for ambiguity
+- **Version compatibility**: Semantic versioning prevents breaking changes
 
 ## Language Declaration in Proof Files
 
-Proof files declare their language in the header:
+### Docker-Like Package Declaration
 
 ```yaml
-# Modal Logic Proof
+# Modern simplified syntax
 version: "1.0"
-language:
-  name: "modal-logic"
-  version: "^1.2.0"
-  source: "github:logictools/modal-logic-lsp"
-  config:
-    strictMode: true
-    worldSemantics: "possible-worlds"
+language: modal-logic:v1.2.3
 
-# Alternative source formats:
-# source: "file:./local-languages/modal-logic"
-# source: "https://logic.example.com/packages/modal-logic.tar.gz"
-# source: "registry:modal-logic"  # From language registry
+# Local development (file watching enabled)
+language: ./my-modal-logic
+
+# Inheritance chain
+language: epistemic-logic:latest
+extends: modal-logic:v2.1.0
+
+# Configuration overrides
+config:
+  strictMode: true
+  worldSemantics: "possible-worlds"
 
 # Document content continues...
 orderedSets:
@@ -81,253 +184,623 @@ orderedSets:
   os2: ["□Q"]
 ```
 
-### Source Types
-- **GitHub**: `github:owner/repo` - Installs from GitHub repository
-- **File**: `file:./path` - Uses local file system
-- **URL**: `https://...` - Downloads from URL
-- **Registry**: `registry:name` - Uses curated registry
+### Local Development Workflow
 
-## Language Package Structure
+```yaml
+# Enable hot reload for local development
+language: ./my-logic
+# File watching automatically reloads on changes
+# Supports rapid iteration and testing
+```
 
-Language packages follow a standardized structure similar to MCP servers:
+### Package Resolution Priority
+1. **Local paths**: `./path` or `file:../path`
+2. **Cached packages**: Previously downloaded versions
+3. **Registry packages**: `package:tag` format
+4. **GitHub packages**: `github:owner/repo:tag`
+5. **Direct URLs**: `https://...` (fallback)
+
+### Advanced Package Sources
+
+```yaml
+# Advanced source specifications
+language:
+  package: modal-logic:v1.2.3
+  source: github:logictools/modal-logic
+  fallback: https://cdn.logictools.com/modal-logic-v1.2.3.tar.gz
+  integrity: sha256:abc123...
+```
+
+## 3-Tier Language Package Structure
+
+### Tier 1: Config YAML Structure
+
+```
+modal-logic-basic/
+├── package.yaml               # Package metadata and tier specification
+├── README.md                  # Documentation
+├── config/
+│   ├── symbols.yaml          # Logical symbols and notation
+│   ├── patterns.yaml         # Inference rule patterns
+│   └── validation.yaml       # Declarative validation rules
+├── examples/
+│   ├── basic-modal.proof     # Example proofs
+│   └── tutorials/            # Step-by-step tutorials
+└── tests/
+    └── pattern-tests.yaml    # Test cases for patterns
+```
+
+### Tier 2: JavaScript Rules Structure
+
+```
+modal-logic-js/
+├── package.yaml              # Package metadata (tier: javascript)
+├── README.md                 # Documentation
+├── config/
+│   ├── symbols.yaml         # Symbol definitions (inherited from Tier 1)
+│   └── settings.yaml        # Configuration schema
+├── rules/
+│   ├── validators.js        # Custom validation functions
+│   ├── generators.js        # AI-assisted rule generation
+│   └── helpers.js           # Utility functions
+├── examples/
+│   ├── advanced-modal.proof # Complex examples
+│   └── rule-demos/         # Examples showing custom rules
+└── tests/
+    ├── validator-tests.js   # JavaScript rule tests
+    └── integration-tests.yaml
+```
+
+### Tier 3: Full LSP Structure
 
 ```
 modal-logic-lsp/
-├── language-spec.yaml          # Language specification
-├── README.md                   # Documentation
-├── package.json               # Node.js dependencies (if applicable)
-├── server/
-│   ├── server.js              # LSP server implementation
-│   ├── server.exe             # Platform-specific binaries
-│   ├── server-darwin-arm64    # macOS ARM64 binary
-│   └── server-linux-x64       # Linux x64 binary
-├── validation/
-│   ├── rules.json             # Validation rule definitions
-│   └── custom-validators.js   # Custom validation logic
-├── examples/
-│   ├── basic-modal.proof      # Example proofs
-│   └── advanced-s5.proof      # Advanced examples
+├── package.yaml              # Package metadata (tier: lsp)
+├── README.md                 # Documentation
+├── lsp-server/
+│   ├── server.js            # LSP server implementation
+│   ├── server.exe           # Platform-specific binaries
+│   ├── server-darwin-arm64  # macOS ARM64 binary
+│   └── server-linux-x64     # Linux x64 binary
 ├── config/
-│   ├── default-settings.json  # Default configuration
-│   └── keybindings.json       # Language-specific keybindings
-└── tests/
-    └── language-tests.yaml     # Language compliance tests
+│   ├── capabilities.yaml   # LSP capabilities declaration
+│   ├── symbols.yaml        # Symbol definitions
+│   └── settings.yaml       # Configuration schema
+├── validation/
+│   ├── core-rules.js       # Core validation logic
+│   ├── proof-analysis.js   # Advanced proof analysis
+│   └── external-tools.js   # Integration with theorem provers
+├── examples/
+│   ├── complex-proofs/     # Advanced examples
+│   ├── integrations/       # External tool examples
+│   └── performance/        # Large proof examples
+└── tools/
+    ├── development.js      # Development utilities
+    ├── testing.js          # Testing framework
+    └── migration.js        # Version migration tools
 ```
 
-### Directory Structure
-- **`server/`**: Contains the LSP server implementation
-- **`validation/`**: Validation rules and custom validators
-- **`examples/`**: Example proof files demonstrating the language
-- **`config/`**: Default settings and configurations
-- **`tests/`**: Test cases for language features
+### Progressive Enhancement Pattern
+- **Start simple**: Begin with Tier 1 (YAML config)
+- **Add complexity**: Upgrade to Tier 2 (JavaScript) when needed
+- **Full power**: Move to Tier 3 (LSP) for advanced requirements
+- **Inheritance preserved**: Higher tiers inherit lower tier definitions
 
-## Language Specification Format
+## Package Specification Format
 
-The `language-spec.yaml` file defines language capabilities and requirements:
+### Universal Package.yaml Structure
+
+All tiers use the same `package.yaml` format with tier-specific sections:
 
 ```yaml
-# Modal Logic Language Specification
+# Universal package metadata
 name: "modal-logic"
 version: "1.2.3"
 description: "Modal Logic validation and analysis with S5 support"
 author: "Logic Tools Team"
-homepage: "https://github.com/logictools/modal-logic-lsp"
+homepage: "https://github.com/logictools/modal-logic"
 license: "MIT"
 
-# LSP Server Configuration
+# Tier specification
+tier: "config"  # or "javascript" or "lsp"
+
+# Inheritance chain
+extends: "propositional-logic:v2.0.0"
+
+# Docker-like versioning
+tags:
+  - "latest"
+  - "v1.2.3"
+  - "stable"
+  - "s5-axioms"
+
+# Tier 1: Config YAML Specification
+config:
+  # Symbol definitions
+  symbols:
+    necessity: "□"
+    possibility: "◇"
+    implication: "→"
+    
+  # Inference patterns (declarative)
+  patterns:
+    - name: "necessity-distribution"
+      pattern: "□(P → Q) → (□P → □Q)"
+      description: "Distribution of necessity over implication"
+      
+    - name: "possibility-definition"
+      pattern: "◇P ↔ ¬□¬P"
+      description: "Possibility as negated necessity"
+
+# Tier 2: JavaScript Rules (when tier: "javascript")
+javascript:
+  # Custom validation functions
+  validators:
+    - "rules/modal-validators.js"
+    - "rules/s5-validators.js"
+    
+  # AI-assisted rule generation
+  aiGeneration:
+    enabled: true
+    examples: "examples/generation-examples/"
+    
+# Tier 3: LSP Server Configuration (when tier: "lsp")
 lsp:
-  # Desktop configuration (stdio)
-  desktop:
-    command: ["node", "server/server.js"]
+  # Server configuration
+  server:
+    command: ["node", "lsp-server/server.js"]
     args: ["--stdio"]
     transport: "stdio"
     
-  # Mobile configuration (websocket)
-  mobile:
-    transport: "websocket"
-    port: 8080
-    # Alternative: hosted service
-    # service: "wss://api.logictools.com/modal-logic"
-    
   # Platform-specific binaries
   binaries:
-    darwin-arm64: "server/server-darwin-arm64"
-    darwin-x64: "server/server-darwin-x64"
-    linux-x64: "server/server-linux-x64"
-    win32-x64: "server/server.exe"
+    darwin-arm64: "lsp-server/server-darwin-arm64"
+    darwin-x64: "lsp-server/server-darwin-x64"
+    linux-x64: "lsp-server/server-linux-x64"
+    win32-x64: "lsp-server/server.exe"
 
-# LSP Capabilities
+# Tier-Specific Capabilities
 capabilities:
-  # Standard LSP features
-  textDocument:
-    completion: true
-    hover: true
-    signatureHelp: true
-    definition: true
-    references: true
-    documentSymbol: true
-    codeAction: true
-    diagnostic: true
+  # Tier 1: Config YAML capabilities
+  config:
+    - "pattern-matching"      # Declarative rule patterns
+    - "symbol-validation"     # Symbol syntax checking
+    - "basic-completion"      # Symbol and operator completion
+    - "error-reporting"       # Pattern violation messages
     
-  # Custom proof-specific capabilities
-  proofCapabilities:
-    - "proof/validateArgument"
-    - "proof/completeInference"
-    - "proof/analyzeStructure"
-    - "proof/checkConsistency"
-    - "proof/findCounterexample"
-
-# Language Dependencies
-dependencies:
-  # Other languages this builds upon
-  languages:
-    - name: "propositional-logic"
-      version: "^2.0.0"
-    - name: "first-order-logic"
-      version: "^1.5.0"
+  # Tier 2: JavaScript capabilities (includes Tier 1)
+  javascript:
+    - "custom-validation"     # JavaScript validation functions
+    - "dynamic-patterns"      # Context-dependent rules
+    - "ai-generation"         # AI-assisted rule creation
+    - "advanced-completion"   # Context-aware suggestions
+    
+  # Tier 3: Full LSP capabilities (includes Tier 1 & 2)
+  lsp:
+    # Standard LSP features
+    textDocument:
+      completion: true
+      hover: true
+      signatureHelp: true
+      definition: true
+      references: true
+      documentSymbol: true
+      codeAction: true
+      diagnostic: true
       
-  # Runtime dependencies
+    # Custom proof-specific capabilities
+    proofCapabilities:
+      - "proof/validateArgument"
+      - "proof/completeInference"
+      - "proof/analyzeStructure"
+      - "proof/checkConsistency"
+      - "proof/findCounterexample"
+      - "proof/externalProver"    # Integration with external tools
+
+# Inheritance and Dependencies
+inheritance:
+  # Single inheritance chain (Docker-like)
+  extends: "propositional-logic:v2.0.0"
+  
+  # Inheritance resolution
+  conflictResolution: "child-overrides"  # Child rules take precedence
+  symbolMerging: "additive"             # Combine symbol sets
+  
+dependencies:
+  # Runtime dependencies (tier-specific)
   runtime:
-    node: ">=14.0.0"  # If using Node.js
-    # python: ">=3.8"  # If using Python
+    # Tier 1: No runtime dependencies
+    config: []
+    
+    # Tier 2: JavaScript runtime
+    javascript:
+      - "node: >=16.0.0"
+      - "sandbox: safe-eval"
+      
+    # Tier 3: Full LSP runtime
+    lsp:
+      - "node: >=16.0.0"
+      - "optional: z3-solver"  # For advanced reasoning
+      - "optional: coq"        # For formal verification
+    
+# Local Development Configuration
+localDevelopment:
+  # File watching for hot reload
+  fileWatching:
+    enabled: true
+    paths:
+      - "config/**/*.yaml"
+      - "rules/**/*.js"
+      - "lsp-server/**/*.js"
+    debounceMs: 500
+    
+  # Development server
+  devServer:
+    port: 3001
+    hotReload: true
+    debugMode: true
     
 # Configuration Schema
 configuration:
   properties:
-    modalLogic.strictMode:
-      type: "boolean"
-      default: true
-      description: "Enable strict modal logic validation"
-      
-    modalLogic.worldSemantics:
-      type: "string"
-      enum: ["possible-worlds", "algebraic", "topological"]
-      default: "possible-worlds"
-      description: "Modal semantics framework"
-      
+    # Core configuration (all tiers)
     modalLogic.axiomSystem:
       type: "string"
       enum: ["K", "T", "S4", "S5", "custom"]
       default: "S5"
       description: "Modal axiom system"
       
-    modalLogic.customAxioms:
+    modalLogic.strictMode:
+      type: "boolean"
+      default: true
+      description: "Enable strict modal logic validation"
+      
+    # Tier-specific configuration
+    modalLogic.tier:
+      type: "string"
+      enum: ["config", "javascript", "lsp"]
+      default: "config"
+      description: "SDK tier to use"
+      
+    # Advanced configuration (Tier 2+)
+    modalLogic.aiAssistance:
+      type: "boolean"
+      default: false
+      description: "Enable AI-assisted rule generation"
+      tier: "javascript"
+      
+    # Expert configuration (Tier 3 only)
+    modalLogic.externalProvers:
       type: "array"
       items:
         type: "string"
-      description: "Custom axioms when using custom system"
+      description: "External theorem provers to integrate"
+      tier: "lsp"
 
-# Validation Rules
+# Tier-Specific Validation Rules
 validation:
-  builtinRules:
-    - id: "necessity-distribution"
-      description: "□(P→Q) → (□P→□Q)"
-    - id: "possibility-consistency"
-      description: "◇P → ¬□¬P"
-    - id: "reflexivity"
-      description: "□P → P (for T and stronger)"
-    - id: "transitivity"
-      description: "□P → □□P (for S4 and stronger)"
-    - id: "euclidean"
-      description: "◇P → □◇P (for S5)"
+  # Tier 1: Declarative YAML patterns
+  configRules:
+    patterns:
+      - id: "necessity-distribution"
+        pattern: "□(P→Q) → (□P→□Q)"
+        description: "Distribution of necessity over implication"
+        axiomSystems: ["K", "T", "S4", "S5"]
+        
+      - id: "possibility-definition"
+        pattern: "◇P ↔ ¬□¬P"
+        description: "Possibility as negated necessity"
+        axiomSystems: ["K", "T", "S4", "S5"]
+        
+      - id: "reflexivity"
+        pattern: "□P → P"
+        description: "Reflexivity (for T and stronger)"
+        axiomSystems: ["T", "S4", "S5"]
+        
+  # Tier 2: JavaScript custom rules
+  javascriptRules:
+    validators:
+      - path: "rules/modal-validators.js"
+        functions: ["validateNecessityRule", "validatePossibilityRule"]
+      - path: "rules/s5-validators.js"
+        functions: ["validateEuclideanProperty"]
+        
+    # AI-assisted rule generation
+    aiGeneration:
+      enabled: true
+      examplePath: "examples/rule-examples/"
+      outputPath: "rules/generated/"
       
-  customRules:
-    path: "validation/rules.json"
+  # Tier 3: Full LSP validation
+  lspRules:
+    server: "lsp-server/validation-server.js"
+    externalTools:
+      - name: "z3"
+        command: "z3 -smt2"
+        timeout: 5000
+      - name: "lean"
+        command: "lean --check"
+        timeout: 10000
     
-# Example Documents
+# Example Documents by Tier
 examples:
-  - name: "Basic Modal Argument"
-    file: "examples/basic-modal.proof"
-    description: "Simple necessity and possibility"
-  - name: "S5 System Proof"
-    file: "examples/advanced-s5.proof"
-    description: "Advanced S5 modal logic proof"
-  - name: "Epistemic Logic"
-    file: "examples/epistemic.proof"
-    description: "Knowledge and belief operators"
+  # Tier 1: Config YAML examples
+  tier1:
+    - name: "Basic Modal Patterns"
+      file: "examples/tier1/basic-modal.proof"
+      description: "Simple necessity and possibility patterns"
+      demonstrates: ["necessity-distribution", "possibility-definition"]
+      
+    - name: "Axiom System Comparison"
+      file: "examples/tier1/axiom-systems.proof"
+      description: "Differences between K, T, S4, S5"
+      demonstrates: ["reflexivity", "transitivity", "euclidean"]
+      
+  # Tier 2: JavaScript examples
+  tier2:
+    - name: "Custom Modal Rules"
+      file: "examples/tier2/custom-rules.proof"
+      description: "Using JavaScript custom validators"
+      demonstrates: ["custom-validation", "dynamic-patterns"]
+      
+    - name: "AI-Generated Rules"
+      file: "examples/tier2/ai-generated.proof"
+      description: "Rules created with AI assistance"
+      demonstrates: ["ai-generation", "rule-learning"]
+      
+  # Tier 3: Full LSP examples
+  tier3:
+    - name: "External Prover Integration"
+      file: "examples/tier3/external-provers.proof"
+      description: "Integration with Z3 and Lean"
+      demonstrates: ["external-tools", "automated-proving"]
+      
+    - name: "Complex Modal Systems"
+      file: "examples/tier3/complex-systems.proof"
+      description: "Advanced modal logic with performance optimization"
+      demonstrates: ["performance", "scalability"]
 
-# Metadata
-keywords: ["modal", "logic", "necessity", "possibility", "S5", "Kripke"]
-category: "modal-logics"
-tags: ["philosophical-logic", "formal-methods", "epistemic"]
+# Package Metadata
+metadata:
+  keywords: ["modal", "logic", "necessity", "possibility", "S5", "Kripke"]
+  category: "modal-logics"
+  tags: ["philosophical-logic", "formal-methods", "epistemic"]
+  
+  # Tier progression information
+  tierInfo:
+    recommendedStartTier: "config"
+    progressionPath: ["config", "javascript", "lsp"]
+    complexityIndicators:
+      config: "Basic modal logic patterns"
+      javascript: "Custom validation needs"
+      lsp: "Advanced reasoning and external tools"
 ```
 
-### Key Sections
+### Key Package Components
 
-#### LSP Configuration
-Defines how to start the language server on different platforms:
-- **Desktop**: Uses stdio for communication
-- **Mobile**: Uses WebSocket or hosted service
-- **Binaries**: Platform-specific executables
+#### Tier Specification
+Defines which SDK tier the package uses:
+- **config**: Pure YAML declarative patterns (90% of cases)
+- **javascript**: Custom JavaScript validation rules (9% of cases)
+- **lsp**: Full Language Server Protocol implementation (1% of cases)
 
-#### Capabilities
-Declares what features the language server supports:
-- **Standard LSP**: Completion, hover, diagnostics, etc.
-- **Proof-specific**: Custom capabilities for logical validation
+#### Inheritance Chain
+Single inheritance with Docker-like versioning:
+- **extends**: Parent language with version (e.g., "modal-logic:v2.1.0")
+- **Conflict resolution**: Clear rules for handling inheritance conflicts
+- **Progressive enhancement**: Higher tiers inherit lower tier capabilities
 
-#### Dependencies
-- **Language dependencies**: Other languages this builds upon
-- **Runtime dependencies**: Required runtime environments
+#### Local Development Support
+Built-in development workflow features:
+- **File watching**: Automatic reloading on changes
+- **Hot reload**: Live updates without restart
+- **Debug mode**: Enhanced error reporting and logging
+- **Test integration**: Automatic test running on changes
 
-#### Configuration Schema
-Defines the settings users can configure for the language.
+#### Versioning Strategy
+Docker-inspired package management:
+- **Semantic versions**: v1.2.3 for specific releases
+- **Tag aliases**: latest, stable, beta for convenience
+- **Local development**: ./path for file watching
+- **Integrity checking**: SHA256 verification for security
 
-#### Validation Rules
-- **Built-in rules**: Common inference rules for the logical system
-- **Custom rules**: Path to additional validation logic
+#### Progressive Capabilities
+Features unlock as complexity increases:
+- **Tier 1**: Pattern matching, symbol validation, basic completion
+- **Tier 2**: Custom JavaScript logic, AI generation, dynamic patterns
+- **Tier 3**: Full IDE features, external tools, performance optimization
 
-## Example Use Cases
+## Progressive Development Examples
 
-### Academic Course Language
+### Start Simple: Tier 1 Config YAML
 
 ```yaml
 # Professor creates course-specific language
 name: "logic-101-fall-2024"
 version: "1.0.0"
-description: "Custom logic language for Logic 101"
-extends: "first-order-logic@^2.0.0"
+description: "Introduction to Logic course language"
+tier: "config"
+extends: "propositional-logic:v2.0.0"
 
-# Custom validation rules for assignments
-validation:
-  customRules:
-    - id: "assignment-1-rules"
-      file: "validation/assignment1.js"
-    - id: "midterm-constraints"
-      file: "validation/midterm.js"
+# Simple declarative patterns
+config:
+  symbols:
+    implication: "⊃"  # Use horseshoe for course
+    conjunction: "&"
+    disjunction: "∨"
+    
+  patterns:
+    - name: "modus-ponens"
+      pattern: "P, P ⊃ Q ⊢ Q"
+      description: "Basic modus ponens for beginners"
+      
+    - name: "modus-tollens"
+      pattern: "P ⊃ Q, ¬Q ⊢ ¬P"
+      description: "Modus tollens introduction"
 
-# Course-specific notation
-configuration:
-  notation:
-    implication: "⊃"  # Use horseshoe instead of arrow
-    universal: "∀"
-    existential: "∃"
+# Local development for course updates
+localDevelopment:
+  fileWatching: true  # Auto-reload when course materials change
 ```
 
-### Research Project Language
+### Add Complexity: Tier 2 JavaScript Rules
 
 ```yaml
-# Research team custom language
+# Advanced course with custom grading logic
+name: "logic-301-advanced"
+version: "2.0.0"
+description: "Advanced Logic with custom validation"
+tier: "javascript"
+extends: "first-order-logic:v3.0.0"
+
+# Custom JavaScript validation for complex assignments
+javascript:
+  validators:
+    - "rules/assignment-grading.js"    # Custom grading logic
+    - "rules/proof-complexity.js"      # Complexity metrics
+    - "rules/style-checking.js"        # Proof style validation
+    
+  # AI assistance for creating new rule examples
+  aiGeneration:
+    enabled: true
+    examples: "examples/student-proofs/"
+    generateRules: true
+```
+
+### Full Power: Tier 3 LSP Extension
+
+```yaml
+# Research team with external tool integration
 name: "quantum-logic-research"
 version: "0.1.0"
-description: "Quantum logic for research project"
+description: "Quantum logic research environment"
+tier: "lsp"
+extends: "modal-logic:v2.0.0"
 
-# Multiple parent languages
-dependencies:
-  languages:
-    - "modal-logic@^1.0.0"
-    - "linear-logic@^2.0.0"
+# Full LSP server with external tools
+lsp:
+  server: "research-tools/quantum-lsp-server.js"
+  
+  # Integration with external quantum reasoning tools
+  externalTools:
+    - name: "qiskit"
+      command: "python qiskit-verify.py"
+      timeout: 30000
+      
+    - name: "cirq"
+      command: "python cirq-analyze.py"
+      timeout: 15000
+      
+  capabilities:
+    proofCapabilities:
+      - "quantum/superposition-check"
+      - "quantum/entanglement-verify"
+      - "quantum/circuit-generation"
+      - "quantum/noise-analysis"
+
+# Performance optimization for large quantum proofs
+performance:
+  caching: true
+  parallelValidation: true
+  maxProofSize: 10000  # Large quantum circuit proofs
+```
+
+### Local Development Workflow
+
+```yaml
+# Local development language (./my-modal-logic/package.yaml)
+name: "my-modal-logic"
+version: "dev"
+description: "Local development version"
+tier: "javascript"  # Start with JavaScript tier
+extends: "modal-logic:stable"
+
+# Hot reload enabled for rapid iteration
+localDevelopment:
+  fileWatching: true
+  debounceMs: 200    # Fast reloads for development
+  debugMode: true    # Extra logging
+  testMode: true     # Run tests on changes
+  
+# Development-specific configuration
+devConfig:
+  strictValidation: false  # Allow incomplete rules during dev
+  showInternalErrors: true # Detailed error messages
+  enableProfiling: true    # Performance measurements
+  autoGenerateTests: true  # Create tests from examples
+```
+
+## Migration Path Between Tiers
+
+### Tier 1 → Tier 2 Migration
+
+```yaml
+# Original Tier 1 config
+config:
+  patterns:
+    - name: "custom-rule"
+      pattern: "Complex pattern that YAML can't express"
+      
+# Migrated to Tier 2 JavaScript
+javascript:
+  validators:
+    - "rules/custom-rule.js"  # Implement complex logic in JavaScript
     
-# Research-specific extensions
-capabilities:
-  proofCapabilities:
-    - "quantum/superposition"
-    - "quantum/entanglement"
-    - "quantum/measurement"
+migration:
+  from: "config"
+  to: "javascript"
+  reason: "Need dynamic validation logic"
+  preserves: ["symbols", "basic-patterns"]
+```
+
+### Tier 2 → Tier 3 Migration
+
+```yaml
+# Performance or integration requirements drive LSP migration
+lsp:
+  server: "advanced-lsp/server.js"
+  reason: "Need external tool integration and performance"
+  
+migration:
+  from: "javascript"
+  to: "lsp"
+  preserves: ["symbols", "patterns", "validators"]
+  adds: ["external-tools", "advanced-ide-features"]
+```
+
+## AI-Assisted Rule Generation
+
+### Example-Driven Rule Creation
+
+```yaml
+# AI assistance configuration
+aiGeneration:
+  enabled: true
+  
+  # Provide examples for AI to learn from
+  examples:
+    - input: "□P, P → Q"
+      output: "□Q"
+      description: "Necessity preserves valid inference"
+      
+    - input: "◇P, P → Q"
+      output: "Not valid"  # AI learns what's invalid too
+      description: "Possibility doesn't preserve inference"
+      
+  # AI generates JavaScript validator
+  output:
+    path: "rules/generated/ai-modal-rules.js"
+    format: "javascript"
+    humanReviewRequired: true
 ```
 
 ## See Also
 
-- [Language Discovery](./language-discovery.md) - How languages are found and installed
-- [LSP Lifecycle](./lsp-lifecycle.md) - Managing language server processes
-- [Language Security](./language-security.md) - Security model and verification
+- [3-Tier SDK Guide](./sdk-tiers.md) - Detailed tier progression guide
+- [Local Development Workflow](./local-development.md) - Hot reload and iteration
+- [Language Inheritance](./inheritance.md) - Inheritance chains and conflict resolution
+- [Docker-Like Versioning](./versioning.md) - Package:tag format and resolution
+- [AI Rule Generation](./ai-generation.md) - AI-assisted rule creation
+- [Migration Guide](./tier-migration.md) - Moving between tiers
+- [Language Security](./language-security.md) - Security model across tiers
 - [Platform Abstraction](../platform-abstraction.md) - Platform-specific implementations

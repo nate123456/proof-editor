@@ -7,12 +7,12 @@ This document provides implementation-level specifications for how the Proof Edi
 ## Core Data Structures
 
 ### OrderedSetEntity
-**Purpose**: Data structure representing an ordered collection of statements with uniqueness constraint.
-**Domain concept**: An ordered set that can be shared between atomic arguments to create connections.
+**Purpose**: Data structure representing an ordered collection of statements with uniqueness constraint. OrderedSetEntity objects serve as the connection mechanism - when multiple atomic arguments reference the same OrderedSetEntity, they are connected.
+**Domain concept**: Implements the [Ordered Set](../03-concepts/key-terms.md#ordered-set) concept.
 ```typescript
 interface OrderedSetEntity {
   id: string;              // Unique identifier (UUID)
-  items: string[];         // Ordered array of statement strings
+  items: string[];         // Ordered array of statement strings (reusable across sets)
   metadata: {
     createdAt: number;
     modifiedAt: number;
@@ -23,11 +23,11 @@ interface OrderedSetEntity {
   };
 }
 ```
-**Critical**: When atomic arguments share the SAME OrderedSetEntity (by reference), a connection exists.
+**Critical**: When atomic arguments share the SAME OrderedSetEntity (by reference), a connection exists. The `items` array contains statement strings that can be reused across different ordered sets.
 
 ### AtomicArgumentEntity
 **Purpose**: Data structure that stores the information defining an atomic argument relation.
-**Domain concept**: Represents an atomic argument (a relation between two ordered sets).
+**Domain concept**: Implements the [Atomic Argument](../03-concepts/key-terms.md#atomic-argument) concept.
 ```typescript
 interface AtomicArgumentEntity {
   id: string;                    // Unique identifier (UUID)
@@ -46,10 +46,12 @@ interface AtomicArgumentEntity {
 ```
 **Key insight**: Atomic arguments reference OrderedSetEntity objects. Connections exist implicitly when atomic arguments share the SAME ordered set reference. The implication line (stroke) is the focusable UI element for creating connections.
 
+**Statement reuse**: The atomic argument stores references to OrderedSetEntity objects, which contain arrays of statement strings. The same statement string can appear in multiple different OrderedSetEntity objects without creating connections.
+
 
 ### Argument (Computed Concept)
 **Purpose**: Algorithm output representing a path-complete subset of atomic arguments.
-**Domain concept**: An argument (a set of atomic arguments with complete paths between all pairs).
+**Domain concept**: Implements the [Argument](../03-concepts/key-terms.md#argument) concept.
 **Implementation**: Computed on-demand by analyzing shared ordered set references.
 
 ```typescript
@@ -67,7 +69,7 @@ function computeArgument(
 
 ### Argument Tree (Computed Concept)
 **Purpose**: Algorithm output representing the maximal connected component.
-**Domain concept**: An argument tree (contains ALL atomic arguments connected through parent-child relationships).
+**Domain concept**: Implements the [Argument Tree](../03-concepts/key-terms.md#argument-tree) concept.
 **Implementation**: Discovered through connected component analysis.
 
 ```typescript
@@ -81,7 +83,7 @@ interface ComputedArgumentTree {
 
 ### DocumentEntity
 **Purpose**: Data structure storing workspace metadata.
-**Domain concept**: A document (workspace for viewing and editing atomic arguments).
+**Domain concept**: Implements the [Document](../03-concepts/key-terms.md#document) concept.
 ```typescript
 interface DocumentEntity {
   id: string;
@@ -165,12 +167,16 @@ interface LanguageLayer {
 ## Key Implementation Concepts
 
 ### Ordered Set-Based Connection Model
-**What it is**: Connections exist implicitly through shared ordered set references between atomic arguments.
-**Why**: 
+For the conceptual definition of connections, see [Key Terms](../03-concepts/key-terms.md#connections).
+
+**Implementation approach**: Connections exist implicitly through shared ordered set references between atomic arguments.
+**Benefits**: 
 - Clear object identity (reference equality, not value equality)
 - Shared state (modifications affect all referencing arguments)
 - No ambiguity (same contents but different objects don't connect)
 - Simple detection (just check reference equality)
+- Statement reuse (same statement strings can appear in different ordered sets)
+- Branching mechanism (conclusion ordered set becomes premise ordered set via shared reference)
 
 ### Intentional Construction
 **What it means**: Every connection represents an explicit user decision.
@@ -180,6 +186,7 @@ interface LanguageLayer {
 - System creates new atomic argument sharing the ordered set reference
 - Connection exists through this intentional ordered set sharing
 - No automatic detection
+- Statement reuse is independent of connections (same statement strings can appear in unconnected ordered sets)
 
 ### Computed vs Stored
 **Stored (Empirical)**:
@@ -203,12 +210,16 @@ interface LanguageLayer {
 - **Simplifies data model**: No separate connection entities needed
 - **Clear identity**: Reference equality makes connections unambiguous
 - **Shared state**: Changes to ordered sets propagate to all users
+- **Supports statement reuse**: Same statement strings can appear in multiple ordered sets
+- **Separates connection from content**: Connection is about shared object references, not matching statement content
 
 ### What This Implementation Doesn't Do
 - **No string matching**: Same text doesn't create connections
 - **No automatic linking**: Users explicitly share ordered set references
 - **No complex algorithms**: Connections found through simple ID matching
 - **No philosophical claims**: Just engineering
+- **No statement objects**: Statements are just reusable strings, not entities with identity
+- **No content-based connections**: Connections require shared object references, not matching content
 
 ## Critical Distinctions
 

@@ -119,7 +119,7 @@ LSP analysis servers operate on entire argument trees to:
 - **Trace dependencies**: LSP dependency analysis algorithms
 - **Identify strategies**: LSP pattern recognition for proof strategies
 - **Find redundancy**: LSP optimization analysis
-- **Structure analysis**: LSP graph algorithms for tree analysis
+- **Structure analysis**: LSP analysis algorithms for argument tree traversal
 
 ```typescript
 interface TreeAnalysisRequest {
@@ -161,7 +161,7 @@ LSP servers generate quantitative analyses:
 ### Data Access [LSP]
 LSP analysis scripts can:
 - **Read content**: Access premise and conclusion strings through LSP API
-- **Navigate structure**: Traverse connections via LSP graph APIs
+- **Navigate structure**: Traverse connections via LSP navigation APIs
 - **Access metadata**: Read annotations and metadata through LSP
 - **Cross-document queries**: LSP workspace-wide search and analysis
 

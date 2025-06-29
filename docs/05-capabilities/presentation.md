@@ -2,12 +2,12 @@
 
 ## Publishing and Presenting Argument Trees
 
-The presentation capability leverages VS Code's infrastructure while providing proof-specific presentation features. By building on VS Code's mature platform, we create clean, focused views for sharing logical reasoning with audiences.
+The presentation capability leverages platform-native infrastructure while providing proof-specific presentation features. By building on each platform's strengths, we create clean, focused views for sharing logical reasoning with audiences.
 
-### Our Approach: Leverage + Specialize
-- **Leverage VS Code**: Use webviews, export systems, collaboration features
+### Our Approach: Abstract + Specialize
+- **Abstract platform capabilities**: Use platform-appropriate rendering and export systems
 - **Specialize for proofs**: Custom presentation modes and proof-specific annotations
-- **Integrate seamlessly**: Presentation tools feel native to VS Code
+- **Integrate seamlessly**: Presentation tools feel native to each platform
 
 ## Presentation View
 
@@ -45,20 +45,20 @@ Presentation mode provides temporary annotation overlays that don't modify the p
 
 ## Publishing Options
 
-### Static Export [VS CODE + PROOF EDITOR + LSP]
+### Static Export [PLATFORM + CORE + LSP]
 Generate shareable versions of documents:
-- **PDF export**: Use VS Code's export infrastructure with proof layout [VS CODE + PROOF EDITOR]
-- **HTML export**: Generate web-compatible format using VS Code webviews [VS CODE + PROOF EDITOR]
-- **Image formats**: Leverage VS Code's screenshot capabilities [VS CODE + PROOF EDITOR]
-- **Vector graphics**: Export scalable formats for printing [PROOF EDITOR]
+- **PDF export**: Platform-native PDF generation with proof layout [PLATFORM + CORE]
+- **HTML export**: Generate web-compatible format for sharing [PLATFORM + CORE]
+- **Image formats**: Platform-appropriate screenshot and image export [PLATFORM + CORE]
+- **Vector graphics**: Export scalable formats for printing [CORE]
 - **Content formatting**: LSP provides domain-specific export styling [LSP]
 
-### Interactive Publishing [VS CODE + PROOF EDITOR + LSP]
+### Interactive Publishing [PLATFORM + CORE + LSP]
 Share dynamic, explorable proofs:
-- **Web-based viewers**: Use VS Code's webview system for interactive components [VS CODE + PROOF EDITOR]
-- **Embedded widgets**: Generate embeddable proof viewers using VS Code APIs [VS CODE + PROOF EDITOR]
-- **Shareable links**: Leverage VS Code's state management for view serialization [VS CODE + PROOF EDITOR]
-- **Version-controlled publications**: Integrate with VS Code's Git features [VS CODE]
+- **Web-based viewers**: Platform-appropriate interactive viewing components [PLATFORM + CORE]
+- **Embedded widgets**: Generate embeddable proof viewers [PLATFORM + CORE]
+- **Shareable links**: State serialization for sharing specific views [PLATFORM + CORE]
+- **Version-controlled publications**: Integration with version control systems [PLATFORM]
 - **Interactive content**: LSP provides domain-specific interactive features [LSP]
 
 ## Presentation Features
@@ -103,23 +103,23 @@ Share dynamic, explorable proofs:
 
 ## Collaboration During Presentation
 
-### Live Sharing [VS CODE]
-- **Real-time streaming**: Leverage VS Code Live Share extension for presentation sharing [VS CODE]
-- **Audience follow-along**: Use Live Share's synchronized viewing capabilities [VS CODE]
-- **Synchronized navigation**: Leverage Live Share's cursor and navigation sync [VS CODE]
-- **Q&A integration**: Use VS Code's communication integrations and chat features [VS CODE]
+### Live Sharing [PLATFORM]
+- **Real-time streaming**: Platform-appropriate real-time sharing (VS Code Live Share for desktop, native sharing APIs for React Native)
+- **Audience follow-along**: Synchronized viewing across all platforms
+- **Synchronized navigation**: Multi-user navigation with platform-specific optimizations
+- **Q&A integration**: Platform-native communication features
 
-### Presenter Annotation Workflow [PROOF EDITOR]
-- **Highlight tool usage**: Custom highlighting system for proof elements [PROOF EDITOR]
-- **Arrow drawing**: Proof-specific arrow tools for logical flow visualization [PROOF EDITOR]
-- **Informal notation**: Support for freehand annotation on proof canvas [PROOF EDITOR]
-- **Real-time visibility**: Integrate with VS Code Live Share for annotation broadcasting [VS CODE + PROOF EDITOR]
-- **Automatic clearing**: Manage annotation lifecycle for presentation mode [PROOF EDITOR]
+### Presenter Annotation Workflow [CORE]
+- **Highlight tool usage**: Custom highlighting system for proof elements [CORE]
+- **Arrow drawing**: Proof-specific arrow tools for logical flow visualization [CORE]
+- **Informal notation**: Support for freehand annotation on proof canvas [CORE]
+- **Real-time visibility**: Platform-appropriate real-time annotation sharing [PLATFORM + CORE]
+- **Automatic clearing**: Manage annotation lifecycle for presentation mode [CORE]
 
-### Audience Interaction [VS CODE + PROOF EDITOR + LSP]
-- **Audience comments**: Use VS Code's commenting system for proof feedback [VS CODE]
-- **Shared highlighting**: Leverage Live Share for collaborative highlighting [VS CODE + PROOF EDITOR]
-- **Collaborative exploration**: Use Live Share for multi-user proof navigation [VS CODE + PROOF EDITOR]
+### Audience Interaction [PLATFORM + CORE + LSP]
+- **Audience comments**: Platform-native commenting systems for proof feedback [PLATFORM]
+- **Shared highlighting**: Real-time collaborative highlighting across platforms [PLATFORM + CORE]
+- **Collaborative exploration**: Multi-user proof navigation with platform optimizations [PLATFORM + CORE]
 - **Structure preservation**: LSP ensures annotations don't interfere with logic [LSP]
 
 ## Design Principles

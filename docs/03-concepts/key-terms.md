@@ -4,13 +4,36 @@ This is the canonical source for all conceptual definitions in Proof Editor. Oth
 
 ## Core Concepts [CORE]
 
+### Statement [CORE]
+A string of text that can be reused across multiple ordered sets. Statements are fundamentally just strings, but they function as reusable logical units - like variables in programming that can appear in different contexts.
+
+Examples:
+- "All men are mortal"
+- "Socrates is a man" 
+- "P → Q"
+
+Key properties:
+- **Content-based identity**: Two statements with the same text are considered the same statement
+- **Reusable**: The same statement string can appear in multiple ordered sets
+- **No inherent ID**: Statements are identified by their string content, not by separate IDs
+- **Immutable text**: Once created, a statement's text doesn't change
+- **Location independent**: A statement can appear in premise ordered sets, conclusion ordered sets, or both
+
+Think of statements like string constants that can be referenced from multiple places in your proof. When you type "All men are mortal" in one ordered set, you can use that same statement in other ordered sets without retyping.
+
 ### Ordered Set [CORE]
 A collection of statements that maintains both order and uniqueness. Ordered sets are the fundamental connection mechanism in Proof Editor:
 - **Order matters**: ["P", "Q"] is different from ["Q", "P"]
 - **No duplicates**: Each statement appears at most once
 - **Shared references**: Connections exist when atomic arguments share the SAME ordered set object
-- **Identity through reference**: Not copies or equality checks - the actual same object
+- **Identity through reference**: Not copies or equality checks - the actual same object in memory
 - **Mutable**: Changes to a shared ordered set affect all atomic arguments referencing it
+- **Contains statements**: Ordered sets contain statement strings, not statement objects
+- **Connection mechanism**: When two atomic arguments reference the same ordered set object, they are connected
+
+Key distinction: Ordered sets are NOT regular arrays. They are special data structures that enforce uniqueness while preserving order, and they create connections through object identity (reference equality), not value equality.
+
+**Critical understanding**: Ordered sets are the connection points. When you branch from an atomic argument, the conclusion ordered set of the parent becomes the premise ordered set of the child - they share the same object reference.
 
 ### Atomic Argument [CORE]
 A relation between two ordered sets. Either ordered set may be empty.
@@ -26,7 +49,11 @@ Note: There is only one implication line per atomic argument. The line extends a
 ### Connections [CORE]
 
 #### Direct Connection [CORE]
-Atomic arguments are directly connected when they share the SAME ordered set object - specifically, when the conclusion ordered set of one argument IS (same reference) the premise ordered set of another. This is not about matching values or equality - it's about object identity.
+Atomic arguments are directly connected when they share the SAME ordered set object - specifically, when the conclusion ordered set of one argument IS (same reference) the premise ordered set of another. This is about object identity (reference equality), not value equality.
+
+**Critical distinction**: Two ordered sets with identical contents (e.g., both containing ["P", "Q"]) are NOT connected unless they are literally the same object in memory. String matching during file deserialization is just a mechanism to reconstruct these shared references - it's not the core connection model.
+
+**Connection creation**: When you branch from an atomic argument, the system creates a new atomic argument whose premise ordered set reference points to the same object as the parent's conclusion ordered set reference. This shared reference IS the connection.
 
 #### Connected [CORE]
 Atomic arguments are connected when there is a path of directly connected arguments between them.
@@ -54,8 +81,12 @@ An argument which contains all atomic arguments connected to any of its members.
 #### Document [CORE]
 A workspace where atomic arguments are created and connected into trees, with each tree positioned on the canvas.
 
+Documents can contain multiple independent argument trees, where each tree is a maximal connected component and trees within a document share no atomic arguments. They provide workspace organization for multiple independent proofs in one container and logical separation with clear boundaries between unrelated arguments.
+
 #### Language Layer [LSP]
 Customizable component that interprets strings, provides validation, and defines display formatting.
+
+Language layers are implemented as Language Server Protocol (LSP) servers that provide intelligent analysis for specific logical systems. They parse statement strings, validate logical inferences according to domain rules, and provide real-time diagnostics through standard LSP methods like `textDocument/diagnostic` and custom methods like `proof/validateArgument`.
 
 ## Important Distinctions
 

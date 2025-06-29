@@ -38,9 +38,8 @@ Provides platform-independent file and directory operations while respecting pla
 - **Error Handling**: Consistent errors across different file systems
 
 ### Platform Differences
-- **Desktop**: Direct file system access with full paths
-- **Mobile**: Sandboxed storage with limited external access
-- **Web**: Virtual file system or cloud storage integration
+- **VS Code**: Direct file system access with full paths and VS Code workspace integration
+- **React Native**: Sandboxed storage with platform-appropriate document providers
 
 ## Settings Management
 
@@ -60,9 +59,8 @@ Manages application configuration and user preferences across different platform
 - **Type Safety**: Preserve type information across serialization
 
 ### Platform Differences
-- **VS Code**: Leverages built-in settings infrastructure
-- **Mobile**: Uses platform-specific secure storage
-- **Web**: LocalStorage or cloud-based persistence
+- **VS Code**: Leverages built-in settings infrastructure with workspace hierarchy
+- **React Native**: Uses AsyncStorage with encrypted secure storage for sensitive data
 
 ## User Interface Abstraction
 
@@ -104,9 +102,8 @@ Manages Language Server Protocol communication across different transport mechan
 - **Offline Support**: Graceful degradation without servers
 
 ### Platform Strategies
-- **Desktop**: Local process spawning with stdio/pipe communication
-- **Mobile**: WebSocket connections to remote servers
-- **Web**: WebSocket or HTTP-based communication
+- **VS Code**: Local process spawning with stdio/pipe communication through VS Code LSP client
+- **React Native**: WebSocket connections to remote servers or embedded LSP service
 
 ## Command System
 

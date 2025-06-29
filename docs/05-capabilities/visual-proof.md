@@ -129,7 +129,7 @@ This approach represents logical structures through spatial arrangement and grap
 
 ### Multiple Views
 - Tree view for hierarchy
-- Graph view for connections
+- Connection view for relationships
 - Linear view for sequences
 - Compact view for overview
 - Mini-map for navigation

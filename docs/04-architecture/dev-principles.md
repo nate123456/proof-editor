@@ -224,16 +224,35 @@ const user = aUser({ name: 'John Doe', email: 'john@example.com' });
 - Use partial object spread for customization
 - Name builders with descriptive prefixes (e.g., `aUser`, `anOrder`)
 
-## Performance Guidelines
+## Ultra-Fast Single-User Performance Guidelines
 
-### Performance Optimization
+### Ultra-Fast Performance Optimization
+- **Sub-10ms validation**: Target <10ms for most operations, <15ms for complex
+- **Cache-first architecture**: ~0ms for cache hits, aggressive pre-warming
+- **Single-user optimization**: Generous memory limits (128MB per language)
+- **Hot reload performance**: <100ms for language switching
+- **Pre-warming strategy**: Start contexts early, cache everything practical
 - Use lazy evaluation to defer expensive computations
 - Implement memoization for frequently accessed calculations
 - Create indices for common query patterns
 - Cache results of expensive operations with proper invalidation
 - Prefer O(1) lookups over O(n) scans
-- Use LRU caches to prevent memory leaks
+- Use generous LRU caches (single-user means no memory contention)
 - Profile before optimizing, measure after optimizing
+
+### Single-User Performance Architecture
+```
+Validation Request
+       ↓
+Cache Check (0ms) → Pattern Match (1-3ms) → JS Rule (2-5ms) → Result
+                             ↑
+                    Cache Miss Path Only
+```
+
+### Platform-Specific Performance
+- **Desktop**: Worker threads for parallel processing, generous memory
+- **Mobile**: Direct execution for lower latency, smart caching
+- **Web**: SharedArrayBuffer when available, service worker caching
 
 ### Immutability with Performance
 ```typescript
@@ -277,8 +296,10 @@ class BrowserFileSystem implements FileSystem { /*...*/ }
 ### Mobile-First Patterns
 - Touch targets minimum 44x44 points
 - Gesture support (pinch, swipe, long-press)
-- Efficient battery usage (lazy loading, minimal animations)
-- Offline-first with sync when connected
+- Ultra-fast response times (sub-10ms validation even on mobile)
+- Aggressive caching for offline-first experience
+- Smart battery optimization that doesn't sacrifice performance
+- Pre-warmed contexts for instant startup
 - Responsive to orientation changes
 
 ## Code Review Checklist
@@ -295,6 +316,10 @@ Before submitting PR:
 - [ ] Core logic has zero platform dependencies
 - [ ] Platform code behind clean interfaces
 - [ ] Works on mobile constraints
+- [ ] Meets ultra-fast performance targets (<10ms validation)
+- [ ] Implements appropriate caching strategies
+- [ ] Optimized for single-user experience
+- [ ] Pre-warming strategies implemented where beneficial
 
 ## Summary
 

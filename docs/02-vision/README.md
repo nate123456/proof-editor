@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Proof Editor is a multi-platform system for constructing and analyzing logical reasoning through visual representation of atomic arguments and argument trees, bringing modern development capabilities to formal logic across desktop, mobile, and web environments while supporting user-defined logical systems.
+Proof Editor is a focused two-platform system for constructing and analyzing logical reasoning through visual representation of atomic arguments and argument trees, bringing modern development capabilities to formal logic through VS Code Extension and React Native App while supporting user-defined logical systems.
 
 The platform combines three key innovations that work together to create a unified environment for formal reasoning across diverse domains:
 - Visual representation of logical structures
