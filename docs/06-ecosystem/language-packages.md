@@ -20,7 +20,7 @@ A language package contains:
 |---------|-----------------|-----------------|
 | Primary Purpose | Define logical system & validation | Add features, themes, tools |
 | LSP Server | Required | Optional |
-| Proof File Integration | Via `language:` field | Via `packages:` field |
+| Proof File Integration | Via `language:` field | Via `imports:` field |
 | Hot-swappable | Yes | No |
 | Version Constraints | Semantic versioning enforced | Flexible versioning |
 | Security | Sandboxed execution | Script permissions |

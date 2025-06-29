@@ -15,18 +15,11 @@ This document provides a consolidated overview of Proof Editor's customization f
 ### Implementation
 See [Custom Characters Documentation](../05-capabilities/custom-characters.md) for full details.
 
-**Quick Example**:
-```yaml
-# In .proof file
-customCharacters:
-  - symbol: "⊢"
-    name: "turnstile"
-    keybinding: "\\vdash"
-```
+Characters are defined in language packages and imported via the `imports:` field. They cannot be defined directly in proof files.
 
-**Impact on Ordered Sets**:
+**Impact on Statement Matching**:
 - Characters are part of string identity
-- "P ⊢ Q" and "P ├ Q" are different ordered sets
+- "P ⊢ Q" and "P ├ Q" are different statements
 - Connections require exact string matches
 
 ## Package Sharing System
@@ -44,11 +37,9 @@ See [Package System Documentation](./packages.md) for full details.
 **Quick Example**:
 ```yaml
 # In .proof file
-packages:
-  required:
-    - "modal-logic-starter@^1.0.0"
-  recommended:
-    - "advanced-modal@^2.0.0"
+imports:
+  - modal-logic-starter@^1.0.0     # Required import
+  - advanced-modal@^2.0.0?         # Optional import (note the ?)
 ```
 
 ## Security and Offline Considerations

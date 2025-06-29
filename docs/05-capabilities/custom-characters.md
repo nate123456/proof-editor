@@ -22,24 +22,6 @@ Define custom characters with:
 
 ## Configuration Levels
 
-### Document-Level Configuration
-Characters specific to a single proof:
-
-```yaml
-version: "1.0"
-customCharacters:
-  - symbol: "⊢"
-    name: "turnstile"
-    keybinding: "\\vdash"
-    category: "logical"
-  - symbol: "⊨"
-    name: "models"
-    keybinding: "\\models"
-    category: "semantic"
-
-# Rest of document...
-```
-
 ### User-Level Configuration
 Personal character preferences in `~/.proof-editor/characters.json`:
 
@@ -67,8 +49,15 @@ Personal character preferences in `~/.proof-editor/characters.json`:
 ```
 
 ### Package-Level Configuration
-Shared via package system (see [Packages](../06-ecosystem/packages.md)):
+Character definitions are distributed through language packages and imports. Languages define their own character sets, and proof files can import these definitions:
 
+```yaml
+# In a .proof file
+imports:
+  - modal-logic@^1.0.0  # Brings in modal logic characters
+```
+
+Package character configuration (in package manifest):
 ```json
 {
   "characters": [
@@ -158,37 +147,27 @@ Quick access panel showing:
 - Limit suggestion count (default: 10)
 
 ### Storage Format
-Characters stored in ordered sets as Unicode:
+Characters are stored as Unicode strings within statements:
 ```yaml
-orderedSets:
-  os1: ["∀x (P(x) → Q(x))", "P(a)"]
-  os2: ["Q(a)"]
+# Characters appear naturally in proof content
+- ["∀x (P(x) → Q(x))", "P(a)"]: ["Q(a)"]
 ```
 
-### Integration with Ordered Sets
-Custom characters are integral to the ordered set model:
+### Integration with Statement Matching
+Custom characters are integral to the connection model:
 - **Uniqueness preserved**: "P ⊢ Q" and "P ├ Q" are different strings
-- **Order matters**: ["P", "⊢ Q"] differs from ["⊢ Q", "P"]
-- **Connection consistency**: Shared ordered sets maintain character encoding
-- **Visual rendering**: Characters display consistently across all references
+- **Exact matching**: Connections require identical strings including characters
+- **Visual consistency**: Characters display identically across all occurrences
 
 Example showing character impact on connections:
 ```yaml
-orderedSets:
-  os1: ["P ⊢ Q"]      # Using turnstile
-  os2: ["P ├ Q"]      # Using different symbol - NOT connected to os1
-  os3: ["P ⊢ Q"]      # Same as os1 - enables connection if referenced
+# These connect (implicit matching)
+- ["P ⊢ Q", "Q ⊢ R"]: ["P ⊢ R"]
+- ["P ⊢ R", "R ⊢ S"]: ["P ⊢ S"]  # "P ⊢ R" matches exactly
 
-arguments:
-  arg1:
-    premises: os1    # "P ⊢ Q"
-    conclusions: os4
-  arg2:
-    premises: os1    # SAME reference - connection exists
-    conclusions: os5
-  arg3:
-    premises: os2    # Different string - NO connection to arg1/arg2
-    conclusions: os6
+# These don't connect (different symbols)
+- ["P ├ Q", "Q ├ R"]: ["P ├ R"]
+- ["P ⊢ R", "R ⊢ S"]: ["P ⊢ S"]  # "P ├ R" ≠ "P ⊢ R"
 ```
 
 ## Common Character Sets [LSP]

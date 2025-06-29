@@ -19,11 +19,8 @@ This plan breaks down all documentation into chunks for systematic cleanup and l
 
 ### Chunk 2: Core Concepts (CORE Layer)
 **Files:**
-- docs/03-concepts/atomic-arguments.md
-- docs/03-concepts/connections.md
+- docs/03-concepts/proof-components.md
 - docs/03-concepts/documents.md
-- docs/03-concepts/trees.md
-- docs/03-concepts/argument-hierarchy.md
 
 **Tasks:**
 1. Remove all VS Code references
@@ -36,8 +33,8 @@ This plan breaks down all documentation into chunks for systematic cleanup and l
 - docs/03-concepts/language-layer.md
 - docs/06-ecosystem/language-packages.md
 - docs/08-technical-design/language-management.md
-- docs/08-technical-design/lsp-integration.md
-- docs/08-technical-design/lsp-tree-querying.md
+- docs/08-technical-design/language/lsp-integration.md
+- docs/08-technical-design/language/lsp-tree-querying.md
 - docs/06-ecosystem/custom-logic.md
 
 **Tasks:**
@@ -49,7 +46,7 @@ This plan breaks down all documentation into chunks for systematic cleanup and l
 ### Chunk 4: Platform Abstraction (PLATFORM Layer)
 **Files:**
 - docs/08-technical-design/platform-abstraction.md
-- docs/08-technical-design/vs-code-integration-strategy.md
+- docs/08-technical-design/platform/vs-code-integration-strategy.md
 - docs/05-capabilities/ide-features.md
 
 **Tasks:**
@@ -91,7 +88,7 @@ This plan breaks down all documentation into chunks for systematic cleanup and l
 - docs/00-PRD-v1.md
 - docs/00-index.md
 - docs/CLAUDE.md (in root)
-- docs/dev-principles.md
+- docs/04-architecture/dev-principles.md
 
 **Tasks:**
 1. Update PRD to reflect platform-agnostic architecture

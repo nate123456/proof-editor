@@ -178,7 +178,7 @@ The Language Server Protocol provides the interface between platform and languag
 2. **Intelligence Features**: Platform maps positions → LSP provides completions/hovers → Platform renders UI
 3. **Custom Requests**: Platform sends proof-specific requests → LSP analyzes structure → Platform updates visualization
 
-For detailed LSP integration specifications, see [LSP Integration](./lsp-integration.md).
+For detailed LSP integration specifications, see [LSP Integration](./language/lsp-integration.md).
 
 ## ERD Update
 

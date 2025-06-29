@@ -182,15 +182,13 @@ const manifest = await parsePackageManifest(manifestData);
 
 ### Document-Level Requirements
 
-Documents can specify required or recommended packages:
+Documents can specify required or recommended imports:
 
 ```yaml
 version: "1.0"
-packages:
-  required:
-    - "modal-logic-starter@^1.0.0"
-  recommended:
-    - "modal-logic-advanced@^2.0.0"
+imports:
+  - modal-logic-starter@^1.0.0     # Required package
+  - modal-logic-advanced@^2.0.0?   # Optional package (note the ?)
 
 # Rest of document...
 ```
