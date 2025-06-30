@@ -29,41 +29,45 @@ This is one logical step. You have some premises (the "given" statements) and yo
 **Why "Atomic"?** 
 Just like atoms are the smallest building blocks of matter, atomic arguments are the smallest building blocks of reasoning. You can't break them down into smaller logical pieces without losing the logical connection.
 
-### 2. Connections (How Steps Link Together)
+### 2. Connections and Tree Structure (Two Complementary Views)
 
-Arguments connect when the conclusion of one step becomes a premise in another step. In Proof Editor, this happens by sharing the same logical structure - not just the same text.
+Proof Editor provides two important perspectives on your logical arguments:
 
-**Key insight**: When you use a conclusion as a premise in another step, you're not just copying the text - you're creating a shared logical connection. If you change the shared statement, it updates everywhere it's connected.
+#### Logical Connections
+Arguments CAN connect when the conclusion of one step matches a premise in another step. These are potential logical relationships based on shared content.
 
-**Example of Connected Steps:**
-
-**Step 1:**
+**Example of Connectable Steps:**
 ```
-Given: All birds can fly
-Given: Tweety is a bird  
-Therefore: Tweety can fly
-```
-
-**Step 2:**
-```
-Given: Tweety can fly
-Given: Flying things can reach high places
-Therefore: Tweety can reach high places
+Step 1: All birds can fly + Tweety is a bird → Tweety can fly
+Step 2: Tweety can fly + Flying things reach high places → Tweety can reach high places
+Step 3: Tweety can fly + Flying requires wings → Tweety has wings
 ```
 
-**The Connection:** Step 1's conclusion "Tweety can fly" becomes Step 2's premise "Tweety can fly". This creates a logical chain.
+**The Potential**: Steps 2 and 3 both COULD use Step 1's conclusion.
+
+#### Tree Structure  
+When you actually BUILD a proof, you create a tree by choosing which connections to use and where to position them.
+
+**Example Tree Built from Above Steps:**
+```
+        Step 1 (Tweety can fly)
+               ↓
+        Step 2 (reaches high places)
+```
+
+**Key Insight**: Step 3 remains available but unused in this particular tree. You chose to connect Step 1 to Step 2, creating a specific proof path.
 
 **In Proof Editor:**
-- When you connect steps by branching, they share the same logical structure
-- You can see the logical flow visually
-- If you change a connected statement, it updates in all connected places
-- The same statement text can appear in unconnected steps without creating automatic connections
+- **Connections**: The system shows you what CAN connect logically
+- **Tree Building**: You decide what DOES connect by branching
+- **Position Matters**: When branching, you select which premise position to fill
+- **Multiple Trees**: The same arguments can be arranged differently in different trees
 
-**Why This Matters:**
-- Intentional connections - you control which steps connect to each other
-- Consistency in connected steps - change a connected statement once, it updates throughout connected steps
-- Visual clarity - see how your reasoning flows from premises to final conclusions
-- Statement reuse - the same statement text can appear in multiple unconnected places when needed
+**Why This Dual View Matters:**
+- **Exploration**: See all possible logical connections before committing
+- **Flexibility**: Build different proof trees from the same logical components  
+- **Reusability**: Use the same logical step multiple times in different positions
+- **Clarity**: Distinguish between "what's logically valid" and "what I'm actually using"
 
 ### 3. Complete Arguments (Connected Chains of Reasoning)
 

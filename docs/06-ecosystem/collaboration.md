@@ -1,31 +1,32 @@
-# AI-Augmented Collaboration Features
+# Collaboration Features
 
-## Working Together: Humans + AI Partners
+## Working Together: Human-Centered Collaboration
 
-Collaboration in Proof Editor involves both human-to-human and human-to-AI partnerships. Domain experts work with AI to implement their logical ideas, while teams collaborate on refining and sharing these AI-generated systems. This creates a three-way collaboration: domain expert + AI + community.
+Collaboration in Proof Editor focuses on human-to-human partnerships in creating, refining, and sharing logical systems. Teams work together to build and improve custom logic frameworks for education and research.
 
-## AI-Augmented Real-Time Collaboration
+## Real-Time Collaboration
 
-### Human-AI Live Editing
-- **AI suggestions**: Real-time logic system improvements
-- **Natural language input**: "Add a deontic operator for obligations"
-- **Instant AI implementation**: Changes appear immediately with explanations
-- **Validation feedback**: AI continuously checks logical consistency
-- **Learning indicators**: See how AI adapts to your domain expertise
-
-### Human-Human Live Editing
+### Human-Centered Live Editing
 - **Multiple cursors**: See where others work
 - **Instant updates**: Changes appear immediately
-- **Conflict resolution**: Smart merging with AI assistance
+- **Conflict resolution**: Smart merging with pattern-based assistance
 - **Presence awareness**: Know who's active
 - **Activity indicators**: See what's changing
 
-### AI-Enhanced Communication
-- **AI explanations**: "Why did you suggest this inference rule?"
-- **Natural language discussion**: Describe logical concepts to AI
-- **AI-generated summaries**: Automatically document collaboration sessions
-- **Conceptual bridges**: AI translates between domain language and implementation
-- **Learning conversations**: AI explains logical concepts in domain terms
+### Smart Conflict Resolution
+When concurrent edits create logical conflicts, the system provides analysis and resolution support:
+
+**Conflict Analysis**:
+- **Logical Contradiction Detection**: Identify exactly where logical inconsistencies arise
+- **Impact Assessment**: Show how resolution choices affect the broader proof structure
+- **Visual Comparison**: Side-by-side view of conflicting logical structures
+- **Collaboration History**: Show how the conflict developed
+
+**Resolution Tools**:
+- **Interactive Resolution**: Users can review and merge changes
+- **Real-Time Validation**: Immediate feedback on resolution choices
+- **Multiple Options**: Present several viable resolution paths
+- **Rollback Support**: Easy undo of problematic changes
 
 ### Human Communication
 - **Inline comments**: Discuss specific points
@@ -57,6 +58,50 @@ Collaboration in Proof Editor involves both human-to-human and human-to-AI partn
 - **Automated checks**: Validate changes
 - **Discussion threads**: Debate approaches
 
+### Logical Provenance & Attribution
+Basic tracking and visualization of authorship and sources for collaborative work:
+
+```typescript
+interface BasicProvenanceSystem {
+  // Query authorship information
+  getAuthor(elementId: string): Author;
+  
+  // Track source packages
+  getSourcePackage(elementId: string): LanguagePackage | null;
+  
+  // Display basic attribution
+  displayBasicAttribution(elementId: string): AttributionInfo;
+}
+
+interface AttributionInfo {
+  elementId: string;
+  elementType: 'atomic_argument' | 'ordered_set';
+  
+  // Basic authorship
+  originalAuthor: Author;
+  lastModifiedBy: Author;
+  
+  // Source tracking
+  sourcePackage?: LanguagePackage;  // Language package that provided this content
+  sourceDocument?: ImportedProof;   // If imported from another proof
+}
+```
+
+**Basic Authorship Tracking**:
+- **Original Creation**: Who first created each atomic argument or ordered set
+- **Modification History**: Standard file-level version control through Git integration
+- **Source Attribution**: Track which language packages provided specific rules or axioms
+
+**Visual Attribution Display**:
+- **Hover Information**: Author and creation timestamp on hover
+- **Source Indicators**: Show which language package provided specific elements
+- **Collaboration History**: Standard Git blame and history integration
+
+**Academic and Professional Uses**:
+- **Basic Citation**: Reference the language packages and collaborators involved
+- **Educational Context**: Show students which rules came from which packages
+- **Collaboration Transparency**: Standard Git-based attribution for team work
+
 ### Documentation
 - **Shared wikis**: Build knowledge
 - **README files**: Explain projects
@@ -87,21 +132,21 @@ Collaboration in Proof Editor involves both human-to-human and human-to-AI partn
 - **Training materials**: Onboard members
 - **Knowledge base**: Accumulated wisdom
 
-## AI-Augmented Educational Collaboration
+## Educational Collaboration
 
-### AI-Powered Classroom
-- **AI tutoring**: Personalized logical reasoning assistance for each student
-- **AI-generated exercises**: Custom practice problems adapted to student progress
-- **AI explanation**: "Why is this proof invalid?" with domain-specific explanations
-- **AI-assisted peer review**: Students collaborate with AI to understand each other's work
-- **Live AI demonstrations**: "Claude, show us how to model conditional obligations"
+### Interactive Classroom
+- **Real-time validation**: Immediate feedback on logical reasoning
+- **Custom exercises**: Practice problems using professor's logic systems
+- **Clear explanations**: Domain-specific error messages and guidance
+- **Peer learning**: Students collaborate to understand concepts
+- **Live demonstrations**: Interactive teaching with custom logic systems
 
-### Enhanced Traditional Features
-- **Teacher dashboard**: Monitor students + AI collaboration patterns
-- **Student submissions**: Collect work + AI interaction logs
-- **Peer review**: Students help each other with AI assistance
-- **Group projects**: Collaborative learning with AI team member
-- **Live demonstrations**: Interactive teaching with AI co-instructor
+### Educational Features
+- **Teacher dashboard**: Monitor student progress and collaboration
+- **Student submissions**: Collect and review work
+- **Peer review**: Students help each other learn
+- **Group projects**: Collaborative learning experiences
+- **Live demonstrations**: Interactive teaching sessions
 
 ### Feedback Systems
 - **Inline corrections**: Direct feedback
@@ -117,21 +162,21 @@ Collaboration in Proof Editor involves both human-to-human and human-to-AI partn
 - **Rubrics**: Consistent grading
 - **Curriculum alignment**: Standards mapping
 
-## AI-Augmented Research Collaboration
+## Research Collaboration
 
-### AI-Enhanced Research Workflows
-- **AI-assisted hypothesis formation**: "Help me explore the relationship between temporal and deontic logic"
-- **AI-generated proofs**: Implement theoretical frameworks through natural language description
-- **AI literature synthesis**: "What existing work relates to this logical structure?"
-- **AI-powered pattern recognition**: Identify novel relationships in logical systems
-- **AI collaboration documentation**: Automatically track reasoning development
+### Research Workflows
+- **Hypothesis exploration**: Collaborate on relationships between logical systems
+- **Proof development**: Implement and test theoretical frameworks
+- **Literature organization**: Organize and reference existing work
+- **Pattern documentation**: Document novel relationships in logical systems
+- **Research tracking**: Track reasoning development and insights
 
-### Enhanced Traditional Research
-- **Grant proposals**: Collaborative writing with AI assistance
-- **Research planning**: Coordinate efforts with AI modeling support
-- **Data management**: Share findings + AI analysis
-- **Publication prep**: Joint authoring with AI-generated examples
-- **Conference planning**: Coordinate presentations with AI-generated demonstrations
+### Traditional Research
+- **Grant proposals**: Collaborative writing and planning
+- **Research coordination**: Coordinate multi-person efforts
+- **Data management**: Share findings and analysis
+- **Publication preparation**: Joint authoring with examples
+- **Conference planning**: Coordinate presentations and demonstrations
 
 ### Cross-Institution
 - **Federated access**: Multi-organization
@@ -193,25 +238,25 @@ Collaboration in Proof Editor involves both human-to-human and human-to-AI partn
 - **Meetups**: Local gatherings
 - **Conferences**: Major events
 
-## The AI-Augmented Future of Collaboration
+## The Future of Logical Collaboration
 
-### Natural Language Logic Creation
-- **Philosophy professor**: "Claude, I need a modal logic where necessity distributes over implication but not conjunction"
-- **AI implementation**: Generates complete logic system with validation rules
-- **Iterative refinement**: "Actually, let's add temporal operators to model changing obligations"
-- **Community sharing**: AI-generated systems become collaborative starting points
+### Advanced Logic Sharing
+- **Clear system definition**: Professors define logic systems with precise documentation
+- **Community refinement**: Collaborative improvement of logical frameworks
+- **Version evolution**: Track changes and improvements over time
+- **Educational resources**: Community-contributed examples and explanations
 
-### Distributed AI Collaboration
-- **Cross-institutional AI**: Shared AI assistants trained on multiple domains
-- **AI translation**: Convert between different logical notation systems
-- **AI-mediated debates**: AI helps researchers understand each other's logical frameworks
-- **Collaborative AI training**: Community-contributed examples improve AI assistance
+### Cross-Institution Collaboration
+- **Shared standards**: Common formats for logical system exchange
+- **Translation tools**: Convert between different logical notation systems
+- **Research coordination**: Researchers share and compare logical frameworks
+- **Community knowledge**: Collective wisdom through shared examples and patterns
 
-### Meta-Collaboration
-- **AI learning from collaboration**: AI improves by observing human logical reasoning
-- **Human learning from AI**: Experts discover new approaches through AI suggestions
-- **Bi-directional knowledge transfer**: Humans teach AI domain concepts, AI teaches implementation
-- **Community AI**: Collective intelligence through shared AI-human collaboration
+### Knowledge Building
+- **Documentation culture**: Community emphasis on clear explanation
+- **Learning resources**: Human-created tutorials and guides
+- **Best practices**: Accumulated wisdom from experienced users
+- **Mentorship**: Expert guidance for newcomers
 
 ### Global Scale
 - **Translation**: Cross-language work
@@ -220,10 +265,10 @@ Collaboration in Proof Editor involves both human-to-human and human-to-AI partn
 - **Distributed teams**: Work anywhere
 - **Global communities**: Connect worldwide
 
-AI-augmented collaboration transforms Proof Editor from a tool into an intelligent platform where:
-- **Domain experts** describe their logical concepts in natural language
-- **AI partners** implement these concepts as working systems
-- **Communities** refine and share AI-generated logical frameworks
-- **Collective intelligence** emerges through human-AI partnership
+Human-centered collaboration transforms Proof Editor into a collaborative platform where:
+- **Domain experts** define their logical concepts through clear configuration
+- **Community members** share and improve logical frameworks
+- **Educational resources** help users learn and contribute
+- **Collective knowledge** emerges through human collaboration and documentation
 
-This creates a new form of intellectual collaboration where domain expertise and technical implementation are unified through AI assistance.
+This creates effective intellectual collaboration where domain expertise drives innovation through community effort and clear documentation.

@@ -9,11 +9,13 @@ This approach represents logical structures through spatial arrangement and grap
 ## Core Visual Elements
 
 ### Spatial Representation [CORE]
-- In this visualization, argument trees are positioned in 2D space [CORE]
-- Individual atomic arguments get their positions computed from tree structure [CORE]
-- Relationships shown through tree layout [CORE layout engine]
-- Logical flow follows visual hierarchy [LSP can customize]
-- Structure is computed from connections [CORE]
+- **Document Workspace**: Infinite 2D canvas where trees are positioned [CORE]
+- **Tree Positioning**: Each tree has x,y coordinates in the workspace [CORE]
+- **Node Layout**: Within each tree, nodes are arranged by layout algorithm [CORE]
+- **Independent Movement**: Entire trees can be dragged to new positions [CORE]
+- **Zoom Levels**: From individual nodes to entire document overview [CORE]
+
+**Spatial Independence**: Moving a tree spatially doesn't affect its logical structure - it's just repositioning in the workspace for visual organization.
 
 ### Direct Manipulation [CORE]
 - Drag entire trees to reposition [CORE]
@@ -57,14 +59,22 @@ This approach represents logical structures through spatial arrangement and grap
 
 ## Interaction Paradigms
 
-### Construction Flow (Platform-Agnostic)
-1. **Create**: Begin with a new atomic argument (shown here as an implication line)
-2. **Add Content**: Type or enter characters into areas above and/or below the line
-3. **Add Side Text**: Enter text into fields on either side of the line
-4. **Branch**: Create new atomic arguments branching from selected atomic arguments or as unconnected atomic arguments
-5. **Connect**: Branch from atomic arguments to share ordered sets
-6. **Arrange**: Position for clarity
-7. **Refine**: Iterate on structure
+### Two-Phase Construction Process
+
+#### Phase 1: Define Building Blocks
+1. **Create Statements**: Define reusable text snippets with unique IDs
+2. **Create Arguments**: Define logical inference templates (premise→conclusion patterns)
+3. **Validate Logic**: Ensure arguments follow your logical system's rules
+4. **Build Library**: Accumulate reusable logical components
+
+#### Phase 2: Build Proof Trees  
+1. **Start Tree**: Create new tree at chosen workspace position
+2. **Add Root**: Select an argument template as the root node
+3. **Branch Children**: Add nodes to fulfill premise requirements
+4. **Position Spatially**: Arrange tree in workspace for clarity
+5. **Continue Building**: Extend tree by branching from conclusions
+6. **Create Multiple Trees**: Build independent trees at different positions
+7. **Organize Workspace**: Move trees around for optimal layout
 
 ### Platform-Specific Interactions
 

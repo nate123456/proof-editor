@@ -226,33 +226,15 @@ const user = aUser({ name: 'John Doe', email: 'john@example.com' });
 
 ## Ultra-Fast Single-User Performance Guidelines
 
-### Ultra-Fast Performance Optimization
-- **Sub-10ms validation**: Target <10ms for most operations, <15ms for complex
-- **Cache-first architecture**: ~0ms for cache hits, aggressive pre-warming
-- **Single-user optimization**: Generous memory limits (128MB per language)
-- **Hot reload performance**: <100ms for language switching
-- **Pre-warming strategy**: Start contexts early, cache everything practical
+For comprehensive performance requirements, targets, and optimization strategies, see [Non-Functional Requirements](../09-non-functional-requirements.md#performance-requirements).
+
+### Development Performance Principles
+- Profile before optimizing, measure after optimizing
 - Use lazy evaluation to defer expensive computations
 - Implement memoization for frequently accessed calculations
 - Create indices for common query patterns
 - Cache results of expensive operations with proper invalidation
 - Prefer O(1) lookups over O(n) scans
-- Use generous LRU caches (single-user means no memory contention)
-- Profile before optimizing, measure after optimizing
-
-### Single-User Performance Architecture
-```
-Validation Request
-       ↓
-Cache Check (0ms) → Pattern Match (1-3ms) → JS Rule (2-5ms) → Result
-                             ↑
-                    Cache Miss Path Only
-```
-
-### Platform-Specific Performance
-- **Desktop**: Worker threads for parallel processing, generous memory
-- **Mobile**: Direct execution for lower latency, smart caching
-- **Web**: SharedArrayBuffer when available, service worker caching
 
 ### Immutability with Performance
 ```typescript
@@ -316,7 +298,7 @@ Before submitting PR:
 - [ ] Core logic has zero platform dependencies
 - [ ] Platform code behind clean interfaces
 - [ ] Works on mobile constraints
-- [ ] Meets ultra-fast performance targets (<10ms validation)
+- [ ] Meets performance targets (see [Non-Functional Requirements](../09-non-functional-requirements.md))
 - [ ] Implements appropriate caching strategies
 - [ ] Optimized for single-user experience
 - [ ] Pre-warming strategies implemented where beneficial

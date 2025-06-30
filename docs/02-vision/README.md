@@ -7,7 +7,7 @@ Proof Editor is a focused two-platform system for constructing and analyzing log
 The platform combines three key innovations that work together to create a unified environment for formal reasoning across diverse domains:
 - Visual representation of logical structures
 - Integrated development environment capabilities adapted for formal reasoning  
-- User-definable logical systems with sharing mechanisms
+- User-definable logical systems **through simple configuration and clear documentation**
 
 ### Why This Matters
 
@@ -48,19 +48,21 @@ These principles guide every decision in the platform's design and development.
 
 ### 1. Multi-Platform Visual Primacy
 
-**Adaptive Spatial Representation:** Logical relationships adapt to available screen space and input methods, from phone screens to multi-monitor setups. Touch gestures, mouse precision, and keyboard shortcuts all manipulate the same underlying logical structures. Statements remain consistent while their visual arrangement responds to platform capabilities.
+**Adaptive Spatial Representation:** Logical relationships adapt to available screen space and input methods, from phone screens to multi-monitor setups. Touch gestures, mouse precision, and keyboard shortcuts all manipulate the same underlying logical structures. Statements remain consistent while their visual arrangement responds to platform capabilities. *(Feasibility underpinned by modern frameworks supporting touch-optimized graph manipulation, high-performance rendering, and responsive layouts, as elaborated in [Technical Feasibility](../01-problem-space/technical-feasibility.md))*
 
 **Platform-Aware Direct Manipulation:** Touch interfaces use gestures for connection and arrangement. Desktop interfaces leverage precise mouse control and keyboard shortcuts. Mobile devices employ innovative touch patterns. Each platform's strengths are utilized while maintaining conceptual consistency.
 
 ### 2. Universal Complexity Management
 
-**Device-Responsive Progressive Interface:** Interface complexity scales with both user expertise and device capabilities. Phones show essential features prominently. Tablets add intermediate tools. Desktops expose full professional capabilities. Users carry their expertise level across devices.
+**Device-Responsive Progressive Interface:** Interface complexity scales with both user expertise and device capabilities. Phones show essential features prominently. Tablets add intermediate tools. Desktops expose full professional capabilities. Users carry their expertise level across devices. *(Achieved through established IDE techniques for real-time validation, efficient pattern matching, and smart assistance, as detailed in [Technical Feasibility](../01-problem-space/technical-feasibility.md))*
 
 **Contextual Information:** Documentation and guidance are embedded within the interface at points of use. Learning resources are integrated with functional elements.
 
 ### 3. Computational Assistance
 
 **Automated Analysis:** The system performs continuous validation, error detection, and pattern recognition. Computational processes operate in parallel with user interaction.
+
+**Clear Documentation and Examples:** The system provides comprehensive documentation, templates, and examples that enable domain experts to implement logical ideas without extensive coding knowledge.
 
 **User Autonomy:** Automated features operate as optional enhancements. Users retain full control over acceptance or rejection of computational suggestions.
 
@@ -96,7 +98,13 @@ These principles guide every decision in the platform's design and development.
 - Mobile: Gesture-based with smart space utilization
 - Web: Progressive enhancement with offline capabilities
 
-**Local-First, Sync-Enabled:** Every device maintains full offline functionality. Changes synchronize seamlessly when connected. No feature requires constant connectivity. Work continues uninterrupted regardless of network availability.
+**Local-First, Sync-Enabled:** Every device maintains full offline functionality. Changes synchronize seamlessly when connected. No feature requires constant connectivity. Work continues uninterrupted regardless of network availability. *(Enabled by robust platform abstraction, local-first data architecture, and progressive enhancement strategies, see [Technical Feasibility](../01-problem-space/technical-feasibility.md))*
+
+### 9. Documentation-First Accessibility
+
+**Democratized Logic Creation:** Empower domain experts through clear documentation and examples, making coding knowledge optional through comprehensive guides and templates.
+
+**Expertise Amplification:** Focus on domain expertise while providing the technical scaffolding needed for implementation through excellent documentation and community resources.
 
 ## Evaluation Criteria
 

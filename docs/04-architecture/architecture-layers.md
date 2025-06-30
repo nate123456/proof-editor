@@ -3,9 +3,11 @@
 ## CORE Layer
 Platform-agnostic business logic that represents the pure functionality of Proof Editor. This includes:
 - Ordered set management
-- Atomic argument structures
+- Atomic argument structures (templates)
 - Connection logic (shared ordered set references)
-- Argument tree structures
+- Node instances (atomic arguments positioned in trees)
+- Tree structure (explicit parent-child relationships)
+- Argument tree discovery (maximal connected components)
 - Proof document model
 - Navigation algorithms
 - Layout calculations

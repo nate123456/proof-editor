@@ -14,8 +14,8 @@ This documentation uses tags to distinguish between:
 ## Philosophy: User-Managed Sharing
 
 This system puts users in complete control:
-- **No gatekeepers**: Share directly with colleagues, students, or the community
-- **Your choice**: Install only what you trust from sources you choose
+- **No gatekeepers**: Share directly with colleagues, students, or the community without centralized approval barriers. Users act as their own informed gatekeepers through transparent security controls (see [Language Package Security Policy](../policies/language-package-security-policy.md))
+- **Your choice**: Install only what you trust from sources you choose, with full disclosure of code execution and security implications
 - **Platform flexibility**: Multiple distribution methods per platform
 - **Offline capable**: Cached packages work without internet connectivity
 - **Privacy preserved**: No tracking, analytics, or centralized data collection
@@ -243,12 +243,33 @@ Profiles bundle multiple packages for specific workflows:
 ## Security Considerations [CORE]
 
 ### Package Verification
-- Script execution requires user confirmation
+- **Script execution requires user confirmation** that clearly articulates the nature of the code (e.g., 'user-defined logical rules') and security implications
 - Sandboxed script environment with limited API access
 - No network access from scripts
 - Content Security Policy (CSP) enforced
 - Package signatures for authenticity (future enhancement)
 - Platform-specific source verification
+
+### User Consent and Risk Disclosure
+
+**When Consent is Required**: The system prompts for explicit user consent before installing or running any package containing executable code (JavaScript validation rules, custom LSP servers, or other scripts).
+
+**Consent Flow**:
+1. **Detection**: System analyzes package contents and identifies executable components
+2. **Risk Disclosure**: Clear warning dialog displays:
+   - What executable code is present (validation rules, LSP extensions, etc.)
+   - Security constraints and sandboxing measures
+   - Source information and trust level (see [Language Package Security Policy](../policies/language-package-security-policy.md))
+   - Potential risks from untrusted sources
+3. **Explicit Actions**: User must take explicit action:
+   - "Install and Trust" - Proceed with installation
+   - "Review Code" - Examine package contents before deciding
+   - "Cancel" - Reject installation
+4. **Installation**: If approved, package installs with security constraints applied
+
+**Information Displayed**: Users see exactly what they're agreeing to install, including code execution capabilities, resource access permissions, and source verification status.
+
+For comprehensive details on consent processes, risk disclosure, trust mechanisms, and security enforcement, see [Language Package Security Policy](../policies/language-package-security-policy.md).
 
 ### Permission Model
 ```typescript
@@ -515,7 +536,7 @@ LSP servers run with strict security constraints:
 
 ```typescript
 interface LSPSandboxConfig {
-  maxMemoryMB: number;
+  memoryAllocation: 'adaptive' | 'fixed';
   maxCPUPercent: number;
   allowedPaths: string[];
   networkAccess: boolean;

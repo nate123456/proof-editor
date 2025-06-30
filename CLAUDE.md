@@ -165,6 +165,97 @@ Example: In a proof with steps A→B→C→D and A→E→D:
 
 **Path-completeness is sacred**: You cannot have an argument containing atomic arguments A and D without including B and C if the only path from A to D goes through B and C. This preserves logical integrity.
 
+### CRITICAL INSIGHT: Proof Trees Are About POSITION, Not Just Connections
+
+**THIS IS FUNDAMENTAL**: Arguments are TEMPLATES that can be INSTANTIATED multiple times at different POSITIONS in a proof tree. The same argument can appear as multiple distinct nodes!
+
+**Example**: Given arguments:
+- arg1: [A, B] → [C]
+- arg2: [B, C] → [A]
+- arg3: [C, A] → [B]
+
+These three arguments can form MANY different tree structures:
+- arg1 at root with arg2 and arg3 as children
+- arg3 at root with arg1 as child
+- arg2 appearing TWICE in the same tree at different positions
+
+**CONNECTIONS ≠ TREE STRUCTURE**: Logical connections tell us what CAN connect, but tree structure tells us what ACTUALLY connects WHERE.
+
+### How Proof Trees ACTUALLY Work
+
+**CHILDREN PROVIDE INPUTS TO PARENTS** - This is backwards from typical tree thinking!
+- Parent nodes have premise requirements (inputs they need)
+- Child nodes produce conclusions (outputs they provide)
+- A child attaches to a parent by providing a specific input the parent needs
+- The attachment is POSITIONAL - it matters WHICH premise slot the child fills
+
+**Example**: If arg1 needs [A, B]:
+- A child producing A can attach at position 0
+- A child producing B can attach at position 1
+- The child's entire conclusion ordered set provides the value
+
+### The Four Essential Facts of Tree Storage
+
+Every node in a proof tree requires EXACTLY these facts:
+1. **Node ID**: Unique identifier for this instance (e.g., n1, n2)
+2. **Argument**: Which argument template is used (e.g., arg1)
+3. **Parent & Position**: Which node it connects to and at which premise position
+4. **From** (optional): Which conclusion to use if the child has multiple conclusions
+
+**YAML Example**:
+```yaml
+n1: {arg: arg1}  # Root node
+n2: {n1: arg2, on: 0}  # Connects to n1 at position 0
+n3: {n1: arg3, on: 1}  # Connects to n1 at position 1
+n4: {n3: arg2, on: 1}  # SAME arg2, different instance!
+```
+
+**THE TREE IS THE POSITION INFORMATION** - Without explicit parent-child-position relationships, you cannot reconstruct the tree!
+
+### The YAML Storage Format (CRITICAL TO REMEMBER)
+
+After extensive analysis, we discovered the MINIMAL and COMPLETE format for storing proof trees:
+
+```yaml
+proof:
+  n1: {arg: arg1}               # Root node
+  n2: {n1: arg2, on: 0}        # Parent: argument, position
+  n3: {n1: arg3, on: 1}        # Clean, unambiguous
+  n4: {n3: arg2, on: "1:0"}    # Multiple conclusions: "from:to"
+```
+
+**Key insights**:
+- Parent node ID as KEY makes relationships crystal clear
+- `on` field: number for single conclusion, string "from:to" for multiple
+- Metadata (left, right, hover) can be added to any node
+- Same argument can have multiple instances (different node IDs)
+
+**THIS FORMAT IS SACRED** - It captures EXACTLY what's needed, nothing more!
+
+### Spatial Positioning of Trees
+
+Trees exist in a document workspace and need spatial positioning:
+
+```yaml
+trees:
+  - id: tree1
+    offset: {x: 100, y: 200}  # Position in workspace
+    nodes:
+      n1: {arg: arg1}
+      n2: {n1: arg2, on: 0}
+      
+  - id: tree2
+    offset: {x: 500, y: 200}  # Different position
+    nodes:
+      n3: {arg: arg3}
+```
+
+**Key Points**:
+- Each tree has an x,y offset in the document workspace
+- Trees can be moved independently without affecting logical structure
+- Multiple trees can exist in one document at different positions
+- Spatial data (offset) is separate from logical data (nodes)
+
 ### The Tree/DAG Truth (Domain-Driven Design)
 - **Domain Language**: "Argument trees" (what philosophers/users say)
 - **Implementation**: Directed Acyclic Graphs/DAGs (what code does)
@@ -250,6 +341,9 @@ Key terms in this project have specific technical meanings:
 - **Argument**: A path-complete set of connected atomic arguments
 - **Argument tree**: The maximal connected component (includes ALL connected atomic arguments)
 - **Validation**: Checking according to user-defined rules, not universal truth
+- **Node**: A specific instance of an argument in a tree (has unique ID)
+- **Tree position**: The parent-child-position relationships that define structure
+- **Attachment**: How a child provides input to a specific parent premise slot
 
 ### 7. Platform Independence Thinking
 - **Abstract Early**: Identify platform dependencies during design
@@ -284,6 +378,15 @@ Key terms in this project have specific technical meanings:
 ❌ Getting confused by "tree" terminology when it's really a DAG
 ❌ Documenting implementation details (DAG) in user docs
 ❌ Thinking the tree/DAG distinction is a contradiction
+
+### About Proof Trees (NEW CRITICAL MISUNDERSTANDINGS)
+❌ Thinking connections alone determine tree structure (they don't - position matters!)
+❌ Thinking each argument can only appear once in a tree (arguments are templates, reusable!)
+❌ Thinking trees flow top-down (children provide inputs UP to parents!)
+❌ Ignoring positional attachment (which premise slot matters!)
+❌ Storing only connections without parent-child-position relationships
+❌ Assuming tree structure can be inferred from connections (it CANNOT!)
+❌ Forgetting that the same argument can have multiple instances with different node IDs
 
 ## Anti-Patterns to Avoid
 
@@ -388,6 +491,10 @@ Don't create these "problems" - they have simple answers:
 5. **"How can it be universal yet limited?"** - It's not universal. It's customizable for text-based logic.
 6. **"Why not build our own editor?"** - VS Code provides enterprise features we'd spend years building
 7. **"How can mobile have feature parity?"** - Platform abstraction + touch-adapted interactions
+8. **"How do we store tree structure?"** - Each node stores: argument used, parent node, attachment position. That's it!
+9. **"What if connections are ambiguous?"** - They're not. Tree structure is EXPLICIT via parent-child-position data.
+10. **"How can the same argument appear twice?"** - Arguments are templates. Each usage gets a unique node ID.
+11. **"Which way does data flow in trees?"** - Bottom-up! Children provide inputs TO parents.
 
 ## Documentation Excellence Checklist
 
@@ -398,6 +505,52 @@ Before accepting any documentation task, ask yourself:
 - [ ] Is this the clearest possible way to express this?
 - [ ] Am I repeating something already documented?
 - [ ] Am I creating problems where simple solutions exist?
+
+### Tree Documentation Patterns to Enforce
+- [ ] Always distinguish between logical connections and tree structure
+- [ ] Emphasize that arguments are templates, nodes are instances
+- [ ] Show the parent-as-key YAML format in examples
+- [ ] Explain bottom-up data flow when discussing trees
+- [ ] Include spatial positioning (offset) for complete examples
+- [ ] Never imply tree structure can be inferred from connections
+
+### Documentation Update Success Patterns
+After the second pass, these patterns work well:
+- Show tree structure visually with ASCII diagrams
+- Use concrete examples with multiple children at same position
+- Explain "on:" field clearly (number for single conclusion, "from:to" for multiple)
+- Include both logical view (what can connect) and tree view (what does connect where)
+- Always show complete YAML with arguments defined first, then tree structure
+
+### Documentation Gaps the Agent Missed
+When updating docs, ensure these specific areas are addressed:
+
+1. **Branching Documentation** (branching.md)
+   - Currently only discusses logical connections via ordered sets
+   - MUST add: How branching creates nodes in tree structure
+   - MUST add: Parent-child positioning when branching
+   - MUST add: Selecting which premise position to attach to
+
+2. **User-Facing Explanations**
+   - Many files still explain connections without mentioning tree structure
+   - Need to add: "Connections show what CAN connect, tree structure shows what DOES connect WHERE"
+   - Visual examples should show the same argument appearing multiple times
+
+3. **YAML Examples Throughout**
+   - Many files still show old array-based format
+   - ALL examples should use parent-as-key format: `n2: {n1: *arg2, on: 0}`
+   - Include `offset: {x: 100, y: 200}` in complete examples
+
+4. **Workflow Documentation**
+   - Should explain: First define arguments (templates), then position them in trees
+   - Should show: Moving trees spatially without affecting logic
+   - Should demonstrate: Same argument used multiple times in one tree
+
+5. **Visual/Spatial Aspects**
+   - Many docs focus only on logical structure
+   - Need to add: Tree positioning in workspace
+   - Need to add: Visual arrangement vs logical structure
+   - Need to add: How trees can be selected and moved as units
 
 ### Platform Excellence
 - [ ] Does this work on both desktop and mobile?

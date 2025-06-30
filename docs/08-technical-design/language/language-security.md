@@ -123,7 +123,7 @@ interface Sandbox {
     fileSystemAccess: 'read-only' | 'none';
     networkAccess: false;
     processSpawning: 'restricted';
-    memoryLimit: '512MB';
+    memoryLimit: 'adaptive';
     cpuLimit: '50%';
     timeout: 30000; // 30 seconds
   };

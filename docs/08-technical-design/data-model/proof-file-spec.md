@@ -4,14 +4,28 @@
 
 Proof Editor uses YAML files (`.proof` extension) to store logical proofs. The format prioritizes simplicity - most proofs need just a few lines.
 
+**Primary Purpose**: The file format's primary role is to robustly *reconstruct* the runtime object-reference-based connection model during loading, not to *define* connections via string content.
+
 ## Minimal Valid Proof
 
 ```yaml
-- [A, B]: [C]
-- [C, D]: [E]
+statements:
+  - &A "A"
+  - &B "B"
+  - &C "C"
+
+arguments:
+  - &arg1 [*A, *B]: [*C]  # Needs A,B produces C
+  - &arg2 [*B, *C]: [*A]  # Needs B,C produces A
+
+trees:
+  - offset: {x: 0, y: 0}
+    nodes:
+      n1: {arg: *arg1}         # Root node
+      n2: {n1: *arg2, on: 0}   # Provides A to n1's first premise
 ```
 
-That's it! Two atomic arguments where the conclusion of the first (`[C]`) is the premise of the second.
+This shows a single tree with two nodes, where n2 (child) provides input A to n1's (parent) first premise slot. Data flows bottom-up: children fulfill their parents' premise requirements.
 
 ## Connection Reconstruction in Files
 
@@ -36,7 +50,8 @@ During deserialization, the system detects that `[Socrates is mortal]` appears a
 
 ```yaml
 - [All men are mortal, Socrates is a man]: &s_mortal [Socrates is mortal]
-- [*s_mortal, All mortals die]: [Socrates will die]
+- *s_mortal: [Socrates will die]
+- *s_mortal: [Socrates will die]
 ```
 
 Use anchors (`&`) and aliases (`*`) when:
@@ -159,17 +174,66 @@ main:
   - [*premise, Q]: [R]
 ```
 
-## Additional Features
-
-### Branching with Children
+### Multiple Trees in Document
 
 ```yaml
-- premises: [P]
-  conclusions: &Q [Q]
-  children:
-    - [*Q, X]: [Y]  # Branch 1
-    - [*Q, Z]: [W]  # Branch 2
+arguments:
+  - &syllogism [All men are mortal, Socrates is a man]: [Socrates is mortal]
+  - &universal_elim [Socrates is mortal]: [Socrates will die]
+  - &syllogism2 [All men are mortal, Plato is a man]: [Plato is mortal]
+
+trees:
+  # First proof tree
+  - id: socrates_proof
+    offset: {x: 0, y: 0}
+    nodes:
+      s1: {arg: *syllogism}              # Root
+      s2: {s1: *universal_elim, on: 0}   # Uses s1's conclusion
+      
+  # Second independent proof tree
+  - id: plato_proof
+    offset: {x: 500, y: 0}
+    nodes:
+      p1: {arg: *syllogism2}             # Different root
+      p2: {p1: *universal_elim, on: 0}   # Same template, different instance
 ```
+
+**Key points**:
+- Trees are independent structures in the document workspace
+- The same argument template (universal_elim) appears in both trees
+- Each node has its own identity even when using the same argument
+
+## Additional Features
+
+### Tree Structure Storage
+
+**CRITICAL INSIGHT**: Arguments are templates that can be instantiated multiple times at different positions. Tree structure requires explicit parent-child-position relationships.
+
+```yaml
+# Define reusable argument templates
+arguments:
+  - &arg1 [*A, *B]: [*C]  # Needs A,B produces C
+  - &arg2 [*B, *C]: [*A]  # Needs B,C produces A
+  - &arg3 [*C, *A]: [*B]  # Needs C,A produces B
+
+# Tree structure with explicit positions
+trees:
+  - offset: {x: 100, y: 200}  # Tree position in workspace
+    nodes:
+      n1: {arg: *arg1}              # Root (no parent)
+      n2: {n1: *arg2, on: 0}        # Child of n1, provides A to n1[0]
+      n3: {n1: *arg3, on: 1}        # Child of n1, provides B to n1[1]
+      n4: {n3: *arg2, on: 1}        # Child of n3, another instance of arg2!
+```
+
+**Key Node Format**:
+- **Root node**: `{arg: argument_ref}`
+- **Child node**: `{parent_id: argument_ref, on: position}`
+  - Parent ID becomes the key (e.g., `n1:` not `parent: n1`)
+  - `on` specifies which premise position to fill
+  - For multiple conclusions: `on: "from:to"` (e.g., `"1:0"`)
+
+**Bottom-up data flow**: Children provide their conclusions as inputs to their parents' premise slots.
 
 ### Side Text
 
@@ -215,11 +279,16 @@ Provide additional context that appears on hover:
 
 ```yaml
 statements:
-  - &socrates "Socrates"
-  - &man "is a man"
-  
-proof:
-  - ["All men are mortal", "{*socrates} {*man}"]: ["{*socrates} is mortal"]
+  - &A "something"
+  - &B "something"
+  - &C "something"
+
+arguments:
+  - ["{*A} {*B}"]: [*C]
+  - ["{*B} {*C}"]: [*A]
+  - ["{*C} {*A}"]: [*B]
+
+
 ```
 
 ## Import Formats

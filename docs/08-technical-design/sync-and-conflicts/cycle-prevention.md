@@ -129,5 +129,5 @@ Offer users alternatives when they attempt to create a cycle:
 ## Future Enhancements
 
 1. **Cycle Analysis**: Show why the circular reasoning is problematic
-2. **Smart Suggestions**: AI-powered suggestions for restructuring
+2. **Smart Suggestions**: Pattern-based suggestions for restructuring
 3. **Educational Mode**: Explain logical fallacies when cycles are attempted

@@ -1,27 +1,27 @@
-# Product Requirements Document: AI-Augmented Proof Editor V1
+# Product Requirements Document: Proof Editor V1
 
 ## Executive Summary
 
-Proof Editor is a visual tool for constructing and analyzing formal logical arguments, designed for **AI-augmented domain experts**. Philosophy professors, logicians, and students collaborate with AI to create custom logical reasoning systems and construct proofs using familiar IDE-like workflows.
+Proof Editor is a visual tool for constructing and analyzing formal logical arguments. Philosophy professors, logicians, and students create custom logical reasoning systems and construct proofs using familiar IDE-like workflows.
 
 ### Key Innovation
-Proof Editor combines **semantic neutrality** with **AI-friendly extensibility**. Users describe logical rules in natural language, AI generates implementations, and the system provides ultra-fast validation through a dedicated Language Server Protocol (LSP) architecture that executes user-defined logic.
+Proof Editor combines **semantic neutrality** with **user-friendly extensibility**. Users define logical rules through simple configuration, and the system provides ultra-fast validation through a dedicated Language Server Protocol (LSP) architecture that executes user-defined logic.
 
 ### Product Philosophy
-- **AI-Augmented Expertise**: Leverage domain knowledge + AI capabilities
+- **Domain Expert Focus**: Enable logic experts to create and share custom logical systems without programming barriers
 - **Proven UX Patterns**: Borrow from mature developer tooling (Docker, VS Code, npm)
 - **Local Development First**: File-based workflows with hot reload and version control
 - **Ultra-Fast Performance**: <10ms validation responses for responsive editing
 
 ### Target Users
 - **Philosophy Professors**: Creating and sharing custom logic systems for teaching
-- **AI-Collaborating Students**: Learning formal reasoning with AI assistance
+- **Students**: Learning formal reasoning with interactive validation
 - **Logic Researchers**: Developing and testing new logical frameworks
 - **Domain Experts**: Anyone who understands logic but doesn't necessarily code
 
 ## Core Concepts
 
-For detailed definitions, see [Key Terms](03-concepts/key-terms.md). Key concepts:
+For detailed definitions, see [Key Terms](03-concepts/key-terms.md) and [User Roles](01-introduction/user-roles.md). Key concepts:
 
 ### Statements & Ordered Sets
 **Statements** are reusable strings (like "All men are mortal"). **Ordered Sets** are collections of statements that maintain order and uniqueness. Connections form when atomic arguments share the same ordered set object.
@@ -35,8 +35,8 @@ For detailed definitions, see [Key Terms](03-concepts/key-terms.md). Key concept
 - **JavaScript Rules**: Custom validation logic
 - **Full LSP Extensions**: Complete reasoning environments
 
-### AI-Augmented Workflows
-Users describe logical rules in natural language, AI generates implementations, and the LSP server executes user-defined validation in real-time.
+### Custom Logic Workflows
+Users define logical rules through YAML configuration and optional JavaScript, and the LSP server executes user-defined validation in real-time.
 
 ## Architecture: LSP-Driven Dual Platform
 
@@ -61,7 +61,7 @@ Proof Editor uses a **dedicated LSP (Language Server Protocol) thread** that exe
 
 ```
 ┌─────────────────────────────────────────────┐
-│              User's Language Code           │ ← JavaScript rules, AI-generated
+│              User's Language Code           │ ← YAML/JavaScript rules
 ├─────────────────────────────────────────────┤
 │         LSP Server (Execution Engine)       │ ← Runs user logic, provides validation
 ├─────────────────────────────────────────────┤
@@ -100,9 +100,9 @@ language: ./my-custom-logic  # File watching + hot reload
    echo "name: aristotelian-logic\nrules: []" > package.yaml
    ```
 
-2. **Language Definition** (AI-Assisted)
-   - Describe rules in natural language to AI
-   - AI generates YAML config and JavaScript validation
+2. **Language Definition**
+   - Define rules using YAML config format
+   - Add JavaScript validation when needed
    - File watching provides instant feedback
 
 3. **Testing & Iteration**
@@ -122,10 +122,10 @@ language: ./my-custom-logic  # File watching + hot reload
    language: github:prof-smith/modal-logic:latest
    ```
 
-2. **AI-Assisted Proof Construction**
-   - Student describes logical reasoning to AI
-   - AI suggests proof structure using professor's rules
+2. **Interactive Proof Construction**
+   - Student constructs proofs using visual interface
    - Real-time validation with custom error messages
+   - Clear feedback using professor's custom rules
 
 3. **Visual Proof Construction**
    - Use proven UX patterns from alpha version
@@ -148,10 +148,10 @@ language: ./my-custom-logic  # File watching + hot reload
 - File changes trigger automatic reload and revalidation
 - Can test rules immediately in proof documents
 
-**AI Integration:**
-- Can describe rules in natural language
-- AI generates YAML/JavaScript implementations
-- AI suggests test cases and examples
+**Documentation:**
+- YAML configuration examples
+- JavaScript rule templates
+- Test case patterns
 
 #### 2. Ultra-Fast Proof Construction
 **As a** student using a custom logic system  
@@ -162,12 +162,10 @@ language: ./my-custom-logic  # File watching + hot reload
 - Validation responses in <10ms for responsive editing
 - Real-time error highlighting as user types
 - Clear error messages specific to the language system
-- AI assistance for proof completion and error explanation
+- Helpful validation feedback
 
 **Performance Requirements:**
-- LSP server pre-warmed and ready
-- Aggressive caching of validation results
-- Incremental validation (only check what changed)
+For detailed performance targets and requirements, see [Non-Functional Requirements](09-non-functional-requirements.md#performance-requirements).
 
 #### 3. Proven Branching Workflow (From Alpha)
 **As a** user constructing complex proofs  
@@ -204,23 +202,23 @@ language: ./my-custom-logic  # File watching + hot reload
 - Version management prevents breaking changes
 - Clear lineage when extending existing systems
 
-#### 5. AI-Assisted Rule Creation
+#### 5. User-Friendly Rule Creation
 **As a** domain expert without programming experience  
-**I want to** describe logical rules in natural language  
-**So that** AI can generate working implementations
+**I want to** define logical rules using simple configuration  
+**So that** I can create custom logic systems
 
 **Acceptance Criteria:**
-- Can describe rules like "If P implies Q and we have P, then we get Q"
-- AI generates appropriate YAML config patterns
-- AI creates JavaScript validation functions when needed
-- Can iterate on AI-generated rules with natural language feedback
-- AI suggests test cases and example proofs
+- Can define rules using YAML config patterns
+- Clear documentation with examples and templates
+- JavaScript validation functions when needed
+- Can iterate on rules with immediate feedback
+- Examples and templates for common patterns
 
-**AI Integration Points:**
-- Rule description → YAML pattern generation
-- Error explanation → Natural language debugging help
-- Proof completion → AI suggests next logical steps
-- Rule composition → AI helps combine existing systems
+**Documentation Support:**
+- Rule pattern examples and templates
+- Clear error messages and debugging help
+- Best practices for rule composition
+- Guides for combining existing systems
 
 #### 6. Cross-Platform File Synchronization
 **As a** user working across desktop and mobile  
@@ -250,16 +248,19 @@ language: ./my-custom-logic  # File watching + hot reload
 - Hot reload: <100ms language recompilation on file changes
 
 **Performance Targets:**
-- Validation response: <10ms for most rules
-- Cache hits: ~0ms for repeated validations
-- Language switching: <50ms
-- Cold start: <200ms (one-time LSP startup)
+For comprehensive performance targets and benchmarks, see [Non-Functional Requirements](09-non-functional-requirements.md#ultra-fast-validation-performance).
 
 **Security Boundaries:**
 - No file system access from user JavaScript
 - No network access from validation rules
 - Timeout protection (5 seconds max per rule)
-- Memory limits (128MB per language context)
+- Memory limits (adaptive allocation per language context)
+- **Explicit User Consent for Executable Code**: The system must obtain explicit user consent before installing and running any language package that contains executable code (JavaScript rules or LSP servers). For comprehensive details on consent processes, risk disclosure, trust mechanisms, and security enforcement, see [Language Package Security Policy](policies/language-package-security-policy.md)
+
+**Cross-Platform Synchronization & Offline NFRs:**
+For detailed synchronization requirements, data consistency guarantees, and mobile performance targets, see [Non-Functional Requirements](09-non-functional-requirements.md#cross-platform-synchronization-requirements).
+
+For technical implementation specifications, see [Data Synchronization and Conflict Resolution](08-technical-design/sync-and-conflicts/data-sync-and-conflict-resolution.md).
 
 ### Language System Requirements
 
@@ -305,6 +306,8 @@ dev:
 
 
 ### File Format & Serialization
+
+**Basic Provenance Tracking**: The `.proof` file format and runtime model will support basic tracking of authorship and source language package for individual atomic arguments and ordered sets, enabling collaboration attribution.
 
 **Proof Document Structure:**
 ```yaml
@@ -365,7 +368,7 @@ proof:
 **Core Goals:**
 1. Validate LSP architecture with real user feedback
 2. Prove local development workflow
-3. Demonstrate AI-augmented language creation
+3. Demonstrate template-based language creation through documentation
 4. Establish performance benchmarks
 
 **Deliverables:**
@@ -373,7 +376,7 @@ proof:
 - Local language development workflow
 - Basic language package format
 - Proven UX patterns from alpha (keyboard navigation, branching)
-- AI integration for rule generation
+- Template-based rule generation through comprehensive documentation
 
 **Success Criteria:**
 - Professor can create custom logic in <30 minutes
@@ -405,24 +408,7 @@ proof:
 
 ### Ultra-Fast Single-User Experience
 
-**Validation Performance:**
-- Cache hits: ~0ms (repeated validations)
-- Simple config rules: 1-3ms
-- JavaScript validation: 2-5ms
-- Complex rules: 5-15ms maximum
-- Language switching: <50ms
-
-**Development Workflow:**
-- File change detection: <10ms
-- Language recompilation: <100ms
-- Hot reload notification: <50ms
-- LSP server startup: <200ms (one-time)
-
-**Memory & Resource Limits:**
-- LSP server memory: 128MB per language
-- User JavaScript timeout: 5 seconds
-- Validation cache: 1000+ results
-- File watcher efficiency: <1% CPU
+For comprehensive performance requirements, validation targets, development workflow timing, and resource limits, see [Non-Functional Requirements](09-non-functional-requirements.md#performance-requirements).
 
 ### Optimization Strategy
 
@@ -454,16 +440,13 @@ proof:
 - VS Code extension functional
 
 **User Workflow Validation:**
-- Professor can create custom logic system in <30 minutes
-- AI can generate working rule implementations
+- Professor can create custom logic system in <30 minutes using templates
+- Documentation enables working rule implementations
 - Students can import professor's language package
 - Proven alpha UX patterns work with new architecture
 
 **Performance Benchmarks:**
-- Validation cache hit rate >90%
-- Language reload time <100ms
-- Memory usage <128MB per language
-- Zero data loss or corruption
+For detailed success metrics and measurement criteria, see [Non-Functional Requirements](09-non-functional-requirements.md#success-criteria--measurements).
 
 ### Phase 2 Mobile Success
 
@@ -481,8 +464,8 @@ proof:
 
 ## Product Principles
 
-### AI-Augmented Domain Expertise
-Leverage users' deep logical knowledge while removing technical barriers through AI collaboration. Domain experts focus on logical reasoning while AI handles implementation details.
+### Domain Expert Focus
+Leverage users' deep logical knowledge while removing technical barriers through clear documentation and examples. Domain experts focus on logical reasoning while simple configuration handles implementation.
 
 ### Proven UX Pattern Reuse
 Borrow extensively from mature developer tooling (Docker, VS Code, npm, webpack) rather than inventing new interaction patterns. Users get familiar workflows applied to logical reasoning.
@@ -491,7 +474,7 @@ Borrow extensively from mature developer tooling (Docker, VS Code, npm, webpack)
 Prioritize file-based, version-controlled workflows that integrate with existing academic practices. Enable rapid iteration without requiring infrastructure setup.
 
 ### Ultra-Fast Performance
-Single-user experience optimized for <10ms feedback loops. Pre-warming, aggressive caching, and incremental processing enable responsive logical reasoning.
+Single-user experience optimized for <10ms feedback loops. For detailed performance targets and optimization strategies, see [Non-Functional Requirements](09-non-functional-requirements.md#performance-requirements).
 
 ### Platform Independence
 Core logical capabilities work identically on desktop and mobile. Platform-specific optimizations enhance rather than limit the experience.
@@ -507,5 +490,5 @@ VS Code + React Native covers the full spectrum (professional desktop + accessib
 ### Why Local Development First?
 Academic workflows prioritize iteration and experimentation. File-based development with Git integration matches existing practices.
 
-### Why AI Integration?
-Domain experts understand logic but may not code. AI bridges this gap while preserving expert knowledge and intent.
+### Why Simple Configuration?
+Domain experts understand logic but may not code. YAML configuration and clear examples bridge this gap while preserving expert knowledge and intent.

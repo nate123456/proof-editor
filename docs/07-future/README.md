@@ -15,8 +15,8 @@ The future of formal reasoning is multi-platform:
 
 ## Research Areas
 
-### [AI Integration](ai-integration.md)
-Platform-aware AI capabilities from mobile assistants to cloud-based reasoning engines.
+### [External Tool Integration](external-integration.md)
+Platform-aware integration with external analysis tools from mobile assistants to cloud-based reasoning engines.
 
 ### [Educational Applications](educational-applications.md)
 Transforming logic education through ubiquitous computing devices.
@@ -56,14 +56,14 @@ Areas requiring investigation:
 - Voice-driven proof construction on mobile
 - AR visualization of complex proofs on tablets
 - Real-time collaboration across all platforms
-- AI assistants adapted to each platform's strengths
+- External analysis tools adapted to each platform's strengths
 - Seamless handoff between devices
 
 ### Far Future (5-10 years)
 - Brain-computer interfaces for direct logic input
 - Quantum computing integration for proof search
 - Global proof networks with distributed validation
-- AI that learns from cross-platform usage patterns
+- Pattern analysis that learns from cross-platform usage patterns
 - New platforms we haven't imagined yet
 
 ## Open Questions

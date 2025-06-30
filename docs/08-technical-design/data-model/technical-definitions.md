@@ -16,6 +16,9 @@ interface OrderedSetEntity {
   metadata: {
     createdAt: number;
     modifiedAt: number;
+    authorId?: string;           // ID of the human author who created this ordered set
+    sourcePackageId?: string;    // Language package that introduced this content
+    references?: string[];       // External references or citations
     referencedBy: {        // Which atomic arguments reference this set
       asPremise: string[];    // Atomic argument IDs using this as premise
       asConclusion: string[]; // Atomic argument IDs using this as conclusion
@@ -40,7 +43,9 @@ interface AtomicArgumentEntity {
     };
     createdAt: number;
     modifiedAt: number;
-    references?: string[];
+    authorId?: string;           // ID of the human author who created this atomic argument
+    sourcePackageId?: string;    // Language package that introduced this inference rule
+    references?: string[];       // External references or citations
   };
 }
 ```
@@ -67,19 +72,57 @@ function computeArgument(
 }
 ```
 
+### NodeEntity
+**Purpose**: Data structure representing an instance of an atomic argument within a tree.
+**Domain concept**: Implements the [Node](../03-concepts/key-terms.md#node) concept.
+```typescript
+interface NodeEntity {
+  id: string;                    // Unique node instance ID
+  argumentId: string;            // Which atomic argument template to use
+  parentId: string | null;       // Parent node ID (null for root)
+  premisePosition: number;       // Which premise slot to fill (0-indexed)
+  fromPosition?: number;         // For multiple conclusions (optional)
+  metadata?: {
+    left?: string;             // Side text (inherited from argument)
+    right?: string;            // Side text (inherited from argument)
+    createdAt: number;
+    modifiedAt: number;
+  };
+}
+```
+**Key insight**: Nodes create tree structure through explicit parent-child relationships, independent of logical connections.
+
+### TreeEntity
+**Purpose**: Data structure anchoring a tree of nodes in the document workspace.
+**Domain concept**: Tree structure with spatial position.
+```typescript
+interface TreeEntity {
+  id: string;
+  documentId: string;
+  x: number;                     // Tree position X coordinate
+  y: number;                     // Tree position Y coordinate
+  metadata?: {
+    title?: string;
+    createdAt: number;
+    modifiedAt: number;
+  };
+}
+```
+
 ### Argument Tree (Computed Concept)
 **Purpose**: Algorithm output representing the maximal connected component.
 **Domain concept**: Implements the [Argument Tree](../03-concepts/key-terms.md#argument-tree) concept.
-**Implementation**: Discovered through connected component analysis.
+**Implementation**: Discovered through connected component analysis of logical connections.
 
 ```typescript
 interface ComputedArgumentTree {
   atomicArgumentIds: Set<string>;
-  rootIds: string[];    // Computed: nodes with no parent connections
-  leafIds: string[];    // Computed: nodes with no child connections
+  rootIds: string[];    // Computed: atomic arguments with no parent connections
+  leafIds: string[];    // Computed: atomic arguments with no child connections
   depth: number;        // Computed: longest path length
 }
 ```
+**Note**: This represents LOGICAL structure, not tree position structure.
 
 ### DocumentEntity
 **Purpose**: Data structure storing workspace metadata.
@@ -96,38 +139,17 @@ interface DocumentEntity {
   };
 }
 ```
-**Key design**: Documents don't contain atomic arguments directly - they reference argument trees through tree positions.
-
-### TreePositionEntity
-**Purpose**: Data structure anchoring argument trees in documents.
-```typescript
-interface TreePositionEntity {
-  id: string;
-  documentId: string;
-  rootArgumentId: string;  // Which atomic argument is the tree root
-  x: number;               // Tree anchor X coordinate
-  y: number;               // Tree anchor Y coordinate
-  layoutStyle: 'top-down' | 'bottom-up' | 'left-right' | 'right-left' | 'radial';
-  layoutParams: {
-    nodeWidth: number;
-    nodeHeight: number;
-    horizontalSpacing: number;
-    verticalSpacing: number;
-    alignChildren: 'center' | 'left' | 'right';
-  };
-}
-```
-**Key principle**: Individual atomic arguments get their positions computed from the tree structure and layout algorithm.
+**Key design**: Documents contain trees, which contain nodes, which reference atomic arguments.
 
 ### PositionOverrideEntity
-**Purpose**: Optional data structure for manual position adjustments.
+**Purpose**: Optional data structure for manual position adjustments of nodes.
 ```typescript
 interface PositionOverrideEntity {
   id: string;
-  atomicArgumentId: string;
-  documentId: string;
-  xOffset: number;  // Offset from computed position
-  yOffset: number;  // Offset from computed position
+  nodeId: string;           // Node instance, not atomic argument
+  treeId: string;
+  xOffset: number;          // Offset from computed position
+  yOffset: number;          // Offset from computed position
 }
 ```
 **Enables**: Fine-tuning of automatic layout when needed.
@@ -191,17 +213,18 @@ For the conceptual definition of connections, see [Key Terms](../03-concepts/key
 ### Computed vs Stored
 **Stored (Empirical)**:
 - Ordered sets (created when users enter statements)
-- Atomic arguments (reference ordered set IDs)
-- Tree positions (user places trees)
-- Position overrides (user adjusts)
+- Atomic arguments (templates that reference ordered set IDs)
+- Nodes (instances with parent-child relationships)
+- Trees (with document positions)
+- Position overrides (user adjusts node positions)
 - Documents (user manages)
 
 **Computed (Derived)**:
-- Connections (from shared ordered set references)
+- Logical connections (from shared ordered set references)
 - Arguments (from connection traversal)
-- Trees (from connected components)
-- Tree properties (roots, leaves, depth)
-- Atomic argument positions (from tree structure + layout)
+- Argument trees (maximal connected components)
+- Node positions (from tree structure + layout)
+- Which atomic arguments fulfill which premise requirements
 
 ## Implementation Philosophy
 
@@ -236,60 +259,46 @@ Language layers validate correctness. Users create connections. These are indepe
 
 ### Position Computation Algorithm
 ```typescript
-function computeAtomicArgumentPosition(
-  atomicArgumentId: string,
-  treePosition: TreePositionEntity,
-  atomicArguments: Map<string, AtomicArgumentEntity>,
-  orderedSets: Map<string, OrderedSetEntity>,
-  overrides: Map<string, PositionOverrideEntity>
+function computeNodePosition(
+  nodeId: string,
+  nodes: Map<string, NodeEntity>,
+  trees: Map<string, TreeEntity>,
+  overrides: Map<string, PositionOverrideEntity>,
+  layoutStyle: LayoutStyle = 'bottom-up'
 ): { x: number, y: number } {
-  // 1. Build connection graph from shared ordered set references
-  const connectionGraph = buildConnectionGraph(atomicArguments);
+  const node = nodes.get(nodeId);
+  const tree = findTreeContainingNode(nodeId, nodes, trees);
   
-  // 2. Find path from root to this atomic argument
-  const path = findPathFromRoot(
-    treePosition.rootArgumentId,
-    atomicArgumentId,
-    connectionGraph
-  );
+  // 1. Find path from root to this node
+  const path = findPathFromRoot(nodeId, nodes);
   
-  // 3. Start at tree anchor
-  let x = treePosition.x;
-  let y = treePosition.y;
+  // 2. Start at tree position
+  let x = tree.x;
+  let y = tree.y;
   
-  // 4. Follow path, computing position at each step
+  // 3. Follow parent-child path
   for (let i = 1; i < path.length; i++) {
-    const parent = path[i - 1];
-    const current = path[i];
-    const siblings = connectionGraph.getChildren(parent);
-    const siblingIndex = siblings.indexOf(current);
+    const parent = nodes.get(path[i - 1]);
+    const current = nodes.get(path[i]);
+    const siblings = getChildNodes(parent.id, nodes);
+    const siblingIndex = siblings.findIndex(s => s.id === current.id);
     
-    // Compute based on layout style
-    switch (treePosition.layoutStyle) {
-      case 'top-down':
-        y += treePosition.layoutParams.verticalSpacing;
+    // Compute based on layout (children below parents)
+    switch (layoutStyle) {
+      case 'bottom-up':  // Children provide inputs from below
+        y += VERTICAL_SPACING;
         x = computeHorizontalOffset(
           x,
           siblingIndex,
-          siblings.length,
-          treePosition.layoutParams
-        );
-        break;
-      case 'left-right':
-        x += treePosition.layoutParams.horizontalSpacing;
-        y = computeVerticalOffset(
-          y,
-          siblingIndex,
-          siblings.length,
-          treePosition.layoutParams
+          siblings.length
         );
         break;
       // ... other layout styles
     }
   }
   
-  // 5. Apply any override
-  const override = overrides.get(atomicArgumentId);
+  // 4. Apply any override
+  const override = overrides.get(nodeId);
   if (override) {
     x += override.xOffset;
     y += override.yOffset;
@@ -299,7 +308,33 @@ function computeAtomicArgumentPosition(
 }
 ```
 
-### Creating a Branch
+### Creating a Node in Tree
+```typescript
+function addNodeToTree(
+  parentNodeId: string,
+  argumentId: string,
+  premisePosition: number,
+  nodes: Map<string, NodeEntity>,
+  atomicArguments: Map<string, AtomicArgumentEntity>
+): NodeEntity {
+  // 1. Create new node instance
+  const newNode: NodeEntity = {
+    id: generateId(),
+    argumentId: argumentId,         // Which argument template to use
+    parentId: parentNodeId,         // Explicit parent relationship
+    premisePosition: premisePosition, // Which premise slot to fill
+    metadata: { createdAt: Date.now() }
+  };
+  
+  // 2. The argument's conclusion ordered set should match
+  //    the parent argument's premise ordered set at that position
+  //    (This is validated, not created here)
+  
+  return newNode;
+}
+```
+
+### Creating a Branch (Logical Connection)
 ```typescript
 function branchFromConclusion(
   parentId: string,

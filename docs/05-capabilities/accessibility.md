@@ -1,19 +1,19 @@
 # Accessibility
 
-## The AI-Augmented Paradigm
+## The Documentation-Driven Paradigm
 
-**IMPORTANT**: This document describes traditional accessibility infrastructure. For the complete accessibility vision, see [AI-Augmented Accessibility](ai-augmented-accessibility.md), which redefines accessibility through human-AI collaboration.
+**IMPORTANT**: This document describes comprehensive accessibility infrastructure that empowers domain experts through clear documentation and examples rather than requiring technical skills.
 
-**Traditional accessibility** focuses on accommodating different user capabilities. **AI-augmented accessibility** eliminates barriers by enabling domain experts to collaborate with AI rather than learning technical skills.
+**Traditional accessibility** focuses on accommodating different user capabilities. **Documentation-driven accessibility** eliminates barriers by enabling domain experts to use comprehensive templates and examples rather than learning technical skills.
 
 ## Logic for Everyone, Everywhere
 
 Accessibility in Proof Editor leverages platform-native accessibility infrastructure while adding proof-specific accommodations. By building on each platform's foundation (VS Code on desktop, React Native on mobile), we inherit extensive accessibility features and focus our efforts on making proof construction accessible.
 
-### Our Approach: Abstract + Enhance + AI-Augment
+### Our Approach: Abstract + Enhance + Document
 - **Abstract platform capabilities**: Use platform-appropriate accessibility APIs
 - **Enhance for proofs**: Add proof-specific accessibility features  
-- **AI-augment for domain experts**: Enable natural language collaboration with AI
+- **Document for domain experts**: Enable logical system creation through comprehensive documentation
 - **Standards compliance**: Meet WCAG 2.1 AA compliance across all platforms
 
 ## Platform Accessibility [PLATFORM]
@@ -131,7 +131,7 @@ Accessibility in Proof Editor leverages platform-native accessibility infrastruc
 ### Emerging Technologies
 - **Voice control**: Speak proofs
 - **AR/VR**: Spatial interaction
-- **AI assistance**: Personalized help
+- **Documentation assistance**: Comprehensive guidance
 - **Brain interfaces**: Direct thought input
 
 ### Continuous Improvement
@@ -140,7 +140,7 @@ Accessibility in Proof Editor leverages platform-native accessibility infrastruc
 - **Innovation**: New ways to include
 - **Partnership**: Work with accessibility community
 
-## The Paradigm Shift: Traditional → AI-Augmented
+## The Paradigm Shift: Traditional → Documentation-Driven
 
 ### Traditional Accessibility Thinking
 - Design for "programmers" vs "non-programmers"
@@ -148,20 +148,20 @@ Accessibility in Proof Editor leverages platform-native accessibility infrastruc
 - Provide alternative interfaces for the same functionality
 - Focus on reducing barriers to using existing features
 
-### AI-Augmented Accessibility Reality
-- Domain experts collaborate with AI to implement their ideas
-- Philosophy professors describe logic systems → AI generates implementations
-- Students get AI assistance with errors and explanations
-- Technical skills become irrelevant; domain expertise becomes paramount
+### Documentation-Driven Accessibility Reality
+- Domain experts use comprehensive documentation to implement their ideas
+- Philosophy professors describe logic systems → Templates and examples guide implementation
+- Students get clear documentation and validation feedback for errors and explanations
+- Technical skills become less relevant; domain expertise becomes paramount through excellent documentation
 
-**See [AI-Augmented Accessibility](ai-augmented-accessibility.md) for the complete vision and implementation strategy.**
+**See documentation throughout the ecosystem for comprehensive implementation guidance.**
 
 ## Core Principles
 
 ### Traditional Principle
 Accessibility isn't a feature - it's fundamental to democratizing formal logic. Every barrier we remove opens logic to more minds.
 
-### AI-Augmented Principle  
-Accessibility means eliminating the gap between conceptual understanding and technical implementation. AI collaboration transforms domain experts into implementers, making logic tools accessible through expertise amplification rather than skill accommodation.
+### Documentation-Driven Principle  
+Accessibility means eliminating the gap between conceptual understanding and technical implementation. Comprehensive documentation and templates transform domain experts into implementers, making logic tools accessible through expertise amplification rather than skill accommodation.
 
-**The future of accessibility is not teaching everyone to code - it's making coding unnecessary for domain experts through AI partnership.**
+**The future of accessibility is not teaching everyone to code - it's making coding unnecessary for domain experts through excellent documentation and community templates.**

@@ -312,7 +312,7 @@ interface UltraFastPerformanceMonitor {
       hitRate: this.cacheHitRate, // Target: >95%
       averageHitTime: this.avgCacheHitTime, // Target: <1ms
       missLatency: this.avgCacheMissTime, // Target: <10ms
-      cacheSize: this.currentCacheSize, // Up to 128MB per language
+      cacheSize: this.currentCacheSize, // Adaptive allocation per language
       preWarmingEffectiveness: this.preWarmHitRate
     };
   }
@@ -320,7 +320,7 @@ interface UltraFastPerformanceMonitor {
   // Single-user resource monitoring (generous limits)
   async getResourceUsage(): Promise<SingleUserResourceUsage> {
     return {
-      memoryPerLanguage: await this.getMemoryByLanguage(), // Up to 128MB each
+      memoryPerLanguage: await this.getMemoryByLanguage(), // Adaptive allocation each
       totalMemoryUsage: await this.getTotalMemoryUsage(),
       cacheMemoryUsage: await this.getCacheMemoryUsage(),
       preWarmedContexts: await this.getPreWarmedContextCount(),
@@ -573,7 +573,7 @@ interface SingleUserOptimization {
         // Use worker threads for parallel processing
         await this.setupWorkerThreads();
         // Generous memory allocation
-        this.memoryLimit = 128 * 1024 * 1024; // 128MB per language
+        this.memoryLimit = 'adaptive'; // Adaptive allocation per language
         break;
         
       case 'mobile':
@@ -696,7 +696,7 @@ interface ErrorRecovery {
 ## Ultra-Fast Performance Targets
 
 ### Single-User Optimization Principles
-- **Memory-Rich Environment**: 128MB per language (no sharing constraints)
+- **Memory-Rich Environment**: Adaptive allocation per language (no sharing constraints)
 - **Latency-First**: Optimize for response time over throughput
 - **Cache-Aggressive**: Pre-warm and cache everything practical
 - **Platform-Adaptive**: Use best execution strategy per platform

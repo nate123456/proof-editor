@@ -643,7 +643,7 @@ In case of critical issues during migration:
 
 ### Performance Metrics
 - **Startup Time**: <3s on mobile, <1s on desktop
-- **Memory Usage**: <200MB for large documents
+- **Memory Usage**: Adaptive allocation for large documents
 - **Response Time**: <100ms for user interactions
 - **Battery Impact**: <5% per hour on mobile
 

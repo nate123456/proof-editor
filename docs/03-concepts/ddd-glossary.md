@@ -23,11 +23,15 @@ Domain concepts exist independently of implementation. An atomic argument IS a r
 
 | Domain Concept | Implementation | Layer | Purpose |
 |----------------|----------------|-------|---------|
+| Node | NodeEntity | [CORE] | Instance of atomic argument in tree structure |
+| Tree position | TreeEntity with x,y coordinates | [CORE] | Spatial location in document workspace |
+| Attachment | Parent-child relationship with position | [CORE] | How nodes connect in tree structure |
 | Ordered set | OrderedSetEntity | [CORE] | Store ordered collections with uniqueness, serve as connection mechanism |
 | Atomic argument | AtomicArgumentEntity | [CORE] | Store relation between ordered sets via references |
-| Direct connection | Shared ordered set references | [CORE] | Implicit through object identity, not content matching |
+| Direct connection | **Shared ordered set *object references*** | [CORE] | Implicit through object identity, not content matching |
 | Statement | String content | [CORE] | Reusable text that can appear in multiple ordered sets |
-| Argument tree | Graph structure (DAG) | [CORE] | Efficient representation |
+| Argument tree (logical) | Graph structure (DAG) | [CORE] | Maximal connected component |
+| Tree structure (positional) | Parent-child node relationships | [CORE] | Explicit tree positions |
 | Document | Spatial positions + metadata | [CORE] | Separate logic from layout |
 | Path-complete | Graph algorithm | [CORE] | Computed property |
 | Language layer | Plugin interface | [LSP] | Modular interpretation |
@@ -41,6 +45,7 @@ Domain concepts exist independently of implementation. An atomic argument IS a r
 | User Says | System Does | Layer |
 |-----------|-------------|-------|
 | "Create an atomic argument" | Instantiate AtomicArgumentEntity, reference OrderedSetEntities | [CORE] |
+| "Add to tree" | Create NodeEntity with parent and position | [CORE] |
 | "Connect these arguments" | Share the same OrderedSetEntity reference between arguments | [CORE] |
 | "Show the complete tree" | Traverse graph for maximal component | [CORE] |
 | "Save my document" | Persist entities via platform file system | [PLATFORM] |
@@ -74,7 +79,9 @@ Domain-Driven Design requires strict separation between different contexts:
 
 ### "Trees aren't really trees, they're graphs"
 **Wrong thinking**: The implementation invalidates the domain concept.  
-**Right thinking**: Users conceptualize tree-like structures. That we implement them using graph data structures is irrelevant to the domain model.
+**Right thinking**: There are TWO different concepts:
+1. **Argument trees** (logical): The maximal connected component of atomic arguments. Implemented as DAGs because premises can have multiple parents.
+2. **Tree structure** (positional): The explicit parent-child relationships between node instances. This IS a proper tree where each node has exactly one parent.
 
 ### "Connections are just string matching"
 **Wrong thinking**: If strings match, they're automatically connected.  
@@ -82,7 +89,11 @@ Domain-Driven Design requires strict separation between different contexts:
 
 ### "Statement reuse creates connections"
 **Wrong thinking**: If the same statement appears in multiple ordered sets, they're connected.
-**Right thinking**: Statement reuse is independent of connections. The same statement string can appear in many different OrderedSetEntity objects without creating any connections. Connections require shared object references, not shared content.
+**Right thinking**: Statement reuse is independent of connections. The same statement string can appear in many different OrderedSetEntity *objects* without creating any connections. Connections require shared *object references*, not shared content.
+
+### "Text matching creates connections"
+**Wrong thinking**: If the same statement appears in multiple ordered sets, they're connected.
+**Right thinking**: Statement reuse is independent of connections. The same statement string can appear in many different OrderedSetEntity *objects* without creating any connections. Connections require shared *object references*, not shared content. The file format uses string matching and YAML anchors *solely as deserialization mechanisms to reconstruct these shared object references at runtime; they do not define the underlying logical connection model*.
 
 ### "Everything should be technically accurate"
 **Wrong thinking**: User docs should mention graphs, entities, indices.  
@@ -90,9 +101,10 @@ Domain-Driven Design requires strict separation between different contexts:
 
 ## Key Implementation Notes
 
-- **Trees are graphs** [CORE]: Users think "trees", code uses graph structures (specifically DAGs)
-  - **Why DAG?** Users need shared conclusions (multiple arguments using same premise), convergent proofs (different paths to same conclusion), and diamond patterns (branching then reconverging). Trees can't express these naturally.
-  - **Why still call them trees?** Users visualize and navigate them as hierarchical tree-like structures. The DAG is an implementation detail that enables their desired features.
+- **Argument trees are graphs** [CORE]: Logical connections form DAGs (multiple parents possible)
+- **Tree structure is explicit** [CORE]: Node parent-child relationships form proper trees
+- **Arguments are templates** [CORE]: Can be instantiated multiple times as different nodes
+- **Position determines structure** [CORE]: Tree structure comes from node attachments, not logical connections
 - **Connections are implicit** [CORE]: Exist through shared ordered set references, not separate entities
 - **Reference equality matters** [CORE]: Same object (===), not value equality
 - **Arguments are computed** [CORE]: Not stored as entities

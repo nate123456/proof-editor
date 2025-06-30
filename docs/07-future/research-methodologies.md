@@ -144,10 +144,10 @@ When formal reasoning becomes universally accessible, research across all fields
 
 ## Future Research Paradigms
 
-### AI-Human Teams
-- **Complementary strengths**: Best of both
-- **Iterative refinement**: Improve together
-- **Creative exploration**: New possibilities
+### Platform-Enabled Research Teams
+- **Complementary strengths**: Domain experts + extensible platform
+- **Iterative refinement**: Continuous improvement through validation feedback
+- **Creative exploration**: Extensible framework enables new research approaches
 - **Validation partnership**: Check each other
 - **Knowledge synthesis**: Combine insights
 

@@ -33,6 +33,8 @@ A collection of statements that maintains both order and uniqueness. Ordered set
 
 Key distinction: Ordered sets are NOT regular arrays. They are special data structures that enforce uniqueness while preserving order, and they create connections through object identity (reference equality), not value equality.
 
+**Critical Understanding - Connection Mechanism**: Ordered sets are the fundamental connection mechanism in Proof Editor. When atomic arguments share the **SAME Ordered Set *object* (by *reference*, not content equality)**, they are connected. Changes to a shared ordered set affect all atomic arguments referencing it.
+
 **Critical understanding**: Ordered sets are the connection points. When you branch from an atomic argument, the conclusion ordered set of the parent becomes the premise ordered set of the child - they share the same object reference.
 
 ### Atomic Argument [CORE]
@@ -49,9 +51,11 @@ Note: There is only one implication line per atomic argument. The line extends a
 ### Connections [CORE]
 
 #### Direct Connection [CORE]
-Atomic arguments are directly connected when they share the SAME ordered set object - specifically, when the conclusion ordered set of one argument IS (same reference) the premise ordered set of another. This is about object identity (reference equality), not value equality.
+Atomic arguments are directly connected when they share the **SAME ordered set *object*** – specifically, when the conclusion ordered set of one argument **IS (same object reference)** the premise ordered set of another. This is about *object identity*, not value equality.
 
-**Critical distinction**: Two ordered sets with identical contents (e.g., both containing ["P", "Q"]) are NOT connected unless they are literally the same object in memory. String matching during file deserialization is just a mechanism to reconstruct these shared references - it's not the core connection model.
+**Critical distinction**: Connections define logical relationships between atomic arguments, but do NOT determine tree structure. Tree structure requires explicit parent-child-position relationships between node instances.
+
+**Critical distinction**: Two ordered sets with identical contents (e.g., both containing ["P", "Q"]) are NOT connected unless they are literally the same object in memory during runtime. The file format uses string matching and YAML anchors *solely as deserialization mechanisms to reconstruct these shared object references at runtime; they do not define the underlying logical connection model*.
 
 **Connection creation**: When you branch from an atomic argument, the system creates a new atomic argument whose premise ordered set reference points to the same object as the parent's conclusion ordered set reference. This shared reference IS the connection.
 
@@ -76,6 +80,30 @@ An argument which contains all atomic arguments connected to any of its members.
 
 **Critical uniqueness property**: Argument trees are distinct if they do not share any members, otherwise they are identical - if they share any members they share every member.
 
+**Important**: The tree structure is determined by explicit parent-child-position relationships between nodes, NOT by the logical connections between atomic arguments. The same atomic argument can appear as multiple nodes in different positions within the same tree.
+
+### Tree Structure Concepts [CORE]
+
+#### Node [CORE]
+A specific instance of an atomic argument within a tree structure. The same atomic argument can appear multiple times as different nodes.
+
+Key properties:
+- **Unique instance ID**: Each node has its own identifier
+- **Argument reference**: Points to which atomic argument template to use
+- **Parent attachment**: Specifies which node it connects to and at which premise position
+- **Multiple instances allowed**: The same argument can be instantiated multiple times in a tree
+
+#### Tree Position [CORE]
+The spatial location of an argument tree within a document workspace, specified by x,y coordinates.
+
+#### Attachment [CORE]
+The specification of how a child node connects to its parent:
+- **Parent node**: Which node instance it attaches to
+- **Premise position**: Which premise slot it fills (0-indexed)
+- **From position** (optional): For arguments with multiple conclusions, which conclusion to use
+
+**Critical insight - Bottom-up data flow**: Children provide their conclusions as inputs to their parents' premise slots. This is backwards from typical tree thinking where data flows top-down. In proof trees, parents have requirements (premises) and children fulfill those requirements (with their conclusions).
+
 ### System Components
 
 #### Document [CORE]
@@ -99,9 +127,11 @@ Language layers are implemented as Language Server Protocol (LSP) servers that p
 - An **argument tree** includes everything connected (the complete proof)
 
 ### Created vs Discovered [CORE]
-- Atomic arguments are **created** by users
+- Atomic arguments are **created** by users as templates
+- Node instances are **created** when placing arguments in trees
 - Connections are **created** when users share ordered set references
-- Arguments and argument trees are **discovered** from the connections
+- Tree structure is **created** through explicit parent-child attachments
+- Arguments and logical paths are **discovered** from the connections
 
 ### Logical vs Visual [CORE/PLATFORM]
 - The logical structure exists in the relationships between atomic arguments [CORE]

@@ -328,23 +328,23 @@ interface ProofDiagnostic {
 - **Integrated tutorials**: Leverage VS Code's walkthrough system
 - **Problem sets**: Custom proof practice with LSP validation
 
-### AI Assistance [LSP]
-- **Next step suggestions**: What could come next?
-  - LSP analyzes proof state to suggest logical next steps
-  - Machine learning-based suggestion ranking
-  - Context-aware inference rule application
-- **Proof completion**: Fill in the blanks [LSP]
-  - LSP identifies proof gaps and suggests completions
-  - Automated proof search for simple cases
-  - Interactive proof construction with guidance
+### Logical Assistance [LSP]
+- **Next step suggestions**: What could logically come next?
+  - LSP analyzes proof state based on loaded language rules
+  - Rule-based suggestion ranking according to logical system
+  - Context-aware inference rule application from language package
+- **Proof completion**: Fill in logical gaps [LSP]
+  - LSP identifies proof gaps based on language rules
+  - Rule-based completion suggestions from language package
+  - Interactive proof construction with language-specific guidance
 - **Alternative approaches**: Different proof strategies [LSP]
-  - LSP suggests alternative proof strategies
-  - Comparative analysis of different approaches
-  - Strategy recommendation based on context
-- **Learning adaptation**: Personalized assistance [LSP]
-  - LSP adapts to user's proof style and preferences
-  - Personalized suggestion ranking
-  - Learning from user corrections and choices
+  - LSP suggests alternative proof strategies based on loaded rules
+  - Analysis of different approaches within the logical system
+  - Strategy recommendation based on language package capabilities
+- **Pattern recognition**: Logic-based assistance [LSP]
+  - LSP recognizes patterns from language package definitions
+  - Suggestions based on configured logical rules and examples
+  - Learning from language package patterns and user corrections
 
 ## Design Philosophy
 

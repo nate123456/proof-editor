@@ -11,7 +11,7 @@ The Language Management System enables proof files to specify their logical lang
 Every language package implements custom logic as JavaScript code that executes within:
 - **Dedicated V8 Isolate**: Sandboxed JavaScript runtime per language server
 - **LSP Server Process**: Manages JavaScript execution and protocol communication
-- **Performance Targets**: <10ms validation, <100ms hot reload, <64MB memory
+- **Performance Targets**: <10ms validation, <100ms hot reload, adaptive memory allocation
 - **Single Language Per Proof**: One active language with inheritance support
 
 ## Core Architecture: JavaScript Execution Environment
@@ -41,7 +41,7 @@ graph TD
         F -->|handles| K[LSP Protocol]
         
         subgraph "Security Sandbox"
-            L[64MB Memory Limit]
+            L[Adaptive Memory Allocation]
             M[10ms CPU Timeout]
             N[No Network Access]
             O[No File System Access]
@@ -241,7 +241,7 @@ modal-logic-js/
 │   └── settings.yaml        # Configuration schema
 ├── rules/
 │   ├── validators.js        # Custom validation functions
-│   ├── generators.js        # AI-assisted rule generation
+│   ├── generators.js        # Template-based rule generation
 │   └── helpers.js           # Utility functions
 ├── examples/
 │   ├── advanced-modal.proof # Complex examples
@@ -339,8 +339,8 @@ javascript:
     - "rules/modal-validators.js"
     - "rules/s5-validators.js"
     
-  # AI-assisted rule generation
-  aiGeneration:
+  # Template-based rule generation
+  ruleGeneration:
     enabled: true
     examples: "examples/generation-examples/"
     
@@ -372,7 +372,7 @@ capabilities:
   javascript:
     - "custom-validation"     # JavaScript validation functions
     - "dynamic-patterns"      # Context-dependent rules
-    - "ai-generation"         # AI-assisted rule creation
+    - "template-generation"   # Template-based rule creation
     - "advanced-completion"   # Context-aware suggestions
     
   # Tier 3: Full LSP capabilities (includes Tier 1 & 2)
@@ -463,10 +463,10 @@ configuration:
       description: "SDK tier to use"
       
     # Advanced configuration (Tier 2+)
-    modalLogic.aiAssistance:
+    modalLogic.templateGeneration:
       type: "boolean"
       default: false
-      description: "Enable AI-assisted rule generation"
+      description: "Enable template-based rule generation"
       tier: "javascript"
       
     # Expert configuration (Tier 3 only)
@@ -505,8 +505,8 @@ validation:
       - path: "rules/s5-validators.js"
         functions: ["validateEuclideanProperty"]
         
-    # AI-assisted rule generation
-    aiGeneration:
+    # Template-based rule generation
+    ruleGeneration:
       enabled: true
       examplePath: "examples/rule-examples/"
       outputPath: "rules/generated/"
@@ -543,10 +543,10 @@ examples:
       description: "Using JavaScript custom validators"
       demonstrates: ["custom-validation", "dynamic-patterns"]
       
-    - name: "AI-Generated Rules"
-      file: "examples/tier2/ai-generated.proof"
-      description: "Rules created with AI assistance"
-      demonstrates: ["ai-generation", "rule-learning"]
+    - name: "Template-Generated Rules"
+      file: "examples/tier2/template-generated.proof"
+      description: "Rules created with template assistance"
+      demonstrates: ["template-generation", "pattern-learning"]
       
   # Tier 3: Full LSP examples
   tier3:
@@ -607,7 +607,7 @@ Docker-inspired package management:
 #### Progressive Capabilities
 Features unlock as complexity increases:
 - **Tier 1**: Pattern matching, symbol validation, basic completion
-- **Tier 2**: Custom JavaScript logic, AI generation, dynamic patterns
+- **Tier 2**: Custom JavaScript logic, template generation, dynamic patterns
 - **Tier 3**: Full IDE features, external tools, performance optimization
 
 ## Progressive Development Examples
@@ -660,11 +660,11 @@ javascript:
     - "rules/proof-complexity.js"      # Complexity metrics
     - "rules/style-checking.js"        # Proof style validation
     
-  # AI assistance for creating new rule examples
-  aiGeneration:
+  # Template-based rule generation from examples
+  ruleGeneration:
     enabled: true
     examples: "examples/student-proofs/"
-    generateRules: true
+    generateFromTemplates: true
 ```
 
 ### Full Power: Tier 3 LSP Extension
@@ -768,28 +768,28 @@ migration:
   adds: ["external-tools", "advanced-ide-features"]
 ```
 
-## AI-Assisted Rule Generation
+## Template-Based Rule Generation
 
 ### Example-Driven Rule Creation
 
 ```yaml
-# AI assistance configuration
-aiGeneration:
+# Template-based rule generation configuration
+ruleGeneration:
   enabled: true
   
-  # Provide examples for AI to learn from
+  # Provide examples for pattern recognition
   examples:
     - input: "□P, P → Q"
       output: "□Q"
       description: "Necessity preserves valid inference"
       
     - input: "◇P, P → Q"
-      output: "Not valid"  # AI learns what's invalid too
+      output: "Not valid"  # Learn what's invalid too
       description: "Possibility doesn't preserve inference"
       
-  # AI generates JavaScript validator
+  # Generate JavaScript validator from templates
   output:
-    path: "rules/generated/ai-modal-rules.js"
+    path: "rules/generated/template-modal-rules.js"
     format: "javascript"
     humanReviewRequired: true
 ```
@@ -800,7 +800,7 @@ aiGeneration:
 - [Local Development Workflow](./local-development.md) - Hot reload and iteration
 - [Language Inheritance](./inheritance.md) - Inheritance chains and conflict resolution
 - [Docker-Like Versioning](./versioning.md) - Package:tag format and resolution
-- [AI Rule Generation](./ai-generation.md) - AI-assisted rule creation
+- [Template Rule Generation](./template-generation.md) - Template-based rule creation
 - [Migration Guide](./tier-migration.md) - Moving between tiers
 - [Language Security](./language-security.md) - Security model across tiers
 - [Platform Abstraction](../platform-abstraction.md) - Platform-specific implementations

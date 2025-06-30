@@ -2,12 +2,13 @@
 
 ## Overview
 
-This documentation presents the conceptual design for Proof Editor - a focused two-platform tool that empowers domain experts to create and share custom logical reasoning systems through AI collaboration. Philosophy professors, logicians, and students partner with AI to implement their logical ideas without needing programming skills. The architecture emphasizes 90%+ code reuse across VS Code Extension and React Native App through a clean platform abstraction design.
+This documentation presents the conceptual design for Proof Editor - a focused two-platform tool that empowers domain experts to create and share custom logical reasoning systems through comprehensive documentation and examples. Philosophy professors, logicians, and students use clear templates and configuration to implement their logical ideas without needing programming skills. The architecture emphasizes 90%+ code reuse across VS Code Extension and React Native App through a clean platform abstraction design.
 
 ## Key References
 
 **[Key Terms](03-concepts/key-terms.md)** - Canonical definitions of all core concepts.
-**[Technical Implementation](08-technical-design/technical-definitions.md)** - Developer-focused implementation details.
+**[User Roles](01-introduction/user-roles.md)** - Domain expert user types and permissions.
+**[Technical Implementation](08-technical-design/data-model/technical-definitions.md)** - Developer-focused implementation details.
 
 ## Document Organization
 
@@ -25,9 +26,9 @@ This documentation presents the conceptual design for Proof Editor - a focused t
    - [DDD Glossary](03-concepts/ddd-glossary.md) - domain vs implementation language
    - [Argument Hierarchy](03-concepts/argument-hierarchy.md) - critical three-level distinction
 
-4. **AI-Augmented Users** - Domain experts collaborating with AI
-   - [AI-Augmented Accessibility](05-capabilities/ai-augmented-accessibility.md) - The new paradigm
-   - [AI-Augmented Paradigm Shift](ai-augmented-paradigm-shift.md) - Complete transformation overview
+4. **Expert-Driven Usage** - Domain experts using comprehensive documentation
+   - See [Custom Logic Systems](06-ecosystem/custom-logic.md) for how experts create logical systems
+   - See [Customization Overview](06-ecosystem/customization-overview.md) for personal validation rules
 
 5. **Capabilities** - Platform functionality
    - [Visual Proof Construction](05-capabilities/visual-proof.md)
@@ -43,10 +44,13 @@ This documentation presents the conceptual design for Proof Editor - a focused t
    - [Collaboration Features](06-ecosystem/collaboration.md)
    - [Domain-Specific Systems](06-ecosystem/domain-specific-systems.md)
 
-7. **[Future Considerations](07-future/README.md)** - Research directions
+7. **Societal Impact & Future** - Educational and research transformations
+   - [Educational Applications](07-future/educational-applications.md)
+   - [Research Methodologies](07-future/research-methodologies.md)
+   - [Future Considerations](07-future/README.md)
 
 8. **Technical Design** - Implementation specifications
-   - [Conceptual Data Model](08-technical-design/conceptual-data-model.md) - ordered set-based connections
+   - [Conceptual Data Model](08-technical-design/data-model/conceptual-data-model.md) - ordered set-based connections
 
 ### Topical Access
 
@@ -61,11 +65,11 @@ This documentation presents the conceptual design for Proof Editor - a focused t
 - [Platform Capabilities](05-capabilities/platform-capabilities.md)
 - [Custom Logic Systems](06-ecosystem/custom-logic.md)
 
-**AI-Augmented User Personas:**
-- Collaborative Philosophy Professors - Describe logical concepts → AI implements systems
-- AI-Assisted Graduate Students - Learn through AI-powered debugging and explanation  
-- Research Collaborators - Partner with AI to explore novel logical frameworks
-- Applied Domain Experts - Use AI to formalize domain-specific reasoning patterns
+**Documentation-Driven User Personas:**
+- Collaborative Philosophy Professors - Describe logical concepts → Templates and examples guide implementation
+- Template-Assisted Graduate Students - Learn through clear documentation and validation feedback
+- Research Collaborators - Partner with community to explore novel logical frameworks through shared templates
+- Applied Domain Experts - Use comprehensive documentation to formalize domain-specific reasoning patterns
 
 ## Project Phase
 
@@ -82,23 +86,23 @@ This documentation addresses conceptual design only. Technical implementation de
 
 ## Key Insights
 
-### The AI-Augmented Revolution
+### The Documentation-Driven Revolution
 
-Traditional formal logic tools assume users must learn programming to create custom systems. With AI assistance, this barrier disappears:
-- **Domain experts describe concepts** → AI generates working implementations
-- **Students get stuck on errors** → AI explains problems and suggests fixes  
-- **Researchers explore novel ideas** → AI helps model and test theoretical frameworks
-- **Applied professionals need custom logic** → AI creates domain-specific reasoning systems
+Traditional formal logic tools assume users must learn programming to create custom systems. With comprehensive documentation and templates, this barrier disappears:
+- **Domain experts use clear templates** → Platform provides working implementations
+- **Students get stuck on errors** → Clear validation feedback explains problems and suggests fixes  
+- **Researchers explore novel ideas** → Extensible platform helps model and test theoretical frameworks
+- **Applied professionals need custom logic** → Template system enables domain-specific reasoning systems
 
-This transforms accessibility from "accommodating different skill levels" to "amplifying domain expertise through AI partnership."
+This transforms accessibility from "accommodating different skill levels" to "amplifying domain expertise through comprehensive documentation and examples," leading to a fundamental shift in how logic is taught, learned, and applied in research, and enabling expert-driven knowledge creation.
 
-### Platform Independence for AI Collaboration
+### Platform Independence for Expert Workflows
 
-AI-augmented workflows must work identically across all platforms:
-- Desktop: Full-featured AI collaboration with VS Code integration
-- Mobile: Touch-optimized AI assistance with offline capabilities  
-- Web: Browser-based AI partnership with progressive enhancement
-- Collaboration: AI as shared reasoning partner across distributed teams
+Documentation-driven workflows must work identically across all platforms:
+- Desktop: Full-featured template and configuration system with VS Code integration
+- Mobile: Touch-optimized documentation access with offline capabilities  
+- Web: Browser-based example library with progressive enhancement
+- Collaboration: Shared template and package system across distributed teams
 
 ### Design Philosophy
 

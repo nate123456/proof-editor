@@ -282,7 +282,7 @@ Enable character input debugging:
 - Character macros for complex notation
 - Touch bar support on macOS
 - Voice input for accessibility
-- AI-powered symbol suggestions
+- Pattern-based symbol suggestions
 
 ### Community Contributions
 - Shared character set repository

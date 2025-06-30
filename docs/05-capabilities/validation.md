@@ -65,11 +65,7 @@ interface ValidationResponse {
   - Checks domain-specific conventions
 
 ### Ultra-Fast Experience
-- **Sub-10ms validation** [LSP]: Most validations complete in under 10ms
-  - Cache-first architecture with ~0ms hit time
-  - Pattern matching optimizations (1-3ms)
-  - Simple JavaScript rule execution (2-5ms)
-  - Complex validations under 15ms
+For detailed performance targets and validation timing requirements, see [Non-Functional Requirements](../09-non-functional-requirements.md#ultra-fast-validation-performance).
 
 - **Hot reload performance** [CORE + LSP]: <100ms language switching
   - Pre-warmed LSP servers start early
@@ -84,7 +80,7 @@ interface ValidationResponse {
   - Pattern recognition cache (accelerate matching)
 
 - **Single-user optimization** [CORE + LSP]: Not cloud-scale, ultra-responsive individual
-  - 128MB memory limit per language (generous for single user)
+  - Adaptive memory allocation per language (optimized for system resources)
   - Direct execution vs worker threads where beneficial
   - Pre-warmed computation contexts
   - Aggressive prefetching of likely validations
@@ -166,6 +162,103 @@ Platforms highlight issues based on LSP diagnostics:
 - **Sharing features**: Export successful proofs
 
 ## Educational Features
+
+### Structured Learning Support [CORE + LSP]
+Clear feedback and guidance that transform error recovery into accelerated learning opportunities:
+
+```typescript
+interface EducationalFeedbackRequest {
+  method: 'education/provideFeedback';
+  params: {
+    studentError: ValidationError;
+    currentProofState: ProofDocument;
+    educationalContext: string;
+  };
+}
+
+interface EducationalFeedbackResponse {
+  explanation: ConceptualExplanation;
+  suggestedSteps: CorrectionStep[];
+  relatedExamples: ProofExample[];
+  documentationLinks: string[];
+}
+```
+
+**Comprehensive Error Explanation**:
+- **Clear Error Messages**: Validation errors include domain-specific explanations
+- **Example-Driven Learning**: Provide related examples that demonstrate correct usage
+- **Concept Linkage**: Connect errors to relevant documentation and learning materials
+- **Progressive Guidance**: Structure feedback to build understanding step by step
+
+**Documentation-Based Learning Paths**:
+- **Structured Examples**: Comprehensive example library organized by difficulty and concept
+- **Concept Documentation**: Clear explanations of logical concepts with practical applications
+- **Practice Problems**: Curated problem sets that reinforce key logical reasoning skills
+- **Reference Materials**: Quick access to relevant logical rules and validation criteria
+
+### Enhanced Error Analysis and Recovery [LSP]
+
+```typescript
+interface ErrorAnalysisRequest {
+  method: 'validation/analyzeError';
+  params: {
+    error: ValidationError;
+    proofContext: ProofDocument;
+    logicalSystem: LogicalSystemInfo;
+  };
+}
+
+interface ErrorAnalysisResult {
+  errorClassification: ErrorType;
+  correctionSuggestions: CorrectionStep[];
+  conceptualReferences: DocumentationLink[];
+  relatedExamples: ProofExample[];
+}
+```
+
+**Comprehensive Error Understanding**:
+- **Error Classification**: Categorize errors by type (syntax, logic, inference, etc.)
+- **Context Analysis**: Analyze errors within the full proof context
+- **Pattern Recognition**: Identify common error patterns and provide targeted guidance
+- **Systematic Feedback**: Provide structured feedback that builds logical reasoning skills
+
+**Structured Feedback Generation**:
+- **Step-by-Step Guidance**: Break down corrections into manageable steps
+- **Example-Based Learning**: Show correct examples that demonstrate proper reasoning
+- **Documentation Integration**: Link to relevant concept explanations and rules
+- **Practice Recommendations**: Suggest specific exercises to reinforce correct reasoning
+
+### Learning Progress Tracking [CORE]
+
+```typescript
+interface ProgressTrackingRequest {
+  method: 'education/trackProgress';
+  params: {
+    studentId: string;
+    timeWindow: TimeRange;
+    progressMetrics: string[];
+  };
+}
+
+interface ProgressAnalysis {
+  skillDevelopment: SkillProgress[];
+  completedExercises: ExerciseCompletion[];
+  errorPatterns: ErrorPattern[];
+  recommendedPractice: PracticeRecommendation[];
+}
+```
+
+**Systematic Progress Monitoring**:
+- **Skill Development Tracking**: Monitor progress across different logical reasoning skills
+- **Optimal Challenge**: Maintain learning in the zone of proximal development
+- **Retention Monitoring**: Track long-term concept retention and provide timely reinforcement
+- **Collaboration Opportunities**: Identify when peer learning would be most beneficial
+
+**Metacognitive Development**:
+- **Self-Assessment Training**: Help students develop accurate self-evaluation skills
+- **Strategy Awareness**: Make logical reasoning strategies explicit and teachable
+- **Reflection Prompts**: Generate questions that encourage metacognitive thinking
+- **Goal Setting**: Support students in setting and achieving personal learning objectives
 
 ### Learning Mode [LSP + PLATFORM]
 - **Error explanations** [LSP]: Generate detailed error breakdowns
@@ -297,12 +390,7 @@ interface SuggestionRequest {
 ```
 
 ### Ultra-Fast Performance Targets
-- **Validation latency**: <10ms (most), <15ms (complex)
-- **Cache hit performance**: ~0ms (immediate access)
-- **Hot reload**: <100ms (language switching)
-- **Language loading**: <50ms (from cache)
-- **LSP startup**: <200ms (one-time, pre-warmed)
-- **External tool integration**: <5s timeout with progress feedback
+For comprehensive performance targets, timing requirements, and optimization strategies, see [Non-Functional Requirements](../09-non-functional-requirements.md#performance-requirements).
 
 ### Performance Architecture
 ```
@@ -314,7 +402,7 @@ Cache Check (0ms) → Pattern Match (1-3ms) → JS Rule (2-5ms) → Result
 ```
 
 ### Resource Limits (Single-User Optimization)
-- **Memory per language**: 128MB (generous individual allocation)
+- **Memory per language**: Adaptive allocation (optimized for system resources)
 - **Concurrent validations**: Unlimited (single user, no contention)
 - **Cache size**: Generous (battery/memory not shared across users)
 - **Pre-warming**: Aggressive (start early, cache everything)

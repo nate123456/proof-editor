@@ -82,6 +82,14 @@ interface LanguageInstaller {
     // Verify integrity
     await this.verifyPackage(packageData);
     
+    // Security consent for executable code
+    if (packageData.containsExecutableCode) {
+      const consent = await this.requestSecurityConsent(packageData);
+      if (!consent.approved) {
+        throw new InstallationCancelledError('User declined executable code consent');
+      }
+    }
+    
     // Check dependencies
     const deps = await this.resolveDependencies(packageInfo);
     await this.installDependencies(deps);
@@ -129,6 +137,41 @@ interface LanguageInstallation {
   dependencies: Record<string, string>;
   installedAt: Date;
 }
+```
+
+### Security Consent Integration
+
+For packages containing executable code (JavaScript validation rules, LSP servers), the installation process integrates with the security consent system:
+
+```typescript
+interface SecurityConsentRequest {
+  packageName: string;
+  version: string;
+  source: string;
+  executableComponents: ExecutableComponent[];
+  trustLevel: 'verified' | 'community' | 'unknown';
+  securityConstraints: SecurityConstraint[];
+}
+
+interface SecurityConsentResponse {
+  approved: boolean;
+  userAction: 'install' | 'review' | 'cancel';
+  reviewedCode?: boolean;
+}
+
+async requestSecurityConsent(packageData: PackageData): Promise<SecurityConsentResponse> {
+  const consentDialog = new SecurityConsentDialog({
+    packageInfo: packageData.manifest,
+    executableComponents: packageData.executableComponents,
+    trustLevel: await this.evaluateTrustLevel(packageData.source),
+    securityConstraints: packageData.securityConstraints
+  });
+  
+  return await consentDialog.show();
+}
+```
+
+**Security Policy Integration**: The consent process implements the requirements defined in [Language Package Security Policy](../../policies/language-package-security-policy.md), including risk disclosure, trust framework evaluation, and user consent collection.
 ```
 
 ## Cache Management

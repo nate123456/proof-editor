@@ -45,9 +45,19 @@ imports:
 ## Security and Offline Considerations
 
 ### Security
-- Sandboxed script execution
-- Limited API access
-- User permission prompts
+- Sandboxed script execution with strict resource limits
+- Limited API access (no file system or network access)
+- Process isolation for custom language servers
+
+**User Consent for Executable Code**:
+When installing packages containing JavaScript validation rules or LSP servers, users encounter a clear consent dialog that:
+- Identifies all executable components in the package
+- Explains security constraints and sandboxing measures  
+- Shows source verification and trust level information
+- Requires explicit "Install and Trust" action to proceed
+- Provides option to review package code before installation
+
+For detailed consent processes and security enforcement, see [Language Package Security Policy](../policies/language-package-security-policy.md)
 - Content Security Policy
 - No network access from scripts
 
@@ -94,6 +104,30 @@ imports:
 2. Export as personal package
 3. Sync across devices
 4. Maintain in GitHub
+
+### Personal Validation Rules
+Users can define simple document-specific validation or linting rules without creating full language packages:
+
+**Document-Level Configuration (Simple Cases)**:
+```yaml
+# In .proof file header
+validation:
+  rules:
+    - name: "require_premise_justification"
+      type: "warning"
+      check: "premises_must_have_source_citations"
+    - name: "consistent_notation" 
+      type: "error"
+      check: "use_standard_modal_operators"
+```
+
+**When Full Packages Are Required**:
+- Custom inference rules or logical systems
+- Complex JavaScript validation logic
+- Shared/distributed logic systems
+- LSP server functionality
+
+This allows users to add lightweight, personal validation preferences without the overhead of formal package creation while requiring packages for substantial logical systems.
 
 ## Best Practices
 
