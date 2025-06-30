@@ -10,7 +10,7 @@ This glossary maps between **Domain Language** (what users say) and **Implementa
 Platform-agnostic business logic that forms the heart of Proof Editor. Includes all logical structures, relationships, and operations that work identically across all platforms (desktop, mobile, web).
 
 ### LSP [LSP]
-Language Server Protocol features providing intelligent assistance. Includes validation, analysis, diagnostics, and language-specific intelligence. Works across platforms via transport abstraction (stdio for desktop, WebSocket for mobile).
+Language Server Protocol features providing intelligent assistance. Includes validation, analysis, diagnostics, and language-specific intelligence. Works across platforms via transport abstraction (stdio for desktop, local threads with JSI for mobile).
 
 ### PLATFORM [PLATFORM]
 Platform-specific integrations and UI. Includes file system access, native UI components, keyboard/touch handling, and platform services. Each platform (VS Code, React Native) implements these differently while exposing consistent interfaces to CORE.

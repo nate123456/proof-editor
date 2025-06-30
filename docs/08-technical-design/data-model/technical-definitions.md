@@ -277,6 +277,8 @@ For the conceptual definition of connections, see [Key Terms](../03-concepts/key
 - Statement content display (from statement ID lookups)
 - Tree visual layout (from physical properties and node relationships)
 
+**Position Storage Distinction**: Tree coordinates are stored in offset fields, but individual node coordinates are computed from tree structure and layout properties. This enables trees to move as cohesive units while node positioning emerges from logical relationships.
+
 ## Implementation Philosophy
 
 ### What This Implementation Does
@@ -455,12 +457,82 @@ function getChildrenEfficient(
 }
 ```
 
+## Storage Implementation
+
+### WatermelonDB + SQLite Architecture
+
+**Storage Foundation**: Proof Editor uses WatermelonDB + SQLite for robust multi-platform persistence:
+
+```typescript
+// WatermelonDB Model Definitions
+class StatementModel extends Model {
+  static table = 'statements';
+  @field('content') content!: string;
+  @field('created_at') createdAt!: number;
+  @field('modified_at') modifiedAt!: number;
+}
+
+class OrderedSetModel extends Model {
+  static table = 'ordered_sets';
+  @json('statement_ids', sanitizeArray) statementIds!: string[];
+  @field('created_at') createdAt!: number;
+}
+
+class AtomicArgumentModel extends Model {
+  static table = 'atomic_arguments';
+  @field('premise_set_ref') premiseSetRef!: string;
+  @field('conclusion_set_ref') conclusionSetRef!: string;
+  @json('metadata', sanitizeMetadata) metadata!: AtomicArgumentMetadata;
+}
+```
+
+**Repository Pattern Implementation**:
+```typescript
+class StatementRepository {
+  constructor(private db: Database) {}
+  
+  async create(content: string): Promise<StatementEntity> {
+    return await this.db.write(async () => {
+      return await this.db.collections
+        .get<StatementModel>('statements')
+        .create(statement => {
+          statement.content = content;
+          statement.createdAt = Date.now();
+          statement.modifiedAt = Date.now();
+        });
+    });
+  }
+  
+  async findById(id: string): Promise<StatementEntity | null> {
+    try {
+      return await this.db.collections
+        .get<StatementModel>('statements')
+        .find(id);
+    } catch {
+      return null;
+    }
+  }
+}
+```
+
+**Platform-Specific Adapters**:
+- **Desktop**: Uses `node-sqlite3` binding via WatermelonDB's NodeJS adapter
+- **Mobile**: Uses React Native's built-in SQLite via WatermelonDB's RN adapter  
+- **Cross-Platform**: Same WatermelonDB API across all platforms
+
+**Benefits**:
+- **ACID Compliance**: SQLite guarantees data consistency
+- **Performance**: Optimized queries and indexing through WatermelonDB
+- **Reactive**: Automatic UI updates when data changes
+- **Offline-First**: Full functionality without network dependency
+
 ## Summary
 
-The Proof Editor implementation is built on a foundation of statement building blocks and shared ordered set objects. Statements are reusable text entities with unique IDs that serve as the fundamental building blocks. Users create connections by intentionally sharing ordered set references across atomic arguments - when the conclusion ordered set of one argument IS (same reference) the premise ordered set of another, a connection exists implicitly. The system discovers these connections through simple reference equality checks, not through value matching. This approach provides:
+The Proof Editor implementation is built on a foundation of statement building blocks and shared ordered set objects, persisted through WatermelonDB + SQLite for robust multi-platform storage. Statements are reusable text entities with unique IDs that serve as the fundamental building blocks. Users create connections by intentionally sharing ordered set references across atomic arguments - when the conclusion ordered set of one argument IS (same reference) the premise ordered set of another, a connection exists implicitly. The system discovers these connections through simple reference equality checks, not through value matching. This approach provides:
 
 - **Statement reusability**: Statements are building blocks that can be used in multiple contexts
 - **Clear identity**: Connections exist only when ordered set objects are the SAME (===)
 - **Shared state**: Modifications to an ordered set affect all referencing arguments
 - **No ambiguity**: Same statement content but different ordered set objects don't create connections
 - **Simple implementation**: Just check reference equality for ordered sets, lookup statements by ID
+- **Robust persistence**: ACID-compliant storage with automatic crash recovery via SQLite + WatermelonDB

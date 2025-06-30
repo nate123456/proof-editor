@@ -228,6 +228,14 @@ interface FlowBottleneck {
 - **Arguments**: Computed by traversing logical connections (not tree structure) AND statement flow analysis
 - **Statement Flow**: Physical mechanism where statements move through processing nodes in spatial tree networks
 
+## Storage Architecture
+
+**Persistence Layer**: WatermelonDB + SQLite provides robust multi-platform storage:
+- **SQLite Database**: ACID transactions, WAL mode, built-in crash recovery
+- **WatermelonDB**: Reactive ORM abstracting SQLite access across platforms
+- **Repository Pattern**: Clean abstraction over WatermelonDB for data access
+- **Platform Adapters**: Native SQLite engines (node-sqlite3 on desktop, built-in on mobile)
+
 ## Key Operations
 
 **Creating Connections**: New atomic argument's premise set reference = parent's conclusion set reference (same object) AND establish statement flow pipeline

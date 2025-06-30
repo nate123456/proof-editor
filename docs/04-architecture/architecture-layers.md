@@ -35,10 +35,10 @@ The LSP layer serves as a dedicated execution runtime where user-defined languag
 - Hot-swapping between different logical systems
 - Package loading and dependency resolution
 
-## PLATFORM Layer
-Platform-specific integrations and UI implementations:
+## PLATFORM Layer (Implementation Details)
+Platform adapters that handle implementation differences, not architectural concerns:
 - **Statement Flow APIs**: Platform interfaces for statement flow visualization
-- **Spatial Interaction APIs**: Touch/mouse interfaces for tree manipulation
+- **Spatial Interaction APIs**: Touch/mouse interfaces for tree manipulation  
 - **File System Operations**: Platform-specific file access and storage
 - **Settings Management**: Platform configuration and persistence
 - **UI/UX Implementations**: Platform-native rendering and interaction
@@ -46,6 +46,8 @@ Platform-specific integrations and UI implementations:
 - **Theme Handling**: Platform appearance and visual styling
 - **Input Abstractions**: Mouse, keyboard, touch, and gesture handling
 - **Native Platform Features**: Notifications, sharing, system integration
+
+**Key Point**: Both VS Code and React Native provide sufficient capabilities for all requirements. Platform differences affect implementation approach ("how") rather than architectural design ("what").
 
 ## Documentation Principles
 1. **CORE docs**: Never mention specific platforms or UI implementations

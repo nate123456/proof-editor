@@ -1,23 +1,28 @@
 # Custom Logic Systems
 
-## Configure Your Logic Through Clear Templates
+## Three-Tier Logic System Creation
 
-Proof Editor enables domain experts to create custom logical systems through comprehensive documentation and configuration templates. You specify your logical concepts - "I need a deontic logic that handles conflicting obligations" - using clear YAML configuration and examples. This transforms logic system creation from a programming task into a configuration process.
+Proof Editor enables custom logical systems through a three-tier approach:
+- **Tier 1 (90% of users)**: Pure YAML configuration for standard logical patterns
+- **Tier 2**: JavaScript programming for custom validation rules
+- **Tier 3**: Full LSP development for complete reasoning environments
+
+Most domain experts achieve their goals through Tier 1 configuration, with programming required only for advanced customization.
 
 ## Why Configuration-Based Custom Logic?
 
-### Democratized Logic Creation
-Clear templates and documentation remove the programming barrier for domain experts:
-- **Philosophy professors**: Use modal logic templates for epistemic states
-- **Legal scholars**: Configure logic systems for modeling contract obligations and breaches
-- **Medical researchers**: Implement diagnostic reasoning with uncertainty using provided patterns
-- **Business analysts**: Build decision logic that handles risk assessment through configuration
+### Tiered Logic Creation
+The three-tier approach accommodates different technical comfort levels:
+- **Philosophy professors**: Start with Tier 1 YAML templates, progress to Tier 2 JavaScript for complex modal operators
+- **Legal scholars**: Use Tier 1 for standard legal reasoning, Tier 2 for custom precedent weighting algorithms
+- **Medical researchers**: Configure Tier 1 for basic diagnostic patterns, Tier 2 for probabilistic uncertainty calculations
+- **Business analysts**: Apply Tier 1 for decision trees, Tier 2 for complex risk assessment functions
 
-### Rapid Innovation
-- **Configure concepts** → Platform implements systems through templates
-- **Test with examples** → Refine configurations based on validation
-- **Iterate systematically** → "Actually, let's add temporal operators" via config updates
-- **Share immediately** → Configuration-based systems become community resources
+### Rapid Innovation Across Tiers
+- **Tier 1**: Configure concepts → Platform implements through YAML templates
+- **Tier 2**: Program validation → Custom JavaScript rules for domain-specific logic
+- **Tier 3**: Develop environments → Full LSP programming for complete reasoning systems
+- **All Tiers**: Test, iterate, and share through the same distribution system
 
 ## Core Concepts
 
@@ -50,46 +55,48 @@ Build on existing systems:
 
 For comprehensive details on consent processes and security requirements, see [Language Package Security Policy](../policies/language-package-security-policy.md).
 
-## Configuration-Based System Creation
+## Three-Tier System Creation
 
-### Clear Documentation Workflows
+### Three-Tier Documentation Workflows
 
-#### The Philosophy Professor
+#### The Philosophy Professor (Tier 1 → Tier 2)
 ```
 Professor: "I need a deontic logic system that distinguishes between 
-prima facie obligations and actual obligations. Prima facie 
-obligations can be overridden by stronger moral duties."
+prima facie obligations and actual obligations."
 
-Using Documentation: Following the modal logic template, create YAML config:
+Tier 1 Implementation: Following the modal logic template, create YAML config:
 - O_pf(p) for prima facie obligations  
 - O_act(p) for actual obligations
-- Conflict resolution rules based on documented patterns
+- Standard conflict resolution from templates
 
-[Professor implements complete system using platform documentation]
+Professor: "The standard conflict resolution isn't nuanced enough. 
+I need custom weighting based on moral theory."
 
-Professor: "Perfect! Now add temporal operators so we can model 
-obligations that arise over time."
-
-Using Templates: "Adding temporal operators T_F (future) and T_P (past) 
-following the temporal logic extension examples..."
+Tier 2 Implementation: "Now I need to write JavaScript functions for 
+custom conflict resolution algorithms based on Ross's moral theory..."
 ```
 
-#### The Legal Scholar
+#### The Legal Scholar (Tier 1 → Tier 2)
 ```
 Scholar: "Model legal reasoning where statutes create default rules 
 that can be overridden by more specific statutes or precedents."
 
-Using Documentation: "Following the defeasible logic templates:
-- Defeasible inference rules for statutory defaults
-- Precedent strength operators from documented examples
-- Specificity orderings using provided conflict resolution patterns..."
+Tier 1 Implementation: "Following the defeasible logic templates:
+- Basic defeasible inference rules for statutory defaults
+- Standard precedent strength from documented examples
+
+Scholar: "I need custom precedent weighting based on jurisdiction 
+hierarchy and case similarity metrics."
+
+Tier 2 Implementation: "This requires JavaScript programming to implement 
+the complex precedent analysis algorithms..."
 ```
 
-### Documentation-Driven Starting Points
-- **Natural description**: Document your logical needs clearly
-- **Example-driven**: "Like modal logic, but for obligations" - follow adaptation guides
-- **Template adaptation**: "Take S5 modal logic template and modify it for..." - use documented patterns
-- **Community extension**: "Fork this system and add..." - follow extension documentation
+### Tier-Appropriate Starting Points
+- **Tier 1**: "Like modal logic, but for obligations" → YAML template adaptation
+- **Tier 2**: "Take S5 and add custom accessibility relations" → JavaScript programming required
+- **Tier 3**: "Complete intuitionistic type theory environment" → Full LSP development
+- **All Tiers**: Clear documentation and community examples available
 
 ### Definition Components
 - **Operators**: AND, OR, IMPLIES, custom
@@ -235,11 +242,11 @@ and special resolution rules in the deontic logic templates..."
 
 ## The Community-Driven Future of Logic
 
-### Documentation-Based Logic Programming
-- **Template-driven creation**: Build complex systems through clear documentation
-- **Example-driven learning**: Community learns patterns from shared expert examples
-- **Collaborative documentation**: Community generates explanations and tutorials
-- **Performance optimization**: Community optimizes rule efficiency through shared knowledge
+### Three-Tier Logic Development
+- **Tier 1 Template Creation**: Build 90% of systems through YAML configuration
+- **Tier 2 Custom Programming**: JavaScript validation for specialized domain logic
+- **Tier 3 Environment Development**: Full LSP programming for complete reasoning systems
+- **Cross-Tier Community**: Experts share knowledge across all technical levels
 
 ### Community-Mediated Cross-Domain Innovation
 - **Logic fusion**: "Combine deontic logic with temporal reasoning" using documented patterns
@@ -254,11 +261,10 @@ and special resolution rules in the deontic logic templates..."
 - **Meta-logical reasoning**: Community helps understand relationships between logical systems
 
 ### Global Democratization of Formal Reasoning
-Every domain expert becomes a logic system creator through clear documentation:
-- **Philosophers** create novel logical frameworks using configuration templates
-- **Scientists** formalize their domain reasoning with documented patterns
-- **Legal professionals** build custom legal reasoning systems using provided frameworks
-- **Educators** create logic systems tailored to their pedagogical needs through examples
-- **Students** explore logical concepts through community-guided discovery
+Every domain expert can participate at their appropriate technical level:
+- **Tier 1 (90% of users)**: Create logical frameworks through YAML configuration
+- **Tier 2**: Program custom validation rules for specialized domain logic
+- **Tier 3**: Develop complete reasoning environments through LSP programming
+- **All Tiers**: Share knowledge through community examples and documentation
 
-This transforms formal logic from an expert programming discipline into accessible configuration through comprehensive documentation and community knowledge sharing.
+This transforms formal logic from an expert-only programming discipline into a tiered system where most users succeed through configuration, while advanced users can program custom logic as needed.

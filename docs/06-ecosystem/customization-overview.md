@@ -166,7 +166,7 @@ This allows users to add lightweight, personal validation preferences without th
 4. Verify installation in package manager
 
 ### Creating a Package
-1. Create `proof-package.json`
+1. Create `package.yaml`
 2. Add configurations and resources
 3. Test locally
 4. Push to GitHub

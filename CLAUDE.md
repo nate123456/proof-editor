@@ -390,3 +390,7 @@ Push back if any answer is "no".
 - Term consistency: `@docs/03-concepts/key-terms.md @docs/08-technical-design/technical-definitions.md`
 
 **Notes**: Include key-terms.md and technical-definitions.md for consistency checks. Verify domain language in user docs vs implementation details in technical docs. Check ordered set connections throughout. Fallback to claude if errors. Rate limited 60/min. Use for final reviews, Claude for rapid iteration. Task agents: read-only git only.
+
+Before you do anything, get the current time and date via the terminal.
+
+Task agents should always use the claude sonnet model, NOT opus. Task agents should NEVER show the diffs of their file changes, it CRASHES THE TERMINAL.

@@ -79,9 +79,18 @@ Conflict Detected
 
 ## Data Consistency Model
 
-> **Note**: The following technical approach represents recommended implementation strategies based on requirements analysis. Architectural decisions should be validated during the design phase.
+### Storage Architecture Foundation
 
-### Requirements-Based Analysis: Conflict-Free Replicated Data Types (CRDTs)
+Proof Editor implements **WatermelonDB + SQLite** as the multi-platform storage solution with repository pattern abstraction:
+
+- **SQLite Database**: Reliable ACID transactions on all platforms
+- **WatermelonDB**: Reactive ORM providing multi-platform SQLite abstraction
+- **Repository Pattern**: Clean data access layer abstracting persistence details
+- **Platform Adapters**: Native SQLite engines (sqlite3 on desktop, built-in on mobile)
+
+This storage foundation enables robust synchronization with strong consistency guarantees.
+
+### Conflict-Free Replicated Data Types (CRDTs)
 
 Based on the zero-data-loss and offline-first requirements, **Operation-based CRDTs** with **vector clocks** are analyzed as a potential solution for the following reasons:
 
@@ -428,43 +437,53 @@ interface LogicalAnalysis {
 
 ### Local Durability
 
-#### Operation Journaling
+#### WatermelonDB + SQLite Storage Strategy
 ```typescript
-interface OperationJournal {
-  // Persistent log of all operations
+interface StorageRepository {
+  // WatermelonDB repository pattern for data access
+  operations: OperationRepository;
+  documents: DocumentRepository; 
+  statements: StatementRepository;
+  orderedSets: OrderedSetRepository;
+  atomicArguments: AtomicArgumentRepository;
+  
+  // Transaction support through SQLite
+  transaction<T>(fn: () => Promise<T>): Promise<T>;
+}
+
+interface OperationRepository {
+  // Persistent log leveraging SQLite durability
   appendOperation(op: ProofOperation): Promise<void>;
   
-  // Read operations since checkpoint
-  readOperationsSince(checkpoint: VectorClock): ProofOperation[];
+  // Indexed queries via WatermelonDB
+  readOperationsSince(checkpoint: VectorClock): Promise<ProofOperation[]>;
   
-  // Create checkpoint for garbage collection
-  createCheckpoint(state: ProofDocumentCRDT): Promise<Checkpoint>;
-  
-  // Compact journal by removing pre-checkpoint operations
-  compactJournal(checkpoint: Checkpoint): Promise<void>;
+  // Cleanup operations using SQL DELETE
+  compactOperations(beforeCheckpoint: VectorClock): Promise<void>;
 }
 ```
 
-#### Storage Strategy
-- **Immediate Persistence**: Operations written to disk before UI confirmation
-- **WAL (Write-Ahead Logging)**: Operations logged before state modification
-- **Checksums**: Verify operation integrity on read
-- **Redundant Storage**: Multiple storage backends for critical data
+#### SQLite Storage Benefits
+- **ACID Transactions**: Guaranteed consistency via SQLite's proven transaction support
+- **WAL Mode**: Write-ahead logging built into SQLite for crash recovery
+- **Immediate Persistence**: Operations committed to disk before UI confirmation  
+- **Cross-Platform**: Consistent behavior on desktop (sqlite3) and mobile (built-in)
+- **Performance**: Optimized indexing and query performance through WatermelonDB
 
 #### Recovery Procedures
 ```typescript
 interface RecoveryManager {
-  // Recover state from journal after crash
-  recoverFromJournal(): Promise<ProofDocumentCRDT>;
+  // Recover state from SQLite database after crash
+  recoverFromDatabase(): Promise<ProofDocumentCRDT>;
   
-  // Validate recovered state consistency
+  // Validate recovered state using SQLite integrity checks
   validateRecoveredState(state: ProofDocumentCRDT): ValidationResult;
   
-  // Repair corrupted state if possible
-  repairCorruption(state: ProofDocumentCRDT): RepairResult;
+  // SQLite handles corruption recovery automatically via WAL
+  checkDatabaseIntegrity(): Promise<IntegrityResult>;
   
-  // Emergency export of salvageable data
-  emergencyExport(corruptedState: ProofDocumentCRDT): ProofData;
+  // Export data using WatermelonDB queries
+  emergencyExport(): Promise<ProofData>;
 }
 ```
 
@@ -549,8 +568,8 @@ interface OperationCompactor {
 #### Desktop (VS Code)
 ```typescript
 interface DesktopSyncAdapter {
-  // Use Node.js file system for persistence
-  fileSystemPersistence: FileSystemPersistence;
+  // SQLite via node-sqlite3 binding
+  sqliteStorage: SQLiteNodeStorage;
   
   // Worker threads for background sync
   backgroundSync: WorkerThreadSync;
@@ -563,8 +582,8 @@ interface DesktopSyncAdapter {
 #### Mobile (React Native)
 ```typescript
 interface MobileSyncAdapter {
-  // Use platform storage APIs
-  platformStorage: PlatformStorage;
+  // SQLite via React Native built-in support
+  sqliteStorage: SQLiteReactNativeStorage;
   
   // Background app refresh for sync
   backgroundRefresh: BackgroundRefreshManager;

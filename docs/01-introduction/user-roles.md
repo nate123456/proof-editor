@@ -7,7 +7,7 @@ These distinct user roles represent different patterns of working with statement
 ## Logic System Creator
 
 ### Profile
-Philosophy professors, logicians, and domain experts who design and implement custom logical reasoning systems through comprehensive documentation and configuration templates.
+Philosophy professors, logicians, and domain experts who design and implement custom logical reasoning systems. Most work with YAML configuration (Tier 1), while advanced creators use JavaScript programming (Tier 2) or full LSP development (Tier 3).
 
 ### Responsibilities
 - **Processing System Design**: Define how statements should flow and transform within domain-specific reasoning networks
@@ -16,22 +16,22 @@ Philosophy professors, logicians, and domain experts who design and implement cu
 - **Knowledge Sharing**: Publish and maintain processing systems for educational or research use
 
 ### Permissions
-- **Create Custom Processing Systems**: Define new statement flow frameworks via YAML configuration and documented patterns
-- **Publish Language Packages**: Share processing systems through GitHub-based distribution
-- **Version Management**: Create and maintain versioned processing system releases
-- **Advanced Configuration**: Access full three-tier SDK (YAML config, JavaScript rules, LSP extensions)
+- **Tier 1**: Define systems via YAML configuration and documented patterns (90% of creators)
+- **Tier 2**: Write JavaScript validation rules for custom logic (programming required)
+- **Tier 3**: Develop full LSP extensions for complete reasoning environments (advanced programming)
+- **All Tiers**: Publish, version, and distribute language packages through GitHub
 
-### Documentation-Based Implementation
-- **Template Selection**: "I need a statement processing system that handles conditional obligations"
-- **Configuration Adaptation**: Modify provided templates for specific philosophical requirements
-- **Flow Testing**: "Does this system correctly handle statement flow in obligation conflicts?"
-- **Example Creation**: Develop usage examples and educational materials
+### Tiered Implementation Approach
+- **Tier 1**: "I need conditional obligations" → YAML template configuration
+- **Tier 2**: "I need custom obligation weighting" → JavaScript programming required
+- **Tier 3**: "I need a complete deontic reasoning environment" → LSP development required
+- **All Tiers**: Test, refine, and create educational materials
 
 ### Workflow Example
-1. Review documentation for similar statement processing systems
-2. Adapt YAML configuration templates for specific requirements
+1. Identify requirements and select appropriate tier (1, 2, or 3)
+2. Tier 1: Adapt YAML templates; Tier 2: Write JavaScript rules; Tier 3: Develop LSP
 3. Test system with known statement flows and edge cases
-4. Iterate on configuration based on processing feedback
+4. Iterate: configuration updates (Tier 1) or code changes (Tiers 2/3)
 5. Publish versioned package for student/colleague use
 
 ## Student/Learner
@@ -193,8 +193,10 @@ Research Collaborator (full access)
 ## Success Metrics by Role
 
 ### Logic System Creator
-- **Creation Speed**: Can create basic modal logic systems within 30 minutes using templates
-- **Documentation Quality**: 90% satisfaction with template clarity and examples
+- **Tier 1 Creation Speed**: Basic modal logic systems within 30 minutes using YAML templates
+- **Tier 2 Development**: Custom JavaScript validation rules within 2-4 hours with programming knowledge
+- **Tier 3 Development**: Complete LSP environments within days/weeks with advanced programming skills
+- **Documentation Quality**: 90% satisfaction with tier-appropriate templates and examples
 - **Sharing Success**: Published systems used by 5+ learners within semester
 
 ### Student/Learner

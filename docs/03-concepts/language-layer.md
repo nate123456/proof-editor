@@ -27,9 +27,10 @@ Language servers provide these capabilities through standard LSP methods:
 
 Language servers communicate via transport-agnostic protocols:
 - **stdio**: Process-based communication for desktop
-- **WebSocket**: Network communication for mobile/web
-- **HTTP**: Stateless validation services
-- **TCP**: Direct socket connections
+- **Local threads**: Thread-based communication for mobile using JSI
+- **WebSocket**: Network communication for web (desktop only)
+- **HTTP**: Stateless validation services (desktop only)
+- **TCP**: Direct socket connections (desktop only)
 
 ## Example Language Implementations
 

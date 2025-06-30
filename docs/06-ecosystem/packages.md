@@ -41,7 +41,7 @@ A self-contained bundle that works identically across all platforms:
 A curated collection of packages for specific use cases (e.g., "Modal Logic Course", "Formal Methods Research").
 
 ### Package Manifest
-The `proof-package.json` file that defines package metadata, dependencies, and contents. This format is platform-agnostic.
+The `package.yaml` file that defines package metadata, dependencies, and contents. This format is platform-agnostic.
 
 ## Package Structure [CORE]
 
@@ -49,7 +49,7 @@ The internal structure of a package is consistent across all platforms:
 
 ```
 my-logic-package/
-├── proof-package.json          # Package manifest [CORE]
+├── package.yaml                # Package manifest [CORE]
 ├── README.md                   # Package documentation
 ├── config/
 │   ├── keybindings.json       # Custom keyboard shortcuts
@@ -79,74 +79,59 @@ my-logic-package/
 
 The manifest format is identical across all platforms:
 
-```json
-{
-  "name": "modal-logic-starter",
-  "version": "1.0.0",
-  "description": "Complete modal logic system for beginners",
-  "author": "Logic Systems Organization",
-  "homepage": "https://example.com/modal-logic",  // Optional URL
-  "dependencies": {
-    "basic-logic-symbols": "^2.0.0"
-  },
-  "contents": {
-    "config": {
-      "keybindings": "./config/keybindings.json",
-      "characters": "./config/characters.json",
-      "uiSettings": "./config/ui-settings.json"
-    },
-    "documents": {
-      "examples": "./documents/examples/",
-      "templates": "./documents/templates/"
-    },
-    "fonts": ["./fonts/logic-symbols.woff2"],
-    "scripts": {
-      "validators": "./scripts/validators/",
-      "analyzers": "./scripts/analyzers/"
-    },
-    "languageServers": {  // [LSP]
-      "modalLogic": {
-        "serverPath": "./language-servers/modal-logic/server.js",
-        "capabilities": "./language-servers/modal-logic/capabilities.json",
-        "configuration": "./language-servers/config.json",
-        "treeQueries": "./language-servers/modal-logic/tree-queries.js",
-        "spatialOperations": "./language-servers/modal-logic/spatial-ops.js",
-        "statementFlow": "./language-servers/modal-logic/statement-flow.js",
-        "treePositioning": "./language-servers/modal-logic/tree-positioning.js"
-      }
-    }
-  },
-  "requirements": {
-    "proofEditor": ">=1.0.0"
-  }
-}
+```yaml
+name: "modal-logic-starter"
+version: "1.0.0"
+description: "Complete modal logic system for beginners"
+author: "Logic Systems Organization"
+homepage: "https://example.com/modal-logic"  # Optional URL
+
+dependencies:
+  basic-logic-symbols: "^2.0.0"
+
+contents:
+  config:
+    keybindings: "./config/keybindings.json"
+    characters: "./config/characters.json"
+    uiSettings: "./config/ui-settings.json"
+  documents:
+    examples: "./documents/examples/"
+    templates: "./documents/templates/"
+  fonts:
+    - "./fonts/logic-symbols.woff2"
+  scripts:
+    validators: "./scripts/validators/"
+    analyzers: "./scripts/analyzers/"
+  languageServers:  # [LSP]
+    modalLogic:
+      serverPath: "./language-servers/modal-logic/server.js"
+      capabilities: "./language-servers/modal-logic/capabilities.json"
+      configuration: "./language-servers/config.json"
+      treeQueries: "./language-servers/modal-logic/tree-queries.js"
+      spatialOperations: "./language-servers/modal-logic/spatial-ops.js"
+      statementFlow: "./language-servers/modal-logic/statement-flow.js"
+      treePositioning: "./language-servers/modal-logic/tree-positioning.js"
+
+requirements:
+  proofEditor: ">=1.0.0"
 ```
 
 ## Character Configuration
 
-```json
-{
-  "characters": [
-    {
-      "symbol": "◇",
-      "name": "possibly",
-      "keybinding": "\\diamond",
-      "category": "modal"
-    },
-    {
-      "symbol": "□",
-      "name": "necessarily",
-      "keybinding": "\\box",
-      "category": "modal"
-    },
-    {
-      "symbol": "⊢",
-      "name": "turnstile",
-      "keybinding": "\\vdash",
-      "category": "logical"
-    }
-  ]
-}
+```yaml
+characters:
+  - symbol: "◇"
+    name: "possibly"
+    keybinding: "\\diamond"
+    category: "modal"
+  - symbol: "□"
+    name: "necessarily"
+    keybinding: "\\box"
+    category: "modal"
+  - symbol: "⊢"
+    name: "turnstile"
+    keybinding: "\\vdash"
+    category: "logical"
 ```
 
 ## Package Distribution [PLATFORM]
@@ -192,57 +177,54 @@ await importPackage(packageData);
 const manifest = await parsePackageManifest(manifestData);
 ```
 
-### Statement Flow Across Packages
+### Package Dependencies
 
-When statements flow between different packages, coordination is required to maintain tree structure integrity.
+Packages are SDK-compliant libraries that implement known interfaces. Dependencies are resolved through simple git clone operations:
 
 ```typescript
-interface StatementFlowCoordinator {
-  // Track statement usage across packages
-  trackStatementFlow(statementId: string, sourcePackage: string, targetPackage: string): void;
+interface PackageDependencyResolver {
+  // Simple dependency resolution via git clone
+  resolvePackage(spec: string): Promise<PackageInfo>;
   
-  // Validate statement flow consistency
-  validateFlowConsistency(flowId: string): Promise<FlowValidationResult>;
+  // Load SDK-compliant library from local folder
+  loadLocalPackage(path: string): Promise<PackageLibrary>;
   
-  // Resolve statement conflicts between packages
-  resolveStatementConflicts(conflicts: StatementConflict[]): Promise<ConflictResolution>;
-  
-  // Optimize statement sharing for better performance
-  optimizeStatementSharing(packages: string[]): Promise<OptimizationResult>;
+  // Validate package implements required SDK interfaces
+  validateSDKCompliance(package: PackageLibrary): ValidationResult;
 }
 
-interface StatementConflict {
-  statementId: string;
-  conflictingPackages: string[];
-  conflictType: 'definition' | 'usage' | 'validation';
-  severity: 'error' | 'warning' | 'info';
+interface PackageLibrary {
+  name: string;
+  version: string;
+  sdkVersion: string;
+  interfaces: SDKInterface[];
+  implementation: PackageImplementation;
 }
 ```
 
-#### Statement Flow Example
+#### Package Loading Example
 ```yaml
-# Example: Modal logic package uses statements from propositional logic
+# Example: Modal logic package extends propositional logic
 version: "1.0"
-imports:
-  - propositional-logic@^2.0.0
+language: modal-logic:v1.2.0
+extends: propositional-logic:v2.0.0
 
-# Statement flow configuration
-statementFlow:
-  allowedSources:
-    - propositional-logic  # Can use statements from this package
-  restrictions:
-    - no-circular-dependencies
-    - validate-cross-package-usage
+# Package loading is simple git clone + SDK validation
+packageSource:
+  type: git
+  url: github:logictools/modal-logic
+  version: v1.2.0
   
-# Tree positioning considers statement sources
-trees:
-  - id: modal-proof-1
-    offset: {x: 0, y: 0}
-    statementSources:
-      s1: propositional-logic  # Statement from external package
-      s2: local               # Statement defined locally
-    nodes:
-      n1: {arg: modal-necessity, statements: [s1, s2]}
+# SDK compliance validated on load
+sdkCompliance:
+  requiredInterfaces:
+    - StatementValidator
+    - TreeStructureValidator
+    - ArgumentValidator
+  implementationChecks:
+    - validateArgument: present
+    - validateTreeStructure: present
+    - validateStatementFlow: present
 ```
 
 ### Document-Level Requirements
@@ -287,22 +269,18 @@ Users can override package settings locally:
 
 Profiles bundle multiple packages for specific workflows:
 
-```json
-{
-  "name": "undergraduate-logic-course",
-  "version": "2023.1",
-  "description": "Complete setup for Logic 101",
-  "packages": [
-    "basic-logic-symbols@^2.0.0",
-    "propositional-logic@^1.5.0",
-    "predicate-logic@^1.2.0",
-    "course-exercises@^2023.1.0"
-  ],
-  "defaultSettings": {
-    "ui.theme": "high-contrast",
-    "editor.fontSize": 16
-  }
-}
+```yaml
+name: "undergraduate-logic-course"
+version: "2023.1"
+description: "Complete setup for Logic 101"
+packages:
+  - "basic-logic-symbols@^2.0.0"
+  - "propositional-logic@^1.5.0"
+  - "predicate-logic@^1.2.0"
+  - "course-exercises@^2023.1.0"
+defaultSettings:
+  ui.theme: "high-contrast"
+  editor.fontSize: 16
 ```
 
 ## Security Considerations [CORE]
@@ -359,18 +337,14 @@ Scripts run in isolated context with:
 - Execution timeout (default: 5 seconds)
 
 ### Package Integrity
-```json
-{
-  "name": "modal-logic-starter",
-  "version": "1.0.0",
-  "integrity": {
-    "algorithm": "sha256",
-    "hash": "abc123...",
-    "files": {
-      "scripts/validator.js": "def456..."
-    }
-  }
-}
+```yaml
+name: "modal-logic-starter"
+version: "1.0.0"
+integrity:
+  algorithm: "sha256"
+  hash: "abc123..."
+  files:
+    "scripts/validator.js": "def456..."
 ```
 
 ## Physical Tree Structure Support [LSP]
@@ -431,39 +405,36 @@ interface RenderingHints {
 }
 ```
 
-### Cross-Package Tree Operations
-When trees span multiple packages, coordinated operations are required.
+### SDK-Based Package Integration
+Packages implement standard SDK interfaces, making integration straightforward:
 
 ```typescript
-interface CrossPackageTreeManager {
-  // Coordinate tree operations across packages
-  coordinateTreeLayout(treeId: string, packages: string[]): Promise<CoordinatedLayout>;
+interface SDKPackageManager {
+  // Load SDK-compliant package from git source
+  loadPackage(source: GitPackageSource): Promise<PackageLibrary>;
   
-  // Resolve conflicts between package tree requirements
-  resolveLayoutConflicts(conflicts: LayoutConflict[]): Promise<ConflictResolution>;
+  // Validate package implements required SDK interfaces
+  validateSDKCompliance(package: PackageLibrary): SDKValidationResult;
   
-  // Validate tree structure across package boundaries
-  validateCrossPackageTree(treeId: string): Promise<ValidationResult>;
-  
-  // Optimize positioning considering all package constraints
-  optimizeCrossPackageLayout(constraints: CrossPackageConstraints): Promise<OptimizedLayout>;
+  // Simple inheritance through interface extension
+  resolveInheritance(basePackage: string, derivedPackage: string): InheritanceChain;
 }
 
-interface CrossPackageConstraints {
-  packageConstraints: Map<string, PackageConstraints>;
-  globalConstraints: GlobalConstraints;
-  priorityOrder: string[]; // Package priority for conflict resolution
+interface GitPackageSource {
+  url: string;  // Git repository URL
+  ref: string;  // Branch, tag, or commit
+  path?: string; // Subdirectory path if needed
 }
 ```
 
 ## Implementation Architecture
 
 ### Package Resolution [CORE]
-1. Check local cache first
-2. Fetch from distribution source
-3. Validate package manifest
-4. Check dependencies recursively
-5. Install in dependency order
+1. Parse package specification (git URL + version)
+2. Git clone repository to local cache
+3. Load package from local folder
+4. Validate SDK compliance
+5. Load dependencies recursively (same process)
 
 ### Caching Strategy
 - Packages cached locally for offline use
@@ -511,17 +482,14 @@ interface CrossPackageConstraints {
 - Fallback to cached versions when newer unavailable
 
 ### Version Management
-- Semantic versioning (semver) enforced
-- Version resolution follows npm-style rules:
-  - `^1.2.3` - Compatible with 1.x.x
-  - `~1.2.3` - Patch updates only
-  - `1.2.3` - Exact version
-  - `>=1.2.3 <2.0.0` - Range specification
-- Automatic update checks (configurable)
-- Version conflict resolution strategies:
-  - Use highest compatible version
-  - Prompt user for conflicts
-  - Lock file support for reproducibility
+- Git-based versioning using tags and branches
+- Version specification:
+  - `v1.2.3` - Specific git tag
+  - `main` - Latest on main branch
+  - `stable` - Latest stable tag
+  - `commit-sha` - Specific commit
+- Simple resolution: exact match or error
+- No complex conflict resolution needed (packages are libraries, not complex dependency graphs)
 
 ## Example Workflows
 
@@ -591,15 +559,12 @@ All using the same package with platform-optimized experiences.
 - **Documentation**: Include clear README with usage instructions
 
 ### Dependency Management
-- Minimize dependencies (including LSP server dependencies)
-- Use version ranges carefully
-- Document breaking changes (especially LSP protocol changes)
-- Test dependency combinations
-- Provide fallbacks for optional dependencies
-- **Manage LSP server dependency chains carefully**
-- **Test LSP server compatibility across versions**
-- **Provide LSP server rollback mechanisms**
-- **Document LSP server resource requirements**
+- Simple git-based dependencies
+- Packages are SDK-compliant libraries (no complex dependency trees)
+- Inheritance chains replace most dependency needs
+- Document SDK interface requirements
+- Test package compatibility with SDK versions
+- **Focus on SDK compliance over complex dependency resolution**
 
 ## Language Server Protocol (LSP) Integration [LSP]
 
@@ -608,37 +573,32 @@ Packages can optionally include LSP servers to provide advanced language intelli
 
 ### LSP Package Components
 
-```json
-{
-  "name": "modal-logic-complete",
-  "version": "1.0.0",
-  "lspServers": {
-    "modalLogic": {
-      "serverPath": "./lsp-servers/modal-logic-lsp/server.js",
-      "capabilities": "./lsp-servers/modal-logic-lsp/capabilities.json",
-      "configuration": "./lsp-servers/lsp-config.json"
-    }
-  },
-  "lspCapabilities": {
-    "validation": true,
-    "completion": true,
-    "hover": true,
-    "diagnostics": true,
-    "customRequests": [
-      "proof/validateInferenceRule",
-      "proof/getSuggestions",
-      "proof/analyzeComplexity",
-      "proof/queryTreeStructure",
-      "proof/navigateSpatialTree",
-      "proof/getTreePosition",
-      "proof/resolveTreeConflicts",
-      "proof/analyzeStatementFlow",
-      "proof/computeTreeLayout",
-      "proof/findStatementUsage",
-      "proof/optimizeTreePosition"
-    ]
-  }
-}
+```yaml
+name: "modal-logic-complete"
+version: "1.0.0"
+lspServers:
+  modalLogic:
+    serverPath: "./lsp-servers/modal-logic-lsp/server.js"
+    capabilities: "./lsp-servers/modal-logic-lsp/capabilities.json"
+    configuration: "./lsp-servers/lsp-config.json"
+
+lspCapabilities:
+  validation: true
+  completion: true
+  hover: true
+  diagnostics: true
+  customRequests:
+    - "proof/validateInferenceRule"
+    - "proof/getSuggestions"
+    - "proof/analyzeComplexity"
+    - "proof/queryTreeStructure"
+    - "proof/navigateSpatialTree"
+    - "proof/getTreePosition"
+    - "proof/resolveTreeConflicts"
+    - "proof/analyzeStatementFlow"
+    - "proof/computeTreeLayout"
+    - "proof/findStatementUsage"
+    - "proof/optimizeTreePosition"
 ```
 
 ### LSP Server Lifecycle Management
@@ -743,10 +703,10 @@ interface LSPSandboxConfig {
 - Automatic dependency resolution
 
 #### Mobile
-- Remote LSP servers via WebSocket/HTTP
-- Bundled minimal validators for offline use
-- Cloud-hosted LSP for advanced features
-- Progressive enhancement based on connectivity
+- Local LSP servers in separate threads
+- Full validators available offline in threads
+- Complete LSP functionality without network
+- Thread-based architecture for performance
 
 #### Web Browser
 - WebAssembly-based LSP servers
@@ -801,43 +761,41 @@ interface MobilePackageDistribution {
 ### Mobile-Specific Package Features
 
 #### Touch-Optimized UI Packages
-```json
-{
-  "name": "mobile-friendly-logic",
-  "version": "1.0.0",
-  "mobileOptimizations": {
-    "touchTargetSize": "large",
-    "gestureSupport": ["pinch", "pan", "double-tap"],
-    "landscapeLayout": true,
-    "portraitLayout": true,
-    "keyboardType": "logical-symbols"
-  },
-  "platformAdaptations": {
-    "vs-code": {
-      "keybindings": "./config/desktop-keybindings.json",
-      "spatialTreeOperations": "./config/desktop-tree-ops.json"
-    },
-    "react-native": {
-      "touchGestures": "./config/mobile-gestures.json",
-      "customKeyboard": "./config/mobile-keyboard.json",
-      "spatialTreeTouch": "./config/mobile-tree-touch.json",
-      "statementFlowTouch": "./config/mobile-statement-flow.json"
-    }
-  }
-}
+```yaml
+name: "mobile-friendly-logic"
+version: "1.0.0"
+mobileOptimizations:
+  touchTargetSize: "large"
+  gestureSupport:
+    - "pinch"
+    - "pan"
+    - "double-tap"
+  landscapeLayout: true
+  portraitLayout: true
+  keyboardType: "logical-symbols"
+
+platformAdaptations:
+  vs-code:
+    keybindings: "./config/desktop-keybindings.json"
+    spatialTreeOperations: "./config/desktop-tree-ops.json"
+  react-native:
+    touchGestures: "./config/mobile-gestures.json"
+    customKeyboard: "./config/mobile-keyboard.json"
+    spatialTreeTouch: "./config/mobile-tree-touch.json"
+    statementFlowTouch: "./config/mobile-statement-flow.json"
 ```
 
 #### Offline-First Package Design
 ```typescript
 interface OfflinePackageConfig {
-  // Essential functionality available offline
+  // Full functionality available offline via local threads
   offlineCapabilities: {
-    validation: 'local' | 'cached' | 'disabled';
-    completion: 'local' | 'cached' | 'disabled';
-    analysis: 'local' | 'cached' | 'disabled';
+    validation: 'local-thread';
+    completion: 'local-thread';
+    analysis: 'local-thread';
   };
   
-  // Background sync when online
+  // Document sync when online (LSP remains local)
   syncStrategy: {
     uploadProofs: boolean;
     downloadUpdates: boolean;
@@ -845,10 +803,10 @@ interface OfflinePackageConfig {
     wifiOnly: boolean;
   };
   
-  // Fallback strategies
-  fallbacks: {
-    noNetwork: 'cache' | 'basic-local' | 'disabled';
-    lowBandwidth: 'reduce-quality' | 'defer-sync' | 'cache-only';
+  // Thread management strategies
+  threadManagement: {
+    lowMemory: 'optimize-threads' | 'reduce-parallelism';
+    lowBattery: 'throttle-processing' | 'defer-analysis';
     lowStorage: 'clear-cache' | 'compress' | 'warn-user';
   };
 }

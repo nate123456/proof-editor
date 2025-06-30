@@ -1,8 +1,8 @@
-# Platform Implementation Strategies
+# Platform Implementation Details
 
 ## Introduction
 
-This document describes the conceptual approaches for implementing the platform abstraction layer on different platforms. Rather than providing code examples, it focuses on architectural patterns, platform-specific considerations, and implementation strategies.
+This document describes implementation approaches for different platforms. Both VS Code and React Native provide complete capabilities for all requirements. These are implementation details that affect coding approach but not architectural design.
 
 ## VS Code Platform Strategy
 
@@ -82,11 +82,11 @@ The React Native implementation provides a native mobile experience optimized fo
 - Gesture-based navigation and editing
 - Haptic feedback for important actions
 
-#### Network-Based LSP
-- WebSocket communication to remote language servers
-- Connection pooling and management
-- Offline queue for pending validations
-- Efficient message batching
+#### Local Thread LSP
+- Local LSP execution in separate thread using JSI
+- Direct thread communication without remote servers
+- Complete offline validation and analysis
+- Efficient local thread resource management
 
 ### Platform-Specific Considerations
 

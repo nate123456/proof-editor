@@ -4,7 +4,7 @@
 
 ## For People Who Think Logically
 
-If you're a philosopher, mathematician, logician, or student working with formal reasoning, Proof Editor is designed for you. You don't need to be a programmer - the platform provides clear documentation and examples that enable you to implement your logical ideas through simple configuration. Your domain expertise is the valuable skill; the platform provides the technical framework.
+If you're a philosopher, mathematician, logician, or student working with formal reasoning, Proof Editor is designed for you. The platform's three-tier SDK accommodates different technical comfort levels: most users can accomplish their goals through YAML configuration alone (Tier 1), while advanced users can write JavaScript validation rules (Tier 2) or full LSP extensions (Tier 3). Your domain expertise is the valuable skill; the platform provides the technical framework.
 
 ## What Does It Do?
 
@@ -102,9 +102,9 @@ Use it on your laptop for detailed work, on your tablet for presentations, or on
 
 ### You Use Clear Documentation
 - You bring domain expertise, the platform provides technical framework
-- Follow documented patterns and examples to implement your logical systems
-- Focus on logical accuracy and philosophical soundness, not programming details
-- Iterate using the platform's configuration system until it matches your logical vision
+- Follow documented patterns: Tier 1 (YAML config), Tier 2 (JavaScript rules), Tier 3 (LSP programming)
+- Focus on logical accuracy first, then choose the appropriate technical tier
+- Most users achieve their goals through Tier 1 configuration, with programming required only for advanced customization
 
 ## Getting Started
 
@@ -121,10 +121,10 @@ The best way to understand Proof Editor is to build your first proof. It takes a
 No. Anyone who needs to construct logical arguments can benefit. Lawyers building legal cases, doctors working through diagnoses, business analysts creating decision trees - logical reasoning happens everywhere.
 
 ### "Do I need to know programming?"
-Absolutely not. The platform provides clear documentation, templates, and examples for implementing logical systems. Use simple YAML configuration for most cases: "I need a modal logic system that handles temporal operators." Follow the documented patterns while you validate the logical accuracy.
+For most use cases, no. The platform's three-tier approach means 90% of users can accomplish their goals through YAML configuration alone (Tier 1). Advanced users who need custom validation logic will use JavaScript (Tier 2), while those creating complete reasoning environments require full LSP programming (Tier 3). The documentation provides clear templates and examples for each tier.
 
 ### "Can I create my own logical systems?"
-Yes, through the platform's configuration system. Use the documented templates for logical concepts: "I need a deontic logic where obligations can conflict and be prioritized." The platform's 3-tier SDK (YAML config, JavaScript rules, full LSP) provides the technical framework while you ensure it captures your logical intent. Most users can accomplish their goals with YAML configuration alone.
+Yes, through the platform's three-tier SDK. Tier 1 uses YAML configuration for standard logical patterns - "I need a deontic logic where obligations can conflict and be prioritized." Tier 2 requires JavaScript programming for custom validation rules. Tier 3 involves full LSP development for complete reasoning environments. The documentation provides templates and examples for each tier, with most users finding success at Tier 1.
 
 ### "Will this replace traditional proof methods?"
 Proof Editor complements traditional methods. You can export your visual proofs to traditional formats, or import traditional proofs to visualize them. Use whatever method works best for your situation.

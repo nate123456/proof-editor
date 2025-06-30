@@ -127,7 +127,7 @@ PLATFORM (<10% per platform)
 
 **LSP Layer:**
 - Language-specific features via Language Server Protocol
-- Transport-agnostic (stdio for desktop, WebSocket for mobile/web)
+- Transport-agnostic (stdio for desktop, local threads with JSI for mobile, WebSocket for web)
 - Consistent protocol across platforms
 - Optional enhancement layer
 
@@ -151,39 +151,71 @@ PLATFORM (<10% per platform)
 - Dependencies point inward
 - Use dependency injection for loose coupling
 
-### Repository Pattern
+### Repository Pattern with WatermelonDB + SQLite
+
+**Storage Architecture**: WatermelonDB + SQLite provides the persistence layer foundation across all platforms:
+
 ```typescript
-// Abstract interface
-interface UserRepository {
-  findById(id: string): Promise<User | null>;
-  save(user: User): Promise<void>;
-  findByEmail(email: string): Promise<User | null>;
+// Abstract repository interface
+interface StatementRepository {
+  findById(id: string): Promise<Statement | null>;
+  save(statement: Statement): Promise<void>;
+  findByContent(content: string): Promise<Statement[]>;
+}
+
+// WatermelonDB implementation for production
+class WatermelonStatementRepository implements StatementRepository {
+  constructor(private db: WatermelonDatabase) {}
+  
+  async findById(id: string): Promise<Statement | null> {
+    try {
+      const model = await this.db.collections
+        .get<StatementModel>('statements')
+        .find(id);
+      return this.modelToEntity(model);
+    } catch {
+      return null;
+    }
+  }
+  
+  async save(statement: Statement): Promise<void> {
+    await this.db.write(async () => {
+      await this.db.collections
+        .get<StatementModel>('statements')
+        .create(model => {
+          model.content = statement.content;
+          model.createdAt = statement.metadata.createdAt;
+        });
+    });
+  }
 }
 
 // In-memory implementation for testing
-class InMemoryUserRepository implements UserRepository {
-  private users = new Map<string, User>();
+class InMemoryStatementRepository implements StatementRepository {
+  private statements = new Map<string, Statement>();
   
-  async findById(id: string): Promise<User | null> {
-    return this.users.get(id) || null;
+  async findById(id: string): Promise<Statement | null> {
+    return this.statements.get(id) || null;
   }
   
-  async save(user: User): Promise<void> {
-    this.users.set(user.id, user);
-  }
-  
-  async findByEmail(email: string): Promise<User | null> {
-    return Array.from(this.users.values())
-      .find(user => user.email === email) || null;
+  async save(statement: Statement): Promise<void> {
+    this.statements.set(statement.id, statement);
   }
 }
 ```
 
-**Principles:**
+**Storage Benefits:**
+- **ACID Transactions**: SQLite guarantees consistency across platforms
+- **Performance**: Optimized indexing and queries through WatermelonDB
+- **Reactive**: Automatic UI updates when data changes
+- **Cross-Platform**: Consistent API across desktop (node-sqlite3) and mobile (built-in SQLite)
+
+**Repository Principles:**
 - Abstract data access behind interfaces
 - Keep domain logic independent of persistence details
 - Use dependency injection for testability
 - Implement in-memory versions for testing
+- Leverage WatermelonDB for production persistence
 
 ### Composition over Inheritance
 - Favor object composition over class inheritance

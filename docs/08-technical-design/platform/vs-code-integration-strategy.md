@@ -321,7 +321,7 @@ class VSCodeLSPAdapter {
 
 // React Native Implementation [PLATFORM]
 class ReactNativeLSPAdapter {
-  transport = 'websocket'; // Network communication to LSP server
+  transport = 'thread'; // Local thread communication to LSP server
 }
 
 ## Features We Inherit Through Adapters

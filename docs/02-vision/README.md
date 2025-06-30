@@ -31,7 +31,7 @@ Formal reasoning happens everywhere - classrooms, research labs, field sites, co
 
 **Multi-Platform Development Features**
 - Real-time synchronization across devices
-- Offline-first architecture for mobile reliability
+- Local-first architecture: local processing on desktop, embedded core with local threading on mobile
 - Platform-appropriate UI paradigms
 - Cloud-based collaboration with local performance
 - Symbol tracking that works everywhere
@@ -98,7 +98,7 @@ These principles guide every decision in the platform's design and development.
 - Mobile: Gesture-based with smart space utilization
 - Web: Progressive enhancement with offline capabilities
 
-**Local-First, Sync-Enabled:** Every device maintains full offline functionality. Changes synchronize seamlessly when connected. No feature requires constant connectivity. Work continues uninterrupted regardless of network availability. *(Enabled by robust platform abstraction, local-first data architecture, and progressive enhancement strategies, see [Technical Feasibility](../01-problem-space/technical-feasibility.md))*
+**Offline-Capable with Complete Local Processing:** Core functionality works offline on all platforms through local processing. Desktop platforms provide full offline capability via local LSP servers. Mobile platforms include full LSP functionality via separate threads. Changes synchronize seamlessly when connected. No core feature requires network connectivity. *(Enabled by local-first architecture: local LSP servers on desktop, local LSP threads on mobile, see [LSP Integration](../08-technical-design/language/lsp-integration.md))*
 
 ### 9. Documentation-First Accessibility
 
@@ -203,6 +203,6 @@ The platform operates under these constraints, which shape its architecture and 
 - Statement processing correctness must be verifiable on all platforms
 - Physical representations must adapt to screen sizes
 - Touch interactions must be as powerful as keyboard/mouse for processing network construction
-- Offline functionality must preserve full statement processing capabilities
+- Core offline functionality must preserve essential statement processing capabilities across all platforms, with platform-specific enhancement strategies
 - Platform differences must not fragment the user community
 - Performance must be acceptable on modest mobile hardware for statement processing

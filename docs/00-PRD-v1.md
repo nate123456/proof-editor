@@ -8,7 +8,7 @@ Proof Editor is a visual tool for constructing and analyzing formal logical argu
 Proof Editor combines **semantic neutrality** with **user-friendly extensibility**. Users define logical rules through simple configuration, and the system provides ultra-fast validation through a dedicated Language Server Protocol (LSP) architecture that executes user-defined logic.
 
 ### Product Philosophy
-- **Domain Expert Focus**: Enable logic experts to create and share custom logical systems without programming barriers
+- **Domain Expert Focus**: Enable logic experts to create and share custom logical systems with minimal programming barriers (90% of users succeed with YAML configuration)
 - **Proven UX Patterns**: Borrow from mature developer tooling (Docker, VS Code, npm)
 - **Local Development First**: File-based workflows with hot reload and version control
 - **Ultra-Fast Performance**: <10ms validation responses for responsive editing
@@ -17,7 +17,7 @@ Proof Editor combines **semantic neutrality** with **user-friendly extensibility
 - **Philosophy Professors**: Creating and sharing custom logic systems for teaching
 - **Students**: Learning formal reasoning with interactive validation
 - **Logic Researchers**: Developing and testing new logical frameworks
-- **Domain Experts**: Anyone who understands logic but doesn't necessarily code
+- **Domain Experts**: Logic experts who primarily use YAML configuration (Tier 1) with optional JavaScript programming (Tier 2) or LSP development (Tier 3) for advanced needs
 
 ## Core Concepts
 
@@ -465,7 +465,7 @@ For detailed success metrics and measurement criteria, see [Non-Functional Requi
 ## Product Principles
 
 ### Domain Expert Focus
-Leverage users' deep logical knowledge while removing technical barriers through clear documentation and examples. Domain experts focus on logical reasoning while simple configuration handles implementation.
+Leverage users' deep logical knowledge while minimizing technical barriers through a three-tier approach. Most domain experts (90%) achieve their goals with YAML configuration (Tier 1), while advanced users can progress to JavaScript rules (Tier 2) or full LSP programming (Tier 3) as needed.
 
 ### Proven UX Pattern Reuse
 Borrow extensively from mature developer tooling (Docker, VS Code, npm, webpack) rather than inventing new interaction patterns. Users get familiar workflows applied to logical reasoning.
@@ -490,5 +490,5 @@ VS Code + React Native covers the full spectrum (professional desktop + accessib
 ### Why Local Development First?
 Academic workflows prioritize iteration and experimentation. File-based development with Git integration matches existing practices.
 
-### Why Simple Configuration?
-Domain experts understand logic but may not code. YAML configuration and clear examples bridge this gap while preserving expert knowledge and intent.
+### Why Three-Tier Configuration?
+Domain experts have varying technical comfort levels. Tier 1 (YAML) serves 90% of users, Tier 2 (JavaScript) handles custom validation, and Tier 3 (LSP) enables complete reasoning environments. This approach preserves expert knowledge while providing appropriate technical pathways.

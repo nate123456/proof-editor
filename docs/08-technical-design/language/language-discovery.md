@@ -90,9 +90,13 @@ interface LanguageInstaller {
       }
     }
     
-    // Check dependencies
-    const deps = await this.resolveDependencies(packageInfo);
-    await this.installDependencies(deps);
+    // Check SDK compliance
+    await this.validateSDKCompliance(packageData);
+    
+    // Load base package if inheritance specified
+    if (packageInfo.extends) {
+      await this.loadBasePackage(packageInfo.extends);
+    }
     
     // Install to local cache
     const installation = await this.installToCache(packageData);
@@ -107,9 +111,9 @@ interface LanguageInstaller {
   async updateLanguage(name: string, version?: string): Promise<void>;
   async rollbackLanguage(name: string, version: string): Promise<void>;
   
-  // Dependency resolution
-  async resolveDependencies(language: LanguageInfo): Promise<Dependency[]>;
-  async checkCompatibility(language: LanguageInfo): Promise<CompatibilityReport>;
+  // SDK compliance validation
+  async validateSDKCompliance(package: PackageData): Promise<SDKValidationResult>;
+  async loadBasePackage(baseSpec: string): Promise<PackageLibrary>;
 }
 ```
 
@@ -207,7 +211,7 @@ interface LanguageCacheManager {
 ~/.proof-editor/languages/
 ├── modal-logic/
 │   ├── 1.2.3/
-│   │   ├── language-spec.yaml
+│   │   ├── package.yaml
 │   │   ├── server/
 │   │   └── ...
 │   ├── 1.2.2/
@@ -220,59 +224,60 @@ interface LanguageCacheManager {
 
 ## Version Resolution
 
-### Semantic Versioning
+### Git-Based Versioning
 
-Languages use semantic versioning for predictable updates:
+Languages use git references for simple version management:
 
 ```typescript
-interface VersionResolver {
-  // Resolve version constraints
-  async resolveVersion(name: string, constraint: string): Promise<string> {
-    const available = await this.getAvailableVersions(name);
-    return semver.maxSatisfying(available, constraint);
+interface GitVersionResolver {
+  // Resolve git reference to specific commit
+  async resolveRef(repository: string, ref: string): Promise<string> {
+    return await this.gitProvider.resolveRef(repository, ref);
   }
   
-  // Check compatibility
-  async checkCompatibility(
-    language: LanguageInfo,
-    proofEditorVersion: string
+  // Check SDK compatibility
+  async checkSDKCompatibility(
+    package: PackageLibrary,
+    sdkVersion: string
   ): Promise<boolean>;
   
-  // Migration support
-  async getMigrationPath(
-    name: string,
-    fromVersion: string,
-    toVersion: string
-  ): Promise<Migration[]>;
+  // Simple inheritance resolution
+  async resolveInheritance(
+    packageSpec: string
+  ): Promise<InheritanceChain>;
 }
 ```
 
-### Version Constraints
+### Git Reference Formats
 
-- `^1.2.3` - Compatible updates (1.x.x)
-- `~1.2.3` - Patch updates only (1.2.x)
-- `1.2.3` - Exact version
-- `>=1.2.0 <2.0.0` - Range constraint
-- `latest` - Most recent version
+- `v1.2.3` - Specific git tag
+- `main` - Latest commit on main branch
+- `develop` - Latest commit on develop branch
+- `commit-sha` - Specific commit hash
+- `latest` - Most recent stable tag
 
-### Dependency Resolution
+### Package Inheritance
 
-Languages can depend on other languages:
+Languages extend other languages through simple inheritance:
 
 ```yaml
-dependencies:
-  languages:
-    - name: "propositional-logic"
-      version: "^2.0.0"
-    - name: "first-order-logic"
-      version: "^1.5.0"
+# Language specification in proof file
+language: modal-logic:v1.2.0
+extends: propositional-logic:v2.0.0
+
+# Package loading
+packageSource:
+  type: git
+  url: github:logictools/modal-logic
+  ref: v1.2.0
 ```
 
-Resolution follows these rules:
-1. Install dependencies first
-2. Resolve version conflicts using highest compatible version
-3. Share dependencies when possible
-4. Isolate incompatible versions
+Loading follows these steps:
+1. Git clone package repository
+2. Load from local folder
+3. Validate SDK compliance
+4. Load base package if specified
+5. Create inheritance chain
 
 ## Registry Management
 

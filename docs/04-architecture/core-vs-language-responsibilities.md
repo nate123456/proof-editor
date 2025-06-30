@@ -2,20 +2,20 @@
 
 ## Overview
 
-This document clearly delineates responsibilities across three layers in our platform-abstracted architecture:
-- **Platform Layer**: Features we inherit from the host platform (VS Code, React Native, etc.)
-- **Proof Editor Core**: Proof-specific features we implement (platform-agnostic)
+This document delineates responsibilities across three layers in our architecture:
+- **Platform Layer**: Implementation adapters for host platform features (VS Code, React Native, etc.)
+- **Proof Editor Core**: Core proof functionality (platform-agnostic)
 - **Language Execution Environment**: JavaScript runtime where user-defined logic code executes via LSP
 
-This three-layer architecture with platform abstraction maximizes leverage of platform capabilities while ensuring our core functionality works across different environments (desktop VS Code, mobile React Native, future web apps, etc.).
+Platform abstraction is an implementation detail that enables code reuse. Both VS Code and React Native provide sufficient capabilities - the abstraction layer simply handles implementation differences while maintaining focus on core architectural concerns (statement flows, data persistence, proof structure).
 
 ## Three-Layer Architecture
 
-### Design Principle: Maximize Leverage
-Every feature we build ourselves creates maintenance burden. Every platform feature we leverage is maintained by the platform vendor (Microsoft for VS Code, Meta for React Native) and familiar to users. We bias heavily toward integration over custom implementation while maintaining cross-platform compatibility.
+### Design Principle: Focus on Core Architecture
+Platform capabilities are sufficient for all requirements. The real architectural work involves core system design: statement flows, data persistence, proof structure, and LSP integration. Platform abstraction is a clean implementation pattern, not an architectural concern.
 
-### Layer Boundaries
-- **Platform Layer**: Settings, file management, UI framework, spatial interaction APIs, input handling (abstracted through adapters)
+### Layer Boundaries  
+- **Platform Layer**: Implementation adapters for settings, file management, UI framework, spatial interaction APIs, input handling
 - **Proof Editor Core**: Statement flow management, physical tree structure, spatial navigation, proof structure, document format (platform-agnostic)
 - **Language Execution Environment**: JavaScript runtime executing user-defined logic in sandboxed V8 Isolates via LSP protocol
 

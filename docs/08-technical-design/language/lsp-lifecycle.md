@@ -151,76 +151,69 @@ class StdioTransport implements Transport {
 }
 ```
 
-### Mobile: WebSocket Transport
+### Mobile: Local Thread Transport
 
-WebSocket for mobile and web environments:
+Local thread-based LSP for mobile environments (JSI-based):
 
 ```typescript
-class WebSocketTransport implements Transport {
-  private ws: WebSocket;
+class ThreadTransport implements Transport {
+  private worker: Worker;
   private connection: MessageConnection;
+  private requestId = 0;
+  private pendingRequests = new Map<number, { resolve: Function; reject: Function }>();
   
   async start(config: ServerConfig): Promise<void> {
-    // Connect to WebSocket server
-    this.ws = new WebSocket(`ws://${config.address}:${config.port}`);
+    // Start LSP server in separate thread
+    this.worker = new Worker(config.serverPath);
     
-    // Wait for connection
-    await new Promise((resolve, reject) => {
-      this.ws.onopen = resolve;
-      this.ws.onerror = reject;
+    // Set up message handling
+    this.worker.onmessage = (event) => this.handleMessage(event.data);
+    this.worker.onerror = (error) => this.handleError(error);
+    
+    // Initialize server
+    await this.sendRequest('initialize', {
+      capabilities: this.getClientCapabilities()
     });
-    
-    // Create JSON-RPC connection
-    const reader = new WebSocketMessageReader(this.ws);
-    const writer = new WebSocketMessageWriter(this.ws);
-    this.connection = createMessageConnection(reader, writer);
-    
-    // Start listening
-    this.connection.listen();
-  }
-  
-  // Reconnection logic for mobile
-  async reconnect(): Promise<void> {
-    await this.stop();
-    await this.start(this.config);
-  }
-}
-```
-
-### Alternative: HTTP Transport
-
-For stateless operations or restricted environments:
-
-```typescript
-class HttpTransport implements Transport {
-  private baseUrl: string;
-  private session: string;
-  
-  async start(config: ServerConfig): Promise<void> {
-    this.baseUrl = `${config.protocol}://${config.address}:${config.port}`;
-    
-    // Initialize session
-    const response = await fetch(`${this.baseUrl}/initialize`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ capabilities: this.getClientCapabilities() })
-    });
-    
-    const data = await response.json();
-    this.session = data.sessionId;
   }
   
   async sendRequest(method: string, params: any): Promise<any> {
-    const response = await fetch(`${this.baseUrl}/${method}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Session-ID': this.session
-      },
-      body: JSON.stringify(params)
-    });
+    const id = ++this.requestId;
+    const request = {
+      jsonrpc: '2.0',
+      id,
+      method,
+      params
+    };
     
-    return response.json();
+    return new Promise((resolve, reject) => {
+      this.pendingRequests.set(id, { resolve, reject });
+      this.worker.postMessage(request);
+      
+      // Timeout after 30 seconds
+      setTimeout(() => {
+        if (this.pendingRequests.has(id)) {
+          this.pendingRequests.delete(id);
+          reject(new Error('Request timeout'));
+        }
+      }, 30000);
+    });
+  }
+  
+  private handleMessage(message: any): void {
+    if (message.id && this.pendingRequests.has(message.id)) {
+      const { resolve, reject } = this.pendingRequests.get(message.id)!;
+      this.pendingRequests.delete(message.id);
+      
+      if (message.error) {
+        reject(new Error(message.error.message));
+      } else {
+        resolve(message.result);
+      }
+    }
+  }
+  
+  async stop(): Promise<void> {
+    this.worker.terminate();
   }
 }
 ```
@@ -513,22 +506,8 @@ interface MobileServerManager {
     };
   }
   
-  // Fallback to remote servers
-  async connectToRemote(config: RemoteConfig): Promise<RemoteHandle> {
-    const connection = new WebSocketConnection(config.url);
-    await connection.connect();
-    
-    // Handle reconnection
-    connection.on('disconnect', () => {
-      this.scheduleReconnect(connection);
-    });
-    
-    return {
-      id: `remote-${config.language}`,
-      connection,
-      dispose: () => connection.close()
-    };
-  }
+  // Mobile platforms use local threads only
+  // No remote server fallback - all processing is local
 }
 ```
 

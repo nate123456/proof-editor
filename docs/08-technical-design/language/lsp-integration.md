@@ -24,8 +24,8 @@ graph TD
     
     subgraph "Platform Implementations"
         C1[VS Code LSP Client]
-        C2[WebSocket LSP Client]
-        C3[TCP LSP Client]
+        C2[Mobile Local Thread LSP Client]
+        C3[Web Worker LSP Client]
     end
     
     C --> C1
@@ -494,31 +494,59 @@ Provides:
 - Dependent type validation
 - Tactic suggestions
 
+## Local-First Architecture for Complete Offline Capability
+
+Proof Editor uses a local-first LSP architecture to provide complete offline functionality across all platforms:
+
+### Desktop Architecture (Local Process-Based)
+- **Local LSP Servers**: Full-featured language servers run as local processes via stdio
+- **Complete Offline**: All validation, inference, and analysis available without network
+- **Process Spawning**: Desktop platforms spawn language server processes locally
+- **Full VS Code Integration**: Leverages VS Code's built-in LSP client infrastructure
+
+### Mobile Architecture (Local Thread-Based with JSI)
+- **Local LSP Thread**: Complete validation and inference rules run in separate thread using JSI
+- **Full Offline**: All functionality works without network connectivity
+- **Thread Isolation**: LSP runs in isolated thread for performance and stability
+- **JSI Communication**: High-performance JavaScript-native bridge for thread communication
+
+### Consistent Offline Experience
+- **No Network Dependencies**: All LSP processing happens locally on every platform
+- **Identical Capabilities**: Same validation and analysis features across platforms
+- **Platform-Optimized**: Local processes on desktop, local threads on mobile
+
+This architecture ensures that users can construct and validate proofs on any platform with complete functionality, regardless of network connectivity.
+
 ## Transport Layer Abstraction
 
-The LSP adapter supports multiple transport mechanisms to enable cross-platform compatibility:
+The LSP adapter supports multiple transport mechanisms to enable the local-first architecture across platforms:
 
 ### Transport Types
 
 #### Standard I/O (stdio)
-- **Desktop/VS Code**: Direct process communication
+- **Desktop/VS Code**: Direct process communication for full offline capability
 - **Mobile**: Not supported (requires process spawning)
-- **Use case**: Local language server processes
+- **Use case**: Local language server processes providing complete offline functionality
 
-#### WebSocket
-- **Desktop/VS Code**: WebSocket client connection
-- **Mobile**: Native WebSocket support
-- **Use case**: Remote language servers, mobile apps
+#### Thread-Based LSP
+- **Desktop**: Not required (can use local stdio servers)
+- **Mobile**: Local LSP implementation running in separate thread
+- **Use case**: Full validation and inference with thread isolation
+
+#### Thread Communication (Mobile Only)
+- **Desktop/VS Code**: Not applicable (uses stdio)
+- **Mobile**: Local LSP in separate thread via message passing
+- **Use case**: Full offline LSP functionality with thread isolation
 
 #### TCP Socket
-- **Desktop/VS Code**: TCP client connection  
-- **Mobile**: TCP socket support
-- **Use case**: Network-based language servers
+- **Desktop/VS Code**: Alternative for network-based analysis servers
+- **Mobile**: Not supported (local-only architecture)
+- **Use case**: Network-based analysis servers (desktop only)
 
 #### HTTP/REST
-- **Desktop/VS Code**: HTTP client requests
-- **Mobile**: Native HTTP support
-- **Use case**: Stateless language analysis services
+- **Desktop/VS Code**: Stateless enhancement services
+- **Mobile**: Not supported (local-only architecture)
+- **Use case**: Stateless language analysis services, proof checking APIs (desktop only)
 
 ### Configuration
 
@@ -533,24 +561,19 @@ Language servers are configured through the platform's settings system:
       "transport": "stdio",
       "command": "fol-server",
       "args": ["--stdio"],
-      "languages": ["fol", "predicate-logic"]
+      "languages": ["fol", "predicate-logic"],
+      "availability": "desktop-only",
+      "features": ["validation", "inference", "completion"]
     },
-    "modalLogicRemote": {
-      "id": "modal-logic-remote",
-      "name": "Modal Logic Server (Remote)",
-      "transport": "websocket",
-      "address": "logic.example.com",
-      "port": 8080,
-      "languages": ["modal", "temporal"]
+    "mobileThread": {
+      "id": "mobile-thread",
+      "name": "Mobile Local Thread LSP",
+      "transport": "thread",
+      "languages": ["fol", "propositional", "modal"],
+      "availability": "mobile-only",
+      "features": ["validation", "inference", "completion", "analysis"],
+      "execution": "local-thread"
     },
-    "mobileProver": {
-      "id": "mobile-prover",
-      "name": "Mobile Theorem Prover",
-      "transport": "http",
-      "baseUrl": "https://api.prover.com/v1",
-      "apiKey": "your-api-key",
-      "languages": ["propositional"]
-    }
   }
 }
 ```
@@ -593,33 +616,21 @@ class VSCodeLSPAdapter implements LSPAdapter {
 
 ```typescript
 class ReactNativeLSPAdapter implements LSPAdapter {
-  private connections = new Map<string, LSPConnection>();
+  private threads = new Map<string, LSPThread>();
   
   async startServer(config: LSPServerConfig): Promise<LSPServerHandle> {
-    if (config.transport === 'websocket') {
-      const connection = new WebSocketLSPConnection(
-        `ws://${config.address}:${config.port}`
-      );
-      
-      await connection.connect();
-      this.connections.set(config.id, connection);
-      
-      return {
-        id: config.id,
-        dispose: () => connection.close()
-      };
-    }
-    
-    if (config.transport === 'http') {
-      const connection = new HTTPLSPConnection(config.baseUrl, {
-        apiKey: config.apiKey
+    if (config.transport === 'thread') {
+      const thread = new ThreadLSPConnection({
+        serverPath: config.serverPath,
+        capabilities: config.capabilities
       });
       
-      this.connections.set(config.id, connection);
+      await thread.start();
+      this.threads.set(config.id, thread);
       
       return {
         id: config.id,
-        dispose: () => this.connections.delete(config.id)
+        dispose: () => thread.terminate()
       };
     }
     
@@ -627,34 +638,41 @@ class ReactNativeLSPAdapter implements LSPAdapter {
   }
   
   async sendRequest<T>(serverId: string, method: string, params: any): Promise<T> {
-    const connection = this.connections.get(serverId);
-    if (!connection) {
+    const thread = this.threads.get(serverId);
+    if (!thread) {
       throw new Error(`Server ${serverId} not connected`);
     }
     
-    return await connection.sendRequest(method, params);
+    return await thread.sendRequest(method, params);
   }
 }
 ```
 
 ### Mobile-Specific Considerations
 
-#### WebSocket LSP Connection
+#### Thread LSP Connection
 ```typescript
-class WebSocketLSPConnection {
-  private ws: WebSocket;
+class ThreadLSPConnection {
+  private worker: Worker;
   private requestId = 0;
   private pendingRequests = new Map<number, { resolve: Function; reject: Function }>();
   
-  constructor(private url: string) {}
+  constructor(private config: { serverPath: string; capabilities: string }) {}
   
-  async connect(): Promise<void> {
+  async start(): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.ws = new WebSocket(this.url);
+      this.worker = new Worker(this.config.serverPath);
       
-      this.ws.onopen = () => resolve();
-      this.ws.onerror = (error) => reject(error);
-      this.ws.onmessage = (event) => this.handleMessage(event);
+      this.worker.onmessage = (event) => this.handleMessage(event);
+      this.worker.onerror = (error) => reject(error);
+      
+      // Initialize with capabilities
+      this.worker.postMessage({
+        type: 'initialize',
+        capabilities: this.config.capabilities
+      });
+      
+      resolve();
     });
   }
   
@@ -669,7 +687,7 @@ class WebSocketLSPConnection {
     
     return new Promise((resolve, reject) => {
       this.pendingRequests.set(id, { resolve, reject });
-      this.ws.send(JSON.stringify(request));
+      this.worker.postMessage(request);
       
       // Timeout after 30 seconds
       setTimeout(() => {
@@ -682,7 +700,7 @@ class WebSocketLSPConnection {
   }
   
   private handleMessage(event: MessageEvent): void {
-    const message = JSON.parse(event.data);
+    const message = event.data;
     
     if (message.id && this.pendingRequests.has(message.id)) {
       const { resolve, reject } = this.pendingRequests.get(message.id)!;
@@ -695,38 +713,9 @@ class WebSocketLSPConnection {
       }
     }
   }
-}
-```
-
-#### HTTP LSP Connection (for stateless services)
-```typescript
-class HTTPLSPConnection {
-  constructor(
-    private baseUrl: string,
-    private options: { apiKey?: string } = {}
-  ) {}
   
-  async sendRequest<T>(method: string, params: any): Promise<T> {
-    const url = `${this.baseUrl}/${method}`;
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json'
-    };
-    
-    if (this.options.apiKey) {
-      headers['Authorization'] = `Bearer ${this.options.apiKey}`;
-    }
-    
-    const response = await fetch(url, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(params)
-    });
-    
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-    
-    return await response.json();
+  terminate(): void {
+    this.worker.terminate();
   }
 }
 ```
@@ -744,16 +733,18 @@ class HTTPLSPConnection {
 - Invalidate caches on structural changes
 
 ### Mobile Optimizations
-- Connection pooling for HTTP-based LSP services
-- Aggressive caching for mobile bandwidth conservation
-- Offline mode with cached validation results
-- Background sync when connection restored
+- **Thread-based LSP**: Full functionality with local thread isolation
+- **Memory management**: Efficient thread communication and resource sharing
+- **CPU optimization**: Background processing without blocking UI thread
+- **Complete offline mode**: All LSP features available without network
+- **Battery efficiency**: Optimized thread scheduling for power savings
 
-### Progressive Enhancement
-- Core features work without LSP
-- Graceful degradation if server crashes
-- Optional features clearly marked in UI
-- Platform-appropriate fallbacks (local vs remote processing)
+### Local Processing Architecture
+- **Desktop**: Full LSP features via local stdio servers
+- **Mobile**: Full LSP features via local thread execution
+- **Consistent offline**: All platforms provide complete functionality without network
+- **No remote dependencies**: LSP processing is entirely local on all platforms
+- **Platform-appropriate architecture**: Local servers on desktop, local threads on mobile
 
 ## Testing Language Servers
 

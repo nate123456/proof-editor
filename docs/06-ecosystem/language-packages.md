@@ -32,7 +32,7 @@ A language package contains:
 
 ```
 my-logic-language/
-├── language-spec.yaml     # REQUIRED: Language specification
+├── package.yaml           # REQUIRED: Language specification
 ├── README.md             # REQUIRED: Documentation
 ├── LICENSE               # REQUIRED: License file
 ├── package.json          # For Node.js-based servers
@@ -62,7 +62,7 @@ my-logic-language/
     └── migration.md      # Version migration guide
 ```
 
-### Language Specification (language-spec.yaml)
+### Language Specification (package.yaml)
 
 ```yaml
 # Required metadata

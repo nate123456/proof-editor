@@ -184,7 +184,7 @@ extends: modal-logic:v2.1.0
 - **Override rules**: Child language rules take precedence
 - **Additive symbols**: Combine symbol sets from chain
 - **Explicit conflicts**: Clear error messages for ambiguity
-- **Version compatibility**: Semantic versioning prevents breaking changes
+- **Version compatibility**: Git-based versioning with clear SDK interface requirements
 
 ## Language Declaration in Proof Files
 

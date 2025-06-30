@@ -1,17 +1,17 @@
-# Platform Adapter Specifications
+# Platform Adapter Implementation Details
 
 ## Introduction
 
-This document describes the conceptual design of platform adapters that form the abstraction layer between Proof Editor's core business logic and platform-specific implementations. Rather than defining specific interfaces, this document explains the responsibilities and design considerations for each adapter category.
+This document describes the implementation design of platform adapters - the abstraction layer between Proof Editor's core business logic and platform-specific implementations. Adapters are implementation details that handle platform differences, not architectural concerns. Both VS Code and React Native provide sufficient capabilities for all requirements.
 
-## Adapter Design Philosophy
+## Adapter Implementation Philosophy
 
-### Core Principles
-- **Minimal Surface Area**: Each adapter exposes only what the core logic needs
-- **Platform Agnostic**: Abstractions don't leak platform-specific concepts
-- **Async by Default**: All I/O operations are asynchronous
-- **Error Resilience**: Graceful handling of platform limitations
-- **Resource Management**: Clear lifecycle and cleanup patterns
+### Implementation Principles
+- **Sufficient Capabilities**: Both platforms provide complete feature sets
+- **Clean Separation**: Adapters handle "how" while core focuses on "what"
+- **Implementation Details**: Platform differences are coding concerns, not architecture
+- **No Blockers**: All required functionality is available on both platforms
+- **Code Reuse**: Enable maximum sharing of core business logic
 
 ### Common Patterns
 All adapters follow consistent patterns:
@@ -167,14 +167,14 @@ Manages Language Server Protocol communication across different transport mechan
 - **Custom Extensions**: Support proof-specific LSP extensions
 
 ### Design Considerations
-- **Transport Flexibility**: Support stdio, TCP, WebSocket
-- **Connection Reliability**: Handle disconnections and reconnections
+- **Transport Flexibility**: Support stdio (desktop), TCP (desktop), WebSocket (desktop), local threads (mobile)
+- **Connection Reliability**: Handle disconnections and reconnections (desktop only)
 - **Performance**: Minimize latency and bandwidth usage
-- **Offline Support**: Graceful degradation without servers
+- **Offline Support**: Complete local processing on all platforms (no remote dependencies)
 
 ### Platform Strategies
 - **VS Code**: Local process spawning with stdio/pipe communication through VS Code LSP client
-- **React Native**: WebSocket connections to remote servers or embedded LSP service
+- **React Native**: Local LSP execution in separate threads using JSI-based communication
 
 ## Command System
 
@@ -275,12 +275,12 @@ Each adapter should be tested at three levels:
 - **Batch Operations**: Group related operations
 - **Resource Limits**: Respect platform constraints
 
-## Evolution and Extensibility
+## Implementation Benefits
 
-The adapter pattern allows for:
-- **New Platform Support**: Add platforms without changing core logic
-- **Feature Enhancement**: Extend adapters with new capabilities
-- **Backward Compatibility**: Maintain compatibility with older platforms
-- **Gradual Migration**: Update platforms independently
+The adapter implementation provides:
+- **Code Reuse**: Share core logic across platforms
+- **Clean Separation**: Platform code isolated from business logic
+- **Implementation Flexibility**: Handle platform differences cleanly
+- **Development Focus**: Core team focuses on proof editing, not platform quirks
 
-This architectural approach ensures Proof Editor can adapt to new platforms and technologies while maintaining a stable core that embodies the essential proof editing functionality.
+This implementation approach separates concerns cleanly while maintaining focus on core architectural challenges: statement flows, data persistence, proof structure, and LSP integration.

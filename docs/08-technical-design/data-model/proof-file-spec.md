@@ -217,7 +217,7 @@ trees:
 
 **PHYSICAL TREE STRUCTURE**: Trees are actually connected via the STATEMENTS (not just the arguments). The same tree structure could be described from the statement perspective - statements flow between nodes, creating the physical connections that form the tree. This makes it clear that trees have concrete physical properties: statements move between specific positions, creating directed connections in physical space.
 
-**Physical Properties**: Trees have emergent spatial layout from parent-child relationships. Each tree moves as a cohesive unit with single workspace offset. No individual node coordinates are stored - physical positioning emerges from rendering the logical structure.
+**Physical Properties**: Trees have emergent spatial layout from parent-child relationships. Each tree moves as a cohesive unit with single workspace offset. Individual node coordinates are not stored - node positioning emerges from tree structure and layout properties. Trees themselves are positioned in the document workspace using stored offset coordinates.
 
 ## Tree Structure Patterns
 
@@ -582,11 +582,11 @@ imports:
 2. **Package Imports**
    - No path prefix = package from registry
    - `owner/repo` pattern = GitHub package
-   - Version constraints follow semver
+   - Version specification uses git references
    
    ```yaml
    imports:
-     - modal-logic@^2.0.0           # Registry package
+     - modal-logic@v2.0.0           # Registry package with git tag
      - proof-tools/classical@v1.0   # GitHub package
    ```
 
@@ -732,20 +732,20 @@ imports:
 
 Use case: Development environments where some files might not be present yet.
 
-#### Version Constraints
+#### Version Specification
 
-Follow npm-style semver for packages:
+Use git-based references for packages:
 
 ```yaml
 imports:
-  # Exact version
-  - modal-logic@2.1.0
+  # Specific git tag
+  - modal-logic@v2.1.0
   
-  # Minor updates allowed
-  - first-order-logic@^1.2.0  # 1.2.0 <= version < 2.0.0
+  # Latest on main branch
+  - first-order-logic@main
   
-  # Patch updates only
-  - proof-validator@~3.1.4  # 3.1.4 <= version < 3.2.0
+  # Latest stable tag
+  - proof-validator@stable
   
   # Any version
   - experimental-package

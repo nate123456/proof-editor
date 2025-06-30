@@ -1,8 +1,8 @@
-# Mobile Platform Considerations
+# Mobile Platform Implementation Details
 
 ## Introduction
 
-This document explores the unique challenges and design considerations for implementing Proof Editor on mobile platforms. Mobile environments differ significantly from desktop environments in terms of interaction patterns, system constraints, and user expectations.
+This document describes implementation considerations for Proof Editor on mobile platforms. Mobile implementation differs in interaction patterns and UI approach, but React Native provides complete capabilities for all requirements. These are implementation details, not architectural concerns.
 
 ## Touch Interface Design
 
@@ -73,9 +73,10 @@ Mobile platforms enforce strict application sandboxing:
 - **Quick Look**: Preview without full app launch
 - **Activity Views**: Share documents with other apps
 
-#### Offline Considerations
-- **Local First**: Full functionality without network
-- **Sync When Available**: Opportunistic cloud sync
+#### Offline Strategy
+- **Local Thread Processing**: Full functionality without network via threaded LSP
+- **Complete Offline Capability**: All LSP features available locally
+- **Document Sync**: Opportunistic cloud sync for documents only
 - **Conflict Resolution**: Handle concurrent edits
 - **Version History**: Local change tracking
 
@@ -89,11 +90,13 @@ Mobile platforms enforce strict application sandboxing:
 - **Battery Impact**: Minimize radio usage
 - **Background Restrictions**: Limited processing when inactive
 
-#### WebSocket LSP Strategy
-- **Remote Servers**: Cannot spawn local processes
-- **Connection Pooling**: Reuse connections efficiently
-- **Message Batching**: Reduce transmission overhead
-- **Offline Queue**: Store operations for later sync
+#### Local LSP Architecture
+- **Local Threading**: Complete LSP execution in separate threads using JSI-based communication
+- **No Remote Dependencies**: All validation and inference runs locally without network
+- **Thread Isolation**: LSP runs in isolated thread for performance and stability
+- **JSI Communication**: High-performance JavaScript-native bridge for thread communication
+- **Resource Management**: Optimized memory and CPU usage across threads
+- **Complete Offline**: All functionality available without any network dependency
 
 ### Adaptive Communication
 
