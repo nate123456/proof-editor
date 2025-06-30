@@ -394,3 +394,5 @@ Push back if any answer is "no".
 Before you do anything, get the current time and date via the terminal.
 
 Task agents should always use the claude sonnet model, NOT opus. Task agents should NEVER show the diffs of their file changes, it CRASHES THE TERMINAL.
+
+Read the dev principles into your memory when working on technical docs or code. this is CRITICAL.
