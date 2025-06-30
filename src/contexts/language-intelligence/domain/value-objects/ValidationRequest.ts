@@ -1,7 +1,7 @@
-import { Result } from '../shared/types/Result';
-import { ValidationError } from '../errors/DomainErrors';
+import { Result } from "../../../../domain/shared/result.js"
+import { ValidationError } from "../../../../domain/shared/result.js"
 import { ValidationLevel } from './ValidationLevel';
-import { SourceLocation } from './SourceLocation';
+import { SourceLocation } from '@contexts/analysis/domain/index.ts';
 
 export class ValidationRequest {
   private constructor(

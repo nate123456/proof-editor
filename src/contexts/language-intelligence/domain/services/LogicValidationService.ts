@@ -1,11 +1,11 @@
-import { Result } from '../shared/types/Result';
+import type { Result } from "../../../../domain/shared/result.js"
 import { ValidationError, DomainError } from '../errors/DomainErrors';
 import { ValidationResultEntity } from '../entities/ValidationResultEntity';
 import { DiagnosticEntity } from '../entities/DiagnosticEntity';
 import { LanguagePackageEntity } from '../entities/LanguagePackageEntity';
 import { ValidationLevel } from '../value-objects/ValidationLevel';
 import { ValidationMetrics } from '../value-objects/ValidationMetrics';
-import { SourceLocation } from '../value-objects/SourceLocation';
+import { SourceLocation } from '@contexts/analysis/domain/index.ts';
 import { DiagnosticSeverity } from '../value-objects/DiagnosticSeverity';
 import { PerformanceTracker } from '../value-objects/PerformanceTracker';
 
@@ -74,7 +74,7 @@ export class LogicValidationService {
       if (!metrics.success) {
         return {
           success: false,
-          error: new DomainError('Failed to create validation metrics')
+          error: new ValidationError('Failed to create validation metrics')
         };
       }
 
@@ -103,7 +103,7 @@ export class LogicValidationService {
     } catch (error) {
       return {
         success: false,
-        error: new DomainError('Validation failed with unexpected error', error)
+        error: new ValidationError('Validation failed with unexpected error', error instanceof Error ? error : undefined)
       };
     } finally {
       tracker.stop();
@@ -136,7 +136,7 @@ export class LogicValidationService {
         if (!errorResult.success) {
           return {
             success: false,
-            error: new DomainError('Failed to create diagnostic')
+            error: new ValidationError('Failed to create diagnostic')
           };
         }
 
@@ -169,7 +169,7 @@ export class LogicValidationService {
       if (!metrics.success) {
         return {
           success: false,
-          error: new DomainError('Failed to create validation metrics')
+          error: new ValidationError('Failed to create validation metrics')
         };
       }
 
@@ -197,7 +197,7 @@ export class LogicValidationService {
     } catch (error) {
       return {
         success: false,
-        error: new DomainError('Inference validation failed', error)
+        error: new ValidationError('Inference validation failed', error instanceof Error ? error : undefined)
       };
     } finally {
       tracker.stop();
@@ -245,7 +245,7 @@ export class LogicValidationService {
       if (!metrics.success) {
         return {
           success: false,
-          error: new DomainError('Failed to create validation metrics')
+          error: new ValidationError('Failed to create validation metrics')
         };
       }
 
@@ -273,7 +273,7 @@ export class LogicValidationService {
     } catch (error) {
       return {
         success: false,
-        error: new DomainError('Proof structure validation failed', error)
+        error: new ValidationError('Proof structure validation failed', error instanceof Error ? error : undefined)
       };
     } finally {
       tracker.stop();
@@ -543,7 +543,7 @@ export class LogicValidationService {
 
       // This is simplified - in practice, this would involve
       // sophisticated logical analysis
-      if (!this.canLogicallyFollow(fromStatement, toStatement, languagePackage)) {
+      if (!this.canLogicallyFollow(fromStatement ?? '', toStatement ?? '', languagePackage)) {
         const errorResult = DiagnosticEntity.createSemanticError(
           `Statement ${connection.to + 1} does not logically follow from statement ${connection.from + 1}`,
           SourceLocation.createDefault(),
@@ -677,7 +677,7 @@ export class LogicValidationService {
     // Simplified analysis - in practice this would use a theorem prover
     const isTautology = /\(.*\)\s*∨\s*¬\(.*\)/.test(statement) || // P ∨ ¬P
                        statement.includes('⊤') ||
-                       /.*→.*/.test(statement) && statement.includes(statement.split('→')[0]);
+                       /.*→.*/.test(statement) && statement.includes(statement.split('→')[0] ?? '');
     
     const isContradiction = /\(.*\)\s*∧\s*¬\(.*\)/.test(statement) || // P ∧ ¬P
                            statement.includes('⊥');
@@ -712,7 +712,7 @@ export class LogicValidationService {
     // Check if it's a simple modus ponens pattern
     if (fromStatement.includes('→') && toStatement) {
       const parts = fromStatement.split('→');
-      if (parts.length === 2) {
+      if (parts.length === 2 && parts[0] && parts[1]) {
         const antecedent = parts[0].trim();
         const consequent = parts[1].trim();
         return toStatement.includes(consequent);

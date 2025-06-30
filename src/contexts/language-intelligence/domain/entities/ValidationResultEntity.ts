@@ -1,5 +1,5 @@
-import { Result } from '../shared/types/Result';
-import { DomainError, ValidationError } from '../errors/DomainErrors';
+import type { Result } from "../../../../domain/shared/result.js"
+import { ValidationError } from "../../../../domain/shared/result.js"
 import { ValidationResultId } from '../value-objects/ValidationResultId';
 import { ValidationLevel } from '../value-objects/ValidationLevel';
 import { DiagnosticEntity } from './DiagnosticEntity';

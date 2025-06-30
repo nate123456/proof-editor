@@ -1,4 +1,4 @@
-import { Result } from '../shared/types/Result';
+import type { Result } from "../../../../domain/shared/result.js"
 import { PatternRecognitionError } from '../errors/DomainErrors';
 import { LanguagePackageEntity } from '../entities/LanguagePackageEntity';
 import { ValidationResultEntity } from '../entities/ValidationResultEntity';
@@ -54,7 +54,7 @@ export class PatternRecognitionService {
     } catch (error) {
       return {
         success: false,
-        error: new PatternRecognitionError('Failed to recognize proof patterns', error)
+        error: new PatternRecognitionError('Failed to recognize proof patterns', error instanceof Error ? error : undefined)
       };
     } finally {
       tracker.stop();
@@ -86,7 +86,7 @@ export class PatternRecognitionService {
     } catch (error) {
       return {
         success: false,
-        error: new PatternRecognitionError('Failed to recognize argument structure', error)
+        error: new PatternRecognitionError('Failed to recognize argument structure', error instanceof Error ? error : undefined)
       };
     }
   }
@@ -138,7 +138,7 @@ export class PatternRecognitionService {
     } catch (error) {
       return {
         success: false,
-        error: new PatternRecognitionError('Failed to detect common mistakes', error)
+        error: new PatternRecognitionError('Failed to detect common mistakes', error instanceof Error ? error : undefined)
       };
     }
   }
@@ -224,7 +224,7 @@ export class PatternRecognitionService {
     } catch (error) {
       return {
         success: false,
-        error: new PatternRecognitionError('Failed to identify proof strategies', error)
+        error: new PatternRecognitionError('Failed to identify proof strategies', error instanceof Error ? error : undefined)
       };
     }
   }
@@ -274,6 +274,7 @@ export class PatternRecognitionService {
 
     for (let i = 0; i < statements.length; i++) {
       const statement = statements[i];
+      if (!statement) continue;
 
       // Modus ponens pattern
       const modusPonens = this.detectModusPonens(statement, statements, i);
@@ -314,17 +315,19 @@ export class PatternRecognitionService {
     for (const connection of connections) {
       const fromStatement = statements[connection.from];
       const toStatement = statements[connection.to];
+      
+      if (!fromStatement || !toStatement) continue;
 
       // Check against known inference rules
       for (const rule of rules) {
         if (rule.isRuleActive() && rule.matchesPattern([fromStatement], [toStatement])) {
           patterns.push({
             type: 'inference-rule',
-            name: rule.getName().getValue(),
-            description: `Application of ${rule.getName().getValue()}`,
-            confidence: rule.getPatternConfidence([fromStatement], [toStatement]),
+            name: rule.getName()?.getValue() ?? 'unknown-rule',
+            description: `Application of ${rule.getName()?.getValue() ?? 'unknown-rule'}`,
+            confidence: rule.getPatternConfidence?.([fromStatement], [toStatement]) ?? 0.5,
             instances: [{ startIndex: connection.from, endIndex: connection.to }],
-            properties: { rule: rule.getName().getValue() }
+            properties: { rule: rule.getName()?.getValue() ?? 'unknown-rule' }
           });
         }
       }
@@ -339,7 +342,7 @@ export class PatternRecognitionService {
     
     const sorted = connections.sort((a, b) => a.from - b.from);
     for (let i = 0; i < sorted.length - 1; i++) {
-      if (sorted[i].to !== sorted[i + 1].from) {
+      if (sorted[i]?.to !== sorted[i + 1]?.from) {
         return false;
       }
     }
@@ -418,13 +421,13 @@ export class PatternRecognitionService {
     const implicationPattern = /(.+)\s*→\s*(.+)/;
     const match = statement.match(implicationPattern);
     
-    if (match) {
-      const antecedent = match[1].trim();
-      const consequent = match[2].trim();
+    if (match && match[1] && match[2]) {
+      const antecedent = match[1]?.trim() ?? '';
+      const consequent = match[2]?.trim() ?? '';
       
       // Look for the antecedent in previous statements
       for (let i = 0; i < index; i++) {
-        if (allStatements[i].trim() === antecedent) {
+        if (allStatements[i]?.trim() === antecedent) {
           return {
             type: 'modus-ponens',
             name: 'Modus Ponens',
@@ -449,13 +452,13 @@ export class PatternRecognitionService {
     const negationPattern = /¬(.+)/;
     const match = statement.match(negationPattern);
     
-    if (match) {
-      const negatedFormula = match[1].trim();
+    if (match && match[1]) {
+      const negatedFormula = match[1]?.trim() ?? '';
       
       // Look for implications with this formula as consequent
       for (let i = 0; i < index; i++) {
-        const implicationMatch = allStatements[i].match(/(.+)\s*→\s*(.+)/);
-        if (implicationMatch && implicationMatch[2].trim() === negatedFormula) {
+        const implicationMatch = allStatements[i]?.match(/(.+)\s*→\s*(.+)/);
+        if (implicationMatch && implicationMatch[2]?.trim() === negatedFormula) {
           return {
             type: 'modus-tollens',
             name: 'Modus Tollens',
@@ -463,7 +466,7 @@ export class PatternRecognitionService {
             confidence: 0.9,
             instances: [{ startIndex: i, endIndex: index }],
             properties: { 
-              implication: allStatements[i],
+              implication: allStatements[i] ?? '',
               negation: statement
             }
           };
@@ -483,23 +486,25 @@ export class PatternRecognitionService {
     const implicationPattern = /(.+)\s*→\s*(.+)/;
     const match = statement.match(implicationPattern);
     
-    if (match) {
-      const finalAntecedent = match[1].trim();
-      const finalConsequent = match[2].trim();
+    if (match && match[1] && match[2]) {
+      const finalAntecedent = match[1]?.trim() ?? '';
+      const finalConsequent = match[2]?.trim() ?? '';
       
       // Look for chain of implications
       for (let i = 0; i < index; i++) {
         for (let j = i + 1; j < index; j++) {
-          const match1 = allStatements[i].match(implicationPattern);
-          const match2 = allStatements[j].match(implicationPattern);
+          const match1 = allStatements[i]?.match(implicationPattern);
+          const match2 = allStatements[j]?.match(implicationPattern);
           
-          if (match1 && match2) {
-            const [, ant1, cons1] = match1;
-            const [, ant2, cons2] = match2;
+          if (match1 && match2 && match1[1] && match1[2] && match2[1] && match2[2]) {
+            const ant1 = match1[1];
+            const cons1 = match1[2];
+            const ant2 = match2[1];
+            const cons2 = match2[2];
             
-            if (ant1.trim() === finalAntecedent && 
-                cons1.trim() === ant2.trim() && 
-                cons2.trim() === finalConsequent) {
+            if (ant1?.trim() === finalAntecedent && 
+                cons1?.trim() === ant2?.trim() && 
+                cons2?.trim() === finalConsequent) {
               return {
                 type: 'hypothetical-syllogism',
                 name: 'Hypothetical Syllogism',
@@ -507,8 +512,8 @@ export class PatternRecognitionService {
                 confidence: 0.88,
                 instances: [{ startIndex: i, endIndex: index }],
                 properties: { 
-                  firstImplication: allStatements[i],
-                  secondImplication: allStatements[j],
+                  firstImplication: allStatements[i] ?? '',
+                  secondImplication: allStatements[j] ?? '',
                   conclusion: statement
                 }
               };

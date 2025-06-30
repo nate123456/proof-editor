@@ -1,5 +1,5 @@
-import { Result } from '../shared/types/Result';
-import { ValidationError } from '../errors/DomainErrors';
+import type { Result } from "../../../../domain/shared/result.js"
+import { ValidationError } from "../../../../domain/shared/result.js"
 import { LanguagePackageId } from '../value-objects/LanguagePackageId';
 import { PackageName } from '../value-objects/PackageName';
 import { PackageVersion } from '../value-objects/PackageVersion';

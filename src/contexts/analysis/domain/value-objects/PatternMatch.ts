@@ -1,6 +1,6 @@
-import { Result } from '../shared/types/Result';
-import { ValidationError } from '../errors/DomainErrors';
-import { SourceLocation } from './SourceLocation';
+import type { Result } from '../shared/Result.ts';
+import { ValidationError } from '../errors/AnalysisErrors.ts';
+import { SourceLocation } from './SourceLocation.ts';
 
 export class PatternMatch {
   private constructor(
@@ -11,7 +11,8 @@ export class PatternMatch {
     private readonly confidence: number,
     private readonly matchedContent: string,
     private readonly variables: Map<string, string>,
-    private readonly context: MatchContext
+    private readonly context: MatchContext,
+    private readonly validationScope?: ValidationScope
   ) {}
 
   static create(
@@ -22,7 +23,8 @@ export class PatternMatch {
     confidence: number,
     matchedContent: string,
     variables: Map<string, string> = new Map(),
-    context: MatchContext = MatchContext.createDefault()
+    context: MatchContext = MatchContext.createDefault(),
+    validationScope?: ValidationScope
   ): Result<PatternMatch, ValidationError> {
     if (!patternId || patternId.trim().length === 0) {
       return {
@@ -62,7 +64,8 @@ export class PatternMatch {
         confidence,
         matchedContent.trim(),
         variables,
-        context
+        context,
+        validationScope
       )
     };
   }
@@ -103,6 +106,33 @@ export class PatternMatch {
       matchedContent,
       new Map(),
       MatchContext.createForStructural()
+    );
+  }
+
+  static createValidationPattern(
+    patternId: string,
+    patternName: string,
+    location: SourceLocation,
+    confidence: number,
+    matchedContent: string,
+    validationScope: ValidationScope,
+    indicators: PatternIndicator[]
+  ): Result<PatternMatch, ValidationError> {
+    const variables = new Map<string, string>();
+    indicators.forEach((indicator, index) => {
+      variables.set(`indicator_${index}`, indicator.description);
+    });
+
+    return PatternMatch.create(
+      patternId,
+      'validation',
+      patternName,
+      location,
+      confidence,
+      matchedContent,
+      variables,
+      MatchContext.createForValidation(),
+      validationScope
     );
   }
 
@@ -163,6 +193,10 @@ export class PatternMatch {
     return this.context;
   }
 
+  getValidationScope(): ValidationScope | undefined {
+    return this.validationScope;
+  }
+
   isHighConfidence(): boolean {
     return this.confidence >= 0.8;
   }
@@ -207,6 +241,10 @@ export class PatternMatch {
     return this.patternType === 'syntax';
   }
 
+  isValidationPattern(): boolean {
+    return this.patternType === 'validation';
+  }
+
   getMatchQuality(): MatchQuality {
     const quality: MatchQuality = {
       confidence: this.confidence,
@@ -226,7 +264,6 @@ export class PatternMatch {
   }
 
   private calculateCompleteness(): number {
-    // Simple completeness based on variable binding
     if (this.variables.size === 0) return 1.0;
     
     const unboundVariables = Array.from(this.variables.values())
@@ -236,7 +273,6 @@ export class PatternMatch {
   }
 
   private calculatePrecision(): number {
-    // Simple precision based on content length vs pattern complexity
     const contentLength = this.matchedContent.length;
     const variableComplexity = this.variables.size * 10;
     const baseComplexity = 20;
@@ -258,7 +294,8 @@ export class PatternMatch {
       newConfidence,
       this.matchedContent,
       this.variables,
-      this.context
+      this.context,
+      this.validationScope
     );
   }
 
@@ -273,7 +310,8 @@ export class PatternMatch {
       this.confidence,
       this.matchedContent,
       combinedVariables,
-      this.context
+      this.context,
+      this.validationScope
     );
   }
 
@@ -288,7 +326,7 @@ export class PatternMatch {
       confidence: Math.round(this.confidence * 100),
       matchedContentPreview: this.getContentPreview(),
       variableCount: this.variables.size,
-      qualityScore: Math.round(quality.overallScore * 100),
+      qualityScore: Math.round((quality.overallScore ?? 0) * 100),
       contextInfo: this.context.getDisplayInfo()
     };
   }
@@ -314,7 +352,8 @@ export type PatternType =
   | 'modal' 
   | 'syntax' 
   | 'semantic' 
-  | 'educational';
+  | 'educational'
+  | 'validation';
 
 export interface MatchQuality {
   confidence: number;
@@ -334,6 +373,19 @@ export interface PatternMatchDisplay {
   variableCount: number;
   qualityScore: number;
   contextInfo: string;
+}
+
+export interface ValidationScope {
+  type: 'statement' | 'atomic_argument' | 'tree' | 'document' | 'flow_path';
+  targetId: string;
+  includeConnected?: boolean;
+  depth?: number;
+}
+
+export interface PatternIndicator {
+  type: 'structural' | 'semantic' | 'statistical';
+  description: string;
+  strength: number;
 }
 
 export class MatchContext {
@@ -382,6 +434,16 @@ export class MatchContext {
       [],
       0.8,
       { type: 'modal-reasoning' }
+    );
+  }
+
+  static createForValidation(): MatchContext {
+    return new MatchContext(
+      'deep',
+      'validation-pattern',
+      [],
+      0.85,
+      { type: 'validation-analysis' }
     );
   }
 

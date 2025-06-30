@@ -1,5 +1,5 @@
-import { Result } from '../shared/types/Result';
-import { ValidationError } from '../errors/DomainErrors';
+import type { Result } from '../shared/Result.ts';
+import { ValidationError } from '../errors/AnalysisErrors.ts';
 
 export class SourceLocation {
   private constructor(

@@ -1,9 +1,9 @@
-import { Result } from '../shared/types/Result';
-import { EducationalFeedbackError, ValidationError } from '../errors/DomainErrors';
+import type { Result } from "../../../../domain/shared/result.js"
+import { ValidationError } from "../../../../domain/shared/result.js"
 import { DiagnosticEntity } from '../entities/DiagnosticEntity';
 import { ValidationResultEntity } from '../entities/ValidationResultEntity';
 import { LanguagePackageEntity } from '../entities/LanguagePackageEntity';
-import { SourceLocation } from '../value-objects/SourceLocation';
+import { SourceLocation } from '@contexts/analysis/domain/index.ts';
 import { DiagnosticSeverity } from '../value-objects/DiagnosticSeverity';
 
 export class EducationalFeedbackService {
@@ -59,7 +59,7 @@ export class EducationalFeedbackService {
     } catch (error) {
       return {
         success: false,
-        error: new EducationalFeedbackError('Failed to generate learning hints', error)
+        error: new EducationalFeedbackError('Failed to generate learning hints', error instanceof Error ? error : undefined)
       };
     }
   }
@@ -125,7 +125,7 @@ export class EducationalFeedbackService {
     } catch (error) {
       return {
         success: false,
-        error: new EducationalFeedbackError('Failed to generate step-by-step guidance', error)
+        error: new EducationalFeedbackError('Failed to generate step-by-step guidance', error instanceof Error ? error : undefined)
       };
     }
   }
@@ -201,7 +201,7 @@ export class EducationalFeedbackService {
     } catch (error) {
       return {
         success: false,
-        error: new EducationalFeedbackError('Failed to generate proof strategy suggestions', error)
+        error: new EducationalFeedbackError('Failed to generate proof strategy suggestions', error instanceof Error ? error : undefined)
       };
     }
   }
@@ -251,7 +251,7 @@ export class EducationalFeedbackService {
     } catch (error) {
       return {
         success: false,
-        error: new EducationalFeedbackError('Failed to analyze validation results', error)
+        error: new EducationalFeedbackError('Failed to analyze validation results', error instanceof Error ? error : undefined)
       };
     }
   }
@@ -612,8 +612,8 @@ export class EducationalFeedbackService {
     const totalResults = results.length;
     const successfulResults = results.filter(r => r.isValidationSuccessful()).length;
     
-    indicators.successRate = totalResults > 0 ? successfulResults / totalResults : 0;
-    indicators.averageErrors = totalResults > 0 ? 
+    indicators['successRate'] = totalResults > 0 ? successfulResults / totalResults : 0;
+    indicators['averageErrors'] = totalResults > 0 ? 
       results.reduce((sum, r) => sum + r.getErrorCount(), 0) / totalResults : 0;
 
     return indicators;

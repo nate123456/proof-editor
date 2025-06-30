@@ -1,5 +1,5 @@
-import { Result } from '../shared/types/Result';
-import { ValidationError } from '../errors/DomainErrors';
+import type { Result } from "../../../../domain/shared/result.js"
+import { ValidationError } from "../../../../domain/shared/result.js"
 import { InferenceRuleId } from '../value-objects/InferenceRuleId';
 import { RulePattern } from '../value-objects/RulePattern';
 import { RuleName } from '../value-objects/RuleName';

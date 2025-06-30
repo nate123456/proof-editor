@@ -1,5 +1,5 @@
-import { Result } from '../shared/types/Result';
-import { ValidationError } from '../errors/DomainErrors';
+import { Result } from "../../../../domain/shared/result.js"
+import { ValidationError } from "../../../../domain/shared/result.js"
 
 export class Timestamp {
   private constructor(private readonly value: Date) {}

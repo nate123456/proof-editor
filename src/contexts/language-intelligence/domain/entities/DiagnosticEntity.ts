@@ -1,9 +1,9 @@
-import { Result } from '../shared/types/Result';
-import { ValidationError } from '../errors/DomainErrors';
+import type { Result } from "../../../../domain/shared/result.js"
+import { ValidationError } from "../../../../domain/shared/result.js"
 import { DiagnosticId } from '../value-objects/DiagnosticId';
 import { DiagnosticSeverity } from '../value-objects/DiagnosticSeverity';
 import { DiagnosticMessage } from '../value-objects/DiagnosticMessage';
-import { SourceLocation } from '../value-objects/SourceLocation';
+import { SourceLocation } from '@contexts/analysis/domain/index.ts';
 import { DiagnosticCode } from '../value-objects/DiagnosticCode';
 import { Timestamp } from '../value-objects/Timestamp';
 

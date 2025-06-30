@@ -1,5 +1,5 @@
-import { Result } from '../shared/types/Result';
-import { ValidationError } from '../errors/DomainErrors';
+import type { Result } from '../shared/Result.ts';
+import { ValidationError } from '../errors/AnalysisErrors.ts';
 
 export class AnalysisInsight {
   private constructor(
@@ -119,6 +119,23 @@ export class AnalysisInsight {
       'medium',
       0.7,
       [],
+      recommendations
+    );
+  }
+
+  static createValidationInsight(
+    title: string,
+    description: string,
+    evidence: string[] = [],
+    recommendations: string[] = []
+  ): Result<AnalysisInsight, ValidationError> {
+    return AnalysisInsight.create(
+      'validation',
+      title,
+      description,
+      'high',
+      0.85,
+      evidence,
       recommendations
     );
   }
@@ -262,7 +279,8 @@ export type InsightCategory =
   | 'educational' 
   | 'style' 
   | 'structure' 
-  | 'patterns';
+  | 'patterns'
+  | 'validation';
 
 export type InsightPriority = 'low' | 'medium' | 'high';
 

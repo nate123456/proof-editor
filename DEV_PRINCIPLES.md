@@ -453,3 +453,5 @@ jobs:
 - Maintain code quality for core components, allow flexibility for experiments
 
 ---
+
+EVERY CODE CHANGE YOU MAKE SHOULD MAKE THE SYSTEM EASIER TO TEST (in terms of unit, integration, and functional, and manual) NOT HARDER. 

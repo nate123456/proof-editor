@@ -1,10 +1,9 @@
-import { Result } from '../shared/types/Result';
-import { ValidationError } from '../errors/DomainErrors';
+import type { Result } from "../../../../domain/shared/result.js"
+import { ValidationError } from "../../../../domain/shared/result.js"
 import { AnalysisReportId } from '../value-objects/AnalysisReportId';
 import { AnalysisMetrics } from '../value-objects/AnalysisMetrics';
 import { Timestamp } from '../value-objects/Timestamp';
-import { AnalysisInsight } from '../value-objects/AnalysisInsight';
-import { PatternMatch } from '../value-objects/PatternMatch';
+import { AnalysisInsight, PatternMatch } from '@contexts/analysis/domain/index.ts';
 import { PerformanceMetrics } from '../value-objects/PerformanceMetrics';
 
 export class AnalysisReportEntity {
@@ -220,7 +219,7 @@ export class AnalysisReportEntity {
       meetsPerformanceTargets: this.meetsPerformanceTargets(),
       recommendationCount: this.recommendations.length,
       analysisScope: this.analysisScope,
-      timestamp: this.timestamp.getValue()
+      timestamp: this.timestamp.getMilliseconds()
     };
   }
 
