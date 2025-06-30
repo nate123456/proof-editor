@@ -2,90 +2,103 @@
 
 For all formal definitions, see [Key Terms](./key-terms.md).
 
-## Atomic Argument Examples
+## Statement Flow Examples
 
-### Common Patterns
+### Building Blocks in Action
 
-**Modus Ponens**
-```
-Premises: [P → Q, P]
-Conclusion: [Q]
-```
+Proofs are built from **statements** that flow between **processing units** (atomic arguments):
 
-**Axiom (empty premises)**
+**Modus Ponens Processing Unit**
 ```
-Premises: []
-Conclusion: [A ∨ ¬A]
-```
-
-**Multiple Conclusions**
-```
-Premises: [P ∧ Q]
-Conclusions: [P, Q]
+Input statements:  ["P → Q", "P"]
+                      ↓
+              [Processing Unit]
+                      ↓  
+Output statement:  ["Q"]
 ```
 
-## Connection Example
-
-### Connection Model
-
+**Axiom Generator (no inputs needed)**
 ```
-Atomic Argument A:
-  Premises: [P₁, P₂]
-  Conclusions: [C₁, C₂] ← Let's call this object 'setX'
-
-Atomic Argument B:
-  Premises: [C₁, C₂] ← This IS setX - the SAME object
-  Conclusions: [C₃]
-
-Connection: A.conclusions === B.premises (reference equality)
+Input statements:  []
+                      ↓
+              [Processing Unit]
+                      ↓  
+Output statement:  ["A ∨ ¬A"]
 ```
 
-## Tree Structure vs Connections
+**Statement Splitter (multiple outputs)**
+```
+Input statement:   ["P ∧ Q"]
+                      ↓
+              [Processing Unit]
+                      ↓  
+Output statements: ["P", "Q"]
+```
 
-### Critical Insight: Position-Based Trees
+## Statement Flow Connection Example
 
-**Arguments are templates** that can be instantiated multiple times:
+### Physical Flow Model
+
+```
+Processing Unit A:
+  Input container:   ["P₁", "P₂"]
+  Output container:  ["C₁", "C₂"] ← Statements flow out here
+                         ↓ FLOW
+Processing Unit B:        ↓ 
+  Input container:   ["C₁", "C₂"] ← Same statements flow in here
+  Output container:  ["C₃"]
+
+Physical Reality: Statements "C₁" and "C₂" flow from A's output 
+container directly into B's input container (same physical container)
+```
+
+## Statement Flow Trees vs Logical Connections
+
+### Critical Insight: Physical Processing Networks
+
+**Processing units are templates** that can be instantiated multiple times in different physical locations:
 
 ```yaml
-# Define reusable argument templates
-arguments:
-  - &arg1 [A, B]: [C]  # Needs A,B produces C
-  - &arg2 [B, C]: [A]  # Needs B,C produces A
-  - &arg3 [C, A]: [B]  # Needs C,A produces B
+# Define reusable processing unit templates
+processing_units:
+  - &unit1 ["A", "B"]: ["C"]  # Needs A,B statements → produces C statement
+  - &unit2 ["B", "C"]: ["A"]  # Needs B,C statements → produces A statement  
+  - &unit3 ["C", "A"]: ["B"]  # Needs C,A statements → produces B statement
 
-# Tree with explicit parent-child positions
+# Physical tree with explicit parent-child statement flow
 trees:
   - offset: {x: 100, y: 200}
     nodes:
-      n1: {arg: *arg1}           # Root node using arg1
-      n2: {n1: *arg2, on: 0}     # Child providing A to n1's first premise
-      n3: {n1: *arg3, on: 1}     # Child providing B to n1's second premise
-      n4: {n3: *arg2, on: 1}     # SAME arg2 template, different node!
+      n1: {unit: *unit1}           # Root processor using unit1
+      n2: {n1: *unit2, on: 0}      # Child feeding "A" statement to n1's slot 0
+      n3: {n1: *unit3, on: 1}      # Child feeding "B" statement to n1's slot 1
+      n4: {n3: *unit2, on: 1}      # SAME unit2 template, different physical location!
 ```
 
-**Key Understanding**: 
-- n2 and n4 are different nodes but use the SAME argument template (arg2)
-- Tree structure is about WHERE nodes attach, not WHAT connections exist
-- Children provide inputs to their parents' premise positions
+**Physical Understanding**: 
+- n2 and n4 are different physical processors but use the SAME processing template (unit2)
+- Tree structure is about WHERE processors are placed and HOW statements flow between them
+- Children feed their output statements upward to their parents' input slots
+- Statements physically flow bottom-up through the tree structure
 
-## Complete Hierarchy Example
+## Complete Statement Flow Network Example
 
-### Comprehensive Example
+### Comprehensive Physical System
 
-Given atomic arguments connected through shared ordered sets:
-P→Q, P→R, Q→S, R→T, S→U, T→U, U→V
+Given processing units connected through statement flow:
+"P"→"Q", "P"→"R", "Q"→"S", "R"→"T", "S"→"U", "T"→"U", "U"→"V"
 
-**Analysis:**
+**Physical Analysis:**
 
-**Atomic Arguments**: 7 individual inference steps (templates)
+**Processing Units**: 7 individual statement transformation units (templates)
 
-**Valid Arguments** (path-complete logical connections):
-- {P→Q, Q→S, S→U}
-- {S→U, T→U, U→V}
-- {P→R, R→T, T→U, U→V}
+**Valid Flow Systems** (complete statement flow paths):
+- {"P"→"Q" → "Q"→"S" → "S"→"U"} - Complete flow from P to U via Q,S
+- {"S"→"U" → "T"→"U" → "U"→"V"} - Complete flow with converging inputs
+- {"P"→"R" → "R"→"T" → "T"→"U" → "U"→"V"} - Complete flow from P to V via R,T
 
-**Invalid Arguments** (not path-complete):
-- {P→Q, S→U} - Missing intermediate Q→S
-- {P→Q, T→U} - No connecting path exists
+**Invalid Flow Systems** (broken statement flow):
+- {"P"→"Q", "S"→"U"} - Missing Q→S flow connector
+- {"P"→"Q", "T"→"U"} - No physical flow path exists
 
-**The Argument Tree**: All 7 atomic arguments form one maximal component logically, but the tree STRUCTURE depends on how nodes are positioned
+**The Complete Flow Network**: All 7 processing units form one maximal statement flow network logically, but the physical tree STRUCTURE depends on how processing units are positioned and connected in space
