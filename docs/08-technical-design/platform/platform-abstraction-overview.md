@@ -16,20 +16,23 @@ The Platform Abstraction Layer separates Proof Editor's core functionality from 
 graph TB
     subgraph "Core Business Logic (Platform-Agnostic)"
         ProofEngine[Proof Engine]
+        StatementFlow[Statement Flow Management]
         OrderedSets[Ordered Set Management]
-        Connections[Connection System]
+        PhysicalTree[Physical Tree Structure]
+        SpatialNav[Spatial Navigation]
         TreeLayout[Tree Layout Engine]
-        Navigation[Navigation System]
-        ProofEngine --> OrderedSets
-        OrderedSets --> Connections
-        Connections --> TreeLayout
-        TreeLayout --> Navigation
+        ProofEngine --> StatementFlow
+        StatementFlow --> OrderedSets
+        OrderedSets --> PhysicalTree
+        PhysicalTree --> SpatialNav
+        SpatialNav --> TreeLayout
     end
     
     subgraph "Platform Abstraction Layer"
         FileSystem[File System Abstraction]
         Settings[Settings Abstraction]
-        UI[UI Abstraction]
+        SpatialUI[Spatial UI Abstraction]
+        StatementFlowAPI[Statement Flow APIs]
         LSP[LSP Communication]
         Commands[Command System]
         Packages[Package Management]
@@ -39,7 +42,8 @@ graph TB
     subgraph "VS Code Platform"
         VSFileSystem[VS Code File APIs]
         VSSettings[VS Code Configuration]
-        VSUI[VS Code UI Components]
+        VSWebView[VS Code WebView + Canvas]
+        VSFlowAPI[WebView Statement Flow APIs]
         VSLSP[VS Code Language Client]
         VSCommands[VS Code Commands]
         VSPackages[VS Code Extensions]
@@ -49,16 +53,18 @@ graph TB
     subgraph "React Native Platform"  
         RNFileSystem[Mobile File System]
         RNSettings[Mobile Storage]
-        RNUI[Touch UI Components]
+        RNTouchUI[Touch Canvas Components]
+        RNFlowAPI[Touch Statement Flow APIs]
         RNLSP[Network LSP Client]
-        RNCommands[Touch Interactions]
+        RNGestures[Touch Gestures & Commands]
         RNPackages[Mobile Packages]
         RNTheme[Mobile Themes]
     end
     
+    StatementFlow --> StatementFlowAPI
+    PhysicalTree --> SpatialUI
     ProofEngine --> FileSystem
     ProofEngine --> Settings
-    ProofEngine --> UI
     ProofEngine --> LSP
     ProofEngine --> Commands
     ProofEngine --> Packages
@@ -66,7 +72,8 @@ graph TB
     
     FileSystem --> VSFileSystem
     Settings --> VSSettings
-    UI --> VSUI
+    SpatialUI --> VSWebView
+    StatementFlowAPI --> VSFlowAPI
     LSP --> VSLSP
     Commands --> VSCommands
     Packages --> VSPackages
@@ -74,9 +81,10 @@ graph TB
     
     FileSystem --> RNFileSystem
     Settings --> RNSettings
-    UI --> RNUI
+    SpatialUI --> RNTouchUI
+    StatementFlowAPI --> RNFlowAPI
     LSP --> RNLSP
-    Commands --> RNCommands
+    Commands --> RNGestures
     Packages --> RNPackages
     Theme --> RNTheme
 ```
@@ -122,7 +130,7 @@ The platform abstraction layer uses dependency injection to provide platform-spe
 
 ## Abstraction Categories
 
-The platform abstraction layer organizes platform-specific functionality into eight primary categories:
+The platform abstraction layer organizes platform-specific functionality into nine primary categories:
 
 ### 1. File System Operations
 - **Purpose**: Abstract file reading, writing, and directory management
@@ -134,32 +142,42 @@ The platform abstraction layer organizes platform-specific functionality into ei
 - **Challenges**: Different storage mechanisms across platforms
 - **Key Considerations**: Synchronization, scoping, persistence guarantees
 
-### 3. User Interface Components
-- **Purpose**: Present UI elements and handle user interactions
-- **Challenges**: Mouse/keyboard vs touch interfaces
-- **Key Considerations**: Platform UI conventions, accessibility, responsive design
+### 3. Spatial UI Components  
+- **Purpose**: Present spatial proof structures and handle 2D interactions
+- **Challenges**: Mouse precision vs touch approximation, canvas rendering
+- **Key Considerations**: Platform UI conventions, accessibility, spatial input methods
+- **Physical Tree Interfaces**: Tree positioning, viewport management, spatial selection
+- **Rendering Pipeline**: Hardware-accelerated canvas, WebGL/GPU optimization
 
-### 4. LSP Communication
+### 4. Statement Flow APIs
+- **Purpose**: Visualize and interact with statement flow between atomic arguments
+- **Challenges**: Complex visual relationships, performance with large trees
+- **Key Considerations**: Real-time updates, spatial representation, flow tracing
+- **Flow Computation**: Statement dependency tracking, connection analysis
+- **Visual Flow**: Arrow rendering, path optimization, interactive flow highlighting
+- **Flow Navigation**: Follow statement paths, trace dependencies, jump to sources
+
+### 5. LSP Communication
 - **Purpose**: Connect to language servers for logic validation
 - **Challenges**: Process spawning on desktop vs network communication on mobile
 - **Key Considerations**: Transport mechanisms, connection reliability, offline support
 
-### 5. Command System
+### 6. Command System
 - **Purpose**: Register and execute user commands
-- **Challenges**: Keyboard shortcuts vs touch gestures
-- **Key Considerations**: Discoverability, platform conventions, context sensitivity
+- **Challenges**: Keyboard shortcuts vs touch gestures, spatial commands
+- **Key Considerations**: Discoverability, platform conventions, spatial interaction patterns
 
-### 6. Package Management
+### 7. Package Management
 - **Purpose**: Install and manage logic system packages
 - **Challenges**: Extension APIs vs app store distribution
 - **Key Considerations**: Security, updates, platform restrictions
 
-### 7. Language System Management
+### 8. Language System Management
 - **Purpose**: Discover and configure logic system languages
 - **Challenges**: Dynamic loading vs bundled resources
 - **Key Considerations**: Version management, compatibility, resource constraints
 
-### 8. Theme Integration
+### 9. Theme Integration
 - **Purpose**: Apply visual themes consistently
 - **Challenges**: Platform theme systems differ significantly
 - **Key Considerations**: Dark mode, accessibility, platform consistency
@@ -187,9 +205,14 @@ Each platform requires different implementation strategies while maintaining the
 The core business logic remains completely platform-agnostic and includes:
 
 - **Proof Engine**: Manages atomic arguments and their relationships
+- **Statement Flow Management**: Physical flow of statements between atomic arguments
 - **Ordered Set Management**: Handles the unique ordered collections that form connections
-- **Connection System**: Tracks relationships between atomic arguments
-- **Tree Layout Algorithms**: Calculates visual positioning of proof elements
+- **Physical Tree Structure**: Spatial positioning and layout of proof trees in 2D space
+- **Spatial Navigation**: 2D tree traversal and positioning algorithms  
+- **Tree Layout Algorithms**: Calculates physical positioning of proof elements
+- **Physical Tree Management**: Tree instance positioning, viewport bounds, spatial queries
+- **Statement Flow Engine**: Dependency graph computation, flow path calculation
+- **Spatial Interaction Logic**: Selection handling, drag operations, zoom/pan state
 - **Navigation Logic**: Handles movement through proof structures
 - **Validation and Analysis**: Applies user-defined rules to verify arguments
 

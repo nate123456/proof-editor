@@ -28,49 +28,49 @@ Accelerating discovery through platform-appropriate research tools.
 
 ### Core Layer Evolution
 Platform-agnostic improvements:
-- Efficient proof storage and retrieval
-- Incremental computation strategies
-- Distributed proof construction
-- Universal validation protocols
-- Cross-platform synchronization
+- Efficient proof storage optimized for statement identity and ordered set connections
+- Incremental computation strategies leveraging bottom-up data flow in trees
+- Distributed proof construction maintaining spatial positioning of tree nodes
+- Universal validation protocols for user-defined statement processing rules
+- Cross-platform synchronization preserving parent-child-position tree structure
 
 ### Platform-Specific Innovation
-Leveraging unique capabilities:
-- **Mobile**: AR visualization, voice input, biometric security
-- **Tablet**: Touch-based proof construction, stylus support
-- **Desktop**: Multi-monitor workflows, keyboard shortcuts
-- **Cloud**: Massive computation, global collaboration
-- **Wearables**: Quick validation checks, notification systems
+Leveraging unique capabilities with tree structure awareness:
+- **Mobile**: AR visualization of node relationships, voice input for statement creation, biometric security
+- **Tablet**: Touch-based proof construction with spatial tree manipulation, stylus support for statement editing
+- **Desktop**: Multi-monitor workflows showing tree structure, keyboard shortcuts for node navigation
+- **Cloud**: Massive computation for complex tree analysis, global collaboration on shared statement libraries
+- **Wearables**: Quick validation checks, notification systems for tree structure updates
 
 ### Cross-Platform Challenges
 Areas requiring investigation:
-- Synchronization across devices with different capabilities
-- Consistent experience despite platform constraints
-- Progressive enhancement strategies
-- Offline/online transition handling
-- Platform-appropriate interaction paradigms
+- Synchronization of statement identity and tree structure across devices with different capabilities
+- Consistent tree visualization experience despite platform constraints
+- Progressive enhancement strategies preserving spatial positioning and node relationships
+- Offline/online transition handling for tree structure and statement library data
+- Platform-appropriate interaction paradigms for node attachment and statement manipulation
 
 ## Emerging Possibilities
 
 ### Near Future (2-5 years)
-- Voice-driven proof construction on mobile
-- AR visualization of complex proofs on tablets
-- Real-time collaboration across all platforms
-- External analysis tools adapted to each platform's strengths
-- Seamless handoff between devices
+- Voice-driven statement creation and node attachment on mobile
+- AR visualization of complex proof trees leveraging spatial positioning on tablets
+- Real-time collaboration with synchronized statement libraries and tree structures across all platforms
+- External analysis tools adapted to process statement identity and tree relationships for each platform's strengths
+- Seamless handoff of tree structure and spatial positioning between devices
 
 ### Far Future (5-10 years)
-- Brain-computer interfaces for direct logic input
-- Quantum computing integration for proof search
-- Global proof networks with distributed validation
-- Pattern analysis that learns from cross-platform usage patterns
-- New platforms we haven't imagined yet
+- Brain-computer interfaces for direct statement creation and node attachment
+- Quantum computing integration for complex tree analysis and proof search
+- Global proof networks with distributed validation using user-defined rules
+- Pattern analysis that learns from tree structure manipulation and spatial positioning across platforms
+- New platforms leveraging statement identity and tree positioning paradigms we haven't imagined yet
 
 ## Open Questions
 
 Platform-aware unknowns:
-- How do proof interactions differ between touch and keyboard?
-- What's the optimal mobile interface for complex reasoning?
-- How can AR/VR enhance proof understanding?
-- What platform-specific features most benefit formal reasoning?
-- How do we maintain logical rigor across casual interfaces?
+- How do statement creation and node attachment interactions differ between touch and keyboard?
+- What's the optimal mobile interface for complex tree manipulation and spatial positioning?
+- How can AR/VR enhance understanding of tree structure and statement relationships?
+- What platform-specific features most benefit node attachment and statement manipulation operations?
+- How do we maintain logical rigor across casual interfaces while leveraging tree positioning and bottom-up data flow?

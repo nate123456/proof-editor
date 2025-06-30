@@ -19,10 +19,10 @@ This policy enables the platform's core capabilities—cross-platform synchroniz
 ### Proof Document Data
 
 **What is collected**:
-- Proof file contents (atomic arguments, ordered sets, statements)
+- Proof file contents (statement entities, ordered sets, atomic arguments with physical positioning)
 - Document metadata (creation date, modification history, file size)
-- Document structure (tree positions, visual layout)
-- Validation results and error states
+- Document structure (tree positions, visual layout, spatial positioning data)
+- Validation results and error states related to statement processing operations
 
 **Storage locations**:
 - **Local**: Primary storage in user's file system
@@ -60,8 +60,8 @@ This policy enables the platform's core capabilities—cross-platform synchroniz
 
 **Collaboration session data**:
 - **Presence indicators**: Anonymous session identifiers (not linked to personal identity)
-- **Cursor positions**: Real-time editing locations (ephemeral, not stored)
-- **Edit deltas**: Incremental changes for live collaboration (not persistent)
+- **Cursor positions**: Real-time editing locations including spatial tree navigation (ephemeral, not stored)
+- **Edit deltas**: Incremental changes for live collaboration including tree structure and ordered set modifications (not persistent)
 - **Voice/video**: Not processed by platform (uses user's preferred external service)
 
 **User visibility controls**:
@@ -110,9 +110,9 @@ This policy enables the platform's core capabilities—cross-platform synchroniz
 ### Privacy Controls
 
 **Granular sharing controls**:
-- **Document-level**: Control sharing per proof document
-- **Feature-level**: Disable collaboration, sync, or analytics individually
-- **Network-level**: Control which devices can sync
+- **Document-level**: Control sharing per proof document including statement entities and ordered sets
+- **Feature-level**: Disable collaboration, sync, or analytics individually for tree operations
+- **Network-level**: Control which devices can sync spatial tree structures and positioning data
 
 **Consent management**:
 - **Opt-in required**: All data sharing requires explicit user consent
@@ -122,14 +122,14 @@ This policy enables the platform's core capabilities—cross-platform synchroniz
 ### Transparency Tools
 
 **Data visibility**:
-- **Data dashboard**: Users can see all data stored by platform
-- **Sync status**: Clear indication of what data is synchronized where
-- **Sharing audit**: Log of what data has been shared with whom
+- **Data dashboard**: Users can see all statement processing data stored by platform
+- **Sync status**: Clear indication of what tree structure and positioning data is synchronized where
+- **Sharing audit**: Log of what statement entities and ordered set data has been shared with whom
 
 **Activity monitoring**:
-- **Access logs**: When and how user's data was accessed
-- **Sync history**: Record of synchronization events and conflicts
-- **Collaboration activity**: History of real-time collaboration sessions
+- **Access logs**: When and how user's statement processing data was accessed
+- **Sync history**: Record of tree structure and spatial positioning synchronization events and conflicts
+- **Collaboration activity**: History of real-time collaboration sessions including spatial operations and ordered set modifications
 
 ## Platform-Specific Implementation
 

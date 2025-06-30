@@ -120,6 +120,8 @@ PLATFORM (<10% per platform)
 **CORE Layer:**
 - Pure TypeScript business logic
 - Zero platform dependencies
+- Statement flow management and physical tree structure
+- Spatial positioning and navigation algorithms
 - Atomic arguments, connections, validation
 - Works identically on all platforms
 
@@ -132,6 +134,7 @@ PLATFORM (<10% per platform)
 **PLATFORM Layer:**
 - Thin adapters for each platform
 - UI rendering (React for web/desktop, native for mobile)
+- Spatial interaction APIs (touch, mouse, keyboard input)
 - File I/O (VS Code APIs, mobile file systems, browser storage)
 - Platform-specific features (sharing, notifications)
 

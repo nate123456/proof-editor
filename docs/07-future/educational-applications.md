@@ -23,18 +23,18 @@ When formal logic becomes accessible and engaging, it transforms from a niche ac
 ## K-12 Revolution
 
 ### Elementary Introduction
-- **Visual puzzles**: Logic through play
-- **Story problems**: Reasoning in narrative
-- **Game mechanics**: Fun with inference
-- **Collaborative solving**: Learn together
-- **Creative expression**: Logic art projects
+- **Visual puzzles**: Logic through play with statement creation and connection
+- **Story problems**: Reasoning in narrative using tree structures and spatial positioning
+- **Game mechanics**: Fun with inference leveraging node relationships and bottom-up data flow
+- **Collaborative solving**: Learn together through shared statement libraries and tree construction
+- **Creative expression**: Logic art projects using spatial tree arrangements and node positioning
 
 ### Middle School Development
-- **Real-world problems**: Practical reasoning
-- **Debate support**: Structure arguments
-- **Science integration**: Hypothesis testing
-- **Social reasoning**: Understand perspectives
-- **Digital citizenship**: Online logic
+- **Real-world problems**: Practical reasoning with tree structure visualization and statement relationships
+- **Debate support**: Structure arguments using tree hierarchy and node positioning
+- **Science integration**: Hypothesis testing leveraging tree analysis and bottom-up data flow
+- **Social reasoning**: Understand perspectives through statement identity patterns and tree structure
+- **Digital citizenship**: Online logic enhanced by spatial tree understanding and node relationships
 
 ### High School Mastery
 - **Cross-curricular**: Logic in every subject
@@ -69,11 +69,11 @@ When formal logic becomes accessible and engaging, it transforms from a niche ac
 ## Pedagogical Innovation
 
 ### Active Learning
-- **Build don't memorize**: Construct understanding
-- **Explore don't follow**: Discovery learning
-- **Create don't copy**: Original thinking
-- **Share don't hide**: Collaborative growth
-- **Reflect don't rush**: Deep understanding
+- **Build don't memorize**: Construct understanding through statement creation and node attachment
+- **Explore don't follow**: Discovery learning via tree structure exploration and spatial positioning
+- **Create don't copy**: Original thinking using tree hierarchy and statement relationships
+- **Share don't hide**: Collaborative growth through statement library sharing and tree structure collaboration
+- **Reflect don't rush**: Deep understanding leveraging tree structure analysis and bottom-up data flow
 
 ### Personalized Paths
 - **Adaptive pacing**: Individual speed
@@ -92,18 +92,18 @@ When formal logic becomes accessible and engaging, it transforms from a niche ac
 ## New Educational Formats
 
 ### Interactive Textbooks
-- **Live examples**: Manipulate in-place
-- **Embedded exercises**: Practice immediately
-- **Adaptive content**: Adjust to reader
-- **Community notes**: Shared insights
-- **Update streams**: Living documents
+- **Live examples**: Manipulate statement identity and node relationships in-place
+- **Embedded exercises**: Practice tree construction and spatial positioning immediately
+- **Adaptive content**: Adjust to reader's tree manipulation and spatial reasoning level
+- **Community notes**: Shared insights about statement patterns and tree structure relationships
+- **Update streams**: Living documents with evolving tree structures and statement libraries
 
 ### Virtual Classrooms
-- **Global access**: Learn anywhere
-- **Expert guests**: Connect worldwide
-- **Recorded sessions**: Review anytime
-- **Interactive whiteboards**: Collaborate live
-- **Breakout spaces**: Small group work
+- **Global access**: Learn statement creation and tree construction anywhere
+- **Expert guests**: Connect worldwide to demonstrate tree structures and node relationships
+- **Recorded sessions**: Review statement examples and tree manipulation anytime
+- **Interactive whiteboards**: Collaborate on tree construction and spatial positioning live
+- **Breakout spaces**: Small group work on statement creation and tree structure problems
 
 ### Gamified Learning
 - **Logic quests**: Adventure-based learning

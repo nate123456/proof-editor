@@ -15,8 +15,8 @@ This three-layer architecture with platform abstraction maximizes leverage of pl
 Every feature we build ourselves creates maintenance burden. Every platform feature we leverage is maintained by the platform vendor (Microsoft for VS Code, Meta for React Native) and familiar to users. We bias heavily toward integration over custom implementation while maintaining cross-platform compatibility.
 
 ### Layer Boundaries
-- **Platform Layer**: Settings, file management, UI framework, collaboration, themes (abstracted through adapters)
-- **Proof Editor Core**: Proof structure, visualization, navigation, document format (platform-agnostic)
+- **Platform Layer**: Settings, file management, UI framework, spatial interaction APIs, input handling (abstracted through adapters)
+- **Proof Editor Core**: Statement flow management, physical tree structure, spatial navigation, proof structure, document format (platform-agnostic)
 - **Language Execution Environment**: JavaScript runtime executing user-defined logic in sandboxed V8 Isolates via LSP protocol
 
 ## Comprehensive Responsibility Table
@@ -25,26 +25,30 @@ Every feature we build ourselves creates maintenance burden. Every platform feat
 |---------|---------|-------------------|----------------|-------|
 | **Data Storage** |
 | YAML file reading/writing | | ✓ | | Proof Editor handles .proof files |
-| Ordered set entities (id, items) | ✓ | | Platform stores all ordered sets |
-| Ordered set reference tracking | ✓ | | Platform tracks which arguments use which sets |
-| Atomic argument data structure | ✓ | | References ordered set IDs |
-| Atomic argument metadata | ✓ | | Rule names, timestamps, etc. |
-| Tree positions in document | ✓ | | Platform manages spatial organization |
-| Individual position overrides | ✓ | | Platform allows manual positioning |
-| Validation state per atomic argument | ✓ | | Platform stores validation results |
-| Version history tracking | ✓ | | Platform manages document versions |
+| Ordered set entities (id, items) | | ✓ | | Core manages ordered set identity |
+| Ordered set reference tracking | | ✓ | | Core tracks statement flow connections |
+| Atomic argument data structure | | ✓ | | Core manages argument templates |
+| Atomic argument metadata | | ✓ | | Core handles rule names, timestamps, etc. |
+| Tree positions in document | | ✓ | | Core manages spatial organization |
+| Individual position overrides | | ✓ | | Core allows manual positioning |
+| Validation state per atomic argument | ✓ | | | Platform stores validation results |
+| Version history tracking | ✓ | | | Platform manages document versions |
+| Statement flow tracking | | ✓ | | Core manages physical statement movement |
 | **Ordered Set Management** |
-| Ordered set creation | ✓ | | Platform creates new ordered set entities |
-| Ordered set content editing | ✓ | | Platform updates ordered set items |
-| Ordered set reference tracking | ✓ | | Platform maintains usage references |
-| Ordered set ID generation | ✓ | | Platform ensures unique IDs |
-| Order preservation | ✓ | | Platform maintains item order |
+| Ordered set creation | | ✓ | | Core creates ordered set entities |
+| Ordered set content editing | | ✓ | | Core updates ordered set items |
+| Ordered set reference tracking | | ✓ | | Core maintains statement flow references |
+| Ordered set ID generation | | ✓ | | Core ensures unique IDs |
+| Order preservation | | ✓ | | Core maintains item order |
+| Statement flow connections | | ✓ | | Core manages physical connections between sets |
 | **Visual Rendering** |
 | Canvas management (pan/zoom) | ✓ | | Platform provides viewport |
 | Mini-map rendering | ✓ | | Platform provides document overview |
 | Auto-fit view | ✓ | | Platform fits content to viewport |
 | Atomic argument selection | ✓ | | Platform handles selection state |
 | Ordered set highlighting | ✓ | | Platform shows ordered set usage |
+| Physical tree layout | | ✓ | | Core calculates spatial positioning |
+| Statement flow visualization | | ✓ | | Core determines flow representation |
 | Drawing atomic arguments | | ✓ | JavaScript execution environment defines visual style |
 | Implication line style | | ✓ | User JavaScript code chooses lines, turnstiles, etc. |
 | Premise/conclusion visual arrangement | | ✓ | User JavaScript code decides layout |
@@ -54,15 +58,17 @@ Every feature we build ourselves creates maintenance burden. Every platform feat
 | Validation visual indicators | ✓ | | Platform renders colored borders |
 | What to highlight as errors | | ✓ | Language identifies problems |
 | **Interaction** |
-| Mouse events (click, drag) | ✓ | | Platform captures events |
-| Keyboard event capture | ✓ | | Platform handles key input |
-| Atomic argument selection | ✓ | | Platform allows selecting atomic arguments |
-| Branch from conclusion | ✓ | | Platform creates new atomic argument sharing ordered set |
-| Create independent atomic argument | ✓ | | Platform creates unconnected argument |
-| Navigate between atomic arguments | ✓ | | Platform handles movement |
-| Navigate to ordered set usage | ✓ | | Platform jumps to where ordered set is used |
-| Tree position dragging | ✓ | | Platform moves entire trees |
-| Atomic argument deletion | ✓ | | Platform removes from model |
+| Mouse events (click, drag) | ✓ | | | Platform captures events |
+| Touch events (tap, pinch, swipe) | ✓ | | | Platform handles touch input |
+| Keyboard event capture | ✓ | | | Platform handles key input |
+| Spatial interaction APIs | ✓ | | | Platform provides spatial input abstraction |
+| Atomic argument selection | | ✓ | | Core handles selection logic |
+| Branch from conclusion | | ✓ | | Core creates statement flow connections |
+| Create independent atomic argument | | ✓ | | Core creates unconnected arguments |
+| Navigate between atomic arguments | | ✓ | | Core handles spatial navigation |
+| Navigate to ordered set usage | | ✓ | | Core jumps through statement flow |
+| Tree position dragging | | ✓ | | Core moves tree spatial positions |
+| Atomic argument deletion | | ✓ | | Core removes from statement flow |
 | Ordered set deletion rules | | ✓ | User JavaScript code decides if unused ordered sets can be deleted |
 | Valid branching locations | | ✓ | User JavaScript code defines where new arguments can be created |
 | Context menu options | | ✓ | User JavaScript code provides domain actions |
@@ -82,13 +88,15 @@ Every feature we build ourselves creates maintenance burden. Every platform feat
 | Error messages | | ✓ | User JavaScript code explains problems |
 | Quick fixes | | ✓ | User JavaScript code suggests corrections |
 | **Layout** |
-| Position calculation framework | ✓ | | Platform provides coordinates |
-| Tree positioning | ✓ | | Platform stores tree locations |
-| Atomic argument relative positions | ✓ | | Platform computes from tree |
-| Standard layout algorithms | ✓ | | Platform provides common layouts |
+| Position calculation framework | | ✓ | | Core provides spatial algorithms |
+| Tree positioning | | ✓ | | Core stores tree locations |
+| Atomic argument relative positions | | ✓ | | Core computes spatial relationships |
+| Standard layout algorithms | | ✓ | | Core provides layout algorithms |
+| Physical tree structure | | ✓ | | Core manages tree spatial organization |
 | Default layout selection | | ✓ | User JavaScript code chooses layout |
 | Custom layout implementation | | ✓ | User JavaScript code can override |
 | Layout spacing parameters | | ✓ | User JavaScript code defines gaps |
+| Spatial navigation | | ✓ | | Core handles 2D tree traversal |
 | **File Format** |
 | YAML schema definition | ✓ | | Platform defines structure |
 | Serialization/deserialization | ✓ | | Platform handles I/O |
@@ -141,34 +149,39 @@ Every feature we build ourselves creates maintenance burden. Every platform feat
 | Analysis script content | | ✓ | Users write scripts |
 | Custom logic definitions | | ✓ | Language LSP extensibility |
 
-## Key Architectural Changes with Ordered Set Model
+## Key Architectural Changes with Statement Flow Model
 
-### Ordered Set-Based Architecture
-- **Ordered sets** are first-class entities with IDs and ordered items
-- **Atomic arguments** reference ordered set IDs, not individual statements
-- **Connections** are implicit through shared ordered set references (same object)
-- No separate connections table needed
+### Statement Flow-Based Architecture
+- **Ordered sets** are first-class entities managed by Core, with IDs and ordered items
+- **Atomic arguments** reference ordered set IDs for statement flow connections
+- **Connections** are implicit through shared ordered set references (same object identity)
+- **Physical tree structure** managed by Core with spatial positioning and layout
+- No separate connections table needed - identity sharing creates connections
 
-### Branching Clarified
-- **Branch from conclusion**: Select an atomic argument and create a new one using its conclusion set as premise
-- **Independent creation**: Create new atomic arguments with new ordered sets
-- Platform handles the mechanics, language LSP validates the logic
+### Statement Flow Management
+- **Physical flow**: Core tracks actual statement movement between atomic arguments
+- **Spatial positioning**: Core manages 2D positioning of trees and nodes
+- **Branch creation**: Core creates statement flow connections when branching
+- **Independent creation**: Core creates unconnected arguments with new ordered sets
 
 ### Data Flow
-1. User types statements → Platform creates/updates ordered set
-2. Ordered set gets unique ID → Platform manages references
-3. Atomic arguments reference ordered set IDs → Platform maintains relationships
-4. Shared ordered sets create implicit connections → Language LSP visualizes as needed
-5. Platform sends changes to Language LSP → LSP provides validation and intelligence
+1. User types statements → Core creates/updates ordered set
+2. Ordered set gets unique ID → Core manages statement flow references  
+3. Atomic arguments reference ordered set IDs → Core maintains physical relationships
+4. Shared ordered sets create implicit connections → Core determines spatial flow
+5. Core provides spatial structure → Platform renders via spatial interaction APIs
+6. Core sends logical structure to Language LSP → LSP provides validation and intelligence
 
 ## Design Principles
 
-1. **Platform manages structure** - Ordered sets, arguments, positions
-2. **Language LSP provides meaning** - What's valid, how to display
-3. **Platform is logic-agnostic** - Just manages ordered collections and references  
-4. **Language LSP is logic-aware** - Understands and validates
-5. **Separation of concerns** - Platform mechanics vs language semantics
-6. **LSP Integration** - Language features delivered through standard protocol
+1. **Core manages statement flow** - Ordered sets, physical connections, spatial structure
+2. **Platform provides interaction APIs** - Spatial input, rendering, file operations
+3. **Language LSP provides semantic meaning** - What's valid, how to display logically  
+4. **Core is logic-agnostic** - Manages physical structure without understanding meaning
+5. **Platform is structure-agnostic** - Provides APIs without understanding proof structure
+6. **Language LSP is logic-aware** - Understands and validates proof semantics
+7. **Clear separation of concerns** - Physical structure vs interaction APIs vs language semantics
+8. **LSP Integration** - Language features delivered through standard protocol
 
 ## LSP Integration Points
 

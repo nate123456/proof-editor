@@ -159,6 +159,8 @@ Using Documentation: "Following the defeasible logic templates:
 - **Completeness analysis**: Follow completeness verification guides
 - **Example generation**: Create test cases using documentation examples
 - **Edge case detection**: Use documented edge case patterns
+- **Statement flow validation**: Verify statement flow through spatial tree structures
+- **Tree position validation**: Validate logical positions within physical tree structures
 
 ### Community-Driven Refinement
 - **User testing**: "This inference seems wrong in case X"

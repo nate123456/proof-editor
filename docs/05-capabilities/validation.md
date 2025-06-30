@@ -1,8 +1,8 @@
 # Validation
 
-## Real-Time Proof Checking and Intelligent Feedback
+## Real-Time Statement Flow Checking and Intelligent Feedback
 
-Validation provides intelligent, educational feedback that helps users understand their reasoning and improve their proofs. The validation system operates across all platforms through coordinated efforts between the core engine, language servers, and platform-specific UI components.
+Validation provides intelligent, educational feedback that helps users understand their statement flow networks and improve their proof routing. The validation system operates across all platforms through coordinated efforts between the core engine, language servers, and platform-specific UI components, ensuring statement pathways are feasible and correctly configured.
 
 ## Real-Time Validation
 
@@ -44,25 +44,25 @@ interface ValidationResponse {
 ```
 
 ### Multi-Level Validation
-- **Syntax validation** [LSP]: Well-formed text within ordered sets
+- **Statement syntax validation** [LSP]: Well-formed statement text
   - Parses statement content for syntactic correctness
   - Validates domain-specific notation
   - Checks symbol and formula well-formedness
 
-- **Structure validation** [CORE]: Valid connections via shared ordered sets
-  - Validates ordered set reference integrity
-  - Ensures connection validity through shared references
-  - Maintains structural consistency across document
+- **Flow pathway validation** [CORE]: Valid statement routing through networks
+  - Validates statement flow pathway integrity
+  - Ensures statement routing feasibility through network structure
+  - Maintains flow consistency across document
 
-- **Logic validation** [LSP]: Sound reasoning within domain
-  - Validates inference rule applications
-  - Checks logical soundness and validity
-  - Enforces domain-specific logical rules
+- **Statement transformation validation** [LSP]: Sound statement processing within domain
+  - Validates statement transformation rule applications
+  - Checks statement processing soundness and validity
+  - Enforces domain-specific statement transformation rules
 
-- **Style validation** [LSP]: Best practices and conventions
-  - Enforces style guidelines
-  - Provides organization recommendations
-  - Checks domain-specific conventions
+- **Flow network style validation** [LSP]: Best practices and conventions
+  - Enforces routing style guidelines
+  - Provides flow organization recommendations
+  - Checks domain-specific flow conventions
 
 ### Ultra-Fast Experience
 For detailed performance targets and validation timing requirements, see [Non-Functional Requirements](../09-non-functional-requirements.md#ultra-fast-validation-performance).
@@ -107,23 +107,23 @@ For detailed performance targets and validation timing requirements, see [Non-Fu
 
 ## Validation Types
 
-### Logical Correctness [LSP]
-- **Rule validation**: Check proper inference rule application
-- **Premise verification**: Ensure all claims are justified
-- **Conclusion checking**: Verify logical consequence
-- **Consistency analysis**: Detect contradictions
+### Statement Flow Correctness [LSP]
+- **Transformation rule validation**: Check proper statement transformation rule application
+- **Input verification**: Ensure all required statements are available at processing points
+- **Output checking**: Verify statement production follows transformation rules
+- **Flow consistency analysis**: Detect statement routing contradictions
 
-### Structural Validation [CORE + LSP]
-- **Completeness checking** [LSP]: Identify missing logical steps
-- **Connection validation** [CORE]: Verify ordered set references
-- **Circular detection** [LSP]: Find circular reasoning patterns
-- **Dependency validation** [CORE + LSP]: Ensure valid proof ordering
+### Flow Network Validation [CORE + LSP]
+- **Flow completeness checking** [LSP]: Identify missing statement pathways
+- **Routing validation** [CORE]: Verify statement flow pathway references
+- **Circular flow detection** [LSP]: Find circular statement routing patterns
+- **Flow dependency validation** [CORE + LSP]: Ensure valid statement flow ordering
 
-### Domain Validation [LSP]
-- **Custom rules**: Implement field-specific requirements
-- **Notation checking**: Validate proper formatting
-- **Compliance verification**: Check regulatory standards
-- **Convention enforcement**: Apply domain best practices
+### Domain Flow Validation [LSP]
+- **Custom routing rules**: Implement field-specific statement flow requirements
+- **Flow notation checking**: Validate proper statement flow formatting
+- **Flow compliance verification**: Check regulatory statement routing standards
+- **Flow convention enforcement**: Apply domain statement flow best practices
 
 ## Visual Feedback
 
@@ -301,32 +301,32 @@ interface ProgressAnalysis {
   - Grading integration support
   - Student progress tracking
 
-### Proof Strategies [LSP]
-- **Strategy recognition**: Identify proof approaches
-  - Pattern-based strategy detection
-  - Common technique identification
-  - Strategy classification system
+### Flow Network Strategies [LSP]
+- **Routing strategy recognition**: Identify statement flow approaches
+  - Pattern-based routing strategy detection
+  - Common flow technique identification
+  - Flow strategy classification system
 
-- **Alternative suggestions**: Explore different paths
-  - Generate alternative strategies
-  - Compare approach effectiveness
-  - Guide proof exploration
+- **Alternative routing suggestions**: Explore different pathways
+  - Generate alternative routing strategies
+  - Compare flow approach effectiveness
+  - Guide statement pathway exploration
 
-- **Optimization analysis**: Improve proof efficiency
-  - Detect redundant steps
-  - Suggest simplifications
-  - Minimize proof length
+- **Flow optimization analysis**: Improve routing efficiency
+  - Detect redundant pathways
+  - Suggest flow simplifications
+  - Minimize statement routing complexity
 
-- **Quality metrics**: Assess beyond correctness
-  - Clarity and readability scores
-  - Elegance measurements
-  - Domain-specific quality criteria
+- **Flow quality metrics**: Assess beyond correctness
+  - Flow clarity and readability scores
+  - Routing elegance measurements
+  - Domain-specific flow quality criteria
 
-### Meta-Validation [LSP]
-- **Validator validation**: Verify custom validators work correctly
-- **Consistency checking**: Ensure rule system coherence
-- **Coverage analysis**: Measure validation completeness
-- **Soundness verification**: Deep correctness checks
+### Meta-Flow-Validation [LSP]
+- **Flow validator validation**: Verify custom flow validators work correctly
+- **Flow consistency checking**: Ensure routing rule system coherence
+- **Flow coverage analysis**: Measure flow validation completeness
+- **Flow soundness verification**: Deep flow correctness checks
 
 ## Integration Possibilities
 
@@ -350,13 +350,13 @@ interface ExternalValidationRequest {
 - Configurable validation levels
 - Batch processing support
 
-### Collaborative Validation [PLATFORM + LSP]
+### Collaborative Flow Validation [PLATFORM + LSP]
 
 **Team Workflows**:
-- **Automated validation** [LSP]: Integrate with CI/CD pipelines
-- **Batch processing** [LSP]: Handle multiple proofs efficiently
-- **History tracking** [CORE]: Store validation results over time
-- **Comparison tools** [LSP]: Analyze different proof approaches
+- **Automated flow validation** [LSP]: Integrate with CI/CD pipelines
+- **Batch flow processing** [LSP]: Handle multiple flow networks efficiently
+- **Flow history tracking** [CORE]: Store flow validation results over time
+- **Flow comparison tools** [LSP]: Analyze different statement routing approaches
 
 **Platform Implementations**:
 - **Desktop**: Integration with Git, CI/CD tools
@@ -409,14 +409,14 @@ Cache Check (0ms) → Pattern Match (1-3ms) → JS Rule (2-5ms) → Result
 
 ## Philosophy
 
-### Validation as Teaching
-Every error is a learning opportunity. The validation system doesn't just identify problems - it educates users about logical reasoning through intelligent feedback and constructive suggestions.
+### Validation as Flow Teaching
+Every routing error is a learning opportunity. The validation system doesn't just identify flow problems - it educates users about statement routing through intelligent feedback and constructive pathway suggestions.
 
-### Encouraging Exploration
-Users should feel safe to experiment. Validation guides rather than punishes, providing gentle correction and educational support that encourages learning through trial.
+### Encouraging Flow Exploration
+Users should feel safe to experiment with statement routing. Validation guides rather than punishes, providing gentle correction and educational support that encourages learning through flow trial.
 
-### Building Confidence
-Clear feedback builds understanding. Users develop their logical intuition through consistent, helpful validation that explains both what went wrong and why it matters.
+### Building Flow Confidence
+Clear feedback builds understanding. Users develop their statement flow intuition through consistent, helpful validation that explains both what routing went wrong and why proper flow matters.
 
-### Continuous Improvement
-The validation system evolves with usage, learning from common patterns to provide increasingly relevant assistance tailored to specific domains and user needs.
+### Continuous Flow Improvement
+The validation system evolves with usage, learning from common flow patterns to provide increasingly relevant assistance tailored to specific domains and statement routing needs.

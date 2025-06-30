@@ -22,7 +22,7 @@ Proof Editor is designed with **semantic neutrality** at its core. AI assistance
 ### ❌ **OUT OF SCOPE: Explicit AI Support or Implementation**
 
 #### No AI in Core Platform
-- **No AI tracking in entities**: AtomicArgumentEntity, OrderedSetEntity contain NO AI-related functionality
+- **No AI tracking in statements**: Statement entities and ordered sets contain NO AI-related functionality
 - **No AI features in core**: The platform doesn't implement AI capabilities
 - **No AI metadata**: Core business logic remains completely AI-agnostic
 - **No AI dependencies**: All functionality works completely independently of AI
@@ -92,29 +92,33 @@ Proof Editor is designed with **semantic neutrality** at its core. AI assistance
 - ❌ AI confidence scores
 - ❌ Human validation of AI content
 - ❌ AI interaction logs in proof files
+- ❌ AI analysis of statement patterns or ordered set relationships
+- ❌ AI manipulation of physical tree structures or spatial positioning
 
 ### What We Do Track (Minimally)
 - ✅ Human authorship (standard collaboration feature)
 - ✅ Source language package (for rule attribution)
 - ✅ Basic timestamps (standard metadata)
 - ✅ External references (academic citations)
+- ✅ Statement entities and ordered set relationships (core platform functionality)
+- ✅ Physical tree positioning and spatial layout data
 
 ## Benefits of This Approach
 
 ### Focus
-- Core system remains entirely focused on logical reasoning
+- Core system remains entirely focused on statement processing and physical tree manipulation
 - No distraction from AI feature development or maintenance
-- Clear scope boundaries for our development team
+- Clear scope boundaries for our development team focused on spatial reasoning and ordered set operations
 
 ### Reliability
-- Core functionality never depends on external services
-- No AI-related failures can affect the platform
-- Consistent platform behavior regardless of user's AI choices
+- Core statement processing functionality never depends on external services
+- No AI-related failures can affect physical tree operations or ordered set relationships
+- Consistent platform behavior for spatial reasoning regardless of user's AI choices
 
 ### Privacy
 - No AI interactions tracked or stored in platform
 - Users maintain complete control over AI usage
-- Platform files contain only logical content
+- Platform files contain only statement entities, ordered set relationships, and physical tree positioning data
 
 ### User Freedom
 - Users choose their own AI tools and strategies
@@ -127,7 +131,7 @@ Proof Editor is designed with **semantic neutrality** at its core. AI assistance
 - Never add AI-related fields, APIs, or features
 - Platform functionality must be completely AI-independent
 - Don't create integration points for AI services
-- Focus entirely on logical reasoning capabilities
+- Focus entirely on statement processing, ordered set operations, and physical tree manipulation capabilities
 
 ### For Documentation Contributors
 - Document AI usage patterns as community examples
@@ -150,9 +154,9 @@ Proof Editor is designed with **semantic neutrality** at its core. AI assistance
 - Review new features to prevent AI scope creep
 
 ### Evolution Path
-- Community can develop AI usage patterns independently
-- Users can employ whatever AI tools work best for them
-- Platform evolution stays focused on logical reasoning
-- System remains useful regardless of AI technology changes
+- Community can develop AI usage patterns for statement processing independently
+- Users can employ whatever AI tools work best for them with tree structures and ordered sets
+- Platform evolution stays focused on physical tree manipulation, spatial reasoning, and statement entity operations
+- System remains useful for statement processing regardless of AI technology changes
 
-This scope ensures Proof Editor remains a focused, reliable tool for logical reasoning that users can enhance with their choice of external AI tools, rather than a platform that attempts to provide AI capabilities.
+This scope ensures Proof Editor remains a focused, reliable tool for statement processing and physical tree reasoning that users can enhance with their choice of external AI tools, rather than a platform that attempts to provide AI capabilities.

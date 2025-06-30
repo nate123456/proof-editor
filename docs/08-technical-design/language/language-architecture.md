@@ -6,12 +6,15 @@ The Language Management System enables proof files to specify their logical lang
 
 **CRITICAL ARCHITECTURAL SHIFT**: Languages are no longer just "configuration + validation rules" - they are **JavaScript execution environments** where user-defined logic code runs. Each language package contains JavaScript implementations of logical reasoning systems that execute within secure V8 Isolates.
 
-### JavaScript Execution Model
+### Statement Processing Model
 
-Every language package implements custom logic as JavaScript code that executes within:
-- **Dedicated V8 Isolate**: Sandboxed JavaScript runtime per language server
-- **LSP Server Process**: Manages JavaScript execution and protocol communication
-- **Performance Targets**: <10ms validation, <100ms hot reload, adaptive memory allocation
+Every language package implements custom logic as JavaScript code that processes statement flow through physical proof trees:
+- **Statement Validation**: Process statements as fundamental building blocks
+- **Tree Structure Analysis**: Validate physical tree relationships and data flow
+- **Physical Tree Operations**: Support for tree positioning, branching, and spatial relationships
+- **Statement Flow Validation**: Verify data flow from children to parents through tree structure
+- **LSP Server Process**: Manages statement flow validation and protocol communication
+- **Performance Targets**: <10ms statement validation, <100ms tree analysis, adaptive memory allocation
 - **Single Language Per Proof**: One active language with inheritance support
 
 ## Core Architecture: JavaScript Execution Environment
@@ -71,22 +74,26 @@ Every language package contains JavaScript code that implements a complete logic
 #### Core Components
 
 **JavaScript Logic Implementation**
-- **Validation Functions**: User-defined JavaScript that checks argument validity
-- **Inference Rules**: Custom logic for completing proofs and suggesting next steps  
-- **Symbol Handling**: JavaScript code for parsing and rendering logical notation
-- **Analysis Functions**: Custom structure analysis and proof checking
+- **Statement Validation**: User-defined JavaScript that validates statement content and flow
+- **Tree Structure Analysis**: Custom logic for validating physical tree relationships and data flow
+- **Physical Tree Operations**: Support for tree positioning, node attachment, and spatial relationships
+- **Statement Flow Validation**: Verify bottom-up data flow from children to parents
+- **Symbol Handling**: JavaScript code for parsing and rendering logical notation within statements
+- **Flow Analysis**: Custom validation of statement flow through tree structures
 
 **LSP Server Runtime**
-- **V8 Isolate Management**: Creates and manages sandboxed JavaScript contexts
-- **Protocol Handling**: Implements LSP communication with Proof Editor Core
-- **Performance Monitoring**: Enforces 10ms response time targets
+- **V8 Isolate Management**: Creates and manages sandboxed JavaScript contexts for statement processing
+- **Protocol Handling**: Implements LSP communication with statement flow data
+- **Performance Monitoring**: Enforces 10ms statement validation targets
 - **Security Enforcement**: Memory limits, CPU timeouts, access restrictions
 
 **Package Structure**
-- **logic.js**: Main JavaScript file with user-defined reasoning functions
-- **server.js**: LSP server that loads and executes logic.js
+- **logic.js**: Main JavaScript file with statement processing and tree validation functions
+- **tree-operations.js**: Physical tree operations for positioning and structure validation
+- **flow-validation.js**: Statement flow validation through tree structures
+- **server.js**: LSP server that processes statement flow through physical trees
 - **package.yaml**: Manifest with dependencies and capabilities
-- **examples/**: Sample proofs demonstrating the logical system
+- **examples/**: Sample proofs demonstrating statement flow patterns
 
 #### Language Inheritance Model
 
@@ -97,6 +104,14 @@ Every language package contains JavaScript code that implements a complete logic
 const baseLogic = {
   validateArgument(premises, conclusions, rule, context) {
     // Base first-order logic validation
+  },
+  
+  validateTreeStructure(treeNodes, context) {
+    // Base tree structure validation
+  },
+  
+  validateStatementFlow(parentNode, childNodes, context) {
+    // Base statement flow validation
   }
 };
 
@@ -111,6 +126,20 @@ const modalLogic = {
     }
     // Fall back to base logic
     return baseLogic.validateArgument(premises, conclusions, rule, context);
+  },
+  
+  validateTreeStructure(treeNodes, context) {
+    // Modal-specific tree structure validation
+    const baseResult = baseLogic.validateTreeStructure(treeNodes, context);
+    if (!baseResult.valid) return baseResult;
+    
+    // Add modal-specific tree validation
+    return this.validateModalTreeStructure(treeNodes, context);
+  },
+  
+  validateStatementFlow(parentNode, childNodes, context) {
+    // Modal-specific statement flow validation
+    return this.validateModalStatementFlow(parentNode, childNodes, context);
   }
 };
 ```
@@ -794,6 +823,203 @@ ruleGeneration:
     humanReviewRequired: true
 ```
 
+## Physical Tree Operations
+
+### Tree Structure Validation
+
+Language packages must validate physical tree structures to ensure proper statement flow:
+
+```javascript
+// Tree structure validation interface
+interface TreeValidationContext {
+  document: ProofDocument;
+  treeId: string;
+  spatialLayout: TreeLayout;
+}
+
+interface TreeValidationResult {
+  valid: boolean;
+  errors: TreeValidationError[];
+  warnings: TreeValidationWarning[];
+}
+
+// Language package implements tree validation
+class ModalLogicValidator {
+  validateTreeStructure(nodes: TreeNode[], context: TreeValidationContext): TreeValidationResult {
+    const result = { valid: true, errors: [], warnings: [] };
+    
+    // Validate parent-child relationships
+    for (const node of nodes) {
+      if (node.parent) {
+        const parentNode = nodes.find(n => n.id === node.parent.nodeId);
+        if (!parentNode) {
+          result.errors.push({
+            type: 'missing-parent',
+            nodeId: node.id,
+            message: `Parent node ${node.parent.nodeId} not found`
+          });
+          result.valid = false;
+        }
+      }
+    }
+    
+    // Validate statement flow between nodes
+    for (const node of nodes) {
+      if (node.children && node.children.length > 0) {
+        const flowResult = this.validateStatementFlow(node, node.children, context);
+        if (!flowResult.valid) {
+          result.errors.push(...flowResult.errors);
+          result.valid = false;
+        }
+      }
+    }
+    
+    return result;
+  }
+}
+```
+
+### Statement Flow Validation
+
+Validate that statement flow follows logical rules through tree structure:
+
+```javascript
+// Statement flow validation
+interface StatementFlowContext {
+  parentNode: TreeNode;
+  childNodes: TreeNode[];
+  treeLayout: TreeLayout;
+  document: ProofDocument;
+}
+
+interface StatementFlowResult {
+  valid: boolean;
+  errors: FlowValidationError[];
+  suggestedFixes: FlowFix[];
+}
+
+class StatementFlowValidator {
+  validateFlow(context: StatementFlowContext): StatementFlowResult {
+    const { parentNode, childNodes } = context;
+    const result = { valid: true, errors: [], suggestedFixes: [] };
+    
+    // Get parent's premise requirements
+    const parentArgument = this.getArgument(parentNode.argumentId);
+    const requiredPremises = parentArgument.premises;
+    
+    // Check if children provide required premises
+    for (let i = 0; i < requiredPremises.length; i++) {
+      const requiredPremise = requiredPremises[i];
+      const childAtPosition = childNodes.find(child => 
+        child.parent?.position === i
+      );
+      
+      if (!childAtPosition) {
+        result.errors.push({
+          type: 'missing-premise-input',
+          position: i,
+          required: requiredPremise,
+          message: `No child provides input for premise ${i}: "${requiredPremise}"`
+        });
+        result.valid = false;
+        continue;
+      }
+      
+      // Validate that child's conclusion matches required premise
+      const childArgument = this.getArgument(childAtPosition.argumentId);
+      const childConclusion = this.getChildConclusion(childArgument, childAtPosition.parent.from);
+      
+      if (!this.statementsMatch(childConclusion, requiredPremise)) {
+        result.errors.push({
+          type: 'premise-mismatch',
+          position: i,
+          expected: requiredPremise,
+          actual: childConclusion,
+          childNodeId: childAtPosition.id,
+          message: `Child conclusion "${childConclusion}" does not match required premise "${requiredPremise}"`
+        });
+        result.valid = false;
+      }
+    }
+    
+    return result;
+  }
+  
+  private getChildConclusion(argument: AtomicArgument, fromIndex?: string): string {
+    if (fromIndex && argument.conclusions.length > 1) {
+      const index = parseInt(fromIndex);
+      return argument.conclusions[index] || argument.conclusions[0];
+    }
+    return argument.conclusions[0];
+  }
+  
+  private statementsMatch(statement1: string, statement2: string): boolean {
+    // Language-specific statement matching logic
+    // This could involve parsing, normalization, etc.
+    return statement1.trim() === statement2.trim();
+  }
+}
+```
+
+### Physical Positioning Support
+
+Language packages can validate spatial relationships and provide positioning hints:
+
+```javascript
+// Physical tree positioning
+interface TreeLayout {
+  nodes: Array<{
+    nodeId: string;
+    position: { x: number; y: number };
+    size: { width: number; height: number };
+  }>;
+  connections: Array<{
+    parentId: string;
+    childId: string;
+    position: number;
+    path: { x: number; y: number }[];
+  }>;
+}
+
+class TreePositionValidator {
+  validateLayout(layout: TreeLayout, context: TreeValidationContext): LayoutValidationResult {
+    const result = { valid: true, errors: [], suggestions: [] };
+    
+    // Check for overlapping nodes
+    for (let i = 0; i < layout.nodes.length; i++) {
+      for (let j = i + 1; j < layout.nodes.length; j++) {
+        if (this.nodesOverlap(layout.nodes[i], layout.nodes[j])) {
+          result.errors.push({
+            type: 'node-overlap',
+            nodes: [layout.nodes[i].nodeId, layout.nodes[j].nodeId],
+            message: `Nodes ${layout.nodes[i].nodeId} and ${layout.nodes[j].nodeId} overlap`
+          });
+          result.valid = false;
+        }
+      }
+    }
+    
+    // Suggest improved positioning
+    if (!result.valid) {
+      result.suggestions.push({
+        type: 'auto-layout',
+        algorithm: 'hierarchical',
+        message: 'Apply automatic hierarchical layout to resolve overlaps'
+      });
+    }
+    
+    return result;
+  }
+  
+  private nodesOverlap(node1: any, node2: any): boolean {
+    return !(node1.position.x + node1.size.width < node2.position.x ||
+             node2.position.x + node2.size.width < node1.position.x ||
+             node1.position.y + node1.size.height < node2.position.y ||
+             node2.position.y + node2.size.height < node1.position.y);
+  }
+}
+```
+
 ## See Also
 
 - [3-Tier SDK Guide](./sdk-tiers.md) - Detailed tier progression guide
@@ -804,3 +1030,4 @@ ruleGeneration:
 - [Migration Guide](./tier-migration.md) - Moving between tiers
 - [Language Security](./language-security.md) - Security model across tiers
 - [Platform Abstraction](../platform-abstraction.md) - Platform-specific implementations
+- [LSP Integration](./lsp-integration.md) - Language Server Protocol integration with physical tree operations

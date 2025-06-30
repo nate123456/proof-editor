@@ -2,16 +2,18 @@
 
 ## CORE Layer
 Platform-agnostic business logic that represents the pure functionality of Proof Editor. This includes:
-- Ordered set management
-- Atomic argument structures (templates)
-- Connection logic (shared ordered set references)
-- Node instances (atomic arguments positioned in trees)
-- Tree structure (explicit parent-child relationships)
-- Argument tree discovery (maximal connected components)
-- Proof document model
-- Navigation algorithms
-- Layout calculations
-- Pure validation logic (no LSP)
+- **Statement Flow Management**: Physical flow of statements between atomic arguments
+- **Ordered Set Management**: Unique ordered collections that enable connections
+- **Atomic Argument Structures**: Templates for logical inference steps
+- **Connection Logic**: Implicit relationships via shared ordered set references
+- **Physical Tree Structure**: Spatial positioning and layout of proof trees
+- **Node Instance Management**: Specific placements of argument templates in trees
+- **Tree Structure Logic**: Explicit parent-child relationships and positioning
+- **Argument Tree Discovery**: Maximal connected components
+- **Spatial Navigation**: 2D positioning and tree traversal algorithms
+- **Layout Calculations**: Physical positioning of nodes in document space
+- **Proof Document Model**: Document structure and tree organization
+- **Pure Validation Logic**: Rule checking without LSP dependency
 
 ## LSP Layer (Language Server Protocol)
 **JavaScript Execution Environment for Custom Logic Systems**
@@ -35,15 +37,15 @@ The LSP layer serves as a dedicated execution runtime where user-defined languag
 
 ## PLATFORM Layer
 Platform-specific integrations and UI implementations:
-- VS Code extension features
-- React Native mobile app features
-- File system operations
-- Settings management
-- UI/UX implementations
-- Command palette integrations
-- Theme handling
-- Platform-specific keybindings
-- Native platform features (notifications, sharing, etc.)
+- **Statement Flow APIs**: Platform interfaces for statement flow visualization
+- **Spatial Interaction APIs**: Touch/mouse interfaces for tree manipulation
+- **File System Operations**: Platform-specific file access and storage
+- **Settings Management**: Platform configuration and persistence
+- **UI/UX Implementations**: Platform-native rendering and interaction
+- **Command Integration**: Platform command systems and shortcuts
+- **Theme Handling**: Platform appearance and visual styling
+- **Input Abstractions**: Mouse, keyboard, touch, and gesture handling
+- **Native Platform Features**: Notifications, sharing, system integration
 
 ## Documentation Principles
 1. **CORE docs**: Never mention specific platforms or UI implementations

@@ -32,6 +32,10 @@ A self-contained bundle that works identically across all platforms:
 - **Language Server Protocol (LSP) implementations** [LSP]
 - **LSP extension configurations** [LSP]
 - **Custom LSP server binaries** [LSP]
+- **Physical tree structure queries** [LSP]
+- **Spatial tree operation handlers** [LSP]
+- **Statement flow processors** [LSP]
+- **Tree positioning calculators** [LSP]
 
 ### Profile
 A curated collection of packages for specific use cases (e.g., "Modal Logic Course", "Formal Methods Research").
@@ -63,6 +67,10 @@ my-logic-package/
     ├── modal-logic/           # LSP server implementation
     │   ├── server.js          # Server entry point
     │   ├── capabilities.json  # Server capabilities
+    │   ├── tree-queries.js    # Physical tree structure queries
+    │   ├── spatial-ops.js     # Spatial tree operations
+    │   ├── statement-flow.js  # Statement flow analysis
+    │   ├── tree-positioning.js # Tree positioning calculations
     │   └── package.json       # LSP dependencies
     └── config.json            # LSP configuration
 ```
@@ -100,7 +108,11 @@ The manifest format is identical across all platforms:
       "modalLogic": {
         "serverPath": "./language-servers/modal-logic/server.js",
         "capabilities": "./language-servers/modal-logic/capabilities.json",
-        "configuration": "./language-servers/config.json"
+        "configuration": "./language-servers/config.json",
+        "treeQueries": "./language-servers/modal-logic/tree-queries.js",
+        "spatialOperations": "./language-servers/modal-logic/spatial-ops.js",
+        "statementFlow": "./language-servers/modal-logic/statement-flow.js",
+        "treePositioning": "./language-servers/modal-logic/tree-positioning.js"
       }
     }
   },
@@ -178,6 +190,59 @@ await importPackage(packageData);
 
 // Package manifest parsing
 const manifest = await parsePackageManifest(manifestData);
+```
+
+### Statement Flow Across Packages
+
+When statements flow between different packages, coordination is required to maintain tree structure integrity.
+
+```typescript
+interface StatementFlowCoordinator {
+  // Track statement usage across packages
+  trackStatementFlow(statementId: string, sourcePackage: string, targetPackage: string): void;
+  
+  // Validate statement flow consistency
+  validateFlowConsistency(flowId: string): Promise<FlowValidationResult>;
+  
+  // Resolve statement conflicts between packages
+  resolveStatementConflicts(conflicts: StatementConflict[]): Promise<ConflictResolution>;
+  
+  // Optimize statement sharing for better performance
+  optimizeStatementSharing(packages: string[]): Promise<OptimizationResult>;
+}
+
+interface StatementConflict {
+  statementId: string;
+  conflictingPackages: string[];
+  conflictType: 'definition' | 'usage' | 'validation';
+  severity: 'error' | 'warning' | 'info';
+}
+```
+
+#### Statement Flow Example
+```yaml
+# Example: Modal logic package uses statements from propositional logic
+version: "1.0"
+imports:
+  - propositional-logic@^2.0.0
+
+# Statement flow configuration
+statementFlow:
+  allowedSources:
+    - propositional-logic  # Can use statements from this package
+  restrictions:
+    - no-circular-dependencies
+    - validate-cross-package-usage
+  
+# Tree positioning considers statement sources
+trees:
+  - id: modal-proof-1
+    offset: {x: 0, y: 0}
+    statementSources:
+      s1: propositional-logic  # Statement from external package
+      s2: local               # Statement defined locally
+    nodes:
+      n1: {arg: modal-necessity, statements: [s1, s2]}
 ```
 
 ### Document-Level Requirements
@@ -305,6 +370,89 @@ Scripts run in isolated context with:
       "scripts/validator.js": "def456..."
     }
   }
+}
+```
+
+## Physical Tree Structure Support [LSP]
+
+### Statement Flow Analysis
+Language Server Protocol implementations must handle statement flow across package boundaries to ensure proper tree structure validation and navigation.
+
+```typescript
+interface StatementFlowAnalysis {
+  statementId: string;
+  flowPaths: FlowPath[];
+  usageCount: number;
+  crossPackageReferences: CrossPackageReference[];
+  cyclicDependencies: CyclicDependency[];
+}
+
+interface FlowPath {
+  sourceNode: string;
+  targetNode: string;
+  pathLength: number;
+  intermediateNodes: string[];
+  packageBoundaries: string[]; // Packages traversed in this path
+}
+
+interface CrossPackageReference {
+  sourcePackage: string;
+  targetPackage: string;
+  statementId: string;
+  referenceType: 'premise' | 'conclusion' | 'shared';
+}
+```
+
+### Tree Positioning Requirements
+Packages must support physical tree structure calculations for proper spatial layout and navigation.
+
+```typescript
+interface TreeLayout {
+  treeId: string;
+  totalNodes: number;
+  depth: number;
+  width: number;
+  nodePositions: Map<string, Position>;
+  renderingHints: RenderingHints;
+}
+
+interface Position {
+  x: number;
+  y: number;
+  z?: number; // For 3D layouts
+  anchor: 'top-left' | 'center' | 'bottom-right';
+}
+
+interface RenderingHints {
+  preferredDirection: 'top-down' | 'bottom-up' | 'left-right' | 'right-left';
+  minSpacing: number;
+  maxSpacing: number;
+  layoutAlgorithm: 'force-directed' | 'hierarchical' | 'circular';
+}
+```
+
+### Cross-Package Tree Operations
+When trees span multiple packages, coordinated operations are required.
+
+```typescript
+interface CrossPackageTreeManager {
+  // Coordinate tree operations across packages
+  coordinateTreeLayout(treeId: string, packages: string[]): Promise<CoordinatedLayout>;
+  
+  // Resolve conflicts between package tree requirements
+  resolveLayoutConflicts(conflicts: LayoutConflict[]): Promise<ConflictResolution>;
+  
+  // Validate tree structure across package boundaries
+  validateCrossPackageTree(treeId: string): Promise<ValidationResult>;
+  
+  // Optimize positioning considering all package constraints
+  optimizeCrossPackageLayout(constraints: CrossPackageConstraints): Promise<OptimizedLayout>;
+}
+
+interface CrossPackageConstraints {
+  packageConstraints: Map<string, PackageConstraints>;
+  globalConstraints: GlobalConstraints;
+  priorityOrder: string[]; // Package priority for conflict resolution
 }
 ```
 
@@ -479,7 +627,15 @@ Packages can optionally include LSP servers to provide advanced language intelli
     "customRequests": [
       "proof/validateInferenceRule",
       "proof/getSuggestions",
-      "proof/analyzeComplexity"
+      "proof/analyzeComplexity",
+      "proof/queryTreeStructure",
+      "proof/navigateSpatialTree",
+      "proof/getTreePosition",
+      "proof/resolveTreeConflicts",
+      "proof/analyzeStatementFlow",
+      "proof/computeTreeLayout",
+      "proof/findStatementUsage",
+      "proof/optimizeTreePosition"
     ]
   }
 }
@@ -500,6 +656,19 @@ interface LSPServerManager {
   // Health monitoring
   getServerHealth(serverId: string): Promise<ServerHealth>;
   getServerMetrics(serverId: string): Promise<ServerMetrics>;
+  
+  // Physical tree structure operations
+  queryTreeStructure(serverId: string, query: TreeQuery): Promise<TreeNode[]>;
+  navigateSpatialTree(serverId: string, navigation: TreeNavigation): Promise<TreeNode>;
+  resolveTreeConflicts(serverId: string, conflicts: TreeConflict[]): Promise<ConflictResolution>;
+  
+  // Statement flow analysis
+  analyzeStatementFlow(serverId: string, statementId: string): Promise<StatementFlowAnalysis>;
+  findStatementUsage(serverId: string, statementId: string): Promise<UsageLocation[]>;
+  
+  // Tree positioning and layout
+  computeTreeLayout(serverId: string, treeId: string): Promise<TreeLayout>;
+  optimizeTreePosition(serverId: string, constraints: PositionConstraints): Promise<OptimizedLayout>;
 }
 ```
 
@@ -520,6 +689,17 @@ interface PackageLSPExtension {
       params: any;
       documentation: string;
     };
+  };
+  // Physical tree structure support
+  treeStructureCapabilities: {
+    spatialQueries: boolean;
+    treeNavigation: boolean;
+    conflictResolution: boolean;
+    positionMapping: boolean;
+    statementFlowAnalysis: boolean;
+    treeLayoutComputation: boolean;
+    usageTracking: boolean;
+    positionOptimization: boolean;
   };
 }
 ```
@@ -542,6 +722,15 @@ interface LSPSandboxConfig {
   networkAccess: boolean;
   timeoutSeconds: number;
   allowedCapabilities: string[];
+  // Physical tree structure permissions
+  treeStructureAccess: {
+    spatialOperations: boolean;
+    treeModification: boolean;
+    positionQueries: boolean;
+    statementFlowRead: boolean;
+    statementFlowModification: boolean;
+    layoutComputation: boolean;
+  };
 }
 ```
 
@@ -625,11 +814,14 @@ interface MobilePackageDistribution {
   },
   "platformAdaptations": {
     "vs-code": {
-      "keybindings": "./config/desktop-keybindings.json"
+      "keybindings": "./config/desktop-keybindings.json",
+      "spatialTreeOperations": "./config/desktop-tree-ops.json"
     },
     "react-native": {
       "touchGestures": "./config/mobile-gestures.json",
-      "customKeyboard": "./config/mobile-keyboard.json"
+      "customKeyboard": "./config/mobile-keyboard.json",
+      "spatialTreeTouch": "./config/mobile-tree-touch.json",
+      "statementFlowTouch": "./config/mobile-statement-flow.json"
     }
   }
 }

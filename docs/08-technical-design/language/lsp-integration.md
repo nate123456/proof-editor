@@ -2,7 +2,7 @@
 
 ## Overview
 
-Proof Editor uses the Language Server Protocol to provide language-specific features while maintaining a clean separation between the core platform and individual proof languages. This document defines how language servers integrate with the Proof Editor platform across different host environments (VS Code, React Native mobile apps, etc.).
+Proof Editor uses the Language Server Protocol to provide language-specific features while maintaining a clean separation between the core platform and individual proof languages. This document defines how language servers integrate with the Proof Editor platform across different host environments (VS Code, React Native mobile apps, etc.), with special focus on physical tree operations and statement flow validation.
 
 ## Recommended Architecture
 
@@ -128,6 +128,7 @@ interface AnalyzeStructureRequest {
   params: {
     treeRootId: string;
     includeMetrics: boolean;
+    includePhysicalLayout?: boolean;
   };
 }
 
@@ -136,10 +137,33 @@ interface AnalyzeStructureResponse {
   openPremises: string[];
   openConclusions: string[];
   circularDependencies: string[][];
+  statementFlowErrors: StatementFlowError[];
+  physicalLayoutIssues?: LayoutValidationError[];
   metrics?: {
     depth: number;
     breadth: number;
     totalArguments: number;
+    physicalSpread: { width: number; height: number };
+  };
+}
+
+interface StatementFlowError {
+  nodeId: string;
+  type: 'missing-premise-input' | 'premise-mismatch' | 'invalid-flow';
+  position?: number;
+  expected?: string;
+  actual?: string;
+  message: string;
+}
+
+interface LayoutValidationError {
+  type: 'node-overlap' | 'disconnected-layout' | 'poor-spacing';
+  nodeIds: string[];
+  severity: 'error' | 'warning' | 'suggestion';
+  message: string;
+  suggestedFix?: {
+    action: 'auto-layout' | 'reposition' | 'resize';
+    parameters: Record<string, any>;
   };
 }
 ```
@@ -188,36 +212,189 @@ interface ProofNavigateResponse {
 }
 ```
 
+#### Physical Tree Operations
+```typescript
+// Client → Server
+interface ValidateTreeStructureRequest {
+  method: 'proof/validateTreeStructure';
+  params: {
+    textDocument: TextDocumentIdentifier;
+    treeId: string;
+    nodes: TreeNode[];
+    layout?: TreeLayout;
+  };
+}
+
+// Server → Client
+interface ValidateTreeStructureResponse {
+  valid: boolean;
+  structureErrors: TreeStructureError[];
+  layoutErrors?: LayoutValidationError[];
+  suggestedFixes: TreeFixSuggestion[];
+}
+
+interface TreeStructureError {
+  nodeId: string;
+  type: 'missing-parent' | 'invalid-attachment' | 'circular-reference';
+  message: string;
+  relatedNodes?: string[];
+}
+
+interface TreeFixSuggestion {
+  type: 'reattach-node' | 'remove-node' | 'add-missing-connection';
+  nodeId: string;
+  parameters: {
+    targetParent?: string;
+    position?: number;
+    reason: string;
+  };
+}
+```
+
+#### Statement Flow Validation
+```typescript
+// Client → Server
+interface ValidateStatementFlowRequest {
+  method: 'proof/validateStatementFlow';
+  params: {
+    textDocument: TextDocumentIdentifier;
+    parentNodeId: string;
+    childNodeIds: string[];
+    includeRecommendations?: boolean;
+  };
+}
+
+// Server → Client
+interface ValidateStatementFlowResponse {
+  valid: boolean;
+  flowErrors: StatementFlowError[];
+  recommendations?: FlowRecommendation[];
+  alternativeStructures?: AlternativeStructure[];
+}
+
+interface FlowRecommendation {
+  type: 'add-intermediate-step' | 'reorder-premises' | 'split-conclusion';
+  description: string;
+  confidence: number; // 0-1
+  suggestedArgument?: {
+    premises: string[];
+    conclusions: string[];
+    rule: string;
+  };
+}
+
+interface AlternativeStructure {
+  description: string;
+  confidence: number;
+  structureChanges: {
+    nodeId: string;
+    newAttachment: {
+      parentId: string;
+      position: number;
+    };
+  }[];
+}
+```
+
+#### Tree Layout Optimization
+```typescript
+// Client → Server
+interface OptimizeTreeLayoutRequest {
+  method: 'proof/optimizeLayout';
+  params: {
+    textDocument: TextDocumentIdentifier;
+    treeId: string;
+    algorithm: 'hierarchical' | 'force-directed' | 'layered' | 'circular';
+    constraints?: {
+      preserveRelativePositions?: boolean;
+      minimumSpacing?: { x: number; y: number };
+      maxWidth?: number;
+      maxHeight?: number;
+    };
+  };
+}
+
+// Server → Client
+interface OptimizeTreeLayoutResponse {
+  layout: TreeLayout;
+  metrics: {
+    totalArea: number;
+    averageSpacing: number;
+    crossingCount: number;
+    readabilityScore: number;
+  };
+  animationHints?: {
+    nodeId: string;
+    fromPosition: { x: number; y: number };
+    toPosition: { x: number; y: number };
+    duration: number;
+  }[];
+}
+
+interface TreeLayout {
+  nodes: Array<{
+    nodeId: string;
+    position: { x: number; y: number };
+    size: { width: number; height: number };
+  }>;
+  connections: Array<{
+    parentId: string;
+    childId: string;
+    position: number;
+    path: { x: number; y: number }[];
+  }>;
+  bounds: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+}
+```
+
 ### Standard LSP Features
 
 #### Text Document Synchronization
 - Incremental sync for individual statement edits
 - Full sync on structural changes (adding/removing arguments)
 - Custom change notifications for reordering
+- Tree structure synchronization for physical positioning
+- Statement flow updates when tree structure changes
 
 #### Diagnostics
 - Syntax errors in logical notation
 - Invalid inference rules
 - Undefined references
 - Circular reasoning detection
+- Statement flow violations
+- Tree structure inconsistencies
+- Physical layout problems (overlapping nodes, poor spacing)
 
 #### Code Completion
 - Logical operators and quantifiers
 - Previously used statements
 - Valid inference rules
 - Referenced theorems
+- Contextual statement suggestions based on tree position
+- Auto-completion for statement flow connections
 
 #### Hover Information
 - Rule explanations
 - Symbol definitions
 - Theorem statements
 - Quick proof previews
+- Tree structure information (parent/child relationships)
+- Statement flow validation status
 
 #### Code Actions
 - Fix invalid syntax
 - Apply inference rules
 - Extract sub-proofs
 - Introduce lemmas
+- Repair statement flow errors
+- Optimize tree layout
+- Reattach disconnected nodes
+- Split complex arguments
 
 ## Implementation Guidelines
 
@@ -234,20 +411,26 @@ interface ProofNavigateResponse {
 2. **Position Mapping**: Convert between model and text positions  
 3. **Change Batching**: Aggregate related changes before sending
 4. **Error Handling**: Gracefully degrade if LSP unavailable
+5. **Tree Structure Coordination**: Synchronize physical tree changes with LSP
+6. **Statement Flow Tracking**: Monitor statement flow integrity during edits
+7. **Layout Management**: Coordinate spatial positioning with validation
 
 ### Communication Protocol
 
 ```typescript
 interface ProofDocumentChange {
-  type: 'structure' | 'content' | 'metadata';
+  type: 'structure' | 'content' | 'metadata' | 'layout';
   changes: Array<{
     argumentId: string;
-    change: StructuralChange | ContentChange | MetadataChange;
+    change: StructuralChange | ContentChange | MetadataChange | LayoutChange;
   }>;
 }
 
 interface StructuralChange {
-  type: 'add' | 'remove' | 'reorder';
+  type: 'add' | 'remove' | 'reorder' | 'reattach';
+  nodeId?: string;
+  parentId?: string;
+  position?: number;
   // ... change specifics
 }
 
@@ -256,6 +439,32 @@ interface ContentChange {
   orderedSetId: string;
   itemIndex?: number;
   text: string;
+}
+
+interface LayoutChange {
+  type: 'move' | 'resize' | 'optimize';
+  nodeId: string;
+  position?: { x: number; y: number };
+  size?: { width: number; height: number };
+  algorithm?: string; // For optimization changes
+}
+
+// Extended change notifications for tree operations
+interface TreeStructureChange {
+  type: 'node-added' | 'node-removed' | 'node-reattached' | 'tree-restructured';
+  treeId: string;
+  affectedNodes: string[];
+  newStructure?: TreeTopology;
+}
+
+interface TreeTopology {
+  rootNodeId: string;
+  nodes: Array<{
+    nodeId: string;
+    parentId?: string;
+    position?: number;
+    argumentId: string;
+  }>;
 }
 ```
 
@@ -570,6 +779,215 @@ All language servers must pass core compliance tests:
 - Performance benchmarks
 - Error recovery scenarios
 
+## Physical Tree Integration Details
+
+### Tree Structure Synchronization
+
+The LSP integration must maintain consistency between the logical document model and physical tree representation:
+
+```typescript
+class TreeSynchronizationManager {
+  async synchronizeTreeStructure(
+    treeId: string, 
+    structuralChanges: TreeStructureChange[]
+  ): Promise<SyncResult> {
+    // 1. Validate structural changes against current tree state
+    const validationResult = await this.validateStructuralChanges(structuralChanges);
+    if (!validationResult.valid) {
+      return { success: false, errors: validationResult.errors };
+    }
+    
+    // 2. Apply changes to tree structure
+    const updatedTree = this.applyStructuralChanges(treeId, structuralChanges);
+    
+    // 3. Notify LSP of structure changes
+    await this.notifyLSPOfTreeChanges(treeId, updatedTree);
+    
+    // 4. Validate statement flow in new structure
+    const flowValidation = await this.validateStatementFlow(updatedTree);
+    
+    return {
+      success: true,
+      updatedTree,
+      flowValidation,
+      layoutSuggestions: flowValidation.layoutOptimizations
+    };
+  }
+  
+  private async validateStructuralChanges(
+    changes: TreeStructureChange[]
+  ): Promise<ValidationResult> {
+    // Ensure changes don't create cycles, orphaned nodes, etc.
+    for (const change of changes) {
+      if (change.type === 'node-reattached') {
+        if (this.wouldCreateCycle(change.nodeId, change.newParentId)) {
+          return {
+            valid: false,
+            errors: [{
+              type: 'circular-dependency',
+              message: `Reattaching ${change.nodeId} to ${change.newParentId} would create a cycle`
+            }]
+          };
+        }
+      }
+    }
+    
+    return { valid: true, errors: [] };
+  }
+}
+```
+
+### Statement Flow Validation Integration
+
+Integrate statement flow validation into the LSP workflow:
+
+```typescript
+class StatementFlowLSPHandler {
+  async handleStatementFlowValidation(
+    request: ValidateStatementFlowRequest
+  ): Promise<ValidateStatementFlowResponse> {
+    const { parentNodeId, childNodeIds } = request.params;
+    
+    // Get current tree structure
+    const tree = await this.getTreeStructure(request.params.textDocument.uri);
+    const parentNode = tree.getNode(parentNodeId);
+    const childNodes = childNodeIds.map(id => tree.getNode(id));
+    
+    // Validate statement flow
+    const flowResult = await this.languageServer.validateStatementFlow({
+      parentNode,
+      childNodes,
+      treeLayout: tree.layout,
+      document: tree.document
+    });
+    
+    // Generate recommendations if requested
+    let recommendations: FlowRecommendation[] = [];
+    if (request.params.includeRecommendations && !flowResult.valid) {
+      recommendations = await this.generateFlowRecommendations(
+        parentNode, 
+        childNodes, 
+        flowResult.errors
+      );
+    }
+    
+    return {
+      valid: flowResult.valid,
+      flowErrors: flowResult.errors,
+      recommendations,
+      alternativeStructures: await this.suggestAlternativeStructures(
+        parentNode, 
+        childNodes, 
+        flowResult.errors
+      )
+    };
+  }
+  
+  private async generateFlowRecommendations(
+    parentNode: TreeNode,
+    childNodes: TreeNode[],
+    errors: StatementFlowError[]
+  ): Promise<FlowRecommendation[]> {
+    const recommendations: FlowRecommendation[] = [];
+    
+    for (const error of errors) {
+      if (error.type === 'missing-premise-input') {
+        // Suggest adding an intermediate step
+        recommendations.push({
+          type: 'add-intermediate-step',
+          description: `Add an argument that concludes "${error.expected}"`,
+          confidence: 0.8,
+          suggestedArgument: await this.suggestIntermediateArgument(
+            error.expected,
+            parentNode
+          )
+        });
+      } else if (error.type === 'premise-mismatch') {
+        // Suggest reordering or modifying premises
+        recommendations.push({
+          type: 'reorder-premises',
+          description: `Reorder premises to match expected flow`,
+          confidence: 0.6
+        });
+      }
+    }
+    
+    return recommendations;
+  }
+}
+```
+
+### Layout Optimization Integration
+
+Provide intelligent layout optimization through LSP:
+
+```typescript
+class TreeLayoutOptimizer {
+  async optimizeLayout(
+    request: OptimizeTreeLayoutRequest
+  ): Promise<OptimizeTreeLayoutResponse> {
+    const { treeId, algorithm, constraints } = request.params;
+    
+    // Get current tree structure and layout
+    const currentTree = await this.getTreeWithLayout(treeId);
+    
+    // Apply optimization algorithm
+    const optimizedLayout = await this.applyLayoutAlgorithm(
+      currentTree, 
+      algorithm, 
+      constraints
+    );
+    
+    // Calculate layout metrics
+    const metrics = this.calculateLayoutMetrics(optimizedLayout);
+    
+    // Generate animation hints for smooth transitions
+    const animationHints = this.generateAnimationHints(
+      currentTree.layout, 
+      optimizedLayout
+    );
+    
+    return {
+      layout: optimizedLayout,
+      metrics,
+      animationHints
+    };
+  }
+  
+  private async applyLayoutAlgorithm(
+    tree: TreeWithLayout,
+    algorithm: string,
+    constraints?: any
+  ): Promise<TreeLayout> {
+    switch (algorithm) {
+      case 'hierarchical':
+        return this.applyHierarchicalLayout(tree, constraints);
+      case 'force-directed':
+        return this.applyForceDirectedLayout(tree, constraints);
+      case 'layered':
+        return this.applyLayeredLayout(tree, constraints);
+      default:
+        throw new Error(`Unknown layout algorithm: ${algorithm}`);
+    }
+  }
+  
+  private calculateLayoutMetrics(layout: TreeLayout): any {
+    const totalArea = layout.bounds.width * layout.bounds.height;
+    const nodePositions = layout.nodes.map(n => n.position);
+    const averageSpacing = this.calculateAverageSpacing(nodePositions);
+    const crossingCount = this.countConnectionCrossings(layout.connections);
+    const readabilityScore = this.calculateReadabilityScore(layout);
+    
+    return {
+      totalArea,
+      averageSpacing,
+      crossingCount,
+      readabilityScore
+    };
+  }
+}
+```
+
 ## Future Extensions
 
 ### Proof Automation
@@ -577,15 +995,19 @@ All language servers must pass core compliance tests:
 - Tactic application
 - Proof simplification
 - Counter-example generation
+- Automated tree structure optimization
 
 ### Collaborative Features
 - Shared validation state
 - Conflict resolution for concurrent edits
 - Proof review annotations
 - Change attribution
+- Collaborative tree editing with conflict resolution
 
 ### Advanced Analysis
 - Proof complexity metrics
 - Style checking
 - Best practice suggestions
 - Learning recommendations
+- Physical layout analysis and optimization
+- Statement flow pattern recognition

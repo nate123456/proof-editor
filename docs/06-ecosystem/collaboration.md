@@ -17,14 +17,20 @@ Collaboration in Proof Editor focuses on human-to-human partnerships in creating
 When concurrent edits create logical conflicts, the system provides analysis and resolution support:
 
 **Conflict Analysis**:
-- **Logical Contradiction Detection**: Identify exactly where logical inconsistencies arise
-- **Impact Assessment**: Show how resolution choices affect the broader proof structure
+- **Statement Flow Disruption**: Identify where edits break statement flow between argument templates
+- **Tree Structure Impact**: Show how resolution affects positioning and parent-child relationships
+- **Connection Consistency**: Verify shared ordered sets maintain identity across tree instances
+- **Template Instance Conflicts**: Detect when same argument template has conflicting instances
+- **Positional Attachment**: Analyze conflicts in premise slot assignments
 - **Visual Comparison**: Side-by-side view of conflicting logical structures
 - **Collaboration History**: Show how the conflict developed
 
 **Resolution Tools**:
+- **Flow-Aware Resolution**: Maintain statement flow when resolving tree structure conflicts
+- **Position-Preserving Merge**: Keep parent-child-position relationships intact during merges
+- **Template Consistency**: Ensure argument templates remain valid across all instances
 - **Interactive Resolution**: Users can review and merge changes
-- **Real-Time Validation**: Immediate feedback on resolution choices
+- **Real-Time Validation**: Immediate feedback on resolution choices with flow verification
 - **Multiple Options**: Present several viable resolution paths
 - **Rollback Support**: Easy undo of problematic changes
 
@@ -82,17 +88,19 @@ When concurrent edits create conflicts in the underlying proof files:
 1. **Conflict Notification**: Users see "Sync conflict detected" notification within 10 seconds
 2. **Visual Conflict Interface**: Side-by-side comparison showing:
    - "Your version" (local changes) vs "Their version" (remote changes)
-   - Highlighting of specific atomic arguments or ordered sets in conflict
-   - Clear indication of what logical elements are affected
+   - Highlighting of specific atomic arguments, ordered sets, and tree nodes in conflict
+   - Clear indication of affected statement flow paths and tree structure
+   - Position-specific conflicts (which premise slots are affected)
 3. **Resolution Options**:
    - **Keep Mine**: Accept local version, discard remote changes
-   - **Keep Theirs**: Accept remote version, discard local changes  
-   - **Merge Both**: When non-conflicting, combine both changes
-   - **Edit Manually**: Open conflict in editor for custom resolution
-4. **Validation Feedback**: Immediate validation of chosen resolution
-5. **Confirmation**: Clear indication that conflict is resolved and sync completed
+   - **Keep Theirs**: Accept remote version, discard remote changes  
+   - **Merge Both**: When non-conflicting, combine both changes while preserving flow
+   - **Edit Manually**: Open conflict in editor for custom resolution with flow validation
+   - **Reposition Instances**: Adjust tree positioning to resolve attachment conflicts
+4. **Validation Feedback**: Immediate validation of chosen resolution with statement flow verification
+5. **Confirmation**: Clear indication that conflict is resolved, flow maintained, and sync completed
 
-**Conceptual Scope**: V1 focuses on atomic argument and ordered set conflicts. Complex logical validation conflicts are flagged for manual review.
+**Conceptual Scope**: V1 focuses on atomic argument, ordered set, and tree positioning conflicts. Complex logical validation conflicts are flagged for manual review.
 
 ```typescript
 interface BasicProvenanceSystem {
@@ -175,11 +183,11 @@ interface AttributionInfo {
 - **Live demonstrations**: Interactive teaching with custom logic systems
 
 ### Educational Features
-- **Teacher dashboard**: Monitor student progress and collaboration
-- **Student submissions**: Collect and review work
-- **Peer review**: Students help each other learn
-- **Group projects**: Collaborative learning experiences
-- **Live demonstrations**: Interactive teaching sessions
+- **Teacher dashboard**: Monitor student progress and collaboration with flow visualization
+- **Student submissions**: Collect and review work with statement flow analysis
+- **Peer review**: Students help each other learn by tracing statement flows
+- **Group projects**: Collaborative construction of complex proof trees with shared templates
+- **Live demonstrations**: Interactive teaching sessions showing flow and positioning
 
 ### Feedback Systems
 - **Inline corrections**: Direct feedback
@@ -198,11 +206,11 @@ interface AttributionInfo {
 ## Research Collaboration
 
 ### Research Workflows
-- **Hypothesis exploration**: Collaborate on relationships between logical systems
-- **Proof development**: Implement and test theoretical frameworks
-- **Literature organization**: Organize and reference existing work
-- **Pattern documentation**: Document novel relationships in logical systems
-- **Research tracking**: Track reasoning development and insights
+- **Hypothesis exploration**: Collaborate on relationships between logical systems through statement flow analysis
+- **Proof development**: Implement and test theoretical frameworks using template reuse and positioning
+- **Literature organization**: Organize and reference existing work with flow-preserving connections
+- **Pattern documentation**: Document novel template patterns and their flow characteristics
+- **Research tracking**: Track reasoning development through statement flow evolution
 
 ### Traditional Research
 - **Grant proposals**: Collaborative writing and planning

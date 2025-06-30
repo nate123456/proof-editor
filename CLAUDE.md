@@ -269,6 +269,97 @@ Technical clarity over philosophical depth. Concrete examples for abstract conce
 10. **Same argument twice?** Arguments are templates, nodes are instances
 11. **Tree data flow?** Bottom-up! Children provide inputs TO parents
 
+## Advanced Tree Construction
+
+### External Inputs vs Internal Flow
+
+**CRITICAL DISTINCTION**: Trees have two types of statement sources:
+
+1. **External Inputs**: Statements that come FROM OUTSIDE the tree (user typed, imported, etc.)
+2. **Internal Flow**: Statements that move BETWEEN nodes within the tree
+
+**External Input Patterns**:
+- Root nodes always need external inputs (nothing provides them internally)
+- Mid-level nodes may need external inputs if internal flow insufficient
+- External inputs can enter at ANY level, not just roots
+
+**Internal Flow Rules**:
+- Child conclusions become parent premises (same ORDERED SET object)
+- Bottom-up only: parents cannot provide inputs to children
+- Positional: specific premise slots filled by specific children
+
+**Example Tree with Mixed Inputs**:
+```yaml
+# External: S1="All men mortal", S2="Socrates is man"  
+# External: S3="If mortal then ages", S4="If ages then dies"
+proof:
+  n1: {arg: arg1}           # [S1,S2] → [S5] (external inputs)
+  n2: {n1: arg2, on: 0}     # [S3,S5] → [S6] (S5 from n1, S3 external)
+  n3: {n2: arg3, on: 0}     # [S4,S6] → [S7] (S6 from n2, S4 external)
+```
+
+### Multiple Template Instances
+
+**When to instantiate same template multiple times**:
+
+1. **Parallel Branches**: Same logic applied to different inputs
+2. **Convergent Reasoning**: Multiple paths leading to same conclusion
+3. **Conditional Arguments**: Same rule under different conditions
+
+**Template Reuse Pattern**:
+```yaml
+# Template: modus_ponens = [P, P→Q] → [Q]
+proof:
+  n1: {arg: modus_ponens}    # [S1, S2] → [S3]
+  n2: {arg: modus_ponens}    # [S4, S5] → [S6] (same template, different data)
+  n3: {n1: combine, on: 0}   # [S3, S6] → [S7] (uses outputs from both)
+  n4: {n3: combine, on: 1}
+```
+
+**Key principle**: Templates are REUSABLE. Each instance operates on different statement sets.
+
+### Complex Multi-Level External Input Trees
+
+**Reality**: Not all trees are simple hierarchies. External inputs can enter at multiple levels.
+
+**Pattern**: Research argument with multiple evidence sources
+```yaml
+# Research conclusion needs: theory + multiple evidence + methodology
+proof:
+  n1: {arg: theory_formation}     # [external_theory] → [hypothesis]
+  n2: {arg: evidence_analysis}    # [external_data1] → [result1]  
+  n3: {arg: evidence_analysis}    # [external_data2] → [result2]
+  n4: {n1: methodology, on: 0}    # [hypothesis, external_method] → [prediction]
+  n5: {n4: synthesis, on: 0}      # [prediction, result1] → [partial_conclusion]
+  n6: {n5: synthesis, on: 1}      # [partial_conclusion, result2] → [final_conclusion]
+```
+
+**Why external inputs at multiple levels**: Real arguments don't always have neat hierarchical structure. Evidence comes from different sources, methodological assumptions enter at different points.
+
+### Statement Identity vs Flow Clarification
+
+**IDENTITY** (same statement, different locations):
+- Statement S1 appears in multiple templates as content
+- Each occurrence references same statement object
+- Used for: reusing premises, shared assumptions
+
+**FLOW** (statement moves between nodes):
+- Conclusion ORDERED SET of child becomes premise ORDERED SET of parent
+- Same object, different roles (output → input)
+- Used for: connecting reasoning steps
+
+**Example showing both**:
+```yaml
+# S1 appears in both n1 and n3 (IDENTITY)
+# n1's conclusion flows to n2 (FLOW)
+proof:
+  n1: {arg: arg1}    # [S1, S2] → [S3]
+  n2: {n1: arg2, on: 0}  # [S3, S4] → [S5] (S3 flows from n1)
+  n3: {arg: arg3}    # [S1, S6] → [S7] (S1 same identity as in n1)
+```
+
+**Critical**: Flow creates parent-child relationships. Identity creates statement reuse.
+
 ## Documentation Excellence Checklist
 
 **Before accepting tasks**: Understand fully? Check contradictions? Terms unambiguous? Clearest expression? Not repeating? Not creating false problems?

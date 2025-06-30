@@ -1,18 +1,48 @@
 # Technical Implementation Definitions
 
-This document provides implementation-level specifications for how the Proof Editor system realizes domain concepts in code. These are engineering details for developers, not conceptual definitions for users.
+This document provides implementation-level specifications for how the Proof Editor system realizes domain concepts in code with **statement building blocks and physical tree properties**. These are engineering details for developers, not conceptual definitions for users.
 
-**IMPORTANT**: This is an implementation document. For domain concepts and user-facing definitions, see [DDD Glossary](../03-concepts/ddd-glossary.md) and [Key Terms](../03-concepts/key-terms.md).
+**IMPORTANT**: This is an implementation document focusing on statement flow and spatial processing systems. For domain concepts and user-facing definitions, see [DDD Glossary](../03-concepts/ddd-glossary.md) and [Key Terms](../03-concepts/key-terms.md).
 
-## Core Data Structures
+## Statement-Centered Architecture
 
-### OrderedSetEntity
-**Purpose**: Data structure representing an ordered collection of statements with uniqueness constraint. OrderedSetEntity objects serve as the connection mechanism - when multiple atomic arguments reference the same OrderedSetEntity, they are connected.
-**Domain concept**: Implements the [Ordered Set](../03-concepts/key-terms.md#ordered-set) concept.
+Proof Editor implements **statement-centered building blocks** where:
+- **Statements** are reusable text entities with unique IDs (fundamental building blocks)
+- **Ordered sets** collect statement IDs for premise/conclusion groupings
+- **Atomic arguments** relate premise ordered sets to conclusion ordered sets
+- **Trees** have physical properties affecting spatial layout and visualization
+
+## Core Data Structures with Statement Building Blocks
+
+### StatementEntity (New Building Block)
+**Purpose**: Fundamental reusable text entity with unique identity.
+**Domain concept**: Implements reusable statement building blocks.
+```typescript
+interface StatementEntity {
+  id: string;              // Unique identifier (UUID)
+  content: string;         // The actual text content
+  
+  metadata: {
+    createdAt: number;
+    modifiedAt: number;
+    authorId?: string;           // ID of the human author who created this statement
+    sourcePackageId?: string;    // Language package that introduced this statement
+    references?: string[];       // External references or citations
+    usageCount: number;          // How many ordered sets reference this statement
+    referencedBy: string[];      // Ordered set IDs that reference this statement
+  };
+}
+```
+**Key insight**: Statements are the fundamental building blocks that get reused across different ordered sets. Same statement content can appear in multiple ordered sets without creating connections - connections require shared ordered set object references.
+
+### OrderedSetEntity with Statement ID References
+**Purpose**: Data structure representing an ordered collection of statement IDs with uniqueness constraint. OrderedSetEntity objects serve as the connection mechanism - when multiple atomic arguments reference the same OrderedSetEntity, they are connected.
+**Domain concept**: Implements the [Ordered Set](../03-concepts/key-terms.md#ordered-set) concept with statement building blocks.
 ```typescript
 interface OrderedSetEntity {
   id: string;              // Unique identifier (UUID)
-  items: string[];         // Ordered array of statement strings (reusable across sets)
+  statementIds: string[];  // Ordered array of statement IDs (references to StatementEntity)
+  
   metadata: {
     createdAt: number;
     modifiedAt: number;
@@ -25,17 +55,19 @@ interface OrderedSetEntity {
     };
   };
 }
+
 ```
-**Critical**: When atomic arguments share the SAME OrderedSetEntity (by reference), a connection exists. The `items` array contains statement strings that can be reused across different ordered sets.
+**Critical**: When atomic arguments share the SAME OrderedSetEntity (by reference), a connection exists. The `statementIds` array contains references to StatementEntity objects that can be reused across different ordered sets. Connections are about shared ordered set object references, not about statement content.
 
 ### AtomicArgumentEntity
-**Purpose**: Data structure that stores the information defining an atomic argument relation.
+**Purpose**: Data structure that stores the information defining an atomic argument relation between premise and conclusion ordered sets.
 **Domain concept**: Implements the [Atomic Argument](../03-concepts/key-terms.md#atomic-argument) concept.
 ```typescript
 interface AtomicArgumentEntity {
   id: string;                    // Unique identifier (UUID)
   premiseSetRef: string | null;  // Reference to OrderedSetEntity (may be null for empty set)
   conclusionSetRef: string | null; // Reference to OrderedSetEntity (may be null for empty set)
+  
   metadata?: {
     sideLabels?: {
       left?: string;      // Text extending left from implication line
@@ -48,10 +80,11 @@ interface AtomicArgumentEntity {
     references?: string[];       // External references or citations
   };
 }
+
 ```
 **Key insight**: Atomic arguments reference OrderedSetEntity objects. Connections exist implicitly when atomic arguments share the SAME ordered set reference. The implication line (stroke) is the focusable UI element for creating connections.
 
-**Statement reuse**: The atomic argument stores references to OrderedSetEntity objects, which contain arrays of statement strings. The same statement string can appear in multiple different OrderedSetEntity objects without creating connections.
+**Statement reuse**: The atomic argument stores references to OrderedSetEntity objects, which contain arrays of statement IDs. The same statement (by ID) can appear in multiple different OrderedSetEntity objects without creating connections - connections require shared ordered set object references, not shared statement content.
 
 
 ### Argument (Computed Concept)
@@ -92,21 +125,37 @@ interface NodeEntity {
 ```
 **Key insight**: Nodes create tree structure through explicit parent-child relationships, independent of logical connections.
 
-### TreeEntity
-**Purpose**: Data structure anchoring a tree of nodes in the document workspace.
-**Domain concept**: Tree structure with spatial position.
+### TreeEntity with Physical Properties
+**Purpose**: Data structure anchoring a tree of nodes in the document workspace with physical properties.
+**Domain concept**: Tree structure with spatial position and physical characteristics.
 ```typescript
 interface TreeEntity {
   id: string;
   documentId: string;
   x: number;                     // Tree position X coordinate
   y: number;                     // Tree position Y coordinate
+  
+  // Physical properties affecting tree behavior
+  physicalProperties: {
+    layoutStyle: LayoutStyle;      // How nodes are arranged
+    spacingX: number;             // Horizontal spacing between siblings
+    spacingY: number;             // Vertical spacing between levels
+    minWidth: number;             // Minimum tree width
+    minHeight: number;            // Minimum tree height
+    expansionDirection: ExpansionDirection; // How tree grows
+    alignmentMode: AlignmentMode; // How nodes align within levels
+  };
+  
   metadata?: {
     title?: string;
     createdAt: number;
     modifiedAt: number;
   };
 }
+
+type LayoutStyle = 'bottom-up' | 'top-down' | 'left-right' | 'right-left';
+type ExpansionDirection = 'horizontal' | 'vertical' | 'radial';
+type AlignmentMode = 'left' | 'center' | 'right' | 'justify';
 ```
 
 ### Argument Tree (Computed Concept)
@@ -212,10 +261,11 @@ For the conceptual definition of connections, see [Key Terms](../03-concepts/key
 
 ### Computed vs Stored
 **Stored (Empirical)**:
-- Ordered sets (created when users enter statements)
+- Statements (reusable text building blocks with unique IDs)
+- Ordered sets (collections of statement ID references)
 - Atomic arguments (templates that reference ordered set IDs)
 - Nodes (instances with parent-child relationships)
-- Trees (with document positions)
+- Trees (with document positions and physical properties)
 - Position overrides (user adjusts node positions)
 - Documents (user manages)
 
@@ -223,8 +273,9 @@ For the conceptual definition of connections, see [Key Terms](../03-concepts/key
 - Logical connections (from shared ordered set references)
 - Arguments (from connection traversal)
 - Argument trees (maximal connected components)
-- Node positions (from tree structure + layout)
-- Which atomic arguments fulfill which premise requirements
+- Node positions (from tree structure + layout + physical properties)
+- Statement content display (from statement ID lookups)
+- Tree visual layout (from physical properties and node relationships)
 
 ## Implementation Philosophy
 
@@ -233,16 +284,17 @@ For the conceptual definition of connections, see [Key Terms](../03-concepts/key
 - **Simplifies data model**: No separate connection entities needed
 - **Clear identity**: Reference equality makes connections unambiguous
 - **Shared state**: Changes to ordered sets propagate to all users
-- **Supports statement reuse**: Same statement strings can appear in multiple ordered sets
+- **Supports statement reuse**: Same statements (by ID) can appear in multiple ordered sets
 - **Separates connection from content**: Connection is about shared object references, not matching statement content
+- **Statement building blocks**: Statements are reusable entities that can be referenced by multiple ordered sets
 
 ### What This Implementation Doesn't Do
 - **No string matching**: Same text doesn't create connections
 - **No automatic linking**: Users explicitly share ordered set references
 - **No complex algorithms**: Connections found through simple ID matching
 - **No philosophical claims**: Just engineering
-- **No statement objects**: Statements are just reusable strings, not entities with identity
 - **No content-based connections**: Connections require shared object references, not matching content
+- **No statement identity confusion**: Statements are building blocks that can be reused, but connections require shared ordered set references
 
 ## Critical Distinctions
 
@@ -405,9 +457,10 @@ function getChildrenEfficient(
 
 ## Summary
 
-The Proof Editor implementation is built on a foundation of shared ordered set objects. Users create connections by intentionally sharing ordered set references across atomic arguments - when the conclusion ordered set of one argument IS (same reference) the premise ordered set of another, a connection exists implicitly. The system discovers these connections through simple reference equality checks, not through value matching. This approach provides:
+The Proof Editor implementation is built on a foundation of statement building blocks and shared ordered set objects. Statements are reusable text entities with unique IDs that serve as the fundamental building blocks. Users create connections by intentionally sharing ordered set references across atomic arguments - when the conclusion ordered set of one argument IS (same reference) the premise ordered set of another, a connection exists implicitly. The system discovers these connections through simple reference equality checks, not through value matching. This approach provides:
 
-- **Clear identity**: Connections exist only when objects are the SAME (===)
+- **Statement reusability**: Statements are building blocks that can be used in multiple contexts
+- **Clear identity**: Connections exist only when ordered set objects are the SAME (===)
 - **Shared state**: Modifications to an ordered set affect all referencing arguments
-- **No ambiguity**: Same values but different objects don't create connections
-- **Simple implementation**: Just check reference equality
+- **No ambiguity**: Same statement content but different ordered set objects don't create connections
+- **Simple implementation**: Just check reference equality for ordered sets, lookup statements by ID

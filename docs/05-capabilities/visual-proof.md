@@ -1,27 +1,27 @@
-# Visual Proof Construction
+# Visual Proof Construction: Statement Flow Visualization
 
-*Note: This document describes one approach to visual proof construction - a 2D spatial interface with direct manipulation. The platform's architecture supports many different visualization approaches across different devices and platforms, and this represents just one possibility among many.*
+*Note: This document describes one approach to visual proof construction - a 2D spatial interface with direct manipulation of statement flow networks. The platform's architecture supports many different visualization approaches across different devices and platforms, and this represents just one possibility among many.*
 
 ## Visual Representation Method
 
-This approach represents logical structures through spatial arrangement and graphical elements. Proof construction occurs through direct manipulation of visual components rather than text-based syntax entry. The visualization adapts to platform capabilities - desktop environments with precise mouse control and mobile environments with touch-first interaction patterns.
+This approach represents logical structures as **physical statement flow systems** through spatial arrangement and flow visualization. Proof construction occurs through direct manipulation of statement pathways where statements physically move between nodes. The visualization shows how statements flow through the system like data through nodes in a network, adapting to platform capabilities - desktop environments with precise flow control and mobile environments with touch-based statement routing.
 
 ## Core Visual Elements
 
 ### Spatial Representation [CORE]
-- **Document Workspace**: Infinite 2D canvas where trees are positioned [CORE]
-- **Tree Positioning**: Each tree has x,y coordinates in the workspace [CORE]
-- **Node Layout**: Within each tree, nodes are arranged by layout algorithm [CORE]
-- **Independent Movement**: Entire trees can be dragged to new positions [CORE]
-- **Zoom Levels**: From individual nodes to entire document overview [CORE]
+- **Document Workspace**: Infinite 2D canvas where physical statement flow systems are positioned [CORE]
+- **Flow System Positioning**: Each flow system has x,y coordinates in the workspace [CORE]
+- **Node Layout**: Within each system, nodes are arranged to show statement flow patterns between them [CORE]
+- **Independent Movement**: Entire flow systems can be dragged to new positions [CORE]
+- **Zoom Levels**: From individual statement flows between nodes to entire document overview [CORE]
 
-**Spatial Independence**: Moving a tree spatially doesn't affect its logical structure - it's just repositioning in the workspace for visual organization.
+**Spatial Independence**: Moving a flow system spatially doesn't affect the actual statement pathways between nodes - it's just repositioning the physical visualization for clarity.
 
 ### Direct Manipulation [CORE]
-- Drag entire trees to reposition [CORE]
-- Connect atomic arguments to build trees [CORE]
-- Choose layout styles for each tree [CORE framework, LSP options]
-- Fine-tune with position overrides if needed [CORE]
+- Drag entire statement flow systems to reposition [CORE]
+- Connect statement sources to destinations to build flow pathways between nodes [CORE]
+- Choose layout styles for each flow system [CORE framework, LSP options]
+- Fine-tune flow visualization with position overrides if needed [CORE]
 
 ### Progressive Complexity
 - Start with simple connections
@@ -29,11 +29,11 @@ This approach represents logical structures through spatial arrangement and grap
 - Zoom out to see patterns
 - Zoom in for details
 
-#### Logical Flow Visualization
-- **Ancestor Trails**: Visual paths showing how conclusions trace back to roots
-- **Dependency Highlighting**: See which arguments depend on your current selection
-- **Branch Exploration**: Understand how logical reasoning splits and converges
-- **Connection Strength**: Visual indicators showing the complexity of logical relationships
+#### Statement Flow Visualization
+- **Statement Trails**: Visual paths showing how statements move from node to node through the system
+- **Flow Highlighting**: See which statements flow through your current node selection
+- **Flow Exploration**: Understand how statement pathways split and converge between nodes
+- **Flow Strength**: Visual indicators showing the volume and complexity of statement movement between nodes
 
 ## Visual Language
 
@@ -45,36 +45,36 @@ This approach represents logical structures through spatial arrangement and grap
 
 *Note: Other visualizations might use boxes, colors, arrows, or entirely different representations for the implication relation.*
 
-### Connection Visualization
-- Lines show logical dependencies [CORE detects, LSP renders]
-- Direction indicates flow [CORE data, LSP visualization]
-- Thickness shows importance [LSP visual encoding]
-- Color indicates status [LSP visual encoding]
+### Flow Visualization
+- Lines show statement movement pathways between nodes [CORE detects, LSP renders]
+- Direction indicates statement flow direction from node to node [CORE data, LSP visualization]
+- Thickness shows statement volume flowing between nodes [LSP visual encoding]
+- Color indicates flow status between nodes [LSP visual encoding]
 
 ### Spatial Grouping
-- Related atomic arguments cluster naturally
-- Visual proximity implies logical connection
-- Whitespace provides breathing room
-- Layout tells the story
+- Related statement processing nodes cluster naturally
+- Visual proximity shows statement flow relationships between nodes
+- Whitespace provides clear flow channels between processing nodes
+- Layout tells the statement movement story through the node network
 
 ## Interaction Paradigms
 
 ### Two-Phase Construction Process
 
-#### Phase 1: Define Building Blocks
-1. **Create Statements**: Define reusable text snippets with unique IDs
-2. **Create Arguments**: Define logical inference templates (premise→conclusion patterns)
-3. **Validate Logic**: Ensure arguments follow your logical system's rules
-4. **Build Library**: Accumulate reusable logical components
+#### Phase 1: Define Statement Processing Nodes
+1. **Create Statements**: Define reusable text snippets that will flow through the node network
+2. **Create Arguments**: Define statement transformation templates (input statements→output statements)
+3. **Validate Transformations**: Ensure transformations follow your logical system's rules
+4. **Build Library**: Accumulate reusable statement processing node components
 
-#### Phase 2: Build Proof Trees  
-1. **Start Tree**: Create new tree at chosen workspace position
-2. **Add Root**: Select an argument template as the root node
-3. **Branch Children**: Add nodes to fulfill premise requirements
-4. **Position Spatially**: Arrange tree in workspace for clarity
-5. **Continue Building**: Extend tree by branching from conclusions
-6. **Create Multiple Trees**: Build independent trees at different positions
-7. **Organize Workspace**: Move trees around for optimal layout
+#### Phase 2: Build Statement Flow Systems  
+1. **Start System**: Create new flow system at chosen workspace position
+2. **Add Root Node**: Select a statement transformation as the root processing node
+3. **Create Flow Pathways**: Add nodes to supply required input statements to other nodes
+4. **Position Spatially**: Arrange system in workspace for clear flow visualization between nodes
+5. **Extend Flows**: Create additional pathways by routing outputs from nodes to new processing nodes
+6. **Create Multiple Systems**: Build independent flow systems at different positions
+7. **Organize Workspace**: Move systems around for optimal flow visualization
 
 ### Platform-Specific Interactions
 
@@ -150,18 +150,18 @@ This approach represents logical structures through spatial arrangement and grap
 - **Mini-map Navigation**: Select areas to view on the small overview map [CORE]
 - **Mini-map**: Shows spatial layout of all argument trees and current view position [CORE]
 
-#### Advanced Tree Navigation
-- **Proof Origin Tracking**: `proof-root::` queries instantly jump to the ultimate source of any logical chain
-- **Ancestor Traversal**: Navigate to "parent of parent's parent" with `ancestor::atomic_argument[3]`
-- **Dependency Chains**: Follow how conclusions become premises in other arguments
-- **Multi-step Jumps**: Navigate complex logical relationships in single operations
-- **Smart Pathfinding**: Find the logical path between any two arguments
+#### Advanced Flow Navigation
+- **Flow Origin Tracking**: `flow-source::` queries instantly jump to the ultimate source node of any statement
+- **Flow Traversal**: Navigate upstream with `flow-parent::atomic_argument[3]` to see statement source nodes
+- **Statement Chains**: Follow how statements move from producer nodes to consumer nodes
+- **Multi-step Jumps**: Navigate complex flow pathways between nodes in single operations
+- **Smart Pathfinding**: Find the statement flow path between any two processing nodes
 
 **Navigation Examples:**
-- Right-click any conclusion → "Go to Proof Root" shows the ultimate source
-- Ctrl+Click on premise → "Find All Users" shows every argument that uses this conclusion
-- Shift+Click on atomic argument → "Show Ancestry" reveals the complete logical chain
-- Alt+Click → "Navigate to Level N" jumps to specific ancestor depths
+- Right-click any statement → "Go to Flow Source" shows which node this statement originates from
+- Ctrl+Click on premise → "Find All Producers" shows every node that produces this statement
+- Shift+Click on atomic argument → "Show Flow Chain" reveals the complete statement pathway between nodes
+- Alt+Click → "Navigate to Flow Level N" jumps to specific upstream source nodes
 
 ### Document Overview (Distinct from Mini-map)
 The document overview provides a high-level understanding of your proof document:
@@ -181,17 +181,17 @@ When selecting a tree in the overview:
   - **Open Conclusions**: Ordered sets not connected as conclusions elsewhere (available for further reasoning) [CORE identifies]
   - **Custom Analysis**: User-defined analysis results [LSP provides]
 
-#### Advanced Tree Analysis
-- **Dependency Depth**: Shows maximum `ancestor::*` chain length for each tree
-- **Connection Opportunities**: Uses `conclusion-child::*` queries to find potential links between trees  
-- **Proof Completeness**: Identifies `proof-root::*` vs open premises for each tree
-- **Complexity Metrics**: Analyzes branching patterns and logical density
+#### Advanced Flow Analysis
+- **Flow Depth**: Shows maximum `flow-parent::*` chain length for each system
+- **Flow Opportunities**: Uses `statement-consumer::*` queries to find potential links between systems  
+- **Flow Completeness**: Identifies `flow-source::*` vs open statement requirements for each system
+- **Flow Complexity**: Analyzes branching patterns and statement routing density between nodes
 
 #### Big Picture Understanding
-- See all argument trees at a glance
+- See all statement flow systems at a glance
 - Understand document structure without spatial navigation
-- Quick access to any tree by name
-- Track proof complexity and connection opportunities
+- Quick access to any system by name
+- Track flow complexity and routing opportunities between nodes
 
 *For implementation details and test specifications, see [PRD User Story 5](../00-PRD-v1.md#5-document-overview-and-tree-management).*
 

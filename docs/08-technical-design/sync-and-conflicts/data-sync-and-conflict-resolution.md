@@ -262,8 +262,11 @@ These are handled automatically by CRDT properties:
 
 #### Semantic Conflicts (Require User Resolution)
 These require human judgment:
-- **Logical Inconsistency**: Edits create invalid logical structure
+- **Statement Flow Disruption**: Edits break statement flow between argument templates
+- **Tree Structure Conflicts**: Concurrent changes to parent-child-position relationships
+- **Template Instance Conflicts**: Same argument template instantiated with conflicting positioning
 - **Premise-Conclusion Mismatch**: Concurrent edits to shared ordered sets
+- **Positional Attachment Conflicts**: Multiple children attempting to attach at same premise slot
 - **Rule Violation**: Changes violate language package rules
 - **Attribution Conflict**: Same logical step claimed by different authors
 
@@ -283,26 +286,44 @@ interface ConflictDetector {
 }
 
 interface Conflict {
-  type: 'logical_inconsistency' | 'premise_conclusion_mismatch' | 'rule_violation' | 'attribution_conflict';
+  type: 'statement_flow_disruption' | 'tree_structure_conflict' | 'template_instance_conflict' | 'premise_conclusion_mismatch' | 'positional_attachment_conflict' | 'rule_violation' | 'attribution_conflict';
   severity: 'warning' | 'error' | 'critical';
-  affectedElements: string[]; // IDs of affected atomic arguments/ordered sets
+  affectedElements: string[]; // IDs of affected atomic arguments/ordered sets/tree nodes
+  affectedTrees: string[]; // IDs of affected tree structures
+  affectedFlow: StatementFlowPath[]; // Statement flow paths disrupted by conflict
   operations: ProofOperation[]; // Conflicting operations
   suggestedResolutions: Resolution[];
   resolutionAnalysis?: ConflictAnalysis;
+}
+
+interface StatementFlowPath {
+  fromTemplate: string;
+  toTemplate: string;
+  throughOrderedSet: string;
+  treeInstances: TreeInstanceReference[];
 }
 ```
 
 #### Semantic Validation
 ```typescript
 interface SemanticValidator {
+  // Validate statement flow integrity across tree instances
+  validateStatementFlow(doc: ProofDocumentCRDT): StatementFlowValidation;
+  
   // Validate logical structure integrity
   validateConnections(doc: ProofDocumentCRDT): ConnectionValidation;
+  
+  // Validate tree structure and positioning
+  validateTreeStructures(doc: ProofDocumentCRDT): TreeStructureValidation;
   
   // Check for orphaned elements
   findOrphans(doc: ProofDocumentCRDT): OrphanedElement[];
   
-  // Validate argument tree completeness
+  // Validate argument tree completeness with flow analysis
   validateArgumentTrees(doc: ProofDocumentCRDT): TreeValidation;
+  
+  // Validate parent-child-position relationships
+  validatePositionalAttachments(doc: ProofDocumentCRDT): PositionalValidation;
   
   // Check language package compliance
   validatePackageRules(doc: ProofDocumentCRDT, packageId: string): PackageValidation;
@@ -360,16 +381,22 @@ interface ResolutionOption {
 #### Conflict Analysis System
 ```typescript
 interface ConflictAnalysis {
+  // Analyze statement flow implications of each resolution
+  analyzeStatementFlowImplications(conflict: Conflict): StatementFlowAnalysis;
+  
   // Analyze logical implications of each resolution
   analyzeLogicalImplications(conflict: Conflict): LogicalAnalysis;
   
-  // Suggest optimal merge strategy based on patterns
+  // Analyze tree structure implications
+  analyzeTreeStructureImplications(conflict: Conflict): TreeStructureAnalysis;
+  
+  // Suggest optimal merge strategy based on flow patterns
   suggestMergeStrategy(conflict: Conflict): MergeStrategy;
   
-  // Identify potential logical errors
+  // Identify potential logical errors and flow disruptions
   identifyLogicalErrors(conflict: Conflict): LogicalError[];
   
-  // Recommend resolution based on proof context and patterns
+  // Recommend resolution preserving statement flow
   recommendResolution(conflict: Conflict, context: ProofContext): Resolution;
 }
 
@@ -390,9 +417,12 @@ interface LogicalAnalysis {
 
 #### Pattern-Based Merge Strategies
 - **Syntactic Merge**: Combine non-conflicting changes automatically
+- **Flow-Preserving Merge**: Maintain statement flow while resolving tree conflicts
+- **Position-Aware Merge**: Resolve conflicts while preserving parent-child-position relationships
+- **Template-Consistent Merge**: Ensure argument template integrity across instances
 - **Semantic Merge**: Use logical rules to resolve conflicts
-- **Pattern-Based Merge**: Use recognized patterns to infer resolution
-- **Context-Aware Merge**: Consider broader proof context for resolution
+- **Pattern-Based Merge**: Use recognized flow and positioning patterns to infer resolution
+- **Context-Aware Merge**: Consider broader proof context and statement flow for resolution
 
 ## Zero Data Loss Implementation
 

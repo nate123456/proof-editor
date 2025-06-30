@@ -62,27 +62,98 @@ Manages application configuration and user preferences across different platform
 - **VS Code**: Leverages built-in settings infrastructure with workspace hierarchy
 - **React Native**: Uses AsyncStorage with encrypted secure storage for sensitive data
 
-## User Interface Abstraction
+## Spatial UI Abstraction
 
 ### Purpose
-Provides platform-appropriate UI components and interaction patterns while maintaining consistent functionality.
+Provides platform-appropriate spatial UI components for 2D proof tree interaction and visualization.
 
 ### Key Responsibilities
-- **Notifications**: Display messages, alerts, and confirmations
-- **Input Collection**: Gather user input through appropriate controls
-- **Progress Indication**: Show ongoing operation status
-- **Document Display**: Present proof documents effectively
+- **Spatial Canvas**: 2D proof tree rendering and interaction
+- **Input Abstraction**: Mouse, touch, and gesture handling for spatial manipulation
+- **Viewport Management**: Pan, zoom, and navigation through proof space
+- **Selection Handling**: Spatial selection of proof elements
+- **Physical Tree Positioning**: Tree placement in 2D workspace coordinates
+- **Spatial Queries**: Point-in-tree testing, nearest element finding
+- **Tree Instance Management**: Multiple tree positioning, viewport bounds tracking
 
 ### Design Considerations
-- **Input Methods**: Mouse/keyboard vs touch interactions
-- **Screen Sizes**: Responsive layouts for different devices
-- **Platform Conventions**: Follow native UI patterns
-- **Accessibility**: Support platform accessibility features
+- **Input Precision**: Mouse precision vs touch approximation
+- **Canvas Performance**: Hardware acceleration and rendering optimization
+- **Spatial Gestures**: Platform-native spatial interaction patterns
+- **Accessibility**: Alternative access to spatial interactions
+- **Coordinate Systems**: Logical vs physical coordinates, transformation matrices
+- **Rendering Pipeline**: Layer management, clipping, hardware acceleration
+- **Memory Management**: Efficient handling of large tree structures
 
 ### Interaction Patterns
-- **Desktop**: Keyboard shortcuts, context menus, hover states
-- **Mobile**: Touch gestures, long press, swipe actions
-- **Hybrid**: Support both input methods where available
+- **Desktop**: Mouse drag, scroll wheel zoom, keyboard navigation
+- **Mobile**: Touch pan, pinch zoom, multi-touch gestures
+- **Hybrid**: Adaptive input handling for convertible devices
+
+## Physical Tree Interfaces
+
+### Purpose
+Manages the spatial aspects of proof trees as they exist in 2D workspace coordinates, handling tree positioning, viewport management, and spatial relationships between tree instances.
+
+### Key Responsibilities
+- **Tree Positioning**: Absolute positioning of tree instances in document workspace
+- **Viewport Management**: Pan, zoom, and navigation through spatial proof workspace
+- **Spatial Boundaries**: Compute tree bounding boxes, collision detection, spatial queries
+- **Multi-Tree Layout**: Coordinate positioning of multiple independent trees
+- **Coordinate Transformation**: Convert between logical tree coordinates and physical workspace coordinates
+
+### Design Considerations
+- **Coordinate Systems**: Separate logical tree structure from physical positioning
+- **Viewport State**: Track current view position, zoom level, visible region
+- **Spatial Optimization**: Efficient spatial queries for large numbers of trees
+- **Memory Efficiency**: Lazy loading of off-screen tree content
+- **Transformation Matrices**: Handle coordinate transformations for zoom/pan operations
+
+### Physical Tree API Categories
+- **Positioning APIs**: Set/get tree position, move operations, spatial arrangement
+- **Viewport APIs**: Pan, zoom, fit-to-view, viewport bounds management
+- **Spatial Query APIs**: Point-in-tree testing, nearest element, overlap detection
+- **Layout APIs**: Auto-arrange trees, prevent overlap, spatial optimization
+- **Transformation APIs**: Coordinate conversion, matrix operations, spatial math
+
+### Platform Adaptations
+- **Desktop**: Precise mouse positioning, scroll wheel zoom, drag operations
+- **Mobile**: Touch pan/zoom gestures, spatial touch selection, pinch operations
+- **Hybrid**: Adaptive input handling for convertible and touch-enabled desktop devices
+
+## Statement Flow APIs
+
+### Purpose
+Manages visualization and interaction with statement flow between atomic arguments in the physical tree structure.
+
+### Key Responsibilities
+- **Flow Visualization**: Render connections between statements
+- **Flow Interaction**: Handle user interaction with statement flows  
+- **Real-time Updates**: Update flow visualization as structure changes
+- **Performance Optimization**: Efficient rendering of complex flow networks
+- **Dependency Tracking**: Monitor statement dependencies across atomic arguments
+- **Flow Path Computation**: Calculate optimal visual paths for statement connections
+- **Interactive Flow Navigation**: Click-to-follow, hover highlighting, dependency tracing
+
+### Design Considerations
+- **Visual Complexity**: Clear representation of complex flow patterns
+- **Interactive Performance**: Smooth interaction with large statement networks
+- **Spatial Integration**: Flow visualization integrated with tree layout
+- **Platform Rendering**: Leverage platform-specific rendering capabilities
+- **Flow State Management**: Track active flows, highlight paths, maintain selection
+- **Collision Detection**: Avoid visual interference between flow paths
+- **Semantic Flow Types**: Different visual treatments for different dependency types
+
+### Platform Approaches
+- **Desktop**: Canvas-based flow rendering with WebGL acceleration
+- **Mobile**: Touch-optimized flow interaction with gesture navigation  
+- **Accessibility**: Non-visual flow navigation and description
+
+### Flow API Categories
+- **Flow Computation APIs**: Dependency analysis, connection discovery, path optimization
+- **Flow Visualization APIs**: Arrow rendering, path styling, animation controls
+- **Flow Interaction APIs**: Selection handling, navigation commands, follow operations
+- **Flow State APIs**: Active flow tracking, highlighting management, viewport synchronization
 
 ## LSP Communication
 
@@ -108,24 +179,25 @@ Manages Language Server Protocol communication across different transport mechan
 ## Command System
 
 ### Purpose
-Provides a unified way to register and execute commands across different platform interaction models.
+Provides a unified way to register and execute commands across different platform interaction models, including spatial commands for proof tree manipulation.
 
 ### Key Responsibilities
-- **Command Registration**: Define available actions
-- **Execution**: Trigger commands with parameters
-- **Discovery**: Help users find commands
-- **Context Sensitivity**: Enable/disable based on state
+- **Command Registration**: Define available actions including spatial operations
+- **Spatial Command Execution**: Trigger spatial manipulation commands
+- **Discovery**: Help users find commands appropriate to their interaction mode
+- **Context Sensitivity**: Enable/disable based on spatial and logical state
 
 ### Design Considerations
-- **Invocation Methods**: Keyboard, menu, gesture, voice
-- **Discoverability**: Command palettes, menus, hints
-- **Customization**: User-defined shortcuts and bindings
-- **Undo/Redo**: Integrate with command history
+- **Spatial Commands**: Commands that operate on 2D tree positions and layout
+- **Invocation Methods**: Keyboard, menu, gesture, spatial manipulation
+- **Discoverability**: Context-aware command presentation
+- **Customization**: User-defined shortcuts and spatial gestures
+- **Undo/Redo**: Integrate spatial changes with command history
 
 ### Platform Adaptations
-- **Desktop**: Keyboard shortcuts, command palette, menus
-- **Mobile**: Touch gestures, action sheets, floating buttons
-- **Accessibility**: Alternative invocation methods
+- **Desktop**: Keyboard shortcuts, context menus, spatial mouse operations
+- **Mobile**: Touch gestures, spatial touch commands, action sheets
+- **Accessibility**: Alternative spatial command invocation methods
 
 ## Package Management
 

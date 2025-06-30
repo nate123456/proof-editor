@@ -1,10 +1,10 @@
 # Analysis
 
-## Custom Script Processing for Argument Trees
+## Custom Script Processing for Statement Flow Networks
 
 **Status**: Future Capability - Requires Design
 
-The analysis capability envisions allowing users to create, edit, and share custom scripts to process their argument trees. This would provide extensibility for diverse domains and evolving analytical needs through LSP extensibility.
+The analysis capability envisions allowing users to create, edit, and share custom scripts to process their statement flow networks. This would provide extensibility for analyzing statement movement patterns, flow integrity, and network optimization through LSP extensibility.
 
 **Note**: This capability requires significant technical design work including:
 - Security model and sandboxing architecture
@@ -114,19 +114,19 @@ LSP-based analysis scripts can parse the textual content of premises and conclus
 - **Transform representations**: LSP format conversion services
 - **Recognize notation**: LSP domain-specific parsers
 
-### Tree Analysis [LSP]
-LSP analysis servers operate on entire argument trees to:
-- **Trace dependencies**: LSP dependency analysis algorithms
-- **Identify strategies**: LSP pattern recognition for proof strategies
-- **Find redundancy**: LSP optimization analysis
-- **Structure analysis**: LSP analysis algorithms for argument tree traversal
+### Flow Network Analysis [LSP]
+LSP analysis servers operate on entire statement flow networks to:
+- **Trace statement paths**: LSP flow analysis algorithms
+- **Identify flow patterns**: LSP pattern recognition for statement routing strategies
+- **Find redundant flows**: LSP optimization analysis for unnecessary pathways
+- **Network analysis**: LSP analysis algorithms for flow network traversal
 
 ```typescript
-interface TreeAnalysisRequest {
-  method: 'proof/analyzeTree';
+interface FlowNetworkAnalysisRequest {
+  method: 'proof/analyzeFlowNetwork';
   params: {
-    tree: ArgumentTree;
-    analysisTypes: ('dependencies' | 'strategies' | 'redundancy')[];
+    network: StatementFlowNetwork;
+    analysisTypes: ('flow_paths' | 'routing_strategies' | 'redundant_flows')[];
     depth: 'shallow' | 'deep';
   };
 }
@@ -160,10 +160,10 @@ LSP servers generate quantitative analyses:
 
 ### Data Access [LSP]
 LSP analysis scripts can:
-- **Read content**: Access premise and conclusion strings through LSP API
-- **Navigate structure**: Traverse connections via LSP navigation APIs
-- **Access metadata**: Read annotations and metadata through LSP
-- **Cross-document queries**: LSP workspace-wide search and analysis
+- **Read statements**: Access statement content flowing through the network via LSP API
+- **Navigate flows**: Traverse statement pathways via LSP navigation APIs
+- **Access flow metadata**: Read flow annotations and routing metadata through LSP
+- **Cross-document queries**: LSP workspace-wide flow analysis and search
 
 ### Output Formats [CORE + LSP]
 Analysis results delivered through LSP protocol:
@@ -327,63 +327,63 @@ interface AnalysisChainRequest {
 
 ## Advanced Capabilities: Extensible Research Analysis
 
-### Pattern Recognition and Discovery
-Platform-enabled analysis tools for identifying logical patterns and relationships:
+### Flow Pattern Recognition and Discovery
+Platform-enabled analysis tools for identifying statement flow patterns and routing relationships:
 
 ```typescript
-interface PatternAnalysisRequest {
-  method: 'analysis/findPatterns';
+interface FlowPatternAnalysisRequest {
+  method: 'analysis/findFlowPatterns';
   params: {
     logicSystem: string;
     proofContext: ProofDocument;
     analysisType: string;
-    searchParameters: AnalysisConfig;
+    searchParameters: FlowAnalysisConfig;
   };
 }
 
-interface PatternAnalysisResult {
-  patterns: IdentifiedPattern[];
-  relationships: LogicalRelationship[];
+interface FlowPatternAnalysisResult {
+  flowPatterns: IdentifiedFlowPattern[];
+  routingRelationships: StatementFlowRelationship[];
   analysisReport: string;
-  suggestedExtensions: string[];
+  suggestedOptimizations: string[];
 }
 ```
 
 **Use Cases:**
-- **Mathematical Logic**: Identify patterns in logical system properties and theorem relationships
-- **Domain-Specific Logic**: Analyze reasoning patterns in legal, scientific, or ethical frameworks
-- **Educational Research**: Develop exercise problems that target specific logical concepts
+- **Mathematical Logic**: Identify patterns in statement flow and transformation relationships
+- **Domain-Specific Logic**: Analyze statement routing patterns in legal, scientific, or ethical frameworks
+- **Educational Research**: Develop exercise problems that target specific statement flow concepts
 
-### Proof Structure Analysis and Optimization
-Platform tools for analyzing and improving proof structure:
+### Flow Network Structure Analysis and Optimization
+Platform tools for analyzing and improving statement flow network structure:
 
 ```typescript
-interface ProofAnalysisRequest {
-  method: 'analysis/analyzeProof';
+interface FlowNetworkAnalysisRequest {
+  method: 'analysis/analyzeFlowNetwork';
   params: {
-    originalProof: ProofDocument;
-    analysisGoals: ('structure' | 'clarity' | 'completeness' | 'efficiency')[];
-    analysisParameters: AnalysisConfig;
+    originalNetwork: ProofDocument;
+    analysisGoals: ('flow_structure' | 'routing_clarity' | 'flow_completeness' | 'routing_efficiency')[];
+    analysisParameters: FlowAnalysisConfig;
   };
 }
 
-interface AnalysisResult {
-  structureAnalysis: StructureReport[];
-  improvementSuggestions: Suggestion[];
-  qualityMetrics: {
-    stepCount: number;
-    clarityScore: number;
-    completenessRating: number;
+interface FlowAnalysisResult {
+  flowStructureAnalysis: FlowStructureReport[];
+  routingImprovements: RoutingSuggestion[];
+  flowQualityMetrics: {
+    pathCount: number;
+    routingClarityScore: number;
+    flowCompletenessRating: number;
   };
   analysisReport: string;
 }
 ```
 
 **Platform Analysis Capabilities:**
-- **Structure Analysis**: Identify proof organization patterns and potential improvements
-- **Clarity Assessment**: Evaluate proof readability and suggest organizational improvements
-- **Completeness Checking**: Verify all logical steps are present and justified
-- **Efficiency Analysis**: Identify redundant steps and suggest more direct logical paths
+- **Flow Structure Analysis**: Identify statement routing patterns and potential optimizations
+- **Routing Clarity Assessment**: Evaluate flow network readability and suggest routing improvements
+- **Flow Completeness Checking**: Verify all statement pathways are present and properly connected
+- **Routing Efficiency Analysis**: Identify redundant pathways and suggest more direct statement flows
 
 ### Research Integration Tools
 Platform features for connecting proofs with broader research context:
@@ -412,59 +412,59 @@ interface ResearchIntegrationResult {
 - **Citation Templates**: Provide structured citation formats for proof techniques
 - **Research Direction Identification**: Highlight potential areas for extending current work
 
-### Systematic Analysis Framework
+### Systematic Flow Analysis Framework
 Extensible analysis tools for research and education:
 
 ```typescript
-interface ConsistencyAnalysisRequest {
-  method: 'analysis/checkConsistency';
+interface FlowConsistencyAnalysisRequest {
+  method: 'analysis/checkFlowConsistency';
   params: {
-    proofSet: ProofDocument[];
+    flowNetworkSet: ProofDocument[];
     logicalFramework: string;
     analysisDepth: 'surface' | 'deep' | 'exhaustive';
   };
 }
 
-interface ConsistencyAnalysisResult {
-  consistencyStatus: 'consistent' | 'inconsistent' | 'undetermined';
-  potentialInconsistencies: LogicalInconsistency[];
-  strengthAssessment: ConsistencyStrength;
-  recommendations: ConsistencyRecommendation[];
+interface FlowConsistencyAnalysisResult {
+  flowConsistencyStatus: 'consistent' | 'inconsistent' | 'undetermined';
+  potentialFlowInconsistencies: StatementFlowInconsistency[];
+  flowStrengthAssessment: FlowConsistencyStrength;
+  routingRecommendations: FlowConsistencyRecommendation[];
 }
 ```
 
-### Cross-System Translation and Comparison
-Platform-supported translation tools for proofs between different logical systems:
+### Cross-System Flow Translation and Comparison
+Platform-supported translation tools for statement flow networks between different logical systems:
 
 ```typescript
-interface LogicalTranslationRequest {
-  method: 'analysis/translateSystems';
+interface FlowTranslationRequest {
+  method: 'analysis/translateFlowSystems';
   params: {
-    sourceProof: ProofDocument;
+    sourceFlowNetwork: ProofDocument;
     sourceSystem: string;
     targetSystems: string[];
-    preservationGoals: ('semantics' | 'structure' | 'intuition')[];
+    preservationGoals: ('flow_semantics' | 'routing_structure' | 'flow_intuition')[];
   };
 }
 
-interface TranslationResult {
-  translations: TranslatedProof[];
+interface FlowTranslationResult {
+  translations: TranslatedFlowNetwork[];
   translationReport: string;
-  mappingIssues: string[];
-  availableFeatures: string[];
-  equivalenceAnalysis: EquivalenceAssessment;
+  routingMappingIssues: string[];
+  availableFlowFeatures: string[];
+  flowEquivalenceAnalysis: FlowEquivalenceAssessment;
 }
 ```
 
 **Platform Translation Features:**
-- **Semantic Mapping**: Maintain logical meaning through documented translation rules
-- **Structural Correspondence**: Map concepts and operations between systems using templates
-- **Limitation Documentation**: Clearly document what can and cannot be expressed in target systems
-- **Translation Validation**: Enable verification of translation accuracy through testing
+- **Flow Semantic Mapping**: Maintain statement flow meaning through documented routing rules
+- **Routing Correspondence**: Map flow concepts and operations between systems using templates
+- **Flow Limitation Documentation**: Clearly document what routing patterns can and cannot be expressed in target systems
+- **Flow Translation Validation**: Enable verification of translation accuracy through flow testing
 
 ## Philosophy
 
-Analysis transforms static proofs into dynamic objects of study. By enabling custom processing through LSP extensibility and comprehensive analysis capabilities, the platform becomes a laboratory for logical experimentation rather than merely a proof editor.
+Analysis transforms static statement flow networks into dynamic objects of study. By enabling custom processing through LSP extensibility and comprehensive flow analysis capabilities, the platform becomes a laboratory for statement routing experimentation rather than merely a proof editor.
 
 ### LSP-Driven Extensibility
 The LSP architecture ensures that analysis capabilities can evolve independently of the core platform, enabling:

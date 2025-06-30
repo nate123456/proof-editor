@@ -4,7 +4,13 @@
 
 Proof Editor uses YAML files (`.proof` extension) to store logical proofs. The format prioritizes simplicity - most proofs need just a few lines.
 
-**Primary Purpose**: The file format's primary role is to robustly *reconstruct* the runtime object-reference-based connection model during loading, not to *define* connections via string content.
+**Primary Purpose**: The file format's primary role is to robustly *reconstruct* the runtime connection model during loading. This model is based on **STATEMENTS** - the fundamental building blocks that flow between nodes in physical tree structures.
+
+**CRITICAL PRINCIPLES**: 
+- **Compositional hierarchy** - understand what builds from what in the system
+- **Identity-based connections** - same entities appearing in multiple places create relationships
+- **Physical manifestation** - logical structures have spatial properties through rendering
+- **Emergent layout** - tree positioning comes from structural relationships, not stored coordinates
 
 ## Minimal Valid Proof
 
@@ -16,16 +22,16 @@ statements:
 
 arguments:
   - &arg1 [*A, *B]: [*C]  # Needs A,B produces C
-  - &arg2 [*B, *C]: [*A]  # Needs B,C produces A
+  - &arg3 [*C, *A]: [*B]  # Needs C,A produces B
 
 trees:
   - offset: {x: 0, y: 0}
     nodes:
       n1: {arg: *arg1}         # Root node
-      n2: {n1: *arg2, on: 0}   # Provides A to n1's first premise
+      n2: {n1: *arg3, on: 1}   # Provides B to n1's second premise
 ```
 
-This shows a single tree with two nodes, where n2 (child) provides input A to n1's (parent) first premise slot. Data flows bottom-up: children fulfill their parents' premise requirements.
+This shows a single tree with two nodes, where n2 (child) provides statement B to n1's (parent) second premise slot. **Statement flow**: n1 produces C → n2 uses C (plus external A) → n2 produces B → n1 uses B. Data flows bottom-up: children fulfill their parents' premise requirements through **concrete statement movement**.
 
 ## Connection Reconstruction in Files
 
@@ -209,22 +215,222 @@ trees:
 
 **CRITICAL INSIGHT**: Arguments are templates that can be instantiated multiple times at different positions. Tree structure requires explicit parent-child-position relationships.
 
-```yaml
-# Define reusable argument templates
-arguments:
-  - &arg1 [*A, *B]: [*C]  # Needs A,B produces C
-  - &arg2 [*B, *C]: [*A]  # Needs B,C produces A
-  - &arg3 [*C, *A]: [*B]  # Needs C,A produces B
+**PHYSICAL TREE STRUCTURE**: Trees are actually connected via the STATEMENTS (not just the arguments). The same tree structure could be described from the statement perspective - statements flow between nodes, creating the physical connections that form the tree. This makes it clear that trees have concrete physical properties: statements move between specific positions, creating directed connections in physical space.
 
-# Tree structure with explicit positions
+**Physical Properties**: Trees have emergent spatial layout from parent-child relationships. Each tree moves as a cohesive unit with single workspace offset. No individual node coordinates are stored - physical positioning emerges from rendering the logical structure.
+
+## Tree Structure Patterns
+
+Trees demonstrate different organizational patterns based on how argument templates connect. The following examples show concrete patterns with external inputs, template reuse, and complex flows.
+
+### Pattern Types
+
+**Linear Chain**: Each node feeds exactly one parent, creating a sequential dependency flow.
+
+**Parallel Structure**: Multiple children provide inputs to a single parent at different premise positions.
+
+**Hierarchical Branching**: Deeper nesting where some nodes serve both as parents (receiving inputs) and children (providing inputs to their own parents).
+
+### Flow Analysis Framework
+
+To understand any tree:
+1. **Identify what each argument template needs (premises) and produces (conclusions)**
+2. **Trace which outputs can satisfy which input requirements**
+3. **Follow the `on: position` values to see which specific premise slots get filled**
+4. **Remember bottom-up flow: children fulfill their parents' input requirements**
+
+### External Input Patterns
+
+Some trees require external statements that aren't produced by other nodes in the tree. These external inputs come from outside the tree structure:
+
+```yaml
+statements:
+  - &P "P is true"
+  - &Q "Q is true"
+  - &R "R follows"
+  - &S "S is established"
+
+arguments:
+  - &modus_ponens [*P, "P implies Q"]: [*Q]
+  - &universal_inst ["All things have property R", *P]: [*R]
+  - &composition [*Q, *R]: [*S]
+
 trees:
-  - offset: {x: 100, y: 200}  # Tree position in workspace
+  - offset: {x: 0, y: 0}
     nodes:
-      n1: {arg: *arg1}              # Root (no parent)
-      n2: {n1: *arg2, on: 0}        # Child of n1, provides A to n1[0]
-      n3: {n1: *arg3, on: 1}        # Child of n1, provides B to n1[1]
-      n4: {n3: *arg2, on: 1}        # Child of n3, another instance of arg2!
+      main: {arg: *composition}         # Needs Q and R
+      left: {main: *modus_ponens, on: 0}   # Provides Q, needs P + "P implies Q"
+      right: {main: *universal_inst, on: 1} # Provides R, needs "All things..." + P
 ```
+
+**Statement Sources**:
+- **Internal**: *Q and *R produced by child nodes
+- **External**: *P, "P implies Q", "All things have property R" must come from outside this tree
+- **Reused External**: *P is needed by both left and right children
+
+### Multiple Template Instances
+
+The same argument template can appear multiple times as different nodes in the same tree:
+
+```yaml
+statements:
+  - &premise1 "All humans are mortal"
+  - &socrates "Socrates is human"
+  - &plato "Plato is human"
+  - &soc_mortal "Socrates is mortal"
+  - &plato_mortal "Plato is mortal"
+  - &both_mortal "Both are mortal"
+
+arguments:
+  - &syllogism_template [*premise1, "X is human"]: ["X is mortal"]
+  - &conjunction [*soc_mortal, *plato_mortal]: [*both_mortal]
+
+trees:
+  - offset: {x: 0, y: 0}
+    nodes:
+      conclusion: {arg: *conjunction}
+      soc_proof: {conclusion: *syllogism_template, on: 0}  # First instance
+      plato_proof: {conclusion: *syllogism_template, on: 1} # Second instance of same template
+```
+
+**Key Points**:
+- `*syllogism_template` appears twice as different nodes
+- Each instance handles different specific inputs ("Socrates is human" vs "Plato is human")
+- Same logical pattern, different concrete applications
+
+### Complex Flow Scenarios
+
+#### Scenario 1: Linear Chain with External Supplements
+
+```yaml
+statements:
+  - &base "Base fact"
+  - &derived1 "First derivation"
+  - &derived2 "Second derivation"
+  - &final "Final conclusion"
+
+arguments:
+  - &step1 [*base, "External rule 1"]: [*derived1]
+  - &step2 [*derived1, "External rule 2"]: [*derived2]
+  - &step3 [*derived2, "External rule 3"]: [*final]
+
+trees:
+  - offset: {x: 0, y: 0}
+    nodes:
+      root: {arg: *step3}              # Produces final
+      middle: {root: *step2, on: 0}    # Provides derived2
+      bottom: {middle: *step1, on: 0}  # Provides derived1
+```
+
+**Flow Analysis**:
+- External inputs: *base, "External rule 1", "External rule 2", "External rule 3"
+- Internal flow: *base → *derived1 → *derived2 → *final
+- Each step depends on both internal flow and external rules
+
+#### Scenario 2: Parallel Inputs with Shared Dependencies
+
+```yaml
+statements:
+  - &shared "Shared premise"
+  - &specific1 "Specific premise 1"
+  - &specific2 "Specific premise 2"
+  - &result1 "Result 1"
+  - &result2 "Result 2"
+  - &combined "Combined result"
+
+arguments:
+  - &branch1 [*shared, *specific1]: [*result1]
+  - &branch2 [*shared, *specific2]: [*result2]
+  - &combine [*result1, *result2]: [*combined]
+
+trees:
+  - offset: {x: 0, y: 0}
+    nodes:
+      final: {arg: *combine}           # Needs result1 and result2
+      left: {final: *branch1, on: 0}   # Provides result1
+      right: {final: *branch2, on: 1}  # Provides result2
+```
+
+**Flow Analysis**:
+- External inputs: *shared (used by both children), *specific1, *specific2
+- Parallel flow: Both children use *shared but need different specific premises
+- Convergence: Both results combine at the root
+
+#### Scenario 3: Hierarchical Branching with Multiple Levels
+
+```yaml
+statements:
+  - &axiom1 "Axiom 1"
+  - &axiom2 "Axiom 2"
+  - &lemma1 "Lemma 1"
+  - &lemma2 "Lemma 2"
+  - &theorem1 "Theorem 1"
+  - &theorem2 "Theorem 2"
+  - &final_theorem "Final theorem"
+
+arguments:
+  - &prove_lemma1 [*axiom1, "Additional rule 1"]: [*lemma1]
+  - &prove_lemma2 [*axiom2, "Additional rule 2"]: [*lemma2]
+  - &prove_theorem1 [*lemma1, *axiom1]: [*theorem1]
+  - &prove_theorem2 [*lemma2, *axiom2]: [*theorem2]
+  - &final_proof [*theorem1, *theorem2]: [*final_theorem]
+
+trees:
+  - offset: {x: 0, y: 0}
+    nodes:
+      root: {arg: *final_proof}              # Level 3: Final theorem
+      th1: {root: *prove_theorem1, on: 0}    # Level 2: First theorem
+      th2: {root: *prove_theorem2, on: 1}    # Level 2: Second theorem
+      lem1: {th1: *prove_lemma1, on: 0}      # Level 1: First lemma
+      lem2: {th2: *prove_lemma2, on: 0}      # Level 1: Second lemma
+```
+
+**Flow Analysis**:
+- External inputs: *axiom1, *axiom2, "Additional rule 1", "Additional rule 2"
+- Level 1: Lemmas derived from axioms + external rules
+- Level 2: Theorems derived from lemmas + original axioms (reused)
+- Level 3: Final theorem combines both theorems
+- **Note**: *axiom1 and *axiom2 are reused at multiple levels
+
+### Statement Source Classification
+
+Understanding where statements come from in tree structures:
+
+#### 1. External Statements (Required from outside the tree)
+- **Axioms**: Foundational truths not derived within the tree
+- **Given premises**: Statements provided as assumptions
+- **Imported statements**: From other proofs or packages
+- **User assertions**: Statements introduced by user input
+
+#### 2. Internal Statements (Produced within the tree)
+- **Intermediate conclusions**: Output of child nodes
+- **Derived statements**: Results of applying argument templates
+- **Flowing statements**: Move from child conclusions to parent premises
+
+#### 3. Mixed Usage Patterns
+- **Reused externals**: Same external statement used by multiple nodes
+- **Cascading internals**: Internal statements that become inputs for multiple subsequent nodes
+- **Branching points**: Single statement that feeds multiple different reasoning paths
+
+### YAML Structure Principles
+
+```yaml
+statements:
+  - &statement1 "content1"
+  - &statement2 "content2"
+  
+arguments:
+  - &template1 [*input1, *input2]: [*output1]
+  - &template2 [*output1, *input3]: [*output2]
+
+trees:
+  - offset: {x: 0, y: 0}
+    nodes:
+      root: {arg: *template1}
+      child: {root: *template2, on: position_number}
+```
+
+The key insight: tree structure emerges from which templates can provide the inputs that other templates require.
 
 **Key Node Format**:
 - **Root node**: `{arg: argument_ref}`

@@ -10,6 +10,7 @@ A language package contains:
 - **LSP Server**: The core intelligence engine for the logical language
 - **Language Specification**: Formal definition of capabilities and configuration
 - **Validation Rules**: Logic-specific inference and consistency rules
+- **Physical Tree Support**: Spatial tree structure queries, operations, and statement flow analysis
 - **Examples**: Sample proofs demonstrating the language
 - **Documentation**: Usage guides and reference materials
 - **Platform Binaries**: Pre-built executables for different platforms
@@ -37,6 +38,10 @@ my-logic-language/
 ├── package.json          # For Node.js-based servers
 ├── server/
 │   ├── server.js         # LSP server implementation
+│   ├── tree-queries.js   # Physical tree structure queries
+│   ├── spatial-ops.js    # Spatial tree operations
+│   ├── statement-flow.js # Statement flow analysis
+│   ├── tree-positioning.js # Tree positioning calculations
 │   ├── server.exe        # Windows binary
 │   ├── server-mac        # macOS binary
 │   └── server-linux      # Linux binary
@@ -110,6 +115,14 @@ capabilities:
     - "proof/checkSafety"
     - "proof/generateCounterexample"
     - "proof/ltlToAutomaton"
+    - "proof/queryTreeStructure"
+    - "proof/navigateSpatialTree"
+    - "proof/getTreePosition"
+    - "proof/resolveTreeConflicts"
+    - "proof/analyzeStatementFlow"
+    - "proof/computeTreeLayout"
+    - "proof/findStatementUsage"
+    - "proof/optimizeTreePosition"
 
 # Dependencies
 dependencies:
@@ -202,6 +215,152 @@ category: "temporal-logics"
 tags: ["formal-methods", "verification", "safety", "liveness"]
 ```
 
+## Physical Tree Structure Requirements
+
+### Statement Flow Processing
+Language packages must implement statement flow analysis to track how statements move through argument trees and across package boundaries.
+
+```javascript
+// Statement flow analysis implementation
+class StatementFlowProcessor {
+  constructor(packageId) {
+    this.packageId = packageId;
+    this.flowCache = new Map();
+    this.crossPackageReferences = new Set();
+  }
+  
+  async analyzeStatementFlow(statementId, includeUsages = false) {
+    const cacheKey = `${statementId}:${includeUsages}`;
+    if (this.flowCache.has(cacheKey)) {
+      return this.flowCache.get(cacheKey);
+    }
+    
+    const analysis = {
+      statementId,
+      flowPaths: await this.findFlowPaths(statementId),
+      usageCount: 0,
+      crossPackageReferences: [],
+      cyclicDependencies: []
+    };
+    
+    if (includeUsages) {
+      analysis.usageCount = await this.countUsages(statementId);
+      analysis.crossPackageReferences = await this.findCrossPackageReferences(statementId);
+    }
+    
+    analysis.cyclicDependencies = await this.detectCycles(statementId);
+    
+    this.flowCache.set(cacheKey, analysis);
+    return analysis;
+  }
+  
+  async findFlowPaths(statementId) {
+    // Implementation details for finding statement flow paths
+    // This tracks how statements flow from premises to conclusions
+    // across different atomic arguments and tree structures
+  }
+  
+  async findCrossPackageReferences(statementId) {
+    // Check if this statement is referenced by other packages
+    return Array.from(this.crossPackageReferences)
+      .filter(ref => ref.statementId === statementId);
+  }
+}
+```
+
+### Tree Layout Computation
+Language packages must support spatial tree layout calculations for proper physical positioning.
+
+```javascript
+// Tree layout computation
+class TreeLayoutComputer {
+  constructor(config) {
+    this.config = config;
+    this.layoutCache = new Map();
+  }
+  
+  async computeTreeLayout(treeId, constraints = {}) {
+    const tree = await this.getTreeStructure(treeId);
+    const layout = {
+      treeId,
+      totalNodes: tree.nodes.length,
+      depth: this.calculateDepth(tree),
+      width: this.calculateWidth(tree),
+      nodePositions: new Map(),
+      renderingHints: this.generateRenderingHints(tree, constraints)
+    };
+    
+    // Calculate positions based on layout algorithm
+    switch (layout.renderingHints.layoutAlgorithm) {
+      case 'hierarchical':
+        await this.computeHierarchicalLayout(tree, layout, constraints);
+        break;
+      case 'force-directed':
+        await this.computeForceDirectedLayout(tree, layout, constraints);
+        break;
+      case 'circular':
+        await this.computeCircularLayout(tree, layout, constraints);
+        break;
+    }
+    
+    return layout;
+  }
+  
+  async optimizeTreePosition(constraints) {
+    // Optimize tree positioning based on constraints
+    // This considers statement flow patterns, usage frequency,
+    // and cross-package dependencies
+    const optimization = {
+      originalLayout: constraints.currentLayout,
+      optimizedLayout: await this.performOptimization(constraints),
+      improvements: [],
+      metrics: {}
+    };
+    
+    return optimization;
+  }
+}
+```
+
+### Cross-Package Tree Coordination
+When trees span multiple packages, coordination mechanisms are required.
+
+```javascript
+// Cross-package tree coordination
+connection.onRequest('proof/coordinateCrossPackageTree', async (params) => {
+  const { treeId, involvedPackages, coordinationType } = params;
+  
+  switch (coordinationType) {
+    case 'layout':
+      return await coordinateTreeLayout(treeId, involvedPackages);
+    case 'validation':
+      return await coordinateTreeValidation(treeId, involvedPackages);
+    case 'navigation':
+      return await coordinateTreeNavigation(treeId, involvedPackages);
+  }
+});
+
+async function coordinateTreeLayout(treeId, packages) {
+  // Coordinate layout across multiple packages
+  const packageLayouts = await Promise.all(
+    packages.map(pkg => requestPackageLayout(pkg, treeId))
+  );
+  
+  // Resolve conflicts and create unified layout
+  const unifiedLayout = await resolveLayoutConflicts(packageLayouts);
+  
+  return {
+    treeId,
+    coordinatedLayout: unifiedLayout,
+    packageContributions: packageLayouts.map(layout => ({
+      packageId: layout.packageId,
+      nodeCount: layout.nodeCount,
+      spatialBounds: layout.bounds
+    }))
+  };
+}
+```
+
 ## Developing an LSP Server
 
 ### Basic LSP Server Structure (Node.js)
@@ -241,7 +400,15 @@ connection.onInitialize((params) => {
         proofCapabilities: [
           'proof/validateArgument',
           'proof/completeInference',
-          'proof/analyzeStructure'
+          'proof/analyzeStructure',
+          'proof/queryTreeStructure',
+          'proof/navigateSpatialTree',
+          'proof/getTreePosition',
+          'proof/resolveTreeConflicts',
+          'proof/analyzeStatementFlow',
+          'proof/computeTreeLayout',
+          'proof/findStatementUsage',
+          'proof/optimizeTreePosition'
         ]
       }
     }
@@ -289,7 +456,16 @@ connection.onInitialize((params) => {
       completionProvider: true,
       // Proof-specific extensions
       experimental: {
-        proofCapabilities: ['proof/validateArgument']
+        proofCapabilities: [
+          'proof/validateArgument',
+          'proof/queryTreeStructure',
+          'proof/navigateSpatialTree',
+          'proof/resolveTreeConflicts',
+          'proof/analyzeStatementFlow',
+          'proof/computeTreeLayout',
+          'proof/findStatementUsage',
+          'proof/optimizeTreePosition'
+        ]
       }
     }
   };
@@ -521,6 +697,7 @@ mobile:
     hover: true             # Keep hover for learning
     diagnostics: "on-save"  # Only validate on save
     analysis: false         # Disable heavy analysis
+    spatialTreeOps: "cached" # Cache spatial tree operations
     
   # Offline support
   offline:
@@ -545,12 +722,20 @@ capabilities:
     - "proof/validateArgument"
     - "proof/completeInference"
     - "advanced-diagnostics"
+    - "proof/queryTreeStructure"
+    - "proof/navigateSpatialTree"
+    - "proof/analyzeStatementFlow"
+    - "proof/computeTreeLayout"
     
   premium:
     # Requires subscription/API key
     - "proof/generateCounterexample"
     - "proof/automatedProver"
     - "proof/verifyLarge"
+    - "proof/resolveTreeConflicts"
+    - "proof/complexSpatialOps"
+    - "proof/findStatementUsage"
+    - "proof/optimizeTreePosition"
 ```
 
 ## Testing Language Packages
@@ -596,6 +781,33 @@ describe('LSP Compliance', () => {
     });
     expect(response.valid).toBe(false); // Invalid inference
     expect(response.diagnostics).toHaveLength(1);
+  });
+  
+  test('handles tree structure queries', async () => {
+    const response = await client.sendRequest('proof/queryTreeStructure', {
+      query: 'parent::atomic_argument',
+      nodeId: 'n1'
+    });
+    expect(response.results).toBeDefined();
+    expect(response.executionTime).toBeLessThan(50);
+  });
+  
+  test('handles statement flow analysis', async () => {
+    const response = await client.sendRequest('proof/analyzeStatementFlow', {
+      statementId: 's1',
+      includeUsages: true
+    });
+    expect(response.flowPaths).toBeDefined();
+    expect(response.usageCount).toBeGreaterThanOrEqual(0);
+  });
+  
+  test('handles tree layout computation', async () => {
+    const response = await client.sendRequest('proof/computeTreeLayout', {
+      treeId: 'tree1',
+      constraints: { maxWidth: 800, maxHeight: 600 }
+    });
+    expect(response.layout).toBeDefined();
+    expect(response.totalNodes).toBeGreaterThan(0);
   });
 });
 ```
