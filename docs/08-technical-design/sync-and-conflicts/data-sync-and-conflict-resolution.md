@@ -13,6 +13,12 @@ This document defines the technical strategy for achieving zero data loss, robus
 - **Offline Functionality**: Full proof construction capabilities without network connectivity
 - **Battery Efficiency**: Less than 5% battery drain per hour on mobile devices
 
+### User Experience Requirements
+- **Sync Notification**: Users notified of sync conflicts within 10 seconds of detection
+- **Conflict UI Performance**: Conflict resolution interface loads within 2 seconds
+- **Resolution Feedback**: Users receive immediate validation feedback on resolution choices
+- **Sync Status Visibility**: Clear indication of sync state (syncing, offline, conflicts pending)
+
 ### Functional Requirements
 - Detect concurrent edits that create logical conflicts
 - Preserve edit history and authorship information
@@ -20,11 +26,64 @@ This document defines the technical strategy for achieving zero data loss, robus
 - Enable offline work with eventual synchronization
 - Provide intuitive merge interfaces for complex conflicts
 
+## High-Level Synchronization Flow
+
+### End-to-End User Experience
+```
+Device A (offline)          Network            Device B (online)
+     │                         │                        │
+  1. │ User edits proof        │                        │
+     │ Operations logged       │                        │
+     │                         │                        │
+  2. │ Network detected        │                        │
+     │ Begin sync process      │                        │
+     │                         │                        │
+  3. │ ────── Send ops ────────┼──────────────────────→ │ Receive operations
+     │                         │                        │ Apply to local CRDT
+     │                         │                        │ Detect conflicts
+     │                         │                        │
+  4. │ ←────── Conflict ───────┼──────────────────────── │ Send conflict data
+     │ Show resolution UI      │                        │
+     │ User chooses resolution │                        │
+     │                         │                        │
+  5. │ ────── Resolution ──────┼──────────────────────→ │ Apply resolution
+     │                         │                        │ Validate consistency
+     │                         │                        │
+  6. │ ←────── Sync OK ────────┼──────────────────────── │ Confirmation
+     │ Update UI status        │                        │ Update UI status
+     │ Resume normal editing   │                        │ Resume normal editing
+```
+
+### Conflict Resolution Workflow
+```
+Conflict Detected
+       ↓
+  Show visual diff interface
+       ↓
+  Present resolution options:
+  • Accept mine
+  • Accept theirs  
+  • Custom merge
+  • Intelligent suggestion
+       ↓
+  User selects resolution
+       ↓
+  Preview consequences
+       ↓
+  Apply resolution
+       ↓
+  Validate logical consistency
+       ↓
+  Sync confirmation
+```
+
 ## Data Consistency Model
 
-### Chosen Approach: Conflict-Free Replicated Data Types (CRDTs)
+> **Note**: The following technical approach represents recommended implementation strategies based on requirements analysis. Architectural decisions should be validated during the design phase.
 
-Proof Editor uses **Operation-based CRDTs** with **vector clocks** for the following reasons:
+### Requirements-Based Analysis: Conflict-Free Replicated Data Types (CRDTs)
+
+Based on the zero-data-loss and offline-first requirements, **Operation-based CRDTs** with **vector clocks** are analyzed as a potential solution for the following reasons:
 
 #### Why CRDTs
 - **Automatic Convergence**: Multiple replicas converge to same state without coordination

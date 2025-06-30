@@ -43,6 +43,17 @@ Cache Check (0ms) → Pattern Match (1-3ms) → JS Rule (2-5ms) → Result
 - 1000+ cached validation results
 - Generous LRU caches (single-user optimization)
 
+### Scalability and Performance Targets
+**Target**: Quantifiable performance across different proof complexities
+
+**Proof Size Performance Targets**:
+- **Small proofs (1-50 atomic arguments)**: <10ms validation, <5ms navigation
+- **Medium proofs (51-500 atomic arguments)**: <25ms validation, <15ms navigation  
+- **Large proofs (501-2000 atomic arguments)**: <50ms validation, <30ms navigation
+- **Very large proofs (2001+ atomic arguments)**: <100ms validation, <60ms navigation
+- **Memory scaling**: 1MB RAM per 1000 atomic arguments (estimated)
+- **Cache effectiveness**: >95% hit rate for proofs under 500 arguments
+
 ### Analysis and Intelligence Performance
 **Target**: Real-time analysis for editing feedback and research capabilities
 

@@ -4,7 +4,9 @@
 
 Proof Editor uses the Language Server Protocol to provide language-specific features while maintaining a clean separation between the core platform and individual proof languages. This document defines how language servers integrate with the Proof Editor platform across different host environments (VS Code, React Native mobile apps, etc.).
 
-## Architecture
+## Recommended Architecture
+
+> **Note**: This represents a recommended implementation approach based on LSP integration requirements. Specific architectural decisions should be validated during the design phase.
 
 ```mermaid
 graph TD

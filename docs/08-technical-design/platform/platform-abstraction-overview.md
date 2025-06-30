@@ -8,7 +8,9 @@ This document provides the architectural overview of Proof Editor's platform abs
 
 The Platform Abstraction Layer separates Proof Editor's core functionality from platform-specific implementations, allowing the same business logic to work across desktop and mobile environments. This architecture follows established software design patterns for managing platform dependencies.
 
-## Architecture Pattern: Adapter/Port
+## Recommended Architecture Pattern: Adapter/Port
+
+> **Note**: This represents a recommended architectural approach based on platform independence requirements. Final architectural patterns should be validated during the design phase.
 
 ```mermaid
 graph TB

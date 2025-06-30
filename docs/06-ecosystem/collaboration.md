@@ -59,7 +59,40 @@ When concurrent edits create logical conflicts, the system provides analysis and
 - **Discussion threads**: Debate approaches
 
 ### Logical Provenance & Attribution
-Basic tracking and visualization of authorship and sources for collaborative work:
+Basic tracking and visualization of authorship and sources for collaborative work.
+
+#### V1 Scope Definition
+For the initial release, provenance tracking includes:
+- **Original Author ID**: Who first created each atomic argument or ordered set
+- **Source Package ID**: Which language package provided rules or axioms  
+- **Last Modified By**: Most recent editor of each element
+- **Basic Hover Attribution**: Author and creation timestamp on hover
+
+**Deferred to Future Versions**:
+- Detailed modification history within elements
+- Collaboration session recording and playback
+- Advanced citation format generation
+- Cross-document provenance tracking
+- Complex authorship attribution for merged content
+
+#### V1 Merge Conflict Resolution Process
+When concurrent edits create conflicts in the underlying proof files:
+
+**User Experience for Conflicts**:
+1. **Conflict Notification**: Users see "Sync conflict detected" notification within 10 seconds
+2. **Visual Conflict Interface**: Side-by-side comparison showing:
+   - "Your version" (local changes) vs "Their version" (remote changes)
+   - Highlighting of specific atomic arguments or ordered sets in conflict
+   - Clear indication of what logical elements are affected
+3. **Resolution Options**:
+   - **Keep Mine**: Accept local version, discard remote changes
+   - **Keep Theirs**: Accept remote version, discard local changes  
+   - **Merge Both**: When non-conflicting, combine both changes
+   - **Edit Manually**: Open conflict in editor for custom resolution
+4. **Validation Feedback**: Immediate validation of chosen resolution
+5. **Confirmation**: Clear indication that conflict is resolved and sync completed
+
+**Conceptual Scope**: V1 focuses on atomic argument and ordered set conflicts. Complex logical validation conflicts are flagged for manual review.
 
 ```typescript
 interface BasicProvenanceSystem {
