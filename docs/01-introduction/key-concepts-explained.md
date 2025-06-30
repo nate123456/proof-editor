@@ -1,198 +1,205 @@
 # Key Concepts Explained Simply
 
-*Understanding the building blocks of logical reasoning in Proof Editor*
+*Understanding how statements flow through processing units in Proof Editor*
 
 ## The Basic Idea
 
-Proof Editor helps you build logical arguments piece by piece, then connect those pieces into complete reasoning chains. Think of it like constructing a building: you need individual bricks (logical steps), and you need to connect them properly (logical relationships) to create something solid (valid arguments).
+Proof Editor helps you build reasoning systems where statements flow between processing units to create logical conclusions. Think of it like building a factory: you have raw materials (statements), processing stations (atomic arguments), and conveyor belts (connections) that move materials between stations to create finished products (conclusions).
 
 ## The Three Main Parts
 
-### 1. Logical Steps (What We Call "Atomic Arguments")
+### 1. Statements (The Building Blocks)
 
-A logical step is the smallest unit of reasoning - one inference from premises to conclusion.
+Statements are pieces of text that flow through your reasoning system. They are the fundamental building blocks - everything else is built from statements.
 
-**Example:**
-```
-Given: All birds can fly
-Given: Tweety is a bird
-Therefore: Tweety can fly
-```
-
-This is one logical step. You have some premises (the "given" statements) and you draw one conclusion from them.
+**Examples:**
+- "All birds can fly"
+- "Tweety is a bird"
+- "Tweety can fly"
 
 **In Proof Editor:**
-- The premises appear above a horizontal line
-- The conclusion appears below the line
-- The line itself represents the logical inference
+- Statements are the raw material that flows through your system
+- The same statement can be used in multiple places
+- When you change a statement, it updates everywhere it flows
 
-**Why "Atomic"?** 
-Just like atoms are the smallest building blocks of matter, atomic arguments are the smallest building blocks of reasoning. You can't break them down into smaller logical pieces without losing the logical connection.
+### 2. Processing Units (What We Call "Atomic Arguments")
 
-### 2. Connections and Tree Structure (Two Complementary Views)
+A processing unit takes input statements (premises) and produces output statements (conclusions). It's like a machine in a factory that transforms raw materials.
 
-Proof Editor provides two important perspectives on your logical arguments:
-
-#### Logical Connections
-Arguments CAN connect when the conclusion of one step matches a premise in another step. These are potential logical relationships based on shared content.
-
-**Example of Connectable Steps:**
+**Example Processing Unit:**
 ```
-Step 1: All birds can fly + Tweety is a bird → Tweety can fly
-Step 2: Tweety can fly + Flying things reach high places → Tweety can reach high places
-Step 3: Tweety can fly + Flying requires wings → Tweety has wings
+Input statements:  "All birds can fly", "Tweety is a bird"
+      ↓ (Processing happens here)
+Output statement: "Tweety can fly"
 ```
-
-**The Potential**: Steps 2 and 3 both COULD use Step 1's conclusion.
-
-#### Tree Structure  
-When you actually BUILD a proof, you create a tree by choosing which connections to use and where to position them.
-
-**Example Tree Built from Above Steps:**
-```
-        Step 1 (Tweety can fly)
-               ↓
-        Step 2 (reaches high places)
-```
-
-**Key Insight**: Step 3 remains available but unused in this particular tree. You chose to connect Step 1 to Step 2, creating a specific proof path.
 
 **In Proof Editor:**
-- **Connections**: The system shows you what CAN connect logically
-- **Tree Building**: You decide what DOES connect by branching
-- **Position Matters**: When branching, you select which premise position to fill
-- **Multiple Trees**: The same arguments can be arranged differently in different trees
+- Input statements appear above a horizontal line
+- Output statements appear below the line
+- The line itself represents the processing transformation
+- Each processing unit handles one logical transformation
 
-**Why This Dual View Matters:**
-- **Exploration**: See all possible logical connections before committing
-- **Flexibility**: Build different proof trees from the same logical components  
-- **Reusability**: Use the same logical step multiple times in different positions
-- **Clarity**: Distinguish between "what's logically valid" and "what I'm actually using"
+### 3. Statement Flow and Physical Trees
 
-### 3. Complete Arguments (Connected Chains of Reasoning)
+Proof Editor creates physical systems where statements flow between processing units. This is not abstract - it's how the system actually works.
 
-A complete argument includes all the logical steps needed to get from your starting premises to your final conclusion, with no gaps.
+#### Statement Flow Channels
+When processing units connect, statements can flow from the output of one unit to the input of another unit. These are actual flow paths in your reasoning system.
 
-**Example of Complete vs. Incomplete:**
-
-**Incomplete (Missing Steps):**
+**Example Statement Flow:**
 ```
-Step 1: All birds can fly → Tweety can fly
-Step 3: Tweety can reach high places
+Unit 1 outputs: "Tweety can fly"
+         ↓ (Statement flows through connection)
+Unit 2 receives: "Tweety can fly" (as input)
+Unit 2 outputs: "Tweety can reach high places"
 ```
-*Missing: How do we get from "Tweety can fly" to "Tweety can reach high places"?*
 
-**Complete (All Steps Included):**
+**The Physical Reality**: When you connect units, you create an actual channel where statements flow from one unit's output container to another unit's input container.
+
+#### Physical Tree Structure  
+When you build your reasoning system, you create a physical tree where processing units are positioned and connected. **Children provide statements upward to their parents.**
+
+**Example Physical Tree:**
 ```
-Step 1: All birds can fly + Tweety is a bird → Tweety can fly
-Step 2: Tweety can fly + Flying things reach high places → Tweety can reach high places
+     Parent Unit (needs "Tweety can fly" as input)
+            ↑ (Statement flows upward)
+     Child Unit (provides "Tweety can fly" as output)
 ```
-*Every logical step is explicit and justified.*
+
+**Key Insight**: The tree structure is bottom-up flow. Child processing units feed statements up to their parent units.
 
 **In Proof Editor:**
-- The system helps you identify missing steps
-- You can see your complete reasoning chain visually
-- Gaps become obvious and easy to fill
+- **Statement Channels**: You create actual flow paths between processing units
+- **Physical Positioning**: Processing units exist at specific locations in your workspace
+- **Bottom-up Flow**: Child units provide the statements their parent units need
+- **Multiple Instances**: The same processing unit template can be used multiple times in different positions
+
+### 4. Complete Flow Networks (Connected Processing Systems)
+
+A complete flow network includes all the processing units needed to transform your input statements into your final output statements, with no gaps in the flow.
+
+**Example of Complete vs. Incomplete Flow:**
+
+**Incomplete (Missing Processing Unit):**
+```
+Unit 1: "All birds can fly" + "Tweety is a bird" → "Tweety can fly"
+         ??? (No connection)
+Unit 3: ??? → "Tweety can reach high places"
+```
+*Missing: How does "Tweety can fly" flow to become "Tweety can reach high places"?*
+
+**Complete (All Processing Units Connected):**
+```
+Unit 1: "All birds can fly" + "Tweety is a bird" → "Tweety can fly"
+         ↓ ("Tweety can fly" flows down)
+Unit 2: "Tweety can fly" + "Flying things reach high places" → "Tweety can reach high places"
+```
+*Every statement flows through explicit processing units.*
+
+**In Proof Editor:**
+- The system helps you identify broken flow paths
+- You can see your complete statement processing network visually
+- Missing processing units become obvious and easy to add
 
 ## How These Work Together
 
-### Building Up Complexity
-1. **Start Simple:** Begin with basic logical steps
-2. **Connect Steps:** Link conclusions to new premises  
-3. **Build Chains:** Create longer sequences of reasoning
-4. **Verify Completeness:** Ensure no logical gaps
+### Building Processing Networks
+1. **Start Simple:** Create basic processing units with statements
+2. **Connect Units:** Establish statement flow channels between units  
+3. **Build Networks:** Create longer chains of statement processing
+4. **Verify Flow:** Ensure statements can flow from inputs to outputs without gaps
 
-### Visual Understanding
-- **Individual Steps:** See each inference clearly
-- **Connections:** Follow the logical flow with your eyes
-- **Complete Picture:** Understand your entire argument structure
-- **Patterns:** Recognize common reasoning patterns
+### Physical Understanding
+- **Individual Units:** See each processing transformation clearly
+- **Flow Channels:** Follow statement movement with your eyes
+- **Complete System:** Understand your entire statement processing network
+- **Patterns:** Recognize common processing unit arrangements
 
 ## Common Patterns You'll See
 
-### Linear Reasoning (Chain of Logic)
+### Linear Processing (Chain Flow)
 ```
-A → B → C → D
+Unit A → Unit B → Unit C → Unit D
 ```
-Each step leads to the next in sequence.
+Statements flow through processing units in sequence.
 
-### Branching Reasoning (Multiple Conclusions)
+### Branching Flow (Multiple Output Channels)
 ```
-    A
-   / \
-  B   C
-  |   |
-  D   E
+    Unit A (outputs multiple statements)
+       ↓↓
+   Unit B  Unit C
+      ↓       ↓
+   Unit D  Unit E
 ```
-One premise supports multiple lines of reasoning.
+One processing unit's outputs feed multiple other units.
 
-### Converging Reasoning (Multiple Premises)
+### Converging Flow (Multiple Input Channels)
 ```
-  A   B
-   \ /
-    C
-    |
-    D
+Unit A    Unit B
+    ↓      ↓ 
+     Unit C (combines inputs)
+        ↓
+     Unit D
 ```
-Multiple premises combine to support one conclusion.
+Multiple processing units feed their outputs to one unit.
 
-### Complex Reasoning (Combination)
+### Complex Networks (Combined Flow)
 ```
-    A
-   /|\
-  B C D
-   \|/
-    E
-    |
-    F
+      Unit A
+    ↙   ↓   ↘
+Unit B Unit C Unit D
+    ↘   ↓   ↙
+      Unit E
+        ↓
+      Unit F
 ```
-Real arguments often combine all these patterns.
+Real reasoning systems often combine all these flow patterns.
 
 ## Why This Approach Works
 
 ### For Learning
-- **Visual Clarity:** See how logic works, don't just read about it
-- **Step-by-Step:** Build understanding gradually
-- **Error Detection:** Mistakes become visible
-- **Pattern Recognition:** Learn to recognize common reasoning structures
+- **Physical Understanding:** See how statements flow through reasoning systems
+- **Hands-on Building:** Construct processing networks gradually
+- **Flow Debugging:** Broken statement flows become visible
+- **Pattern Recognition:** Learn to recognize common processing network structures
 
 ### For Teaching  
-- **Demonstration:** Show students how reasoning works
-- **Interaction:** Let students build their own arguments
-- **Assessment:** See exactly where students struggle
-- **Engagement:** Make abstract logic concrete and visual
+- **System Demonstration:** Show students how reasoning systems work
+- **Interactive Building:** Let students construct their own processing networks
+- **Flow Analysis:** See exactly where statement flow breaks down
+- **Concrete Systems:** Make abstract logic into working systems
 
 ### For Professional Work
-- **Clarity:** Present complex reasoning clearly to colleagues
-- **Verification:** Ensure your arguments are sound
-- **Collaboration:** Work together on complex reasoning
-- **Documentation:** Create clear records of your reasoning process
+- **System Clarity:** Present complex reasoning as functioning systems
+- **Flow Verification:** Ensure your statement processing works correctly
+- **Network Collaboration:** Work together on complex reasoning systems
+- **System Documentation:** Create clear records of your reasoning networks
 
 ## What's Different About Proof Editor's Approach
 
 ### Traditional Text Proofs
 - Linear presentation (line by line)
-- Connections implied, not explicit
-- Hard to see overall structure
-- Difficult to modify without rewriting
+- Statement flow hidden and implicit
+- Hard to see overall processing structure
+- Difficult to modify without rewriting entire sequences
 
-### Proof Editor's Visual Approach
-- Spatial representation (see relationships)
-- Connections explicit and visual
-- Structure immediately apparent
-- Easy to modify and experiment
+### Proof Editor's Physical System Approach
+- Spatial representation (see statement flow)
+- Statement channels explicit and visual
+- Processing network structure immediately apparent
+- Easy to modify processing units and reconnect flow channels
 
 ### Traditional Logical Software
 - Assumes expert knowledge
-- Focuses on verification, not construction
+- Focuses on verification, not system construction
 - Limited to specific logical systems
 - Requires programming knowledge
 
-### Proof Editor's User-Centered Approach
-- Designed for learning and construction
-- Works with any logical system
+### Proof Editor's System-Building Approach
+- Designed for constructing reasoning systems
+- Works with any statement processing logic
 - No programming required
-- Helps you become an expert
+- Helps you build working reasoning systems
 
 ## Moving Forward
 
@@ -202,4 +209,4 @@ Now that you understand the basic concepts, you're ready to:
 2. **[Understanding Logic Systems](logic-systems-intro.md)** - Learn about different types of reasoning
 3. **[Working with Complex Arguments](complex-arguments.md)** - Handle real-world reasoning challenges
 
-Remember: You don't need to understand everything at once. Start with simple examples, build your confidence, then tackle more complex reasoning patterns. The visual approach makes logical reasoning more intuitive and accessible than traditional methods.
+Remember: You don't need to understand everything at once. Start with simple processing units, build your confidence, then tackle more complex statement flow networks. The physical system approach makes logical reasoning more concrete and accessible than traditional methods.

@@ -1,6 +1,6 @@
 # What is Proof Editor?
 
-*A visual tool for constructing and sharing logical arguments*
+*A visual tool for constructing logical reasoning through statement flow between processing units*
 
 ## For People Who Think Logically
 
@@ -8,10 +8,10 @@ If you're a philosopher, mathematician, logician, or student working with formal
 
 ## What Does It Do?
 
-### Visual Proof Construction
-Instead of writing proofs as walls of text, Proof Editor lets you build them visually. You can see the logical flow, understand the structure at a glance, and spot mistakes before they become problems.
+### Visual Statement Processing
+Instead of writing proofs as walls of text, Proof Editor lets you build them as physical systems where statements flow between processing units. You create statement processing units, connect them so statements can flow between them, and watch your reasoning emerge as a working system.
 
-**Think of it like this**: Traditional proofs are like reading sheet music. Proof Editor is like actually hearing the music played. Both contain the same information, but one is immediately comprehensible.
+**Think of it like this**: Traditional proofs are like reading a recipe. Proof Editor is like building a working kitchen where ingredients (statements) flow between stations (processing units) to create the final dish (conclusions).
 
 ### Example: A Simple Argument
 
@@ -23,24 +23,24 @@ Instead of writing proofs as walls of text, Proof Editor lets you build them vis
 ```
 
 **In Proof Editor:**
-- You see the logical connection visually
-- When you change "All men are mortal," it automatically updates everywhere that statement is used
-- You can follow the reasoning path with your eyes
-- Complex arguments become manageable through visual organization
+- You see statements flowing between processing units
+- When you change "All men are mortal," it flows to every processing unit that uses it
+- You can trace how statements move through your reasoning system
+- Complex arguments become manageable through physical organization
 
 ## Why Use Visual Proofs?
 
-### See the Big Picture
-- Understand your entire argument structure at once
-- Identify weak points and missing steps immediately  
-- Navigate complex reasoning without getting lost
-- Present your work clearly to others
+### See the Physical System
+- Understand your entire statement processing network at once
+- Identify where statement flow breaks down immediately  
+- Navigate complex reasoning systems without getting lost
+- Present your work as a functioning system to others
 
-### Build Systematically
-- Start with simple steps and build complexity gradually
-- Connect ideas by drawing logical relationships
-- Reuse common reasoning patterns
-- Collaborate with others on the same proof
+### Build Processing Networks
+- Start with simple processing units and connect them gradually
+- Create statement flow channels between processing units
+- Reuse statements across multiple processing units
+- Collaborate with others on the same reasoning system
 
 ### Learn and Teach Effectively
 - Students can see how logical reasoning works

@@ -200,9 +200,9 @@ The platform's effectiveness can be evaluated along several dimensions that alig
 
 The platform operates under these constraints, which shape its architecture and capabilities:
 
-- Logical correctness must be verifiable on all platforms
-- Visual representations must adapt to screen sizes
-- Touch interactions must be as powerful as keyboard/mouse
-- Offline functionality must preserve full capabilities
+- Statement processing correctness must be verifiable on all platforms
+- Physical representations must adapt to screen sizes
+- Touch interactions must be as powerful as keyboard/mouse for processing network construction
+- Offline functionality must preserve full statement processing capabilities
 - Platform differences must not fragment the user community
-- Performance must be acceptable on modest mobile hardware
+- Performance must be acceptable on modest mobile hardware for statement processing

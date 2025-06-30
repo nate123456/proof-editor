@@ -2,7 +2,7 @@
 
 ## Domain Expert User Roles
 
-These distinct user roles represent different patterns of platform interaction and expertise levels. Each role has specific permissions, responsibilities, and access to platform capabilities.
+These distinct user roles represent different patterns of working with statement processing systems and reasoning networks. Each role has specific permissions, responsibilities, and access to platform capabilities for building and using these systems.
 
 ## Logic System Creator
 
@@ -10,28 +10,28 @@ These distinct user roles represent different patterns of platform interaction a
 Philosophy professors, logicians, and domain experts who design and implement custom logical reasoning systems through comprehensive documentation and configuration templates.
 
 ### Responsibilities
-- **Logic System Design**: Define logical rules, operators, and validation criteria for domain-specific reasoning
-- **Template Usage**: Use provided documentation and examples to implement logical concepts
-- **System Validation**: Test and refine logic systems to ensure philosophical accuracy
-- **Knowledge Sharing**: Publish and maintain logic systems for educational or research use
+- **Processing System Design**: Define how statements should flow and transform within domain-specific reasoning networks
+- **Template Usage**: Use provided documentation and examples to implement statement processing concepts
+- **System Validation**: Test and refine processing systems to ensure logical accuracy
+- **Knowledge Sharing**: Publish and maintain processing systems for educational or research use
 
 ### Permissions
-- **Create Custom Logic Systems**: Define new logical frameworks via YAML configuration and documented patterns
-- **Publish Language Packages**: Share logic systems through GitHub-based distribution
-- **Version Management**: Create and maintain versioned logic system releases
+- **Create Custom Processing Systems**: Define new statement flow frameworks via YAML configuration and documented patterns
+- **Publish Language Packages**: Share processing systems through GitHub-based distribution
+- **Version Management**: Create and maintain versioned processing system releases
 - **Advanced Configuration**: Access full three-tier SDK (YAML config, JavaScript rules, LSP extensions)
 
 ### Documentation-Based Implementation
-- **Template Selection**: "I need a deontic logic system that handles conditional obligations"
+- **Template Selection**: "I need a statement processing system that handles conditional obligations"
 - **Configuration Adaptation**: Modify provided templates for specific philosophical requirements
-- **Validation Testing**: "Does this system correctly handle obligation conflicts?"
+- **Flow Testing**: "Does this system correctly handle statement flow in obligation conflicts?"
 - **Example Creation**: Develop usage examples and educational materials
 
 ### Workflow Example
-1. Review documentation for similar logical systems
+1. Review documentation for similar statement processing systems
 2. Adapt YAML configuration templates for specific requirements
-3. Test system with known theorems and edge cases
-4. Iterate on configuration based on validation feedback
+3. Test system with known statement flows and edge cases
+4. Iterate on configuration based on processing feedback
 5. Publish versioned package for student/colleague use
 
 ## Student/Learner
@@ -40,28 +40,28 @@ Philosophy professors, logicians, and domain experts who design and implement cu
 Students, novice logicians, and professionals learning formal reasoning through interactive validation feedback and structured examples.
 
 ### Responsibilities
-- **Active Learning**: Engage with formal logic concepts through proof construction
-- **Error Analysis**: Use platform feedback to understand and correct logical mistakes
-- **System Exploration**: Learn different logical frameworks through guided practice
+- **Active Learning**: Engage with formal reasoning concepts through statement processing network construction
+- **Flow Analysis**: Use platform feedback to understand and correct statement flow problems
+- **System Exploration**: Learn different processing frameworks through guided practice
 - **Progress Tracking**: Build competency through structured exercises and examples
 
 ### Permissions
-- **Import Logic Systems**: Use published logic systems created by others
-- **Validation Feedback**: Receive clear explanations and debugging help through platform feedback
-- **Proof Construction**: Create and modify logical proofs with real-time validation
+- **Import Processing Systems**: Use published statement processing systems created by others
+- **Flow Feedback**: Receive clear explanations and debugging help about statement flow
+- **Network Construction**: Create and modify reasoning networks with real-time validation
 - **Example Access**: Work through provided examples and exercises
 
 ### Learning Patterns
-- **Error Understanding**: "This validation error shows I misused the modal necessity operator"
-- **Concept Clarification**: Review documentation on accessibility relations in modal logic
-- **Guided Practice**: Work through progressively complex examples
-- **Step-by-Step Learning**: Follow structured examples with clear explanations
+- **Flow Understanding**: "This flow error shows my statement processing broke down at the modal necessity step"
+- **Concept Clarification**: Review documentation on how statements should flow in modal processing
+- **Guided Practice**: Work through progressively complex processing networks
+- **Step-by-Step Learning**: Follow structured examples with clear statement flow explanations
 
 ### Workflow Example
-1. Select logic system created by instructor or researcher
+1. Select processing system created by instructor or researcher
 2. Work through provided examples and exercises
-3. Receive immediate validation feedback when errors occur
-4. Study documentation to understand corrections
+3. Receive immediate flow feedback when statement processing breaks
+4. Study documentation to understand statement flow corrections
 5. Practice with similar problems using platform templates
 
 ## Research Collaborator
@@ -70,29 +70,29 @@ Students, novice logicians, and professionals learning formal reasoning through 
 Researchers, theorists, and academic professionals who use the extensible platform to explore novel logical frameworks and conduct formal reasoning research.
 
 ### Responsibilities
-- **Theoretical Development**: Explore new logical relationships and frameworks
-- **Hypothesis Testing**: Use platform capabilities to model and validate theoretical concepts
-- **Research Innovation**: Develop novel approaches to formal reasoning problems
-- **Scholarly Contribution**: Advance the field through systematic research
+- **Theoretical Development**: Explore new statement processing relationships and frameworks
+- **Hypothesis Testing**: Use platform capabilities to model and validate theoretical processing concepts
+- **Research Innovation**: Develop novel approaches to formal reasoning through statement flow systems
+- **Scholarly Contribution**: Advance the field through systematic research on reasoning networks
 
 ### Permissions
-- **Experimental System Creation**: Develop cutting-edge logic systems for research
-- **Advanced Platform Features**: Access sophisticated modeling and validation capabilities
+- **Experimental System Creation**: Develop cutting-edge statement processing systems for research
+- **Advanced Platform Features**: Access sophisticated statement flow modeling and validation capabilities
 - **Research Tool Integration**: Connect with external research tools and databases
-- **Collaborative Sharing**: Work with distributed research teams through shared packages
+- **Collaborative Sharing**: Work with distributed research teams through shared processing packages
 
 ### Research Patterns
-- **Hypothesis Formation**: "I suspect there's a connection between temporal and deontic logic"
-- **Systematic Exploration**: "Let me model this reasoning pattern and identify edge cases"
-- **Theoretical Validation**: "I'll check if this axiom system is consistent using platform validation"
-- **Literature Connection**: Document how work relates to existing research in the field
+- **Hypothesis Formation**: "I suspect temporal statements can flow into deontic processing units"
+- **Systematic Exploration**: "Let me model this statement processing pattern and identify flow edge cases"
+- **Theoretical Validation**: "I'll check if this processing system maintains consistent statement flow"
+- **Literature Connection**: Document how processing networks relate to existing research in the field
 
 ### Workflow Example
-1. Express theoretical hypothesis through platform configuration
-2. Use extensible framework to model logical systems
-3. Systematically explore implications through validation
-4. Document theoretical framework with comprehensive examples
-5. Share research findings through published packages
+1. Express theoretical hypothesis through processing system configuration
+2. Use extensible framework to model statement flow systems
+3. Systematically explore implications through flow validation
+4. Document theoretical framework with comprehensive processing examples
+5. Share research findings through published processing packages
 
 ## Applied Domain Expert
 
@@ -100,29 +100,29 @@ Researchers, theorists, and academic professionals who use the extensible platfo
 Professionals in law, medicine, business, and other fields who need domain-specific formal reasoning capabilities without programming expertise.
 
 ### Responsibilities
-- **Domain Formalization**: Translate professional reasoning patterns into formal logic
-- **System Customization**: Adapt existing logic systems for domain-specific needs
-- **Professional Application**: Apply formal reasoning to real-world professional problems
-- **Knowledge Transfer**: Share domain-specific reasoning patterns with colleagues
+- **Domain Formalization**: Translate professional reasoning patterns into statement processing systems
+- **System Customization**: Adapt existing processing systems for domain-specific needs
+- **Professional Application**: Apply statement flow reasoning to real-world professional problems
+- **Knowledge Transfer**: Share domain-specific processing patterns with colleagues
 
 ### Permissions
-- **Domain System Creation**: Develop logic systems tailored to professional contexts
+- **Domain System Creation**: Develop statement processing systems tailored to professional contexts
 - **Professional Integration**: Connect with domain-specific tools and workflows
-- **Custom Validation**: Define domain-appropriate correctness criteria
-- **Team Collaboration**: Share systems within professional organizations
+- **Custom Flow Validation**: Define domain-appropriate statement flow criteria
+- **Team Collaboration**: Share processing systems within professional organizations
 
 ### Domain Application Patterns
-- **Domain Translation**: "How do I formalize legal reasoning about contract obligations?"
-- **Pattern Recognition**: "I need to identify the logical structure in this medical diagnosis process"
-- **Validation Criteria**: "What makes a sound argument in financial risk assessment?"
-- **Application Guidance**: "How do I apply this logical framework to real cases?"
+- **Domain Translation**: "How do I model legal reasoning as statement flow through obligation processing?"
+- **Pattern Recognition**: "I need to identify the statement flow structure in this medical diagnosis process"
+- **Flow Criteria**: "What makes sound statement processing in financial risk assessment?"
+- **Application Guidance**: "How do I apply this processing framework to real cases?"
 
 ### Workflow Example
-1. Identify domain reasoning patterns needing formalization
-2. Use platform templates to model patterns in formal logic
-3. Test system with real domain examples and cases
-4. Refine system based on professional requirements and feedback
-5. Apply validated system to ongoing professional work
+1. Identify domain reasoning patterns needing formalization as statement processing
+2. Use platform templates to model patterns as statement flow systems
+3. Test system with real domain examples and statement flow cases
+4. Refine system based on professional requirements and flow feedback
+5. Apply validated processing system to ongoing professional work
 
 ## Platform Developer
 
