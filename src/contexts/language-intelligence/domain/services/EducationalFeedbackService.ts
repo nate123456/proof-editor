@@ -1,20 +1,19 @@
-import type { Result } from "../../../../domain/shared/result.js"
-import { ValidationError } from "../../../../domain/shared/result.js"
-import { DiagnosticEntity } from '../entities/DiagnosticEntity';
-import { ValidationResultEntity } from '../entities/ValidationResultEntity';
-import { LanguagePackageEntity } from '../entities/LanguagePackageEntity';
-import { SourceLocation } from '@contexts/analysis/domain/index.ts';
-import { DiagnosticSeverity } from '../value-objects/DiagnosticSeverity';
+import { err, ok, type Result } from 'neverthrow';
+
+import { type Diagnostic } from '../entities/Diagnostic';
+import { type LanguagePackage } from '../entities/LanguagePackage';
+import { type ValidationResult } from '../entities/ValidationResult';
+import { ValidationError } from '../errors/DomainErrors';
 
 export class EducationalFeedbackService {
   private readonly maxHintsPerDiagnostic = 3;
   private readonly maxExamplesPerConcept = 2;
 
-  async generateLearningHints(
-    diagnostic: DiagnosticEntity,
-    languagePackage: LanguagePackageEntity,
+  generateLearningHints(
+    diagnostic: Diagnostic,
+    languagePackage: LanguagePackage,
     userLevel: LearningLevel = 'intermediate'
-  ): Promise<Result<LearningHints, EducationalFeedbackError>> {
+  ): Result<LearningHints, ValidationError> {
     try {
       const hints: string[] = [];
       const examples: string[] = [];
@@ -45,103 +44,112 @@ export class EducationalFeedbackService {
       // Add general learning resources
       resources.push(...this.getRelevantResources(concepts, languagePackage));
 
-      return {
-        success: true,
-        data: {
-          hints: hints.slice(0, this.maxHintsPerDiagnostic),
-          examples: examples.slice(0, this.maxExamplesPerConcept),
-          concepts,
-          resources,
-          difficultyLevel: userLevel,
-          estimatedLearningTime: this.estimateLearningTime(concepts, userLevel)
-        }
-      };
+      return ok({
+        hints: hints.slice(0, this.maxHintsPerDiagnostic),
+        examples: examples.slice(0, this.maxExamplesPerConcept),
+        concepts,
+        resources,
+        difficultyLevel: userLevel,
+        estimatedLearningTime: this.estimateLearningTime(concepts, userLevel),
+      });
     } catch (error) {
-      return {
-        success: false,
-        error: new EducationalFeedbackError('Failed to generate learning hints', error instanceof Error ? error : undefined)
-      };
+      return err(
+        new ValidationError(
+          'Failed to generate learning hints',
+          error instanceof Error ? error : undefined
+        )
+      );
     }
   }
 
-  async generateStepByStepGuidance(
+  generateStepByStepGuidance(
     statement: string,
     targetConcepts: string[],
-    languagePackage: LanguagePackageEntity,
+    languagePackage: LanguagePackage,
     userLevel: LearningLevel = 'intermediate'
-  ): Promise<Result<StepByStepGuidance, EducationalFeedbackError>> {
+  ): Result<StepByStepGuidance, ValidationError> {
     try {
       const steps: GuidanceStep[] = [];
-      
+
       // Analyze the statement complexity
       const complexity = this.analyzeStatementComplexity(statement, languagePackage);
-      
+
       // Break down into logical steps based on complexity
       if (complexity.hasNestedStructure) {
-        steps.push(this.createStep(
-          'Break down nested structures',
-          'Start by identifying the main logical structure and work from inside out',
-          [`For "${statement}", identify the main connective`],
-          ['logical-structure', 'parsing']
-        ));
+        steps.push(
+          this.createStep(
+            'Break down nested structures',
+            'Start by identifying the main logical structure and work from inside out',
+            [`For "${statement}", identify the main connective`],
+            ['logical-structure', 'parsing']
+          )
+        );
       }
 
       if (complexity.hasQuantifiers && languagePackage.supportsFirstOrderLogic()) {
-        steps.push(this.createStep(
-          'Handle quantifiers',
-          'Identify the scope and binding of quantifiers',
-          ['∀x means "for all x"', '∃x means "there exists an x"'],
-          ['quantifiers', 'variable-binding']
-        ));
+        steps.push(
+          this.createStep(
+            'Handle quantifiers',
+            'Identify the scope and binding of quantifiers',
+            ['∀x means "for all x"', '∃x means "there exists an x"'],
+            ['quantifiers', 'variable-binding']
+          )
+        );
       }
 
       if (complexity.hasModalOperators && languagePackage.supportsModalLogic()) {
-        steps.push(this.createStep(
-          'Interpret modal operators',
-          'Understand necessity (□) and possibility (◇) operators',
-          ['□P means "P is necessarily true"', '◇P means "P is possibly true"'],
-          ['modal-logic', 'necessity', 'possibility']
-        ));
+        steps.push(
+          this.createStep(
+            'Interpret modal operators',
+            'Understand necessity (□) and possibility (◇) operators',
+            ['□P means "P is necessarily true"', '◇P means "P is possibly true"'],
+            ['modal-logic', 'necessity', 'possibility']
+          )
+        );
       }
 
       // Add verification step
-      steps.push(this.createStep(
-        'Verify your understanding',
-        'Check that your interpretation matches the intended meaning',
-        ['Read the statement aloud in natural language', 'Verify all symbols are interpreted correctly'],
-        ['verification', 'comprehension']
-      ));
+      steps.push(
+        this.createStep(
+          'Verify your understanding',
+          'Check that your interpretation matches the intended meaning',
+          [
+            'Read the statement aloud in natural language',
+            'Verify all symbols are interpreted correctly',
+          ],
+          ['verification', 'comprehension']
+        )
+      );
 
-      return {
-        success: true,
-        data: {
-          steps,
-          estimatedTime: this.estimateGuidanceTime(steps, userLevel),
-          prerequisites: this.identifyPrerequisites(targetConcepts, languagePackage),
-          nextSteps: this.suggestNextSteps(targetConcepts, userLevel),
-          practiceExercises: this.generatePracticeExercises(targetConcepts, userLevel)
-        }
-      };
+      return ok({
+        steps,
+        estimatedTime: this.estimateGuidanceTime(steps, userLevel),
+        prerequisites: this.identifyPrerequisites(targetConcepts, languagePackage),
+        nextSteps: this.suggestNextSteps(targetConcepts, userLevel),
+        practiceExercises: this.generatePracticeExercises(targetConcepts, userLevel),
+      });
     } catch (error) {
-      return {
-        success: false,
-        error: new EducationalFeedbackError('Failed to generate step-by-step guidance', error instanceof Error ? error : undefined)
-      };
+      return err(
+        new ValidationError(
+          'Failed to generate step-by-step guidance',
+          error instanceof Error ? error : undefined
+        )
+      );
     }
   }
 
-  async generateProofStrategySuggestions(
+  generateProofStrategySuggestions(
     premises: string[],
     conclusions: string[],
-    languagePackage: LanguagePackageEntity,
+    languagePackage: LanguagePackage,
     userLevel: LearningLevel = 'intermediate'
-  ): Promise<Result<ProofStrategySuggestions, EducationalFeedbackError>> {
+  ): Result<ProofStrategySuggestions, ValidationError> {
     try {
       const strategies: ProofStrategy[] = [];
-      
+
       // Analyze proof structure
       const analysis = this.analyzeProofStructure(premises, conclusions, languagePackage);
-      
+
       // Suggest appropriate proof techniques
       if (analysis.isDirectProofPossible) {
         strategies.push({
@@ -150,10 +158,10 @@ export class EducationalFeedbackService {
           steps: [
             'Start with the given premises',
             'Apply logical rules step by step',
-            'Arrive at the conclusion'
+            'Arrive at the conclusion',
           ],
           difficulty: 'easy',
-          applicability: 0.9
+          applicability: 0.9,
         });
       }
 
@@ -165,10 +173,10 @@ export class EducationalFeedbackService {
             'Assume the negation of what you want to prove',
             'Combine with the given premises',
             'Derive a contradiction',
-            'Conclude the original statement'
+            'Conclude the original statement',
           ],
           difficulty: 'medium',
-          applicability: 0.7
+          applicability: 0.7,
         });
       }
 
@@ -179,49 +187,48 @@ export class EducationalFeedbackService {
           steps: [
             'Identify the relevant cases',
             'Prove the conclusion for each case',
-            'Combine the results'
+            'Combine the results',
           ],
           difficulty: 'medium',
-          applicability: 0.6
+          applicability: 0.6,
         });
       }
 
       // Add educational insights
       const insights = this.generateProofInsights(analysis, userLevel);
 
-      return {
-        success: true,
-        data: {
-          strategies: strategies.sort((a, b) => b.applicability - a.applicability),
-          insights,
-          commonMistakes: this.identifyCommonMistakes(analysis, userLevel),
-          practiceProblems: this.suggestSimilarProblems(analysis, languagePackage)
-        }
-      };
+      return ok({
+        strategies: strategies.sort((a, b) => b.applicability - a.applicability),
+        insights,
+        commonMistakes: this.identifyCommonMistakes(analysis, userLevel),
+        practiceProblems: this.suggestSimilarProblems(analysis, languagePackage),
+      });
     } catch (error) {
-      return {
-        success: false,
-        error: new EducationalFeedbackError('Failed to generate proof strategy suggestions', error instanceof Error ? error : undefined)
-      };
+      return err(
+        new ValidationError(
+          'Failed to generate proof strategy suggestions',
+          error instanceof Error ? error : undefined
+        )
+      );
     }
   }
 
-  async analyzeValidationResults(
-    results: ValidationResultEntity[],
-    languagePackage: LanguagePackageEntity
-  ): Promise<Result<LearningAnalysis, EducationalFeedbackError>> {
+  analyzeValidationResults(
+    results: ValidationResult[],
+    languagePackage: LanguagePackage
+  ): Result<LearningAnalysis, ValidationError> {
     try {
       const analysis: LearningAnalysis = {
         strengthAreas: [],
         improvementAreas: [],
         conceptGaps: [],
         progressIndicators: {},
-        recommendations: []
+        recommendations: [],
       };
 
       // Analyze error patterns
       const errorPatterns = this.identifyErrorPatterns(results);
-      
+
       // Identify strength areas (consistently passing validations)
       for (const [concept, errorRate] of errorPatterns.entries()) {
         if (errorRate < 0.2) {
@@ -244,21 +251,20 @@ export class EducationalFeedbackService {
       // Calculate progress indicators
       analysis.progressIndicators = this.calculateProgressIndicators(results);
 
-      return {
-        success: true,
-        data: analysis
-      };
+      return ok(analysis);
     } catch (error) {
-      return {
-        success: false,
-        error: new EducationalFeedbackError('Failed to analyze validation results', error instanceof Error ? error : undefined)
-      };
+      return err(
+        new ValidationError(
+          'Failed to analyze validation results',
+          error instanceof Error ? error : undefined
+        )
+      );
     }
   }
 
   private generateSyntaxHints(
-    diagnostic: DiagnosticEntity,
-    languagePackage: LanguagePackageEntity,
+    diagnostic: Diagnostic,
+    languagePackage: LanguagePackage,
     userLevel: LearningLevel
   ): HintGeneration {
     const hints: string[] = [];
@@ -270,7 +276,7 @@ export class EducationalFeedbackService {
     if (message.includes('parentheses')) {
       hints.push('Check that every opening parenthesis "(" has a matching closing parenthesis ")"');
       concepts.push('parentheses-balancing');
-      
+
       if (userLevel === 'beginner') {
         hints.push('Count the opening and closing parentheses - they should be equal');
         examples.push('Correct: (P ∧ Q) → R', 'Incorrect: (P ∧ Q → R');
@@ -280,10 +286,12 @@ export class EducationalFeedbackService {
     if (message.includes('symbol')) {
       hints.push('Make sure you are using the correct logical symbols for this language package');
       concepts.push('logical-symbols');
-      
+
       const symbols = Array.from(languagePackage.getSymbols().entries());
       if (symbols.length > 0) {
-        examples.push(`Available symbols: ${symbols.map(([name, symbol]) => `${symbol} (${name})`).join(', ')}`);
+        examples.push(
+          `Available symbols: ${symbols.map(([name, symbol]) => `${symbol} (${name})`).join(', ')}`
+        );
       }
     }
 
@@ -291,8 +299,8 @@ export class EducationalFeedbackService {
   }
 
   private generateSemanticHints(
-    diagnostic: DiagnosticEntity,
-    languagePackage: LanguagePackageEntity,
+    diagnostic: Diagnostic,
+    languagePackage: LanguagePackage,
     userLevel: LearningLevel
   ): HintGeneration {
     const hints: string[] = [];
@@ -304,7 +312,7 @@ export class EducationalFeedbackService {
     if (message.includes('inference')) {
       hints.push('Check that your conclusion logically follows from the premises');
       concepts.push('logical-inference');
-      
+
       if (userLevel !== 'advanced') {
         hints.push('Try to identify which inference rule applies to your argument');
         examples.push('Modus Ponens: P, P → Q, therefore Q');
@@ -327,9 +335,9 @@ export class EducationalFeedbackService {
   }
 
   private generateStyleHints(
-    diagnostic: DiagnosticEntity,
-    languagePackage: LanguagePackageEntity,
-    userLevel: LearningLevel
+    diagnostic: Diagnostic,
+    _languagePackage: LanguagePackage,
+    _userLevel: LearningLevel
   ): HintGeneration {
     const hints: string[] = [];
     const examples: string[] = [];
@@ -339,7 +347,9 @@ export class EducationalFeedbackService {
 
     if (message.includes('length')) {
       hints.push('Consider breaking long statements into smaller, more manageable parts');
-      examples.push('Instead of: (P ∧ Q ∧ R) → (S ∨ T ∨ U), try: Let A = (P ∧ Q ∧ R) and B = (S ∨ T ∨ U), then A → B');
+      examples.push(
+        'Instead of: (P ∧ Q ∧ R) → (S ∨ T ∨ U), try: Let A = (P ∧ Q ∧ R) and B = (S ∨ T ∨ U), then A → B'
+      );
     }
 
     if (message.includes('inconsistent')) {
@@ -350,9 +360,9 @@ export class EducationalFeedbackService {
     return { hints, examples, concepts };
   }
 
-  private getRelevantResources(concepts: string[], languagePackage: LanguagePackageEntity): string[] {
+  private getRelevantResources(concepts: string[], languagePackage: LanguagePackage): string[] {
     const resources: string[] = [];
-    
+
     for (const concept of concepts) {
       switch (concept) {
         case 'logical-symbols':
@@ -376,28 +386,31 @@ export class EducationalFeedbackService {
 
   private estimateLearningTime(concepts: string[], userLevel: LearningLevel): number {
     const baseTimePerConcept = {
-      'beginner': 15,
-      'intermediate': 10,
-      'advanced': 5
+      beginner: 15,
+      intermediate: 10,
+      advanced: 5,
     };
 
     return concepts.length * baseTimePerConcept[userLevel];
   }
 
-  private analyzeStatementComplexity(statement: string, languagePackage: LanguagePackageEntity): StatementComplexity {
+  private analyzeStatementComplexity(
+    statement: string,
+    languagePackage: LanguagePackage
+  ): StatementComplexity {
     return {
-      hasNestedStructure: (statement.match(/\(/g) || []).length > 1,
+      hasNestedStructure: (statement.match(/\(/g) ?? []).length > 1,
       hasQuantifiers: /[∀∃]/.test(statement) && languagePackage.supportsFirstOrderLogic(),
       hasModalOperators: /[□◇]/.test(statement) && languagePackage.supportsModalLogic(),
       complexityScore: this.calculateComplexityScore(statement),
-      mainConnectives: this.identifyMainConnectives(statement)
+      mainConnectives: this.identifyMainConnectives(statement),
     };
   }
 
   private calculateComplexityScore(statement: string): number {
     let score = statement.length * 0.1;
-    score += (statement.match(/[∀∃∧∨→↔¬□◇]/g) || []).length * 2;
-    score += (statement.match(/\(/g) || []).length * 1.5;
+    score += (statement.match(/[∀∃∧∨→↔¬□◇]/g) ?? []).length * 2;
+    score += (statement.match(/\(/g) ?? []).length * 1.5;
     return Math.round(score);
   }
 
@@ -410,24 +423,31 @@ export class EducationalFeedbackService {
     return Array.from(new Set(connectives));
   }
 
-  private createStep(title: string, description: string, examples: string[], concepts: string[]): GuidanceStep {
+  private createStep(
+    title: string,
+    description: string,
+    examples: string[],
+    concepts: string[]
+  ): GuidanceStep {
     return {
       title,
       description,
       examples,
       concepts,
-      estimatedTime: 5
+      estimatedTime: 5,
     };
   }
 
   private estimateGuidanceTime(steps: GuidanceStep[], userLevel: LearningLevel): number {
-    const multiplier = { 'beginner': 1.5, 'intermediate': 1.0, 'advanced': 0.7 };
-    return Math.round(steps.reduce((total, step) => total + step.estimatedTime, 0) * multiplier[userLevel]);
+    const multiplier = { beginner: 1.5, intermediate: 1.0, advanced: 0.7 };
+    return Math.round(
+      steps.reduce((total, step) => total + step.estimatedTime, 0) * multiplier[userLevel]
+    );
   }
 
-  private identifyPrerequisites(concepts: string[], languagePackage: LanguagePackageEntity): string[] {
+  private identifyPrerequisites(concepts: string[], _languagePackage: LanguagePackage): string[] {
     const prerequisites: string[] = [];
-    
+
     for (const concept of concepts) {
       switch (concept) {
         case 'modal-logic':
@@ -444,11 +464,11 @@ export class EducationalFeedbackService {
 
   private suggestNextSteps(concepts: string[], userLevel: LearningLevel): string[] {
     const nextSteps: string[] = [];
-    
+
     if (concepts.includes('propositional-logic') && userLevel !== 'beginner') {
       nextSteps.push('Explore modal logic extensions');
     }
-    
+
     if (concepts.includes('modal-logic') && userLevel === 'advanced') {
       nextSteps.push('Study temporal logic');
     }
@@ -458,7 +478,7 @@ export class EducationalFeedbackService {
 
   private generatePracticeExercises(concepts: string[], userLevel: LearningLevel): string[] {
     const exercises: string[] = [];
-    
+
     for (const concept of concepts) {
       switch (concept) {
         case 'logical-inference':
@@ -477,30 +497,38 @@ export class EducationalFeedbackService {
     return exercises;
   }
 
-  private analyzeProofStructure(premises: string[], conclusions: string[], languagePackage: LanguagePackageEntity): ProofAnalysis {
+  private analyzeProofStructure(
+    premises: string[],
+    conclusions: string[],
+    languagePackage: LanguagePackage
+  ): ProofAnalysis {
     return {
       isDirectProofPossible: true, // Simplified analysis
       isContradictionProofSuitable: conclusions.length === 1,
       isCaseAnalysisNeeded: premises.some(p => p.includes('∨')),
       complexity: this.calculateProofComplexity(premises, conclusions),
-      requiredRules: this.identifyRequiredRules(premises, conclusions, languagePackage)
+      requiredRules: this.identifyRequiredRules(premises, conclusions, languagePackage),
     };
   }
 
   private calculateProofComplexity(premises: string[], conclusions: string[]): number {
     const totalLength = [...premises, ...conclusions].join('').length;
-    const logicalSymbols = [...premises, ...conclusions].join('').match(/[∀∃∧∨→↔¬□◇]/g) || [];
+    const logicalSymbols = [...premises, ...conclusions].join('').match(/[∀∃∧∨→↔¬□◇]/g) ?? [];
     return Math.round(totalLength * 0.1 + logicalSymbols.length * 2);
   }
 
-  private identifyRequiredRules(premises: string[], conclusions: string[], languagePackage: LanguagePackageEntity): string[] {
+  private identifyRequiredRules(
+    premises: string[],
+    conclusions: string[],
+    _languagePackage: LanguagePackage
+  ): string[] {
     const rules: string[] = [];
-    
+
     // Simplified rule identification
     if (premises.some(p => p.includes('→')) && conclusions.some(c => !c.includes('→'))) {
       rules.push('modus-ponens');
     }
-    
+
     if (premises.some(p => p.includes('∧'))) {
       rules.push('conjunction-elimination');
     }
@@ -510,11 +538,11 @@ export class EducationalFeedbackService {
 
   private generateProofInsights(analysis: ProofAnalysis, userLevel: LearningLevel): string[] {
     const insights: string[] = [];
-    
+
     if (analysis.complexity > 10 && userLevel === 'beginner') {
       insights.push('This proof is quite complex - consider breaking it into smaller steps');
     }
-    
+
     if (analysis.isCaseAnalysisNeeded) {
       insights.push('This proof involves disjunctions - case analysis might be helpful');
     }
@@ -524,11 +552,11 @@ export class EducationalFeedbackService {
 
   private identifyCommonMistakes(analysis: ProofAnalysis, userLevel: LearningLevel): string[] {
     const mistakes: string[] = [];
-    
+
     if (analysis.isContradictionProofSuitable) {
       mistakes.push('Remember to assume the negation of what you want to prove');
     }
-    
+
     if (userLevel === 'beginner') {
       mistakes.push('Make sure each step follows logically from the previous ones');
     }
@@ -536,13 +564,16 @@ export class EducationalFeedbackService {
     return mistakes;
   }
 
-  private suggestSimilarProblems(analysis: ProofAnalysis, languagePackage: LanguagePackageEntity): string[] {
+  private suggestSimilarProblems(
+    analysis: ProofAnalysis,
+    languagePackage: LanguagePackage
+  ): string[] {
     const problems: string[] = [];
-    
+
     if (analysis.requiredRules.includes('modus-ponens')) {
       problems.push('Practice more modus ponens exercises');
     }
-    
+
     if (languagePackage.supportsModalLogic()) {
       problems.push('Try similar modal logic problems');
     }
@@ -550,13 +581,13 @@ export class EducationalFeedbackService {
     return problems;
   }
 
-  private identifyErrorPatterns(results: ValidationResultEntity[]): Map<string, number> {
+  private identifyErrorPatterns(results: ValidationResult[]): Map<string, number> {
     const patterns = new Map<string, number>();
-    
+
     for (const result of results) {
       for (const diagnostic of result.getDiagnostics()) {
         for (const tag of diagnostic.getTags()) {
-          const currentRate = patterns.get(tag) || 0;
+          const currentRate = patterns.get(tag) ?? 0;
           patterns.set(tag, currentRate + (diagnostic.getSeverity().isError() ? 1 : 0.5));
         }
       }
@@ -570,14 +601,17 @@ export class EducationalFeedbackService {
     return patterns;
   }
 
-  private identifyConceptGaps(results: ValidationResultEntity[], languagePackage: LanguagePackageEntity): string[] {
+  private identifyConceptGaps(
+    results: ValidationResult[],
+    languagePackage: LanguagePackage
+  ): string[] {
     const gaps: string[] = [];
-    
+
     // Simplified gap identification
-    const hasModalErrors = results.some(r => 
+    const hasModalErrors = results.some(r =>
       r.getDiagnostics().some(d => d.getMessage().getText().includes('modal'))
     );
-    
+
     if (hasModalErrors && languagePackage.supportsModalLogic()) {
       gaps.push('modal-logic-understanding');
     }
@@ -587,11 +621,11 @@ export class EducationalFeedbackService {
 
   private generateLearningRecommendations(
     improvementAreas: string[],
-    conceptGaps: string[],
-    languagePackage: LanguagePackageEntity
+    _conceptGaps: string[],
+    _languagePackage: LanguagePackage
   ): string[] {
     const recommendations: string[] = [];
-    
+
     for (const area of improvementAreas) {
       switch (area) {
         case 'syntax':
@@ -606,15 +640,15 @@ export class EducationalFeedbackService {
     return recommendations;
   }
 
-  private calculateProgressIndicators(results: ValidationResultEntity[]): Record<string, number> {
+  private calculateProgressIndicators(results: ValidationResult[]): Record<string, number> {
     const indicators: Record<string, number> = {};
-    
+
     const totalResults = results.length;
     const successfulResults = results.filter(r => r.isValidationSuccessful()).length;
-    
+
     indicators['successRate'] = totalResults > 0 ? successfulResults / totalResults : 0;
-    indicators['averageErrors'] = totalResults > 0 ? 
-      results.reduce((sum, r) => sum + r.getErrorCount(), 0) / totalResults : 0;
+    indicators['averageErrors'] =
+      totalResults > 0 ? results.reduce((sum, r) => sum + r.getErrorCount(), 0) / totalResults : 0;
 
     return indicators;
   }

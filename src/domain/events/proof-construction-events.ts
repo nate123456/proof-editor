@@ -1,5 +1,12 @@
+import {
+  type AtomicArgumentId,
+  type DocumentId,
+  type NodeId,
+  type OrderedSetId,
+  // StatementId,
+  type TreeId,
+} from '../shared/value-objects.js';
 import { DomainEvent } from './base-event.js';
-import { AtomicArgumentId, NodeId, TreeId, DocumentId, StatementId, OrderedSetId } from '../shared/value-objects.js';
 
 export class AtomicArgumentCreated extends DomainEvent {
   readonly eventType = 'AtomicArgumentCreated';
@@ -17,10 +24,10 @@ export class AtomicArgumentCreated extends DomainEvent {
   get eventData(): Record<string, unknown> {
     return {
       argumentId: this.argumentId.getValue(),
-      premiseSetId: this.premiseSetId?.getValue() || null,
-      conclusionSetId: this.conclusionSetId?.getValue() || null,
+      premiseSetId: this.premiseSetId?.getValue() ?? null,
+      conclusionSetId: this.conclusionSetId?.getValue() ?? null,
       sideLabels: this.sideLabels,
-      createdBy: this.createdBy
+      createdBy: this.createdBy,
     };
   }
 }
@@ -40,7 +47,7 @@ export class AtomicArgumentModified extends DomainEvent {
     return {
       argumentId: this.argumentId.getValue(),
       changes: this.changes,
-      modifiedBy: this.modifiedBy
+      modifiedBy: this.modifiedBy,
     };
   }
 }
@@ -60,7 +67,7 @@ export class AtomicArgumentDeleted extends DomainEvent {
     return {
       argumentId: this.argumentId.getValue(),
       deletedBy: this.deletedBy,
-      cascadeEffects: this.cascadeEffects
+      cascadeEffects: this.cascadeEffects,
     };
   }
 }
@@ -84,7 +91,7 @@ export class ProofTreeCreated extends DomainEvent {
       documentId: this.documentId.getValue(),
       position: this.position,
       physicalProperties: this.physicalProperties,
-      createdBy: this.createdBy
+      createdBy: this.createdBy,
     };
   }
 }
@@ -109,10 +116,10 @@ export class NodeAddedToTree extends DomainEvent {
       treeId: this.treeId.getValue(),
       nodeId: this.nodeId.getValue(),
       argumentId: this.argumentId.getValue(),
-      parentNodeId: this.parentNodeId?.getValue() || null,
+      parentNodeId: this.parentNodeId?.getValue() ?? null,
       premisePosition: this.premisePosition,
       fromPosition: this.fromPosition,
-      addedBy: this.addedBy
+      addedBy: this.addedBy,
     };
   }
 }
@@ -134,7 +141,7 @@ export class NodeRemovedFromTree extends DomainEvent {
       treeId: this.treeId.getValue(),
       nodeId: this.nodeId.getValue(),
       removedBy: this.removedBy,
-      cascadeEffects: this.cascadeEffects
+      cascadeEffects: this.cascadeEffects,
     };
   }
 }
@@ -154,7 +161,7 @@ export class TreeStructureModified extends DomainEvent {
     return {
       treeId: this.treeId.getValue(),
       modification: this.modification,
-      modifiedBy: this.modifiedBy
+      modifiedBy: this.modifiedBy,
     };
   }
 }
@@ -176,7 +183,7 @@ export class TreePositionChanged extends DomainEvent {
       treeId: this.treeId.getValue(),
       previousPosition: this.previousPosition,
       newPosition: this.newPosition,
-      movedBy: this.movedBy
+      movedBy: this.movedBy,
     };
   }
 }
@@ -198,7 +205,7 @@ export class TreePhysicalPropertiesChanged extends DomainEvent {
       treeId: this.treeId.getValue(),
       previousProperties: this.previousProperties,
       newProperties: this.newProperties,
-      changedBy: this.changedBy
+      changedBy: this.changedBy,
     };
   }
 }
@@ -222,7 +229,7 @@ export class BranchCreated extends DomainEvent {
       parentNodeId: this.parentNodeId.getValue(),
       newNodeId: this.newNodeId.getValue(),
       branchType: this.branchType,
-      createdBy: this.createdBy
+      createdBy: this.createdBy,
     };
   }
 }

@@ -1,5 +1,6 @@
-import { Result } from "../../../../domain/shared/result.js"
-import { ValidationError } from "../../../../domain/shared/result.js"
+import { err, ok, type Result } from 'neverthrow';
+
+import { ValidationError } from '../errors/DomainErrors';
 
 export class Timestamp {
   private constructor(private readonly value: Date) {}
@@ -8,13 +9,13 @@ export class Timestamp {
     if (!date || isNaN(date.getTime())) {
       return {
         success: false,
-        error: new ValidationError('Invalid date provided')
+        error: new ValidationError('Invalid date provided'),
       };
     }
 
     return {
       success: true,
-      data: new Timestamp(new Date(date.getTime()))
+      data: new Timestamp(new Date(date.getTime())),
     };
   }
 
@@ -22,7 +23,7 @@ export class Timestamp {
     if (milliseconds < 0) {
       return {
         success: false,
-        error: new ValidationError('Timestamp cannot be negative')
+        error: new ValidationError('Timestamp cannot be negative'),
       };
     }
 
@@ -36,7 +37,7 @@ export class Timestamp {
     } catch {
       return {
         success: false,
-        error: new ValidationError('Invalid ISO string format')
+        error: new ValidationError('Invalid ISO string format'),
       };
     }
   }

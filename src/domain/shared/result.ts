@@ -1,23 +1,19 @@
-export type Result<T, E = Error> = 
-  | { success: true; data: T }
-  | { success: false; error: E };
+// Re-export neverthrow types and functions for domain layer
+export { err, errAsync, ok, okAsync, Result, ResultAsync } from 'neverthrow';
 
-export const success = <T>(data: T): Result<T, never> => ({ success: true, data });
-export const createSuccess = <T>(data: T): Result<T, never> => ({ success: true, data });
-
-export const failure = <E>(error: E): Result<never, E> => ({ success: false, error });
-export const createFailure = <E>(error: E): Result<never, E> => ({ success: false, error });
-
-export const isSuccess = <T, E>(result: Result<T, E>): result is { success: true; data: T } => {
-  return result.success;
-};
-
-export const isFailure = <T, E>(result: Result<T, E>): result is { success: false; error: E } => {
-  return !result.success;
-};
+// Legacy compatibility exports (deprecated - use neverthrow directly)
+export {
+  err as createFailure,
+  ok as createSuccess,
+  err as failure,
+  ok as success,
+} from 'neverthrow';
 
 export class ValidationError extends Error {
-  constructor(message: string, public readonly context?: Record<string, unknown>) {
+  constructor(
+    message: string,
+    public readonly context?: Record<string, unknown>
+  ) {
     super(message);
     this.name = 'ValidationError';
   }

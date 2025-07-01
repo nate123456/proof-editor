@@ -1,78 +1,80 @@
-import type { Result } from "../shared/result.js";
-import { NodeEntity } from "../entities/NodeEntity.js";
-import { TreeEntity } from "../entities/TreeEntity.js";
-import { AtomicArgumentEntity } from "../entities/AtomicArgumentEntity.js";
-import { NodeId, TreeId, AtomicArgumentId, Attachment, PhysicalProperties } from "../shared/value-objects.js";
-import { ValidationError } from "../shared/result.js";
-import { Position2D } from "../shared/value-objects.js";
+import { type AtomicArgument } from '../entities/AtomicArgument.js';
+import { Node } from '../entities/Node.js';
+import { Tree } from '../entities/Tree.js';
+import { err, ok, type Result, ValidationError } from '../shared/result.js';
+import {
+  Attachment,
+  type NodeId,
+  PhysicalProperties,
+  Position2D,
+} from '../shared/value-objects.js';
 
 export class TreeStructureService {
-
   createTreeWithRootNode(
     documentId: string,
-    rootArgument: AtomicArgumentEntity,
+    rootArgument: AtomicArgument,
     position: Position2D = Position2D.origin(),
     physicalProperties: PhysicalProperties = PhysicalProperties.default(),
     title?: string
-  ): Result<{ tree: TreeEntity; rootNode: NodeEntity }, ValidationError> {
-    const treeResult = TreeEntity.create(documentId, position, physicalProperties, title);
-    if (!treeResult.success) {
-      return { success: false, error: treeResult.error };
+  ): Result<{ tree: Tree; rootNode: Node }, ValidationError> {
+    const treeResult = Tree.create(documentId, position, physicalProperties, title);
+    if (treeResult.isErr()) {
+      return err(treeResult.error);
     }
 
-    const rootNodeResult = NodeEntity.createRoot(rootArgument.getId());
-    if (!rootNodeResult.success) {
-      return { success: false, error: rootNodeResult.error };
+    const rootNodeResult = Node.createRoot(rootArgument.getId());
+    if (rootNodeResult.isErr()) {
+      return err(rootNodeResult.error);
     }
 
-    const tree = treeResult.data;
-    const rootNode = rootNodeResult.data;
+    const tree = treeResult.value;
+    const rootNode = rootNodeResult.value;
 
     const addNodeResult = tree.addNode(rootNode.getId());
-    if (!addNodeResult.success) {
-      return { success: false, error: addNodeResult.error };
+    if (addNodeResult.isErr()) {
+      return err(addNodeResult.error);
     }
 
-    return { success: true, data: { tree, rootNode } };
+    return ok({ tree, rootNode });
   }
 
   addChildNodeToTree(
-    tree: TreeEntity,
-    parentNode: NodeEntity,
-    childArgument: AtomicArgumentEntity,
+    tree: Tree,
+    parentNode: Node,
+    childArgument: AtomicArgument,
     premisePosition: number,
     fromPosition?: number
-  ): Result<NodeEntity, ValidationError> {
+  ): Result<Node, ValidationError> {
     if (!tree.containsNode(parentNode.getId())) {
-      return { success: false, error: new ValidationError("Parent node must exist in tree") };
+      return err(new ValidationError('Parent node must exist in tree'));
     }
 
     const attachmentResult = Attachment.create(parentNode.getId(), premisePosition, fromPosition);
-    if (!attachmentResult.success) {
-      return { success: false, error: attachmentResult.error };
+    if (attachmentResult.isErr()) {
+      return err(attachmentResult.error);
     }
 
-    const childNodeResult = NodeEntity.createChild(childArgument.getId(), attachmentResult.data);
-    if (!childNodeResult.success) {
-      return { success: false, error: childNodeResult.error };
+    const childNodeResult = Node.createChild(childArgument.getId(), attachmentResult.value);
+    if (childNodeResult.isErr()) {
+      return err(childNodeResult.error);
     }
 
-    const childNode = childNodeResult.data;
+    const childNode = childNodeResult.value;
     const addNodeResult = tree.addNode(childNode.getId());
-    if (!addNodeResult.success) {
-      return { success: false, error: addNodeResult.error };
+    if (addNodeResult.isErr()) {
+      return err(addNodeResult.error);
     }
 
-    return { success: true, data: childNode };
+    return ok(childNode);
   }
 
   removeNodeFromTree(
-    tree: TreeEntity,
-    nodeToRemove: NodeEntity,
-    allNodes: Map<NodeId, NodeEntity>
+    tree: Tree,
+    nodeToRemove: Node,
+    allNodes: Map<NodeId, Node>
   ): Result<NodeId[], ValidationError> {
     if (!tree.containsNode(nodeToRemove.getId())) {
-      return { success: false, error: new ValidationError("Node not found in tree") };
+      return err(new ValidationError('Node not found in tree'));
     }
 
     const childNodes = this.findDirectChildNodes(nodeToRemove.getId(), allNodes);
@@ -80,53 +82,54 @@ export class TreeStructureService {
 
     for (const childNode of childNodes) {
       const childRemovalResult = this.removeNodeFromTree(tree, childNode, allNodes);
-      if (!childRemovalResult.success) {
+      if (childRemovalResult.isErr()) {
         return childRemovalResult;
       }
-      removedNodeIds.push(...childRemovalResult.data);
+      removedNodeIds.push(...childRemovalResult.value);
     }
 
     const removeResult = tree.removeNode(nodeToRemove.getId());
-    if (!removeResult.success) {
-      return { success: false, error: removeResult.error };
+    if (removeResult.isErr()) {
+      return err(removeResult.error);
     }
 
     removedNodeIds.push(nodeToRemove.getId());
-    return { success: true, data: removedNodeIds };
+    return ok(removedNodeIds);
   }
 
   moveNodeToNewParent(
-    tree: TreeEntity,
-    nodeToMove: NodeEntity,
-    newParentNode: NodeEntity,
+    tree: Tree,
+    nodeToMove: Node,
+    newParentNode: Node,
     newPremisePosition: number,
     newFromPosition?: number
   ): Result<void, ValidationError> {
     if (!tree.containsNode(nodeToMove.getId()) || !tree.containsNode(newParentNode.getId())) {
-      return { success: false, error: new ValidationError("Both nodes must exist in tree") };
+      return err(new ValidationError('Both nodes must exist in tree'));
     }
 
     if (nodeToMove.isRoot()) {
-      return { success: false, error: new ValidationError("Cannot move root node") };
+      return err(new ValidationError('Cannot move root node'));
     }
 
-    const newAttachmentResult = Attachment.create(newParentNode.getId(), newPremisePosition, newFromPosition);
-    if (!newAttachmentResult.success) {
-      return { success: false, error: newAttachmentResult.error };
+    const newAttachmentResult = Attachment.create(
+      newParentNode.getId(),
+      newPremisePosition,
+      newFromPosition
+    );
+    if (newAttachmentResult.isErr()) {
+      return err(newAttachmentResult.error);
     }
 
-    return nodeToMove.changeAttachment(newAttachmentResult.data);
+    return nodeToMove.changeAttachment(newAttachmentResult.value);
   }
 
-  findRootNodes(
-    tree: TreeEntity,
-    allNodes: Map<NodeId, NodeEntity>
-  ): NodeEntity[] {
-    const rootNodes: NodeEntity[] = [];
-    
+  findRootNodes(tree: Tree, allNodes: Map<NodeId, Node>): Node[] {
+    const rootNodes: Node[] = [];
+
     for (const nodeId of tree.getNodeIds()) {
       const node = allNodes.get(nodeId);
-      if (node && node.isRoot()) {
+      if (node?.isRoot()) {
         rootNodes.push(node);
       }
     }
@@ -134,11 +137,8 @@ export class TreeStructureService {
     return rootNodes;
   }
 
-  findDirectChildNodes(
-    parentNodeId: NodeId,
-    allNodes: Map<NodeId, NodeEntity>
-  ): NodeEntity[] {
-    const children: NodeEntity[] = [];
+  findDirectChildNodes(parentNodeId: NodeId, allNodes: Map<NodeId, Node>): Node[] {
+    const children: Node[] = [];
 
     for (const node of allNodes.values()) {
       if (node.isChildOf(parentNodeId)) {
@@ -149,17 +149,14 @@ export class TreeStructureService {
     return children;
   }
 
-  findAllDescendantNodes(
-    parentNodeId: NodeId,
-    allNodes: Map<NodeId, NodeEntity>
-  ): NodeEntity[] {
-    const descendants: NodeEntity[] = [];
+  findAllDescendantNodes(parentNodeId: NodeId, allNodes: Map<NodeId, Node>): Node[] {
+    const descendants: Node[] = [];
     const toVisit = [parentNodeId];
     const visited = new Set<NodeId>();
 
     while (toVisit.length > 0) {
       const currentId = toVisit.pop()!;
-      
+
       if (visited.has(currentId)) {
         continue;
       }
@@ -177,37 +174,38 @@ export class TreeStructureService {
   }
 
   validateTreeStructuralIntegrity(
-    tree: TreeEntity,
-    allNodes: Map<NodeId, NodeEntity>
+    tree: Tree,
+    allNodes: Map<NodeId, Node>
   ): Result<void, ValidationError> {
     const nodeIds = tree.getNodeIds();
-    
+
     for (const nodeId of nodeIds) {
       const node = allNodes.get(nodeId);
       if (!node) {
-        return { success: false, error: new ValidationError(`Node ${nodeId.getValue()} referenced by tree but not found`) };
+        return err(
+          new ValidationError(`Node ${nodeId.getValue()} referenced by tree but not found`)
+        );
       }
 
       if (node.isChild()) {
         const parentId = node.getParentNodeId()!;
         if (!nodeIds.some(id => id.equals(parentId))) {
-          return { success: false, error: new ValidationError(`Node ${nodeId.getValue()} references parent not in same tree`) };
+          return err(
+            new ValidationError(`Node ${nodeId.getValue()} references parent not in same tree`)
+          );
         }
       }
     }
 
     const rootNodes = this.findRootNodes(tree, allNodes);
     if (rootNodes.length === 0 && !tree.isEmpty()) {
-      return { success: false, error: new ValidationError("Non-empty tree must have at least one root node") };
+      return err(new ValidationError('Non-empty tree must have at least one root node'));
     }
 
-    return { success: true, data: undefined };
+    return ok(undefined);
   }
 
-  computeNodeDepth(
-    nodeId: NodeId,
-    allNodes: Map<NodeId, NodeEntity>
-  ): number {
+  computeNodeDepth(nodeId: NodeId, allNodes: Map<NodeId, Node>): number {
     const node = allNodes.get(nodeId);
     if (!node || node.isRoot()) {
       return 0;
@@ -217,21 +215,18 @@ export class TreeStructureService {
     return 1 + this.computeNodeDepth(parentId, allNodes);
   }
 
-  findNodePathFromRoot(
-    targetNodeId: NodeId,
-    allNodes: Map<NodeId, NodeEntity>
-  ): NodeEntity[] | null {
+  findNodePathFromRoot(targetNodeId: NodeId, allNodes: Map<NodeId, Node>): Node[] | null {
     const target = allNodes.get(targetNodeId);
     if (!target) {
       return null;
     }
 
-    const path: NodeEntity[] = [];
+    const path: Node[] = [];
     let current = target;
 
     while (current) {
       path.unshift(current);
-      
+
       if (current.isRoot()) {
         break;
       }
@@ -248,33 +243,36 @@ export class TreeStructureService {
     return path;
   }
 
-  detectCycles(
-    tree: TreeEntity,
-    allNodes: Map<NodeId, NodeEntity>
-  ): Result<NodeEntity[], ValidationError> {
+  detectCycles(tree: Tree, allNodes: Map<NodeId, Node>): Result<Node[], ValidationError> {
     const visiting = new Set<NodeId>();
     const visited = new Set<NodeId>();
-    const cycles: NodeEntity[] = [];
+    const cycles: Node[] = [];
 
     for (const nodeId of tree.getNodeIds()) {
       if (!visited.has(nodeId)) {
-        const cycleDetected = this.detectCyclesFromNode(nodeId, allNodes, visiting, visited, cycles);
+        const cycleDetected = this.detectCyclesFromNode(
+          nodeId,
+          allNodes,
+          visiting,
+          visited,
+          cycles
+        );
         if (cycleDetected.length > 0) {
-          return { success: true, data: cycleDetected };
+          return ok(cycleDetected);
         }
       }
     }
 
-    return { success: true, data: [] };
+    return ok([]);
   }
 
   private detectCyclesFromNode(
     nodeId: NodeId,
-    allNodes: Map<NodeId, NodeEntity>,
+    allNodes: Map<NodeId, Node>,
     visiting: Set<NodeId>,
     visited: Set<NodeId>,
-    cycles: NodeEntity[]
-  ): NodeEntity[] {
+    cycles: Node[]
+  ): Node[] {
     if (visiting.has(nodeId)) {
       const node = allNodes.get(nodeId);
       if (node) {
@@ -291,7 +289,13 @@ export class TreeStructureService {
 
     const children = this.findDirectChildNodes(nodeId, allNodes);
     for (const child of children) {
-      const childCycles = this.detectCyclesFromNode(child.getId(), allNodes, visiting, visited, cycles);
+      const childCycles = this.detectCyclesFromNode(
+        child.getId(),
+        allNodes,
+        visiting,
+        visited,
+        cycles
+      );
       if (childCycles.length > 0) {
         return childCycles;
       }
@@ -302,12 +306,9 @@ export class TreeStructureService {
     return [];
   }
 
-  validateBottomUpFlow(
-    tree: TreeEntity,
-    allNodes: Map<NodeId, NodeEntity>
-  ): Result<void, ValidationError> {
+  validateBottomUpFlow(tree: Tree, allNodes: Map<NodeId, Node>): Result<void, ValidationError> {
     if (!tree.supportsBottomUpFlow()) {
-      return { success: true, data: undefined };
+      return ok(undefined);
     }
 
     for (const nodeId of tree.getNodeIds()) {
@@ -317,10 +318,10 @@ export class TreeStructureService {
       }
 
       if (!node.providesBottomUpFlow()) {
-        return { success: false, error: new ValidationError(`Node ${nodeId.getValue()} violates bottom-up flow`) };
+        return err(new ValidationError(`Node ${nodeId.getValue()} violates bottom-up flow`));
       }
     }
 
-    return { success: true, data: undefined };
+    return ok(undefined);
   }
 }

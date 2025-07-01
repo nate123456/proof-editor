@@ -1,36 +1,24 @@
-export { 
-  Result, 
-  ValidationError, 
-  success, 
-  failure, 
-  createSuccess, 
-  createFailure, 
-  isSuccess, 
-  isFailure 
-} from "./shared/result.js";
-
-export { 
-  StatementId,
-  OrderedSetId,
+export { AtomicArgument, type SideLabels } from './entities/AtomicArgument.js';
+export { Node } from './entities/Node.js';
+export { OrderedSet } from './entities/OrderedSet.js';
+export { Statement } from './entities/Statement.js';
+export { Tree } from './entities/Tree.js';
+export { StatementFlowService } from './services/StatementFlowService.js';
+export { TreeStructureService } from './services/TreeStructureService.js';
+export { err, ok, Result, ValidationError } from './shared/result.js';
+export {
+  type AlignmentMode,
   AtomicArgumentId,
-  NodeId,
-  TreeId,
-  DocumentId,
-  PackageId,
-  StatementContent,
-  Position2D,
   Attachment,
-  PhysicalProperties,
-  type LayoutStyle,
+  DocumentId,
   type ExpansionDirection,
-  type AlignmentMode
-} from "./shared/value-objects.js";
-
-export { StatementEntity } from "./entities/StatementEntity.js";
-export { OrderedSetEntity } from "./entities/OrderedSetEntity.js";
-export { AtomicArgumentEntity, type SideLabels } from "./entities/AtomicArgumentEntity.js";
-export { NodeEntity } from "./entities/NodeEntity.js";
-export { TreeEntity } from "./entities/TreeEntity.js";
-
-export { StatementFlowService } from "./services/StatementFlowService.js";
-export { TreeStructureService } from "./services/TreeStructureService.js";
+  type LayoutStyle,
+  NodeId,
+  OrderedSetId,
+  PackageId,
+  PhysicalProperties,
+  Position2D,
+  StatementContent,
+  StatementId,
+  TreeId,
+} from './shared/value-objects.js';

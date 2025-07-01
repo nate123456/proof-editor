@@ -1,5 +1,6 @@
-import { Result } from "../../../../domain/shared/result.js"
-import { ValidationError } from "../../../../domain/shared/result.js"
+import { err, ok, type Result } from 'neverthrow';
+
+import { ValidationError } from '../errors/DomainErrors';
 
 export class RuleMetadata {
   private constructor(
@@ -26,27 +27,27 @@ export class RuleMetadata {
       sourceReference = null,
       educationalLevel = 'undergraduate',
       prerequisiteKnowledge = [],
-      relatedConcepts = []
+      relatedConcepts = [],
     } = options;
 
     if (tags.some(tag => tag.trim().length === 0)) {
       return {
         success: false,
-        error: new ValidationError('Tags cannot be empty')
+        error: new ValidationError('Tags cannot be empty'),
       };
     }
 
     if (prerequisiteKnowledge.some(prereq => prereq.trim().length === 0)) {
       return {
         success: false,
-        error: new ValidationError('Prerequisite knowledge items cannot be empty')
+        error: new ValidationError('Prerequisite knowledge items cannot be empty'),
       };
     }
 
     if (relatedConcepts.some(concept => concept.trim().length === 0)) {
       return {
         success: false,
-        error: new ValidationError('Related concepts cannot be empty')
+        error: new ValidationError('Related concepts cannot be empty'),
       };
     }
 
@@ -63,7 +64,7 @@ export class RuleMetadata {
         educationalLevel,
         prerequisiteKnowledge.map(prereq => prereq.trim()),
         relatedConcepts.map(concept => concept.trim())
-      )
+      ),
     };
   }
 
@@ -92,7 +93,7 @@ export class RuleMetadata {
       tags: ['basic', 'fundamental', 'deductive'],
       educationalLevel: 'high-school',
       prerequisiteKnowledge: ['implication', 'logical-reasoning'],
-      relatedConcepts: ['modus-tollens', 'hypothetical-syllogism', 'conditional-statements']
+      relatedConcepts: ['modus-tollens', 'hypothetical-syllogism', 'conditional-statements'],
     });
   }
 
@@ -106,7 +107,7 @@ export class RuleMetadata {
       tags: ['modal', 'necessity', 'possibility'],
       educationalLevel: 'graduate',
       prerequisiteKnowledge: ['propositional-logic', 'possible-worlds', 'modal-operators'],
-      relatedConcepts: ['accessibility-relations', 'modal-axioms', 'kripke-semantics']
+      relatedConcepts: ['accessibility-relations', 'modal-axioms', 'kripke-semantics'],
     });
   }
 
@@ -120,7 +121,7 @@ export class RuleMetadata {
       tags: ['quantifier', 'universal', 'existential'],
       educationalLevel: 'undergraduate',
       prerequisiteKnowledge: ['predicate-logic', 'variable-binding', 'domains'],
-      relatedConcepts: ['instantiation', 'generalization', 'scope']
+      relatedConcepts: ['instantiation', 'generalization', 'scope'],
     });
   }
 
@@ -201,18 +202,32 @@ export class RuleMetadata {
 
   getDifficultyScore(): number {
     let score = 0;
-    
+
     switch (this.complexityLevel) {
-      case 'basic': score += 1; break;
-      case 'intermediate': score += 2; break;
-      case 'advanced': score += 3; break;
+      case 'basic':
+        score += 1;
+        break;
+      case 'intermediate':
+        score += 2;
+        break;
+      case 'advanced':
+        score += 3;
+        break;
     }
 
     switch (this.logicType) {
-      case 'propositional': score += 1; break;
-      case 'first-order': score += 2; break;
-      case 'modal': score += 3; break;
-      case 'higher-order': score += 4; break;
+      case 'propositional':
+        score += 1;
+        break;
+      case 'first-order':
+        score += 2;
+        break;
+      case 'modal':
+        score += 3;
+        break;
+      case 'higher-order':
+        score += 4;
+        break;
     }
 
     score += this.prerequisiteKnowledge.length * 0.5;
@@ -225,7 +240,7 @@ export class RuleMetadata {
       logical: [],
       educational: [],
       technical: [],
-      conceptual: []
+      conceptual: [],
     };
 
     for (const tag of this.tags) {
@@ -245,7 +260,7 @@ export class RuleMetadata {
 
   withAdditionalTags(newTags: string[]): Result<RuleMetadata, ValidationError> {
     const allTags = [...this.tags, ...newTags.map(tag => tag.trim())];
-    
+
     return RuleMetadata.create({
       complexityLevel: this.complexityLevel,
       category: this.category,
@@ -253,10 +268,10 @@ export class RuleMetadata {
       isBuiltIn: this.isBuiltIn,
       isStandard: this.isStandard,
       tags: Array.from(new Set(allTags)),
-      sourceReference: this.sourceReference,
+      ...(this.sourceReference && { sourceReference: this.sourceReference }),
       educationalLevel: this.educationalLevel,
       prerequisiteKnowledge: [...this.prerequisiteKnowledge],
-      relatedConcepts: [...this.relatedConcepts]
+      relatedConcepts: [...this.relatedConcepts],
     });
   }
 
@@ -276,17 +291,31 @@ export class RuleMetadata {
   }
 
   equals(other: RuleMetadata): boolean {
-    return this.complexityLevel === other.complexityLevel &&
-           this.category === other.category &&
-           this.logicType === other.logicType &&
-           this.isBuiltIn === other.isBuiltIn &&
-           this.isStandard === other.isStandard;
+    return (
+      this.complexityLevel === other.complexityLevel &&
+      this.category === other.category &&
+      this.logicType === other.logicType &&
+      this.isBuiltIn === other.isBuiltIn &&
+      this.isStandard === other.isStandard
+    );
   }
 }
 
 export type ComplexityLevel = 'basic' | 'intermediate' | 'advanced';
-export type RuleCategory = 'inference' | 'equivalence' | 'modal' | 'quantifier' | 'structural' | 'custom';
-export type LogicType = 'propositional' | 'first-order' | 'modal' | 'higher-order' | 'temporal' | 'deontic';
+export type RuleCategory =
+  | 'inference'
+  | 'equivalence'
+  | 'modal'
+  | 'quantifier'
+  | 'structural'
+  | 'custom';
+export type LogicType =
+  | 'propositional'
+  | 'first-order'
+  | 'modal'
+  | 'higher-order'
+  | 'temporal'
+  | 'deontic';
 export type EducationalLevel = 'high-school' | 'undergraduate' | 'graduate';
 
 export interface RuleMetadataOptions {

@@ -1,6 +1,6 @@
-import type { Result } from '../../../../domain/shared/result';
+import { err, ok, type Result } from 'neverthrow';
 
-export type ConflictTypeValue = 
+export type ConflictTypeValue =
   | 'STRUCTURAL_CONFLICT'
   | 'SEMANTIC_CONFLICT'
   | 'ORDERING_CONFLICT'
@@ -13,20 +13,17 @@ export class ConflictType {
   static create(value: ConflictTypeValue): Result<ConflictType, Error> {
     const validTypes: ConflictTypeValue[] = [
       'STRUCTURAL_CONFLICT',
-      'SEMANTIC_CONFLICT', 
+      'SEMANTIC_CONFLICT',
       'ORDERING_CONFLICT',
       'DELETION_CONFLICT',
-      'CONCURRENT_MODIFICATION'
+      'CONCURRENT_MODIFICATION',
     ];
 
     if (!validTypes.includes(value)) {
-      return { success: false, error: new Error(`Invalid conflict type: ${value}`) };
+      return err(new Error(`Invalid conflict type: ${value}`));
     }
 
-    return {
-      success: true,
-      data: new ConflictType(value)
-    };
+    return ok(new ConflictType(value));
   }
 
   static structural(): Result<ConflictType, Error> {
@@ -61,17 +58,14 @@ export class ConflictType {
     const structuralTypes: ConflictTypeValue[] = [
       'STRUCTURAL_CONFLICT',
       'ORDERING_CONFLICT',
-      'DELETION_CONFLICT'
+      'DELETION_CONFLICT',
     ];
 
     return structuralTypes.includes(this.value);
   }
 
   isSemantic(): boolean {
-    const semanticTypes: ConflictTypeValue[] = [
-      'SEMANTIC_CONFLICT',
-      'CONCURRENT_MODIFICATION'
-    ];
+    const semanticTypes: ConflictTypeValue[] = ['SEMANTIC_CONFLICT', 'CONCURRENT_MODIFICATION'];
 
     return semanticTypes.includes(this.value);
   }
@@ -89,14 +83,14 @@ export class ConflictType {
       case 'STRUCTURAL_CONFLICT':
       case 'ORDERING_CONFLICT':
         return 'LOW';
-      
+
       case 'DELETION_CONFLICT':
       case 'CONCURRENT_MODIFICATION':
         return 'MEDIUM';
-      
+
       case 'SEMANTIC_CONFLICT':
         return 'HIGH';
-      
+
       default:
         return 'MEDIUM';
     }
@@ -106,15 +100,15 @@ export class ConflictType {
     switch (this.value) {
       case 'STRUCTURAL_CONFLICT':
         return 'SIMPLE';
-      
+
       case 'ORDERING_CONFLICT':
       case 'DELETION_CONFLICT':
         return 'MODERATE';
-      
+
       case 'SEMANTIC_CONFLICT':
       case 'CONCURRENT_MODIFICATION':
         return 'COMPLEX';
-      
+
       default:
         return 'MODERATE';
     }
@@ -124,19 +118,19 @@ export class ConflictType {
     switch (this.value) {
       case 'STRUCTURAL_CONFLICT':
         return ['MERGE_OPERATIONS', 'OPERATIONAL_TRANSFORM'];
-      
+
       case 'SEMANTIC_CONFLICT':
         return ['USER_DECISION_REQUIRED', 'MANUAL_MERGE'];
-      
+
       case 'ORDERING_CONFLICT':
         return ['TIMESTAMP_ORDERING', 'CAUSAL_ORDERING'];
-      
+
       case 'DELETION_CONFLICT':
         return ['LAST_WRITER_WINS', 'PRESERVE_DELETION', 'USER_DECISION_REQUIRED'];
-      
+
       case 'CONCURRENT_MODIFICATION':
         return ['THREE_WAY_MERGE', 'USER_DECISION_REQUIRED', 'LAST_WRITER_WINS'];
-      
+
       default:
         return ['USER_DECISION_REQUIRED'];
     }
@@ -146,19 +140,19 @@ export class ConflictType {
     switch (this.value) {
       case 'STRUCTURAL_CONFLICT':
         return 'Conflicting changes to document structure that can be automatically resolved';
-      
+
       case 'SEMANTIC_CONFLICT':
         return 'Conflicting changes to content meaning that require user intervention';
-      
+
       case 'ORDERING_CONFLICT':
         return 'Operations applied in different orders resulting in inconsistent state';
-      
+
       case 'DELETION_CONFLICT':
         return 'Attempt to modify content that was deleted by another operation';
-      
+
       case 'CONCURRENT_MODIFICATION':
         return 'Simultaneous modifications to the same content by multiple devices';
-      
+
       default:
         return 'Unknown conflict type';
     }
@@ -170,11 +164,11 @@ export class ConflictType {
     }
 
     const compatibilityMatrix: Record<ConflictTypeValue, ConflictTypeValue[]> = {
-      'STRUCTURAL_CONFLICT': ['ORDERING_CONFLICT'],
-      'SEMANTIC_CONFLICT': ['CONCURRENT_MODIFICATION'],
-      'ORDERING_CONFLICT': ['STRUCTURAL_CONFLICT'],
-      'DELETION_CONFLICT': [],
-      'CONCURRENT_MODIFICATION': ['SEMANTIC_CONFLICT']
+      STRUCTURAL_CONFLICT: ['ORDERING_CONFLICT'],
+      SEMANTIC_CONFLICT: ['CONCURRENT_MODIFICATION'],
+      ORDERING_CONFLICT: ['STRUCTURAL_CONFLICT'],
+      DELETION_CONFLICT: [],
+      CONCURRENT_MODIFICATION: ['SEMANTIC_CONFLICT'],
     };
 
     return compatibilityMatrix[this.value]?.includes(otherType.value) ?? false;
@@ -185,7 +179,10 @@ export class ConflictType {
   }
 
   toDisplayString(): string {
-    return this.value.toLowerCase().replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    return this.value
+      .toLowerCase()
+      .replace(/_/g, ' ')
+      .replace(/\b\w/g, l => l.toUpperCase());
   }
 
   getIcon(): string {

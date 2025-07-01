@@ -1,7 +1,8 @@
-import { Result } from '../types/result.js';
+import { err, ok, type Result } from 'neverthrow';
+
 import { PackageValidationError } from '../types/domain-errors.js';
-import { PackageId } from './package-id.js';
-import { PackageVersion } from './PackageVersion.js';
+import { type PackageId } from './package-id.js';
+import { type PackageVersion } from './PackageVersion.js';
 
 export class InstallationPath {
   private constructor(
@@ -16,14 +17,14 @@ export class InstallationPath {
     version: PackageVersion,
     baseUserPath: string
   ): Result<InstallationPath, PackageValidationError> {
-    if (!baseUserPath || !baseUserPath.trim()) {
-      return Result.failure(new PackageValidationError('Base user path cannot be empty'));
+    if (!baseUserPath?.trim()) {
+      return err(new PackageValidationError('Base user path cannot be empty'));
     }
 
     const normalizedBasePath = baseUserPath.trim().replace(/\\/g, '/');
     const packagePath = `${normalizedBasePath}/packages/${packageId.toString()}/${version.toString()}`;
-    
-    return Result.success(new InstallationPath(packagePath, packageId, version, 'user'));
+
+    return ok(new InstallationPath(packagePath, packageId, version, 'user'));
   }
 
   static createForGlobalInstall(
@@ -31,14 +32,14 @@ export class InstallationPath {
     version: PackageVersion,
     baseGlobalPath: string
   ): Result<InstallationPath, PackageValidationError> {
-    if (!baseGlobalPath || !baseGlobalPath.trim()) {
-      return Result.failure(new PackageValidationError('Base global path cannot be empty'));
+    if (!baseGlobalPath?.trim()) {
+      return err(new PackageValidationError('Base global path cannot be empty'));
     }
 
     const normalizedBasePath = baseGlobalPath.trim().replace(/\\/g, '/');
     const packagePath = `${normalizedBasePath}/packages/${packageId.toString()}/${version.toString()}`;
-    
-    return Result.success(new InstallationPath(packagePath, packageId, version, 'global'));
+
+    return ok(new InstallationPath(packagePath, packageId, version, 'global'));
   }
 
   static createForLocalInstall(
@@ -46,14 +47,14 @@ export class InstallationPath {
     version: PackageVersion,
     projectPath: string
   ): Result<InstallationPath, PackageValidationError> {
-    if (!projectPath || !projectPath.trim()) {
-      return Result.failure(new PackageValidationError('Project path cannot be empty'));
+    if (!projectPath?.trim()) {
+      return err(new PackageValidationError('Project path cannot be empty'));
     }
 
     const normalizedProjectPath = projectPath.trim().replace(/\\/g, '/');
     const packagePath = `${normalizedProjectPath}/.proof-editor/packages/${packageId.toString()}/${version.toString()}`;
-    
-    return Result.success(new InstallationPath(packagePath, packageId, version, 'local'));
+
+    return ok(new InstallationPath(packagePath, packageId, version, 'local'));
   }
 
   static fromAbsolutePath(
@@ -61,19 +62,19 @@ export class InstallationPath {
     packageId: PackageId,
     version: PackageVersion
   ): Result<InstallationPath, PackageValidationError> {
-    if (!absolutePath || !absolutePath.trim()) {
-      return Result.failure(new PackageValidationError('Absolute path cannot be empty'));
+    if (!absolutePath?.trim()) {
+      return err(new PackageValidationError('Absolute path cannot be empty'));
     }
 
     const normalizedPath = absolutePath.trim().replace(/\\/g, '/');
-    
+
     if (!this.isAbsolutePath(normalizedPath)) {
-      return Result.failure(new PackageValidationError('Path must be absolute'));
+      return err(new PackageValidationError('Path must be absolute'));
     }
 
     const installationType = this.determineInstallationType(normalizedPath);
-    
-    return Result.success(new InstallationPath(normalizedPath, packageId, version, installationType));
+
+    return ok(new InstallationPath(normalizedPath, packageId, version, installationType));
   }
 
   private static isAbsolutePath(path: string): boolean {
@@ -84,11 +85,11 @@ export class InstallationPath {
     if (path.includes('/.proof-editor/packages/')) {
       return 'local';
     }
-    
+
     if (path.includes('/global/') || path.includes('/usr/') || path.includes('/opt/')) {
       return 'global';
     }
-    
+
     return 'user';
   }
 
@@ -149,17 +150,21 @@ export class InstallationPath {
   }
 
   withSubdirectory(subdirectory: string): Result<string, PackageValidationError> {
-    if (!subdirectory || !subdirectory.trim()) {
-      return Result.failure(new PackageValidationError('Subdirectory cannot be empty'));
+    if (!subdirectory?.trim()) {
+      return err(new PackageValidationError('Subdirectory cannot be empty'));
     }
 
     const normalizedSubdir = subdirectory.trim().replace(/\\/g, '/');
-    
+
     if (normalizedSubdir.startsWith('/') || normalizedSubdir.startsWith('../')) {
-      return Result.failure(new PackageValidationError('Subdirectory must be relative and cannot escape package directory'));
+      return err(
+        new PackageValidationError(
+          'Subdirectory must be relative and cannot escape package directory'
+        )
+      );
     }
 
-    return Result.success(`${this.absolutePath}/${normalizedSubdir}`);
+    return ok(`${this.absolutePath}/${normalizedSubdir}`);
   }
 
   equals(other: InstallationPath): boolean {
@@ -180,7 +185,7 @@ export class InstallationPath {
       absolutePath: this.absolutePath,
       packageId: this.packageId.toString(),
       version: this.version.toString(),
-      installationType: this.installationType
+      installationType: this.installationType,
     };
   }
 }

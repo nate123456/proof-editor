@@ -1,5 +1,6 @@
-import { Result } from "../../../../domain/shared/result.js"
-import { ValidationError } from "../../../../domain/shared/result.js"
+import { err, ok, type Result } from 'neverthrow';
+
+import { ValidationError } from '../errors/DomainErrors';
 
 export class DiagnosticSeverity {
   private static readonly ERROR_LEVEL = 3;
@@ -26,32 +27,26 @@ export class DiagnosticSeverity {
   static fromString(severity: string): Result<DiagnosticSeverity, ValidationError> {
     switch (severity.toLowerCase()) {
       case 'error':
-        return { success: true, data: DiagnosticSeverity.error() };
+        return ok(DiagnosticSeverity.error());
       case 'warning':
-        return { success: true, data: DiagnosticSeverity.warning() };
+        return ok(DiagnosticSeverity.warning());
       case 'info':
-        return { success: true, data: DiagnosticSeverity.info() };
+        return ok(DiagnosticSeverity.info());
       default:
-        return {
-          success: false,
-          error: new ValidationError(`Invalid diagnostic severity: ${severity}`)
-        };
+        return err(new ValidationError(`Invalid diagnostic severity: ${severity}`));
     }
   }
 
   static fromLevel(level: number): Result<DiagnosticSeverity, ValidationError> {
     switch (level) {
       case DiagnosticSeverity.ERROR_LEVEL:
-        return { success: true, data: DiagnosticSeverity.error() };
+        return ok(DiagnosticSeverity.error());
       case DiagnosticSeverity.WARNING_LEVEL:
-        return { success: true, data: DiagnosticSeverity.warning() };
+        return ok(DiagnosticSeverity.warning());
       case DiagnosticSeverity.INFO_LEVEL:
-        return { success: true, data: DiagnosticSeverity.info() };
+        return ok(DiagnosticSeverity.info());
       default:
-        return {
-          success: false,
-          error: new ValidationError(`Invalid diagnostic severity level: ${level}`)
-        };
+        return err(new ValidationError(`Invalid diagnostic severity level: ${level}`));
     }
   }
 

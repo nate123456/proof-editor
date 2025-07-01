@@ -1,12 +1,14 @@
-import { Result } from '../types/result.js';
+import { err, ok, type Result } from 'neverthrow';
+
+import { type Package } from '../entities/Package.js';
+import { type IPackageRepository } from '../repositories/IPackageRepository.js';
+import type { GitPackageSource, LocalPackageSource } from '../types/common-types.js';
 import { PackageNotFoundError, PackageSourceUnavailableError } from '../types/domain-errors.js';
-import { PackageEntity } from '../entities/package-entity.js';
-import { PackageId } from '../value-objects/package-id.js';
+import { type PackageId } from '../value-objects/package-id.js';
 import { PackageSource } from '../value-objects/package-source.js';
-import { GitPackageSource, LocalPackageSource } from '../types/common-types.js';
 
 export interface PackageDiscoveryResult {
-  readonly packages: readonly PackageEntity[];
+  readonly packages: readonly Package[];
   readonly totalFound: number;
   readonly searchQuery?: string;
   readonly searchTime: number;
@@ -25,20 +27,24 @@ export interface LocalPackageDiscoveryOptions {
   readonly maxDepth?: number;
 }
 
-export interface IPackageRepository {
-  findBySource(source: PackageSource): Promise<Result<PackageEntity, PackageNotFoundError>>;
-  findByGitRepository(gitUrl: string, ref?: string): Promise<Result<readonly PackageEntity[], PackageNotFoundError>>;
-  searchByKeywords(keywords: string[]): Promise<Result<readonly PackageEntity[], PackageNotFoundError>>;
-}
-
 export interface IGitPackageProvider {
-  discoverFromGitHub(searchQuery: string, options?: GitPackageDiscoveryOptions): Promise<Result<readonly GitPackageSource[], PackageSourceUnavailableError>>;
-  validateGitSource(source: GitPackageSource): Promise<Result<boolean, PackageSourceUnavailableError>>;
-  clonePackageToTemporary(source: GitPackageSource): Promise<Result<string, PackageSourceUnavailableError>>;
+  discoverFromGitHub(
+    searchQuery: string,
+    options?: GitPackageDiscoveryOptions
+  ): Promise<Result<readonly GitPackageSource[], PackageSourceUnavailableError>>;
+  validateGitSource(
+    source: GitPackageSource
+  ): Promise<Result<boolean, PackageSourceUnavailableError>>;
+  clonePackageToTemporary(
+    source: GitPackageSource
+  ): Promise<Result<string, PackageSourceUnavailableError>>;
 }
 
 export interface ILocalPackageProvider {
-  discoverInDirectory(directoryPath: string, options?: LocalPackageDiscoveryOptions): Promise<Result<readonly LocalPackageSource[], PackageNotFoundError>>;
+  discoverInDirectory(
+    directoryPath: string,
+    options?: LocalPackageDiscoveryOptions
+  ): Promise<Result<readonly LocalPackageSource[], PackageNotFoundError>>;
   validateLocalSource(source: LocalPackageSource): Promise<Result<boolean, PackageNotFoundError>>;
 }
 
@@ -54,24 +60,26 @@ export class PackageDiscoveryService {
     options?: GitPackageDiscoveryOptions
   ): Promise<Result<PackageDiscoveryResult, PackageSourceUnavailableError>> {
     const startTime = Date.now();
-    
+
     const gitSourcesResult = await this.gitProvider.discoverFromGitHub(searchQuery, options);
-    if (!gitSourcesResult.success) {
-      return Result.failure(gitSourcesResult.error);
+    if (gitSourcesResult.isErr()) {
+      return err(gitSourcesResult.error);
     }
 
-    const packages: PackageEntity[] = [];
+    const packages: Package[] = [];
     const maxResults = options?.maxResults || 50;
-    
-    for (const gitSource of gitSourcesResult.data.slice(0, maxResults)) {
+
+    for (const gitSource of gitSourcesResult.value.slice(0, maxResults)) {
       const packageSourceResult = PackageSource.createFromGit(gitSource);
-      if (!packageSourceResult.success) {
+      if (packageSourceResult.isErr()) {
         continue;
       }
 
-      const existingPackageResult = await this.packageRepository.findBySource(packageSourceResult.data);
-      if (existingPackageResult.success) {
-        packages.push(existingPackageResult.data);
+      const existingPackageResult = await this.packageRepository.findBySource(
+        packageSourceResult.value
+      );
+      if (existingPackageResult.isOk()) {
+        packages.push(existingPackageResult.value);
       }
     }
 
@@ -79,12 +87,12 @@ export class PackageDiscoveryService {
 
     const result: PackageDiscoveryResult = {
       packages,
-      totalFound: gitSourcesResult.data.length,
+      totalFound: gitSourcesResult.value.length,
       searchQuery,
-      searchTime
+      searchTime,
     };
 
-    return Result.success(result);
+    return ok(result);
   }
 
   async discoverPackagesInDirectory(
@@ -92,23 +100,25 @@ export class PackageDiscoveryService {
     options?: LocalPackageDiscoveryOptions
   ): Promise<Result<PackageDiscoveryResult, PackageNotFoundError>> {
     const startTime = Date.now();
-    
+
     const localSourcesResult = await this.localProvider.discoverInDirectory(directoryPath, options);
-    if (!localSourcesResult.success) {
-      return Result.failure(localSourcesResult.error);
+    if (localSourcesResult.isErr()) {
+      return err(localSourcesResult.error);
     }
 
-    const packages: PackageEntity[] = [];
-    
-    for (const localSource of localSourcesResult.data) {
+    const packages: Package[] = [];
+
+    for (const localSource of localSourcesResult.value) {
       const packageSourceResult = PackageSource.createFromLocal(localSource);
-      if (!packageSourceResult.success) {
+      if (packageSourceResult.isErr()) {
         continue;
       }
 
-      const existingPackageResult = await this.packageRepository.findBySource(packageSourceResult.data);
-      if (existingPackageResult.success) {
-        packages.push(existingPackageResult.data);
+      const existingPackageResult = await this.packageRepository.findBySource(
+        packageSourceResult.value
+      );
+      if (existingPackageResult.isOk()) {
+        packages.push(existingPackageResult.value);
       }
     }
 
@@ -116,51 +126,55 @@ export class PackageDiscoveryService {
 
     const result: PackageDiscoveryResult = {
       packages,
-      totalFound: localSourcesResult.data.length,
-      searchTime
+      totalFound: localSourcesResult.value.length,
+      searchTime,
     };
 
-    return Result.success(result);
+    return ok(result);
   }
 
-  async findPackageById(packageId: PackageId): Promise<Result<PackageEntity, PackageNotFoundError>> {
+  async findPackageById(packageId: PackageId): Promise<Result<Package, PackageNotFoundError>> {
     const searchResult = await this.packageRepository.searchByKeywords([packageId.toString()]);
-    if (!searchResult.success) {
-      return Result.failure(searchResult.error);
+    if (searchResult.isErr()) {
+      return err(searchResult.error);
     }
 
-    const exactMatch = searchResult.data.find(pkg => pkg.getId().equals(packageId));
+    const exactMatch = searchResult.value.find(pkg => pkg.getId().equals(packageId));
     if (!exactMatch) {
-      return Result.failure(new PackageNotFoundError(`Package not found: ${packageId.toString()}`));
+      return err(new PackageNotFoundError(`Package not found: ${packageId.toString()}`));
     }
 
-    return Result.success(exactMatch);
+    return ok(exactMatch);
   }
 
-  async findPackagesByKeywords(keywords: string[]): Promise<Result<PackageDiscoveryResult, PackageNotFoundError>> {
+  async findPackagesByKeywords(
+    keywords: string[]
+  ): Promise<Result<PackageDiscoveryResult, PackageNotFoundError>> {
     const startTime = Date.now();
-    
+
     if (keywords.length === 0) {
-      return Result.failure(new PackageNotFoundError('Keywords cannot be empty'));
+      return err(new PackageNotFoundError('Keywords cannot be empty'));
     }
 
     const searchResult = await this.packageRepository.searchByKeywords(keywords);
-    if (!searchResult.success) {
-      return Result.failure(searchResult.error);
+    if (searchResult.isErr()) {
+      return err(searchResult.error);
     }
 
     const searchTime = Date.now() - startTime;
 
     const result: PackageDiscoveryResult = {
-      packages: searchResult.data,
-      totalFound: searchResult.data.length,
-      searchTime
+      packages: searchResult.value,
+      totalFound: searchResult.value.length,
+      searchTime,
     };
 
-    return Result.success(result);
+    return ok(result);
   }
 
-  async validatePackageSource(source: PackageSource): Promise<Result<boolean, PackageSourceUnavailableError | PackageNotFoundError>> {
+  async validatePackageSource(
+    source: PackageSource
+  ): Promise<Result<boolean, PackageSourceUnavailableError | PackageNotFoundError>> {
     const gitSource = source.asGitSource();
     if (gitSource) {
       return await this.gitProvider.validateGitSource(gitSource);
@@ -169,54 +183,64 @@ export class PackageDiscoveryService {
     const localSource = source.asLocalSource();
     if (localSource) {
       const localResult = await this.localProvider.validateLocalSource(localSource);
-      if (!localResult.success) {
-        return Result.failure(new PackageSourceUnavailableError(localResult.error.message));
+      if (localResult.isErr()) {
+        return err(new PackageSourceUnavailableError(localResult.error.message));
       }
-      return Result.success(localResult.data);
+      return ok(localResult.value);
     }
 
-    return Result.failure(new PackageSourceUnavailableError('Unknown package source type'));
+    return err(new PackageSourceUnavailableError('Unknown package source type'));
   }
 
-  async findPackageVersionsFromGitRepository(gitUrl: string): Promise<Result<readonly PackageEntity[], PackageNotFoundError>> {
+  async findPackageVersionsFromGitRepository(
+    gitUrl: string
+  ): Promise<Result<readonly Package[], PackageNotFoundError>> {
     const normalizedUrl = gitUrl.trim();
     if (!normalizedUrl) {
-      return Result.failure(new PackageNotFoundError('Git URL cannot be empty'));
+      return err(new PackageNotFoundError('Git URL cannot be empty'));
     }
 
     return await this.packageRepository.findByGitRepository(normalizedUrl);
   }
 
   async findLanguagePackages(): Promise<Result<PackageDiscoveryResult, PackageNotFoundError>> {
-    const keywordsResult = await this.findPackagesByKeywords(['language-server', 'lsp', 'language-package']);
-    if (!keywordsResult.success) {
-      return Result.failure(keywordsResult.error);
+    const keywordsResult = await this.findPackagesByKeywords([
+      'language-server',
+      'lsp',
+      'language-package',
+    ]);
+    if (keywordsResult.isErr()) {
+      return err(keywordsResult.error);
     }
 
-    const languagePackages = keywordsResult.data.packages.filter(pkg => pkg.isLanguagePackage());
+    const languagePackages = keywordsResult.value.packages.filter((pkg: Package) =>
+      pkg.isLanguagePackage()
+    );
 
     const result: PackageDiscoveryResult = {
       packages: languagePackages,
       totalFound: languagePackages.length,
-      searchTime: keywordsResult.data.searchTime
+      searchTime: keywordsResult.value.searchTime,
     };
 
-    return Result.success(result);
+    return ok(result);
   }
 
-  async findPackagesWithCapability(capability: string): Promise<Result<PackageDiscoveryResult, PackageNotFoundError>> {
+  async findPackagesWithCapability(
+    capability: string
+  ): Promise<Result<PackageDiscoveryResult, PackageNotFoundError>> {
     const startTime = Date.now();
-    
+
     if (!capability.trim()) {
-      return Result.failure(new PackageNotFoundError('Capability cannot be empty'));
+      return err(new PackageNotFoundError('Capability cannot be empty'));
     }
 
     const allPackagesResult = await this.packageRepository.searchByKeywords(['*']);
-    if (!allPackagesResult.success) {
-      return Result.failure(allPackagesResult.error);
+    if (allPackagesResult.isErr()) {
+      return err(allPackagesResult.error);
     }
 
-    const packagesWithCapability = allPackagesResult.data.filter(pkg => 
+    const packagesWithCapability = allPackagesResult.value.filter(pkg =>
       pkg.supportsCapability(capability)
     );
 
@@ -225,9 +249,9 @@ export class PackageDiscoveryService {
     const result: PackageDiscoveryResult = {
       packages: packagesWithCapability,
       totalFound: packagesWithCapability.length,
-      searchTime
+      searchTime,
     };
 
-    return Result.success(result);
+    return ok(result);
   }
 }

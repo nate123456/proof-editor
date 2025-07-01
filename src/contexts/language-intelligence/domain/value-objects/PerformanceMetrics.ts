@@ -1,5 +1,6 @@
-import { Result } from "../../../../domain/shared/result.js"
-import { ValidationError } from "../../../../domain/shared/result.js"
+import { err, ok, type Result } from 'neverthrow';
+
+import { ValidationError } from '../errors/DomainErrors';
 
 export class PerformanceMetrics {
   private constructor(
@@ -19,30 +20,35 @@ export class PerformanceMetrics {
     validationTimeMs: number,
     analysisTimeMs: number,
     patternRecognitionTimeMs: number,
-    memoryUsageMb: number = 0,
-    cacheHitRate: number = 0,
+    memoryUsageMb = 0,
+    cacheHitRate = 0,
     operationCounts: OperationCounts = OperationCounts.createEmpty(),
     errorCounts: ErrorCounts = ErrorCounts.createEmpty(),
     targets: PerformanceTargets = PerformanceTargets.createDefault()
   ): Result<PerformanceMetrics, ValidationError> {
-    if (totalTimeMs < 0 || validationTimeMs < 0 || analysisTimeMs < 0 || patternRecognitionTimeMs < 0) {
+    if (
+      totalTimeMs < 0 ||
+      validationTimeMs < 0 ||
+      analysisTimeMs < 0 ||
+      patternRecognitionTimeMs < 0
+    ) {
       return {
         success: false,
-        error: new ValidationError('Time values cannot be negative')
+        error: new ValidationError('Time values cannot be negative'),
       };
     }
 
     if (memoryUsageMb < 0) {
       return {
         success: false,
-        error: new ValidationError('Memory usage cannot be negative')
+        error: new ValidationError('Memory usage cannot be negative'),
       };
     }
 
     if (cacheHitRate < 0 || cacheHitRate > 1) {
       return {
         success: false,
-        error: new ValidationError('Cache hit rate must be between 0 and 1')
+        error: new ValidationError('Cache hit rate must be between 0 and 1'),
       };
     }
 
@@ -58,7 +64,7 @@ export class PerformanceMetrics {
         operationCounts,
         errorCounts,
         targets
-      )
+      ),
     };
   }
 
@@ -137,35 +143,37 @@ export class PerformanceMetrics {
   }
 
   meetsTargets(): boolean {
-    return this.totalTimeMs <= this.targets.maxTotalTimeMs &&
-           this.validationTimeMs <= this.targets.maxValidationTimeMs &&
-           this.memoryUsageMb <= this.targets.maxMemoryUsageMb;
+    return (
+      this.totalTimeMs <= this.targets.getMaxTotalTimeMs() &&
+      this.validationTimeMs <= this.targets.getMaxValidationTimeMs() &&
+      this.memoryUsageMb <= this.targets.getMaxMemoryUsageMb()
+    );
   }
 
   meetsValidationTarget(): boolean {
-    return this.validationTimeMs <= this.targets.maxValidationTimeMs;
+    return this.validationTimeMs <= this.targets.getMaxValidationTimeMs();
   }
 
   meetsAnalysisTarget(): boolean {
-    return this.analysisTimeMs <= this.targets.maxAnalysisTimeMs;
+    return this.analysisTimeMs <= this.targets.getMaxAnalysisTimeMs();
   }
 
   meetsMemoryTarget(): boolean {
-    return this.memoryUsageMb <= this.targets.maxMemoryUsageMb;
+    return this.memoryUsageMb <= this.targets.getMaxMemoryUsageMb();
   }
 
   getPerformanceScore(): number {
-    const timeScore = Math.max(0, 1 - (this.totalTimeMs / this.targets.maxTotalTimeMs));
-    const memoryScore = Math.max(0, 1 - (this.memoryUsageMb / this.targets.maxMemoryUsageMb));
+    const timeScore = Math.max(0, 1 - this.totalTimeMs / this.targets.getMaxTotalTimeMs());
+    const memoryScore = Math.max(0, 1 - this.memoryUsageMb / this.targets.getMaxMemoryUsageMb());
     const cacheScore = this.cacheHitRate;
-    const errorScore = Math.max(0, 1 - (this.errorCounts.getTotalErrors() / 10));
+    const errorScore = Math.max(0, 1 - this.errorCounts.getTotalErrors() / 10);
 
-    return (timeScore * 0.4 + memoryScore * 0.3 + cacheScore * 0.2 + errorScore * 0.1);
+    return timeScore * 0.4 + memoryScore * 0.3 + cacheScore * 0.2 + errorScore * 0.1;
   }
 
   getEfficiencyRating(): EfficiencyRating {
     const score = this.getPerformanceScore();
-    
+
     if (score >= 0.9) return 'excellent';
     if (score >= 0.8) return 'good';
     if (score >= 0.6) return 'acceptable';
@@ -229,7 +237,7 @@ export class PerformanceMetrics {
       throughput: Math.round(this.getThroughput() * 100) / 100,
       meetsTargets: this.meetsTargets(),
       operationCounts: this.operationCounts.toSummary(),
-      errorCounts: this.errorCounts.toSummary()
+      errorCounts: this.errorCounts.toSummary(),
     };
   }
 }
@@ -250,7 +258,7 @@ export class OperationCounts {
     validationOperations: number,
     analysisOperations: number,
     patternRecognitionOperations: number,
-    cacheOperations: number = 0
+    cacheOperations = 0
   ): OperationCounts {
     return new OperationCounts(
       validationOperations,
@@ -304,7 +312,7 @@ export class OperationCounts {
       analysis: this.analysisOperations,
       patternRecognition: this.patternRecognitionOperations,
       cache: this.cacheOperations,
-      total: this.getTotalOperations()
+      total: this.getTotalOperations(),
     };
   }
 }
@@ -325,7 +333,7 @@ export class ErrorCounts {
     validationErrors: number,
     analysisErrors: number,
     patternRecognitionErrors: number,
-    systemErrors: number = 0
+    systemErrors = 0
   ): ErrorCounts {
     return new ErrorCounts(
       validationErrors,
@@ -352,7 +360,12 @@ export class ErrorCounts {
   }
 
   getTotalErrors(): number {
-    return this.validationErrors + this.analysisErrors + this.patternRecognitionErrors + this.systemErrors;
+    return (
+      this.validationErrors +
+      this.analysisErrors +
+      this.patternRecognitionErrors +
+      this.systemErrors
+    );
   }
 
   combineWith(other: ErrorCounts): ErrorCounts {
@@ -370,7 +383,7 @@ export class ErrorCounts {
       analysis: this.analysisErrors,
       patternRecognition: this.patternRecognitionErrors,
       system: this.systemErrors,
-      total: this.getTotalErrors()
+      total: this.getTotalErrors(),
     };
   }
 }

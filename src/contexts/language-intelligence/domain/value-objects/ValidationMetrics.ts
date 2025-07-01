@@ -1,5 +1,6 @@
-import { Result } from "../../../../domain/shared/result.js"
-import { ValidationError } from "../../../../domain/shared/result.js"
+import { err, ok, type Result } from 'neverthrow';
+
+import { ValidationError } from '../errors/DomainErrors';
 
 export class ValidationMetrics {
   private constructor(
@@ -16,47 +17,31 @@ export class ValidationMetrics {
     diagnosticCount: number,
     textLength: number,
     statementCount: number,
-    memoryUsageMb: number = 0,
-    cacheHitRate: number = 0
+    memoryUsageMb = 0,
+    cacheHitRate = 0
   ): Result<ValidationMetrics, ValidationError> {
     if (validationTimeMs < 0) {
-      return {
-        success: false,
-        error: new ValidationError('Validation time cannot be negative')
-      };
+      return err(new ValidationError('Validation time cannot be negative'));
     }
 
     if (diagnosticCount < 0) {
-      return {
-        success: false,
-        error: new ValidationError('Diagnostic count cannot be negative')
-      };
+      return err(new ValidationError('Diagnostic count cannot be negative'));
     }
 
     if (textLength < 0) {
-      return {
-        success: false,
-        error: new ValidationError('Text length cannot be negative')
-      };
+      return err(new ValidationError('Text length cannot be negative'));
     }
 
     if (statementCount < 0) {
-      return {
-        success: false,
-        error: new ValidationError('Statement count cannot be negative')
-      };
+      return err(new ValidationError('Statement count cannot be negative'));
     }
 
     if (cacheHitRate < 0 || cacheHitRate > 1) {
-      return {
-        success: false,
-        error: new ValidationError('Cache hit rate must be between 0 and 1')
-      };
+      return err(new ValidationError('Cache hit rate must be between 0 and 1'));
     }
 
-    return {
-      success: true,
-      data: new ValidationMetrics(
+    return ok(
+      new ValidationMetrics(
         validationTimeMs,
         diagnosticCount,
         textLength,
@@ -64,7 +49,7 @@ export class ValidationMetrics {
         memoryUsageMb,
         cacheHitRate
       )
-    };
+    );
   }
 
   static empty(): ValidationMetrics {
@@ -104,10 +89,10 @@ export class ValidationMetrics {
   }
 
   getEfficiencyScore(): number {
-    const timeScore = Math.max(0, 1 - (this.validationTimeMs / 1000));
-    const memoryScore = Math.max(0, 1 - (this.memoryUsageMb / 100));
+    const timeScore = Math.max(0, 1 - this.validationTimeMs / 1000);
+    const memoryScore = Math.max(0, 1 - this.memoryUsageMb / 100);
     const cacheScore = this.cacheHitRate;
-    
+
     return (timeScore + memoryScore + cacheScore) / 3;
   }
 
@@ -132,15 +117,11 @@ export class ValidationMetrics {
 
   withValidationTime(newTimeMs: number): Result<ValidationMetrics, ValidationError> {
     if (newTimeMs < 0) {
-      return {
-        success: false,
-        error: new ValidationError('Validation time cannot be negative')
-      };
+      return err(new ValidationError('Validation time cannot be negative'));
     }
 
-    return {
-      success: true,
-      data: new ValidationMetrics(
+    return ok(
+      new ValidationMetrics(
         newTimeMs,
         this.diagnosticCount,
         this.textLength,
@@ -148,7 +129,7 @@ export class ValidationMetrics {
         this.memoryUsageMb,
         this.cacheHitRate
       )
-    };
+    );
   }
 
   toPerformanceReport(): PerformanceReport {
@@ -161,15 +142,17 @@ export class ValidationMetrics {
       efficiencyScore: this.getEfficiencyScore(),
       textLength: this.textLength,
       diagnosticCount: this.diagnosticCount,
-      statementCount: this.statementCount
+      statementCount: this.statementCount,
     };
   }
 
   equals(other: ValidationMetrics): boolean {
-    return this.validationTimeMs === other.validationTimeMs &&
-           this.diagnosticCount === other.diagnosticCount &&
-           this.textLength === other.textLength &&
-           this.statementCount === other.statementCount;
+    return (
+      this.validationTimeMs === other.validationTimeMs &&
+      this.diagnosticCount === other.diagnosticCount &&
+      this.textLength === other.textLength &&
+      this.statementCount === other.statementCount
+    );
   }
 }
 

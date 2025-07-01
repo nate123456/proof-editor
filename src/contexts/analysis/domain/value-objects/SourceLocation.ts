@@ -1,5 +1,6 @@
-import type { Result } from '../shared/Result.ts';
-import { ValidationError } from '../errors/AnalysisErrors.ts';
+import { err, ok, type Result } from 'neverthrow';
+
+import { ValidationError } from '../errors/AnalysisErrors.js';
 
 export class SourceLocation {
   private constructor(
@@ -18,37 +19,22 @@ export class SourceLocation {
     documentUri?: string
   ): Result<SourceLocation, ValidationError> {
     if (startLine < 0) {
-      return {
-        success: false,
-        error: new ValidationError('Start line cannot be negative')
-      };
+      return err(new ValidationError('Start line cannot be negative'));
     }
 
     if (startColumn < 0) {
-      return {
-        success: false,
-        error: new ValidationError('Start column cannot be negative')
-      };
+      return err(new ValidationError('Start column cannot be negative'));
     }
 
     if (endLine < startLine) {
-      return {
-        success: false,
-        error: new ValidationError('End line cannot be before start line')
-      };
+      return err(new ValidationError('End line cannot be before start line'));
     }
 
     if (endLine === startLine && endColumn < startColumn) {
-      return {
-        success: false,
-        error: new ValidationError('End column cannot be before start column on same line')
-      };
+      return err(new ValidationError('End column cannot be before start column on same line'));
     }
 
-    return {
-      success: true,
-      data: new SourceLocation(startLine, startColumn, endLine, endColumn, documentUri)
-    };
+    return ok(new SourceLocation(startLine, startColumn, endLine, endColumn, documentUri));
   }
 
   static createSinglePosition(
@@ -71,7 +57,11 @@ export class SourceLocation {
     return new SourceLocation(0, 0, 0, 0);
   }
 
-  static createFromRange(start: Position, end: Position, documentUri?: string): Result<SourceLocation, ValidationError> {
+  static createFromRange(
+    start: Position,
+    end: Position,
+    documentUri?: string
+  ): Result<SourceLocation, ValidationError> {
     return SourceLocation.create(start.line, start.column, end.line, end.column, documentUri);
   }
 
@@ -125,11 +115,13 @@ export class SourceLocation {
       return false;
     }
 
-    const startContains = this.startLine < other.startLine || 
-                         (this.startLine === other.startLine && this.startColumn <= other.startColumn);
-    
-    const endContains = this.endLine > other.endLine || 
-                       (this.endLine === other.endLine && this.endColumn >= other.endColumn);
+    const startContains =
+      this.startLine < other.startLine ||
+      (this.startLine === other.startLine && this.startColumn <= other.startColumn);
+
+    const endContains =
+      this.endLine > other.endLine ||
+      (this.endLine === other.endLine && this.endColumn >= other.endColumn);
 
     return startContains && endContains;
   }
@@ -160,15 +152,12 @@ export class SourceLocation {
 
   union(other: SourceLocation): Result<SourceLocation, ValidationError> {
     if (this.documentUri && other.documentUri && this.documentUri !== other.documentUri) {
-      return {
-        success: false,
-        error: new ValidationError('Cannot union locations from different documents')
-      };
+      return err(new ValidationError('Cannot union locations from different documents'));
     }
 
     const startLine = Math.min(this.startLine, other.startLine);
     const endLine = Math.max(this.endLine, other.endLine);
-    
+
     let startColumn: number;
     let endColumn: number;
 
@@ -189,7 +178,7 @@ export class SourceLocation {
       startColumn,
       endLine,
       endColumn,
-      this.documentUri || other.documentUri
+      this.documentUri ?? other.documentUri
     );
   }
 
@@ -206,7 +195,7 @@ export class SourceLocation {
   toRange(): Range {
     return {
       start: this.getStartPosition(),
-      end: this.getEndPosition()
+      end: this.getEndPosition(),
     };
   }
 
@@ -214,20 +203,22 @@ export class SourceLocation {
     if (this.isSinglePosition()) {
       return `${this.startLine}:${this.startColumn}`;
     }
-    
+
     if (this.isSingleLine()) {
       return `${this.startLine}:${this.startColumn}-${this.endColumn}`;
     }
-    
+
     return `${this.startLine}:${this.startColumn}-${this.endLine}:${this.endColumn}`;
   }
 
   equals(other: SourceLocation): boolean {
-    return this.startLine === other.startLine &&
-           this.startColumn === other.startColumn &&
-           this.endLine === other.endLine &&
-           this.endColumn === other.endColumn &&
-           this.documentUri === other.documentUri;
+    return (
+      this.startLine === other.startLine &&
+      this.startColumn === other.startColumn &&
+      this.endLine === other.endLine &&
+      this.endColumn === other.endColumn &&
+      this.documentUri === other.documentUri
+    );
   }
 }
 

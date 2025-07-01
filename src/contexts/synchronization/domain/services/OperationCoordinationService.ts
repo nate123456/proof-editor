@@ -1,56 +1,63 @@
-import type { Result } from '../../../../domain/shared/result';
-import { ConflictEntity } from '../entities/ConflictEntity';
-import { OperationEntity } from '../entities/OperationEntity';
-import { VectorClockEntity } from '../entities/VectorClockEntity';
+import { err, ok, type Result } from 'neverthrow';
+
+import { Conflict } from '../entities/Conflict';
+import { type Operation } from '../entities/Operation';
+import { VectorClock } from '../entities/VectorClock';
 import { ConflictType } from '../value-objects/ConflictType';
 import { DeviceId } from '../value-objects/DeviceId';
 import { OperationType } from '../value-objects/OperationType';
 
 export interface IOperationCoordinationService {
-  applyOperation(operation: OperationEntity, currentState: unknown): Promise<Result<unknown, Error>>;
-  detectConflicts(operations: OperationEntity[]): Promise<Result<ConflictEntity[], Error>>;
-  orderOperations(operations: OperationEntity[]): Result<OperationEntity[], Error>;
-  transformOperation(operation: OperationEntity, againstOperations: OperationEntity[]): Promise<Result<OperationEntity, Error>>;
+  applyOperation(operation: Operation, currentState: unknown): Promise<Result<unknown, Error>>;
+  detectConflicts(operations: Operation[]): Promise<Result<Conflict[], Error>>;
+  orderOperations(operations: Operation[]): Result<Operation[], Error>;
+  transformOperation(
+    operation: Operation,
+    againstOperations: Operation[]
+  ): Promise<Result<Operation, Error>>;
 }
 
 export class OperationCoordinationService implements IOperationCoordinationService {
-  async applyOperation(operation: OperationEntity, currentState: unknown): Promise<Result<unknown, Error>> {
+  async applyOperation(
+    operation: Operation,
+    currentState: unknown
+  ): Promise<Result<unknown, Error>> {
     return operation.applyTo(currentState);
   }
 
-  async detectConflicts(operations: OperationEntity[]): Promise<Result<ConflictEntity[], Error>> {
+  async detectConflicts(operations: Operation[]): Promise<Result<Conflict[], Error>> {
     if (operations.length < 2) {
-      return { success: true, data: [] };
+      return ok([]);
     }
 
     try {
-      const conflicts: ConflictEntity[] = [];
+      const conflicts: Conflict[] = [];
       const groupedOperations = this.groupOperationsByTarget(operations);
 
-      for (const [targetPath, targetOperations] of groupedOperations) {
+      for (const [targetPath, targetOperations] of Array.from(groupedOperations.entries())) {
         if (targetOperations.length < 2) {
           continue;
         }
 
-        const conflictResult = await this.analyzeOperationsForConflictsUsingEntities(targetPath, targetOperations);
-        if (conflictResult.success && conflictResult.data.length > 0) {
-          conflicts.push(...conflictResult.data);
+        const conflictResult = await this.analyzeOperationsForConflictsUsingEntities(
+          targetPath,
+          targetOperations
+        );
+        if (conflictResult.isOk() && conflictResult.value.length > 0) {
+          conflicts.push(...conflictResult.value);
         }
       }
 
-      return { success: true, data: conflicts };
+      return ok(conflicts);
     } catch (error) {
-      return { 
-        success: false, 
-        error: error instanceof Error ? error : new Error('Conflict detection failed') 
-      };
+      return err(error instanceof Error ? error : new Error('Conflict detection failed'));
     }
   }
 
-  orderOperations(operations: OperationEntity[]): Result<OperationEntity[], Error> {
+  orderOperations(operations: Operation[]): Result<Operation[], Error> {
     try {
       const orderedOperations = [...operations];
-      
+
       orderedOperations.sort((a, b) => {
         if (a.hasCausalDependencyOn(b)) {
           return 1;
@@ -63,30 +70,25 @@ export class OperationCoordinationService implements IOperationCoordinationServi
       });
 
       const validationResult = this.validateOperationOrdering(orderedOperations);
-      if (!validationResult.success) {
-        return validationResult;
+      if (validationResult.isErr()) {
+        return err(validationResult.error);
       }
 
-      return { success: true, data: orderedOperations };
+      return ok(orderedOperations);
     } catch (error) {
-      return { 
-        success: false, 
-        error: error instanceof Error ? error : new Error('Operation ordering failed') 
-      };
+      return err(error instanceof Error ? error : new Error('Operation ordering failed'));
     }
   }
 
   async transformOperation(
-    operation: OperationEntity, 
-    againstOperations: OperationEntity[]
-  ): Promise<Result<OperationEntity, Error>> {
+    operation: Operation,
+    againstOperations: Operation[]
+  ): Promise<Result<Operation, Error>> {
     return operation.transformAgainstOperations(againstOperations);
   }
 
-
-
-  private groupOperationsByTarget(operations: OperationEntity[]): Map<string, OperationEntity[]> {
-    const groups = new Map<string, OperationEntity[]>();
+  private groupOperationsByTarget(operations: Operation[]): Map<string, Operation[]> {
+    const groups = new Map<string, Operation[]>();
 
     for (const operation of operations) {
       const targetPath = operation.getTargetPath();
@@ -100,51 +102,51 @@ export class OperationCoordinationService implements IOperationCoordinationServi
   }
 
   private async analyzeOperationsForConflictsUsingEntities(
-    targetPath: string, 
-    operations: OperationEntity[]
-  ): Promise<Result<ConflictEntity[], Error>> {
-    const conflicts: ConflictEntity[] = [];
-    
+    targetPath: string,
+    operations: Operation[]
+  ): Promise<Result<Conflict[], Error>> {
+    const conflicts: Conflict[] = [];
+
     const concurrentOperations = this.findConcurrentOperations(operations);
-    
+
     for (const concurrentGroup of concurrentOperations) {
       if (concurrentGroup.length < 2) {
         continue;
       }
 
       const primaryOperation = concurrentGroup[0];
+      if (!primaryOperation) continue;
+
       const conflictingOperations = concurrentGroup.slice(1);
-      
+
       for (const conflictingOp of conflictingOperations) {
         const conflictTypeResult = primaryOperation.detectConflictWith(conflictingOp);
-        if (!conflictTypeResult.success) {
+        if (conflictTypeResult.isErr()) {
           continue;
         }
-        
-        const conflictType = conflictTypeResult.data;
+
+        const conflictType = conflictTypeResult.value;
         if (!conflictType) {
           continue;
         }
 
         const conflictId = this.generateConflictId(targetPath, [primaryOperation, conflictingOp]);
-        const conflictResult = ConflictEntity.create(
-          conflictId,
-          conflictType,
-          targetPath,
-          [primaryOperation, conflictingOp]
-        );
+        const conflictResult = Conflict.create(conflictId, conflictType, targetPath, [
+          primaryOperation,
+          conflictingOp,
+        ]);
 
-        if (conflictResult.success) {
-          conflicts.push(conflictResult.data);
+        if (conflictResult.isOk()) {
+          conflicts.push(conflictResult.value);
         }
       }
     }
 
-    return { success: true, data: conflicts };
+    return ok(conflicts);
   }
 
-  private findConcurrentOperations(operations: OperationEntity[]): OperationEntity[][] {
-    const concurrentGroups: OperationEntity[][] = [];
+  private findConcurrentOperations(operations: Operation[]): Operation[][] {
+    const concurrentGroups: Operation[][] = [];
     const processed = new Set<string>();
 
     for (const operation of operations) {
@@ -156,7 +158,10 @@ export class OperationCoordinationService implements IOperationCoordinationServi
       processed.add(operation.getId().getValue());
 
       for (const otherOperation of operations) {
-        if (operation.getId().equals(otherOperation.getId()) || processed.has(otherOperation.getId().getValue())) {
+        if (
+          operation.getId().equals(otherOperation.getId()) ||
+          processed.has(otherOperation.getId().getValue())
+        ) {
           continue;
         }
 
@@ -174,50 +179,53 @@ export class OperationCoordinationService implements IOperationCoordinationServi
     return concurrentGroups;
   }
 
-
-  private generateConflictId(targetPath: string, operations: OperationEntity[]): string {
-    const operationIds = operations.map(op => op.getId()).sort().join('-');
+  private generateConflictId(targetPath: string, operations: Operation[]): string {
+    const operationIds = operations
+      .map(op => op.getId())
+      .sort()
+      .join('-');
     const pathHash = this.simpleHash(targetPath);
     return `conflict-${pathHash}-${this.simpleHash(operationIds)}`;
   }
 
-  private validateOperationOrdering(operations: OperationEntity[]): Result<void, Error> {
+  private validateOperationOrdering(operations: Operation[]): Result<void, Error> {
     for (let i = 0; i < operations.length - 1; i++) {
       const current = operations[i];
       const next = operations[i + 1];
 
-      if (next.hasCausalDependencyOn(current) && current.hasCausalDependencyOn(next)) {
-        return { success: false, error: new Error('Circular dependency detected in operation ordering') };
+      if (current && next?.hasCausalDependencyOn(current) && current.hasCausalDependencyOn(next)) {
+        return err(new Error('Circular dependency detected in operation ordering'));
       }
     }
 
-    return { success: true, data: undefined };
+    return ok(undefined);
   }
-
 
   private simpleHash(input: string): string {
     let hash = 0;
     for (let i = 0; i < input.length; i++) {
       const char = input.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
+      hash = (hash << 5) - hash + char;
       hash = hash & hash;
     }
     return Math.abs(hash).toString(36);
   }
 
-  canOperationsCommute(op1: OperationEntity, op2: OperationEntity): boolean {
+  canOperationsCommute(op1: Operation, op2: Operation): boolean {
     return op1.canCommutewWith(op2);
   }
 
-  calculateOperationDependencies(operations: OperationEntity[]): Map<string, string[]> {
+  calculateOperationDependencies(operations: Operation[]): Map<string, string[]> {
     const dependencies = new Map<string, string[]>();
 
     for (const operation of operations) {
       const deps: string[] = [];
-      
+
       for (const otherOperation of operations) {
-        if (!operation.getId().equals(otherOperation.getId()) && 
-            operation.hasCausalDependencyOn(otherOperation)) {
+        if (
+          !operation.getId().equals(otherOperation.getId()) &&
+          operation.hasCausalDependencyOn(otherOperation)
+        ) {
           deps.push(otherOperation.getId().getValue());
         }
       }

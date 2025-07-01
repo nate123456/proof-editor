@@ -1,5 +1,5 @@
+import { type DocumentId, type PackageId, type Version } from '../shared/value-objects.js';
 import { DomainEvent } from './base-event.js';
-import { PackageId, DocumentId, Version } from '../shared/value-objects.js';
 
 export class PackageInstalled extends DomainEvent {
   readonly eventType = 'PackageInstalled';
@@ -20,7 +20,7 @@ export class PackageInstalled extends DomainEvent {
       version: this.version.getValue(),
       installationSource: this.installationSource,
       installedBy: this.installedBy,
-      capabilities: this.capabilities
+      capabilities: this.capabilities,
     };
   }
 }
@@ -44,7 +44,7 @@ export class PackageUpdated extends DomainEvent {
       previousVersion: this.previousVersion.getValue(),
       newVersion: this.newVersion.getValue(),
       updateResult: this.updateResult,
-      updatedBy: this.updatedBy
+      updatedBy: this.updatedBy,
     };
   }
 }
@@ -68,7 +68,7 @@ export class PackageUninstalled extends DomainEvent {
       version: this.version.getValue(),
       uninstallReason: this.uninstallReason,
       uninstalledBy: this.uninstalledBy,
-      cleanupResult: this.cleanupResult
+      cleanupResult: this.cleanupResult,
     };
   }
 }
@@ -92,7 +92,7 @@ export class PackageValidated extends DomainEvent {
       version: this.version.getValue(),
       validationResult: this.validationResult,
       validatedBy: this.validatedBy,
-      validationContext: this.validationContext
+      validationContext: this.validationContext,
     };
   }
 }
@@ -116,7 +116,7 @@ export class PackageDependencyResolved extends DomainEvent {
       dependencyId: this.dependencyId.getValue(),
       dependencyVersion: this.dependencyVersion.getValue(),
       resolutionStrategy: this.resolutionStrategy,
-      resolvedBy: this.resolvedBy
+      resolvedBy: this.resolvedBy,
     };
   }
 }
@@ -138,7 +138,7 @@ export class PackageConflictDetected extends DomainEvent {
       conflictingPackages: this.conflictingPackages.map(id => id.getValue()),
       conflictType: this.conflictType,
       conflictDetails: this.conflictDetails,
-      detectedBy: this.detectedBy
+      detectedBy: this.detectedBy,
     };
   }
 }
@@ -160,7 +160,7 @@ export class PackageActivated extends DomainEvent {
       packageId: this.packageId.getValue(),
       documentId: this.documentId.getValue(),
       activationContext: this.activationContext,
-      activatedBy: this.activatedBy
+      activatedBy: this.activatedBy,
     };
   }
 }
@@ -182,7 +182,7 @@ export class PackageDeactivated extends DomainEvent {
       packageId: this.packageId.getValue(),
       documentId: this.documentId.getValue(),
       deactivationReason: this.deactivationReason,
-      deactivatedBy: this.deactivatedBy
+      deactivatedBy: this.deactivatedBy,
     };
   }
 }
@@ -206,7 +206,7 @@ export class PackageSecurityViolationDetected extends DomainEvent {
       violationType: this.violationType,
       violationDetails: this.violationDetails,
       detectedBy: this.detectedBy,
-      riskLevel: this.riskLevel
+      riskLevel: this.riskLevel,
     };
   }
 }
@@ -228,7 +228,7 @@ export class PackageRegistryUpdated extends DomainEvent {
       registrySource: this.registrySource,
       updateType: this.updateType,
       affectedPackages: this.affectedPackages.map(id => id.getValue()),
-      updatedBy: this.updatedBy
+      updatedBy: this.updatedBy,
     };
   }
 }
@@ -330,7 +330,7 @@ export interface SecurityViolationDetails {
   affectedResources: string[];
 }
 
-export type UninstallReason = 
+export type UninstallReason =
   | 'user_request'
   | 'security_violation'
   | 'conflict_resolution'
@@ -338,7 +338,7 @@ export type UninstallReason =
   | 'system_maintenance'
   | 'package_obsolete';
 
-export type DependencyResolutionStrategy = 
+export type DependencyResolutionStrategy =
   | 'exact_match'
   | 'compatible_version'
   | 'latest_compatible'
@@ -346,7 +346,7 @@ export type DependencyResolutionStrategy =
   | 'automatic_update'
   | 'conflict_resolution';
 
-export type PackageConflictType = 
+export type PackageConflictType =
   | 'version_conflict'
   | 'capability_conflict'
   | 'dependency_conflict'
@@ -354,7 +354,7 @@ export type PackageConflictType =
   | 'permission_conflict'
   | 'api_conflict';
 
-export type DeactivationReason = 
+export type DeactivationReason =
   | 'user_request'
   | 'document_close'
   | 'security_policy'
@@ -362,7 +362,7 @@ export type DeactivationReason =
   | 'error_condition'
   | 'resource_cleanup';
 
-export type SecurityViolationType = 
+export type SecurityViolationType =
   | 'unauthorized_access'
   | 'malicious_code'
   | 'privilege_escalation'
@@ -370,14 +370,9 @@ export type SecurityViolationType =
   | 'sandbox_escape'
   | 'resource_abuse';
 
-export type RiskLevel = 
-  | 'critical'
-  | 'high'
-  | 'medium'
-  | 'low'
-  | 'negligible';
+export type RiskLevel = 'critical' | 'high' | 'medium' | 'low' | 'negligible';
 
-export type RegistryUpdateType = 
+export type RegistryUpdateType =
   | 'package_added'
   | 'package_updated'
   | 'package_removed'

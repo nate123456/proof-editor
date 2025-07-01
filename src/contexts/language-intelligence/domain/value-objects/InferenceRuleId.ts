@@ -1,37 +1,30 @@
-import { Result } from "../../../../domain/shared/result.js"
-import { ValidationError } from "../../../../domain/shared/result.js"
+import { err, ok, type Result } from 'neverthrow';
+
+import { ValidationError } from '../errors/DomainErrors';
 
 export class InferenceRuleId {
   private constructor(private readonly value: string) {}
 
   static create(value: string): Result<InferenceRuleId, ValidationError> {
     if (!value || value.trim().length === 0) {
-      return {
-        success: false,
-        error: new ValidationError('Inference rule ID cannot be empty')
-      };
+      return err(new ValidationError('Inference rule ID cannot be empty'));
     }
 
     const trimmedValue = value.trim();
 
     if (trimmedValue.length < 3) {
-      return {
-        success: false,
-        error: new ValidationError('Inference rule ID must be at least 3 characters long')
-      };
+      return err(new ValidationError('Inference rule ID must be at least 3 characters long'));
     }
 
     if (!/^[a-zA-Z0-9_-]+$/.test(trimmedValue)) {
-      return {
-        success: false,
-        error: new ValidationError('Inference rule ID can only contain letters, numbers, hyphens, and underscores')
-      };
+      return err(
+        new ValidationError(
+          'Inference rule ID can only contain letters, numbers, hyphens, and underscores'
+        )
+      );
     }
 
-    return {
-      success: true,
-      data: new InferenceRuleId(trimmedValue)
-    };
+    return ok(new InferenceRuleId(trimmedValue));
   }
 
   static generate(): InferenceRuleId {
@@ -42,23 +35,19 @@ export class InferenceRuleId {
 
   static fromName(name: string): Result<InferenceRuleId, ValidationError> {
     if (!name || name.trim().length === 0) {
-      return {
-        success: false,
-        error: new ValidationError('Rule name cannot be empty')
-      };
+      return err(new ValidationError('Rule name cannot be empty'));
     }
 
-    const sanitizedName = name.trim().toLowerCase()
+    const sanitizedName = name
+      .trim()
+      .toLowerCase()
       .replace(/\s+/g, '-')
       .replace(/[^a-z0-9-]/g, '')
       .replace(/-+/g, '-')
       .replace(/^-|-$/g, '');
 
     if (sanitizedName.length < 3) {
-      return {
-        success: false,
-        error: new ValidationError('Sanitized rule name too short')
-      };
+      return err(new ValidationError('Sanitized rule name too short'));
     }
 
     return InferenceRuleId.create(sanitizedName);

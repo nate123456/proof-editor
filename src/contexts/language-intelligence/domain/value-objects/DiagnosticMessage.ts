@@ -1,5 +1,6 @@
-import { Result } from "../../../../domain/shared/result.js"
-import { ValidationError } from "../../../../domain/shared/result.js"
+import { err, ok, type Result } from 'neverthrow';
+
+import { ValidationError } from '../errors/DomainErrors';
 
 export class DiagnosticMessage {
   private constructor(
@@ -10,40 +11,31 @@ export class DiagnosticMessage {
 
   static create(
     text: string,
-    context: string = '',
+    context = '',
     severity: 'error' | 'warning' | 'info' = 'error'
   ): Result<DiagnosticMessage, ValidationError> {
     if (!text || text.trim().length === 0) {
-      return {
-        success: false,
-        error: new ValidationError('Diagnostic message text cannot be empty')
-      };
+      return err(new ValidationError('Diagnostic message text cannot be empty'));
     }
 
     const trimmedText = text.trim();
 
     if (trimmedText.length > 500) {
-      return {
-        success: false,
-        error: new ValidationError('Diagnostic message cannot exceed 500 characters')
-      };
+      return err(new ValidationError('Diagnostic message cannot exceed 500 characters'));
     }
 
-    return {
-      success: true,
-      data: new DiagnosticMessage(trimmedText, context.trim(), severity)
-    };
+    return ok(new DiagnosticMessage(trimmedText, context.trim(), severity));
   }
 
-  static createError(text: string, context: string = ''): Result<DiagnosticMessage, ValidationError> {
+  static createError(text: string, context = ''): Result<DiagnosticMessage, ValidationError> {
     return DiagnosticMessage.create(text, context, 'error');
   }
 
-  static createWarning(text: string, context: string = ''): Result<DiagnosticMessage, ValidationError> {
+  static createWarning(text: string, context = ''): Result<DiagnosticMessage, ValidationError> {
     return DiagnosticMessage.create(text, context, 'warning');
   }
 
-  static createInfo(text: string, context: string = ''): Result<DiagnosticMessage, ValidationError> {
+  static createInfo(text: string, context = ''): Result<DiagnosticMessage, ValidationError> {
     return DiagnosticMessage.create(text, context, 'info');
   }
 
@@ -96,9 +88,9 @@ export class DiagnosticMessage {
   }
 
   equals(other: DiagnosticMessage): boolean {
-    return this.text === other.text &&
-           this.context === other.context &&
-           this.severity === other.severity;
+    return (
+      this.text === other.text && this.context === other.context && this.severity === other.severity
+    );
   }
 
   toString(): string {

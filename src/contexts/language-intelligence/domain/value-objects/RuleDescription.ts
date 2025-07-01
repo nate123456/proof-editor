@@ -1,5 +1,6 @@
-import { Result } from "../../../../domain/shared/result.js"
-import { ValidationError } from "../../../../domain/shared/result.js"
+import { err, ok, type Result } from 'neverthrow';
+
+import { ValidationError } from '../errors/DomainErrors';
 
 export class RuleDescription {
   private constructor(private readonly value: string) {}
@@ -8,7 +9,7 @@ export class RuleDescription {
     if (!value || value.trim().length === 0) {
       return {
         success: false,
-        error: new ValidationError('Rule description cannot be empty')
+        error: new ValidationError('Rule description cannot be empty'),
       };
     }
 
@@ -17,20 +18,20 @@ export class RuleDescription {
     if (trimmedValue.length < 10) {
       return {
         success: false,
-        error: new ValidationError('Rule description must be at least 10 characters long')
+        error: new ValidationError('Rule description must be at least 10 characters long'),
       };
     }
 
     if (trimmedValue.length > 1000) {
       return {
         success: false,
-        error: new ValidationError('Rule description cannot exceed 1000 characters')
+        error: new ValidationError('Rule description cannot exceed 1000 characters'),
       };
     }
 
     return {
       success: true,
-      data: new RuleDescription(trimmedValue)
+      data: new RuleDescription(trimmedValue),
     };
   }
 
@@ -38,19 +39,19 @@ export class RuleDescription {
     return this.value;
   }
 
-  getSummary(maxLength: number = 100): string {
+  getSummary(maxLength = 100): string {
     if (this.value.length <= maxLength) {
       return this.value;
     }
 
     const truncated = this.value.substring(0, maxLength - 3);
     const lastSpaceIndex = truncated.lastIndexOf(' ');
-    
+
     if (lastSpaceIndex > maxLength / 2) {
-      return truncated.substring(0, lastSpaceIndex) + '...';
+      return `${truncated.substring(0, lastSpaceIndex)}...`;
     }
-    
-    return truncated + '...';
+
+    return `${truncated}...`;
   }
 
   getWordCount(): number {

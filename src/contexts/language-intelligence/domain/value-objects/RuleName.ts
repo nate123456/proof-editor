@@ -1,5 +1,6 @@
-import { Result } from "../../../../domain/shared/result.js"
-import { ValidationError } from "../../../../domain/shared/result.js"
+import { err, ok, type Result } from 'neverthrow';
+
+import { ValidationError } from '../errors/DomainErrors';
 
 export class RuleName {
   private constructor(private readonly value: string) {}
@@ -8,7 +9,7 @@ export class RuleName {
     if (!value || value.trim().length === 0) {
       return {
         success: false,
-        error: new ValidationError('Rule name cannot be empty')
+        error: new ValidationError('Rule name cannot be empty'),
       };
     }
 
@@ -17,27 +18,29 @@ export class RuleName {
     if (trimmedValue.length < 2) {
       return {
         success: false,
-        error: new ValidationError('Rule name must be at least 2 characters long')
+        error: new ValidationError('Rule name must be at least 2 characters long'),
       };
     }
 
     if (trimmedValue.length > 100) {
       return {
         success: false,
-        error: new ValidationError('Rule name cannot exceed 100 characters')
+        error: new ValidationError('Rule name cannot exceed 100 characters'),
       };
     }
 
     if (!/^[a-zA-Z0-9\s\-_.()]+$/.test(trimmedValue)) {
       return {
         success: false,
-        error: new ValidationError('Rule name can only contain letters, numbers, spaces, hyphens, underscores, periods, and parentheses')
+        error: new ValidationError(
+          'Rule name can only contain letters, numbers, spaces, hyphens, underscores, periods, and parentheses'
+        ),
       };
     }
 
     return {
       success: true,
-      data: new RuleName(trimmedValue)
+      data: new RuleName(trimmedValue),
     };
   }
 
@@ -69,14 +72,22 @@ export class RuleName {
       'universal instantiation',
       'universal generalization',
       'existential instantiation',
-      'existential generalization'
+      'existential generalization',
     ];
 
     return standardRules.includes(this.value.toLowerCase());
   }
 
   isModalRule(): boolean {
-    const modalKeywords = ['necessity', 'possibility', 'modal', 'k-axiom', 't-axiom', 's4-axiom', 's5-axiom'];
+    const modalKeywords = [
+      'necessity',
+      'possibility',
+      'modal',
+      'k-axiom',
+      't-axiom',
+      's4-axiom',
+      's5-axiom',
+    ];
     const lowerValue = this.value.toLowerCase();
     return modalKeywords.some(keyword => lowerValue.includes(keyword));
   }

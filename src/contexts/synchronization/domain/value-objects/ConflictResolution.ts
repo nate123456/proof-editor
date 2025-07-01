@@ -1,9 +1,10 @@
-import type { Result } from '../../../../domain/shared/result';
-import { DeviceId } from './DeviceId';
+import { err, ok, type Result } from 'neverthrow';
 
-export type ConflictResolutionStrategy = 
+import { type DeviceId } from './DeviceId';
+
+export type ConflictResolutionStrategy =
   | 'LAST_WRITER_WINS'
-  | 'FIRST_WRITER_WINS' 
+  | 'FIRST_WRITER_WINS'
   | 'MERGE_OPERATIONS'
   | 'USER_DECISION_REQUIRED'
   | 'THREE_WAY_MERGE'
@@ -36,7 +37,7 @@ export class ConflictResolution {
     private readonly context: ResolutionContext,
     private readonly resultData: unknown,
     private readonly userSelection?: UserSelection,
-    private readonly automaticResolution: boolean = true
+    private readonly automaticResolution = true
   ) {}
 
   static createAutomatic(
@@ -47,12 +48,11 @@ export class ConflictResolution {
     resultData: unknown
   ): Result<ConflictResolution, Error> {
     if (!ConflictResolution.isAutomaticStrategy(strategy)) {
-      return { success: false, error: new Error(`Strategy ${strategy} is not suitable for automatic resolution`) };
+      return err(new Error(`Strategy ${strategy} is not suitable for automatic resolution`));
     }
 
-    return {
-      success: true,
-      data: new ConflictResolution(
+    return ok(
+      new ConflictResolution(
         strategy,
         confidence,
         new Date(),
@@ -62,7 +62,7 @@ export class ConflictResolution {
         undefined,
         true
       )
-    };
+    );
   }
 
   static createManual(
@@ -73,12 +73,11 @@ export class ConflictResolution {
     userSelection: UserSelection
   ): Result<ConflictResolution, Error> {
     if (ConflictResolution.isAutomaticStrategy(strategy)) {
-      return { success: false, error: new Error(`Strategy ${strategy} should be used for automatic resolution`) };
+      return err(new Error(`Strategy ${strategy} should be used for automatic resolution`));
     }
 
-    return {
-      success: true,
-      data: new ConflictResolution(
+    return ok(
+      new ConflictResolution(
         strategy,
         'HIGH', // Manual resolutions always have high confidence
         new Date(),
@@ -88,7 +87,7 @@ export class ConflictResolution {
         userSelection,
         false
       )
-    };
+    );
   }
 
   static createMerged(
@@ -98,10 +97,9 @@ export class ConflictResolution {
     mergeStrategy: 'OPERATIONAL_TRANSFORM' | 'THREE_WAY_MERGE' = 'OPERATIONAL_TRANSFORM'
   ): Result<ConflictResolution, Error> {
     const confidence = ConflictResolution.calculateMergeConfidence(context, mergeResult);
-    
-    return {
-      success: true,
-      data: new ConflictResolution(
+
+    return ok(
+      new ConflictResolution(
         mergeStrategy,
         confidence,
         new Date(),
@@ -111,7 +109,7 @@ export class ConflictResolution {
         undefined,
         true
       )
-    };
+    );
   }
 
   private static isAutomaticStrategy(strategy: ConflictResolutionStrategy): boolean {
@@ -120,25 +118,28 @@ export class ConflictResolution {
       'FIRST_WRITER_WINS',
       'MERGE_OPERATIONS',
       'OPERATIONAL_TRANSFORM',
-      'THREE_WAY_MERGE'
+      'THREE_WAY_MERGE',
     ];
-    
+
     return automaticStrategies.includes(strategy);
   }
 
-  private static calculateMergeConfidence(context: ResolutionContext, mergeResult: unknown): ResolutionConfidence {
+  private static calculateMergeConfidence(
+    context: ResolutionContext,
+    mergeResult: unknown
+  ): ResolutionConfidence {
     if (context.operationCount > 5) {
       return 'LOW';
     }
-    
+
     if (context.conflictType === 'SEMANTIC_CONFLICT') {
       return 'MEDIUM';
     }
-    
+
     if (mergeResult === null || mergeResult === undefined) {
       return 'LOW';
     }
-    
+
     return 'HIGH';
   }
 
@@ -183,26 +184,30 @@ export class ConflictResolution {
   }
 
   isMergeResolution(): boolean {
-    return this.strategy === 'MERGE_OPERATIONS' || 
-           this.strategy === 'OPERATIONAL_TRANSFORM' || 
-           this.strategy === 'THREE_WAY_MERGE';
+    return (
+      this.strategy === 'MERGE_OPERATIONS' ||
+      this.strategy === 'OPERATIONAL_TRANSFORM' ||
+      this.strategy === 'THREE_WAY_MERGE'
+    );
   }
 
   requiresUserValidation(): boolean {
-    return this.confidence === 'LOW' || 
-           this.strategy === 'USER_DECISION_REQUIRED' ||
-           (this.isMergeResolution() && this.context.conflictType === 'SEMANTIC_CONFLICT');
+    return (
+      this.confidence === 'LOW' ||
+      this.strategy === 'USER_DECISION_REQUIRED' ||
+      (this.isMergeResolution() && this.context.conflictType === 'SEMANTIC_CONFLICT')
+    );
   }
 
   getResolutionSummary(): string {
     const strategyDescription = this.getStrategyDescription();
     const confidenceLevel = this.confidence.toLowerCase();
     const deviceId = this.resolvedBy.getShortId();
-    
+
     if (this.isManualResolution()) {
       return `Manual resolution by ${deviceId} using ${strategyDescription}`;
     }
-    
+
     return `Automatic resolution using ${strategyDescription} (${confidenceLevel} confidence)`;
   }
 
@@ -235,55 +240,56 @@ export class ConflictResolution {
     confidence: ResolutionConfidence;
   } {
     const resolutionTimeMs = this.resolvedAt.getTime() - this.context.detectedAt.getTime();
-    
+
     return {
       resolutionTimeMs,
       operationsInvolved: this.context.operationCount,
       devicesInvolved: this.context.involvedDevices.length,
       wasAutomated: this.automaticResolution,
-      confidence: this.confidence
+      confidence: this.confidence,
     };
   }
 
   validateResolution(): Result<void, Error> {
     if (this.resultData === null || this.resultData === undefined) {
-      return { success: false, error: new Error('Resolution result data cannot be null or undefined') };
+      return err(new Error('Resolution result data cannot be null or undefined'));
     }
 
     if (this.isManualResolution() && !this.userSelection) {
-      return { success: false, error: new Error('Manual resolution must include user selection') };
+      return err(new Error('Manual resolution must include user selection'));
     }
 
     if (this.userSelection) {
       const selectionResult = this.validateUserSelection(this.userSelection);
-      if (!selectionResult.success) {
+      if (selectionResult.isErr()) {
         return selectionResult;
       }
     }
 
-    return { success: true, data: undefined };
+    return ok(undefined);
   }
 
   private validateUserSelection(selection: UserSelection): Result<void, Error> {
     if (!selection.selectedOperationId || selection.selectedOperationId.trim().length === 0) {
-      return { success: false, error: new Error('User selection must include a valid operation ID') };
+      return err(new Error('User selection must include a valid operation ID'));
     }
 
-    return { success: true, data: undefined };
+    return ok(undefined);
   }
 
   equals(other: ConflictResolution): boolean {
-    return this.strategy === other.strategy &&
-           this.context.conflictId === other.context.conflictId &&
-           this.resolvedBy.equals(other.resolvedBy) &&
-           JSON.stringify(this.resultData) === JSON.stringify(other.resultData);
+    return (
+      this.strategy === other.strategy &&
+      this.context.conflictId === other.context.conflictId &&
+      this.resolvedBy.equals(other.resolvedBy) &&
+      JSON.stringify(this.resultData) === JSON.stringify(other.resultData)
+    );
   }
 
   clone(): Result<ConflictResolution, Error> {
     try {
-      return {
-        success: true,
-        data: new ConflictResolution(
+      return ok(
+        new ConflictResolution(
           this.strategy,
           this.confidence,
           new Date(this.resolvedAt.getTime()),
@@ -293,12 +299,9 @@ export class ConflictResolution {
           this.userSelection ? { ...this.userSelection } : undefined,
           this.automaticResolution
         )
-      };
+      );
     } catch (error) {
-      return { 
-        success: false, 
-        error: error instanceof Error ? error : new Error('Failed to clone conflict resolution') 
-      };
+      return err(error instanceof Error ? error : new Error('Failed to clone conflict resolution'));
     }
   }
 
@@ -311,7 +314,7 @@ export class ConflictResolution {
       context: this.context,
       resultData: this.resultData,
       userSelection: this.userSelection,
-      automaticResolution: this.automaticResolution
+      automaticResolution: this.automaticResolution,
     };
   }
 

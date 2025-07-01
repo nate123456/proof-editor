@@ -1,30 +1,22 @@
-import { Result } from "../../../../domain/shared/result.js"
-import { ValidationError } from "../../../../domain/shared/result.js"
+import { err, ok, type Result } from 'neverthrow';
+
+import { ValidationError } from '../errors/DomainErrors';
 
 export class AnalysisReportId {
   private constructor(private readonly value: string) {}
 
   static create(value: string): Result<AnalysisReportId, ValidationError> {
     if (!value || value.trim().length === 0) {
-      return {
-        success: false,
-        error: new ValidationError('Analysis report ID cannot be empty')
-      };
+      return err(new ValidationError('Analysis report ID cannot be empty'));
     }
 
     const trimmedValue = value.trim();
 
     if (trimmedValue.length < 5) {
-      return {
-        success: false,
-        error: new ValidationError('Analysis report ID must be at least 5 characters long')
-      };
+      return err(new ValidationError('Analysis report ID must be at least 5 characters long'));
     }
 
-    return {
-      success: true,
-      data: new AnalysisReportId(trimmedValue)
-    };
+    return ok(new AnalysisReportId(trimmedValue));
   }
 
   static generate(): AnalysisReportId {

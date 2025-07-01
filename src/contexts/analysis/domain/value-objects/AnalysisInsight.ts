@@ -1,5 +1,6 @@
-import type { Result } from '../shared/Result.ts';
-import { ValidationError } from '../errors/AnalysisErrors.ts';
+import { err, ok, type Result } from 'neverthrow';
+
+import { ValidationError } from '../errors/AnalysisErrors.js';
 
 export class AnalysisInsight {
   private constructor(
@@ -18,35 +19,25 @@ export class AnalysisInsight {
     title: string,
     description: string,
     priority: InsightPriority = 'medium',
-    confidence: number = 1.0,
+    confidence = 1.0,
     evidence: string[] = [],
     recommendations: string[] = [],
     relatedPatterns: string[] = []
   ): Result<AnalysisInsight, ValidationError> {
     if (!title || title.trim().length === 0) {
-      return {
-        success: false,
-        error: new ValidationError('Insight title cannot be empty')
-      };
+      return err(new ValidationError('Insight title cannot be empty'));
     }
 
     if (!description || description.trim().length === 0) {
-      return {
-        success: false,
-        error: new ValidationError('Insight description cannot be empty')
-      };
+      return err(new ValidationError('Insight description cannot be empty'));
     }
 
     if (confidence < 0 || confidence > 1) {
-      return {
-        success: false,
-        error: new ValidationError('Confidence must be between 0 and 1')
-      };
+      return err(new ValidationError('Confidence must be between 0 and 1'));
     }
 
-    return {
-      success: true,
-      data: new AnalysisInsight(
+    return ok(
+      new AnalysisInsight(
         category,
         title.trim(),
         description.trim(),
@@ -56,7 +47,7 @@ export class AnalysisInsight {
         recommendations,
         relatedPatterns
       )
-    };
+    );
   }
 
   static createSyntaxInsight(
@@ -65,15 +56,7 @@ export class AnalysisInsight {
     priority: InsightPriority = 'high',
     recommendations: string[] = []
   ): Result<AnalysisInsight, ValidationError> {
-    return AnalysisInsight.create(
-      'syntax',
-      title,
-      description,
-      priority,
-      0.9,
-      [],
-      recommendations
-    );
+    return AnalysisInsight.create('syntax', title, description, priority, 0.9, [], recommendations);
   }
 
   static createSemanticInsight(
@@ -96,15 +79,9 @@ export class AnalysisInsight {
   static createPerformanceInsight(
     title: string,
     description: string,
-    confidence: number = 0.95
+    confidence = 0.95
   ): Result<AnalysisInsight, ValidationError> {
-    return AnalysisInsight.create(
-      'performance',
-      title,
-      description,
-      'low',
-      confidence
-    );
+    return AnalysisInsight.create('performance', title, description, 'low', confidence);
   }
 
   static createEducationalInsight(
@@ -202,17 +179,17 @@ export class AnalysisInsight {
 
   getPriorityScore(): number {
     const priorityWeight = {
-      'high': 3,
-      'medium': 2,
-      'low': 1
+      high: 3,
+      medium: 2,
+      low: 1,
     };
     return priorityWeight[this.priority] * this.confidence;
   }
 
   withHigherPriority(): AnalysisInsight {
-    const newPriority = this.priority === 'low' ? 'medium' : 
-                       this.priority === 'medium' ? 'high' : 'high';
-    
+    const newPriority =
+      this.priority === 'low' ? 'medium' : this.priority === 'medium' ? 'high' : 'high';
+
     return new AnalysisInsight(
       this.category,
       this.title,
@@ -261,24 +238,26 @@ export class AnalysisInsight {
       evidenceCount: this.evidence.length,
       recommendationCount: this.recommendations.length,
       isActionable: this.isActionable(),
-      priorityScore: this.getPriorityScore()
+      priorityScore: this.getPriorityScore(),
     };
   }
 
   equals(other: AnalysisInsight): boolean {
-    return this.category === other.category &&
-           this.title === other.title &&
-           this.description === other.description;
+    return (
+      this.category === other.category &&
+      this.title === other.title &&
+      this.description === other.description
+    );
   }
 }
 
-export type InsightCategory = 
-  | 'syntax' 
-  | 'semantics' 
-  | 'performance' 
-  | 'educational' 
-  | 'style' 
-  | 'structure' 
+export type InsightCategory =
+  | 'syntax'
+  | 'semantics'
+  | 'performance'
+  | 'educational'
+  | 'style'
+  | 'structure'
   | 'patterns'
   | 'validation';
 

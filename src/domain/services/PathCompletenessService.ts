@@ -1,9 +1,8 @@
-import { AtomicArgumentEntity } from '../entities/AtomicArgumentEntity';
-import { AtomicArgumentId } from '../shared/value-objects.js';
-import type { IAtomicArgumentRepository } from '../repositories/IAtomicArgumentRepository';
-import { ConnectionResolutionService } from './ConnectionResolutionService';
-import type { Result } from '../shared/result.js';
 import { ProcessingError } from '../errors/DomainErrors';
+import type { IAtomicArgumentRepository } from '../repositories/IAtomicArgumentRepository';
+import { err, ok, type Result } from '../shared/result.js';
+import { type AtomicArgumentId } from '../shared/value-objects.js';
+import { type ConnectionResolutionService } from './ConnectionResolutionService';
 
 export class PathCompletenessService {
   constructor(
@@ -11,48 +10,49 @@ export class PathCompletenessService {
     private readonly connectionService: ConnectionResolutionService
   ) {}
 
+  /**
+   * Validates path-completeness for arbitrary argument sets.
+   * Use TreeEntity.validatePathCompleteness() for tree-specific validation.
+   */
   async validatePathCompleteness(
     argumentSet: AtomicArgumentId[]
   ): Promise<Result<PathCompletenessValidationResult, ProcessingError>> {
     if (argumentSet.length === 0) {
       const result = new PathCompletenessValidationResult(true, [], []);
-      return { success: true, data: result };
+      return ok(result);
     }
 
     const connections = await this.analyzeConnectionsInSet(argumentSet);
-    const missingArguments = await this.findMissingIntermediateArguments(argumentSet, connections);
+    const missingArguments = this.findMissingIntermediateArguments(argumentSet, connections);
     const isComplete = missingArguments.length === 0;
 
-    const result = new PathCompletenessValidationResult(
-      isComplete,
-      argumentSet,
-      missingArguments
-    );
+    const result = new PathCompletenessValidationResult(isComplete, argumentSet, missingArguments);
 
-    return { success: true, data: result };
+    return ok(result);
   }
 
+  /**
+   * Ensures path-completeness between two specific arguments.
+   * Cross-entity operation that spans argument boundaries.
+   */
   async ensurePathCompleteness(
     startArgumentId: AtomicArgumentId,
     endArgumentId: AtomicArgumentId
   ): Promise<Result<PathCompleteArgumentSet, ProcessingError>> {
-    const pathResult = await this.connectionService.findPathCompleteArgument(
+    const pathResult = this.connectionService.findPathCompleteArgument(
       startArgumentId,
       endArgumentId
     );
 
-    if (!pathResult.success) {
-      return {
-        success: false,
-        error: new ProcessingError('No path exists between arguments', pathResult.error)
-      };
+    if (pathResult.isErr()) {
+      return err(new ProcessingError('No path exists between arguments', pathResult.error));
     }
 
-    const pathCompleteArgument = pathResult.data;
+    const pathCompleteArgument = pathResult.value;
     const allRequiredArguments = pathCompleteArgument.getAllArguments();
-    
+
     const validation = await this.validateAllIntermediateSteps([...allRequiredArguments]);
-    if (!validation.success) return validation;
+    if (validation.isErr()) return err(validation.error);
 
     const result = new PathCompleteArgumentSet(
       startArgumentId,
@@ -61,31 +61,35 @@ export class PathCompletenessService {
       pathCompleteArgument.getAllPaths().map(path => [...path])
     );
 
-    return { success: true, data: result };
+    return ok(result);
   }
 
+  /**
+   * @deprecated Use TreeEntity.findRequiredIntermediateArguments() for tree-specific analysis.
+   * This method remains for cross-tree argument analysis.
+   */
   async findRequiredIntermediateArguments(
     partialArgumentSet: AtomicArgumentId[]
   ): Promise<Result<RequiredIntermediateArguments, ProcessingError>> {
     const connectedPairs = await this.identifyConnectedPairs(partialArgumentSet);
-    const gaps = await this.identifyConnectionGaps(connectedPairs);
-    const requiredArguments = await this.resolveGapsToArguments(gaps);
+    const gaps = this.identifyConnectionGaps(connectedPairs);
+    const requiredArguments = this.resolveGapsToArguments(gaps);
 
-    const result = new RequiredIntermediateArguments(
-      partialArgumentSet,
-      requiredArguments,
-      gaps
-    );
+    const result = new RequiredIntermediateArguments(partialArgumentSet, requiredArguments, gaps);
 
-    return { success: true, data: result };
+    return ok(result);
   }
 
+  /**
+   * @deprecated Use TreeEntity.validateArgumentChainIntegrity() for tree-specific validation.
+   * This method remains for cross-tree chain analysis.
+   */
   async validateArgumentChainIntegrity(
     argumentChain: AtomicArgumentId[]
   ): Promise<Result<ChainIntegrityValidationResult, ProcessingError>> {
     if (argumentChain.length < 2) {
       const result = new ChainIntegrityValidationResult(true, [], []);
-      return { success: true, data: result };
+      return ok(result);
     }
 
     const integrityIssues: ChainIntegrityIssue[] = [];
@@ -95,11 +99,23 @@ export class PathCompletenessService {
       const currentId = argumentChain[i];
       const nextId = argumentChain[i + 1];
 
+      if (!currentId || !nextId) {
+        return err(
+          new ProcessingError(
+            `Invalid argument chain: missing argument at position ${i} or ${i + 1}`
+          )
+        );
+      }
+
       const linkValidation = await this.validateArgumentLink(currentId, nextId);
       if (!linkValidation.isValid) {
-        const brokenLink = new BrokenLink(currentId, nextId, linkValidation.reason || 'Unknown reason');
+        const brokenLink = new BrokenLink(
+          currentId,
+          nextId,
+          linkValidation.reason ?? 'Unknown reason'
+        );
         brokenLinks.push(brokenLink);
-        
+
         const issue = new ChainIntegrityIssue(
           'broken_link',
           `No direct connection between ${currentId.getValue()} and ${nextId.getValue()}`,
@@ -112,15 +128,19 @@ export class PathCompletenessService {
     const isIntact = integrityIssues.length === 0;
     const result = new ChainIntegrityValidationResult(isIntact, integrityIssues, brokenLinks);
 
-    return { success: true, data: result };
+    return ok(result);
   }
 
+  /**
+   * @deprecated Use TreeEntity.computeMinimalPathCompleteSet() for tree-specific optimization.
+   * This method remains for cross-tree set analysis.
+   */
   async computeMinimalPathCompleteSet(
     requiredArguments: AtomicArgumentId[]
   ): Promise<Result<MinimalPathCompleteSet, ProcessingError>> {
     if (requiredArguments.length === 0) {
       const result = new MinimalPathCompleteSet([], []);
-      return { success: true, data: result };
+      return ok(result);
     }
 
     const allConnections = await this.buildConnectionGraph(requiredArguments);
@@ -130,14 +150,18 @@ export class PathCompletenessService {
     );
 
     const result = new MinimalPathCompleteSet(minimalSet, redundantArguments);
-    return { success: true, data: result };
+    return ok(result);
   }
 
+  /**
+   * @deprecated Use TreeEntity.analyzeArgumentDependencies() for tree-specific dependency analysis.
+   * This method remains for cross-tree dependency analysis.
+   */
   async analyzeArgumentDependencies(
     targetArgumentId: AtomicArgumentId
   ): Promise<Result<ArgumentDependencyAnalysis, ProcessingError>> {
     const directDependencies = await this.findDirectDependencies(targetArgumentId);
-    const transitiveDependencies = await this.findTransitiveDependencies(targetArgumentId);
+    const transitiveDependencies = this.findTransitiveDependencies(targetArgumentId);
     const dependencyLevels = await this.computeDependencyLevels(targetArgumentId);
 
     const analysis = new ArgumentDependencyAnalysis(
@@ -147,7 +171,7 @@ export class PathCompletenessService {
       dependencyLevels
     );
 
-    return { success: true, data: analysis };
+    return ok(analysis);
   }
 
   private async analyzeConnectionsInSet(
@@ -160,10 +184,10 @@ export class PathCompletenessService {
       if (!argument) continue;
 
       const connectionsResult = await this.connectionService.findDirectConnections(argumentId);
-      if (!connectionsResult.success) continue;
+      if (connectionsResult.isErr()) continue;
 
-      const connectionMap = connectionsResult.data;
-      
+      const connectionMap = connectionsResult.value;
+
       for (const parent of connectionMap.getParents()) {
         if (argumentSet.some(id => id.equals(parent.getId()))) {
           connections.push(new ArgumentConnection(parent.getId(), argumentId, 'direct'));
@@ -174,10 +198,10 @@ export class PathCompletenessService {
     return connections;
   }
 
-  private async findMissingIntermediateArguments(
+  private findMissingIntermediateArguments(
     argumentSet: AtomicArgumentId[],
     connections: ArgumentConnection[]
-  ): Promise<AtomicArgumentId[]> {
+  ): AtomicArgumentId[] {
     const missing: AtomicArgumentId[] = [];
     const connectedPairs = new Set<string>();
 
@@ -189,15 +213,22 @@ export class PathCompletenessService {
       for (let j = i + 1; j < argumentSet.length; j++) {
         const fromId = argumentSet[i];
         const toId = argumentSet[j];
+
+        if (!fromId || !toId) {
+          continue;
+        }
+
         const pairKey = `${fromId.getValue()}->${toId.getValue()}`;
 
         if (!connectedPairs.has(pairKey)) {
-          const pathResult = await this.connectionService.findPathCompleteArgument(fromId, toId);
-          if (pathResult.success) {
-            const intermediatePaths = pathResult.data.getAllArguments();
+          const pathResult = this.connectionService.findPathCompleteArgument(fromId, toId);
+          if (pathResult.isOk()) {
+            const intermediatePaths = pathResult.value.getAllArguments();
             for (const intermediate of intermediatePaths) {
-              if (!argumentSet.some(id => id.equals(intermediate)) &&
-                  !missing.some(id => id.equals(intermediate))) {
+              if (
+                !argumentSet.some(id => id.equals(intermediate)) &&
+                !missing.some(id => id.equals(intermediate))
+              ) {
                 missing.push(intermediate);
               }
             }
@@ -215,34 +246,26 @@ export class PathCompletenessService {
     for (const argumentId of argumentIds) {
       const argument = await this.atomicArgumentRepo.findById(argumentId);
       if (!argument) {
-        return {
-          success: false,
-          error: new ProcessingError(`Argument ${argumentId.getValue()} not found`)
-        };
+        return err(new ProcessingError(`Argument ${argumentId.getValue()} not found`));
       }
 
       if (!argument.isComplete()) {
-        return {
-          success: false,
-          error: new ProcessingError(`Argument ${argumentId.getValue()} is incomplete`)
-        };
+        return err(new ProcessingError(`Argument ${argumentId.getValue()} is incomplete`));
       }
     }
 
-    return { success: true, data: undefined };
+    return ok(undefined);
   }
 
-  private async identifyConnectedPairs(
-    argumentSet: AtomicArgumentId[]
-  ): Promise<ConnectedPair[]> {
+  private async identifyConnectedPairs(argumentSet: AtomicArgumentId[]): Promise<ConnectedPair[]> {
     const pairs: ConnectedPair[] = [];
 
     for (const argumentId of argumentSet) {
       const connectionsResult = await this.connectionService.findDirectConnections(argumentId);
-      if (!connectionsResult.success) continue;
+      if (connectionsResult.isErr()) continue;
 
-      const connectionMap = connectionsResult.data;
-      
+      const connectionMap = connectionsResult.value;
+
       for (const parent of connectionMap.getParents()) {
         if (argumentSet.some(id => id.equals(parent.getId()))) {
           pairs.push(new ConnectedPair(parent.getId(), argumentId));
@@ -253,9 +276,7 @@ export class PathCompletenessService {
     return pairs;
   }
 
-  private async identifyConnectionGaps(
-    connectedPairs: ConnectedPair[]
-  ): Promise<ConnectionGap[]> {
+  private identifyConnectionGaps(connectedPairs: ConnectedPair[]): ConnectionGap[] {
     const gaps: ConnectionGap[] = [];
     const directConnections = new Set(
       connectedPairs.map(pair => `${pair.from.getValue()}->${pair.to.getValue()}`)
@@ -275,23 +296,20 @@ export class PathCompletenessService {
     return gaps;
   }
 
-  private async resolveGapsToArguments(
-    gaps: ConnectionGap[]
-  ): Promise<AtomicArgumentId[]> {
+  private resolveGapsToArguments(gaps: ConnectionGap[]): AtomicArgumentId[] {
     const required: AtomicArgumentId[] = [];
 
     for (const gap of gaps) {
-      const pathResult = await this.connectionService.findPathCompleteArgument(
-        gap.from,
-        gap.to
-      );
+      const pathResult = this.connectionService.findPathCompleteArgument(gap.from, gap.to);
 
-      if (pathResult.success) {
-        const intermediates = pathResult.data.getAllArguments();
+      if (pathResult.isOk()) {
+        const intermediates = pathResult.value.getAllArguments();
         for (const intermediate of intermediates) {
-          if (!gap.from.equals(intermediate) && 
-              !gap.to.equals(intermediate) &&
-              !required.some(id => id.equals(intermediate))) {
+          if (
+            !gap.from.equals(intermediate) &&
+            !gap.to.equals(intermediate) &&
+            !required.some(id => id.equals(intermediate))
+          ) {
             required.push(intermediate);
           }
         }
@@ -326,9 +344,9 @@ export class PathCompletenessService {
 
     for (const argumentId of argumentIds) {
       const connectionsResult = await this.connectionService.findDirectConnections(argumentId);
-      if (!connectionsResult.success) continue;
+      if (connectionsResult.isErr()) continue;
 
-      const connectionMap = connectionsResult.data;
+      const connectionMap = connectionsResult.value;
       const connectedIds: AtomicArgumentId[] = [];
 
       for (const parent of connectionMap.getParents()) {
@@ -357,7 +375,9 @@ export class PathCompletenessService {
 
     const visited = new Set<string>();
     const minimal: AtomicArgumentId[] = [];
-    const queue = [argumentIds[0]];
+    const firstArgument = argumentIds[0];
+    if (!firstArgument) return [];
+    const queue = [firstArgument];
 
     while (queue.length > 0) {
       const current = queue.shift()!;
@@ -368,7 +388,7 @@ export class PathCompletenessService {
       visited.add(currentKey);
       minimal.push(current);
 
-      const connections = connectionGraph.get(currentKey) || [];
+      const connections = connectionGraph.get(currentKey) ?? [];
       for (const connected of connections) {
         if (!visited.has(connected.getValue())) {
           queue.push(connected);
@@ -379,22 +399,18 @@ export class PathCompletenessService {
     return minimal;
   }
 
-  private async findDirectDependencies(
-    argumentId: AtomicArgumentId
-  ): Promise<AtomicArgumentId[]> {
+  private async findDirectDependencies(argumentId: AtomicArgumentId): Promise<AtomicArgumentId[]> {
     const connectionsResult = await this.connectionService.findDirectConnections(argumentId);
-    if (!connectionsResult.success) return [];
+    if (connectionsResult.isErr()) return [];
 
-    return connectionsResult.data.getParents().map(parent => parent.getId());
+    return connectionsResult.value.getParents().map(parent => parent.getId());
   }
 
-  private async findTransitiveDependencies(
-    argumentId: AtomicArgumentId
-  ): Promise<AtomicArgumentId[]> {
-    const treeResult = await this.connectionService.findArgumentTree(argumentId);
-    if (!treeResult.success) return [];
+  private findTransitiveDependencies(argumentId: AtomicArgumentId): AtomicArgumentId[] {
+    const treeResult = this.connectionService.findArgumentTree(argumentId);
+    if (treeResult.isErr()) return [];
 
-    const allArguments = treeResult.data.getAllArguments();
+    const allArguments = treeResult.value.getAllArguments();
     return allArguments.filter(id => !id.equals(argumentId));
   }
 
@@ -415,8 +431,8 @@ export class PathCompletenessService {
       levels.set(id, level);
 
       const connectionsResult = await this.connectionService.findDirectConnections(id);
-      if (connectionsResult.success) {
-        const parents = connectionsResult.data.getParents();
+      if (connectionsResult.isOk()) {
+        const parents = connectionsResult.value.getParents();
         for (const parent of parents) {
           if (!visited.has(parent.getId().getValue())) {
             queue.push({ id: parent.getId(), level: level + 1 });

@@ -1,44 +1,34 @@
-import { Result } from "../../../../domain/shared/result.js"
-import { ValidationError } from "../../../../domain/shared/result.js"
+import { err, ok, type Result } from 'neverthrow';
+
+import { ValidationError } from '../errors/DomainErrors';
 
 export class LanguagePackageId {
   private constructor(private readonly value: string) {}
 
   static create(value: string): Result<LanguagePackageId, ValidationError> {
     if (!value || value.trim().length === 0) {
-      return {
-        success: false,
-        error: new ValidationError('Language package ID cannot be empty')
-      };
+      return err(new ValidationError('Language package ID cannot be empty'));
     }
 
     const trimmedValue = value.trim();
 
     if (trimmedValue.length < 3) {
-      return {
-        success: false,
-        error: new ValidationError('Language package ID must be at least 3 characters long')
-      };
+      return err(new ValidationError('Language package ID must be at least 3 characters long'));
     }
 
     if (trimmedValue.length > 100) {
-      return {
-        success: false,
-        error: new ValidationError('Language package ID cannot exceed 100 characters')
-      };
+      return err(new ValidationError('Language package ID cannot exceed 100 characters'));
     }
 
     if (!/^[a-zA-Z0-9_-]+$/.test(trimmedValue)) {
-      return {
-        success: false,
-        error: new ValidationError('Language package ID can only contain letters, numbers, hyphens, and underscores')
-      };
+      return err(
+        new ValidationError(
+          'Language package ID can only contain letters, numbers, hyphens, and underscores'
+        )
+      );
     }
 
-    return {
-      success: true,
-      data: new LanguagePackageId(trimmedValue)
-    };
+    return ok(new LanguagePackageId(trimmedValue));
   }
 
   static generate(): LanguagePackageId {
@@ -47,22 +37,22 @@ export class LanguagePackageId {
     return new LanguagePackageId(`pkg_${timestamp}_${random}`);
   }
 
-  static fromNameAndVersion(name: string, version: string): Result<LanguagePackageId, ValidationError> {
+  static fromNameAndVersion(
+    name: string,
+    version: string
+  ): Result<LanguagePackageId, ValidationError> {
     if (!name || name.trim().length === 0) {
-      return {
-        success: false,
-        error: new ValidationError('Package name cannot be empty')
-      };
+      return err(new ValidationError('Package name cannot be empty'));
     }
 
     if (!version || version.trim().length === 0) {
-      return {
-        success: false,
-        error: new ValidationError('Package version cannot be empty')
-      };
+      return err(new ValidationError('Package version cannot be empty'));
     }
 
-    const sanitizedName = name.trim().toLowerCase().replace(/[^a-z0-9]/g, '-');
+    const sanitizedName = name
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '-');
     const sanitizedVersion = version.trim().replace(/[^a-zA-Z0-9.-]/g, '');
     const packageId = `${sanitizedName}-${sanitizedVersion}`;
 
@@ -87,12 +77,12 @@ export class LanguagePackageId {
 
   extractVersion(): string | null {
     const versionMatch = this.value.match(/-([0-9]+\.[0-9]+\.[0-9]+.*?)$/);
-    return versionMatch ? versionMatch[1] : null;
+    return versionMatch ? (versionMatch[1] ?? null) : null;
   }
 
   extractBaseName(): string {
     const versionMatch = this.value.match(/^(.+?)-[0-9]+\.[0-9]+\.[0-9]+/);
-    return versionMatch ? versionMatch[1] : this.value;
+    return versionMatch ? (versionMatch[1] ?? this.value) : this.value;
   }
 
   withVersion(version: string): Result<LanguagePackageId, ValidationError> {

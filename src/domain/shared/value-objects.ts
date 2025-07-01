@@ -1,8 +1,8 @@
 // Simple UUID generation for development
 function randomUUID(): string {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
     return v.toString(16);
   });
 }
@@ -15,8 +15,7 @@ function isInteger(value: number): boolean {
 function isFinite(value: number): boolean {
   return typeof value === 'number' && globalThis.isFinite(value);
 }
-import type { Result } from './result.js';
-import { ValidationError, createSuccess, createFailure } from './result.js';
+import { err, ok, type Result, ValidationError } from './result.js';
 
 export abstract class ValueObject<T> {
   constructor(protected readonly value: T) {}
@@ -57,14 +56,16 @@ export class StatementId extends ValueObject<BrandedStatementId> {
 
   static create(value: string): Result<StatementId, ValidationError> {
     if (!value || value.trim().length === 0) {
-      return createFailure(new ValidationError('StatementId cannot be empty', { field: 'value', value }));
+      return err(new ValidationError('StatementId cannot be empty', { field: 'value', value }));
     }
 
     if (value.length > 255) {
-      return createFailure(new ValidationError('StatementId cannot exceed 255 characters', { field: 'value', value }));
+      return err(
+        new ValidationError('StatementId cannot exceed 255 characters', { field: 'value', value })
+      );
     }
 
-    return createSuccess(new StatementId(value.trim()));
+    return ok(new StatementId(value.trim()));
   }
 
   static generate(): StatementId {
@@ -73,10 +74,10 @@ export class StatementId extends ValueObject<BrandedStatementId> {
 
   static fromString(value: string): StatementId {
     const result = StatementId.create(value);
-    if (!result.success) {
-      throw (result as { success: false; error: ValidationError }).error;
+    if (result.isErr()) {
+      throw result.error;
     }
-    return result.data;
+    return result.value;
   }
 }
 
@@ -87,14 +88,16 @@ export class OrderedSetId extends ValueObject<BrandedOrderedSetId> {
 
   static create(value: string): Result<OrderedSetId, ValidationError> {
     if (!value || value.trim().length === 0) {
-      return createFailure(new ValidationError('OrderedSetId cannot be empty', { field: 'value', value }));
+      return err(new ValidationError('OrderedSetId cannot be empty', { field: 'value', value }));
     }
 
     if (value.length > 255) {
-      return createFailure(new ValidationError('OrderedSetId cannot exceed 255 characters', { field: 'value', value }));
+      return err(
+        new ValidationError('OrderedSetId cannot exceed 255 characters', { field: 'value', value })
+      );
     }
 
-    return createSuccess(new OrderedSetId(value.trim()));
+    return ok(new OrderedSetId(value.trim()));
   }
 
   static generate(): OrderedSetId {
@@ -103,10 +106,10 @@ export class OrderedSetId extends ValueObject<BrandedOrderedSetId> {
 
   static fromString(value: string): OrderedSetId {
     const result = OrderedSetId.create(value);
-    if (!result.success) {
-      throw (result as { success: false; error: ValidationError }).error;
+    if (result.isErr()) {
+      throw result.error;
     }
-    return result.data;
+    return result.value;
   }
 }
 
@@ -117,14 +120,21 @@ export class AtomicArgumentId extends ValueObject<BrandedAtomicArgumentId> {
 
   static create(value: string): Result<AtomicArgumentId, ValidationError> {
     if (!value || value.trim().length === 0) {
-      return createFailure(new ValidationError('AtomicArgumentId cannot be empty', { field: 'value', value }));
+      return err(
+        new ValidationError('AtomicArgumentId cannot be empty', { field: 'value', value })
+      );
     }
 
     if (value.length > 255) {
-      return createFailure(new ValidationError('AtomicArgumentId cannot exceed 255 characters', { field: 'value', value }));
+      return err(
+        new ValidationError('AtomicArgumentId cannot exceed 255 characters', {
+          field: 'value',
+          value,
+        })
+      );
     }
 
-    return createSuccess(new AtomicArgumentId(value.trim()));
+    return ok(new AtomicArgumentId(value.trim()));
   }
 
   static generate(): AtomicArgumentId {
@@ -133,10 +143,10 @@ export class AtomicArgumentId extends ValueObject<BrandedAtomicArgumentId> {
 
   static fromString(value: string): AtomicArgumentId {
     const result = AtomicArgumentId.create(value);
-    if (!result.success) {
-      throw (result as { success: false; error: ValidationError }).error;
+    if (result.isErr()) {
+      throw result.error;
     }
-    return result.data;
+    return result.value;
   }
 }
 
@@ -147,14 +157,16 @@ export class NodeId extends ValueObject<BrandedNodeId> {
 
   static create(value: string): Result<NodeId, ValidationError> {
     if (!value || value.trim().length === 0) {
-      return createFailure(new ValidationError('NodeId cannot be empty', { field: 'value', value }));
+      return err(new ValidationError('NodeId cannot be empty', { field: 'value', value }));
     }
 
     if (value.length > 255) {
-      return createFailure(new ValidationError('NodeId cannot exceed 255 characters', { field: 'value', value }));
+      return err(
+        new ValidationError('NodeId cannot exceed 255 characters', { field: 'value', value })
+      );
     }
 
-    return createSuccess(new NodeId(value.trim()));
+    return ok(new NodeId(value.trim()));
   }
 
   static generate(): NodeId {
@@ -163,10 +175,10 @@ export class NodeId extends ValueObject<BrandedNodeId> {
 
   static fromString(value: string): NodeId {
     const result = NodeId.create(value);
-    if (!result.success) {
-      throw (result as { success: false; error: ValidationError }).error;
+    if (result.isErr()) {
+      throw result.error;
     }
-    return result.data;
+    return result.value;
   }
 }
 
@@ -177,14 +189,16 @@ export class TreeId extends ValueObject<BrandedTreeId> {
 
   static create(value: string): Result<TreeId, ValidationError> {
     if (!value || value.trim().length === 0) {
-      return createFailure(new ValidationError('TreeId cannot be empty', { field: 'value', value }));
+      return err(new ValidationError('TreeId cannot be empty', { field: 'value', value }));
     }
 
     if (value.length > 255) {
-      return createFailure(new ValidationError('TreeId cannot exceed 255 characters', { field: 'value', value }));
+      return err(
+        new ValidationError('TreeId cannot exceed 255 characters', { field: 'value', value })
+      );
     }
 
-    return createSuccess(new TreeId(value.trim()));
+    return ok(new TreeId(value.trim()));
   }
 
   static generate(): TreeId {
@@ -193,10 +207,10 @@ export class TreeId extends ValueObject<BrandedTreeId> {
 
   static fromString(value: string): TreeId {
     const result = TreeId.create(value);
-    if (!result.success) {
-      throw (result as { success: false; error: ValidationError }).error;
+    if (result.isErr()) {
+      throw result.error;
     }
-    return result.data;
+    return result.value;
   }
 }
 
@@ -207,14 +221,16 @@ export class DocumentId extends ValueObject<BrandedDocumentId> {
 
   static create(value: string): Result<DocumentId, ValidationError> {
     if (!value || value.trim().length === 0) {
-      return createFailure(new ValidationError('DocumentId cannot be empty', { field: 'value', value }));
+      return err(new ValidationError('DocumentId cannot be empty', { field: 'value', value }));
     }
 
     if (value.length > 255) {
-      return createFailure(new ValidationError('DocumentId cannot exceed 255 characters', { field: 'value', value }));
+      return err(
+        new ValidationError('DocumentId cannot exceed 255 characters', { field: 'value', value })
+      );
     }
 
-    return createSuccess(new DocumentId(value.trim()));
+    return ok(new DocumentId(value.trim()));
   }
 
   static generate(): DocumentId {
@@ -223,10 +239,10 @@ export class DocumentId extends ValueObject<BrandedDocumentId> {
 
   static fromString(value: string): DocumentId {
     const result = DocumentId.create(value);
-    if (!result.success) {
-      throw (result as { success: false; error: ValidationError }).error;
+    if (result.isErr()) {
+      throw result.error;
     }
-    return result.data;
+    return result.value;
   }
 }
 
@@ -237,14 +253,16 @@ export class PackageId extends ValueObject<BrandedPackageId> {
 
   static create(value: string): Result<PackageId, ValidationError> {
     if (!value || value.trim().length === 0) {
-      return createFailure(new ValidationError('PackageId cannot be empty', { field: 'value', value }));
+      return err(new ValidationError('PackageId cannot be empty', { field: 'value', value }));
     }
 
     if (value.length > 255) {
-      return createFailure(new ValidationError('PackageId cannot exceed 255 characters', { field: 'value', value }));
+      return err(
+        new ValidationError('PackageId cannot exceed 255 characters', { field: 'value', value })
+      );
     }
 
-    return createSuccess(new PackageId(value.trim()));
+    return ok(new PackageId(value.trim()));
   }
 
   static generate(): PackageId {
@@ -253,10 +271,10 @@ export class PackageId extends ValueObject<BrandedPackageId> {
 
   static fromString(value: string): PackageId {
     const result = PackageId.create(value);
-    if (!result.success) {
-      throw (result as { success: false; error: ValidationError }).error;
+    if (result.isErr()) {
+      throw result.error;
     }
-    return result.data;
+    return result.value;
   }
 }
 
@@ -267,27 +285,39 @@ export class StatementContent extends ValueObject<string> {
 
   static create(value: string): Result<StatementContent, ValidationError> {
     if (value === null || value === undefined) {
-      return createFailure(new ValidationError('StatementContent cannot be null or undefined', { field: 'value', value }));
+      return err(
+        new ValidationError('StatementContent cannot be null or undefined', {
+          field: 'value',
+          value,
+        })
+      );
     }
 
     const trimmed = value.trim();
     if (trimmed.length === 0) {
-      return createFailure(new ValidationError('StatementContent cannot be empty', { field: 'value', value }));
+      return err(
+        new ValidationError('StatementContent cannot be empty', { field: 'value', value })
+      );
     }
 
     if (trimmed.length > 10000) {
-      return createFailure(new ValidationError('StatementContent cannot exceed 10000 characters', { field: 'value', value }));
+      return err(
+        new ValidationError('StatementContent cannot exceed 10000 characters', {
+          field: 'value',
+          value,
+        })
+      );
     }
 
-    return createSuccess(new StatementContent(trimmed));
+    return ok(new StatementContent(trimmed));
   }
 
   static fromString(value: string): StatementContent {
     const result = StatementContent.create(value);
-    if (!result.success) {
-      throw (result as { success: false; error: ValidationError }).error;
+    if (result.isErr()) {
+      throw result.error;
     }
-    return result.data;
+    return result.value;
   }
 
   get isEmpty(): boolean {
@@ -306,10 +336,12 @@ export class Version extends ValueObject<number> {
 
   static create(value: number): Result<Version, ValidationError> {
     if (!isInteger(value) || value < 0) {
-      return createFailure(new ValidationError('Version must be a non-negative integer', { field: 'value', value }));
+      return err(
+        new ValidationError('Version must be a non-negative integer', { field: 'value', value })
+      );
     }
 
-    return createSuccess(new Version(value));
+    return ok(new Version(value));
   }
 
   static initial(): Version {
@@ -336,10 +368,12 @@ export class Timestamp extends ValueObject<number> {
 
   static create(value: number): Result<Timestamp, ValidationError> {
     if (!isInteger(value) || value < 0) {
-      return createFailure(new ValidationError('Timestamp must be a non-negative integer', { field: 'value', value }));
+      return err(
+        new ValidationError('Timestamp must be a non-negative integer', { field: 'value', value })
+      );
     }
 
-    return createSuccess(new Timestamp(value));
+    return ok(new Timestamp(value));
   }
 
   static now(): Timestamp {
@@ -371,14 +405,18 @@ export class Position2D {
 
   static create(x: number, y: number): Result<Position2D, ValidationError> {
     if (!isFinite(x)) {
-      return createFailure(new ValidationError('X coordinate must be a finite number', { field: 'x', value: x }));
+      return err(
+        new ValidationError('X coordinate must be a finite number', { field: 'x', value: x })
+      );
     }
 
     if (!isFinite(y)) {
-      return createFailure(new ValidationError('Y coordinate must be a finite number', { field: 'y', value: y }));
+      return err(
+        new ValidationError('Y coordinate must be a finite number', { field: 'y', value: y })
+      );
     }
 
-    return createSuccess(new Position2D(x, y));
+    return ok(new Position2D(x, y));
   }
 
   static origin(): Position2D {
@@ -425,20 +463,24 @@ export class Attachment {
     fromPosition?: number
   ): Result<Attachment, ValidationError> {
     if (premisePosition < 0 || !isInteger(premisePosition)) {
-      return createFailure(new ValidationError('Premise position must be a non-negative integer', { 
-        field: 'premisePosition', 
-        value: premisePosition 
-      }));
+      return err(
+        new ValidationError('Premise position must be a non-negative integer', {
+          field: 'premisePosition',
+          value: premisePosition,
+        })
+      );
     }
 
     if (fromPosition !== undefined && (fromPosition < 0 || !isInteger(fromPosition))) {
-      return createFailure(new ValidationError('From position must be a non-negative integer', { 
-        field: 'fromPosition', 
-        value: fromPosition 
-      }));
+      return err(
+        new ValidationError('From position must be a non-negative integer', {
+          field: 'fromPosition',
+          value: fromPosition,
+        })
+      );
     }
 
-    return createSuccess(new Attachment(parentNodeId, premisePosition, fromPosition));
+    return ok(new Attachment(parentNodeId, premisePosition, fromPosition));
   }
 
   getParentNodeId(): NodeId {
@@ -467,9 +509,7 @@ export class Attachment {
 
   toString(): string {
     const baseInfo = `parent=${this.parentNodeId.getValue()}, position=${this.premisePosition}`;
-    return this.fromPosition !== undefined 
-      ? `${baseInfo}, from=${this.fromPosition}`
-      : baseInfo;
+    return this.fromPosition !== undefined ? `${baseInfo}, from=${this.fromPosition}` : baseInfo;
   }
 }
 
@@ -490,62 +530,64 @@ export class PhysicalProperties {
 
   static create(
     layoutStyle: LayoutStyle = 'bottom-up',
-    spacingX: number = 50,
-    spacingY: number = 40,
-    minWidth: number = 100,
-    minHeight: number = 80,
+    spacingX = 50,
+    spacingY = 40,
+    minWidth = 100,
+    minHeight = 80,
     expansionDirection: ExpansionDirection = 'vertical',
     alignmentMode: AlignmentMode = 'center'
   ): Result<PhysicalProperties, ValidationError> {
     if (spacingX < 0 || !isFinite(spacingX)) {
-      return createFailure(new ValidationError('Horizontal spacing must be non-negative and finite', { 
-        field: 'spacingX', 
-        value: spacingX 
-      }));
+      return err(
+        new ValidationError('Horizontal spacing must be non-negative and finite', {
+          field: 'spacingX',
+          value: spacingX,
+        })
+      );
     }
 
     if (spacingY < 0 || !isFinite(spacingY)) {
-      return createFailure(new ValidationError('Vertical spacing must be non-negative and finite', { 
-        field: 'spacingY', 
-        value: spacingY 
-      }));
+      return err(
+        new ValidationError('Vertical spacing must be non-negative and finite', {
+          field: 'spacingY',
+          value: spacingY,
+        })
+      );
     }
 
     if (minWidth <= 0 || !isFinite(minWidth)) {
-      return createFailure(new ValidationError('Minimum width must be positive and finite', { 
-        field: 'minWidth', 
-        value: minWidth 
-      }));
+      return err(
+        new ValidationError('Minimum width must be positive and finite', {
+          field: 'minWidth',
+          value: minWidth,
+        })
+      );
     }
 
     if (minHeight <= 0 || !isFinite(minHeight)) {
-      return createFailure(new ValidationError('Minimum height must be positive and finite', { 
-        field: 'minHeight', 
-        value: minHeight 
-      }));
+      return err(
+        new ValidationError('Minimum height must be positive and finite', {
+          field: 'minHeight',
+          value: minHeight,
+        })
+      );
     }
 
-    return createSuccess(new PhysicalProperties(
-      layoutStyle,
-      spacingX,
-      spacingY,
-      minWidth,
-      minHeight,
-      expansionDirection,
-      alignmentMode
-    ));
+    return ok(
+      new PhysicalProperties(
+        layoutStyle,
+        spacingX,
+        spacingY,
+        minWidth,
+        minHeight,
+        expansionDirection,
+        alignmentMode
+      )
+    );
   }
 
   static default(): PhysicalProperties {
-    return new PhysicalProperties(
-      'bottom-up',
-      50,
-      40,
-      100,
-      80,
-      'vertical',
-      'center'
-    );
+    return new PhysicalProperties('bottom-up', 50, 40, 100, 80, 'vertical', 'center');
   }
 
   getLayoutStyle(): LayoutStyle {
@@ -600,7 +642,10 @@ export class PhysicalProperties {
     );
   }
 
-  withMinDimensions(minWidth: number, minHeight: number): Result<PhysicalProperties, ValidationError> {
+  withMinDimensions(
+    minWidth: number,
+    minHeight: number
+  ): Result<PhysicalProperties, ValidationError> {
     return PhysicalProperties.create(
       this.layoutStyle,
       this.spacingX,
@@ -612,7 +657,9 @@ export class PhysicalProperties {
     );
   }
 
-  withExpansionDirection(expansionDirection: ExpansionDirection): Result<PhysicalProperties, ValidationError> {
+  withExpansionDirection(
+    expansionDirection: ExpansionDirection
+  ): Result<PhysicalProperties, ValidationError> {
     return PhysicalProperties.create(
       this.layoutStyle,
       this.spacingX,

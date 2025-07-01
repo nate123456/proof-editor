@@ -1,43 +1,32 @@
-import { Result } from "../../../../domain/shared/result.js"
-import { ValidationError } from "../../../../domain/shared/result.js"
+import { err, ok, type Result } from 'neverthrow';
+
+import { ValidationError } from '../errors/DomainErrors';
 
 export class LanguageCapabilities {
   private constructor(private readonly capabilities: Set<string>) {}
 
   static create(capabilities: string[]): Result<LanguageCapabilities, ValidationError> {
     if (!capabilities || capabilities.length === 0) {
-      return {
-        success: false,
-        error: new ValidationError('At least one capability must be provided')
-      };
+      return err(new ValidationError('At least one capability must be provided'));
     }
 
     const validatedCapabilities = new Set<string>();
 
     for (const capability of capabilities) {
       if (!capability || capability.trim().length === 0) {
-        return {
-          success: false,
-          error: new ValidationError('Capability cannot be empty')
-        };
+        return err(new ValidationError('Capability cannot be empty'));
       }
 
       const trimmed = capability.trim().toLowerCase();
-      
+
       if (!LanguageCapabilities.isValidCapability(trimmed)) {
-        return {
-          success: false,
-          error: new ValidationError(`Invalid capability: ${capability}`)
-        };
+        return err(new ValidationError(`Invalid capability: ${capability}`));
       }
 
       validatedCapabilities.add(trimmed);
     }
 
-    return {
-      success: true,
-      data: new LanguageCapabilities(validatedCapabilities)
-    };
+    return ok(new LanguageCapabilities(validatedCapabilities));
   }
 
   static createEmpty(): LanguageCapabilities {
@@ -50,7 +39,7 @@ export class LanguageCapabilities {
       'truth-tables',
       'satisfiability-checking',
       'tautology-validation',
-      'boolean-algebra'
+      'boolean-algebra',
     ]);
   }
 
@@ -61,7 +50,7 @@ export class LanguageCapabilities {
       'necessity-validation',
       'possibility-validation',
       'accessibility-relations',
-      'modal-axioms'
+      'modal-axioms',
     ]);
   }
 
@@ -72,7 +61,7 @@ export class LanguageCapabilities {
       'function-symbols',
       'variable-binding',
       'unification',
-      'herbrand-universe'
+      'herbrand-universe',
     ]);
   }
 
@@ -86,7 +75,7 @@ export class LanguageCapabilities {
       'boolean-algebra',
       'cnf-conversion',
       'dnf-conversion',
-      
+
       // Modal Logic
       'modal-operators',
       'possible-worlds',
@@ -97,7 +86,7 @@ export class LanguageCapabilities {
       'temporal-logic',
       'deontic-logic',
       'epistemic-logic',
-      
+
       // First Order Logic
       'quantifiers',
       'predicate-logic',
@@ -107,25 +96,25 @@ export class LanguageCapabilities {
       'herbrand-universe',
       'skolemization',
       'resolution-theorem-proving',
-      
+
       // Higher Order Logic
       'higher-order-quantification',
       'lambda-abstraction',
       'type-theory',
-      
+
       // Proof Systems
       'natural-deduction',
       'sequent-calculus',
       'resolution',
       'tableau-method',
       'hilbert-system',
-      
+
       // Syntax and Parsing
       'syntax-highlighting',
       'parse-trees',
       'error-recovery',
       'incremental-parsing',
-      
+
       // Validation and Analysis
       'syntax-validation',
       'semantic-validation',
@@ -133,31 +122,31 @@ export class LanguageCapabilities {
       'proof-checking',
       'consistency-checking',
       'completeness-checking',
-      
+
       // Educational Features
       'step-by-step-guidance',
       'hint-generation',
       'error-explanation',
       'proof-visualization',
       'interactive-exercises',
-      
+
       // Performance Features
       'parallel-validation',
       'caching',
       'incremental-validation',
       'lazy-evaluation',
-      
+
       // Integration Features
       'lsp-support',
       'vscode-integration',
       'web-compatibility',
       'mobile-support',
-      
+
       // Custom Extensions
       'custom-rules',
       'plugin-system',
       'scripting-support',
-      'api-extensions'
+      'api-extensions',
     ]);
 
     return validCapabilities.has(capability);
@@ -177,21 +166,15 @@ export class LanguageCapabilities {
 
   addCapability(capability: string): Result<LanguageCapabilities, ValidationError> {
     const trimmed = capability.trim().toLowerCase();
-    
+
     if (!LanguageCapabilities.isValidCapability(trimmed)) {
-      return {
-        success: false,
-        error: new ValidationError(`Invalid capability: ${capability}`)
-      };
+      return err(new ValidationError(`Invalid capability: ${capability}`));
     }
 
     const newCapabilities = new Set(this.capabilities);
     newCapabilities.add(trimmed);
 
-    return {
-      success: true,
-      data: new LanguageCapabilities(newCapabilities)
-    };
+    return ok(new LanguageCapabilities(newCapabilities));
   }
 
   removeCapability(capability: string): LanguageCapabilities {
@@ -207,13 +190,13 @@ export class LanguageCapabilities {
 
   intersectWith(other: LanguageCapabilities): LanguageCapabilities {
     const intersection = new Set<string>();
-    
+
     for (const capability of this.capabilities) {
       if (other.capabilities.has(capability)) {
         intersection.add(capability);
       }
     }
-    
+
     return new LanguageCapabilities(intersection);
   }
 
@@ -224,7 +207,7 @@ export class LanguageCapabilities {
       'modal-operators',
       'quantifiers',
       'syntax-validation',
-      'semantic-validation'
+      'semantic-validation',
     ]);
 
     for (const capability of this.capabilities) {
@@ -253,16 +236,20 @@ export class LanguageCapabilities {
   }
 
   supportsProofSystems(): boolean {
-    return this.hasCapability('natural-deduction') ||
-           this.hasCapability('sequent-calculus') ||
-           this.hasCapability('resolution') ||
-           this.hasCapability('tableau-method');
+    return (
+      this.hasCapability('natural-deduction') ||
+      this.hasCapability('sequent-calculus') ||
+      this.hasCapability('resolution') ||
+      this.hasCapability('tableau-method')
+    );
   }
 
   supportsEducationalFeatures(): boolean {
-    return this.hasCapability('step-by-step-guidance') ||
-           this.hasCapability('hint-generation') ||
-           this.hasCapability('error-explanation');
+    return (
+      this.hasCapability('step-by-step-guidance') ||
+      this.hasCapability('hint-generation') ||
+      this.hasCapability('error-explanation')
+    );
   }
 
   getLogicLevel(): LogicLevel {
@@ -282,25 +269,49 @@ export class LanguageCapabilities {
       educational: [],
       performance: [],
       integration: [],
-      custom: []
+      custom: [],
     };
 
     for (const capability of this.capabilities) {
-      if (capability.includes('logic') || capability.includes('operators') || capability.includes('quantifiers')) {
+      if (
+        capability.includes('logic') ||
+        capability.includes('operators') ||
+        capability.includes('quantifiers')
+      ) {
         categories.logic.push(capability);
-      } else if (capability.includes('deduction') || capability.includes('calculus') || capability.includes('resolution')) {
+      } else if (
+        capability.includes('deduction') ||
+        capability.includes('calculus') ||
+        capability.includes('resolution')
+      ) {
         categories.proofSystems.push(capability);
       } else if (capability.includes('syntax') || capability.includes('parse')) {
         categories.syntax.push(capability);
       } else if (capability.includes('validation') || capability.includes('checking')) {
         categories.validation.push(capability);
-      } else if (capability.includes('guidance') || capability.includes('hint') || capability.includes('explanation')) {
+      } else if (
+        capability.includes('guidance') ||
+        capability.includes('hint') ||
+        capability.includes('explanation')
+      ) {
         categories.educational.push(capability);
-      } else if (capability.includes('parallel') || capability.includes('caching') || capability.includes('performance')) {
+      } else if (
+        capability.includes('parallel') ||
+        capability.includes('caching') ||
+        capability.includes('performance')
+      ) {
         categories.performance.push(capability);
-      } else if (capability.includes('lsp') || capability.includes('vscode') || capability.includes('integration')) {
+      } else if (
+        capability.includes('lsp') ||
+        capability.includes('vscode') ||
+        capability.includes('integration')
+      ) {
         categories.integration.push(capability);
-      } else if (capability.includes('custom') || capability.includes('plugin') || capability.includes('extension')) {
+      } else if (
+        capability.includes('custom') ||
+        capability.includes('plugin') ||
+        capability.includes('extension')
+      ) {
         categories.custom.push(capability);
       }
     }

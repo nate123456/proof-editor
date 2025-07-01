@@ -1,6 +1,7 @@
-import type { Result } from '../shared/Result.ts';
-import { ValidationError } from '../errors/AnalysisErrors.ts';
-import { SourceLocation } from './SourceLocation.ts';
+import { err, ok, type Result } from 'neverthrow';
+
+import { ValidationError } from '../errors/AnalysisErrors.js';
+import { type SourceLocation } from './SourceLocation.js';
 
 export class PatternMatch {
   private constructor(
@@ -22,41 +23,28 @@ export class PatternMatch {
     location: SourceLocation,
     confidence: number,
     matchedContent: string,
-    variables: Map<string, string> = new Map(),
+    variables = new Map<string, string>(),
     context: MatchContext = MatchContext.createDefault(),
     validationScope?: ValidationScope
   ): Result<PatternMatch, ValidationError> {
     if (!patternId || patternId.trim().length === 0) {
-      return {
-        success: false,
-        error: new ValidationError('Pattern ID cannot be empty')
-      };
+      return err(new ValidationError('Pattern ID cannot be empty'));
     }
 
     if (!patternName || patternName.trim().length === 0) {
-      return {
-        success: false,
-        error: new ValidationError('Pattern name cannot be empty')
-      };
+      return err(new ValidationError('Pattern name cannot be empty'));
     }
 
     if (confidence < 0 || confidence > 1) {
-      return {
-        success: false,
-        error: new ValidationError('Confidence must be between 0 and 1')
-      };
+      return err(new ValidationError('Confidence must be between 0 and 1'));
     }
 
     if (!matchedContent || matchedContent.trim().length === 0) {
-      return {
-        success: false,
-        error: new ValidationError('Matched content cannot be empty')
-      };
+      return err(new ValidationError('Matched content cannot be empty'));
     }
 
-    return {
-      success: true,
-      data: new PatternMatch(
+    return ok(
+      new PatternMatch(
         patternId.trim(),
         patternType,
         patternName.trim(),
@@ -67,7 +55,7 @@ export class PatternMatch {
         context,
         validationScope
       )
-    };
+    );
   }
 
   static createInferenceMatch(
@@ -76,7 +64,7 @@ export class PatternMatch {
     location: SourceLocation,
     confidence: number,
     matchedContent: string,
-    variables: Map<string, string> = new Map()
+    variables = new Map<string, string>()
   ): Result<PatternMatch, ValidationError> {
     return PatternMatch.create(
       patternId,
@@ -186,7 +174,7 @@ export class PatternMatch {
   }
 
   getVariables(): ReadonlyMap<string, string> {
-    return new Map(this.variables);
+    return new Map(Array.from(this.variables));
   }
 
   getContext(): MatchContext {
@@ -250,25 +238,25 @@ export class PatternMatch {
       confidence: this.confidence,
       completeness: this.calculateCompleteness(),
       precision: this.calculatePrecision(),
-      contextRelevance: this.context.getRelevanceScore()
+      contextRelevance: this.context.getRelevanceScore(),
     };
 
-    quality.overallScore = (
+    quality.overallScore =
       quality.confidence * 0.4 +
       quality.completeness * 0.3 +
       quality.precision * 0.2 +
-      quality.contextRelevance * 0.1
-    );
+      quality.contextRelevance * 0.1;
 
     return quality;
   }
 
   private calculateCompleteness(): number {
     if (this.variables.size === 0) return 1.0;
-    
-    const unboundVariables = Array.from(this.variables.values())
-      .filter(value => !value || value.trim().length === 0).length;
-    
+
+    const unboundVariables = Array.from(this.variables.values()).filter(
+      value => !value || value.trim().length === 0
+    ).length;
+
     return (this.variables.size - unboundVariables) / this.variables.size;
   }
 
@@ -276,16 +264,16 @@ export class PatternMatch {
     const contentLength = this.matchedContent.length;
     const variableComplexity = this.variables.size * 10;
     const baseComplexity = 20;
-    
+
     const expectedLength = baseComplexity + variableComplexity;
     const lengthRatio = Math.min(contentLength / expectedLength, 1.0);
-    
-    return 0.5 + (lengthRatio * 0.5);
+
+    return 0.5 + lengthRatio * 0.5;
   }
 
   withHigherConfidence(increase: number): PatternMatch {
     const newConfidence = Math.min(1.0, this.confidence + increase);
-    
+
     return new PatternMatch(
       this.patternId,
       this.patternType,
@@ -300,8 +288,8 @@ export class PatternMatch {
   }
 
   withAdditionalVariables(newVariables: Map<string, string>): PatternMatch {
-    const combinedVariables = new Map([...this.variables, ...newVariables]);
-    
+    const combinedVariables = new Map([...Array.from(this.variables), ...Array.from(newVariables)]);
+
     return new PatternMatch(
       this.patternId,
       this.patternType,
@@ -317,7 +305,7 @@ export class PatternMatch {
 
   toDisplayFormat(): PatternMatchDisplay {
     const quality = this.getMatchQuality();
-    
+
     return {
       patternId: this.patternId,
       patternType: this.patternType,
@@ -327,31 +315,33 @@ export class PatternMatch {
       matchedContentPreview: this.getContentPreview(),
       variableCount: this.variables.size,
       qualityScore: Math.round((quality.overallScore ?? 0) * 100),
-      contextInfo: this.context.getDisplayInfo()
+      contextInfo: this.context.getDisplayInfo(),
     };
   }
 
-  private getContentPreview(maxLength: number = 50): string {
+  private getContentPreview(maxLength = 50): string {
     if (this.matchedContent.length <= maxLength) {
       return this.matchedContent;
     }
-    
-    return this.matchedContent.substring(0, maxLength - 3) + '...';
+
+    return `${this.matchedContent.substring(0, maxLength - 3)}...`;
   }
 
   equals(other: PatternMatch): boolean {
-    return this.patternId === other.patternId &&
-           this.location.equals(other.location) &&
-           this.matchedContent === other.matchedContent;
+    return (
+      this.patternId === other.patternId &&
+      this.location.equals(other.location) &&
+      this.matchedContent === other.matchedContent
+    );
   }
 }
 
-export type PatternType = 
-  | 'inference' 
-  | 'structural' 
-  | 'modal' 
-  | 'syntax' 
-  | 'semantic' 
+export type PatternType =
+  | 'inference'
+  | 'structural'
+  | 'modal'
+  | 'syntax'
+  | 'semantic'
   | 'educational'
   | 'validation';
 
@@ -398,53 +388,25 @@ export class MatchContext {
   ) {}
 
   static createDefault(): MatchContext {
-    return new MatchContext(
-      'basic',
-      '',
-      [],
-      0.5,
-      {}
-    );
+    return new MatchContext('basic', '', [], 0.5, {});
   }
 
   static createForInference(): MatchContext {
-    return new MatchContext(
-      'deep',
-      'inference-rule',
-      [],
-      0.9,
-      { type: 'logical-inference' }
-    );
+    return new MatchContext('deep', 'inference-rule', [], 0.9, { type: 'logical-inference' });
   }
 
   static createForStructural(): MatchContext {
-    return new MatchContext(
-      'moderate',
-      'structural-pattern',
-      [],
-      0.7,
-      { type: 'proof-structure' }
-    );
+    return new MatchContext('moderate', 'structural-pattern', [], 0.7, { type: 'proof-structure' });
   }
 
   static createForModal(): MatchContext {
-    return new MatchContext(
-      'deep',
-      'modal-logic',
-      [],
-      0.8,
-      { type: 'modal-reasoning' }
-    );
+    return new MatchContext('deep', 'modal-logic', [], 0.8, { type: 'modal-reasoning' });
   }
 
   static createForValidation(): MatchContext {
-    return new MatchContext(
-      'deep',
-      'validation-pattern',
-      [],
-      0.85,
-      { type: 'validation-analysis' }
-    );
+    return new MatchContext('deep', 'validation-pattern', [], 0.85, {
+      type: 'validation-analysis',
+    });
   }
 
   getAnalysisDepth(): AnalysisDepth {
@@ -471,7 +433,7 @@ export class MatchContext {
     const depth = this.analysisDepth;
     const context = this.surroundingContext || 'general';
     const relevance = Math.round(this.relevanceScore * 100);
-    
+
     return `${depth} analysis in ${context} context (${relevance}% relevant)`;
   }
 }

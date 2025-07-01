@@ -1,0 +1,52 @@
+{
+  "name": "proof-editor",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "tsc --noEmit",
+    "dev": "tsc --noEmit --watch",
+    "type-check": "tsc --noEmit",
+    "lint": "eslint 'src/**/*.ts'",
+    "lint:fix": "eslint 'src/**/*.ts' --fix",
+    "format": "prettier --write 'src/**/*.{ts,json}'",
+    "format:check": "prettier --check 'src/**/*.{ts,json}'",
+    "test": "vitest run --coverage",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "test:type-check": "npm run type-check",
+    "pretest": "npm run format && npm run lint:fix",
+    "cleanup": "npm run format && npm run lint:fix && npm run type-check",
+    "deps": "madge --extensions ts --exclude '^node_modules' src",
+    "deps:json": "madge --json --extensions ts --exclude '^node_modules' src",
+    "deps:circular": "madge --circular --extensions ts --exclude '^node_modules' src",
+    "deps:orphans": "madge --orphans --extensions ts --exclude '^node_modules' src",
+    "deps:report": "echo '=== DEPENDENCY ANALYSIS ===' && echo '\n--- Circular Dependencies ---' && npm run deps:circular && echo '\n--- Orphaned Modules ---' && npm run deps:orphans && echo '\n--- Full Dependency Tree ---' && npm run deps",
+    "test:prioritize": "node scripts/prioritize-testing.js",
+    "llm:collect": "node scripts/collect-source-files.js",
+    "llm:analysis": "node scripts/generate-llm-analysis-input.js",
+    "llm:prepare": "npm run llm:analysis && echo '\n✅ LLM analysis input ready!' && echo 'Upload llm-analysis-input.json and llm-analysis-summary.md to your LLM.' && echo 'Choose from prompts: DDD analysis, Security review, Performance audit, or General code analysis'",
+    "llm:prompts": "echo 'Available analysis prompts:' && echo '• scripts/prompts/llm-ddd-analysis-prompt.md - Domain-Driven Design analysis' && echo '• scripts/prompts/general-code-analysis.md - Comprehensive code review' && echo '• scripts/prompts/security-focused-analysis.md - Security vulnerability assessment' && echo '• scripts/prompts/performance-audit.md - Performance optimization review'"
+  },
+  "devDependencies": {
+    "@faker-js/faker": "^9.8.0",
+    "@types/node": "^22.0.0",
+    "@vitest/coverage-v8": "^2.1.8",
+    "eslint": "^9.30.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-simple-import-sort": "^12.1.1",
+    "fast-check": "^4.1.1",
+    "fishery": "^2.3.1",
+    "jest-mock-extended": "^4.0.0",
+    "madge": "^8.0.0",
+    "prettier": "^3.6.2",
+    "typescript": "^5.6.0",
+    "typescript-eslint": "^8.35.1",
+    "vitest": "^2.1.8"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "dependencies": {
+    "neverthrow": "^8.2.0"
+  }
+}

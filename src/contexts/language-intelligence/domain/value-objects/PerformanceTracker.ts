@@ -41,17 +41,17 @@ export class PerformanceTracker {
   }
 
   private static getCurrentMemoryUsage(): number {
-    if (typeof process !== 'undefined' && process.memoryUsage) {
+    if (typeof process !== 'undefined' && (process as any)?.memoryUsage) {
       // Node.js environment
-      return process.memoryUsage().heapUsed / 1024 / 1024; // Convert to MB
+      return (process as any).memoryUsage().heapUsed / 1024 / 1024; // Convert to MB
     }
-    
+
     if (typeof performance !== 'undefined' && 'memory' in performance) {
       // Browser environment with performance.memory
-      const memory = (performance as any).memory;
+      const { memory } = performance as any;
       return memory.usedJSHeapSize / 1024 / 1024; // Convert to MB
     }
-    
+
     // Fallback - no memory tracking available
     return 0;
   }
@@ -62,7 +62,7 @@ export class PerformanceTracker {
       memoryUsageMb: this.getMemoryUsageMb(),
       isRunning: this.isRunning(),
       startTime: this.startTime,
-      endTime: this.endTime
+      endTime: this.endTime,
     };
   }
 

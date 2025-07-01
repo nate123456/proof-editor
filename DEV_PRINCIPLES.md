@@ -194,39 +194,109 @@ src/
 
 **Testing Framework**: Vitest (fast, TypeScript native, Jest-compatible)
 
+### **Modern TDD Stack (2025)**
+
+#### **Test Organization: Co-located Structure**
+```
+src/domain/
+├── __tests__/
+│   ├── entities/
+│   ├── services/
+│   └── shared/
+├── entities/
+└── services/
+```
+
+#### **Assertion Library: Vitest + Custom Domain Matchers**
+```typescript
+// Domain-specific assertions improve test readability
+expect(statement).toBeValidStatement()
+expect(argument).toBeValidAtomicArgument()
+expect(arguments).toHaveValidConnections()
+expect(orderedSet).toBeValidOrderedSet()
+expect(error).toBeValidationError('expected message')
+```
+
+#### **Mocking: jest-mock-extended** (.NET Moq-like API)
+```typescript
+import { mock } from 'jest-mock-extended';
+
+const mockRepo = mock<UserRepository>();
+mockRepo.findById.calledWith(userId).mockResolvedValue(user);
+expect(mockRepo.findById).toHaveBeenCalledWith(userId);
+```
+
+#### **Test Data Generation: Fishery + Faker.js**
+```typescript
+import { Factory } from 'fishery';
+import { faker } from '@faker-js/faker';
+
+const statementFactory = Factory.define<Statement>(({ sequence }) => ({
+  id: new StatementId(`stmt-${sequence}`),
+  content: faker.lorem.sentence(),
+  usageCount: 0
+}));
+
+// Realistic domain-specific test data
+const statement = statementFactory.build({ content: 'All men are mortal' });
+```
+
+#### **Property-Based Testing: fast-check**
+```typescript
+import fc from 'fast-check';
+
+fc.assert(
+  fc.property(fc.string(), (content) => {
+    const result = Statement.create(content);
+    expect(result.success).toBe(content.length > 0);
+  })
+);
+```
+
 **Strategy**:
 - **Unit Tests**: High coverage for business logic, mock external dependencies
 - **Integration Tests**: Critical component interactions  
 - **Functional Tests**: End-to-end workflows (minimal for MVP)
+- **Property-Based Tests**: Edge cases and business rule validation
 
 ```typescript
 // 1. RED: Write failing test
-describe('AgentSpawner', () => {
-  it('should create agent with valid configuration', async () => {
-    const spawner = new AgentSpawner(mockLLMProvider);
-    const config = createValidAgentConfig();
+describe('StatementFlowService', () => {
+  it('should create valid connections between atomic arguments', () => {
+    const service = new StatementFlowService();
+    const parentArg = atomicArgumentFactory.build();
+    const childArg = atomicArgumentFactory.build();
+    const sharedSet = orderedSetFactory.build();
     
-    const agent = await spawner.spawn(config);
+    const result = service.connectAtomicArgumentsBySharedSet(parentArg, childArg, sharedSet);
     
-    expect(agent.getId()).toBeDefined();
-    expect(agent.getConfig()).toEqual(config);
+    expect(result).toBeSuccess();
+    expect([parentArg, childArg]).toHaveValidConnections();
   });
 });
 
 // 2. GREEN: Minimal implementation
-class AgentSpawner {
-  async spawn(config: AgentConfig): Promise<Agent> {
-    return new Agent(generateId(), config);
+class StatementFlowService {
+  connectAtomicArgumentsBySharedSet(parent: AtomicArgument, child: AtomicArgument, set: OrderedSet) {
+    // Minimal implementation to pass test
+    return createSuccess(undefined);
   }
 }
 
 // 3. REFACTOR: Improve while keeping tests green
 ```
 
-**AI-Specific Testing**:
-- Mock LLM APIs with MSW
-- Test streaming responses and timeouts
-- Validate agent coordination and memory persistence
+**AI-Enhanced Testing**:
+- Use AI (Claude Code, GitHub Copilot) for test generation and edge cases
+- Generate comprehensive test suites from domain specifications
+- AI-assisted test maintenance during refactoring
+- Property-based test case generation from business rules
+
+**Coverage Requirements**:
+- **80% minimum** across all metrics (branches, functions, lines, statements)
+- **100% coverage** for new code (no regression)
+- **Fast execution**: Unit tests complete in under 30 seconds
+- **Deterministic**: Tests pass/fail consistently
 
 ## Error Handling & Resilience
 

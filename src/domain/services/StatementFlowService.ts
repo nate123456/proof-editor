@@ -1,67 +1,58 @@
-import type { Result } from "../shared/result.js";
-import { ValidationError, createSuccess, createFailure } from "../shared/result.js";
-import { 
-  StatementId, 
-  OrderedSetId, 
-  AtomicArgumentId,
-  StatementEntity,
-  OrderedSetEntity,
-  AtomicArgumentEntity
-} from "../index.js";
+import { AtomicArgument } from '../entities/AtomicArgument.js';
+import { OrderedSet } from '../entities/OrderedSet.js';
+import { Statement } from '../entities/Statement.js';
+import { err, ok, type Result, ValidationError } from '../shared/result.js';
+import { type AtomicArgumentId, type OrderedSetId } from '../shared/value-objects.js';
 
 export class StatementFlowService {
-  
-  createStatementFromContent(content: string): Result<StatementEntity, ValidationError> {
-    return StatementEntity.create(content);
+  createStatementFromContent(content: string): Result<Statement, ValidationError> {
+    return Statement.create(content);
   }
 
-  createOrderedSetFromStatements(statements: StatementEntity[]): Result<OrderedSetEntity, ValidationError> {
+  createOrderedSetFromStatements(statements: Statement[]): Result<OrderedSet, ValidationError> {
     const statementIds = statements.map(statement => statement.getId());
-    return OrderedSetEntity.create(statementIds);
+    return OrderedSet.create(statementIds);
   }
 
-  createEmptyOrderedSet(): Result<OrderedSetEntity, ValidationError> {
-    return OrderedSetEntity.create();
+  createEmptyOrderedSet(): Result<OrderedSet, ValidationError> {
+    return OrderedSet.create();
   }
 
   addStatementToOrderedSet(
-    orderedSet: OrderedSetEntity,
-    statement: StatementEntity
+    orderedSet: OrderedSet,
+    statement: Statement
   ): Result<void, ValidationError> {
     const addResult = orderedSet.addStatement(statement.getId());
-    if (addResult.success) {
+    if (addResult.isOk()) {
       statement.incrementUsage();
     }
     return addResult;
   }
 
   removeStatementFromOrderedSet(
-    orderedSet: OrderedSetEntity,
-    statement: StatementEntity
+    orderedSet: OrderedSet,
+    statement: Statement
   ): Result<void, ValidationError> {
     const removeResult = orderedSet.removeStatement(statement.getId());
-    if (removeResult.success) {
+    if (removeResult.isOk()) {
       return statement.decrementUsage();
     }
     return removeResult;
   }
 
   createAtomicArgumentWithSets(
-    premiseSet?: OrderedSetEntity,
-    conclusionSet?: OrderedSetEntity
-  ): Result<AtomicArgumentEntity, ValidationError> {
-    const argument = AtomicArgumentEntity.create(
-      premiseSet?.getId(),
-      conclusionSet?.getId()
-    );
+    premiseSet?: OrderedSet,
+    conclusionSet?: OrderedSet
+  ): Result<AtomicArgument, ValidationError> {
+    const argument = AtomicArgument.create(premiseSet?.getId(), conclusionSet?.getId());
 
-    if (argument.success) {
-      const argumentEntity = argument.data;
-      
+    if (argument.isOk()) {
+      const argumentEntity = argument.value;
+
       if (premiseSet) {
         premiseSet.addAtomicArgumentReference(argumentEntity.getId(), 'premise');
       }
-      
+
       if (conclusionSet) {
         conclusionSet.addAtomicArgumentReference(argumentEntity.getId(), 'conclusion');
       }
@@ -71,49 +62,51 @@ export class StatementFlowService {
   }
 
   connectAtomicArgumentsBySharedSet(
-    parentArg: AtomicArgumentEntity,
-    childArg: AtomicArgumentEntity,
-    sharedSet: OrderedSetEntity
+    parentArg: AtomicArgument,
+    childArg: AtomicArgument,
+    sharedSet: OrderedSet
   ): Result<void, ValidationError> {
     const parentConclusionRef = parentArg.getConclusionSetRef();
     const childPremiseRef = childArg.getPremiseSetRef();
 
     if (!parentConclusionRef || !childPremiseRef) {
-      return createFailure(new ValidationError("Both arguments must have the relevant ordered sets"));
+      return err(new ValidationError('Both arguments must have the relevant ordered sets'));
     }
 
-    if (!parentConclusionRef.equals(sharedSet.getId()) || 
-        !childPremiseRef.equals(sharedSet.getId())) {
-      return createFailure(new ValidationError("Shared set must match both argument references"));
+    if (
+      !parentConclusionRef.equals(sharedSet.getId()) ||
+      !childPremiseRef.equals(sharedSet.getId())
+    ) {
+      return err(new ValidationError('Shared set must match both argument references'));
     }
 
-    return createSuccess(undefined);
+    return ok(undefined);
   }
 
   createBranchFromArgumentConclusion(
-    parentArg: AtomicArgumentEntity,
-    conclusionSet: OrderedSetEntity
-  ): Result<AtomicArgumentEntity, ValidationError> {
+    parentArg: AtomicArgument,
+    conclusionSet: OrderedSet
+  ): Result<AtomicArgument, ValidationError> {
     if (!parentArg.getConclusionSetRef()?.equals(conclusionSet.getId())) {
-      return createFailure(new ValidationError("Conclusion set must match parent argument"));
+      return err(new ValidationError('Conclusion set must match parent argument'));
     }
 
     const childArgResult = parentArg.createBranchFromConclusion();
-    if (!childArgResult.success) {
+    if (childArgResult.isErr()) {
       return childArgResult;
     }
 
-    const childArg = childArgResult.data;
+    const childArg = childArgResult.value;
     conclusionSet.addAtomicArgumentReference(childArg.getId(), 'premise');
 
-    return createSuccess(childArg);
+    return ok(childArg);
   }
 
   findDirectlyConnectedArguments(
-    argument: AtomicArgumentEntity,
-    allArguments: Map<AtomicArgumentId, AtomicArgumentEntity>
-  ): AtomicArgumentEntity[] {
-    const connected: AtomicArgumentEntity[] = [];
+    argument: AtomicArgument,
+    allArguments: Map<AtomicArgumentId, AtomicArgument>
+  ): AtomicArgument[] {
+    const connected: AtomicArgument[] = [];
 
     for (const [id, otherArg] of allArguments) {
       if (id.equals(argument.getId())) {
@@ -129,16 +122,16 @@ export class StatementFlowService {
   }
 
   findAllConnectedArguments(
-    startingArgument: AtomicArgumentEntity,
-    allArguments: Map<AtomicArgumentId, AtomicArgumentEntity>
-  ): Set<AtomicArgumentEntity> {
-    const connected = new Set<AtomicArgumentEntity>();
+    startingArgument: AtomicArgument,
+    allArguments: Map<AtomicArgumentId, AtomicArgument>
+  ): Set<AtomicArgument> {
+    const connected = new Set<AtomicArgument>();
     const toVisit = [startingArgument];
     const visited = new Set<AtomicArgumentId>();
 
     while (toVisit.length > 0) {
       const current = toVisit.pop()!;
-      
+
       if (visited.has(current.getId())) {
         continue;
       }
@@ -158,57 +151,54 @@ export class StatementFlowService {
   }
 
   validateStatementFlow(
-    fromArgument: AtomicArgumentEntity,
-    toArgument: AtomicArgumentEntity,
-    orderedSets: Map<OrderedSetId, OrderedSetEntity>
+    fromArgument: AtomicArgument,
+    toArgument: AtomicArgument,
+    orderedSets: Map<OrderedSetId, OrderedSet>
   ): Result<void, ValidationError> {
     const fromConclusionRef = fromArgument.getConclusionSetRef();
     const toPremiseRef = toArgument.getPremiseSetRef();
 
     if (!fromConclusionRef || !toPremiseRef) {
-      return createFailure(new ValidationError("Both arguments must have relevant ordered sets for flow"));
+      return err(new ValidationError('Both arguments must have relevant ordered sets for flow'));
     }
 
     if (!fromConclusionRef.equals(toPremiseRef)) {
-      return createFailure(new ValidationError("Arguments are not connected by shared ordered set"));
+      return err(new ValidationError('Arguments are not connected by shared ordered set'));
     }
 
     const sharedSet = orderedSets.get(fromConclusionRef);
     if (!sharedSet) {
-      return createFailure(new ValidationError("Shared ordered set not found"));
+      return err(new ValidationError('Shared ordered set not found'));
     }
 
     if (sharedSet.isEmpty()) {
-      return createFailure(new ValidationError("Cannot flow through empty ordered set"));
+      return err(new ValidationError('Cannot flow through empty ordered set'));
     }
 
-    return createSuccess(undefined);
+    return ok(undefined);
   }
 
-  canStatementsFlowBetween(
-    fromArgument: AtomicArgumentEntity,
-    toArgument: AtomicArgumentEntity
-  ): boolean {
+  canStatementsFlowBetween(fromArgument: AtomicArgument, toArgument: AtomicArgument): boolean {
     const fromConclusionRef = fromArgument.getConclusionSetRef();
     const toPremiseRef = toArgument.getPremiseSetRef();
 
-    return fromConclusionRef !== null && 
-           toPremiseRef !== null && 
-           fromConclusionRef.equals(toPremiseRef);
+    return (
+      fromConclusionRef !== null && toPremiseRef !== null && fromConclusionRef.equals(toPremiseRef)
+    );
   }
 
   findStatementFlowPath(
-    startArgument: AtomicArgumentEntity,
-    endArgument: AtomicArgumentEntity,
-    allArguments: Map<AtomicArgumentId, AtomicArgumentEntity>
-  ): AtomicArgumentEntity[] | null {
+    startArgument: AtomicArgument,
+    endArgument: AtomicArgument,
+    allArguments: Map<AtomicArgumentId, AtomicArgument>
+  ): AtomicArgument[] | null {
     if (startArgument.equals(endArgument)) {
       return [startArgument];
     }
 
     const visited = new Set<AtomicArgumentId>();
-    const queue: { argument: AtomicArgumentEntity; path: AtomicArgumentEntity[] }[] = [
-      { argument: startArgument, path: [startArgument] }
+    const queue: { argument: AtomicArgument; path: AtomicArgument[] }[] = [
+      { argument: startArgument, path: [startArgument] },
     ];
 
     while (queue.length > 0) {
@@ -229,7 +219,7 @@ export class StatementFlowService {
         if (!visited.has(connected.getId()) && this.canStatementsFlowBetween(current, connected)) {
           queue.push({
             argument: connected,
-            path: [...path, connected]
+            path: [...path, connected],
           });
         }
       }

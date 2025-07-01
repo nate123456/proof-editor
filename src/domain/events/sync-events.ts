@@ -1,5 +1,11 @@
+import {
+  // AtomicArgumentId,
+  type DocumentId,
+  type NodeId,
+  type TreeId,
+  type Version,
+} from '../shared/value-objects.js';
 import { DomainEvent } from './base-event.js';
-import { DocumentId, AtomicArgumentId, TreeId, NodeId, Version } from '../shared/value-objects.js';
 
 export class SyncConflictDetected extends DomainEvent {
   readonly eventType = 'SyncConflictDetected';
@@ -22,7 +28,7 @@ export class SyncConflictDetected extends DomainEvent {
       conflictDetails: this.conflictDetails,
       localVersion: this.localVersion.getValue(),
       remoteVersion: this.remoteVersion.getValue(),
-      detectedBy: this.detectedBy
+      detectedBy: this.detectedBy,
     };
   }
 }
@@ -46,7 +52,7 @@ export class SyncConflictResolved extends DomainEvent {
       conflictId: this.conflictId,
       resolutionStrategy: this.resolutionStrategy,
       resolutionDetails: this.resolutionDetails,
-      resolvedBy: this.resolvedBy
+      resolvedBy: this.resolvedBy,
     };
   }
 }
@@ -60,7 +66,7 @@ export class OperationApplied extends DomainEvent {
     public readonly operation: SyncOperation,
     public readonly sourceDevice: string,
     public readonly appliedBy: string,
-    public readonly causedConflicts: boolean = false
+    public readonly causedConflicts = false
   ) {
     super(aggregateId, aggregateType);
   }
@@ -70,7 +76,7 @@ export class OperationApplied extends DomainEvent {
       operation: this.operation,
       sourceDevice: this.sourceDevice,
       appliedBy: this.appliedBy,
-      causedConflicts: this.causedConflicts
+      causedConflicts: this.causedConflicts,
     };
   }
 }
@@ -92,7 +98,7 @@ export class OperationRejected extends DomainEvent {
     return {
       operation: this.operation,
       rejectionReason: this.rejectionReason,
-      rejectedBy: this.rejectedBy
+      rejectedBy: this.rejectedBy,
     };
   }
 }
@@ -116,7 +122,7 @@ export class SyncStateChanged extends DomainEvent {
       previousState: this.previousState,
       newState: this.newState,
       reason: this.reason,
-      changedBy: this.changedBy
+      changedBy: this.changedBy,
     };
   }
 }
@@ -138,7 +144,7 @@ export class MergeCompleted extends DomainEvent {
       documentId: this.documentId.getValue(),
       mergeStrategy: this.mergeStrategy,
       mergeResult: this.mergeResult,
-      mergedBy: this.mergedBy
+      mergedBy: this.mergedBy,
     };
   }
 }
@@ -160,7 +166,7 @@ export class ConcurrentModificationDetected extends DomainEvent {
     return {
       modificationDetails: this.modificationDetails,
       participants: this.participants,
-      detectedBy: this.detectedBy
+      detectedBy: this.detectedBy,
     };
   }
 }
@@ -182,7 +188,7 @@ export class VectorClockUpdated extends DomainEvent {
     return {
       previousClock: this.previousClock,
       newClock: this.newClock,
-      updatedBy: this.updatedBy
+      updatedBy: this.updatedBy,
     };
   }
 }
@@ -204,7 +210,7 @@ export class CausalityViolationDetected extends DomainEvent {
     return {
       violationDetails: this.violationDetails,
       affectedOperations: this.affectedOperations,
-      detectedBy: this.detectedBy
+      detectedBy: this.detectedBy,
     };
   }
 }
@@ -261,9 +267,7 @@ export interface MergeChange {
   confidence: number;
 }
 
-export interface VectorClock {
-  [deviceId: string]: number;
-}
+export type VectorClock = Record<string, number>;
 
 export interface CausalityViolation {
   type: 'out_of_order' | 'missing_dependency' | 'circular_dependency';
@@ -281,7 +285,7 @@ export interface ConflictImpact {
   userInterventionRequired: boolean;
 }
 
-export type ConflictType = 
+export type ConflictType =
   | 'concurrent_modification'
   | 'delete_modify_conflict'
   | 'move_move_conflict'
@@ -289,7 +293,7 @@ export type ConflictType =
   | 'structural_conflict'
   | 'ordering_conflict';
 
-export type ResolutionStrategy = 
+export type ResolutionStrategy =
   | 'local_wins'
   | 'remote_wins'
   | 'manual_merge'
@@ -297,7 +301,7 @@ export type ResolutionStrategy =
   | 'discard_both'
   | 'create_alternatives';
 
-export type SyncState = 
+export type SyncState =
   | 'synced'
   | 'local_changes'
   | 'remote_changes'
@@ -305,7 +309,7 @@ export type SyncState =
   | 'merging'
   | 'error';
 
-export type MergeStrategy = 
+export type MergeStrategy =
   | 'three_way'
   | 'operational_transform'
   | 'conflict_free_replicated_data_type'
@@ -313,7 +317,7 @@ export type MergeStrategy =
   | 'timestamp_based'
   | 'vector_clock_based';
 
-export type OperationType = 
+export type OperationType =
   | 'create'
   | 'update'
   | 'delete'
@@ -323,7 +327,7 @@ export type OperationType =
   | 'reorder'
   | 'metadata_change';
 
-export type RejectionReason = 
+export type RejectionReason =
   | 'stale_version'
   | 'causality_violation'
   | 'validation_failure'

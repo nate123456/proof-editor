@@ -391,8 +391,241 @@ Push back if any answer is "no".
 
 **Notes**: Include key-terms.md and technical-definitions.md for consistency checks. Verify domain language in user docs vs implementation details in technical docs. Check ordered set connections throughout. Fallback to claude if errors. Rate limited 60/min. Use for final reviews, Claude for rapid iteration. Task agents: read-only git only.
 
+## Code Quality Enforcement
+
+Work is NOT done until `npm test` passes. This runs:
+1. **Prettier** - Code formatting (pretest)
+2. **ESLint** - Linting with strict TypeScript rules (pretest) 
+3. **Vitest** - Unit tests with 80% coverage thresholds
+4. **TypeScript** - Type checking via test compilation
+
+Coverage thresholds: 80% branches/functions/lines/statements. Use `npm run test:watch` during development.
+
+## neverthrow Result Type Standards
+
+**MANDATORY**: All new code MUST use neverthrow for Result types. Legacy custom Result implementation is deprecated.
+
+### **Import Pattern**
+```typescript
+import { Result, ok, err } from 'neverthrow';
+```
+
+### **Construction Patterns**
+```typescript
+// Success cases
+return ok(data);
+return ok(undefined); // for void success
+
+// Error cases  
+return err(new DomainError('message'));
+return err(error); // propagate existing error
+```
+
+### **Checking Patterns**
+```typescript
+// Use isOk() and isErr() methods
+if (result.isErr()) {
+  return err(result.error);
+}
+
+// Access data safely after isOk() check
+if (result.isOk()) {
+  console.log(result.value); // note: .value not .data
+}
+```
+
+### **Chaining Patterns**
+```typescript
+// Use map for transforming success values
+const transformed = result.map(value => transformValue(value));
+
+// Use andThen for chaining Result-returning operations
+const chained = result.andThen(value => anotherOperation(value));
+
+// Use mapErr for transforming errors
+const withCustomError = result.mapErr(err => new CustomError(err.message));
+```
+
+### **Async Patterns**
+```typescript
+// For Promise<Result<T, E>>, use neverthrow's ResultAsync
+import { ResultAsync, okAsync, errAsync } from 'neverthrow';
+
+// Convert Promise<Result> to ResultAsync
+const asyncResult = ResultAsync.fromPromise(
+  someAsyncOperation(),
+  (error) => new CustomError(error)
+);
+
+// Chain async operations
+const chainedAsync = asyncResult
+  .andThen(value => ResultAsync.fromPromise(nextOperation(value), mapError))
+  .map(finalTransform);
+```
+
+### **Migration Rules**
+1. **Replace custom Result imports**: `import { Result } from './result'` → `import { Result, ok, err } from 'neverthrow'`
+2. **Replace construction**: `{ success: true, data }` → `ok(data)`, `{ success: false, error }` → `err(error)`
+3. **Replace checking**: `.success` → `.isOk()`, check `.success === false` → `.isErr()`
+4. **Replace access**: `.data` → `.value`, `.error` remains `.error`
+5. **Add chaining**: Replace manual error propagation with `.andThen()` and `.map()`
+
+### **ValidationError Handling**
+Continue using custom ValidationError from domain layer:
+```typescript
+import { ValidationError } from '../../domain/shared/result.js';
+
+// Validation failures
+if (input.length === 0) {
+  return err(new ValidationError('Input cannot be empty'));
+}
+```
+
+### **Legacy Code**
+- Custom Result implementation in `src/domain/shared/result.ts` will be removed
+- All `Result.success()`, `Result.failure()`, `isSuccess()`, `isFailure()` patterns deprecated
+- Manual Promise<Result> handling should be converted to ResultAsync
+
+## Modern TDD Tooling Stack
+
+### **Test Framework: Vitest** (Optimal Choice)
+- **Native TypeScript** support with zero configuration
+- **10-20x faster** than Jest in watch mode with HMR-style test running
+- **Jest-compatible API** for easy migration and familiar syntax
+- **Advanced features**: Browser mode, worker threads, ESM support
+
+### **Test Organization: Co-located Structure**
+Tests live in `__tests__/` folders alongside source code:
+```
+src/domain/
+├── __tests__/
+│   ├── entities/
+│   ├── services/
+│   └── shared/
+├── entities/
+└── services/
+```
+
+**Benefits**: Faster navigation, better refactoring, clearer intent, modern tooling support.
+
+### **Assertion Library: Vitest + Custom Domain Matchers**
+- **Built-in matchers**: Jest-compatible expect API
+- **Custom matchers**: Domain-specific assertions in `src/domain/__tests__/test-setup.ts`
+- **Type-safe**: Full TypeScript integration with intelligent autocomplete
+
+**Custom domain matchers available**:
+```typescript
+expect(statement).toBeValidStatement()
+expect(argument).toBeValidAtomicArgument()
+expect(arguments).toHaveValidConnections()
+expect(orderedSet).toBeValidOrderedSet()
+expect(error).toBeValidationError('expected message')
+```
+
+### **Mocking: jest-mock-extended** (.NET Moq-like API)
+```typescript
+import { mock } from 'jest-mock-extended';
+
+const mockService = mock<UserService>();
+mockService.getUser.calledWith(1).mockResolvedValue(testUser);
+expect(mockService.getUser).toHaveBeenCalledWith(1);
+```
+
+**Features**: Complete type safety, fluent API, argument-specific expectations.
+
+### **Test Data Generation: Fishery + Faker.js**
+- **Fishery**: Factory pattern for consistent test object creation
+- **Faker.js**: Realistic data generation with 70+ locales
+- **Domain factories**: Pre-configured in `src/domain/__tests__/factories/`
+
+```typescript
+import { statementContentFactory, testScenarios } from './factories';
+
+const statement = statementContentFactory.build();
+const logicalChain = testScenarios.simpleChain;
+```
+
+### **Property-Based Testing: fast-check**
+```typescript
+import fc from 'fast-check';
+
+fc.assert(
+  fc.property(fc.string(), (content) => {
+    const result = Statement.create(content);
+    expect(result.success).toBe(content.length > 0);
+  })
+);
+```
+
+**Benefits**: Automatic edge case discovery, shrinking to minimal failing examples, comprehensive input generation.
+
+### **Enhanced Testing Integration**
+- **Test Generation**: Use domain specifications to generate comprehensive test suites
+- **Edge Case Discovery**: Systematic identification of boundary conditions and error scenarios
+- **Refactoring Support**: Automated test maintenance during code restructuring
+- **Structured output**: JSON test results for analysis and reporting
+
+### **TDD Workflow Optimization**
+1. **Red**: Write failing test (describe expected behavior clearly)
+2. **Green**: Implement minimal code to pass the test
+3. **Refactor**: Improve code quality while maintaining test coverage
+
+**Advanced patterns**:
+- Generate comprehensive test suites from domain specifications
+- Create edge cases and boundary condition tests systematically
+- Maintain tests during refactoring with intelligent updates
+- Generate property-based test cases from business rules
+
+## Dependency Analysis
+
+Use `npm run deps:report` for LLM-friendly dependency analysis. Individual commands:
+- `npm run deps:circular` - Find circular dependencies (code quality issues)
+- `npm run deps:orphans` - Find unused modules (cleanup opportunities)  
+- `npm run deps:json` - Get structured dependency data
+- `npm run deps` - View full dependency tree
+
+## Test Prioritization
+
+Use `npm run test:prioritize` to get AI-optimized test priority ranking. Combines dependency tree analysis + coverage data to identify:
+- **Foundational files** (many dependents) with low coverage = highest ROI for testing
+- **Orphaned files** (no dependents) = candidates for cleanup
+- **High-impact files** (5+ dependents) that need immediate testing attention
+
+## LLM-Powered Code Analysis
+
+Use `npm run llm:prepare` to generate comprehensive analysis input for external LLMs (Gemini, GPT-4, etc.):
+- **Structured codebase data** - Pre-processed files, dependencies, coverage, security patterns
+- **Multi-dimensional analysis** - Architecture, security, performance, code quality, DDD
+- **Priority insights** - Test prioritization, foundational files, technical debt identification
+- **Anti-hallucination design** - Prevents LLMs from making up code analysis
+
+**Commands:**
+- `npm run llm:prepare` - Generate analysis data for LLM consumption
+- `npm run llm:prompts` - List available analysis prompt templates
+
+**Output files:**
+- `llm-analysis-input.json` - Complete structured data for LLM consumption
+- `llm-analysis-summary.md` - Human-readable overview
+
+**Analysis prompt templates:**
+- `scripts/prompts/general-code-analysis.md` - Comprehensive multi-dimensional review
+- `scripts/prompts/llm-ddd-analysis-prompt.md` - Domain-Driven Design focused analysis
+- `scripts/prompts/security-focused-analysis.md` - Security vulnerability assessment
+- `scripts/prompts/performance-audit.md` - Performance optimization review
+
+## Available MCP Servers
+
+- **Context7** (`use context7`) - Up-to-date documentation and examples for any library
+- **LSP-MCP Bridge** - Use for code exploration: find references, implementations, symbols, refactoring suggestions. Prefer LSP tools over basic file reading for understanding code relationships.
+
 Before you do anything, get the current time and date via the terminal.
 
 Task agents should always use the claude sonnet model, NOT opus. Task agents should NEVER show the diffs of their file changes, it CRASHES THE TERMINAL.
 
-Read the dev principles into your memory when working on technical docs or code. this is CRITICAL.
+Read the dev principles into your memory when working on technical docs or code. this is CRITICAL. 
+
+DO NOT MAKE COMMITS. 
+
+When splitting up work for task agents, try to split it up into at least 5 isolated tasks, minimum of one file to work on per agent. 
+
+DO NOT run any git commands that mutate state in any way. 

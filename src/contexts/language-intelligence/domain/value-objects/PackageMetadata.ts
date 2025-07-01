@@ -1,5 +1,6 @@
-import { Result } from "../../../../domain/shared/result.js"
-import { ValidationError } from "../../../../domain/shared/result.js"
+import { err, ok, type Result } from 'neverthrow';
+
+import { ValidationError } from '../errors/DomainErrors';
 import { Timestamp } from './Timestamp';
 
 export class PackageMetadata {
@@ -20,53 +21,43 @@ export class PackageMetadata {
   static create(
     description: string,
     author: string,
-    license: string = 'MIT',
+    license = 'MIT',
     options: Partial<PackageMetadataOptions> = {}
   ): Result<PackageMetadata, ValidationError> {
     if (!description || description.trim().length === 0) {
-      return {
-        success: false,
-        error: new ValidationError('Package description cannot be empty')
-      };
+      return err(new ValidationError('Package description cannot be empty'));
     }
 
     if (!author || author.trim().length === 0) {
-      return {
-        success: false,
-        error: new ValidationError('Package author cannot be empty')
-      };
+      return err(new ValidationError('Package author cannot be empty'));
     }
 
     if (description.length > 500) {
-      return {
-        success: false,
-        error: new ValidationError('Package description cannot exceed 500 characters')
-      };
+      return err(new ValidationError('Package description cannot exceed 500 characters'));
     }
 
     const now = Timestamp.now();
-    
-    return {
-      success: true,
-      data: new PackageMetadata(
+
+    return ok(
+      new PackageMetadata(
         description.trim(),
         author.trim(),
         license.trim(),
-        options.homepage || null,
-        options.repository || null,
-        options.tags || [],
-        options.dependencies || [],
-        options.createdAt || now,
-        options.updatedAt || now,
-        options.documentation || PackageDocumentation.createDefault(),
-        options.configuration || PackageConfiguration.createDefault()
+        options.homepage ?? null,
+        options.repository ?? null,
+        options.tags ?? [],
+        options.dependencies ?? [],
+        options.createdAt ?? now,
+        options.updatedAt ?? now,
+        options.documentation ?? PackageDocumentation.createDefault(),
+        options.configuration ?? PackageConfiguration.createDefault()
       )
-    };
+    );
   }
 
   static createDefault(): PackageMetadata {
     const now = Timestamp.now();
-    
+
     return new PackageMetadata(
       'Default language package',
       'System',
@@ -93,7 +84,7 @@ export class PackageMetadata {
           'Modal Logic Package',
           'Provides comprehensive support for modal logic constructs including □ (necessity) and ◇ (possibility) operators.',
           ['Modal operators (□, ◇)', 'Possible worlds semantics', 'Axiom systems (K, T, S4, S5)']
-        )
+        ),
       }
     );
   }
@@ -109,7 +100,7 @@ export class PackageMetadata {
           'Propositional Logic Package',
           'Provides comprehensive support for propositional logic including truth tables and satisfiability checking.',
           ['Logical operators (∧, ∨, →, ↔, ¬)', 'Truth table generation', 'SAT solving']
-        )
+        ),
       }
     );
   }
@@ -167,12 +158,12 @@ export class PackageMetadata {
   }
 
   isRecentlyUpdated(): boolean {
-    const oneWeekAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+    const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
     return this.updatedAt.getMilliseconds() > oneWeekAgo;
   }
 
   isRecentlyCreated(): boolean {
-    const oneMonthAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
+    const oneMonthAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
     return this.createdAt.getMilliseconds() > oneMonthAgo;
   }
 
@@ -198,22 +189,15 @@ export class PackageMetadata {
 
   withDescription(newDescription: string): Result<PackageMetadata, ValidationError> {
     if (!newDescription || newDescription.trim().length === 0) {
-      return {
-        success: false,
-        error: new ValidationError('Package description cannot be empty')
-      };
+      return err(new ValidationError('Package description cannot be empty'));
     }
 
     if (newDescription.length > 500) {
-      return {
-        success: false,
-        error: new ValidationError('Package description cannot exceed 500 characters')
-      };
+      return err(new ValidationError('Package description cannot exceed 500 characters'));
     }
 
-    return {
-      success: true,
-      data: new PackageMetadata(
+    return ok(
+      new PackageMetadata(
         newDescription.trim(),
         this.author,
         this.license,
@@ -226,12 +210,12 @@ export class PackageMetadata {
         this.documentation,
         this.configuration
       )
-    };
+    );
   }
 
   addTag(tag: string): PackageMetadata {
     if (this.hasTag(tag)) return this;
-    
+
     return new PackageMetadata(
       this.description,
       this.author,
@@ -264,11 +248,13 @@ export class PackageMetadata {
   }
 
   equals(other: PackageMetadata): boolean {
-    return this.description === other.description &&
-           this.author === other.author &&
-           this.license === other.license &&
-           this.homepage === other.homepage &&
-           this.repository === other.repository;
+    return (
+      this.description === other.description &&
+      this.author === other.author &&
+      this.license === other.license &&
+      this.homepage === other.homepage &&
+      this.repository === other.repository
+    );
   }
 }
 
@@ -303,13 +289,7 @@ export class PackageDocumentation {
   }
 
   static createDefault(): PackageDocumentation {
-    return new PackageDocumentation(
-      'Default Package',
-      'A default language package',
-      [],
-      [],
-      []
-    );
+    return new PackageDocumentation('Default Package', 'A default language package', [], [], []);
   }
 
   getTitle(): string {
@@ -384,7 +364,7 @@ export class PerformanceSettings {
     return {
       maxValidationTimeMs: 10,
       enableCaching: true,
-      enableParallelValidation: false
+      enableParallelValidation: false,
     };
   }
 }
@@ -394,7 +374,7 @@ export class EducationalSettings {
     return {
       enableHints: true,
       enableStepByStep: true,
-      difficultyLevel: 'intermediate'
+      difficultyLevel: 'intermediate',
     };
   }
 }

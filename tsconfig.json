@@ -23,6 +23,7 @@
     "noPropertyAccessFromIndexSignature": true,
     "exactOptionalPropertyTypes": true,
     "noImplicitAny": true,
+    "downlevelIteration": true,
     
     // Interoperability and compatibility
     "esModuleInterop": true,
@@ -60,9 +61,7 @@
   ],
   "exclude": [
     "node_modules",
-    "dist",
-    "**/*.test.ts",
-    "**/*.spec.ts"
+    "dist"
   ],
   "ts-node": {
     "esm": true,

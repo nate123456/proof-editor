@@ -1,30 +1,22 @@
-import { Result } from "../../../../domain/shared/result.js"
-import { ValidationError } from "../../../../domain/shared/result.js"
+import { err, ok, type Result } from 'neverthrow';
+
+import { ValidationError } from '../errors/DomainErrors';
 
 export class DiagnosticId {
   private constructor(private readonly value: string) {}
 
   static create(value: string): Result<DiagnosticId, ValidationError> {
     if (!value || value.trim().length === 0) {
-      return {
-        success: false,
-        error: new ValidationError('Diagnostic ID cannot be empty')
-      };
+      return err(new ValidationError('Diagnostic ID cannot be empty'));
     }
 
     const trimmedValue = value.trim();
 
     if (trimmedValue.length < 3) {
-      return {
-        success: false,
-        error: new ValidationError('Diagnostic ID must be at least 3 characters long')
-      };
+      return err(new ValidationError('Diagnostic ID must be at least 3 characters long'));
     }
 
-    return {
-      success: true,
-      data: new DiagnosticId(trimmedValue)
-    };
+    return ok(new DiagnosticId(trimmedValue));
   }
 
   static generate(): DiagnosticId {

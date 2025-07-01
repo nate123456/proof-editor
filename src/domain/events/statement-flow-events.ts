@@ -1,5 +1,9 @@
+import {
+  type AtomicArgumentId,
+  type OrderedSetId,
+  type StatementId,
+} from '../shared/value-objects.js';
 import { DomainEvent } from './base-event.js';
-import { StatementId, OrderedSetId, AtomicArgumentId } from '../shared/value-objects.js';
 
 export class StatementFlowEstablished extends DomainEvent {
   readonly eventType = 'StatementFlowEstablished';
@@ -19,7 +23,7 @@ export class StatementFlowEstablished extends DomainEvent {
       fromArgumentId: this.fromArgumentId.getValue(),
       toArgumentId: this.toArgumentId.getValue(),
       sharedOrderedSetId: this.sharedOrderedSetId.getValue(),
-      statementIds: this.statementIds.map(id => id.getValue())
+      statementIds: this.statementIds.map(id => id.getValue()),
     };
   }
 }
@@ -42,7 +46,7 @@ export class StatementFlowBroken extends DomainEvent {
       fromArgumentId: this.fromArgumentId.getValue(),
       toArgumentId: this.toArgumentId.getValue(),
       previousOrderedSetId: this.previousOrderedSetId.getValue(),
-      reason: this.reason
+      reason: this.reason,
     };
   }
 }
@@ -63,7 +67,7 @@ export class StatementFlowValidated extends DomainEvent {
     return {
       flowPath: this.flowPath.map(id => id.getValue()),
       validationResult: this.validationResult,
-      validatedBy: this.validatedBy
+      validatedBy: this.validatedBy,
     };
   }
 }
@@ -86,7 +90,7 @@ export class StatementAddedToFlow extends DomainEvent {
       statementId: this.statementId.getValue(),
       orderedSetId: this.orderedSetId.getValue(),
       position: this.position,
-      affectedArguments: this.affectedArguments.map(id => id.getValue())
+      affectedArguments: this.affectedArguments.map(id => id.getValue()),
     };
   }
 }
@@ -109,7 +113,7 @@ export class StatementRemovedFromFlow extends DomainEvent {
       statementId: this.statementId.getValue(),
       orderedSetId: this.orderedSetId.getValue(),
       previousPosition: this.previousPosition,
-      affectedArguments: this.affectedArguments.map(id => id.getValue())
+      affectedArguments: this.affectedArguments.map(id => id.getValue()),
     };
   }
 }
@@ -130,7 +134,7 @@ export class OrderedSetShared extends DomainEvent {
     return {
       orderedSetId: this.orderedSetId.getValue(),
       sharedBetween: this.sharedBetween.map(id => id.getValue()),
-      shareType: this.shareType
+      shareType: this.shareType,
     };
   }
 }
@@ -151,12 +155,12 @@ export class OrderedSetUnshared extends DomainEvent {
     return {
       orderedSetId: this.orderedSetId.getValue(),
       previouslySharedBetween: this.previouslySharedBetween.map(id => id.getValue()),
-      newOrderedSetIds: this.newOrderedSetIds.map(id => id.getValue())
+      newOrderedSetIds: this.newOrderedSetIds.map(id => id.getValue()),
     };
   }
 }
 
-export type FlowBreakReason = 
+export type FlowBreakReason =
   | 'ordered_set_modified'
   | 'argument_deleted'
   | 'explicit_disconnect'

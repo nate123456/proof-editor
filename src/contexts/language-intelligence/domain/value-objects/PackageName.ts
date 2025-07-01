@@ -1,44 +1,34 @@
-import { Result } from "../../../../domain/shared/result.js"
-import { ValidationError } from "../../../../domain/shared/result.js"
+import { err, ok, type Result } from 'neverthrow';
+
+import { ValidationError } from '../errors/DomainErrors';
 
 export class PackageName {
   private constructor(private readonly value: string) {}
 
   static create(value: string): Result<PackageName, ValidationError> {
     if (!value || value.trim().length === 0) {
-      return {
-        success: false,
-        error: new ValidationError('Package name cannot be empty')
-      };
+      return err(new ValidationError('Package name cannot be empty'));
     }
 
     const trimmedValue = value.trim();
 
     if (trimmedValue.length < 2) {
-      return {
-        success: false,
-        error: new ValidationError('Package name must be at least 2 characters long')
-      };
+      return err(new ValidationError('Package name must be at least 2 characters long'));
     }
 
     if (trimmedValue.length > 100) {
-      return {
-        success: false,
-        error: new ValidationError('Package name cannot exceed 100 characters')
-      };
+      return err(new ValidationError('Package name cannot exceed 100 characters'));
     }
 
     if (!/^[a-zA-Z0-9\s\-_.]+$/.test(trimmedValue)) {
-      return {
-        success: false,
-        error: new ValidationError('Package name can only contain letters, numbers, spaces, hyphens, underscores, and periods')
-      };
+      return err(
+        new ValidationError(
+          'Package name can only contain letters, numbers, spaces, hyphens, underscores, and periods'
+        )
+      );
     }
 
-    return {
-      success: true,
-      data: new PackageName(trimmedValue)
-    };
+    return ok(new PackageName(trimmedValue));
   }
 
   getValue(): string {
@@ -69,7 +59,7 @@ export class PackageName {
       'default',
       'base',
       'standard',
-      'reserved'
+      'reserved',
     ];
 
     return reservedNames.includes(this.getNormalizedValue());

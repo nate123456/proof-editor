@@ -1,5 +1,6 @@
-import type { Result } from "../../../../domain/shared/result.js"
-import { ValidationError } from "../../../../domain/shared/result.js"
+import { err, ok, type Result } from 'neverthrow';
+
+import { ValidationError } from '../errors/DomainErrors';
 
 export class AnalysisMetrics {
   private constructor(
@@ -18,9 +19,7 @@ export class AnalysisMetrics {
   ) {}
 
   static createEmpty(): AnalysisMetrics {
-    return new AnalysisMetrics(
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100
-    );
+    return new AnalysisMetrics(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100);
   }
 
   static create(
@@ -28,31 +27,22 @@ export class AnalysisMetrics {
     connectionCount: number,
     treeDepth: number,
     branchingFactor: number,
-    cycleCount: number = 0,
-    orphanStatements: number = 0,
-    redundantConnections: number = 0,
-    validationErrors: number = 0,
-    validationWarnings: number = 0
+    cycleCount = 0,
+    orphanStatements = 0,
+    redundantConnections = 0,
+    validationErrors = 0,
+    validationWarnings = 0
   ): Result<AnalysisMetrics, ValidationError> {
     if (statementCount < 0) {
-      return {
-        success: false,
-        error: new ValidationError('Statement count cannot be negative')
-      };
+      return err(new ValidationError('Statement count cannot be negative'));
     }
 
     if (connectionCount < 0) {
-      return {
-        success: false,
-        error: new ValidationError('Connection count cannot be negative')
-      };
+      return err(new ValidationError('Connection count cannot be negative'));
     }
 
     if (treeDepth < 0) {
-      return {
-        success: false,
-        error: new ValidationError('Tree depth cannot be negative')
-      };
+      return err(new ValidationError('Tree depth cannot be negative'));
     }
 
     const complexityScore = AnalysisMetrics.calculateComplexityScore(
@@ -76,9 +66,8 @@ export class AnalysisMetrics {
       qualityScore
     );
 
-    return {
-      success: true,
-      data: new AnalysisMetrics(
+    return ok(
+      new AnalysisMetrics(
         complexityScore,
         qualityScore,
         statementCount,
@@ -92,7 +81,7 @@ export class AnalysisMetrics {
         validationWarnings,
         performanceScore
       )
-    };
+    );
   }
 
   private static calculateComplexityScore(
@@ -110,11 +99,7 @@ export class AnalysisMetrics {
     const cycleFactor = Math.min(cycleCount / 5, 1) * 10; // Max 10 points for cycles
 
     return Math.round(
-      statementFactor + 
-      connectionFactor + 
-      depthFactor + 
-      branchingFactor_normalized + 
-      cycleFactor
+      statementFactor + connectionFactor + depthFactor + branchingFactor_normalized + cycleFactor
     );
   }
 
@@ -125,7 +110,7 @@ export class AnalysisMetrics {
     validationWarnings: number,
     totalStatements: number
   ): number {
-    let baseScore = 100;
+    const baseScore = 100;
 
     // Deduct points for issues
     const orphanPenalty = totalStatements > 0 ? (orphanStatements / totalStatements) * 20 : 0;
@@ -133,21 +118,17 @@ export class AnalysisMetrics {
     const errorPenalty = validationErrors * 10;
     const warningPenalty = validationWarnings * 3;
 
-    const finalScore = baseScore - orphanPenalty - redundancyPenalty - errorPenalty - warningPenalty;
+    const finalScore =
+      baseScore - orphanPenalty - redundancyPenalty - errorPenalty - warningPenalty;
     return Math.max(0, Math.round(finalScore));
   }
 
-  private static calculatePerformanceScore(
-    complexityScore: number,
-    qualityScore: number
-  ): number {
+  private static calculatePerformanceScore(complexityScore: number, qualityScore: number): number {
     // Balance complexity and quality for overall performance
     const complexityWeight = 0.3;
     const qualityWeight = 0.7;
 
-    return Math.round(
-      (complexityScore * complexityWeight) + (qualityScore * qualityWeight)
-    );
+    return Math.round(complexityScore * complexityWeight + qualityScore * qualityWeight);
   }
 
   getComplexityScore(): number {
@@ -223,9 +204,7 @@ export class AnalysisMetrics {
   }
 
   hasIssues(): boolean {
-    return this.validationErrors > 0 || 
-           this.orphanStatements > 0 || 
-           this.redundantConnections > 0;
+    return this.validationErrors > 0 || this.orphanStatements > 0 || this.redundantConnections > 0;
   }
 
   hasErrors(): boolean {
@@ -238,7 +217,7 @@ export class AnalysisMetrics {
 
   getConnectionDensity(): number {
     if (this.statementCount <= 1) return 0;
-    const maxConnections = this.statementCount * (this.statementCount - 1) / 2;
+    const maxConnections = (this.statementCount * (this.statementCount - 1)) / 2;
     return maxConnections > 0 ? this.connectionCount / maxConnections : 0;
   }
 
@@ -273,7 +252,7 @@ export class AnalysisMetrics {
       combinedValidationWarnings
     );
 
-    return result.success ? result.data : AnalysisMetrics.createEmpty();
+    return result.isOk() ? result.value : AnalysisMetrics.createEmpty();
   }
 
   generateSummary(): MetricsSummary {
@@ -287,7 +266,7 @@ export class AnalysisMetrics {
       hasErrors: this.hasErrors(),
       connectionDensity: this.getConnectionDensity(),
       orphanRate: this.getOrphanRate(),
-      redundancyRate: this.getRedundancyRate()
+      redundancyRate: this.getRedundancyRate(),
     };
   }
 
@@ -304,10 +283,12 @@ export class AnalysisMetrics {
   }
 
   equals(other: AnalysisMetrics): boolean {
-    return this.complexityScore === other.complexityScore &&
-           this.qualityScore === other.qualityScore &&
-           this.statementCount === other.statementCount &&
-           this.connectionCount === other.connectionCount;
+    return (
+      this.complexityScore === other.complexityScore &&
+      this.qualityScore === other.qualityScore &&
+      this.statementCount === other.statementCount &&
+      this.connectionCount === other.connectionCount
+    );
   }
 }
 

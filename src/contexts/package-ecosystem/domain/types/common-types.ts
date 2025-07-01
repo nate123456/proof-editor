@@ -38,11 +38,11 @@ export interface PackageManifestData {
     readonly proofCapabilities?: string[];
   };
   readonly validation?: {
-    readonly categories?: Array<{
+    readonly categories?: {
       readonly id: string;
       readonly name: string;
       readonly rules: string[];
-    }>;
+    }[];
     readonly customValidators?: string[];
   };
   readonly keywords?: string[];

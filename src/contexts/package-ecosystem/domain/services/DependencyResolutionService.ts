@@ -1,15 +1,21 @@
-import { Result } from '../types/result.js';
-import { PackageNotFoundError, PackageValidationError, PackageSourceUnavailableError } from '../types/domain-errors.js';
-import { PackageEntity } from '../entities/package-entity.js';
-import { DependencyEntity } from '../entities/dependency-entity.js';
+import { err, ok, type Result } from 'neverthrow';
+
+import { type Dependency } from '../entities/Dependency.js';
+import { type Package } from '../entities/Package.js';
+import { type IDependencyRepository } from '../repositories/IDependencyRepository.js';
+import {
+  PackageNotFoundError,
+  type PackageSourceUnavailableError,
+  PackageValidationError,
+} from '../types/domain-errors.js';
 import { PackageId } from '../value-objects/package-id.js';
 import { PackageVersion } from '../value-objects/PackageVersion.js';
-import { VersionConstraint } from '../value-objects/version-constraint.js';
-import { VersionResolutionService } from './VersionResolutionService.js';
-import { PackageDiscoveryService } from './package-discovery-service.js';
+import { type VersionConstraint } from '../value-objects/version-constraint.js';
+import { type PackageDiscoveryService } from './package-discovery-service.js';
+import { type VersionResolutionService } from './VersionResolutionService.js';
 
 export interface DependencyResolutionPlan {
-  readonly rootPackage: PackageEntity;
+  readonly rootPackage: Package;
   readonly resolvedDependencies: readonly ResolvedDependency[];
   readonly installationOrder: readonly PackageId[];
   readonly conflicts: readonly DependencyConflict[];
@@ -18,8 +24,8 @@ export interface DependencyResolutionPlan {
 }
 
 export interface ResolvedDependency {
-  readonly dependency: DependencyEntity;
-  readonly resolvedPackage: PackageEntity;
+  readonly dependency: Dependency;
+  readonly resolvedPackage: Package;
   readonly resolvedVersion: PackageVersion;
   readonly isDirectDependency: boolean;
   readonly depth: number;
@@ -34,14 +40,9 @@ export interface DependencyConflict {
 }
 
 export interface DependencyTree {
-  readonly package: PackageEntity;
+  readonly package: Package;
   readonly dependencies: readonly DependencyTree[];
   readonly depth: number;
-}
-
-export interface IDependencyRepository {
-  findDependenciesForPackage(packageId: PackageId): Promise<Result<readonly DependencyEntity[], PackageNotFoundError>>;
-  findPackagesThatDependOn(packageId: PackageId): Promise<Result<readonly DependencyEntity[], PackageNotFoundError>>;
 }
 
 export class DependencyResolutionService {
@@ -52,12 +53,17 @@ export class DependencyResolutionService {
   ) {}
 
   async resolveDependenciesForPackage(
-    rootPackage: PackageEntity,
+    rootPackage: Package,
     options: { includeDevDependencies?: boolean; maxDepth?: number } = {}
-  ): Promise<Result<DependencyResolutionPlan, PackageNotFoundError | PackageValidationError | PackageSourceUnavailableError>> {
+  ): Promise<
+    Result<
+      DependencyResolutionPlan,
+      PackageNotFoundError | PackageValidationError | PackageSourceUnavailableError
+    >
+  > {
     const startTime = Date.now();
     const maxDepth = options.maxDepth || 10;
-    
+
     const resolvedDependencies: ResolvedDependency[] = [];
     const visited = new Set<string>();
     const conflicts: DependencyConflict[] = [];
@@ -73,8 +79,8 @@ export class DependencyResolutionService {
       options.includeDevDependencies || false
     );
 
-    if (!resolutionResult.success) {
-      return Result.failure(resolutionResult.error);
+    if (resolutionResult.isErr()) {
+      return err(resolutionResult.error);
     }
 
     this.detectConflicts(versionMap, conflicts, resolvedDependencies);
@@ -88,26 +94,26 @@ export class DependencyResolutionService {
       installationOrder,
       conflicts,
       totalPackages: resolvedDependencies.length + 1,
-      resolutionTime
+      resolutionTime,
     };
 
-    return Result.success(plan);
+    return ok(plan);
   }
 
   async buildDependencyTree(
-    rootPackage: PackageEntity,
+    rootPackage: Package,
     maxDepth = 5
   ): Promise<Result<DependencyTree, PackageNotFoundError | PackageValidationError>> {
     const treeResult = await this.buildTreeRecursively(rootPackage, 0, maxDepth, new Set());
-    if (!treeResult.success) {
-      return Result.failure(treeResult.error);
+    if (treeResult.isErr()) {
+      return err(treeResult.error);
     }
 
-    return Result.success(treeResult.data);
+    return ok(treeResult.value);
   }
 
   async findCircularDependencies(
-    rootPackage: PackageEntity
+    rootPackage: Package
   ): Promise<Result<readonly PackageId[][], PackageNotFoundError | PackageValidationError>> {
     const cycles: PackageId[][] = [];
     const visited = new Set<string>();
@@ -122,100 +128,111 @@ export class DependencyResolutionService {
       cycles
     );
 
-    if (!result.success) {
-      return Result.failure(result.error);
+    if (result.isErr()) {
+      return err(result.error);
     }
 
-    return Result.success(cycles);
+    return ok(cycles);
   }
 
   async validateDependencyCompatibility(
-    packageA: PackageEntity,
-    packageB: PackageEntity
+    packageA: Package,
+    packageB: Package
   ): Promise<Result<boolean, PackageValidationError>> {
     const aRequiresProofEditor = packageA.getManifest().getRequiredProofEditorVersion();
     const aRequiresNode = packageA.getManifest().getRequiredNodeVersion();
-    
+
     const bRequiresProofEditor = packageB.getManifest().getRequiredProofEditorVersion();
     const bRequiresNode = packageB.getManifest().getRequiredNodeVersion();
 
     if (aRequiresProofEditor && bRequiresProofEditor) {
-      const compatibilityResult = this.checkVersionCompatibility(aRequiresProofEditor, bRequiresProofEditor);
-      if (!compatibilityResult.success) {
-        return Result.failure(new PackageValidationError(
-          `Incompatible Proof Editor version requirements: ${packageA.getId().toString()} requires ${aRequiresProofEditor}, ${packageB.getId().toString()} requires ${bRequiresProofEditor}`
-        ));
+      const compatibilityResult = this.checkVersionCompatibility(
+        aRequiresProofEditor,
+        bRequiresProofEditor
+      );
+      if (compatibilityResult.isErr()) {
+        return err(
+          new PackageValidationError(
+            `Incompatible Proof Editor version requirements: ${packageA.getId().toString()} requires ${aRequiresProofEditor}, ${packageB.getId().toString()} requires ${bRequiresProofEditor}`
+          )
+        );
       }
     }
 
     if (aRequiresNode && bRequiresNode) {
       const compatibilityResult = this.checkVersionCompatibility(aRequiresNode, bRequiresNode);
-      if (!compatibilityResult.success) {
-        return Result.failure(new PackageValidationError(
-          `Incompatible Node.js version requirements: ${packageA.getId().toString()} requires ${aRequiresNode}, ${packageB.getId().toString()} requires ${bRequiresNode}`
-        ));
+      if (compatibilityResult.isErr()) {
+        return err(
+          new PackageValidationError(
+            `Incompatible Node.js version requirements: ${packageA.getId().toString()} requires ${aRequiresNode}, ${packageB.getId().toString()} requires ${bRequiresNode}`
+          )
+        );
       }
     }
 
-    return Result.success(true);
+    return ok(true);
   }
 
   private async resolveRecursively(
-    currentPackage: PackageEntity,
+    currentPackage: Package,
     depth: number,
     maxDepth: number,
     resolvedDependencies: ResolvedDependency[],
     visited: Set<string>,
     versionMap: Map<string, PackageVersion[]>,
     includeDevDependencies: boolean
-  ): Promise<Result<void, PackageNotFoundError | PackageValidationError | PackageSourceUnavailableError>> {
+  ): Promise<
+    Result<void, PackageNotFoundError | PackageValidationError | PackageSourceUnavailableError>
+  > {
     if (depth > maxDepth) {
-      return Result.failure(new PackageValidationError(
-        `Maximum dependency depth ${maxDepth} exceeded`
-      ));
+      return err(new PackageValidationError(`Maximum dependency depth ${maxDepth} exceeded`));
     }
 
     const packageKey = currentPackage.getId().toString();
     if (visited.has(packageKey)) {
-      return Result.success(undefined);
+      return ok(undefined);
     }
 
     visited.add(packageKey);
 
-    const dependenciesResult = await this.dependencyRepository.findDependenciesForPackage(currentPackage.getId());
-    if (!dependenciesResult.success) {
-      return Result.failure(dependenciesResult.error);
+    const dependenciesResult = await this.dependencyRepository.findDependenciesForPackage(
+      currentPackage.getId()
+    );
+    if (dependenciesResult.isErr()) {
+      return err(dependenciesResult.error);
     }
 
-    for (const dependency of dependenciesResult.data) {
+    for (const dependency of dependenciesResult.value) {
       if (!includeDevDependencies && !dependency.isRequired()) {
         continue;
       }
 
-      const packageResult = await this.packageDiscoveryService.findPackageById(dependency.getTargetPackageId());
-      if (!packageResult.success) {
-        return Result.failure(packageResult.error);
+      const packageResult = await this.packageDiscoveryService.findPackageById(
+        dependency.getTargetPackageId()
+      );
+      if (packageResult.isErr()) {
+        return err(packageResult.error);
       }
 
-      const resolvedPackage = packageResult.data;
-      
+      const resolvedPackage = packageResult.value;
+
       const versionResolutionResult = await this.resolveVersionFromConstraint(
         resolvedPackage,
         dependency.getVersionConstraint()
       );
-      
-      if (!versionResolutionResult.success) {
-        return Result.failure(versionResolutionResult.error);
+
+      if (versionResolutionResult.isErr()) {
+        return err(versionResolutionResult.error);
       }
 
-      const resolvedVersion = versionResolutionResult.data;
+      const resolvedVersion = versionResolutionResult.value;
 
       const resolvedDependency: ResolvedDependency = {
         dependency,
         resolvedPackage,
         resolvedVersion,
         isDirectDependency: depth === 0,
-        depth
+        depth,
       };
 
       resolvedDependencies.push(resolvedDependency);
@@ -236,111 +253,119 @@ export class DependencyResolutionService {
         includeDevDependencies
       );
 
-      if (!recursionResult.success) {
-        return Result.failure(recursionResult.error);
+      if (recursionResult.isErr()) {
+        return err(recursionResult.error);
       }
     }
 
-    return Result.success(undefined);
+    return ok(undefined);
   }
 
   private async buildTreeRecursively(
-    currentPackage: PackageEntity,
+    currentPackage: Package,
     depth: number,
     maxDepth: number,
     visited: Set<string>
   ): Promise<Result<DependencyTree, PackageNotFoundError | PackageValidationError>> {
     if (depth > maxDepth) {
-      return Result.success({
+      return ok({
         package: currentPackage,
         dependencies: [],
-        depth
+        depth,
       });
     }
 
     const packageKey = currentPackage.getId().toString();
     if (visited.has(packageKey)) {
-      return Result.success({
+      return ok({
         package: currentPackage,
         dependencies: [],
-        depth
+        depth,
       });
     }
 
     visited.add(packageKey);
 
-    const dependenciesResult = await this.dependencyRepository.findDependenciesForPackage(currentPackage.getId());
-    if (!dependenciesResult.success) {
-      return Result.failure(dependenciesResult.error);
+    const dependenciesResult = await this.dependencyRepository.findDependenciesForPackage(
+      currentPackage.getId()
+    );
+    if (dependenciesResult.isErr()) {
+      return err(dependenciesResult.error);
     }
 
     const childTrees: DependencyTree[] = [];
 
-    for (const dependency of dependenciesResult.data) {
-      const packageResult = await this.packageDiscoveryService.findPackageById(dependency.getTargetPackageId());
-      if (!packageResult.success) {
+    for (const dependency of dependenciesResult.value) {
+      const packageResult = await this.packageDiscoveryService.findPackageById(
+        dependency.getTargetPackageId()
+      );
+      if (packageResult.isErr()) {
         continue;
       }
 
       const childTreeResult = await this.buildTreeRecursively(
-        packageResult.data,
+        packageResult.value,
         depth + 1,
         maxDepth,
         new Set(visited)
       );
 
-      if (childTreeResult.success) {
-        childTrees.push(childTreeResult.data);
+      if (childTreeResult.isOk()) {
+        childTrees.push(childTreeResult.value);
       }
     }
 
-    return Result.success({
+    return ok({
       package: currentPackage,
       dependencies: childTrees,
-      depth
+      depth,
     });
   }
 
   private async findCyclesRecursively(
-    currentPackage: PackageEntity,
+    currentPackage: Package,
     visited: Set<string>,
     recursionStack: Set<string>,
     currentPath: PackageId[],
     cycles: PackageId[][]
   ): Promise<Result<void, PackageNotFoundError | PackageValidationError>> {
     const packageKey = currentPackage.getId().toString();
-    
+
     if (recursionStack.has(packageKey)) {
       const cycleStart = currentPath.findIndex(id => id.toString() === packageKey);
       if (cycleStart !== -1) {
         cycles.push([...currentPath.slice(cycleStart), currentPackage.getId()]);
       }
-      return Result.success(undefined);
+      return ok(undefined);
     }
 
     if (visited.has(packageKey)) {
-      return Result.success(undefined);
+      return ok(undefined);
     }
 
     visited.add(packageKey);
     recursionStack.add(packageKey);
     currentPath.push(currentPackage.getId());
 
-    const dependenciesResult = await this.dependencyRepository.findDependenciesForPackage(currentPackage.getId());
-    if (dependenciesResult.success) {
-      for (const dependency of dependenciesResult.data) {
-        const packageResult = await this.packageDiscoveryService.findPackageById(dependency.getTargetPackageId());
-        if (packageResult.success) {
+    const dependenciesResult = await this.dependencyRepository.findDependenciesForPackage(
+      currentPackage.getId()
+    );
+    if (dependenciesResult.isOk()) {
+      for (const dependency of dependenciesResult.value) {
+        const packageResult = await this.packageDiscoveryService.findPackageById(
+          dependency.getTargetPackageId()
+        );
+        if (packageResult.isOk()) {
           const recursionResult = await this.findCyclesRecursively(
-            packageResult.data,
+            packageResult.value,
             visited,
             recursionStack,
             currentPath,
             cycles
           );
-          
-          if (!recursionResult.success) {
-            return Result.failure(recursionResult.error);
+
+          if (recursionResult.isErr()) {
+            return err(recursionResult.error);
           }
         }
       }
@@ -349,16 +374,22 @@ export class DependencyResolutionService {
     recursionStack.delete(packageKey);
     currentPath.pop();
 
-    return Result.success(undefined);
+    return ok(undefined);
   }
 
   private async resolveVersionFromConstraint(
-    packageEntity: PackageEntity,
+    packageEntity: Package,
     constraint: VersionConstraint
   ): Promise<Result<PackageVersion, PackageSourceUnavailableError | PackageNotFoundError>> {
     const gitSource = packageEntity.getSource().asGitSource();
     if (!gitSource) {
-      return PackageVersion.create(packageEntity.getVersion());
+      const versionResult = PackageVersion.create(packageEntity.getVersion());
+      if (versionResult.isErr()) {
+        return err(
+          new PackageNotFoundError(`Invalid version format: ${versionResult.error.message}`)
+        );
+      }
+      return ok(versionResult.value);
     }
 
     const resolutionResult = await this.versionResolutionService.resolveVersionConstraint(
@@ -366,11 +397,11 @@ export class DependencyResolutionService {
       constraint
     );
 
-    if (!resolutionResult.success) {
-      return Result.failure(resolutionResult.error);
+    if (resolutionResult.isErr()) {
+      return err(resolutionResult.error);
     }
 
-    return Result.success(resolutionResult.data.bestVersion);
+    return ok(resolutionResult.value.bestVersion);
   }
 
   private detectConflicts(
@@ -378,7 +409,7 @@ export class DependencyResolutionService {
     conflicts: DependencyConflict[],
     resolvedDependencies: readonly ResolvedDependency[]
   ): void {
-    for (const [packageId, versions] of versionMap.entries()) {
+    for (const [packageId, versions] of Array.from(versionMap.entries())) {
       if (versions.length <= 1) {
         continue;
       }
@@ -392,18 +423,24 @@ export class DependencyResolutionService {
           .filter(rd => rd.resolvedPackage.getId().toString() === packageId)
           .map(rd => rd.dependency.getTargetPackageId());
 
-        const hasIncompatibleVersions = uniqueVersions.some((v1, i) => 
+        const hasIncompatibleVersions = uniqueVersions.some((v1, i) =>
           uniqueVersions.slice(i + 1).some(v2 => !v1.isCompatibleWith(v2))
         );
 
         const conflict: DependencyConflict = {
-          packageId: PackageId.create(packageId).success ? PackageId.create(packageId).data : new PackageId(packageId),
+          packageId: (() => {
+            const idResult = PackageId.create(packageId);
+            if (idResult.isErr()) {
+              throw new Error(`Invalid package ID: ${packageId}`);
+            }
+            return idResult.value;
+          })(),
           conflictingVersions: uniqueVersions,
           requiredBy,
           severity: hasIncompatibleVersions ? 'error' : 'warning',
           suggestion: hasIncompatibleVersions
             ? `Consider updating dependencies to use compatible versions`
-            : `Multiple versions detected, consider using a single version`
+            : `Multiple versions detected, consider using a single version`,
         };
 
         conflicts.push(conflict);
@@ -411,14 +448,16 @@ export class DependencyResolutionService {
     }
   }
 
-  private calculateInstallationOrder(resolvedDependencies: readonly ResolvedDependency[]): readonly PackageId[] {
+  private calculateInstallationOrder(
+    resolvedDependencies: readonly ResolvedDependency[]
+  ): readonly PackageId[] {
     const dependencyMap = new Map<string, Set<string>>();
     const allPackages = new Set<string>();
 
     for (const resolved of resolvedDependencies) {
       const packageId = resolved.resolvedPackage.getId().toString();
       allPackages.add(packageId);
-      
+
       if (!dependencyMap.has(packageId)) {
         dependencyMap.set(packageId, new Set());
       }
@@ -432,41 +471,51 @@ export class DependencyResolutionService {
       if (visited.has(packageId)) {
         return;
       }
-      
+
       if (visiting.has(packageId)) {
         return;
       }
-      
+
       visiting.add(packageId);
-      
+
       const dependencies = dependencyMap.get(packageId) || new Set();
-      for (const dep of dependencies) {
+      for (const dep of Array.from(dependencies)) {
         visit(dep);
       }
-      
+
       visiting.delete(packageId);
       visited.add(packageId);
       ordered.push(packageId);
     };
 
-    for (const packageId of allPackages) {
+    for (const packageId of Array.from(allPackages)) {
       visit(packageId);
     }
 
-    return ordered.map(id => PackageId.create(id).success ? PackageId.create(id).data : new PackageId(id));
+    return ordered.map(id => {
+      const idResult = PackageId.create(id);
+      if (idResult.isErr()) {
+        throw new Error(`Invalid package ID: ${id}`);
+      }
+      return idResult.value;
+    });
   }
 
-  private checkVersionCompatibility(versionA: string, versionB: string): Result<boolean, PackageValidationError> {
+  private checkVersionCompatibility(
+    versionA: string,
+    versionB: string
+  ): Result<boolean, PackageValidationError> {
     const versionAResult = PackageVersion.create(versionA);
     const versionBResult = PackageVersion.create(versionB);
 
-    if (!versionAResult.success || !versionBResult.success) {
-      return Result.failure(new PackageValidationError('Invalid version format'));
+    if (versionAResult.isErr() || versionBResult.isErr()) {
+      return err(new PackageValidationError('Invalid version format'));
     }
 
-    const compatible = versionAResult.data.isCompatibleWith(versionBResult.data) || 
-                      versionBResult.data.isCompatibleWith(versionAResult.data);
+    const compatible =
+      versionAResult.value.isCompatibleWith(versionBResult.value) ||
+      versionBResult.value.isCompatibleWith(versionAResult.value);
 
-    return Result.success(compatible);
+    return ok(compatible);
   }
 }

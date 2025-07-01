@@ -1,5 +1,6 @@
-import { Result } from "../../../../domain/shared/result.js"
-import { ValidationError } from "../../../../domain/shared/result.js"
+import { err, ok, type Result } from 'neverthrow';
+
+import { ValidationError } from '../errors/DomainErrors';
 
 export class DiagnosticCode {
   private constructor(
@@ -10,28 +11,19 @@ export class DiagnosticCode {
 
   static create(code: string): Result<DiagnosticCode, ValidationError> {
     if (!code || code.trim().length === 0) {
-      return {
-        success: false,
-        error: new ValidationError('Diagnostic code cannot be empty')
-      };
+      return err(new ValidationError('Diagnostic code cannot be empty'));
     }
 
     const trimmedCode = code.trim();
 
     if (!/^[a-z]+-[a-z-]+$/.test(trimmedCode)) {
-      return {
-        success: false,
-        error: new ValidationError('Diagnostic code must follow format: category-specific-code')
-      };
+      return err(new ValidationError('Diagnostic code must follow format: category-specific-code'));
     }
 
     const category = DiagnosticCode.extractCategory(trimmedCode);
     const severity = DiagnosticCode.extractSeverity(trimmedCode);
 
-    return {
-      success: true,
-      data: new DiagnosticCode(trimmedCode, category, severity)
-    };
+    return ok(new DiagnosticCode(trimmedCode, category, severity));
   }
 
   static createSyntaxError(specificCode: string): Result<DiagnosticCode, ValidationError> {
@@ -52,7 +44,7 @@ export class DiagnosticCode {
 
   private static extractCategory(code: string): DiagnosticCategory {
     const categoryPart = code.split('-')[0];
-    
+
     switch (categoryPart) {
       case 'syntax':
         return 'syntax';
@@ -73,11 +65,11 @@ export class DiagnosticCode {
     if (code.includes('error') || code.startsWith('syntax-') || code.startsWith('semantic-')) {
       return 'error';
     }
-    
+
     if (code.includes('warning') || code.startsWith('style-') || code.startsWith('performance-')) {
       return 'warning';
     }
-    
+
     return 'info';
   }
 
@@ -152,10 +144,10 @@ export class DiagnosticCode {
   }
 }
 
-export type DiagnosticCategory = 
-  | 'syntax' 
-  | 'semantic' 
-  | 'style' 
-  | 'educational' 
-  | 'performance' 
+export type DiagnosticCategory =
+  | 'syntax'
+  | 'semantic'
+  | 'style'
+  | 'educational'
+  | 'performance'
   | 'general';

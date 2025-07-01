@@ -1,6 +1,6 @@
-import type { Result } from '../../../../domain/shared/result';
+import { err, ok, type Result } from 'neverthrow';
 
-export type OperationTypeValue = 
+export type OperationTypeValue =
   | 'CREATE_STATEMENT'
   | 'UPDATE_STATEMENT'
   | 'DELETE_STATEMENT'
@@ -20,7 +20,7 @@ export class OperationType {
   static create(value: OperationTypeValue): Result<OperationType, Error> {
     const validOperations: OperationTypeValue[] = [
       'CREATE_STATEMENT',
-      'UPDATE_STATEMENT', 
+      'UPDATE_STATEMENT',
       'DELETE_STATEMENT',
       'CREATE_ARGUMENT',
       'UPDATE_ARGUMENT',
@@ -30,17 +30,14 @@ export class OperationType {
       'DELETE_TREE',
       'CREATE_CONNECTION',
       'DELETE_CONNECTION',
-      'UPDATE_METADATA'
+      'UPDATE_METADATA',
     ];
 
     if (!validOperations.includes(value)) {
-      return { success: false, error: new Error(`Invalid operation type: ${value}`) };
+      return err(new Error(`Invalid operation type: ${value}`));
     }
 
-    return {
-      success: true,
-      data: new OperationType(value)
-    };
+    return ok(new OperationType(value));
   }
 
   getValue(): OperationTypeValue {
@@ -59,7 +56,7 @@ export class OperationType {
       'UPDATE_TREE_POSITION',
       'DELETE_TREE',
       'CREATE_CONNECTION',
-      'DELETE_CONNECTION'
+      'DELETE_CONNECTION',
     ];
 
     return structuralOperations.includes(this.value);
@@ -71,7 +68,7 @@ export class OperationType {
       'UPDATE_STATEMENT',
       'DELETE_STATEMENT',
       'UPDATE_ARGUMENT',
-      'UPDATE_METADATA'
+      'UPDATE_METADATA',
     ];
 
     return semanticOperations.includes(this.value);
@@ -116,17 +113,17 @@ export class OperationType {
   }
 
   private checkStructuralCommutativity(other: OperationType): boolean {
-    const nonCommutativePairs: Array<[OperationTypeValue, OperationTypeValue]> = [
+    const nonCommutativePairs: [OperationTypeValue, OperationTypeValue][] = [
       ['CREATE_ARGUMENT', 'DELETE_ARGUMENT'],
       ['CREATE_TREE', 'DELETE_TREE'],
       ['CREATE_CONNECTION', 'DELETE_CONNECTION'],
       ['DELETE_ARGUMENT', 'CREATE_CONNECTION'],
-      ['DELETE_TREE', 'CREATE_ARGUMENT']
+      ['DELETE_TREE', 'CREATE_ARGUMENT'],
     ];
 
-    return !nonCommutativePairs.some(([op1, op2]) => 
-      (this.value === op1 && other.value === op2) ||
-      (this.value === op2 && other.value === op1)
+    return !nonCommutativePairs.some(
+      ([op1, op2]) =>
+        (this.value === op1 && other.value === op2) || (this.value === op2 && other.value === op1)
     );
   }
 

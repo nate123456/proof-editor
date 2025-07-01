@@ -1,5 +1,10 @@
+import {
+  // AtomicArgumentId,
+  type DocumentId,
+  // StatementId,
+  type TreeId,
+} from '../shared/value-objects.js';
 import { DomainEvent } from './base-event.js';
-import { AtomicArgumentId, TreeId, DocumentId, StatementId } from '../shared/value-objects.js';
 
 export class ValidationCompleted extends DomainEvent {
   readonly eventType = 'ValidationCompleted';
@@ -20,7 +25,7 @@ export class ValidationCompleted extends DomainEvent {
       validationScope: this.validationScope,
       result: this.result,
       validatedBy: this.validatedBy,
-      languagePackage: this.languagePackage
+      languagePackage: this.languagePackage,
     };
   }
 }
@@ -44,7 +49,7 @@ export class ValidationFailed extends DomainEvent {
       validationScope: this.validationScope,
       failures: this.failures,
       validatedBy: this.validatedBy,
-      languagePackage: this.languagePackage
+      languagePackage: this.languagePackage,
     };
   }
 }
@@ -68,7 +73,7 @@ export class ValidationPatternDetected extends DomainEvent {
       pattern: this.pattern,
       confidence: this.confidence,
       detectedBy: this.detectedBy,
-      suggestions: this.suggestions
+      suggestions: this.suggestions,
     };
   }
 }
@@ -92,7 +97,7 @@ export class CustomRuleApplied extends DomainEvent {
       ruleName: this.ruleName,
       ruleVersion: this.ruleVersion,
       applicationResult: this.applicationResult,
-      appliedBy: this.appliedBy
+      appliedBy: this.appliedBy,
     };
   }
 }
@@ -116,7 +121,7 @@ export class SemanticAnalysisCompleted extends DomainEvent {
       analysisType: this.analysisType,
       findings: this.findings,
       analyzedBy: this.analyzedBy,
-      languagePackage: this.languagePackage
+      languagePackage: this.languagePackage,
     };
   }
 }
@@ -138,7 +143,7 @@ export class LogicalConsistencyChecked extends DomainEvent {
       documentId: this.documentId.getValue(),
       checkedTrees: this.checkedTrees.map(id => id.getValue()),
       consistencyResult: this.consistencyResult,
-      checkedBy: this.checkedBy
+      checkedBy: this.checkedBy,
     };
   }
 }
@@ -160,7 +165,7 @@ export class ValidationCacheInvalidated extends DomainEvent {
     return {
       invalidationReason: this.invalidationReason,
       affectedScopes: this.affectedScopes,
-      triggeredBy: this.triggeredBy
+      triggeredBy: this.triggeredBy,
     };
   }
 }
@@ -291,39 +296,39 @@ export interface LogicalGap {
   suggestions: string[];
 }
 
-export type ValidationFailureType = 
-  | 'syntax_error' 
-  | 'semantic_error' 
-  | 'logical_error' 
-  | 'rule_violation' 
+export type ValidationFailureType =
+  | 'syntax_error'
+  | 'semantic_error'
+  | 'logical_error'
+  | 'rule_violation'
   | 'constraint_violation';
 
-export type SemanticAnalysisType = 
-  | 'logical_structure' 
-  | 'semantic_roles' 
-  | 'domain_concepts' 
-  | 'argument_patterns' 
+export type SemanticAnalysisType =
+  | 'logical_structure'
+  | 'semantic_roles'
+  | 'domain_concepts'
+  | 'argument_patterns'
   | 'statement_relationships';
 
-export type SemanticFindingType = 
-  | 'concept_identification' 
-  | 'relationship_discovery' 
-  | 'pattern_match' 
-  | 'anomaly_detection' 
+export type SemanticFindingType =
+  | 'concept_identification'
+  | 'relationship_discovery'
+  | 'pattern_match'
+  | 'anomaly_detection'
   | 'similarity_assessment';
 
-export type ValidationIssueType = 
-  | 'logical_gap' 
-  | 'invalid_inference' 
-  | 'circular_reference' 
-  | 'missing_premise' 
-  | 'malformed_statement' 
+export type ValidationIssueType =
+  | 'logical_gap'
+  | 'invalid_inference'
+  | 'circular_reference'
+  | 'missing_premise'
+  | 'malformed_statement'
   | 'inconsistent_usage';
 
-export type CacheInvalidationReason = 
-  | 'statement_modified' 
-  | 'argument_modified' 
-  | 'structure_changed' 
-  | 'rule_updated' 
-  | 'language_package_changed' 
+export type CacheInvalidationReason =
+  | 'statement_modified'
+  | 'argument_modified'
+  | 'structure_changed'
+  | 'rule_updated'
+  | 'language_package_changed'
   | 'manual_invalidation';

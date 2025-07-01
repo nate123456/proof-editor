@@ -1,5 +1,6 @@
-import { Result } from "../../../../domain/shared/result.js"
-import { ValidationError } from "../../../../domain/shared/result.js"
+import { err, ok, type Result } from 'neverthrow';
+
+import { ValidationError } from '../errors/DomainErrors';
 import { DiagnosticSeverity } from './DiagnosticSeverity';
 
 export class ValidationRule {
@@ -25,14 +26,14 @@ export class ValidationRule {
     if (!name || name.trim().length === 0) {
       return {
         success: false,
-        error: new ValidationError('Rule name cannot be empty')
+        error: new ValidationError('Rule name cannot be empty'),
       };
     }
 
     if (!description || description.trim().length === 0) {
       return {
         success: false,
-        error: new ValidationError('Rule description cannot be empty')
+        error: new ValidationError('Rule description cannot be empty'),
       };
     }
 
@@ -49,7 +50,7 @@ export class ValidationRule {
         pattern,
         true,
         metadata
-      )
+      ),
     };
   }
 
@@ -150,10 +151,10 @@ export class ValidationRule {
         } catch {
           return false;
         }
-      
+
       case 'literal':
         return text.includes(this.pattern.value);
-      
+
       case 'function':
         try {
           const func = new Function('text', this.pattern.value);
@@ -161,10 +162,10 @@ export class ValidationRule {
         } catch {
           return false;
         }
-      
+
       case 'ast':
         return this.matchesAST(text);
-      
+
       default:
         return false;
     }
@@ -185,7 +186,7 @@ export class ValidationRule {
               start: match.index,
               end: match.index + match[0].length,
               matchedText: match[0],
-              confidence: this.calculateConfidence(match[0])
+              confidence: this.calculateConfidence(match[0]),
             });
             if (!regex.global) break;
           }
@@ -193,7 +194,7 @@ export class ValidationRule {
           // Ignore regex errors
         }
         break;
-      
+
       case 'literal':
         let index = text.indexOf(this.pattern.value);
         while (index !== -1) {
@@ -201,7 +202,7 @@ export class ValidationRule {
             start: index,
             end: index + this.pattern.value.length,
             matchedText: this.pattern.value,
-            confidence: 1.0
+            confidence: 1.0,
           });
           index = text.indexOf(this.pattern.value, index + 1);
         }
@@ -213,7 +214,7 @@ export class ValidationRule {
 
   validate(text: string): ValidationRuleResult {
     const matches = this.getMatchPositions(text);
-    
+
     return {
       ruleId: this.id,
       ruleName: this.name,
@@ -223,16 +224,18 @@ export class ValidationRule {
       suggestions: this.generateSuggestions(text, matches),
       performance: {
         executionTimeMs: 0, // Would be measured in real implementation
-        memoryUsageMb: 0
-      }
+        memoryUsageMb: 0,
+      },
     };
   }
 
   canCombineWith(other: ValidationRule): boolean {
-    return this.category === other.category &&
-           this.severity.equals(other.severity) &&
-           !this.metadata.isExclusive &&
-           !other.metadata.isExclusive;
+    return (
+      this.category === other.category &&
+      this.severity.equals(other.severity) &&
+      !this.metadata.isExclusive &&
+      !other.metadata.isExclusive
+    );
   }
 
   withSeverity(newSeverity: DiagnosticSeverity): ValidationRule {
@@ -289,15 +292,15 @@ export class ValidationRule {
 
   private generateSuggestions(text: string, matches: ValidationRuleMatch[]): string[] {
     const suggestions: string[] = [];
-    
+
     if (matches.length > 0 && this.metadata.autoFix) {
       suggestions.push('Apply automatic fix');
     }
-    
+
     if (this.metadata.educationalHints) {
       suggestions.push(...this.metadata.educationalHints);
     }
-    
+
     return suggestions;
   }
 
@@ -352,7 +355,7 @@ export class ValidationRuleMetadata {
       isExclusive: false,
       performanceWeight: 1,
       priority: 0,
-      tags: []
+      tags: [],
     };
   }
 
@@ -361,7 +364,7 @@ export class ValidationRuleMetadata {
       ...ValidationRuleMetadata.createDefault(),
       autoFix: true,
       priority: 10,
-      tags: ['syntax', 'critical']
+      tags: ['syntax', 'critical'],
     };
   }
 
@@ -370,7 +373,7 @@ export class ValidationRuleMetadata {
       ...ValidationRuleMetadata.createDefault(),
       educationalHints: ['Review logical structure', 'Check inference validity'],
       priority: 5,
-      tags: ['semantic', 'logic']
+      tags: ['semantic', 'logic'],
     };
   }
 
@@ -379,7 +382,7 @@ export class ValidationRuleMetadata {
       ...ValidationRuleMetadata.createDefault(),
       autoFix: true,
       priority: 1,
-      tags: ['style', 'formatting']
+      tags: ['style', 'formatting'],
     };
   }
 }

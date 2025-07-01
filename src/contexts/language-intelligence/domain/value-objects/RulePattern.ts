@@ -1,5 +1,6 @@
-import { Result } from "../../../../domain/shared/result.js"
-import { ValidationError } from "../../../../domain/shared/result.js"
+import { err, ok, type Result } from 'neverthrow';
+
+import { ValidationError } from '../errors/DomainErrors';
 
 export class RulePattern {
   private constructor(
@@ -16,33 +17,33 @@ export class RulePattern {
     premisePatterns: string[],
     conclusionPatterns: string[],
     patternId: string,
-    confidence: number = 1.0
+    confidence = 1.0
   ): Result<RulePattern, ValidationError> {
     if (premisePatterns.length === 0) {
       return {
         success: false,
-        error: new ValidationError('At least one premise pattern is required')
+        error: new ValidationError('At least one premise pattern is required'),
       };
     }
 
     if (conclusionPatterns.length === 0) {
       return {
         success: false,
-        error: new ValidationError('At least one conclusion pattern is required')
+        error: new ValidationError('At least one conclusion pattern is required'),
       };
     }
 
     if (!patternId || patternId.trim().length === 0) {
       return {
         success: false,
-        error: new ValidationError('Pattern ID is required')
+        error: new ValidationError('Pattern ID is required'),
       };
     }
 
     if (confidence < 0 || confidence > 1) {
       return {
         success: false,
-        error: new ValidationError('Confidence must be between 0 and 1')
+        error: new ValidationError('Confidence must be between 0 and 1'),
       };
     }
 
@@ -59,7 +60,7 @@ export class RulePattern {
         variables,
         constraints,
         confidence
-      )
+      ),
     };
   }
 
@@ -75,15 +76,15 @@ export class RulePattern {
       patternId
     );
 
-    if (!logicalPatternResult.success) return logicalPatternResult;
+    if (logicalPatternResult.isErr()) return logicalPatternResult;
 
-    const pattern = logicalPatternResult.data;
-    
+    const pattern = logicalPatternResult.value;
+
     // Add modal operator constraints
     const modalConstraints: PatternConstraint[] = modalOperators.map(op => ({
       type: 'modal-operator',
       operator: op,
-      description: `Modal operator ${op} validation`
+      description: `Modal operator ${op} validation`,
     }));
 
     return {
@@ -96,7 +97,7 @@ export class RulePattern {
         pattern.variables,
         [...pattern.constraints, ...modalConstraints],
         pattern.confidence
-      )
+      ),
     };
   }
 
@@ -107,7 +108,7 @@ export class RulePattern {
     if (!template || template.trim().length === 0) {
       return {
         success: false,
-        error: new ValidationError('Template cannot be empty')
+        error: new ValidationError('Template cannot be empty'),
       };
     }
 
@@ -115,12 +116,20 @@ export class RulePattern {
     if (parts.length !== 2) {
       return {
         success: false,
-        error: new ValidationError('Template must have format: premises ⊢ conclusions')
+        error: new ValidationError('Template must have format: premises ⊢ conclusions'),
       };
     }
 
-    const premisePatterns = parts[0].split(',').map(p => p.trim()).filter(p => p.length > 0);
-    const conclusionPatterns = parts[1].split(',').map(c => c.trim()).filter(c => c.length > 0);
+    const premisePatterns =
+      parts[0]
+        ?.split(',')
+        .map(p => p.trim())
+        .filter(p => p.length > 0) ?? [];
+    const conclusionPatterns =
+      parts[1]
+        ?.split(',')
+        .map(c => c.trim())
+        .filter(c => c.length > 0) ?? [];
 
     return RulePattern.createLogicalPattern(premisePatterns, conclusionPatterns, patternId);
   }
@@ -141,7 +150,7 @@ export class RulePattern {
             variables.set(variable, {
               name: variable,
               type: 'proposition',
-              constraints: []
+              constraints: [],
             });
           }
         }
@@ -152,11 +161,11 @@ export class RulePattern {
       if (complexVariableMatches) {
         for (const variable of complexVariableMatches) {
           const varName = variable.split('(')[0];
-          if (!variables.has(varName)) {
+          if (varName && !variables.has(varName)) {
             variables.set(varName, {
               name: varName,
               type: 'predicate',
-              constraints: []
+              constraints: [],
             });
           }
         }
@@ -174,14 +183,14 @@ export class RulePattern {
       constraints.push({
         type: 'consistency',
         variable: name,
-        description: `Variable ${name} must be consistent across all occurrences`
+        description: `Variable ${name} must be consistent across all occurrences`,
       });
 
       if (variable.type === 'predicate') {
         constraints.push({
           type: 'arity-consistency',
           variable: name,
-          description: `Predicate ${name} must have consistent arity`
+          description: `Predicate ${name} must have consistent arity`,
         });
       }
     }
@@ -218,8 +227,10 @@ export class RulePattern {
   }
 
   matches(premises: string[], conclusions: string[]): boolean {
-    if (premises.length !== this.premisePatterns.length ||
-        conclusions.length !== this.conclusionPatterns.length) {
+    if (
+      premises.length !== this.premisePatterns.length ||
+      conclusions.length !== this.conclusionPatterns.length
+    ) {
       return false;
     }
 
@@ -236,7 +247,7 @@ export class RulePattern {
     if (!substitution) return 0;
 
     // Calculate confidence based on pattern complexity and variable consistency
-    let confidence = this.confidence;
+    let { confidence } = this;
 
     // Reduce confidence for complex substitutions
     const substitutionComplexity = Object.values(substitution).reduce((acc, value) => {
@@ -256,14 +267,20 @@ export class RulePattern {
 
     // Try to match premises
     for (let i = 0; i < this.premisePatterns.length; i++) {
-      const patternMatch = this.matchPattern(this.premisePatterns[i], premises[i], substitution);
+      const premise = premises[i];
+      const premisePattern = this.premisePatterns[i];
+      if (!premise || !premisePattern) return null;
+      const patternMatch = this.matchPattern(premisePattern, premise, substitution);
       if (!patternMatch) return null;
       Object.assign(substitution, patternMatch);
     }
 
     // Try to match conclusions
     for (let i = 0; i < this.conclusionPatterns.length; i++) {
-      const patternMatch = this.matchPattern(this.conclusionPatterns[i], conclusions[i], substitution);
+      const conclusion = conclusions[i];
+      const conclusionPattern = this.conclusionPatterns[i];
+      if (!conclusion || !conclusionPattern) return null;
+      const patternMatch = this.matchPattern(conclusionPattern, conclusion, substitution);
       if (!patternMatch) return null;
       Object.assign(substitution, patternMatch);
     }
@@ -281,25 +298,33 @@ export class RulePattern {
     // Simple variable matching (this is a simplified implementation)
     for (const [varName] of this.variables) {
       const varRegex = new RegExp(`\\b${varName}\\b`, 'g');
-      
+
       if (pattern.includes(varName)) {
         // Find what this variable should be substituted with
         const patternParts = pattern.split(varName);
         if (patternParts.length === 2) {
           const before = patternParts[0];
           const after = patternParts[1];
-          
-          if (statement.startsWith(before) && statement.endsWith(after)) {
+
+          if (
+            before !== undefined &&
+            after !== undefined &&
+            statement.startsWith(before) &&
+            statement.endsWith(after)
+          ) {
             const substitutionValue = statement.substring(
               before.length,
               statement.length - after.length
             );
-            
+
             // Check consistency with existing substitution
-            if (existingSubstitution[varName] && existingSubstitution[varName] !== substitutionValue) {
+            if (
+              existingSubstitution[varName] &&
+              existingSubstitution[varName] !== substitutionValue
+            ) {
               return null;
             }
-            
+
             newSubstitution[varName] = substitutionValue;
           }
         }
@@ -329,11 +354,11 @@ export class RulePattern {
     const result = RulePattern.createLogicalPattern(
       substitutedPremises,
       substitutedConclusions,
-      this.patternId + '-instantiated',
+      `${this.patternId}-instantiated`,
       this.confidence * 0.9 // Slightly reduce confidence for instantiated patterns
     );
 
-    return result.success ? result.data : this;
+    return result.isOk() ? result.value : this;
   }
 
   isModal(): boolean {
@@ -367,10 +392,12 @@ export class RulePattern {
   }
 
   equals(other: RulePattern): boolean {
-    return this.patternId === other.patternId &&
-           this.patternType === other.patternType &&
-           JSON.stringify(this.premisePatterns) === JSON.stringify(other.premisePatterns) &&
-           JSON.stringify(this.conclusionPatterns) === JSON.stringify(other.conclusionPatterns);
+    return (
+      this.patternId === other.patternId &&
+      this.patternType === other.patternType &&
+      JSON.stringify(this.premisePatterns) === JSON.stringify(other.premisePatterns) &&
+      JSON.stringify(this.conclusionPatterns) === JSON.stringify(other.conclusionPatterns)
+    );
   }
 }
 

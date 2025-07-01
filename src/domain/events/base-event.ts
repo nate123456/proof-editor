@@ -1,4 +1,5 @@
 import { Timestamp } from '../shared/value-objects.js';
+// Testing script-based hook
 
 export abstract class DomainEvent {
   public readonly eventId: string;
@@ -8,7 +9,7 @@ export abstract class DomainEvent {
   constructor(
     public readonly aggregateId: string,
     public readonly aggregateType: string,
-    eventVersion: number = 1
+    eventVersion = 1
   ) {
     this.eventId = crypto.randomUUID();
     this.occurredAt = Timestamp.now();
@@ -27,7 +28,7 @@ export abstract class DomainEvent {
       eventVersion: this.eventVersion,
       eventData: this.eventData,
       occurredAt: this.occurredAt.getValue(),
-      metadata: this.getMetadata()
+      metadata: this.getMetadata(),
     };
   }
 

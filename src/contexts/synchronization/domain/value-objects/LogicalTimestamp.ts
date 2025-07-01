@@ -1,6 +1,7 @@
-import type { Result } from '../../../../domain/shared/result';
-import { VectorClockEntity } from '../entities/VectorClockEntity';
-import { DeviceId } from './DeviceId';
+import { err, ok, type Result } from 'neverthrow';
+
+import { VectorClock } from '../entities/VectorClock';
+import { type DeviceId } from './DeviceId';
 
 export class LogicalTimestamp {
   private constructor(
@@ -9,28 +10,33 @@ export class LogicalTimestamp {
     private readonly vectorClockHash: string
   ) {}
 
-  static create(deviceId: DeviceId, timestamp: number, vectorClock: VectorClockEntity): Result<LogicalTimestamp, Error> {
+  static create(
+    deviceId: DeviceId,
+    timestamp: number,
+    vectorClock: VectorClock
+  ): Result<LogicalTimestamp, Error> {
     if (timestamp < 0) {
-      return { success: false, error: new Error('Timestamp cannot be negative') };
+      return err(new Error('Timestamp cannot be negative'));
     }
 
     const vectorClockHash = LogicalTimestamp.hashVectorClock(vectorClock);
 
-    return {
-      success: true,
-      data: new LogicalTimestamp(deviceId, timestamp, vectorClockHash)
-    };
+    return ok(new LogicalTimestamp(deviceId, timestamp, vectorClockHash));
   }
 
-  static fromVectorClock(vectorClock: VectorClockEntity): Result<LogicalTimestamp, Error> {
+  static fromVectorClock(vectorClock: VectorClock): Result<LogicalTimestamp, Error> {
     const allDeviceIds = vectorClock.getAllDeviceIds();
-    
+
     if (allDeviceIds.length === 0) {
-      return { success: false, error: new Error('Vector clock must have at least one device') };
+      return err(new Error('Vector clock must have at least one device'));
     }
 
     let maxTimestamp = -1;
     let primaryDeviceId = allDeviceIds[0];
+
+    if (!primaryDeviceId) {
+      return err(new Error('Vector clock must have at least one valid device'));
+    }
 
     for (const deviceId of allDeviceIds) {
       const timestamp = vectorClock.getTimestampForDevice(deviceId);
@@ -44,20 +50,20 @@ export class LogicalTimestamp {
   }
 
   static now(deviceId: DeviceId): Result<LogicalTimestamp, Error> {
-    const clockResult = VectorClockEntity.create(deviceId);
-    if (!clockResult.success) {
-      return clockResult;
+    const clockResult = VectorClock.create(deviceId);
+    if (clockResult.isErr()) {
+      return err(clockResult.error);
     }
 
-    const incrementedResult = clockResult.data.incrementForDevice(deviceId);
-    if (!incrementedResult.success) {
-      return incrementedResult;
+    const incrementedResult = clockResult.value.incrementForDevice(deviceId);
+    if (incrementedResult.isErr()) {
+      return err(incrementedResult.error);
     }
 
-    return LogicalTimestamp.fromVectorClock(incrementedResult.data);
+    return LogicalTimestamp.fromVectorClock(incrementedResult.value);
   }
 
-  private static hashVectorClock(vectorClock: VectorClockEntity): string {
+  private static hashVectorClock(vectorClock: VectorClock): string {
     return vectorClock.toCompactString();
   }
 
@@ -86,9 +92,11 @@ export class LogicalTimestamp {
   }
 
   equals(other: LogicalTimestamp): boolean {
-    return this.timestamp === other.timestamp &&
-           this.vectorClockHash === other.vectorClockHash &&
-           this.deviceId.equals(other.deviceId);
+    return (
+      this.timestamp === other.timestamp &&
+      this.vectorClockHash === other.vectorClockHash &&
+      this.deviceId.equals(other.deviceId)
+    );
   }
 
   isAfter(other: LogicalTimestamp): boolean {
@@ -100,8 +108,7 @@ export class LogicalTimestamp {
   }
 
   isConcurrentWith(other: LogicalTimestamp): boolean {
-    return this.timestamp === other.timestamp && 
-           this.vectorClockHash !== other.vectorClockHash;
+    return this.timestamp === other.timestamp && this.vectorClockHash !== other.vectorClockHash;
   }
 
   toString(): string {
@@ -113,7 +120,7 @@ export class LogicalTimestamp {
   }
 
   getAge(): number {
-    return Date.now() - (this.timestamp * 1000);
+    return Date.now() - this.timestamp * 1000;
   }
 
   isExpired(maxAgeMs: number): boolean {

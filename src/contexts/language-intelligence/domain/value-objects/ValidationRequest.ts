@@ -1,7 +1,8 @@
-import { Result } from "../../../../domain/shared/result.js"
-import { ValidationError } from "../../../../domain/shared/result.js"
-import { ValidationLevel } from './ValidationLevel';
-import { SourceLocation } from '@contexts/analysis/domain/index.ts';
+import { err, ok, type Result } from 'neverthrow';
+
+import { SourceLocation } from '../../../../domain/shared/index.js';
+import { ValidationError } from '../errors/DomainErrors';
+import { type ValidationLevel } from './ValidationLevel';
 
 export class ValidationRequest {
   private constructor(
@@ -24,21 +25,21 @@ export class ValidationRequest {
     if (!statementText || statementText.trim().length === 0) {
       return {
         success: false,
-        error: new ValidationError('Statement text cannot be empty')
+        error: new ValidationError('Statement text cannot be empty'),
       };
     }
 
     if (!documentId || documentId.trim().length === 0) {
       return {
         success: false,
-        error: new ValidationError('Document ID cannot be empty')
+        error: new ValidationError('Document ID cannot be empty'),
       };
     }
 
     if (!languagePackageId || languagePackageId.trim().length === 0) {
       return {
         success: false,
-        error: new ValidationError('Language package ID cannot be empty')
+        error: new ValidationError('Language package ID cannot be empty'),
       };
     }
 
@@ -51,7 +52,7 @@ export class ValidationRequest {
         documentId.trim(),
         languagePackageId.trim(),
         metadata
-      )
+      ),
     };
   }
 
@@ -66,14 +67,14 @@ export class ValidationRequest {
     if (!premises || premises.length === 0) {
       return {
         success: false,
-        error: new ValidationError('At least one premise is required')
+        error: new ValidationError('At least one premise is required'),
       };
     }
 
     if (!conclusions || conclusions.length === 0) {
       return {
         success: false,
-        error: new ValidationError('At least one conclusion is required')
+        error: new ValidationError('At least one conclusion is required'),
       };
     }
 
@@ -136,7 +137,7 @@ export class ValidationRequest {
   }
 
   hasCustomValidators(): boolean {
-    return this.metadata.customValidators && this.metadata.customValidators.length > 0;
+    return !!(this.metadata.customValidators && this.metadata.customValidators.length > 0);
   }
 
   getCustomValidators(): string[] {
@@ -173,15 +174,17 @@ export class ValidationRequest {
     const baseScore = this.statementText.length;
     const symbolWeight = (this.statementText.match(/[∀∃∧∨→↔¬□◇]/g) || []).length * 2;
     const parenthesesWeight = (this.statementText.match(/[()]/g) || []).length * 0.5;
-    
+
     return Math.floor(baseScore + symbolWeight + parenthesesWeight);
   }
 
   equals(other: ValidationRequest): boolean {
-    return this.statementText === other.statementText &&
-           this.documentId === other.documentId &&
-           this.languagePackageId === other.languagePackageId &&
-           this.level.equals(other.level);
+    return (
+      this.statementText === other.statementText &&
+      this.documentId === other.documentId &&
+      this.languagePackageId === other.languagePackageId &&
+      this.level.equals(other.level)
+    );
   }
 }
 
@@ -208,7 +211,7 @@ export class ValidationRequestMetadata {
       educationalFeedback: true,
       requestSource: 'editor',
       priority: 'normal',
-      timeout: 10000
+      timeout: 10000,
     };
   }
 
@@ -216,7 +219,7 @@ export class ValidationRequestMetadata {
     return {
       ...ValidationRequestMetadata.createDefault(),
       requestSource: 'lsp',
-      timeout: 5000
+      timeout: 5000,
     };
   }
 
@@ -225,7 +228,7 @@ export class ValidationRequestMetadata {
       ...ValidationRequestMetadata.createDefault(),
       requestSource: 'api',
       priority: 'high',
-      timeout: 15000
+      timeout: 15000,
     };
   }
 }

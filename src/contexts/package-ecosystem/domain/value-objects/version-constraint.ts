@@ -1,7 +1,16 @@
-import { Result } from '../types/result.js';
+import { err, ok, type Result } from 'neverthrow';
+
 import { InvalidPackageVersionError } from '../types/domain-errors.js';
 
-export type VersionConstraintOperator = 'exact' | 'caret' | 'tilde' | 'gte' | 'lte' | 'gt' | 'lt' | 'range';
+export type VersionConstraintOperator =
+  | 'exact'
+  | 'caret'
+  | 'tilde'
+  | 'gte'
+  | 'lte'
+  | 'gt'
+  | 'lt'
+  | 'range';
 
 export interface VersionRange {
   readonly operator: VersionConstraintOperator;
@@ -17,33 +26,33 @@ export class VersionConstraint {
 
   static create(constraint: string): Result<VersionConstraint, InvalidPackageVersionError> {
     const trimmed = constraint.trim();
-    
+
     if (!trimmed) {
-      return Result.failure(new InvalidPackageVersionError('Version constraint cannot be empty'));
+      return err(new InvalidPackageVersionError('Version constraint cannot be empty'));
     }
 
     const parseResult = this.parseConstraint(trimmed);
-    if (!parseResult.success) {
-      return Result.failure(parseResult.error);
+    if (parseResult.isErr()) {
+      return err(parseResult.error);
     }
 
-    return Result.success(new VersionConstraint(trimmed, parseResult.data));
+    return ok(new VersionConstraint(trimmed, parseResult.value));
   }
 
   satisfies(version: string): Result<boolean, InvalidPackageVersionError> {
     const normalizedVersion = version.trim();
-    
-    if (!this.isValidVersion(normalizedVersion)) {
-      return Result.failure(new InvalidPackageVersionError(`Invalid version format: ${normalizedVersion}`));
+
+    if (!VersionConstraint.isValidVersion(normalizedVersion)) {
+      return err(new InvalidPackageVersionError(`Invalid version format: ${normalizedVersion}`));
     }
 
     for (const range of this.ranges) {
       if (this.versionMatchesRange(normalizedVersion, range)) {
-        return Result.success(true);
+        return ok(true);
       }
     }
 
-    return Result.success(false);
+    return ok(false);
   }
 
   getConstraintString(): string {
@@ -58,63 +67,66 @@ export class VersionConstraint {
     return this.constraint === other.constraint;
   }
 
-  private static parseConstraint(constraint: string): Result<VersionRange[], InvalidPackageVersionError> {
+  private static parseConstraint(
+    constraint: string
+  ): Result<VersionRange[], InvalidPackageVersionError> {
     const ranges: VersionRange[] = [];
 
     if (constraint.includes(' - ')) {
       const [lower, upper] = constraint.split(' - ');
-      if (!this.isValidVersion(lower) || !this.isValidVersion(upper)) {
-        return Result.failure(new InvalidPackageVersionError(`Invalid range format: ${constraint}`));
+      if (!lower || !upper || !this.isValidVersion(lower) || !this.isValidVersion(upper)) {
+        return err(new InvalidPackageVersionError(`Invalid range format: ${constraint}`));
       }
       ranges.push({ operator: 'range', version: lower, upperBound: upper });
     } else if (constraint.startsWith('^')) {
       const version = constraint.slice(1);
       if (!this.isValidVersion(version)) {
-        return Result.failure(new InvalidPackageVersionError(`Invalid caret constraint: ${constraint}`));
+        return err(new InvalidPackageVersionError(`Invalid caret constraint: ${constraint}`));
       }
       ranges.push({ operator: 'caret', version });
     } else if (constraint.startsWith('~')) {
       const version = constraint.slice(1);
       if (!this.isValidVersion(version)) {
-        return Result.failure(new InvalidPackageVersionError(`Invalid tilde constraint: ${constraint}`));
+        return err(new InvalidPackageVersionError(`Invalid tilde constraint: ${constraint}`));
       }
       ranges.push({ operator: 'tilde', version });
     } else if (constraint.startsWith('>=')) {
       const version = constraint.slice(2).trim();
       if (!this.isValidVersion(version)) {
-        return Result.failure(new InvalidPackageVersionError(`Invalid gte constraint: ${constraint}`));
+        return err(new InvalidPackageVersionError(`Invalid gte constraint: ${constraint}`));
       }
       ranges.push({ operator: 'gte', version });
     } else if (constraint.startsWith('<=')) {
       const version = constraint.slice(2).trim();
       if (!this.isValidVersion(version)) {
-        return Result.failure(new InvalidPackageVersionError(`Invalid lte constraint: ${constraint}`));
+        return err(new InvalidPackageVersionError(`Invalid lte constraint: ${constraint}`));
       }
       ranges.push({ operator: 'lte', version });
     } else if (constraint.startsWith('>')) {
       const version = constraint.slice(1).trim();
       if (!this.isValidVersion(version)) {
-        return Result.failure(new InvalidPackageVersionError(`Invalid gt constraint: ${constraint}`));
+        return err(new InvalidPackageVersionError(`Invalid gt constraint: ${constraint}`));
       }
       ranges.push({ operator: 'gt', version });
     } else if (constraint.startsWith('<')) {
       const version = constraint.slice(1).trim();
       if (!this.isValidVersion(version)) {
-        return Result.failure(new InvalidPackageVersionError(`Invalid lt constraint: ${constraint}`));
+        return err(new InvalidPackageVersionError(`Invalid lt constraint: ${constraint}`));
       }
       ranges.push({ operator: 'lt', version });
     } else {
       if (!this.isValidVersion(constraint)) {
-        return Result.failure(new InvalidPackageVersionError(`Invalid version format: ${constraint}`));
+        return err(new InvalidPackageVersionError(`Invalid version format: ${constraint}`));
       }
       ranges.push({ operator: 'exact', version: constraint });
     }
 
-    return Result.success(ranges);
+    return ok(ranges);
   }
 
   private static isValidVersion(version: string): boolean {
-    const semverRegex = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/;
+    const semverRegex =
+      /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/;
     return semverRegex.test(version);
   }
 
@@ -125,25 +137,25 @@ export class VersionConstraint {
     switch (range.operator) {
       case 'exact':
         return version === range.version;
-      
+
       case 'caret':
         return this.satisfiesCaretRange(versionParts, rangeParts);
-      
+
       case 'tilde':
         return this.satisfiesTildeRange(versionParts, rangeParts);
-      
+
       case 'gte':
         return this.compareVersions(versionParts, rangeParts) >= 0;
-      
+
       case 'lte':
         return this.compareVersions(versionParts, rangeParts) <= 0;
-      
+
       case 'gt':
         return this.compareVersions(versionParts, rangeParts) > 0;
-      
+
       case 'lt':
         return this.compareVersions(versionParts, rangeParts) < 0;
-      
+
       case 'range':
         if (!range.upperBound) return false;
         const upperParts = this.parseVersionParts(range.upperBound);
@@ -151,15 +163,20 @@ export class VersionConstraint {
           this.compareVersions(versionParts, rangeParts) >= 0 &&
           this.compareVersions(versionParts, upperParts) <= 0
         );
-      
+
       default:
         return false;
     }
   }
 
-  private parseVersionParts(version: string): { major: number; minor: number; patch: number; prerelease?: string } {
+  private parseVersionParts(version: string): {
+    major: number;
+    minor: number;
+    patch: number;
+    prerelease?: string;
+  } {
     const match = version.match(/^(\d+)\.(\d+)\.(\d+)(?:-(.+))?/);
-    if (!match) {
+    if (!match?.[1] || !match[2] || !match[3]) {
       throw new Error(`Invalid version format: ${version}`);
     }
 
@@ -167,7 +184,7 @@ export class VersionConstraint {
       major: parseInt(match[1], 10),
       minor: parseInt(match[2], 10),
       patch: parseInt(match[3], 10),
-      prerelease: match[4]
+      ...(match[4] ? { prerelease: match[4] } : {}),
     };
   }
 

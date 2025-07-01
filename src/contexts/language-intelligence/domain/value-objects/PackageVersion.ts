@@ -1,5 +1,6 @@
-import { Result } from "../../../../domain/shared/result.js"
-import { ValidationError } from "../../../../domain/shared/result.js"
+import { err, ok, type Result } from 'neverthrow';
+
+import { ValidationError } from '../errors/DomainErrors';
 
 export class PackageVersion {
   private constructor(
@@ -12,42 +13,32 @@ export class PackageVersion {
 
   static create(versionString: string): Result<PackageVersion, ValidationError> {
     if (!versionString || versionString.trim().length === 0) {
-      return {
-        success: false,
-        error: new ValidationError('Version string cannot be empty')
-      };
+      return err(new ValidationError('Version string cannot be empty'));
     }
 
     const trimmed = versionString.trim();
-    
+
     // Basic semver pattern: major.minor.patch[-prerelease][+build]
     const semverPattern = /^(\d+)\.(\d+)\.(\d+)(?:-([a-zA-Z0-9\-.]+))?(?:\+([a-zA-Z0-9\-.]+))?$/;
     const match = trimmed.match(semverPattern);
 
     if (!match) {
-      return {
-        success: false,
-        error: new ValidationError('Version must follow semantic versioning format (major.minor.patch)')
-      };
+      return err(
+        new ValidationError('Version must follow semantic versioning format (major.minor.patch)')
+      );
     }
 
-    const major = parseInt(match[1], 10);
-    const minor = parseInt(match[2], 10);
-    const patch = parseInt(match[3], 10);
+    const major = parseInt(match[1] ?? '0', 10);
+    const minor = parseInt(match[2] ?? '0', 10);
+    const patch = parseInt(match[3] ?? '0', 10);
     const prerelease = match[4] || null;
     const build = match[5] || null;
 
     if (major < 0 || minor < 0 || patch < 0) {
-      return {
-        success: false,
-        error: new ValidationError('Version numbers cannot be negative')
-      };
+      return err(new ValidationError('Version numbers cannot be negative'));
     }
 
-    return {
-      success: true,
-      data: new PackageVersion(major, minor, patch, prerelease, build)
-    };
+    return ok(new PackageVersion(major, minor, patch, prerelease, build));
   }
 
   static createFromNumbers(
@@ -58,16 +49,10 @@ export class PackageVersion {
     build?: string
   ): Result<PackageVersion, ValidationError> {
     if (major < 0 || minor < 0 || patch < 0) {
-      return {
-        success: false,
-        error: new ValidationError('Version numbers cannot be negative')
-      };
+      return err(new ValidationError('Version numbers cannot be negative'));
     }
 
-    return {
-      success: true,
-      data: new PackageVersion(major, minor, patch, prerelease || null, build || null)
-    };
+    return ok(new PackageVersion(major, minor, patch, prerelease || null, build || null));
   }
 
   getMajor(): number {
@@ -92,15 +77,15 @@ export class PackageVersion {
 
   toString(): string {
     let version = `${this.major}.${this.minor}.${this.patch}`;
-    
+
     if (this.prerelease) {
       version += `-${this.prerelease}`;
     }
-    
+
     if (this.build) {
       version += `+${this.build}`;
     }
-    
+
     return version;
   }
 
@@ -136,11 +121,11 @@ export class PackageVersion {
     if (this.prerelease === null && other.prerelease === null) {
       return 0;
     }
-    
+
     if (this.prerelease === null) {
       return 1; // Stable is greater than prerelease
     }
-    
+
     if (other.prerelease === null) {
       return -1; // Prerelease is less than stable
     }
@@ -180,30 +165,18 @@ export class PackageVersion {
 
   withPrerelease(prerelease: string): Result<PackageVersion, ValidationError> {
     if (!prerelease || !/^[a-zA-Z0-9\-.]+$/.test(prerelease)) {
-      return {
-        success: false,
-        error: new ValidationError('Invalid prerelease format')
-      };
+      return err(new ValidationError('Invalid prerelease format'));
     }
 
-    return {
-      success: true,
-      data: new PackageVersion(this.major, this.minor, this.patch, prerelease, this.build)
-    };
+    return ok(new PackageVersion(this.major, this.minor, this.patch, prerelease, this.build));
   }
 
   withBuild(build: string): Result<PackageVersion, ValidationError> {
     if (!build || !/^[a-zA-Z0-9\-.]+$/.test(build)) {
-      return {
-        success: false,
-        error: new ValidationError('Invalid build format')
-      };
+      return err(new ValidationError('Invalid build format'));
     }
 
-    return {
-      success: true,
-      data: new PackageVersion(this.major, this.minor, this.patch, this.prerelease, build)
-    };
+    return ok(new PackageVersion(this.major, this.minor, this.patch, this.prerelease, build));
   }
 
   equals(other: PackageVersion): boolean {

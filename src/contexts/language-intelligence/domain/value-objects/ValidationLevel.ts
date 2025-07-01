@@ -1,5 +1,6 @@
-import { Result } from "../../../../domain/shared/result.js"
-import { ValidationError } from "../../../../domain/shared/result.js"
+import { err, ok, type Result } from 'neverthrow';
+
+import { ValidationError } from '../errors/DomainErrors';
 
 export class ValidationLevel {
   private static readonly SYNTAX_TARGET_MS = 5;
@@ -32,18 +33,15 @@ export class ValidationLevel {
   static fromString(level: string): Result<ValidationLevel, ValidationError> {
     switch (level.toLowerCase()) {
       case 'syntax':
-        return { success: true, data: ValidationLevel.syntax() };
+        return ok(ValidationLevel.syntax());
       case 'flow':
-        return { success: true, data: ValidationLevel.flow() };
+        return ok(ValidationLevel.flow());
       case 'semantic':
-        return { success: true, data: ValidationLevel.semantic() };
+        return ok(ValidationLevel.semantic());
       case 'style':
-        return { success: true, data: ValidationLevel.style() };
+        return ok(ValidationLevel.style());
       default:
-        return {
-          success: false,
-          error: new ValidationError(`Invalid validation level: ${level}`)
-        };
+        return err(new ValidationError(`Invalid validation level: ${level}`));
     }
   }
 
@@ -121,7 +119,7 @@ export class ValidationLevel {
 
   getIncludedLevels(): ValidationLevel[] {
     const levels: ValidationLevel[] = [];
-    
+
     if (this.priority >= 1) levels.push(ValidationLevel.syntax());
     if (this.priority >= 2) levels.push(ValidationLevel.flow());
     if (this.priority >= 3) levels.push(ValidationLevel.semantic());

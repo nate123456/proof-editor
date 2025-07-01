@@ -1,5 +1,6 @@
-import { Result } from "../../../../domain/shared/result.js"
-import { ValidationError } from "../../../../domain/shared/result.js"
+import { err, ok, type Result } from 'neverthrow';
+
+import { ValidationError } from '../errors/DomainErrors';
 
 export class ValidationResultId {
   private constructor(private readonly value: string) {}
@@ -8,7 +9,7 @@ export class ValidationResultId {
     if (!value || value.trim().length === 0) {
       return {
         success: false,
-        error: new ValidationError('Validation result ID cannot be empty')
+        error: new ValidationError('Validation result ID cannot be empty'),
       };
     }
 
@@ -17,13 +18,13 @@ export class ValidationResultId {
     if (trimmedValue.length < 5) {
       return {
         success: false,
-        error: new ValidationError('Validation result ID must be at least 5 characters long')
+        error: new ValidationError('Validation result ID must be at least 5 characters long'),
       };
     }
 
     return {
       success: true,
-      data: new ValidationResultId(trimmedValue)
+      data: new ValidationResultId(trimmedValue),
     };
   }
 
