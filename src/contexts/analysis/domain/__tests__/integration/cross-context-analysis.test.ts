@@ -770,16 +770,32 @@ describe('Cross-Context Analysis Integration', () => {
           );
 
           // 2. Logic Validation
+          const statement0Content = validStatements[0]?.getContent();
+          const statement1Content = validStatements[1]?.getContent();
+          const statement2Content = validStatements[2]?.getContent();
+          const statement3Content = validStatements[3]?.getContent();
+          const statement4Content = validStatements[4]?.getContent();
+
+          if (
+            !statement0Content ||
+            !statement1Content ||
+            !statement2Content ||
+            !statement3Content ||
+            !statement4Content
+          ) {
+            throw new Error('Required statement content not available');
+          }
+
           const inference1Validation = logicValidationService.validateInference(
-            [validStatements[0]?.getContent(), validStatements[1]?.getContent()],
-            [validStatements[2]?.getContent()],
+            [statement0Content, statement1Content],
+            [statement2Content],
             testLanguagePackage,
             ValidationLevel.semantic(),
           );
 
           const inference2Validation = logicValidationService.validateInference(
-            [validStatements[2]?.getContent(), validStatements[3]?.getContent()],
-            [validStatements[4]?.getContent()],
+            [statement2Content, statement3Content],
+            [statement4Content],
             testLanguagePackage,
             ValidationLevel.semantic(),
           );

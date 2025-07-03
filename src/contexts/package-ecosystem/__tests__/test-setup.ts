@@ -132,10 +132,10 @@ export const testUtils = {
    * Create a mock with realistic behavior patterns
    */
   createRealisticMock<T>(baseImplementation: Partial<T>): T {
-    return new Proxy(baseImplementation as T, {
+    return new Proxy(baseImplementation, {
       get(target, prop) {
         if (prop in target) {
-          return target[prop as keyof T];
+          return (target as any)[prop];
         }
 
         // Return a default implementation for missing methods
@@ -143,7 +143,7 @@ export const testUtils = {
           throw new Error(`Method ${String(prop)} not implemented in mock`);
         };
       },
-    });
+    }) as T;
   },
 
   /**
@@ -216,7 +216,7 @@ export class PerformanceBenchmark {
     const grouped = this.measurements.reduce(
       (acc, m) => {
         if (!acc[m.operation]) acc[m.operation] = [];
-        acc[m.operation].push(m.time);
+        acc[m.operation]?.push(m.time);
         return acc;
       },
       {} as Record<string, number[]>,

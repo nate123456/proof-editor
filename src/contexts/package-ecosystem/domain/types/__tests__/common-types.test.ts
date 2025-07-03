@@ -368,8 +368,8 @@ describe('PackageManifestData Interface', () => {
       };
 
       expect(manifest.validation?.categories).toHaveLength(2);
-      expect(manifest.validation?.categories?.[0].id).toBe('propositional-logic');
-      expect(manifest.validation?.categories?.[0].rules).toHaveLength(3);
+      expect(manifest.validation?.categories?.[0]?.id).toBe('propositional-logic');
+      expect(manifest.validation?.categories?.[0]?.rules).toHaveLength(3);
       expect(manifest.validation?.customValidators).toHaveLength(2);
     });
   });
@@ -829,8 +829,8 @@ describe('SDKValidationResult Interface', () => {
       };
 
       expect(sdkResult.implementedInterfaces).toHaveLength(3);
-      expect(sdkResult.implementedInterfaces[0].name).toBe('ValidationAPI');
-      expect(sdkResult.implementedInterfaces[1].methods).toContain('complete');
+      expect(sdkResult.implementedInterfaces[0]?.name).toBe('ValidationAPI');
+      expect(sdkResult.implementedInterfaces[1]?.methods).toContain('complete');
     });
   });
 

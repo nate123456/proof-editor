@@ -1,5 +1,5 @@
 export abstract class DomainError extends Error {
-  public readonly cause?: Error;
+  public override readonly cause?: Error;
 
   constructor(message: string, cause?: Error) {
     super(message);

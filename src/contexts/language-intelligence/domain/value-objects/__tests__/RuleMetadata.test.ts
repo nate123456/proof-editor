@@ -477,15 +477,25 @@ describe('RuleMetadata', () => {
       const modal = RuleMetadata.create({ logicType: 'modal' });
       const higherOrder = RuleMetadata.create({ logicType: 'higher-order' });
 
-      const scores = [propositional, firstOrder, modal, higherOrder].map((result) => {
+      const scores: number[] = [];
+
+      for (const result of [propositional, firstOrder, modal, higherOrder]) {
         expect(result.isOk()).toBe(true);
-        return result.isOk() ? result.value.getDifficultyScore() : 0;
-      });
+        if (result.isOk()) {
+          scores.push(result.value.getDifficultyScore());
+        }
+      }
 
       expect(scores.length).toBe(4);
-      expect(scores[0]).toBeLessThan(scores[1]);
-      expect(scores[1]).toBeLessThan(scores[2]);
-      expect(scores[2]).toBeLessThan(scores[3]);
+      expect(scores.length).toBeGreaterThanOrEqual(4);
+
+      // Type guard to ensure all scores are defined
+      if (scores.length === 4) {
+        const [first, second, third, fourth] = scores as [number, number, number, number];
+        expect(first).toBeLessThan(second);
+        expect(second).toBeLessThan(third);
+        expect(third).toBeLessThan(fourth);
+      }
     });
 
     it('should include prerequisite knowledge in score', () => {

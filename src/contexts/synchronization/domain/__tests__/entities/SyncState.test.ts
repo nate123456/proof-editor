@@ -264,7 +264,7 @@ describe('SyncState', () => {
         const updatedState = updated.value;
         const peers = updatedState.getPeerStates();
         expect(peers).toHaveLength(1);
-        expect(peers[0].deviceId.getValue()).toBe('peer-1');
+        expect(peers[0]?.deviceId.getValue()).toBe('peer-1');
       }
     });
 
@@ -283,8 +283,8 @@ describe('SyncState', () => {
           const updatedState = updated.value;
           const peers = updatedState.getPeerStates();
           expect(peers).toHaveLength(1);
-          expect(peers[0].status).toBe('SYNCING');
-          expect(peers[0].pendingOperationCount).toBe(3);
+          expect(peers[0]?.status).toBe('SYNCING');
+          expect(peers[0]?.pendingOperationCount).toBe(3);
         }
       }
     });
@@ -385,7 +385,7 @@ describe('SyncState', () => {
         if (updated.isOk()) {
           const outOfSyncPeers = updated.value.getOutOfSyncPeers();
           expect(outOfSyncPeers).toHaveLength(1);
-          expect(outOfSyncPeers[0].deviceId.getValue()).toBe('out-of-sync-peer');
+          expect(outOfSyncPeers[0]?.deviceId.getValue()).toBe('out-of-sync-peer');
         }
       }
     });

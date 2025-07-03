@@ -41,7 +41,7 @@ export class ProofAggregate {
 
     const aggregate = new ProofAggregate(ProofId.generate(), statements, argumentsMap, orderedSets);
 
-    if (initialData.initialStatement) {
+    if (initialData.initialStatement !== undefined) {
       const addResult = aggregate.addStatement(initialData.initialStatement);
       if (addResult.isErr()) {
         return err(addResult.error);

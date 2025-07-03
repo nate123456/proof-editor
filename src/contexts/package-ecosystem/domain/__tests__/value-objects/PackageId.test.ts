@@ -409,6 +409,13 @@ describe('PackageId', () => {
       ];
 
       for (const [id1, id2] of testPairs) {
+        expect(id1).toBeDefined();
+        expect(id2).toBeDefined();
+
+        if (id1 === undefined || id2 === undefined) {
+          throw new Error('Test data should not contain undefined values');
+        }
+
         const result1 = PackageId.create(id1);
         const result2 = PackageId.create(id2);
 

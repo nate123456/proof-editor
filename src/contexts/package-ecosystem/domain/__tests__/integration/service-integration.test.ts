@@ -40,6 +40,8 @@ describe('Package Ecosystem Context - Service Integration', () => {
   let mockGitRefProvider: any;
   let mockFileSystem: any;
   let _mockSDKValidator: any;
+  let mockGitProvider: any;
+  let mockLocalProvider: any;
   let testPackage: Package;
   let testDependency: Package;
 
@@ -83,15 +85,31 @@ describe('Package Ecosystem Context - Service Integration', () => {
       checkVersionCompatibility: vi.fn().mockReturnValue(ok(true)),
     };
 
+    // Create mock providers
+    mockGitProvider = {
+      discoverFromGitHub: vi.fn().mockResolvedValue(ok([])),
+      discoverFromGitLab: vi.fn().mockResolvedValue(ok([])),
+      validateGitSource: vi.fn().mockResolvedValue(ok(true)),
+    };
+
+    mockLocalProvider = {
+      discoverInDirectory: vi.fn().mockResolvedValue(ok([])),
+      validateLocalSource: vi.fn().mockResolvedValue(ok(true)),
+    };
+
     // Initialize services with mocked dependencies
     versionResolutionService = new VersionResolutionService(mockGitRefProvider);
-    packageDiscoveryService = new PackageDiscoveryService(mockPackageRepository);
+    packageDiscoveryService = new PackageDiscoveryService(
+      mockPackageRepository,
+      mockGitProvider,
+      mockLocalProvider,
+    );
     dependencyResolutionService = new DependencyResolutionService(
       mockDependencyRepository,
       packageDiscoveryService,
       versionResolutionService,
     );
-    packageValidationService = new PackageValidationService(mockFileSystem);
+    packageValidationService = new PackageValidationService(mockFileSystem, _mockSDKValidator);
 
     // Create test packages
     const packageIdResult = PackageId.create('test-package');
@@ -321,7 +339,7 @@ describe('Package Ecosystem Context - Service Integration', () => {
   });
 
   describe('PackageValidationService Integration', () => {
-    it('should validate packages within dependency resolution workflow', () => {
+    it('should validate packages within dependency resolution workflow', async () => {
       // Arrange
       const packageResult = PackageId.create('invalid-package');
       expect(packageResult.isOk()).toBe(true);
@@ -331,13 +349,13 @@ describe('Package Ecosystem Context - Service Integration', () => {
           name: '',
           version: 'invalid-version',
           description: 'Invalid package for testing',
+          author: 'Test Author',
         });
 
         // Act
-        const validationResult = packageValidationService.validatePackageStructure(testPackage);
-        const manifestValidationResult = packageValidationService.validateManifest(
-          testPackage.getManifest(),
-        );
+        const validationResult = await packageValidationService.validatePackage(testPackage);
+        const manifestValidationResult =
+          await packageValidationService.validatePackage(testPackage);
 
         // Assert
         expect(validationResult.isOk()).toBe(true);
@@ -360,12 +378,12 @@ describe('Package Ecosystem Context - Service Integration', () => {
       expect(invalidConstraint.isErr()).toBe(true);
 
       if (validConstraint.isOk()) {
-        const constraintValidation = packageValidationService.validateVersionConstraint(
-          validConstraint.value,
+        const constraintValidation = versionResolutionService.validateVersionConstraint(
+          validConstraint.value.getConstraintString(),
         );
         expect(constraintValidation.isOk()).toBe(true);
         if (constraintValidation.isOk()) {
-          expect(constraintValidation.value.isValid).toBe(true);
+          expect(constraintValidation.value).toBe(true);
         }
       }
     });
@@ -564,10 +582,11 @@ describe('Package Ecosystem Context - Service Integration', () => {
       expect(installationPathResult.isOk()).toBe(true);
 
       if (installationPathResult.isOk()) {
-        const installationResult = PackageInstallation.create(
+        const installationResult = PackageInstallation.createForInstallation(
           testPackage.getId(),
           testPackage.getVersion(),
-          installationPathResult.value,
+          testPackage.getSource(),
+          installationPathResult.value.getAbsolutePath(),
         );
 
         // Act & Assert
@@ -575,30 +594,26 @@ describe('Package Ecosystem Context - Service Integration', () => {
         if (installationResult.isOk()) {
           const installation = installationResult.value;
           expect(installation.getPackageId()).toBe(testPackage.getId());
-          expect(installation.getInstalledVersion()).toBe(testPackage.getVersion());
-          expect(installation.getInstallationPath()).toBe(installationPathResult.value);
+          expect(installation.getPackageVersion()).toBe(testPackage.getVersion());
+          expect(installation.getInstallationPath()).toBe(
+            installationPathResult.value.getAbsolutePath(),
+          );
         }
       }
     });
 
-    it('should validate package before installation', () => {
+    it('should validate package before installation', async () => {
       // Arrange
-      const structureValidation = packageValidationService.validatePackageStructure(testPackage);
-      const manifestValidation = packageValidationService.validateManifest(
-        testPackage.getManifest(),
-      );
+      const structureValidation = await packageValidationService.validatePackage(testPackage);
 
       // Act & Assert
       expect(structureValidation.isOk()).toBe(true);
-      expect(manifestValidation.isOk()).toBe(true);
 
-      if (structureValidation.isOk() && manifestValidation.isOk()) {
+      if (structureValidation.isOk()) {
         expect(structureValidation.value.isValid).toBe(true);
-        expect(manifestValidation.value.isValid).toBe(true);
 
         // Package should be ready for installation
         expect(structureValidation.value.errors).toHaveLength(0);
-        expect(manifestValidation.value.errors).toHaveLength(0);
       }
     });
   });

@@ -235,7 +235,7 @@ export class DomainEventBus implements IDomainEventBus {
     this.metrics.totalHandlerFailures = 0;
     this.metrics.activeSubscriptions = 0;
     this.metrics.eventHistorySize = 0;
-    this.metrics.lastEventPublishedAt = undefined;
+    delete this.metrics.lastEventPublishedAt;
   }
 }
 

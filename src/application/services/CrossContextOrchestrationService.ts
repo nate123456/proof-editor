@@ -291,7 +291,7 @@ export class CrossContextOrchestrationService {
         contextResults,
         executionTime,
         installed,
-        installedVersion: installed ? version : undefined,
+        ...(version && { installedVersion: version }),
         dependenciesInstalled: [],
       };
 

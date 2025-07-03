@@ -10,7 +10,16 @@ import type { ITreeRepository } from '../../domain/repositories/ITreeRepository.
 import { createTestContainer } from '../../infrastructure/di/container.js';
 import { TOKENS } from '../../infrastructure/di/tokens.js';
 
-export function createMockedTestContainer() {
+export function createMockedTestContainer(): {
+  container: ReturnType<typeof createTestContainer>;
+  mocks: {
+    atomicArgumentRepo: IAtomicArgumentRepository;
+    nodeRepo: INodeRepository;
+    orderedSetRepo: IOrderedSetRepository;
+    statementRepo: IStatementRepository;
+    treeRepo: ITreeRepository;
+  };
+} {
   const container = createTestContainer();
 
   // Create mocked repositories using vitest
@@ -39,7 +48,17 @@ export function createMockedTestContainer() {
   };
 }
 
-export async function createServiceTestContainer() {
+export async function createServiceTestContainer(): Promise<{
+  container: ReturnType<typeof createTestContainer>;
+  mocks: {
+    atomicArgumentRepo: IAtomicArgumentRepository;
+    nodeRepo: INodeRepository;
+    orderedSetRepo: IOrderedSetRepository;
+    statementRepo: IStatementRepository;
+    treeRepo: ITreeRepository;
+  };
+  resolve: <T>(token: string) => T;
+}> {
   const { container, mocks } = createMockedTestContainer();
 
   // Register domain services for testing

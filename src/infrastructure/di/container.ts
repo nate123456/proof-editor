@@ -344,10 +344,21 @@ export async function registerApplicationServices(container: ApplicationContaine
     import('../../application/services/CrossContextOrchestrationService.js'),
   ]);
 
-  // Register application services as singletons
-  container.registerSingleton(
+  // Register application services as singletons using factory function for type safety
+  container.registerFactory(
     TOKENS.CrossContextOrchestrationService,
-    CrossContextOrchestrationService,
+    (c) =>
+      new CrossContextOrchestrationService(
+        c.resolve(TOKENS.StatementFlowService),
+        c.resolve(TOKENS.TreeStructureService),
+        c.resolve(TOKENS.PathCompletenessService),
+        c.resolve(TOKENS.LogicValidationService),
+        c.resolve(TOKENS.PatternRecognitionService),
+        c.resolve(TOKENS.PackageValidationService),
+        c.resolve(TOKENS.DependencyResolutionService),
+        c.resolve(TOKENS.PackageDiscoveryService),
+        c.resolve(TOKENS.OperationCoordinationService),
+      ),
   );
 }
 

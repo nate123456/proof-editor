@@ -914,7 +914,7 @@ export class PatternRecognitionService {
         depth++;
       } else if (char === ')') {
         depth--;
-      } else if (connectives.includes(char) && depth < minDepth) {
+      } else if (char !== undefined && connectives.includes(char) && depth < minDepth) {
         minDepth = depth;
         mainConnective = char;
       }
@@ -1422,7 +1422,12 @@ export class PatternRecognitionService {
           above[i] !== undefined &&
           above[i - 1] !== undefined
         ) {
-          current[i] = Math.min(current[i - 1] + 1, above[i] + 1, above[i - 1] + cost);
+          const currentVal = current[i - 1];
+          const aboveVal = above[i];
+          const abovePrevVal = above[i - 1];
+          if (currentVal !== undefined && aboveVal !== undefined && abovePrevVal !== undefined) {
+            current[i] = Math.min(currentVal + 1, aboveVal + 1, abovePrevVal + cost);
+          }
         }
       }
     }

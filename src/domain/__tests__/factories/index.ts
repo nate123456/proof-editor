@@ -137,24 +137,28 @@ export const orderedSetFactory = Factory.define<OrderedSet>(({ transientParams }
 });
 
 // Factory for creating SideLabels
-export const sideLabelsFactory = Factory.define<SideLabels>(() => ({
-  left: faker.helpers.maybe(() => faker.word.noun(), { probability: 0.3 }),
-  right: faker.helpers.maybe(() => faker.word.adjective(), { probability: 0.3 }),
-}));
+export const sideLabelsFactory = Factory.define<SideLabels>(() => {
+  const result: SideLabels = {};
+  if (faker.helpers.maybe(() => true, { probability: 0.3 })) {
+    result.left = faker.word.noun();
+  }
+  if (faker.helpers.maybe(() => true, { probability: 0.3 })) {
+    result.right = faker.word.adjective();
+  }
+  return result;
+});
 
 // Factory for creating AtomicArgument entities
 export const atomicArgumentFactory = Factory.define<AtomicArgument>(({ transientParams }) => {
-  const {
-    premiseSetRef,
-    conclusionSetRef,
-    sideLabels = sideLabelsFactory.build(),
-  } = transientParams as {
+  const { premiseSetRef, conclusionSetRef, sideLabels } = transientParams as {
     premiseSetRef?: OrderedSetId;
     conclusionSetRef?: OrderedSetId;
     sideLabels?: SideLabels;
   };
 
-  const result = AtomicArgument.create(premiseSetRef, conclusionSetRef, sideLabels);
+  const actualSideLabels = sideLabels ?? sideLabelsFactory.build();
+
+  const result = AtomicArgument.create(premiseSetRef, conclusionSetRef, actualSideLabels);
   if (result.isErr()) {
     throw result.error;
   }

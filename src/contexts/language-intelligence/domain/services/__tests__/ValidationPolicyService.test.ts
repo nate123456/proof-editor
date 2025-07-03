@@ -1,16 +1,18 @@
-import { type MockProxy, mock } from 'jest-mock-extended';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { PerformanceTracker } from '../../value-objects/PerformanceTracker';
 import { ValidationLevel } from '../../value-objects/ValidationLevel';
 import type { ValidationRequest } from '../../value-objects/ValidationRequest';
 import { type ValidationContext, ValidationPolicyService } from '../ValidationPolicyService';
 
 describe('ValidationPolicyService', () => {
   let service: ValidationPolicyService;
-  let mockPerformanceTracker: MockProxy<PerformanceTracker>;
+  let mockPerformanceTracker: any;
 
   beforeEach(() => {
-    mockPerformanceTracker = mock<PerformanceTracker>();
+    mockPerformanceTracker = {
+      startTracking: vi.fn(),
+      stopTracking: vi.fn(),
+      getMetrics: vi.fn(),
+    };
     service = new ValidationPolicyService(mockPerformanceTracker);
   });
 
@@ -286,8 +288,9 @@ describe('ValidationPolicyService', () => {
 });
 
 function createMockValidationRequest(): ValidationRequest {
-  const mockRequest = mock<ValidationRequest>();
-  mockRequest.getValidationLevel.mockReturnValue(ValidationLevel.syntax());
+  const mockRequest = {
+    getValidationLevel: vi.fn().mockReturnValue(ValidationLevel.syntax()),
+  } as any;
   return mockRequest;
 }
 

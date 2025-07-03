@@ -10,6 +10,7 @@
  * - High coverage for conflict detection and resolution
  */
 
+import type { Result } from 'neverthrow';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Conflict } from '../../entities/Conflict';
@@ -23,7 +24,7 @@ import { OperationType } from '../../value-objects/OperationType';
 
 // Helper function to get ConflictType instances
 const getConflictType = (type: string): ConflictType => {
-  let result: ConflictType;
+  let result: Result<ConflictType, Error>;
   switch (type) {
     case 'CONCURRENT_UPDATE':
       result = ConflictType.concurrentModification();
@@ -317,15 +318,15 @@ describe('Conflict', () => {
     it('should return conflicting operations through getConflictingOperations', () => {
       const operations = conflict.getConflictingOperations();
       expect(operations).toHaveLength(2);
-      expect(operations[0].getDeviceId().getValue()).toBe('device-1');
-      expect(operations[1].getDeviceId().getValue()).toBe('device-2');
+      expect(operations[0]?.getDeviceId().getValue()).toBe('device-1');
+      expect(operations[1]?.getDeviceId().getValue()).toBe('device-2');
     });
 
     it('should return conflicting operations through getOperations alias', () => {
       const operations = conflict.getOperations();
       expect(operations).toHaveLength(2);
-      expect(operations[0].getDeviceId().getValue()).toBe('device-1');
-      expect(operations[1].getDeviceId().getValue()).toBe('device-2');
+      expect(operations[0]?.getDeviceId().getValue()).toBe('device-1');
+      expect(operations[1]?.getDeviceId().getValue()).toBe('device-2');
     });
 
     it('should return detected timestamp', () => {

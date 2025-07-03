@@ -45,7 +45,9 @@ export class ProofTransactionService implements IProofTransactionService {
     }
 
     const transactionId = new TransactionId();
-    const transaction = new ProofTransaction(transactionId, this.config);
+    const transaction = new ProofTransaction(transactionId, this.config, (id) =>
+      this.cleanupTransaction(id),
+    );
 
     this.activeTransactions.set(transactionId.getValue(), transaction);
     this.currentTransaction = transaction;
@@ -166,6 +168,7 @@ class ProofTransaction implements IProofTransaction {
   constructor(
     readonly transactionId: TransactionId,
     private readonly config: TransactionConfig,
+    private readonly onComplete?: (transactionId: TransactionId) => void,
   ) {
     this.setupTimeout();
   }
@@ -211,6 +214,7 @@ class ProofTransaction implements IProofTransaction {
           }
 
           this.active = false;
+          this.onComplete?.(this.transactionId);
           return err(
             new TransactionError(
               `Operation execution failed: ${executeResult.error.message}`,
@@ -223,6 +227,7 @@ class ProofTransaction implements IProofTransaction {
       }
 
       this.active = false;
+      this.onComplete?.(this.transactionId);
       return ok(undefined);
     } catch (error) {
       if (this.config.enableCompensation) {
@@ -230,6 +235,7 @@ class ProofTransaction implements IProofTransaction {
       }
 
       this.active = false;
+      this.onComplete?.(this.transactionId);
       return err(
         new TransactionError(
           'Unexpected error during commit',
@@ -260,9 +266,11 @@ class ProofTransaction implements IProofTransaction {
       }
 
       this.active = false;
+      this.onComplete?.(this.transactionId);
       return ok(undefined);
     } catch (error) {
       this.active = false;
+      this.onComplete?.(this.transactionId);
       return err(
         new TransactionError(
           'Unexpected error during rollback',

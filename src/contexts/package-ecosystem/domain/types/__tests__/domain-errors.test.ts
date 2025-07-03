@@ -569,7 +569,9 @@ describe('Package Ecosystem Domain Errors', () => {
       const error = new PackageValidationError('Complex validation error', complexContext);
 
       expect(error.context).toEqual(complexContext);
-      expect(error.context?.package?.metadata?.dependencies?.runtime).toEqual(['dep1', 'dep2']);
+      expect(
+        (error.context as typeof complexContext)?.package?.metadata?.dependencies?.runtime,
+      ).toEqual(['dep1', 'dep2']);
     });
 
     it('should maintain stack trace information', () => {

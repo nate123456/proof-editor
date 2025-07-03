@@ -314,7 +314,7 @@ export class ProofFileParser {
           section: 'atomicArguments',
           reference: id,
         });
-        return;
+        continue;
       }
 
       atomicArguments.set(id, atomicArgumentResult.value);
@@ -353,7 +353,7 @@ export class ProofFileParser {
               section: 'arguments',
               reference: id,
             });
-            return;
+            return err(errors);
           }
 
           const statementIdResult = StatementId.create(statementId);
@@ -364,7 +364,7 @@ export class ProofFileParser {
               section: 'arguments',
               reference: id,
             });
-            return;
+            return err(errors);
           }
 
           validPremiseIds.push(statementIdResult.value);
@@ -396,7 +396,7 @@ export class ProofFileParser {
               section: 'arguments',
               reference: id,
             });
-            return;
+            return err(errors);
           }
 
           const statementIdResult = StatementId.create(statementId);
@@ -407,7 +407,7 @@ export class ProofFileParser {
               section: 'arguments',
               reference: id,
             });
-            return;
+            return err(errors);
           }
 
           validConclusionIds.push(statementIdResult.value);
@@ -443,7 +443,7 @@ export class ProofFileParser {
           section: 'arguments',
           reference: id,
         });
-        return;
+        return err(errors);
       }
 
       argumentsMap.set(id, atomicArgumentResult.value);
@@ -647,7 +647,7 @@ export class ProofFileParser {
           section: 'trees',
           reference: treeId,
         });
-        return;
+        continue;
       }
 
       const treeResult = Tree.create('document', position.value);
@@ -658,7 +658,7 @@ export class ProofFileParser {
           section: 'trees',
           reference: treeId,
         });
-        return;
+        continue;
       }
 
       const tree = treeResult.value;
@@ -704,7 +704,7 @@ export class ProofFileParser {
           section: 'trees',
           reference: `${tree.getId().getValue()}.${nodeId}`,
         });
-        return;
+        return err(errors);
       }
 
       if (!atomicArguments.has(argumentId)) {
@@ -714,7 +714,7 @@ export class ProofFileParser {
           section: 'trees',
           reference: `${tree.getId().getValue()}.${nodeId}`,
         });
-        return;
+        return err(errors);
       }
 
       const argumentIdResult = AtomicArgumentId.create(argumentId);
@@ -725,7 +725,7 @@ export class ProofFileParser {
           section: 'trees',
           reference: `${tree.getId().getValue()}.${nodeId}`,
         });
-        return;
+        continue;
       }
 
       // Determine if this is a root node (no parent specified) or child node
@@ -747,7 +747,7 @@ export class ProofFileParser {
           section: 'trees',
           reference: `${tree.getId().getValue()}.${nodeId}`,
         });
-        return;
+        continue;
       }
 
       nodes.set(nodeId, nodeResult.value);
@@ -756,18 +756,18 @@ export class ProofFileParser {
     // Second pass: Set up attachments for child nodes
     for (const [nodeId, nodeSpec] of Object.entries(nodesData)) {
       if (this.isRootNode(nodeSpec)) {
-        return; // Skip root nodes
+        continue; // Skip root nodes
       }
 
       const node = nodes.get(nodeId);
       if (!node) {
-        return; // Skip if node creation failed
+        continue; // Skip if node creation failed
       }
 
       const attachmentResult = this.createAttachment(nodeSpec, nodes, tree.getId().getValue());
       if (attachmentResult.isErr()) {
         errors.push(...attachmentResult.error);
-        return;
+        continue;
       }
 
       const attachResult = node.attachToParent(attachmentResult.value);
@@ -838,7 +838,7 @@ export class ProofFileParser {
             position = Number.parseInt(value, 10);
           }
         }
-        return;
+        continue;
       }
 
       // This key should be a parent node ID

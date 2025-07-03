@@ -1164,7 +1164,9 @@ describe('Tree Entity', () => {
     describe('TreePathCompleteArgument', () => {
       it('should store and retrieve path complete data', () => {
         const argumentIds = [atomicArgumentIdFactory.build(), atomicArgumentIdFactory.build()];
-        const paths = [[argumentIds[0]], [argumentIds[1]]];
+        const paths = [argumentIds[0], argumentIds[1]]
+          .filter((id) => id !== undefined)
+          .map((id) => [id]);
         const pathCompleteArgument = new TreePathCompleteArgument(argumentIds, paths);
 
         expect(pathCompleteArgument.getAllArguments()).toEqual(argumentIds);
@@ -1278,8 +1280,12 @@ describe('Tree Entity', () => {
 
         // Try to create cycle by making last node parent of first
         // This would create: nodes[4] -> nodes[0] -> nodes[1] -> ... -> nodes[4] (cycle)
-        const wouldCreateCycle = tree.wouldCreateCycle(nodes[nodes.length - 1], nodes[0]);
-        expect(wouldCreateCycle).toBe(true);
+        const lastNode = nodes[nodes.length - 1];
+        const firstNode = nodes[0];
+        if (lastNode && firstNode) {
+          const wouldCreateCycle = tree.wouldCreateCycle(lastNode, firstNode);
+          expect(wouldCreateCycle).toBe(true);
+        }
       });
 
       it('should handle self-referential scenarios correctly', () => {
@@ -1420,13 +1426,20 @@ describe('Tree Entity', () => {
 
                 // Verify relationships are maintained
                 for (let i = 0; i < nodeIds.length - 1; i++) {
-                  const node = tree.getNode(nodeIds[i]);
-                  expect(node?.getParentId()?.equals(nodeIds[i + 1])).toBe(true);
+                  const currentNode = nodeIds[i];
+                  const parentNode = nodeIds[i + 1];
+                  if (currentNode && parentNode) {
+                    const node = tree.getNode(currentNode);
+                    expect(node?.getParentId()?.equals(parentNode)).toBe(true);
+                  }
                 }
 
                 // Last node should have no parent
-                const lastNode = tree.getNode(nodeIds[nodeIds.length - 1]);
-                expect(lastNode?.getParentId()).toBeNull();
+                const lastNodeId = nodeIds[nodeIds.length - 1];
+                if (lastNodeId) {
+                  const lastNode = tree.getNode(lastNodeId);
+                  expect(lastNode?.getParentId()).toBeNull();
+                }
               }
             },
           ),

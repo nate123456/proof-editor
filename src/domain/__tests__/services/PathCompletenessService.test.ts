@@ -18,6 +18,7 @@ import {
   PathCompletenessService,
   PathCompletenessValidationResult,
 } from '../../services/PathCompletenessService.js';
+import type { AtomicArgumentId } from '../../shared/value-objects.js';
 import { atomicArgumentIdFactory } from '../factories/index.js';
 
 describe('PathCompletenessService', () => {
@@ -32,13 +33,13 @@ describe('PathCompletenessService', () => {
       save: vi.fn(),
       delete: vi.fn(),
       findAll: vi.fn(),
-    } as IAtomicArgumentRepository;
+    } as unknown as IAtomicArgumentRepository;
 
     mockConnectionService = {
       findDirectConnections: vi.fn(),
       findPathCompleteArgument: vi.fn(),
       findArgumentTree: vi.fn(),
-    } as ConnectionResolutionService;
+    } as unknown as ConnectionResolutionService;
 
     // Set default mock implementations to avoid undefined errors
     vi.mocked(mockConnectionService.findPathCompleteArgument).mockReturnValue(
@@ -75,12 +76,16 @@ describe('PathCompletenessService', () => {
             ({
               getId: () => id,
               isComplete: () => true,
-            }) as AtomicArgument,
+            }) as unknown as AtomicArgument,
         );
 
         vi.mocked(mockAtomicArgumentRepo.findById).mockImplementation(async (id) => {
           const index = argumentIds.findIndex((argId) => argId.equals(id));
-          return Promise.resolve(index >= 0 ? mockArguments[index] : null);
+          if (index >= 0 && index < mockArguments.length) {
+            const foundArgument = mockArguments[index];
+            return foundArgument || null;
+          }
+          return null;
         });
 
         // Mock connection service
@@ -113,12 +118,16 @@ describe('PathCompletenessService', () => {
             ({
               getId: () => id,
               isComplete: () => true,
-            }) as AtomicArgument,
+            }) as unknown as AtomicArgument,
         );
 
         vi.mocked(mockAtomicArgumentRepo.findById).mockImplementation(async (id) => {
           const index = argumentIds.findIndex((argId) => argId.equals(id));
-          return Promise.resolve(index >= 0 ? mockArguments[index] : null);
+          if (index >= 0 && index < mockArguments.length) {
+            const foundArgument = mockArguments[index];
+            return foundArgument || null;
+          }
+          return null;
         });
 
         // Mock connection service to return no direct connections
@@ -176,7 +185,11 @@ describe('PathCompletenessService', () => {
 
         vi.mocked(mockAtomicArgumentRepo.findById).mockImplementation(async (id) => {
           const index = [startId, intermediateId, endId].findIndex((argId) => argId.equals(id));
-          return Promise.resolve(index >= 0 ? mockArguments[index] : null);
+          if (index >= 0 && index < mockArguments.length) {
+            const foundArgument = mockArguments[index];
+            return foundArgument || null;
+          }
+          return null;
         });
 
         const result = await service.ensurePathCompleteness(startId, endId);
@@ -224,14 +237,16 @@ describe('PathCompletenessService', () => {
           ok(mockPathComplete),
         );
 
-        (mockAtomicArgumentRepo.findById as any).mockImplementation(async (id) => {
-          // Return null for the missing argument
-          if (id.equals(missingId)) return null;
-          return {
-            getId: () => id,
-            isComplete: () => true,
-          } as AtomicArgument;
-        });
+        (mockAtomicArgumentRepo.findById as any).mockImplementation(
+          async (id: AtomicArgumentId) => {
+            // Return null for the missing argument
+            if (id.equals(missingId)) return null;
+            return {
+              getId: () => id,
+              isComplete: () => true,
+            } as unknown as AtomicArgument;
+          },
+        );
 
         const result = await service.ensurePathCompleteness(startId, endId);
 
@@ -256,18 +271,20 @@ describe('PathCompletenessService', () => {
           ok(mockPathComplete),
         );
 
-        (mockAtomicArgumentRepo.findById as any).mockImplementation(async (id) => {
-          if (id.equals(incompleteId)) {
+        (mockAtomicArgumentRepo.findById as any).mockImplementation(
+          async (id: AtomicArgumentId) => {
+            if (id.equals(incompleteId)) {
+              return {
+                getId: () => incompleteId,
+                isComplete: () => false, // Incomplete argument
+              } as unknown as AtomicArgument;
+            }
             return {
-              getId: () => incompleteId,
-              isComplete: () => false, // Incomplete argument
-            } as AtomicArgument;
-          }
-          return {
-            getId: () => id,
-            isComplete: () => true,
-          } as AtomicArgument;
-        });
+              getId: () => id,
+              isComplete: () => true,
+            } as unknown as AtomicArgument;
+          },
+        );
 
         const result = await service.ensurePathCompleteness(startId, endId);
 
@@ -344,12 +361,16 @@ describe('PathCompletenessService', () => {
               getId: () => id,
               isComplete: () => true,
               canConnectTo: () => true,
-            }) as AtomicArgument,
+            }) as unknown as AtomicArgument,
         );
 
         vi.mocked(mockAtomicArgumentRepo.findById).mockImplementation(async (id) => {
           const index = argumentIds.findIndex((argId) => argId.equals(id));
-          return Promise.resolve(index >= 0 ? mockArguments[index] : null);
+          if (index >= 0 && index < mockArguments.length) {
+            const foundArgument = mockArguments[index];
+            return foundArgument || null;
+          }
+          return null;
         });
 
         const result = await service.validateArgumentChainIntegrity(argumentIds);
@@ -401,12 +422,16 @@ describe('PathCompletenessService', () => {
               getId: () => id,
               isComplete: () => true,
               canConnectTo: () => false, // Cannot connect
-            }) as AtomicArgument,
+            }) as unknown as AtomicArgument,
         );
 
         vi.mocked(mockAtomicArgumentRepo.findById).mockImplementation(async (id) => {
           const index = argumentIds.findIndex((argId) => argId.equals(id));
-          return Promise.resolve(index >= 0 ? mockArguments[index] : null);
+          if (index >= 0 && index < mockArguments.length) {
+            const foundArgument = mockArguments[index];
+            return foundArgument || null;
+          }
+          return null;
         });
 
         const result = await service.validateArgumentChainIntegrity(argumentIds);
@@ -417,8 +442,8 @@ describe('PathCompletenessService', () => {
           expect(validation.isIntact).toBe(false);
           expect(validation.integrityIssues).toHaveLength(1);
           expect(validation.brokenLinks).toHaveLength(1);
-          expect(validation.integrityIssues[0].type).toBe('broken_link');
-          expect(validation.brokenLinks[0].reason).toBe('No shared ordered set reference');
+          expect(validation.integrityIssues[0]?.type).toBe('broken_link');
+          expect(validation.brokenLinks[0]?.reason).toBe('No shared ordered set reference');
         }
       });
 
@@ -427,14 +452,17 @@ describe('PathCompletenessService', () => {
 
         // Mock repository to return null for second argument
         vi.mocked(mockAtomicArgumentRepo.findById).mockImplementation(async (id) => {
-          if (id.equals(argumentIds[0])) {
-            return Promise.resolve({
-              getId: () => argumentIds[0],
-              isComplete: () => true,
-              canConnectTo: () => true,
-            } as AtomicArgument);
+          if (argumentIds.length > 0) {
+            const firstArg = argumentIds[0];
+            if (firstArg && id.equals(firstArg)) {
+              return {
+                getId: () => firstArg,
+                isComplete: () => true,
+                canConnectTo: () => true,
+              } as unknown as AtomicArgument;
+            }
           }
-          return Promise.resolve(null);
+          return null;
         });
 
         const result = await service.validateArgumentChainIntegrity(argumentIds);
@@ -445,7 +473,7 @@ describe('PathCompletenessService', () => {
           expect(validation.isIntact).toBe(false);
           expect(validation.integrityIssues).toHaveLength(1);
           expect(validation.brokenLinks).toHaveLength(1);
-          expect(validation.brokenLinks[0].reason).toBe('One or both arguments not found');
+          expect(validation.brokenLinks[0]?.reason).toBe('One or both arguments not found');
         }
       });
 
@@ -648,18 +676,18 @@ describe('PathCompletenessService', () => {
           getId: () => argA,
           isComplete: () => true,
           canConnectTo: () => true,
-        } as AtomicArgument;
+        } as unknown as AtomicArgument;
 
         const mockArgB = {
           getId: () => argB,
           isComplete: () => true,
           canConnectTo: () => true,
-        } as AtomicArgument;
+        } as unknown as AtomicArgument;
 
         vi.mocked(mockAtomicArgumentRepo.findById).mockImplementation(async (id) => {
-          if (id.equals(argA)) return Promise.resolve(mockArgA);
-          if (id.equals(argB)) return Promise.resolve(mockArgB);
-          return Promise.resolve(null);
+          if (id.equals(argA)) return mockArgA;
+          if (id.equals(argB)) return mockArgB;
+          return null;
         });
 
         // Mock circular connection
@@ -698,12 +726,16 @@ describe('PathCompletenessService', () => {
             ({
               getId: () => id,
               isComplete: () => true,
-            }) as AtomicArgument,
+            }) as unknown as AtomicArgument,
         );
 
         vi.mocked(mockAtomicArgumentRepo.findById).mockImplementation(async (id) => {
           const index = argumentIds.findIndex((argId) => argId.equals(id));
-          return Promise.resolve(index >= 0 ? mockArguments[index] : null);
+          if (index >= 0 && index < mockArguments.length) {
+            const foundArgument = mockArguments[index];
+            return foundArgument || null;
+          }
+          return null;
         });
 
         // Mock diamond connections
@@ -730,11 +762,12 @@ describe('PathCompletenessService', () => {
         const largeArgumentSet = Array.from({ length: 100 }, () => atomicArgumentIdFactory.build());
 
         // Mock repository to return simple arguments
-        vi.mocked(mockAtomicArgumentRepo.findById).mockImplementation(async (id) =>
-          Promise.resolve({
-            getId: () => id,
-            isComplete: () => true,
-          } as AtomicArgument),
+        vi.mocked(mockAtomicArgumentRepo.findById).mockImplementation(
+          async (id) =>
+            ({
+              getId: () => id,
+              isComplete: () => true,
+            }) as unknown as AtomicArgument,
         );
 
         // Mock connection service
@@ -775,7 +808,11 @@ describe('PathCompletenessService', () => {
 
         vi.mocked(mockAtomicArgumentRepo.findById).mockImplementation(async (id) => {
           const index = orderedIds.findIndex((argId) => argId.equals(id));
-          return Promise.resolve(index >= 0 ? mockArguments[index] : null);
+          if (index >= 0 && index < mockArguments.length) {
+            const foundArgument = mockArguments[index];
+            return foundArgument || null;
+          }
+          return null;
         });
 
         const mockConnectionMap = {
@@ -795,7 +832,11 @@ describe('PathCompletenessService', () => {
           expect(validation.argumentSet).toEqual(orderedIds);
           // Order should be preserved
           for (let i = 0; i < orderedIds.length; i++) {
-            expect(validation.argumentSet[i]).toEqual(orderedIds[i]);
+            const expectedId = orderedIds[i];
+            const actualId = validation.argumentSet[i];
+            if (expectedId && actualId) {
+              expect(actualId).toEqual(expectedId);
+            }
           }
         }
       });

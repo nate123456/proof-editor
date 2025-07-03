@@ -7,7 +7,6 @@
  */
 
 import fc from 'fast-check';
-import { mock } from 'jest-mock-extended';
 import { err, ok } from 'neverthrow';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -43,54 +42,55 @@ describe('StatementProcessingService', () => {
     // Mock Date.now for consistent testing
     vi.spyOn(Date, 'now').mockReturnValue(FIXED_TIMESTAMP);
 
-    // Create mocked repositories using jest-mock-extended
-    mockStatementRepo = mock<IStatementRepository>();
-    mockOrderedSetRepo = mock<IOrderedSetRepository>();
-    mockAtomicArgumentRepo = mock<IAtomicArgumentRepository>();
+    // Create mocked repositories using Vitest vi.fn()
+    mockStatementRepo = {
+      save: vi.fn().mockResolvedValue(ok(undefined)),
+      findById: vi.fn().mockResolvedValue(null),
+      findByContent: vi.fn().mockResolvedValue(null),
+      findAll: vi.fn().mockResolvedValue([]),
+      delete: vi.fn().mockResolvedValue(ok(undefined)),
+      findStatementsByPattern: vi.fn().mockResolvedValue([]),
+      findFrequentlyUsedStatements: vi.fn().mockResolvedValue([]),
+      findByLogicalStructure: vi.fn().mockResolvedValue([]),
+      findStatementsByUsageCount: vi.fn().mockResolvedValue([]),
+      findRelatedStatements: vi.fn().mockResolvedValue([]),
+      searchStatementsByKeywords: vi.fn().mockResolvedValue([]),
+      findStatementsInProof: vi.fn().mockResolvedValue([]),
+      getStatementUsageMetrics: vi.fn().mockResolvedValue(null),
+      findUnusedStatements: vi.fn().mockResolvedValue([]),
+    };
 
-    // Set default implementations
-    mockStatementRepo.save.mockResolvedValue(ok(undefined));
-    mockStatementRepo.findById.mockResolvedValue(null);
-    mockStatementRepo.findByContent.mockResolvedValue(null);
-    mockStatementRepo.findAll.mockResolvedValue([]);
-    mockStatementRepo.delete.mockResolvedValue(ok(undefined));
-    mockStatementRepo.findStatementsByPattern.mockResolvedValue([]);
-    mockStatementRepo.findFrequentlyUsedStatements.mockResolvedValue([]);
-    mockStatementRepo.findByLogicalStructure.mockResolvedValue([]);
-    mockStatementRepo.findStatementsByUsageCount.mockResolvedValue([]);
-    mockStatementRepo.findRelatedStatements.mockResolvedValue([]);
-    mockStatementRepo.searchStatementsByKeywords.mockResolvedValue([]);
-    mockStatementRepo.findStatementsInProof.mockResolvedValue([]);
-    mockStatementRepo.getStatementUsageMetrics.mockResolvedValue(null);
-    mockStatementRepo.findUnusedStatements.mockResolvedValue([]);
+    mockOrderedSetRepo = {
+      save: vi.fn().mockResolvedValue(ok(undefined)),
+      findById: vi.fn().mockResolvedValue(null),
+      findAll: vi.fn().mockResolvedValue([]),
+      delete: vi.fn().mockResolvedValue(ok(undefined)),
+      findOrderedSetsBySize: vi.fn().mockResolvedValue([]),
+      findOrderedSetsContaining: vi.fn().mockResolvedValue([]),
+      findSharedOrderedSets: vi.fn().mockResolvedValue([]),
+      findOrderedSetsByPattern: vi.fn().mockResolvedValue([]),
+      findUnusedOrderedSets: vi.fn().mockResolvedValue([]),
+      findOrderedSetsByReferenceCount: vi.fn().mockResolvedValue([]),
+      findSimilarOrderedSets: vi.fn().mockResolvedValue([]),
+      findEmptyOrderedSets: vi.fn().mockResolvedValue([]),
+    };
 
-    mockOrderedSetRepo.save.mockResolvedValue(ok(undefined));
-    mockOrderedSetRepo.findById.mockResolvedValue(null);
-    mockOrderedSetRepo.findAll.mockResolvedValue([]);
-    mockOrderedSetRepo.delete.mockResolvedValue(ok(undefined));
-    mockOrderedSetRepo.findOrderedSetsBySize.mockResolvedValue([]);
-    mockOrderedSetRepo.findOrderedSetsContaining.mockResolvedValue([]);
-    mockOrderedSetRepo.findSharedOrderedSets.mockResolvedValue([]);
-    mockOrderedSetRepo.findOrderedSetsByPattern.mockResolvedValue([]);
-    mockOrderedSetRepo.findUnusedOrderedSets.mockResolvedValue([]);
-    mockOrderedSetRepo.findOrderedSetsByReferenceCount.mockResolvedValue([]);
-    mockOrderedSetRepo.findSimilarOrderedSets.mockResolvedValue([]);
-    mockOrderedSetRepo.findEmptyOrderedSets.mockResolvedValue([]);
-
-    mockAtomicArgumentRepo.save.mockResolvedValue(ok(undefined));
-    mockAtomicArgumentRepo.findById.mockResolvedValue(null);
-    mockAtomicArgumentRepo.findAll.mockResolvedValue([]);
-    mockAtomicArgumentRepo.findByOrderedSetReference.mockResolvedValue([]);
-    mockAtomicArgumentRepo.delete.mockResolvedValue(ok(undefined));
-    mockAtomicArgumentRepo.findArgumentsByPremiseCount.mockResolvedValue([]);
-    mockAtomicArgumentRepo.findArgumentsUsingStatement.mockResolvedValue([]);
-    mockAtomicArgumentRepo.findArgumentsByComplexity.mockResolvedValue([]);
-    mockAtomicArgumentRepo.findArgumentsWithConclusion.mockResolvedValue([]);
-    mockAtomicArgumentRepo.findArgumentChains.mockResolvedValue([]);
-    mockAtomicArgumentRepo.findCircularDependencies.mockResolvedValue([]);
-    mockAtomicArgumentRepo.findArgumentsByValidationStatus.mockResolvedValue([]);
-    mockAtomicArgumentRepo.findMostReferencedArguments.mockResolvedValue([]);
-    mockAtomicArgumentRepo.findOrphanedArguments.mockResolvedValue([]);
+    mockAtomicArgumentRepo = {
+      save: vi.fn().mockResolvedValue(ok(undefined)),
+      findById: vi.fn().mockResolvedValue(null),
+      findAll: vi.fn().mockResolvedValue([]),
+      findByOrderedSetReference: vi.fn().mockResolvedValue([]),
+      delete: vi.fn().mockResolvedValue(ok(undefined)),
+      findArgumentsByPremiseCount: vi.fn().mockResolvedValue([]),
+      findArgumentsUsingStatement: vi.fn().mockResolvedValue([]),
+      findArgumentsByComplexity: vi.fn().mockResolvedValue([]),
+      findArgumentsWithConclusion: vi.fn().mockResolvedValue([]),
+      findArgumentChains: vi.fn().mockResolvedValue([]),
+      findCircularDependencies: vi.fn().mockResolvedValue([]),
+      findArgumentsByValidationStatus: vi.fn().mockResolvedValue([]),
+      findMostReferencedArguments: vi.fn().mockResolvedValue([]),
+      findOrphanedArguments: vi.fn().mockResolvedValue([]),
+    };
 
     service = new StatementProcessingService(
       mockStatementRepo,
@@ -206,8 +206,8 @@ describe('StatementProcessingService', () => {
         // Assert
         expect(result.isOk()).toBe(true);
         expect(capturedOrderedSets).toHaveLength(2);
-        expect(capturedOrderedSets[0].size()).toBe(3); // Premise set
-        expect(capturedOrderedSets[1].size()).toBe(1); // Conclusion set
+        expect(capturedOrderedSets[0]?.size()).toBe(3); // Premise set
+        expect(capturedOrderedSets[1]?.size()).toBe(1); // Conclusion set
       });
     });
 

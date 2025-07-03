@@ -15,7 +15,8 @@ import { ok } from 'neverthrow';
 // Language Intelligence Context
 import { InferenceRule } from '../../contexts/language-intelligence/domain/entities/InferenceRule.js';
 import { LanguagePackage } from '../../contexts/language-intelligence/domain/entities/LanguagePackage.js';
-import { ValidationResult } from '../../contexts/language-intelligence/domain/entities/ValidationResult.js';
+import { ValidationResult as LanguageValidationResult } from '../../contexts/language-intelligence/domain/entities/ValidationResult.js';
+import { LanguageCapabilities } from '../../contexts/language-intelligence/domain/value-objects/LanguageCapabilities.js';
 import { LanguagePackageId } from '../../contexts/language-intelligence/domain/value-objects/LanguagePackageId.js';
 import { PackageName } from '../../contexts/language-intelligence/domain/value-objects/PackageName.js';
 import { RuleDescription } from '../../contexts/language-intelligence/domain/value-objects/RuleDescription.js';
@@ -25,6 +26,7 @@ import { ValidationLevel } from '../../contexts/language-intelligence/domain/val
 import { ValidationMetrics } from '../../contexts/language-intelligence/domain/value-objects/ValidationMetrics.js';
 // Package Ecosystem Context
 import { Package } from '../../contexts/package-ecosystem/domain/entities/Package.js';
+import type { ValidationResult } from '../../contexts/package-ecosystem/domain/types/common-types.js';
 import { PackageId } from '../../contexts/package-ecosystem/domain/value-objects/package-id.js';
 import { PackageManifest } from '../../contexts/package-ecosystem/domain/value-objects/package-manifest.js';
 import { PackageSource } from '../../contexts/package-ecosystem/domain/value-objects/package-source.js';
@@ -230,11 +232,9 @@ export function createLanguagePackage(
     throw new Error('Failed to create language package identifiers');
   }
 
-  const packageResult = LanguagePackage.create(
-    packageId.value,
-    packageName.value,
-    `Test package for ${defaultName}`,
-  );
+  const capabilities = LanguageCapabilities.propositionalOnly();
+
+  const packageResult = LanguagePackage.create(packageName.value.getValue(), '1.0.0', capabilities);
 
   if (packageResult.isErr()) {
     throw new Error(`Failed to create language package: ${packageResult.error.message}`);
@@ -300,7 +300,7 @@ export function createInferenceRule(
 export function createValidationResult(
   isSuccessful: boolean,
   level: 'syntax' | 'semantic' | 'style' = 'semantic',
-): ValidationResult {
+): LanguageValidationResult {
   const validationLevel = ValidationLevel.fromString(level);
   if (validationLevel.isErr()) {
     throw new Error('Failed to create validation level');
@@ -311,13 +311,13 @@ export function createValidationResult(
   const packageId = 'test-package';
 
   const result = isSuccessful
-    ? ValidationResult.createSuccessfulValidation(
+    ? LanguageValidationResult.createSuccessfulValidation(
         validationLevel.value,
         documentId,
         packageId,
         metrics,
       )
-    : ValidationResult.createFailedValidation(
+    : LanguageValidationResult.createFailedValidation(
         validationLevel.value,
         [],
         documentId,
@@ -378,7 +378,6 @@ export function createPackage(name?: string, version?: string, dependencies?: st
     isValid: true,
     errors: [],
     warnings: [],
-    timestamp: new Date(),
   };
 
   const result = Package.create({
@@ -473,7 +472,7 @@ export function createMultiDeviceScenario(deviceCount = 3): {
 
   // Create operations from each device
   devices.forEach((device, index) => {
-    const operation = createOperation(device, devices, `edit-from-device-${index + 1}`, {
+    const operation = createOperation(device, devices, 'UPDATE_STATEMENT', {
       text: `Edit from device ${index + 1}`,
       position: index * 10,
     });
@@ -529,10 +528,10 @@ export function createOperation(
 
   const result = Operation.create(
     operationId.value,
-    opType.value,
-    opPayload.value,
     device,
-    timestamp.value,
+    opType.value,
+    `/${operationType}/test-target`,
+    opPayload.value,
     incrementedClock.value,
   );
 
@@ -619,7 +618,7 @@ export function createLargeScaleScenario(config: {
   }
 
   devices.forEach((device, index) => {
-    const operation = createOperation(device, devices, 'PERFORMANCE_TEST', {
+    const operation = createOperation(device, devices, 'UPDATE_METADATA', {
       deviceIndex: index,
       testData: `performance-test-${index}`,
     });

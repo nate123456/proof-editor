@@ -29,12 +29,7 @@ import {
 
 describe('DomainError Base Class', () => {
   // Concrete implementation for testing abstract base
-  class TestDomainError extends DomainError {
-    constructor(message: string, cause?: Error) {
-      super(message, cause);
-      this.name = 'TestDomainError';
-    }
-  }
+  class TestDomainError extends DomainError {}
 
   describe('basic error construction', () => {
     it('should create domain error with message', () => {
@@ -44,7 +39,7 @@ describe('DomainError Base Class', () => {
       expect(error).toBeInstanceOf(Error);
       expect(error).toBeInstanceOf(DomainError);
       expect(error.message).toBe(message);
-      expect(error.name).toBe('TestDomainError');
+      expect(error.name).toBe('DomainError');
       expect(error.cause).toBeUndefined();
     });
 
@@ -166,7 +161,7 @@ describe('ProcessingError', () => {
         simulateProcessing(true);
       } catch (error) {
         expect(error).toBeInstanceOf(ProcessingError);
-        expect(error.message).toContain('processing failure');
+        expect((error as ProcessingError).message).toContain('processing failure');
       }
     });
   });

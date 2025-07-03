@@ -360,21 +360,31 @@ export interface CacheOverheadReport {
 
 // Error types
 export class BenchmarkExecutionError extends Error {
-  constructor(
-    message: string,
-    public readonly scenario: string,
-    public readonly implementation: string,
-    public readonly cause?: Error,
-  ) {
+  public readonly scenario: string;
+  public readonly implementation: string;
+  public override readonly cause?: Error;
+
+  constructor(message: string, scenario: string, implementation: string, cause?: Error) {
     super(message);
-    this.name = 'BenchmarkExecutionError';
+    this.scenario = scenario;
+    this.implementation = implementation;
+    if (cause !== undefined) {
+      this.cause = cause;
+    }
+  }
+
+  override get name(): string {
+    return 'BenchmarkExecutionError';
   }
 }
 
 export class BenchmarkTimeoutError extends BenchmarkExecutionError {
   constructor(scenario: string, implementation: string, timeoutMs: number) {
     super(`Benchmark timed out after ${timeoutMs}ms`, scenario, implementation);
-    this.name = 'BenchmarkTimeoutError';
+  }
+
+  override get name(): string {
+    return 'BenchmarkTimeoutError';
   }
 }
 
@@ -385,6 +395,9 @@ export class BenchmarkMemoryError extends BenchmarkExecutionError {
       scenario,
       implementation,
     );
-    this.name = 'BenchmarkMemoryError';
+  }
+
+  override get name(): string {
+    return 'BenchmarkMemoryError';
   }
 }

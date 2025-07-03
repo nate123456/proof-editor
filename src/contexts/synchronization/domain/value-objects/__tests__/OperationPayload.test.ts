@@ -40,9 +40,12 @@ describe('OperationPayload', () => {
 
       if (operationTypeResult.isOk()) {
         // Testing invalid input
-        const nullResult = OperationPayload.create(null, operationTypeResult.value);
+        const nullResult = OperationPayload.create(null as any, operationTypeResult.value);
         // Testing invalid input
-        const undefinedResult = OperationPayload.create(undefined, operationTypeResult.value);
+        const undefinedResult = OperationPayload.create(
+          undefined as any,
+          operationTypeResult.value,
+        );
 
         expect(nullResult.isErr()).toBe(true);
         expect(undefinedResult.isErr()).toBe(true);

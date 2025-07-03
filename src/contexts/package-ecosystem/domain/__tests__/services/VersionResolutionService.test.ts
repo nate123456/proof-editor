@@ -54,9 +54,9 @@ describe('VersionResolutionService', () => {
   });
 
   describe('property-based testing for version resolution', () => {
-    it('should handle various git ref patterns consistently', () => {
-      fc.assert(
-        fc.property(
+    it('should handle various git ref patterns consistently', async () => {
+      await fc.assert(
+        fc.asyncProperty(
           fc.record({
             url: fc.string({ minLength: 10 }).map((s) => `https://github.com/user/${s}.git`),
             ref: fc.oneof(
@@ -93,9 +93,9 @@ describe('VersionResolutionService', () => {
       );
     });
 
-    it('should handle constraint resolution with various version patterns', () => {
-      fc.assert(
-        fc.property(
+    it('should handle constraint resolution with various version patterns', async () => {
+      await fc.assert(
+        fc.asyncProperty(
           fc.record({
             url: fc.constantFrom(
               'https://github.com/user/repo.git',

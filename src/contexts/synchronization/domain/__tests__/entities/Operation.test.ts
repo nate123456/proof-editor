@@ -233,7 +233,7 @@ describe('Operation', () => {
       ];
 
       operationTypeValues.forEach((opTypeValue) => {
-        const opTypeResult = OperationType.create(opTypeValue);
+        const opTypeResult = OperationType.create(opTypeValue as any);
         if (opTypeResult.isErr()) return;
 
         const result = Operation.create(
@@ -406,7 +406,7 @@ describe('Operation', () => {
         // they are concurrent
         expect(conflictResult.isOk()).toBe(true);
 
-        const conflict = conflictResult.value;
+        const conflict = conflictResult.isOk() ? conflictResult.value : null;
         expect(conflict).not.toBeNull();
         if (conflict) {
           expect(conflict.conflictType.getValue()).toBe('CONCURRENT_MODIFICATION');
@@ -471,7 +471,7 @@ describe('Operation', () => {
         const conflictResult = deleteOp.value.detectConflictWith(updateOp.value);
 
         expect(conflictResult.isOk()).toBe(true);
-        const conflict = conflictResult.value;
+        const conflict = conflictResult.isOk() ? conflictResult.value : null;
 
         expect(conflict).not.toBeNull();
         if (conflict) {
@@ -649,10 +649,14 @@ describe('Operation', () => {
         params.deviceId,
         createOperationType('CREATE_STATEMENT'),
         params.targetPath,
-        OperationPayload.create(
-          { id: 'stmt-hello', content: 'Hello' },
-          createOperationType('CREATE_STATEMENT'),
-        ).value as OperationPayload,
+        (() => {
+          const payload = OperationPayload.create(
+            { id: 'stmt-hello', content: 'Hello' },
+            createOperationType('CREATE_STATEMENT'),
+          );
+          if (payload.isErr()) throw new Error('Failed to create payload');
+          return payload.value;
+        })(),
         params.vectorClock,
       );
 
@@ -661,10 +665,14 @@ describe('Operation', () => {
         params.deviceId,
         createOperationType('CREATE_STATEMENT'),
         params.targetPath,
-        OperationPayload.create(
-          { id: 'stmt-world', content: ' World' },
-          createOperationType('CREATE_STATEMENT'),
-        ).value as OperationPayload,
+        (() => {
+          const payload = OperationPayload.create(
+            { id: 'stmt-world', content: ' World' },
+            createOperationType('CREATE_STATEMENT'),
+          );
+          if (payload.isErr()) throw new Error('Failed to create payload');
+          return payload.value;
+        })(),
         createMockVectorClock({ 'device-1': 2 }),
       );
 
@@ -675,7 +683,7 @@ describe('Operation', () => {
         if (composed.isOk()) {
           expect(composed.value.getOperationType()).toStrictEqual(OperationType.INSERT);
           const payload = composed.value.getPayload();
-          expect(payload.getData().content).toBe('Hello World');
+          expect((payload.getData() as any).content).toBe('Hello World');
         }
       }
     });
@@ -835,10 +843,14 @@ describe('Operation', () => {
         createDeviceId('device-2'), // Different device
         createOperationType('DELETE_STATEMENT'), // Different type
         '/different/path', // Different path
-        OperationPayload.create(
-          { id: 'stmt-diff', content: 'different data' },
-          createOperationType('UPDATE_STATEMENT'),
-        ).value as OperationPayload,
+        (() => {
+          const payload = OperationPayload.create(
+            { id: 'stmt-diff', content: 'different data' },
+            createOperationType('UPDATE_STATEMENT'),
+          );
+          if (payload.isErr()) throw new Error('Failed to create payload');
+          return payload.value;
+        })(),
         createMockVectorClock({ 'device-2': 5 }),
       );
 

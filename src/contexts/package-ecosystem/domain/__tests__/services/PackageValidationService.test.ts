@@ -93,7 +93,10 @@ const createMockPackage = (
       options.hasDependencies
         ? [
             {
-              getPackageId: () => PackageId.create('dep-1').value,
+              getPackageId: () => {
+                const result = PackageId.create('dep-1');
+                return result.isOk() ? result.value : null;
+              },
               getVersionConstraint: () => ({ toString: () => '^1.0.0' }),
               isValid: () => true,
             },

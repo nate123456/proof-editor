@@ -300,7 +300,7 @@ test.describe('ProofTreePanel Webview', () => {
     
     const borderColor = await page.evaluate(() => {
       const element = document.querySelector('[data-testid="theme-element"]');
-      return getComputedStyle(element).borderColor;
+      return element ? getComputedStyle(element).borderColor : '';
     });
     
     // These should be the resolved CSS custom property values

@@ -48,10 +48,14 @@ const mockEventEmitter = () => ({ dispose: vi.fn() });
 // Mock workspace methods as mutable for testing
 class MockWorkspace {
   public textDocuments: TextDocument[] = [];
+  public workspaceFolders: { uri: Uri; name: string; index: number }[] = [];
 
   public onDidOpenTextDocument = vi.fn(() => mockEventEmitter());
   public onDidChangeTextDocument = vi.fn(() => mockEventEmitter());
   public onDidCloseTextDocument = vi.fn(() => mockEventEmitter());
+  public onDidSaveTextDocument = vi.fn(() => mockEventEmitter());
+  public onDidChangeConfiguration = vi.fn(() => mockEventEmitter());
+  public getConfiguration = vi.fn();
 }
 
 const mockWorkspace = new MockWorkspace();
@@ -72,6 +76,7 @@ const mockWindow = new MockWindow();
 // Mock commands
 class MockCommands {
   public registerCommand = vi.fn();
+  public executeCommand = vi.fn();
 }
 
 const mockCommands = new MockCommands();
@@ -139,6 +144,16 @@ export class Uri {
 
   get fsPath() {
     return this.path;
+  }
+
+  toJSON(): { scheme: string; authority: string; path: string; query: string; fragment: string } {
+    return {
+      scheme: this.scheme,
+      authority: this.authority,
+      path: this.path,
+      query: this.query,
+      fragment: this.fragment,
+    };
   }
 }
 

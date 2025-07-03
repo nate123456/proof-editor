@@ -291,8 +291,9 @@ describe('DependencyResolutionError', () => {
       const error = new DependencyResolutionError('Circular dependency detected', context);
 
       expect(error.context?.cyclePath).toHaveLength(4);
-      expect(error.context?.cyclePath?.[0]).toBe('package-a');
-      expect(error.context?.cyclePath?.[3]).toBe('package-a');
+      const cyclePath = error.context?.cyclePath as string[];
+      expect(cyclePath[0]).toBe('package-a');
+      expect(cyclePath[3]).toBe('package-a');
     });
 
     it('should handle version constraint conflicts', () => {

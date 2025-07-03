@@ -208,8 +208,10 @@ export function generateComplexDAG(size: number): TestNode[] {
       const prevLevelNodes = nodes.filter((n) => n.id.startsWith(`l${level - 1}_`));
       if (prevLevelNodes.length > 0) {
         const parentNode = prevLevelNodes[i % prevLevelNodes.length];
-        node.parentId = parentNode.id;
-        parentNode.children.push(nodeId);
+        if (parentNode) {
+          node.parentId = parentNode.id;
+          parentNode.children.push(nodeId);
+        }
       }
     }
   }

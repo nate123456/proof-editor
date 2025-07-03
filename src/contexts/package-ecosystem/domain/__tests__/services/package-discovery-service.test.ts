@@ -53,13 +53,9 @@ const createMockPackageRepository = (): IPackageRepository => {
     searchByKeywords: vi.fn(),
     findByGitRepository: vi.fn(),
     findById: vi.fn(),
-    findByVersion: vi.fn(),
-    findByKeyword: vi.fn(),
     save: vi.fn(),
-    remove: vi.fn(),
-    exists: vi.fn(),
-    getAllVersions: vi.fn(),
-    getLatestVersion: vi.fn(),
+    delete: vi.fn(),
+    findAll: vi.fn(),
   };
 };
 

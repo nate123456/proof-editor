@@ -47,7 +47,7 @@ describe('VectorClock', () => {
         const clock = result.value;
         expect(clock.getAllDeviceIds()).toHaveLength(1);
         expect(clock.getTimestampForDevice(deviceId)).toBe(0);
-        expect(clock.getAllDeviceIds()[0].getValue()).toBe('device-1');
+        expect(clock.getAllDeviceIds()[0]?.getValue()).toBe('device-1');
       }
     });
 

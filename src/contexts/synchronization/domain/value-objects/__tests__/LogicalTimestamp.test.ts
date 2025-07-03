@@ -15,10 +15,15 @@ describe('LogicalTimestamp', () => {
 
     const device1Result = DeviceId.create('device-1');
     const device2Result = DeviceId.create('device-2');
-    const clockResult = VectorClock.create(device1Result.value);
 
     expect(device1Result.isOk()).toBe(true);
     expect(device2Result.isOk()).toBe(true);
+
+    if (!device1Result.isOk() || !device2Result.isOk()) {
+      throw new Error('Failed to create device IDs for test setup');
+    }
+
+    const clockResult = VectorClock.create(device1Result.value);
     expect(clockResult.isOk()).toBe(true);
 
     if (device1Result.isOk() && device2Result.isOk() && clockResult.isOk()) {

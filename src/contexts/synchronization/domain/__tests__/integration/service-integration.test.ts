@@ -89,11 +89,29 @@ describe('Synchronization Context - Service Integration', () => {
 
         const operationIdA = OperationId.create('op-a-1');
         const operationIdB = OperationId.create('op-b-1');
-        const timestampA = LogicalTimestamp.create(1, Date.now(), deviceA);
-        const timestampB = LogicalTimestamp.create(1, Date.now(), deviceB);
+        const timestampA = LogicalTimestamp.create(deviceA, Date.now(), clockA);
+        const timestampB = LogicalTimestamp.create(deviceB, Date.now(), clockB);
         const opTypeInsert = OperationType.create('CREATE_STATEMENT');
-        const payloadA = OperationPayload.create({ text: 'Hello ', position: 0 }, 'text');
-        const payloadB = OperationPayload.create({ text: 'World', position: 0 }, 'text');
+        const payloadA = OperationPayload.create(
+          { id: 'stmt-a', content: 'Hello ', metadata: { position: 0 } },
+          opTypeInsert.isOk()
+            ? opTypeInsert.value
+            : (() => {
+                const fallback = OperationType.create('CREATE_STATEMENT');
+                if (fallback.isErr()) throw new Error('Failed to create fallback operation type');
+                return fallback.value;
+              })(),
+        );
+        const payloadB = OperationPayload.create(
+          { id: 'stmt-b', content: 'World', metadata: { position: 0 } },
+          opTypeInsert.isOk()
+            ? opTypeInsert.value
+            : (() => {
+                const fallback = OperationType.create('CREATE_STATEMENT');
+                if (fallback.isErr()) throw new Error('Failed to create fallback operation type');
+                return fallback.value;
+              })(),
+        );
 
         expect(operationIdA.isOk()).toBe(true);
         expect(operationIdB.isOk()).toBe(true);
@@ -185,15 +203,15 @@ describe('Synchronization Context - Service Integration', () => {
       const vectorClockB = createVectorClockForDevices(devices);
       const vectorClockC = createVectorClockForDevices(devices);
 
-      expect(vectorClockA.isOk()).toBe(true);
-      expect(vectorClockB.isOk()).toBe(true);
-      expect(vectorClockC.isOk()).toBe(true);
+      expect(vectorClockA).toBeDefined();
+      expect(vectorClockB).toBeDefined();
+      expect(vectorClockC).toBeDefined();
 
-      if (vectorClockA.isOk() && vectorClockB.isOk() && vectorClockC.isOk()) {
+      if (vectorClockA && vectorClockB && vectorClockC) {
         // Simulate concurrent operations from three devices
-        const incA = vectorClockA.value.incrementForDevice(deviceA);
-        const incB = vectorClockB.value.incrementForDevice(deviceB);
-        const incC = vectorClockC.value.incrementForDevice(deviceC);
+        const incA = vectorClockA.incrementForDevice(deviceA);
+        const incB = vectorClockB.incrementForDevice(deviceB);
+        const incC = vectorClockC.incrementForDevice(deviceC);
         expect(incA.isOk() && incB.isOk() && incC.isOk()).toBe(true);
         if (!incA.isOk() || !incB.isOk() || !incC.isOk()) return;
         const clockA = incA.value;
@@ -209,14 +227,21 @@ describe('Synchronization Context - Service Integration', () => {
           [deviceC, clockC],
         ] as [DeviceId, VectorClock][]) {
           const operationId = OperationId.create(`op-${device.getShortId()}-1`);
-          const timestamp = LogicalTimestamp.create(1, Date.now(), device);
+          const timestamp = LogicalTimestamp.create(device, Date.now(), clock);
           const opType = OperationType.create('UPDATE_STATEMENT');
           const payload = OperationPayload.create(
             {
-              text: `Edit from ${device.getShortId()}`,
-              position: 0,
+              id: `stmt-${device.getShortId()}`,
+              content: `Edit from ${device.getShortId()}`,
+              metadata: { position: 0 },
             },
-            'text',
+            opType.isOk()
+              ? opType.value
+              : (() => {
+                  const fallback = OperationType.create('UPDATE_STATEMENT');
+                  if (fallback.isErr()) throw new Error('Failed to create fallback operation type');
+                  return fallback.value;
+                })(),
           );
 
           expect(operationId.isOk()).toBe(true);
@@ -292,11 +317,29 @@ describe('Synchronization Context - Service Integration', () => {
 
         const insertOpId = OperationId.create('insert-op');
         const deleteOpId = OperationId.create('delete-op');
-        const timestamp = LogicalTimestamp.create(1, Date.now(), deviceA);
+        const timestamp = LogicalTimestamp.create(deviceA, Date.now(), clock);
         const insertType = OperationType.create('CREATE_STATEMENT');
         const deleteType = OperationType.create('DELETE_STATEMENT');
-        const insertPayload = OperationPayload.create({ text: 'New text', position: 5 }, 'text');
-        const deletePayload = OperationPayload.create({ position: 3, length: 2 }, 'delete');
+        const insertPayload = OperationPayload.create(
+          { id: 'stmt-insert', content: 'New text', metadata: { position: 5 } },
+          insertType.isOk()
+            ? insertType.value
+            : (() => {
+                const fallback = OperationType.create('CREATE_STATEMENT');
+                if (fallback.isErr()) throw new Error('Failed to create fallback operation type');
+                return fallback.value;
+              })(),
+        );
+        const deletePayload = OperationPayload.create(
+          { position: 3, length: 2 },
+          deleteType.isOk()
+            ? deleteType.value
+            : (() => {
+                const fallback = OperationType.create('DELETE_STATEMENT');
+                if (fallback.isErr()) throw new Error('Failed to create fallback operation type');
+                return fallback.value;
+              })(),
+        );
 
         expect(insertOpId.isOk()).toBe(true);
         expect(deleteOpId.isOk()).toBe(true);
@@ -366,43 +409,50 @@ describe('Synchronization Context - Service Integration', () => {
       if (syncState.isOk()) {
         const operations = [];
 
+        // Create vector clock for timestamps
+        const vectorClockResult = VectorClock.create(deviceA);
+        expect(vectorClockResult.isOk()).toBe(true);
+        if (!vectorClockResult.isOk()) return;
+
+        let vectorClock = vectorClockResult.value;
+
         // Create multiple operations that might conflict
         for (let i = 0; i < 3; i++) {
           const operationId = OperationId.create(`coord-op-${i}`);
-          const timestamp = LogicalTimestamp.create(i + 1, Date.now(), deviceA);
+          const incremented = vectorClock.incrementForDevice(deviceA);
+          expect(incremented.isOk()).toBe(true);
+          if (!incremented.isOk()) return;
+          vectorClock = incremented.value; // Update for next iteration
+          const timestamp = LogicalTimestamp.create(deviceA, Date.now(), incremented.value);
           const opType = OperationType.create('UPDATE_STATEMENT');
           const payload = OperationPayload.create(
             {
-              text: `Coordinated edit ${i}`,
-              position: i * 2,
+              id: `stmt-coord-${i}`,
+              content: `Coordinated edit ${i}`,
+              metadata: { position: i * 2 },
             },
-            'text',
+            opType.isOk()
+              ? opType.value
+              : (() => {
+                  const fallback = OperationType.create('UPDATE_STATEMENT');
+                  if (fallback.isErr()) throw new Error('Failed to create fallback operation type');
+                  return fallback.value;
+                })(),
           );
-          const vectorClock = VectorClock.create(deviceA);
 
           expect(operationId.isOk()).toBe(true);
           expect(timestamp.isOk()).toBe(true);
           expect(opType.isOk()).toBe(true);
           expect(payload.isOk()).toBe(true);
-          expect(vectorClock.isOk()).toBe(true);
 
-          if (
-            operationId.isOk() &&
-            timestamp.isOk() &&
-            opType.isOk() &&
-            payload.isOk() &&
-            vectorClock.isOk()
-          ) {
-            const incResult = vectorClock.value.incrementForDevice(deviceA);
-            expect(incResult.isOk()).toBe(true);
-            if (!incResult.isOk()) continue;
+          if (operationId.isOk() && timestamp.isOk() && opType.isOk() && payload.isOk()) {
             const operation = Operation.create(
               operationId.value,
               deviceA,
               opType.value,
               '/test/path',
               payload.value,
-              incResult.value,
+              vectorClock,
             );
 
             expect(operation.isOk()).toBe(true);
@@ -438,13 +488,13 @@ describe('Synchronization Context - Service Integration', () => {
         const vectorClockA = createVectorClockForDevices(devices);
         const vectorClockB = createVectorClockForDevices(devices);
 
-        expect(vectorClockA.isOk()).toBe(true);
-        expect(vectorClockB.isOk()).toBe(true);
+        expect(vectorClockA).toBeDefined();
+        expect(vectorClockB).toBeDefined();
 
-        if (vectorClockA.isOk() && vectorClockB.isOk()) {
+        if (vectorClockA && vectorClockB) {
           // Simulate operations happening in different orders on different devices
-          const incA = vectorClockA.value.incrementForDevice(deviceA);
-          const incB = vectorClockB.value.incrementForDevice(deviceB);
+          const incA = vectorClockA.incrementForDevice(deviceA);
+          const incB = vectorClockB.incrementForDevice(deviceB);
           expect(incA.isOk() && incB.isOk()).toBe(true);
           if (!incA.isOk() || !incB.isOk()) return;
           const clockA = incA.value;
@@ -452,7 +502,7 @@ describe('Synchronization Context - Service Integration', () => {
 
           const _operationA = {
             deviceId: deviceA,
-            timestamp: LogicalTimestamp.create(1, Date.now(), deviceA).unwrapOr(
+            timestamp: LogicalTimestamp.create(deviceA, Date.now(), clockA).unwrapOr(
               {} as LogicalTimestamp,
             ),
             vectorClock: clockA,
@@ -460,7 +510,7 @@ describe('Synchronization Context - Service Integration', () => {
 
           const _operationB = {
             deviceId: deviceB,
-            timestamp: LogicalTimestamp.create(2, Date.now(), deviceB).unwrapOr(
+            timestamp: LogicalTimestamp.create(deviceB, Date.now(), clockB).unwrapOr(
               {} as LogicalTimestamp,
             ),
             vectorClock: clockB,
@@ -492,42 +542,49 @@ describe('Synchronization Context - Service Integration', () => {
       for (let deviceIndex = 0; deviceIndex < devices.length; deviceIndex++) {
         const device = devices[deviceIndex];
         if (!device) continue;
+
+        // Create vector clock for this device
+        const vectorClock = VectorClock.create(device);
+        expect(vectorClock.isOk()).toBe(true);
+        if (!vectorClock.isOk()) continue;
+
+        let currentVectorClock = vectorClock.value;
         for (let opIndex = 0; opIndex < 5; opIndex++) {
           const operationId = OperationId.create(`rapid-${device.getShortId()}-${opIndex}`);
-          const timestamp = LogicalTimestamp.create(opIndex + 1, Date.now(), device);
+          const incremented = currentVectorClock.incrementForDevice(device);
+          expect(incremented.isOk()).toBe(true);
+          if (!incremented.isOk()) continue;
+          currentVectorClock = incremented.value;
+          const timestamp = LogicalTimestamp.create(device, Date.now(), incremented.value);
           const opType = OperationType.create('CREATE_STATEMENT');
           const payload = OperationPayload.create(
             {
-              text: `${device.getShortId()}-${opIndex}`,
-              position: deviceIndex * 10 + opIndex,
+              id: `stmt-${device.getShortId()}-${opIndex}`,
+              content: `${device.getShortId()}-${opIndex}`,
+              metadata: { position: deviceIndex * 10 + opIndex },
             },
-            'text',
+            opType.isOk()
+              ? opType.value
+              : (() => {
+                  const fallback = OperationType.create('CREATE_STATEMENT');
+                  if (fallback.isErr()) throw new Error('Failed to create fallback operation type');
+                  return fallback.value;
+                })(),
           );
-          const vectorClock = createVectorClockForDevices(devices);
 
           expect(operationId.isOk()).toBe(true);
           expect(timestamp.isOk()).toBe(true);
           expect(opType.isOk()).toBe(true);
           expect(payload.isOk()).toBe(true);
-          expect(vectorClock.isOk()).toBe(true);
 
-          if (
-            operationId.isOk() &&
-            timestamp.isOk() &&
-            opType.isOk() &&
-            payload.isOk() &&
-            vectorClock.isOk()
-          ) {
-            const incResult = vectorClock.value.incrementForDevice(device);
-            expect(incResult.isOk()).toBe(true);
-            if (!incResult.isOk()) continue;
+          if (operationId.isOk() && timestamp.isOk() && opType.isOk() && payload.isOk()) {
             const operation = Operation.create(
               operationId.value,
               device,
               opType.value,
               '/test/path',
               payload.value,
-              incResult.value,
+              currentVectorClock,
             );
 
             expect(operation.isOk()).toBe(true);
@@ -605,40 +662,53 @@ describe('Synchronization Context - Service Integration', () => {
         const _state = syncStates[i];
         if (!_state) continue;
 
+        const device = devices[i];
+        if (!device) continue;
+
+        // Create vector clock for this device
+        const vectorClock = VectorClock.create(device);
+        expect(vectorClock.isOk()).toBe(true);
+        if (!vectorClock.isOk()) continue;
+
         // Each device processes some operations
+        let currentVectorClock = vectorClock.value;
         for (let j = 0; j < 3; j++) {
           const operationId = OperationId.create(`sync-${i}-${j}`);
-          const device = devices[i];
-          if (!device) continue;
-          const timestamp = LogicalTimestamp.create(j + 1, Date.now(), device);
+          const incremented = currentVectorClock.incrementForDevice(device);
+          expect(incremented.isOk()).toBe(true);
+          if (!incremented.isOk()) continue;
+          currentVectorClock = incremented.value;
+          const timestamp = LogicalTimestamp.create(device, Date.now(), incremented.value);
           const opType = OperationType.create('UPDATE_STATEMENT');
-          const payload = OperationPayload.create({ stateChange: `update-${i}-${j}` }, 'state');
-          const vectorClock = createVectorClockForDevices(devices);
+          const payload = OperationPayload.create(
+            {
+              id: `stmt-sync-${i}-${j}`,
+              content: `update-${i}-${j}`,
+              metadata: { stateChange: `update-${i}-${j}` },
+            },
+            opType.isOk()
+              ? opType.value
+              : (() => {
+                  const fallback = OperationType.create('UPDATE_STATEMENT');
+                  if (fallback.isErr()) throw new Error('Failed to create fallback operation type');
+                  return fallback.value;
+                })(),
+          );
 
           expect(operationId.isOk()).toBe(true);
           expect(timestamp.isOk()).toBe(true);
           expect(opType.isOk()).toBe(true);
           expect(payload.isOk()).toBe(true);
-          expect(vectorClock.isOk()).toBe(true);
 
-          if (
-            operationId.isOk() &&
-            timestamp.isOk() &&
-            opType.isOk() &&
-            payload.isOk() &&
-            vectorClock.isOk()
-          ) {
+          if (operationId.isOk() && timestamp.isOk() && opType.isOk() && payload.isOk()) {
             if (!device) continue;
-            const incResult = vectorClock.value.incrementForDevice(device);
-            expect(incResult.isOk()).toBe(true);
-            if (!incResult.isOk()) continue;
             const operation = Operation.create(
               operationId.value,
               device,
               opType.value,
               '/test/path',
               payload.value,
-              incResult.value,
+              currentVectorClock,
             );
 
             expect(operation.isOk()).toBe(true);
@@ -672,9 +742,18 @@ describe('Synchronization Context - Service Integration', () => {
         const clock = incResult.value;
 
         const validOpId = OperationId.create('valid-op');
-        const timestamp = LogicalTimestamp.create(1, Date.now(), deviceA);
+        const timestamp = LogicalTimestamp.create(deviceA, Date.now(), clock);
         const opType = OperationType.create('UPDATE_STATEMENT');
-        const validPayload = OperationPayload.create({ text: 'Valid edit', position: 0 }, 'text');
+        const validPayload = OperationPayload.create(
+          { id: 'stmt-valid', content: 'Valid edit', metadata: { position: 0 } },
+          opType.isOk()
+            ? opType.value
+            : (() => {
+                const fallback = OperationType.create('UPDATE_STATEMENT');
+                if (fallback.isErr()) throw new Error('Failed to create fallback operation type');
+                return fallback.value;
+              })(),
+        );
 
         expect(validOpId.isOk()).toBe(true);
         expect(timestamp.isOk()).toBe(true);
@@ -715,14 +794,27 @@ describe('Synchronization Context - Service Integration', () => {
       expect(vectorClock.isOk()).toBe(true);
 
       if (vectorClock.isOk()) {
-        vectorClock.value.incrementForDevice(deviceA);
+        const incResult = vectorClock.value.incrementForDevice(deviceA);
+        expect(incResult.isOk()).toBe(true);
+        if (!incResult.isOk()) return;
+        const clock = incResult.value;
 
         const operationId = OperationId.create('problematic-op');
-        const timestamp = LogicalTimestamp.create(1, Date.now(), deviceA);
+        const timestamp = LogicalTimestamp.create(deviceA, Date.now(), clock);
         const opType = OperationType.create('UPDATE_STATEMENT');
         const payload = OperationPayload.create(
-          { complexData: 'unresolvable conflict' },
-          opType.value,
+          {
+            id: 'stmt-problematic',
+            content: 'unresolvable conflict',
+            metadata: { complexData: 'unresolvable conflict' },
+          },
+          opType.isOk()
+            ? opType.value
+            : (() => {
+                const fallback = OperationType.create('UPDATE_STATEMENT');
+                if (fallback.isErr()) throw new Error('Failed to create fallback operation type');
+                return fallback.value;
+              })(),
         );
 
         expect(operationId.isOk()).toBe(true);
@@ -789,10 +881,24 @@ describe('Synchronization Context - Service Integration', () => {
 
       for (let i = 0; i < operationCount; i++) {
         const operationId = OperationId.create(`perf-op-${i}`);
-        const timestamp = LogicalTimestamp.create(i + 1, Date.now(), deviceA);
-        const opType = OperationType.create('UPDATE_STATEMENT');
-        const payload = OperationPayload.create({ text: `Edit ${i}`, position: i }, 'text');
         const vectorClock = VectorClock.create(deviceA);
+        expect(vectorClock.isOk()).toBe(true);
+        if (!vectorClock.isOk()) continue;
+        const incResult = vectorClock.value.incrementForDevice(deviceA);
+        expect(incResult.isOk()).toBe(true);
+        if (!incResult.isOk()) continue;
+        const timestamp = LogicalTimestamp.create(deviceA, Date.now(), incResult.value);
+        const opType = OperationType.create('UPDATE_STATEMENT');
+        const payload = OperationPayload.create(
+          { id: `stmt-perf-${i}`, content: `Edit ${i}`, metadata: { position: i } },
+          opType.isOk()
+            ? opType.value
+            : (() => {
+                const fallback = OperationType.create('UPDATE_STATEMENT');
+                if (fallback.isErr()) throw new Error('Failed to create fallback operation type');
+                return fallback.value;
+              })(),
+        );
 
         expect(operationId.isOk()).toBe(true);
         expect(timestamp.isOk()).toBe(true);

@@ -1,6 +1,6 @@
 export abstract class DomainError extends Error {
   public override readonly name = 'DomainError';
-  public readonly cause?: Error;
+  public override readonly cause?: Error;
 
   constructor(message: string, cause?: Error) {
     super(message);
@@ -16,7 +16,7 @@ export class StructureError extends DomainError {}
 
 export class RepositoryError extends Error {
   public override readonly name = 'RepositoryError';
-  public readonly cause?: Error;
+  public override readonly cause?: Error;
 
   constructor(message: string, cause?: Error) {
     super(message);

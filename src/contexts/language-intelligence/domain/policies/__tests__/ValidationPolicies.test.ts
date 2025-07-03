@@ -1,32 +1,35 @@
-import { type MockProxy, mock } from 'jest-mock-extended';
-import { beforeEach, describe, expect, it } from 'vitest';
-import type { LanguagePackage } from '../../entities/LanguagePackage';
-import type { ValidationContext } from '../../services/ValidationPolicyService';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { LanguagePackageId } from '../../value-objects/LanguagePackageId';
 import {
   FlowValidationPolicy,
   SemanticValidationPolicy,
   StyleValidationPolicy,
   SyntacticValidationPolicy,
-  type ValidationTarget,
 } from '../ValidationPolicies';
 
 describe('ValidationPolicies', () => {
-  let mockTarget: MockProxy<ValidationTarget>;
-  let mockLanguagePackage: MockProxy<LanguagePackage>;
-  let mockContext: MockProxy<ValidationContext>;
+  let mockTarget: any;
+  let mockLanguagePackage: any;
+  let mockContext: any;
 
   beforeEach(() => {
-    mockLanguagePackage = mock<LanguagePackage>();
-    mockLanguagePackage.getId.mockReturnValue({
-      getValue: () => 'test-package',
-    } as LanguagePackageId);
+    mockLanguagePackage = {
+      getId: vi.fn().mockReturnValue({
+        getValue: () => 'test-package',
+      } as LanguagePackageId),
+    };
 
-    mockTarget = mock<ValidationTarget>();
-    mockTarget.getLanguagePackage.mockReturnValue(mockLanguagePackage);
-    mockTarget.getMetadata.mockReturnValue({});
+    mockTarget = {
+      getLanguagePackage: vi.fn().mockReturnValue(mockLanguagePackage),
+      getMetadata: vi.fn().mockReturnValue({}),
+      getContent: vi.fn(),
+    };
 
-    mockContext = mock<ValidationContext>();
+    mockContext = {
+      requiresSemanticAnalysis: vi.fn(),
+      needsFlowValidation: vi.fn(),
+      requiresStyleValidation: vi.fn(),
+    };
   });
 
   describe('SyntacticValidationPolicy', () => {

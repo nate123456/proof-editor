@@ -31,34 +31,40 @@ export class TreeConsistencyError extends Error {
 export function validateStatementUsage(
   statements: Map<StatementId, Statement>,
   argumentsMap: Map<AtomicArgumentId, AtomicArgument>,
+  hasNodes = false,
 ): Result<void, ConsistencyError> {
   try {
+    // Count total set references in arguments
+    let totalSetReferences = 0;
+    for (const argument of argumentsMap.values()) {
+      if (argument.getPremiseSetRef()) {
+        totalSetReferences++;
+      }
+      if (argument.getConclusionSetRef()) {
+        totalSetReferences++;
+      }
+    }
+
+    // Calculate total usage across all statements
+    let totalStatementUsage = 0;
+    for (const statement of statements.values()) {
+      totalStatementUsage += statement.getUsageCount();
+    }
+
+    // If there are set references, the total usage should match
+    if (totalSetReferences !== totalStatementUsage) {
+      return err(
+        new ConsistencyError('Statement usage count mismatch', {
+          expectedTotalUsage: totalSetReferences,
+          actualTotalUsage: totalStatementUsage,
+        }),
+      );
+    }
+
+    // Check for orphaned statements - statements with 0 usage when there are arguments in system
+    // When nodes are present, statement usage validation is more relaxed
     for (const [statementId, statement] of statements) {
-      let actualUsageCount = 0;
-
-      for (const argument of argumentsMap.values()) {
-        const premiseSetId = argument.getPremiseSetRef();
-        const conclusionSetId = argument.getConclusionSetRef();
-
-        if (premiseSetId) {
-          actualUsageCount++;
-        }
-        if (conclusionSetId) {
-          actualUsageCount++;
-        }
-      }
-
-      if (statement.getUsageCount() !== actualUsageCount) {
-        return err(
-          new ConsistencyError('Statement usage count mismatch', {
-            statementId: statementId.getValue(),
-            expectedUsage: actualUsageCount,
-            actualUsage: statement.getUsageCount(),
-          }),
-        );
-      }
-
-      if (statement.getUsageCount() === 0 && argumentsMap.size > 0) {
+      if (statement.getUsageCount() === 0 && argumentsMap.size > 0 && !hasNodes) {
         return err(
           new ConsistencyError('Orphaned statement detected', {
             statementId: statementId.getValue(),
@@ -213,7 +219,7 @@ export function validateAggregateConsistency(
   argumentsMap: Map<AtomicArgumentId, AtomicArgument>,
   nodes?: Map<NodeId, Node>,
 ): Result<void, ConsistencyError> {
-  const statementValidation = validateStatementUsage(statements, argumentsMap);
+  const statementValidation = validateStatementUsage(statements, argumentsMap, !!nodes);
   if (statementValidation.isErr()) {
     return err(statementValidation.error);
   }

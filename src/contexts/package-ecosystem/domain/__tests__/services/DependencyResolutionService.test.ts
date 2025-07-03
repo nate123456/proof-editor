@@ -868,8 +868,8 @@ describe('DependencyResolutionService', () => {
       const manifestB = packageB.getManifest();
 
       // Properly mock the nested functions
-      manifestA.getRequiredProofEditorVersion.mockReturnValue('1.0.0');
-      manifestB.getRequiredProofEditorVersion.mockReturnValue('2.0.0');
+      vi.mocked(manifestA.getRequiredProofEditorVersion).mockReturnValue('1.0.0');
+      vi.mocked(manifestB.getRequiredProofEditorVersion).mockReturnValue('2.0.0');
 
       const result = service.validateDependencyCompatibility(packageA, packageB);
 
@@ -888,8 +888,8 @@ describe('DependencyResolutionService', () => {
       const manifestB = packageB.getManifest();
 
       // Properly mock the nested functions
-      manifestA.getRequiredNodeVersion.mockReturnValue('16.0.0');
-      manifestB.getRequiredNodeVersion.mockReturnValue('20.0.0');
+      vi.mocked(manifestA.getRequiredNodeVersion).mockReturnValue('16.0.0');
+      vi.mocked(manifestB.getRequiredNodeVersion).mockReturnValue('20.0.0');
 
       const result = service.validateDependencyCompatibility(packageA, packageB);
 
@@ -924,9 +924,9 @@ describe('DependencyResolutionService', () => {
     it('should handle various dependency graph configurations', async () => {
       // Simple property-based style test without full fast-check complexity
       const testConfigs = [
-        { packageCount: 1, maxDepth: 1 },
-        { packageCount: 5, maxDepth: 2 },
-        { packageCount: 10, maxDepth: 3 },
+        { packageCount: 1, maxDepth: 1, circularProbability: 0.1 },
+        { packageCount: 5, maxDepth: 2, circularProbability: 0.2 },
+        { packageCount: 10, maxDepth: 3, circularProbability: 0.3 },
       ];
 
       for (const config of testConfigs) {
@@ -1496,7 +1496,7 @@ describe('DependencyResolutionService', () => {
 
       // Mock the package to have a git source so version resolution service is called
       const mockSource = packageA.getSource();
-      mockSource.asGitSource.mockReturnValue({
+      vi.mocked(mockSource.asGitSource).mockReturnValue({
         url: 'https://github.com/user/package-a.git',
         ref: 'v1.0.0',
       });

@@ -49,8 +49,10 @@ describe('OrderedSet Entity', () => {
           expect(orderedSet.size()).toBe(2);
           expect(orderedSet.isEmpty()).toBe(false);
           expect(statementIds.length).toBeGreaterThanOrEqual(2);
-          expect(orderedSet.containsStatement(statementIds[0])).toBe(true);
-          expect(orderedSet.containsStatement(statementIds[1])).toBe(true);
+          if (statementIds[0] && statementIds[1]) {
+            expect(orderedSet.containsStatement(statementIds[0])).toBe(true);
+            expect(orderedSet.containsStatement(statementIds[1])).toBe(true);
+          }
         }
       });
 

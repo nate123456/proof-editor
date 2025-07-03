@@ -5,6 +5,7 @@
 
 import { faker } from '@faker-js/faker';
 import { Factory } from 'fishery';
+import type { Result } from 'neverthrow';
 
 import { Conflict, type ConflictResolutionStrategy } from '../entities/Conflict';
 import { Operation } from '../entities/Operation';
@@ -211,20 +212,24 @@ export const conflictTypeFactory = Factory.define<ConflictType>(() => {
   const types = ['structural', 'semantic', 'deletion', 'concurrentModification'] as const;
   const randomType = faker.helpers.arrayElement(types);
 
-  let conflictTypeResult: ConflictType;
+  let conflictTypeResult: Result<ConflictType, Error>;
   switch (randomType) {
-    case 'structural':
+    case 'structural': {
       conflictTypeResult = ConflictType.structural();
       break;
-    case 'semantic':
+    }
+    case 'semantic': {
       conflictTypeResult = ConflictType.semantic();
       break;
-    case 'deletion':
+    }
+    case 'deletion': {
       conflictTypeResult = ConflictType.deletion();
       break;
-    case 'concurrentModification':
+    }
+    case 'concurrentModification': {
       conflictTypeResult = ConflictType.concurrentModification();
       break;
+    }
   }
 
   if (conflictTypeResult.isErr()) {
@@ -234,11 +239,11 @@ export const conflictTypeFactory = Factory.define<ConflictType>(() => {
 });
 
 // Conflict factory
-export const conflictFactory = Factory.define<Conflict>(({ params }) => {
-  const id = params.id ?? `conflict-${faker.string.uuid()}`;
-  const conflictType = params.getConflictType?.() ?? conflictTypeFactory.build();
-  const targetPath = params.getTargetPath?.() ?? `/${faker.word.noun()}/${faker.string.uuid()}`;
-  const operations = params.getConflictingOperations?.() ?? [
+export const conflictFactory = Factory.define<Conflict>(({ transientParams }) => {
+  const id = transientParams?.id ?? `conflict-${faker.string.uuid()}`;
+  const conflictType = transientParams?.conflictType ?? conflictTypeFactory.build();
+  const targetPath = transientParams?.targetPath ?? `/${faker.word.noun()}/${faker.string.uuid()}`;
+  const operations = transientParams?.operations ?? [
     operationFactory.build(),
     operationFactory.build(),
   ];

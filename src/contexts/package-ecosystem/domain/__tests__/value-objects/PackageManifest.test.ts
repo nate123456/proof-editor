@@ -619,9 +619,9 @@ describe('PackageManifest', () => {
           const manifest = result.value;
           const categories = manifest.getValidationCategories();
           expect(categories).toHaveLength(2);
-          expect(categories?.[0].id).toBe('syntax');
-          expect(categories?.[0].name).toBe('Syntax Validation');
-          expect(categories?.[0].rules).toEqual(['no-syntax-errors', 'valid-identifiers']);
+          expect(categories?.[0]?.id).toBe('syntax');
+          expect(categories?.[0]?.name).toBe('Syntax Validation');
+          expect(categories?.[0]?.rules).toEqual(['no-syntax-errors', 'valid-identifiers']);
 
           expect(manifest.getCustomValidators()).toEqual(['custom-rule-1']);
         }
@@ -886,7 +886,7 @@ describe('PackageManifest', () => {
       expect(manifest.getLSPMobileConfiguration()?.transport).toBe('websocket');
       expect(manifest.getLSPBinaries()?.linux).toBe('bin/linux');
       expect(manifest.getProofCapabilities()).toEqual(['proof/test']);
-      expect(manifest.getValidationCategories()?.[0].id).toBe('test');
+      expect(manifest.getValidationCategories()?.[0]?.id).toBe('test');
       expect(manifest.getCustomValidators()).toEqual(['validator1']);
       expect(manifest.getKeywords()).toEqual(['test']);
       expect(manifest.getCategory()).toBe('utility');

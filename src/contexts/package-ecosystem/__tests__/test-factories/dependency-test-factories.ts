@@ -277,7 +277,7 @@ function generateDependencyGraph(config: DependencyGraphConfig) {
     for (let j = 0; j < depCount && j < availableTargets.length; j++) {
       const target = faker.helpers.arrayElement(availableTargets);
       const isOptional = Math.random() < config.optionalDependencyProbability;
-      const constraint = versionConstraintFactory.build({ targetVersion: target.getVersion() });
+      const constraint = versionConstraintFactory.build(target.getVersion());
 
       const dep = createRealisticMockDependency(target.getName(), constraint, isOptional);
       dependencies.push({ from: i, to: packages.indexOf(target), dep });
@@ -307,9 +307,17 @@ function generateCircularDependencyGraph(cycleLength: number) {
 
   const cycles: string[][] = [];
   const cycle = names.slice();
-  cycles.push([...cycle, cycle[0]]); // Close the cycle
+  const firstCycleName = cycle[0];
+  if (firstCycleName) {
+    cycles.push([...cycle, firstCycleName]); // Close the cycle
+  }
 
-  return { root: packages[0], packages, cycles };
+  const root = packages[0];
+  if (!root) {
+    throw new Error('No packages generated');
+  }
+
+  return { root, packages, cycles };
 }
 
 function generateVersionConflictGraph(conflictCount: number) {

@@ -184,17 +184,9 @@ test.describe('Accessibility Tests', () => {
     await injectAxe(page);
     
     // Run comprehensive accessibility check
-    await checkA11y(page, null, {
+    await checkA11y(page, undefined, {
       detailedReport: true,
-      detailedReportOptions: { html: true },
-      rules: {
-        // Enable all WCAG 2.1 AA rules
-        'color-contrast': { enabled: true },
-        'keyboard-navigation': { enabled: true },
-        'focus-management': { enabled: true },
-        'semantic-markup': { enabled: true },
-        'aria-attributes': { enabled: true },
-      }
+      detailedReportOptions: { html: true }
     });
   });
 
@@ -513,18 +505,14 @@ test.describe('Accessibility Tests', () => {
     
     // Run accessibility check focusing on color contrast
     try {
-      await checkA11y(page, null, {
-        rules: {
-          'color-contrast': { enabled: true }
-        }
-      });
+      await checkA11y(page);
       
       // If we reach here, the page passed contrast checks
       // But we know it should fail due to low-contrast elements
       // This test demonstrates that axe can detect contrast issues
     } catch (error) {
       // Expect this to fail due to low contrast elements
-      expect(error.message).toContain('color-contrast');
+      expect((error as Error).message).toContain('color-contrast');
     }
 
     // Verify that good contrast elements are visible
@@ -694,12 +682,6 @@ test.describe('Accessibility Tests', () => {
     await injectAxe(page);
     
     // Check focus-related accessibility rules
-    await checkA11y(page, null, {
-      rules: {
-        'focus-order-semantics': { enabled: true },
-        'focusable-content': { enabled: true },
-        'keyboard': { enabled: true }
-      }
-    });
+    await checkA11y(page);
   });
 });

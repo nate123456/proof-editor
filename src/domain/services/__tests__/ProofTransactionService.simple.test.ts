@@ -1,3 +1,4 @@
+import { ok } from 'neverthrow';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { ProofTransactionService } from '../ProofTransactionService.js';
@@ -41,11 +42,7 @@ describe('ProofTransactionService Simple Tests', () => {
 
     it('should handle basic transaction execution', async () => {
       const mockOperation = async () => {
-        return {
-          isOk: () => true,
-          isErr: () => false,
-          value: 'success',
-        };
+        return ok('success');
       };
 
       const result = await service.executeInTransaction(mockOperation);

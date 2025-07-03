@@ -1,6 +1,6 @@
-import { mock } from 'jest-mock-extended';
 import { err, ok } from 'neverthrow';
-import { beforeEach, describe, expect, it } from 'vitest';
+import type { MockedFunction } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ValidationResult as LIValidationResult } from '../../../contexts/language-intelligence/domain/entities/ValidationResult.js';
 import type { LogicValidationService } from '../../../contexts/language-intelligence/domain/services/LogicValidationService.js';
 import type { PatternRecognitionService } from '../../../contexts/language-intelligence/domain/services/PatternRecognitionService.js';
@@ -10,6 +10,7 @@ import type { DependencyResolutionService } from '../../../contexts/package-ecos
 import type { PackageValidationService } from '../../../contexts/package-ecosystem/domain/services/PackageValidationService.js';
 import type { PackageDiscoveryService } from '../../../contexts/package-ecosystem/domain/services/package-discovery-service.js';
 import type { ValidationResult as PackageValidationResult } from '../../../contexts/package-ecosystem/domain/types/common-types.js';
+import { PackageNotFoundError } from '../../../contexts/package-ecosystem/domain/types/domain-errors.js';
 import { PackageId } from '../../../contexts/package-ecosystem/domain/value-objects/package-id.js';
 import { PackageManifest } from '../../../contexts/package-ecosystem/domain/value-objects/package-manifest.js';
 import { PackageSource } from '../../../contexts/package-ecosystem/domain/value-objects/package-source.js';
@@ -29,27 +30,46 @@ import { CrossContextOrchestrationService } from '../CrossContextOrchestrationSe
 
 describe('CrossContextOrchestrationService', () => {
   let orchestrationService: CrossContextOrchestrationService;
-  let mockStatementFlow: ReturnType<typeof mock<StatementFlowService>>;
-  let mockTreeStructure: ReturnType<typeof mock<TreeStructureService>>;
-  let mockPathCompleteness: ReturnType<typeof mock<PathCompletenessService>>;
-  let mockLogicValidation: ReturnType<typeof mock<LogicValidationService>>;
-  let mockPatternRecognition: ReturnType<typeof mock<PatternRecognitionService>>;
-  let mockPackageValidation: ReturnType<typeof mock<PackageValidationService>>;
-  let mockDependencyResolution: ReturnType<typeof mock<DependencyResolutionService>>;
-  let mockPackageDiscovery: ReturnType<typeof mock<PackageDiscoveryService>>;
-  let mockOperationCoordination: ReturnType<typeof mock<OperationCoordinationService>>;
+  let mockStatementFlow: StatementFlowService;
+  let mockTreeStructure: TreeStructureService;
+  let mockPathCompleteness: PathCompletenessService;
+  let mockLogicValidation: LogicValidationService;
+  let mockPatternRecognition: PatternRecognitionService;
+  let mockPackageValidation: PackageValidationService;
+  let mockDependencyResolution: DependencyResolutionService;
+  let mockPackageDiscovery: PackageDiscoveryService;
+  let mockOperationCoordination: OperationCoordinationService;
 
   beforeEach(() => {
     // Create mock services
-    mockStatementFlow = mock<StatementFlowService>();
-    mockTreeStructure = mock<TreeStructureService>();
-    mockPathCompleteness = mock<PathCompletenessService>();
-    mockLogicValidation = mock<LogicValidationService>();
-    mockPatternRecognition = mock<PatternRecognitionService>();
-    mockPackageValidation = mock<PackageValidationService>();
-    mockDependencyResolution = mock<DependencyResolutionService>();
-    mockPackageDiscovery = mock<PackageDiscoveryService>();
-    mockOperationCoordination = mock<OperationCoordinationService>();
+    mockStatementFlow = {
+      createStatementFromContent: vi.fn() as MockedFunction<
+        StatementFlowService['createStatementFromContent']
+      >,
+    } as unknown as StatementFlowService;
+
+    mockTreeStructure = {} as unknown as TreeStructureService;
+    mockPathCompleteness = {} as unknown as PathCompletenessService;
+
+    mockLogicValidation = {
+      validateInference: vi.fn() as MockedFunction<LogicValidationService['validateInference']>,
+    } as unknown as LogicValidationService;
+
+    mockPatternRecognition = {} as unknown as PatternRecognitionService;
+
+    mockPackageValidation = {
+      validatePackage: vi.fn() as MockedFunction<PackageValidationService['validatePackage']>,
+    } as unknown as PackageValidationService;
+
+    mockDependencyResolution = {} as unknown as DependencyResolutionService;
+
+    mockPackageDiscovery = {
+      findPackageById: vi.fn() as MockedFunction<PackageDiscoveryService['findPackageById']>,
+    } as unknown as PackageDiscoveryService;
+
+    mockOperationCoordination = {
+      applyOperation: vi.fn() as MockedFunction<OperationCoordinationService['applyOperation']>,
+    } as unknown as OperationCoordinationService;
 
     orchestrationService = new CrossContextOrchestrationService(
       mockStatementFlow,
@@ -88,24 +108,24 @@ describe('CrossContextOrchestrationService', () => {
       const mockStatement2 = stmt2Result.value;
       const mockStatement3 = stmt3Result.value;
 
-      mockStatementFlow.createStatementFromContent
-        .calledWith('All humans are mortal')
-        .mockReturnValue(ok(mockStatement1));
-      mockStatementFlow.createStatementFromContent
-        .calledWith('Socrates is human')
-        .mockReturnValue(ok(mockStatement2));
-      mockStatementFlow.createStatementFromContent
-        .calledWith('Therefore, Socrates is mortal')
-        .mockReturnValue(ok(mockStatement3));
+      vi.mocked(mockStatementFlow.createStatementFromContent).mockImplementation(
+        (content: string) => {
+          if (content === 'All humans are mortal') return ok(mockStatement1);
+          if (content === 'Socrates is human') return ok(mockStatement2);
+          if (content === 'Therefore, Socrates is mortal') return ok(mockStatement3);
+          return err(new Error('Unknown content'));
+        },
+      );
 
       // Mock successful logic validation
-      const mockValidationResult = mock<LIValidationResult>();
-      mockValidationResult.isValid.mockReturnValue(true);
-      mockValidationResult.getDiagnostics.mockReturnValue([]);
-      mockLogicValidation.validateInference.mockReturnValue(ok(mockValidationResult));
+      const mockValidationResult = {
+        isValid: vi.fn().mockReturnValue(true),
+        getDiagnostics: vi.fn().mockReturnValue([]),
+      } as unknown as LIValidationResult;
+      vi.mocked(mockLogicValidation.validateInference).mockReturnValue(ok(mockValidationResult));
 
       // Mock successful operation coordination
-      mockOperationCoordination.applyOperation.mockResolvedValue(ok(undefined));
+      vi.mocked(mockOperationCoordination.applyOperation).mockResolvedValue(ok(undefined));
 
       // Act
       const result = await orchestrationService.orchestrateProofValidation(request);
@@ -136,9 +156,9 @@ describe('CrossContextOrchestrationService', () => {
       };
 
       // Mock failed statement creation
-      mockStatementFlow.createStatementFromContent
-        .calledWith('Invalid statement')
-        .mockReturnValue(err(new Error('Invalid statement content')));
+      vi.mocked(mockStatementFlow.createStatementFromContent).mockReturnValue(
+        err(new Error('Invalid statement content')),
+      );
 
       // Act
       const result = await orchestrationService.orchestrateProofValidation(request);
@@ -179,7 +199,6 @@ describe('CrossContextOrchestrationService', () => {
             isValid: true,
             errors: [],
             warnings: [],
-            timestamp: new Date(),
           };
 
           const pkg = Package.create({
@@ -205,9 +224,10 @@ describe('CrossContextOrchestrationService', () => {
               isValid: false,
               errors: ['Invalid package'],
               warnings: [],
-              timestamp: new Date(),
             };
-            mockPackageValidation.validatePackageStructure.mockReturnValue(ok(failedValidation));
+            vi.mocked(mockPackageValidation.validatePackage).mockResolvedValue(
+              ok(failedValidation),
+            );
 
             // Mock successful statement creation to isolate package validation failure
             const stmtResult = Statement.create('Some statement');
@@ -215,9 +235,9 @@ describe('CrossContextOrchestrationService', () => {
               throw new Error('Failed to create test statement');
             }
             const mockStatement = stmtResult.value;
-            mockStatementFlow.createStatementFromContent
-              .calledWith('Some statement')
-              .mockReturnValue(ok(mockStatement));
+            vi.mocked(mockStatementFlow.createStatementFromContent).mockReturnValue(
+              ok(mockStatement),
+            );
 
             // Act
             const result = await orchestrationService.orchestrateProofValidation(request);
@@ -251,7 +271,7 @@ describe('CrossContextOrchestrationService', () => {
 
       // Mock successful package discovery
       const mockPackage = {} as Package;
-      mockPackageDiscovery.findPackageById.mockResolvedValue(ok(mockPackage));
+      vi.mocked(mockPackageDiscovery.findPackageById).mockResolvedValue(ok(mockPackage));
 
       // Act
       const result = await orchestrationService.coordinatePackageInstallation(request);
@@ -278,7 +298,9 @@ describe('CrossContextOrchestrationService', () => {
       };
 
       // Mock failed package discovery
-      mockPackageDiscovery.findPackageById.mockResolvedValue(err(new Error('Package not found')));
+      vi.mocked(mockPackageDiscovery.findPackageById).mockResolvedValue(
+        err(new PackageNotFoundError('Package not found')),
+      );
 
       // Act
       const result = await orchestrationService.coordinatePackageInstallation(request);
@@ -378,7 +400,7 @@ describe('CrossContextOrchestrationService', () => {
       };
 
       // Mock service to throw exception
-      mockStatementFlow.createStatementFromContent.mockImplementation(() => {
+      vi.mocked(mockStatementFlow.createStatementFromContent).mockImplementation(() => {
         throw new Error('Service unavailable');
       });
 

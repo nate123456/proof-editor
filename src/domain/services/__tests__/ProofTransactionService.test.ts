@@ -1,3 +1,4 @@
+import { err, ok } from 'neverthrow';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AtomicArgument } from '../../entities/AtomicArgument.js';
@@ -76,7 +77,7 @@ describe('ProofTransactionService', () => {
 
   describe('executeInTransaction', () => {
     it('should execute operation and commit successfully', async () => {
-      const mockOperation = vi.fn().mockResolvedValue({ isOk: () => true, value: 'success' });
+      const mockOperation = vi.fn().mockResolvedValue(ok('success'));
 
       const result = await service.executeInTransaction(mockOperation);
 
@@ -88,11 +89,7 @@ describe('ProofTransactionService', () => {
     });
 
     it('should rollback on operation failure', async () => {
-      const mockOperation = vi.fn().mockResolvedValue({
-        isOk: () => false,
-        isErr: () => true,
-        error: new Error('Operation failed'),
-      });
+      const mockOperation = vi.fn().mockResolvedValue(err(new Error('Operation failed')));
 
       const result = await service.executeInTransaction(mockOperation);
 
@@ -116,7 +113,7 @@ describe('ProofTransactionService', () => {
     });
 
     it('should update metrics on successful commit', async () => {
-      const mockOperation = vi.fn().mockResolvedValue({ isOk: () => true, value: 'success' });
+      const mockOperation = vi.fn().mockResolvedValue(ok('success'));
 
       const initialMetrics = service.getMetrics();
       expect(initialMetrics.totalTransactionsCommitted).toBe(0);
@@ -211,7 +208,7 @@ describe('ProofTransaction Integration', () => {
       const operation = new CreateConnectionOperation(request);
       transaction.addOperation(operation);
 
-      return { isOk: () => true, value: undefined };
+      return ok(undefined);
     });
 
     expect(result.isOk()).toBe(true);
@@ -226,7 +223,7 @@ describe('ProofTransaction Integration', () => {
       const operation = new CreateStatementOperation(request);
       transaction.addOperation(operation);
 
-      return { isOk: () => true, value: operation.getCreatedStatement() };
+      return ok(operation.getCreatedStatement());
     });
 
     expect(result.isOk()).toBe(true);
@@ -249,11 +246,11 @@ describe('ProofTransaction Integration', () => {
 
       const validationResult = invalidOp.validate();
       if (validationResult.isErr()) {
-        return { isOk: () => false, isErr: () => true, error: validationResult.error };
+        return err(validationResult.error);
       }
 
       transaction.addOperation(invalidOp);
-      return { isOk: () => true, value: undefined };
+      return ok(undefined);
     });
 
     expect(result.isErr()).toBe(true);
@@ -268,21 +265,21 @@ describe('ProofTransaction Integration', () => {
           operationId: { getValue: () => `op-${i}` },
           operationType: 'CREATE_STATEMENT' as const,
           createdAt: new Date(),
-          validate: () => ({ isOk: () => true, value: undefined }),
+          validate: () => ok(undefined),
           execute: async () => {
             operations.push(`execute-${i}`);
-            return { isOk: () => true, value: undefined };
+            return ok(undefined);
           },
           compensate: async () => {
             operations.push(`compensate-${i}`);
-            return { isOk: () => true, value: undefined };
+            return ok(undefined);
           },
         };
 
         transaction.addOperation(mockOp as any);
       }
 
-      return { isOk: () => true, value: undefined };
+      return ok(undefined);
     });
 
     expect(result.isOk()).toBe(true);

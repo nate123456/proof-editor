@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    // Override types to exclude vitest globals for e2e tests
+    "types": ["node", "@playwright/test"],
+    // E2E tests need DOM types for browser interactions
+    "lib": ["ES2022", "DOM", "ES2022.Object", "ES2022.String", "ES2022.Array", "ES2022.Error"],
+    // Remove rootDir restriction for tests
+    "rootDir": "."
+  },
+  "include": ["tests/e2e/**/*.ts"],
+  "exclude": ["node_modules", "dist", "src/**/*"]
+}

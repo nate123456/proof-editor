@@ -99,7 +99,11 @@ describe('ProofStrategyAnalysisService', () => {
         if (result.isOk()) {
           const strategies = result.value.recommendedStrategies;
           for (let i = 0; i < strategies.length - 1; i++) {
-            expect(strategies[i].confidence).toBeGreaterThanOrEqual(strategies[i + 1].confidence);
+            const current = strategies[i];
+            const next = strategies[i + 1];
+            if (current && next) {
+              expect(current.confidence).toBeGreaterThanOrEqual(next.confidence);
+            }
           }
         }
       });

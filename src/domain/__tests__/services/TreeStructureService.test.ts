@@ -824,21 +824,27 @@ describe('TreeStructureService', () => {
         const node2 = node2Result.value;
 
         // Manually reconstruct with specific IDs to create circular reference
-        const reconstructedNode1 = Node.reconstruct(
+        const reconstructedNode1Result = Node.reconstruct(
           node1Id,
           node1.getArgumentId(),
           attachment1,
           node1.getCreatedAt(),
           node1.getModifiedAt(),
-        ).value;
+        );
+        expect(reconstructedNode1Result.isOk()).toBe(true);
+        if (!reconstructedNode1Result.isOk()) return;
+        const reconstructedNode1 = reconstructedNode1Result.value;
 
-        const reconstructedNode2 = Node.reconstruct(
+        const reconstructedNode2Result = Node.reconstruct(
           node2Id,
           node2.getArgumentId(),
           attachment2,
           node2.getCreatedAt(),
           node2.getModifiedAt(),
-        ).value;
+        );
+        expect(reconstructedNode2Result.isOk()).toBe(true);
+        if (!reconstructedNode2Result.isOk()) return;
+        const reconstructedNode2 = reconstructedNode2Result.value;
 
         tree.addNode(node1Id);
         tree.addNode(node2Id);
@@ -1053,30 +1059,46 @@ describe('TreeStructureService', () => {
 
     describe('cyclic structures', () => {
       it('should detect simple two-node cycle', () => {
-        const _tree = Tree.create('test-doc').value;
+        const treeResult = Tree.create('test-doc');
+        expect(treeResult.isOk()).toBe(true);
+        if (!treeResult.isOk()) return;
+        const _tree = treeResult.value;
 
         // Create two nodes that reference each other
         const node1Id = nodeIdFactory.build();
         const node2Id = nodeIdFactory.build();
 
-        const attachment1 = Attachment.create(node2Id, 0).value;
-        const attachment2 = Attachment.create(node1Id, 0).value;
+        const attachment1Result = Attachment.create(node2Id, 0);
+        expect(attachment1Result.isOk()).toBe(true);
+        if (!attachment1Result.isOk()) return;
+        const attachment1 = attachment1Result.value;
 
-        const node1 = Node.reconstruct(
+        const attachment2Result = Attachment.create(node1Id, 0);
+        expect(attachment2Result.isOk()).toBe(true);
+        if (!attachment2Result.isOk()) return;
+        const attachment2 = attachment2Result.value;
+
+        const node1Result = Node.reconstruct(
           node1Id,
           atomicArgumentIdFactory.build(),
           attachment1,
           Date.now(),
           Date.now(),
-        ).value;
+        );
+        expect(node1Result.isOk()).toBe(true);
+        if (!node1Result.isOk()) return;
+        const node1 = node1Result.value;
 
-        const node2 = Node.reconstruct(
+        const node2Result = Node.reconstruct(
           node2Id,
           atomicArgumentIdFactory.build(),
           attachment2,
           Date.now(),
           Date.now(),
-        ).value;
+        );
+        expect(node2Result.isOk()).toBe(true);
+        if (!node2Result.isOk()) return;
+        const node2 = node2Result.value;
 
         _tree.addNode(node1Id);
         _tree.addNode(node2Id);
@@ -1250,6 +1272,7 @@ describe('TreeStructureService', () => {
                 // Remove a middle node (should remove all descendants)
                 if (nodeChain.length > 2) {
                   const nodeToRemove = nodeChain[1]; // Second node (not root, has descendants)
+                  if (!nodeToRemove) throw new Error('Node to remove is undefined');
                   const removalResult = service.removeNodeFromTree(tree, nodeToRemove, allNodes);
 
                   expect(removalResult.isOk()).toBe(true);
@@ -1341,12 +1364,18 @@ describe('TreeStructureService', () => {
 
     describe('memory and performance considerations', () => {
       it('should handle large node collections efficiently', () => {
-        const _tree = Tree.create('test-doc').value;
+        const treeResult = Tree.create('test-doc');
+        expect(treeResult.isOk()).toBe(true);
+        if (!treeResult.isOk()) return;
+        const _tree = treeResult.value;
         const largeNodeMap = new Map<NodeId, Node>();
 
         // Create a large number of disconnected nodes
         for (let i = 0; i < 1000; i++) {
-          const node = Node.createRoot(atomicArgumentIdFactory.build()).value;
+          const nodeResult = Node.createRoot(atomicArgumentIdFactory.build());
+          expect(nodeResult.isOk()).toBe(true);
+          if (!nodeResult.isOk()) continue;
+          const node = nodeResult.value;
           largeNodeMap.set(node.getId(), node);
         }
 

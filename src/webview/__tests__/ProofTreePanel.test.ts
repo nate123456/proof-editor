@@ -1,6 +1,9 @@
+import 'reflect-metadata';
+
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as vscode from 'vscode';
-
+import { createTestContainer, resetContainer } from '../../infrastructure/di/container.js';
+import { TOKENS } from '../../infrastructure/di/tokens.js';
 import { ProofTreePanel } from '../ProofTreePanel.js';
 
 // Mock VS Code API
@@ -17,20 +20,30 @@ vi.mock('vscode', () => ({
   },
 }));
 
+// Mock the global container to use our test container
+const mockContainer = createTestContainer();
+
+// Mock getContainer to return our test container
+vi.mock('../../infrastructure/di/container.js', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../../infrastructure/di/container.js')>();
+  return {
+    ...original,
+    getContainer: () => mockContainer,
+  };
+});
+
 // Mock the parser and renderer
 const mockParseProofFile = vi.fn();
+const mockGenerateSVG = vi.fn();
 
-vi.mock('../../parser/index.js', () => ({
-  ProofFileParser: vi.fn(() => ({
-    parseProofFile: mockParseProofFile,
-  })),
-}));
+// Create mock implementations for DI
+const mockProofFileParser = {
+  parseProofFile: mockParseProofFile,
+};
 
-vi.mock('../TreeRenderer.js', () => ({
-  TreeRenderer: vi.fn(() => ({
-    generateSVG: vi.fn(() => '<svg>test</svg>'),
-  })),
-}));
+const mockTreeRenderer = {
+  generateSVG: mockGenerateSVG,
+};
 
 describe('ProofTreePanel', () => {
   const mockPanel = {
@@ -49,6 +62,13 @@ describe('ProofTreePanel', () => {
     vi.clearAllMocks();
     vi.mocked(vscode.window.createWebviewPanel).mockReturnValue(mockPanel as any);
 
+    // Reset container
+    resetContainer();
+
+    // Register required dependencies in test container
+    mockContainer.registerInstance(TOKENS.ProofFileParser, mockProofFileParser);
+    mockContainer.registerInstance(TOKENS.TreeRenderer, mockTreeRenderer);
+
     // Reset parser mock to default success behavior
     mockParseProofFile.mockReturnValue({
       isErr: vi.fn(() => false),
@@ -61,6 +81,9 @@ describe('ProofTreePanel', () => {
         nodes: new Map(),
       },
     });
+
+    // Reset renderer mock to default behavior
+    mockGenerateSVG.mockReturnValue('<svg>test</svg>');
   });
 
   describe('createOrShow', () => {

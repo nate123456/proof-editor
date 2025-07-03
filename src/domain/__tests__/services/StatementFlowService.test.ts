@@ -150,7 +150,10 @@ describe('StatementFlowService', () => {
           expect(items.length).toBe(statements.length);
           // Order should be preserved
           items.forEach((itemId, index) => {
-            expect(itemId.equals(statements[index].getId())).toBe(true);
+            const statement = statements[index];
+            if (statement) {
+              expect(itemId.equals(statement.getId())).toBe(true);
+            }
           });
         }
       });
@@ -640,7 +643,7 @@ describe('StatementFlowService', () => {
         const connected = service.findDirectlyConnectedArguments(argument1, argumentsMap);
 
         expect(connected).toHaveLength(1);
-        expect(connected[0].getId().equals(argument2.getId())).toBe(true);
+        expect(connected[0]?.getId().equals(argument2.getId())).toBe(true);
       });
 
       it('should not include the argument itself', () => {
@@ -667,8 +670,8 @@ describe('StatementFlowService', () => {
 
         expect(connectedFrom1).toHaveLength(1);
         expect(connectedFrom2).toHaveLength(1);
-        expect(connectedFrom1[0].getId().equals(argument2.getId())).toBe(true);
-        expect(connectedFrom2[0].getId().equals(argument1.getId())).toBe(true);
+        expect(connectedFrom1[0]?.getId().equals(argument2.getId())).toBe(true);
+        expect(connectedFrom2[0]?.getId().equals(argument1.getId())).toBe(true);
       });
     });
   });
@@ -1004,8 +1007,8 @@ describe('StatementFlowService', () => {
 
         expect(path).not.toBe(null);
         expect(path).toHaveLength(2);
-        expect(path?.[0].getId().equals(argument1.getId())).toBe(true);
-        expect(path?.[1].getId().equals(argument2.getId())).toBe(true);
+        expect(path?.[0]?.getId().equals(argument1.getId())).toBe(true);
+        expect(path?.[1]?.getId().equals(argument2.getId())).toBe(true);
       });
 
       it('should find path through intermediate arguments', () => {
@@ -1013,9 +1016,9 @@ describe('StatementFlowService', () => {
 
         expect(path).not.toBe(null);
         expect(path).toHaveLength(3);
-        expect(path?.[0].getId().equals(argument1.getId())).toBe(true);
-        expect(path?.[1].getId().equals(argument2.getId())).toBe(true);
-        expect(path?.[2].getId().equals(argument3.getId())).toBe(true);
+        expect(path?.[0]?.getId().equals(argument1.getId())).toBe(true);
+        expect(path?.[1]?.getId().equals(argument2.getId())).toBe(true);
+        expect(path?.[2]?.getId().equals(argument3.getId())).toBe(true);
       });
 
       it('should return path with single argument for same start and end', () => {
@@ -1023,7 +1026,7 @@ describe('StatementFlowService', () => {
 
         expect(path).not.toBe(null);
         expect(path).toHaveLength(1);
-        expect(path?.[0].getId().equals(argument1.getId())).toBe(true);
+        expect(path?.[0]?.getId().equals(argument1.getId())).toBe(true);
       });
 
       it('should return null when no path exists', () => {
@@ -1100,8 +1103,8 @@ describe('StatementFlowService', () => {
 
             expect(path).not.toBe(null);
             expect(path?.length).toBeGreaterThanOrEqual(3);
-            expect(path?.[0].getId().equals(start.getId())).toBe(true);
-            expect(path?.[path?.length - 1].getId().equals(end.getId())).toBe(true);
+            expect(path?.[0]?.getId().equals(start.getId())).toBe(true);
+            expect(path?.[path?.length - 1]?.getId().equals(end.getId())).toBe(true);
           }
         }
       });
