@@ -9,6 +9,13 @@
  * - Domain-specific error behaviors
  */
 
+// Extend Error interface to include cause property for ES2022 compatibility
+declare global {
+  interface Error {
+    cause?: unknown;
+  }
+}
+
 import fc from 'fast-check';
 import { err, ok, type Result } from 'neverthrow';
 import { describe, expect, it } from 'vitest';
@@ -65,7 +72,7 @@ describe('DomainError Base Class', () => {
       const originalError = new Error('Original system error');
       const intermediateError = new TestDomainError(
         'Intermediate processing failed',
-        originalError
+        originalError,
       );
       const finalError = new TestDomainError('Final operation failed', intermediateError);
 
@@ -101,10 +108,10 @@ describe('DomainError Base Class', () => {
   describe('property-based error behavior', () => {
     it('should maintain message integrity across construction', () => {
       fc.assert(
-        fc.property(fc.string(), message => {
+        fc.property(fc.string(), (message) => {
           const error = new TestDomainError(message);
           expect(error.message).toBe(message);
-        })
+        }),
       );
     });
 
@@ -116,7 +123,7 @@ describe('DomainError Base Class', () => {
         new TestDomainError('Nested domain error'),
       ];
 
-      causeTypes.forEach(cause => {
+      causeTypes.forEach((cause) => {
         const error = new TestDomainError('Test with cause', cause);
         expect(error.cause).toBe(cause);
         expect(error.message).toBe('Test with cause');
@@ -174,7 +181,7 @@ describe('ProcessingError', () => {
         if (content.length > 10000) {
           throw new ProcessingError(
             'Statement content exceeds maximum length',
-            new RangeError('Content too long')
+            new RangeError('Content too long'),
           );
         }
         return `Processed: ${content}`;
@@ -243,8 +250,8 @@ describe('StructureError', () => {
           [
             ['A', 'B'],
             ['B', 'C'],
-          ]
-        )
+          ],
+        ),
       ).toBe(true);
 
       // Invalid tree with cycle
@@ -255,8 +262,8 @@ describe('StructureError', () => {
             ['A', 'B'],
             ['B', 'C'],
             ['C', 'A'],
-          ]
-        )
+          ],
+        ),
       ).toThrow(StructureError);
     });
   });
@@ -288,7 +295,7 @@ describe('RepositoryError', () => {
       }
 
       class TestRepository implements Repository<{ id: string; data: string }> {
-        private entities = new Map<string, { id: string; data: string }>();
+        private readonly entities = new Map<string, { id: string; data: string }>();
 
         save(entity: { id: string; data: string }) {
           if (!entity.id) {
@@ -334,7 +341,7 @@ describe('Error Type Discrimination', () => {
       new RepositoryError('Repository failed'),
     ];
 
-    errors.forEach(error => {
+    errors.forEach((error) => {
       if (error instanceof ProcessingError) {
         expect(error.message).toContain('Processing');
       } else if (error instanceof StructureError) {
@@ -469,7 +476,7 @@ describe('Advanced Edge Cases', () => {
 
       expect(level4.cause).toBe(level3);
       expect(level4.cause?.cause).toBe(level2);
-      expect(level4.cause?.cause?.cause).toBe(level1);
+      expect((level4.cause as RepositoryError)?.cause?.cause).toBe(level1);
     });
   });
 
@@ -548,7 +555,7 @@ describe('Error Boundary Testing', () => {
         'Error with <html>tags</html>',
       ];
 
-      specialMessages.forEach(message => {
+      specialMessages.forEach((message) => {
         const error = new ProcessingError(message);
         expect(error.message).toBe(message);
       });
@@ -586,7 +593,7 @@ describe('Cross-Domain Error Patterns', () => {
       // Wrap in domain error
       const domainError = new RepositoryError(
         'Failed to fetch from external service',
-        externalError
+        externalError,
       );
 
       expect(domainError.cause).toBe(externalError);
@@ -599,7 +606,7 @@ describe('Cross-Domain Error Patterns', () => {
       // Enrich with context
       const enrichedError = new ProcessingError(
         `${baseError.message} - Context: User ID 123`,
-        baseError
+        baseError,
       );
 
       expect(enrichedError.cause).toBe(baseError);
@@ -618,11 +625,11 @@ describe('Cross-Domain Error Patterns', () => {
       ];
 
       const processingErrors = mixedErrors.filter(
-        (e): e is ProcessingError => e instanceof ProcessingError
+        (e): e is ProcessingError => e instanceof ProcessingError,
       );
 
       expect(processingErrors).toHaveLength(2);
-      processingErrors.forEach(e => {
+      processingErrors.forEach((e) => {
         expect(e).toBeInstanceOf(ProcessingError);
       });
     });

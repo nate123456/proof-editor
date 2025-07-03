@@ -1,6 +1,6 @@
 import { err, ok, type Result } from 'neverthrow';
 
-import { type OperationType } from './OperationType';
+import type { OperationType } from './OperationType';
 
 export interface StatementPayload {
   readonly id: string;
@@ -54,12 +54,12 @@ export class OperationPayload {
   private constructor(
     private readonly data: OperationPayloadData,
     private readonly payloadType: string,
-    private readonly size: number
+    private readonly size: number,
   ) {}
 
   static create(
     data: OperationPayloadData,
-    operationType: OperationType
+    operationType: OperationType,
   ): Result<OperationPayload, Error> {
     if (data === null || data === undefined) {
       return err(new Error('Operation payload data cannot be null or undefined'));
@@ -87,7 +87,7 @@ export class OperationPayload {
 
   private static validatePayloadForOperationType(
     data: OperationPayloadData,
-    operationType: OperationType
+    operationType: OperationType,
   ): Result<void, Error> {
     const opType = operationType.getValue();
 
@@ -234,8 +234,8 @@ export class OperationPayload {
   }
 
   private static determinePayloadType(
-    data: OperationPayloadData,
-    operationType: OperationType
+    _data: OperationPayloadData,
+    operationType: OperationType,
   ): string {
     const opType = operationType.getValue();
 
@@ -244,6 +244,7 @@ export class OperationPayload {
     if (opType.includes('TREE')) return 'TREE';
     if (opType.includes('CONNECTION')) return 'CONNECTION';
     if (opType.includes('METADATA')) return 'METADATA';
+    if (opType.includes('POSITION')) return 'POSITION';
 
     return 'GENERIC';
   }
@@ -286,7 +287,7 @@ export class OperationPayload {
 
   transform(
     otherPayload: OperationPayload,
-    transformationType: string
+    transformationType: string,
   ): Result<OperationPayload, Error> {
     switch (transformationType) {
       case 'POSITION_OFFSET':
@@ -304,7 +305,20 @@ export class OperationPayload {
   }
 
   private transformPositionOffset(otherPayload: OperationPayload): Result<OperationPayload, Error> {
-    if (this.payloadType !== 'TREE' || otherPayload.payloadType !== 'TREE') {
+    // Check if both payloads contain position data
+    const isThisPositionPayload =
+      this.payloadType === 'POSITION' ||
+      this.payloadType === 'TREE' ||
+      (typeof this.data === 'object' && this.data !== null && 'x' in this.data && 'y' in this.data);
+    const isOtherPositionPayload =
+      otherPayload.payloadType === 'POSITION' ||
+      otherPayload.payloadType === 'TREE' ||
+      (typeof otherPayload.data === 'object' &&
+        otherPayload.data !== null &&
+        'x' in otherPayload.data &&
+        'y' in otherPayload.data);
+
+    if (!isThisPositionPayload || !isOtherPositionPayload) {
       return ok(this);
     }
 
@@ -334,8 +348,8 @@ export class OperationPayload {
       new OperationPayload(
         mergedData,
         this.payloadType,
-        OperationPayload.calculatePayloadSize(mergedData)
-      )
+        OperationPayload.calculatePayloadSize(mergedData),
+      ),
     );
   }
 
@@ -361,8 +375,8 @@ export class OperationPayload {
       new OperationPayload(
         mergedData,
         this.payloadType,
-        OperationPayload.calculatePayloadSize(mergedData)
-      )
+        OperationPayload.calculatePayloadSize(mergedData),
+      ),
     );
   }
 

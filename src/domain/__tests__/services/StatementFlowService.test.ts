@@ -5,7 +5,7 @@ import type { AtomicArgument } from '../../entities/AtomicArgument.js';
 import type { OrderedSet } from '../../entities/OrderedSet.js';
 import { Statement } from '../../entities/Statement.js';
 import { StatementFlowService } from '../../services/StatementFlowService.js';
-import { type AtomicArgumentId, type OrderedSetId } from '../../shared/value-objects.js';
+import type { AtomicArgumentId, OrderedSetId } from '../../shared/value-objects.js';
 import {
   createTestStatements,
   statementContentFactory,
@@ -59,16 +59,16 @@ describe('StatementFlowService', () => {
 
       it('should create multiple unique statements', () => {
         const contents = createTestStatements(3);
-        const statements = contents.map(content => service.createStatementFromContent(content));
+        const statements = contents.map((content) => service.createStatementFromContent(content));
 
-        statements.forEach(result => {
+        statements.forEach((result) => {
           expect(result.isOk()).toBe(true);
         });
 
         // Verify they have unique IDs
-        if (statements.every(s => s.isOk())) {
-          const ids = statements.map(s => (s.isOk() ? s.value.getId() : null));
-          const uniqueIds = new Set(ids.map(id => id?.toString()));
+        if (statements.every((s) => s.isOk())) {
+          const ids = statements.map((s) => (s.isOk() ? s.value.getId() : null));
+          const uniqueIds = new Set(ids.map((id) => id?.toString()));
           expect(uniqueIds.size).toBe(3);
         }
       });
@@ -98,12 +98,12 @@ describe('StatementFlowService', () => {
       it('should handle any valid string content', () => {
         fc.assert(
           fc.property(
-            fc.string({ minLength: 1 }).filter(s => s.trim().length > 0),
-            content => {
+            fc.string({ minLength: 1 }).filter((s) => s.trim().length > 0),
+            (content) => {
               const result = service.createStatementFromContent(content);
               expect(result.isOk()).toBe(true);
-            }
-          )
+            },
+          ),
         );
       });
     });
@@ -134,7 +134,7 @@ describe('StatementFlowService', () => {
       it('should preserve order of statements', () => {
         const contents = testScenarios.simpleChain.premises;
         const statements = contents
-          .map(content => {
+          .map((content) => {
             const result = Statement.create(content);
             expect(result.isOk()).toBe(true);
             return result.isOk() ? result.value : null;
@@ -296,7 +296,7 @@ describe('StatementFlowService', () => {
         if (otherStatementResult.isOk()) {
           const result = service.removeStatementFromOrderedSet(
             orderedSet,
-            otherStatementResult.value
+            otherStatementResult.value,
           );
 
           expect(result.isErr()).toBe(true);
@@ -394,10 +394,10 @@ describe('StatementFlowService', () => {
           const argument = result.value;
           // Verify references were added
           expect(
-            premiseSet.getReferencedByAsPremise().some(id => id.equals(argument.getId()))
+            premiseSet.getReferencedByAsPremise().some((id) => id.equals(argument.getId())),
           ).toBe(true);
           expect(
-            conclusionSet.getReferencedByAsConclusion().some(id => id.equals(argument.getId()))
+            conclusionSet.getReferencedByAsConclusion().some((id) => id.equals(argument.getId())),
           ).toBe(true);
         }
       });
@@ -450,7 +450,7 @@ describe('StatementFlowService', () => {
           const result = service.connectAtomicArgumentsBySharedSet(
             emptyParent,
             childArg,
-            sharedSet
+            sharedSet,
           );
 
           expect(result.isErr()).toBe(true);
@@ -469,7 +469,7 @@ describe('StatementFlowService', () => {
           const result = service.connectAtomicArgumentsBySharedSet(
             parentArg,
             emptyChild,
-            sharedSet
+            sharedSet,
           );
 
           expect(result.isErr()).toBe(true);
@@ -509,7 +509,7 @@ describe('StatementFlowService', () => {
             const result = service.connectAtomicArgumentsBySharedSet(
               parentArg,
               newChild,
-              sharedSet
+              sharedSet,
             );
 
             expect(result.isErr()).toBe(true);
@@ -559,7 +559,7 @@ describe('StatementFlowService', () => {
         if (result.isOk()) {
           const childArg = result.value;
           expect(
-            conclusionSet.getReferencedByAsPremise().some(id => id.equals(childArg.getId()))
+            conclusionSet.getReferencedByAsPremise().some((id) => id.equals(childArg.getId())),
           ).toBe(true);
         }
       });
@@ -646,13 +646,13 @@ describe('StatementFlowService', () => {
       it('should not include the argument itself', () => {
         const connected = service.findDirectlyConnectedArguments(argument1, argumentsMap);
 
-        expect(connected.every(arg => !arg.getId().equals(argument1.getId()))).toBe(true);
+        expect(connected.every((arg) => !arg.getId().equals(argument1.getId()))).toBe(true);
       });
 
       it('should not find unconnected arguments', () => {
         const connected = service.findDirectlyConnectedArguments(argument1, argumentsMap);
 
-        expect(connected.some(arg => arg.getId().equals(argument3.getId()))).toBe(false);
+        expect(connected.some((arg) => arg.getId().equals(argument3.getId()))).toBe(false);
       });
 
       it('should return empty array when no connections exist', () => {
@@ -696,7 +696,7 @@ describe('StatementFlowService', () => {
         const arg4Result = service.createAtomicArgumentWithSets(); // Disconnected
 
         expect(
-          arg1Result.isOk() && arg2Result.isOk() && arg3Result.isOk() && arg4Result.isOk()
+          arg1Result.isOk() && arg2Result.isOk() && arg3Result.isOk() && arg4Result.isOk(),
         ).toBe(true);
 
         if (arg1Result.isOk() && arg2Result.isOk() && arg3Result.isOk() && arg4Result.isOk()) {
@@ -839,7 +839,7 @@ describe('StatementFlowService', () => {
             const result = service.validateStatementFlow(
               fromArgument,
               disconnected,
-              orderedSetsMap
+              orderedSetsMap,
             );
 
             expect(result.isErr()).toBe(true);
@@ -974,7 +974,7 @@ describe('StatementFlowService', () => {
         const disconnectedResult = service.createAtomicArgumentWithSets();
 
         expect(
-          arg1Result.isOk() && arg2Result.isOk() && arg3Result.isOk() && disconnectedResult.isOk()
+          arg1Result.isOk() && arg2Result.isOk() && arg3Result.isOk() && disconnectedResult.isOk(),
         ).toBe(true);
 
         if (
@@ -1004,8 +1004,8 @@ describe('StatementFlowService', () => {
 
         expect(path).not.toBe(null);
         expect(path).toHaveLength(2);
-        expect(path![0].getId().equals(argument1.getId())).toBe(true);
-        expect(path![1].getId().equals(argument2.getId())).toBe(true);
+        expect(path?.[0].getId().equals(argument1.getId())).toBe(true);
+        expect(path?.[1].getId().equals(argument2.getId())).toBe(true);
       });
 
       it('should find path through intermediate arguments', () => {
@@ -1013,9 +1013,9 @@ describe('StatementFlowService', () => {
 
         expect(path).not.toBe(null);
         expect(path).toHaveLength(3);
-        expect(path![0].getId().equals(argument1.getId())).toBe(true);
-        expect(path![1].getId().equals(argument2.getId())).toBe(true);
-        expect(path![2].getId().equals(argument3.getId())).toBe(true);
+        expect(path?.[0].getId().equals(argument1.getId())).toBe(true);
+        expect(path?.[1].getId().equals(argument2.getId())).toBe(true);
+        expect(path?.[2].getId().equals(argument3.getId())).toBe(true);
       });
 
       it('should return path with single argument for same start and end', () => {
@@ -1023,7 +1023,7 @@ describe('StatementFlowService', () => {
 
         expect(path).not.toBe(null);
         expect(path).toHaveLength(1);
-        expect(path![0].getId().equals(argument1.getId())).toBe(true);
+        expect(path?.[0].getId().equals(argument1.getId())).toBe(true);
       });
 
       it('should return null when no path exists', () => {
@@ -1057,7 +1057,7 @@ describe('StatementFlowService', () => {
         const set3Result = service.createEmptyOrderedSet();
 
         expect(
-          set1Result.isOk() && set2aResult.isOk() && set2bResult.isOk() && set3Result.isOk()
+          set1Result.isOk() && set2aResult.isOk() && set2bResult.isOk() && set3Result.isOk(),
         ).toBe(true);
 
         if (set1Result.isOk() && set2aResult.isOk() && set2bResult.isOk() && set3Result.isOk()) {
@@ -1072,7 +1072,10 @@ describe('StatementFlowService', () => {
           const endResult = service.createAtomicArgumentWithSets(set2a, set3); // Only connect through 2a
 
           expect(
-            startResult.isOk() && branch2aResult.isOk() && branch2bResult.isOk() && endResult.isOk()
+            startResult.isOk() &&
+              branch2aResult.isOk() &&
+              branch2bResult.isOk() &&
+              endResult.isOk(),
           ).toBe(true);
 
           if (
@@ -1096,9 +1099,9 @@ describe('StatementFlowService', () => {
             const path = service.findStatementFlowPath(start, end, diamondMap);
 
             expect(path).not.toBe(null);
-            expect(path!.length).toBeGreaterThanOrEqual(3);
-            expect(path![0].getId().equals(start.getId())).toBe(true);
-            expect(path![path!.length - 1].getId().equals(end.getId())).toBe(true);
+            expect(path?.length).toBeGreaterThanOrEqual(3);
+            expect(path?.[0].getId().equals(start.getId())).toBe(true);
+            expect(path?.[path?.length - 1].getId().equals(end.getId())).toBe(true);
           }
         }
       });
@@ -1112,7 +1115,7 @@ describe('StatementFlowService', () => {
         const { premises, conclusions } = testScenarios.simpleChain;
 
         const premiseStatements = premises
-          .map(content => {
+          .map((content) => {
             const result = service.createStatementFromContent(content);
             expect(result.isOk()).toBe(true);
             return result.isOk() ? result.value : null;
@@ -1120,7 +1123,7 @@ describe('StatementFlowService', () => {
           .filter((s): s is Statement => s !== null);
 
         const conclusionStatements = conclusions
-          .map(content => {
+          .map((content) => {
             const result = service.createStatementFromContent(content);
             expect(result.isOk()).toBe(true);
             return result.isOk() ? result.value : null;
@@ -1148,7 +1151,7 @@ describe('StatementFlowService', () => {
             // Create branch
             const branchResult = service.createBranchFromArgumentConclusion(
               argument,
-              conclusionSet
+              conclusionSet,
             );
             expect(branchResult.isOk()).toBe(true);
 
@@ -1168,8 +1171,8 @@ describe('StatementFlowService', () => {
       it('should maintain argument identity through operations', () => {
         fc.assert(
           fc.property(
-            fc.string({ minLength: 1 }).filter(s => s.trim().length > 0),
-            content => {
+            fc.string({ minLength: 1 }).filter((s) => s.trim().length > 0),
+            (content) => {
               const statementResult = service.createStatementFromContent(content);
               expect(statementResult.isOk()).toBe(true);
 
@@ -1182,7 +1185,7 @@ describe('StatementFlowService', () => {
                   const orderedSet = orderedSetResult.value;
                   const argumentResult = service.createAtomicArgumentWithSets(
                     orderedSet,
-                    orderedSet
+                    orderedSet,
                   );
                   expect(argumentResult.isOk()).toBe(true);
 
@@ -1193,8 +1196,8 @@ describe('StatementFlowService', () => {
                   }
                 }
               }
-            }
-          )
+            },
+          ),
         );
       });
 
@@ -1202,12 +1205,12 @@ describe('StatementFlowService', () => {
         fc.assert(
           fc.property(
             fc.array(
-              fc.string({ minLength: 1 }).filter(s => s.trim().length > 0),
-              { minLength: 1, maxLength: 5 }
+              fc.string({ minLength: 1 }).filter((s) => s.trim().length > 0),
+              { minLength: 1, maxLength: 5 },
             ),
-            contents => {
+            (contents) => {
               const statements = contents
-                .map(content => {
+                .map((content) => {
                   const result = service.createStatementFromContent(content);
                   expect(result.isOk()).toBe(true);
                   return result.isOk() ? result.value : null;
@@ -1223,13 +1226,13 @@ describe('StatementFlowService', () => {
                   expect(orderedSet.size()).toBe(statements.length);
 
                   // All statements should be in the ordered set
-                  statements.forEach(statement => {
+                  statements.forEach((statement) => {
                     expect(orderedSet.containsStatement(statement.getId())).toBe(true);
                   });
                 }
               }
-            }
-          )
+            },
+          ),
         );
       });
     });

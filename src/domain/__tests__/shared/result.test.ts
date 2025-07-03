@@ -172,20 +172,20 @@ describe('neverthrow Result<T, E>', () => {
   describe('Property-based testing', () => {
     it('ok should always create successful results', () => {
       fc.assert(
-        fc.property(fc.anything(), data => {
+        fc.property(fc.anything(), (data) => {
           const result = ok(data);
           expect(result.isOk()).toBe(true);
           expect(result.isErr()).toBe(false);
           if (result.isOk()) {
             expect(result.value).toBe(data);
           }
-        })
+        }),
       );
     });
 
     it('err should always create failed results', () => {
       fc.assert(
-        fc.property(fc.string(), errorMessage => {
+        fc.property(fc.string(), (errorMessage) => {
           const error = new ValidationError(errorMessage);
           const result = err(error);
           expect(result.isErr()).toBe(true);
@@ -193,7 +193,7 @@ describe('neverthrow Result<T, E>', () => {
           if (result.isErr()) {
             expect(result.error).toBe(error);
           }
-        })
+        }),
       );
     });
 
@@ -207,7 +207,7 @@ describe('neverthrow Result<T, E>', () => {
           expect(failure.isOk() && failure.isErr()).toBe(false);
           expect(success.isOk() !== success.isErr()).toBe(true);
           expect(failure.isOk() !== failure.isErr()).toBe(true);
-        })
+        }),
       );
     });
 
@@ -217,8 +217,8 @@ describe('neverthrow Result<T, E>', () => {
           const successResult = ok(value);
           const errorResult = err(new Error(errorMsg));
 
-          const mappedSuccess = successResult.map(x => x * 2);
-          const mappedError = errorResult.map(x => x * 2);
+          const mappedSuccess = successResult.map((x) => x * 2);
+          const mappedError = errorResult.map((x) => x * 2);
 
           expect(mappedSuccess.isOk()).toBe(true);
           expect(mappedError.isErr()).toBe(true);
@@ -226,7 +226,7 @@ describe('neverthrow Result<T, E>', () => {
           if (mappedSuccess.isOk()) {
             expect(mappedSuccess.value).toBe(value * 2);
           }
-        })
+        }),
       );
     });
 
@@ -244,7 +244,7 @@ describe('neverthrow Result<T, E>', () => {
 
           expect(chainedSuccess.isOk()).toBe(true);
           expect(chainedError.isErr()).toBe(true);
-        })
+        }),
       );
     });
 
@@ -263,8 +263,8 @@ describe('neverthrow Result<T, E>', () => {
             expect(error.message).toBe(message);
             expect(error.context).toEqual(context);
             expect(error.name).toBe('ValidationError');
-          }
-        )
+          },
+        ),
       );
     });
 
@@ -281,7 +281,7 @@ describe('neverthrow Result<T, E>', () => {
           if (left.isOk() && right.isOk()) {
             expect(left.value).toBe(right.value);
           }
-        })
+        }),
       );
     });
   });
@@ -289,7 +289,7 @@ describe('neverthrow Result<T, E>', () => {
   describe('Result chaining with map and andThen', () => {
     it('should transform success values with map', () => {
       const result = ok(5);
-      const doubled = result.map(x => x * 2);
+      const doubled = result.map((x) => x * 2);
 
       expect(doubled.isOk()).toBe(true);
       if (doubled.isOk()) {
@@ -300,7 +300,7 @@ describe('neverthrow Result<T, E>', () => {
     it('should preserve errors through map', () => {
       const error = new ValidationError('Test error');
       const result = err<number, ValidationError>(error);
-      const doubled = result.map(x => x * 2);
+      const doubled = result.map((x) => x * 2);
 
       expect(doubled.isErr()).toBe(true);
       if (doubled.isErr()) {
@@ -310,8 +310,8 @@ describe('neverthrow Result<T, E>', () => {
 
     it('should chain operations with andThen', () => {
       const parseNumber = (str: string): Result<number, ValidationError> => {
-        const num = parseInt(str, 10);
-        return isNaN(num) ? err(new ValidationError('Not a number')) : ok(num);
+        const num = Number.parseInt(str, 10);
+        return Number.isNaN(num) ? err(new ValidationError('Not a number')) : ok(num);
       };
 
       const doubleIfEven = (num: number): Result<number, ValidationError> => {
@@ -335,7 +335,7 @@ describe('neverthrow Result<T, E>', () => {
       const originalError = new Error('Original error');
       const result = err<string, Error>(originalError);
 
-      const transformed = result.mapErr(e => new ValidationError(`Transformed: ${e.message}`));
+      const transformed = result.mapErr((e) => new ValidationError(`Transformed: ${e.message}`));
 
       expect(transformed.isErr()).toBe(true);
       if (transformed.isErr()) {
@@ -368,8 +368,8 @@ describe('neverthrow Result<T, E>', () => {
       const validationError = err(new ValidationError('Validation failed'));
       const genericError = err(new Error('Generic error'));
 
-      const validationResult = validationError.orElse(e => handleError(e));
-      const genericResult = genericError.orElse(e => handleError(e));
+      const validationResult = validationError.orElse((e) => handleError(e));
+      const genericResult = genericError.orElse((e) => handleError(e));
 
       expect(validationResult.isOk()).toBe(true);
       expect(genericResult.isErr()).toBe(true);
@@ -425,7 +425,7 @@ describe('neverthrow Result<T, E>', () => {
       };
 
       const createAndSaveUser = (name: string): Result<User, ValidationError | Error> => {
-        return validateUser(name).andThen(user => mockRepo.save(user));
+        return validateUser(name).andThen((user) => mockRepo.save(user));
       };
 
       const successResult = createAndSaveUser('John Doe');
@@ -540,12 +540,12 @@ describe('ResultAsync', () => {
 
       const successResult = ResultAsync.fromPromise(
         asyncOperation(false),
-        error => new ValidationError(`Wrapped: ${String(error)}`)
+        (error) => new ValidationError(`Wrapped: ${String(error)}`),
       );
 
       const failureResult = ResultAsync.fromPromise(
         asyncOperation(true),
-        error => new ValidationError(`Wrapped: ${String(error)}`)
+        (error) => new ValidationError(`Wrapped: ${String(error)}`),
       );
 
       const success = await successResult;
@@ -561,13 +561,13 @@ describe('ResultAsync', () => {
       const asyncDouble = (x: number): ResultAsync<number, ValidationError> => {
         return ResultAsync.fromPromise(
           Promise.resolve(x * 2),
-          () => new ValidationError('Double operation failed')
+          () => new ValidationError('Double operation failed'),
         );
       };
 
       const asyncResult = okAsync(5)
         .andThen(asyncDouble)
-        .map(x => x + 1);
+        .map((x) => x + 1);
 
       const result = await asyncResult;
 

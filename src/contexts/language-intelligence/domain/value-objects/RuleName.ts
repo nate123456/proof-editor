@@ -23,8 +23,8 @@ export class RuleName {
     if (!/^[a-zA-Z0-9\s\-_.()]+$/.test(trimmedValue)) {
       return _err(
         new ValidationError(
-          'Rule name can only contain letters, numbers, spaces, hyphens, underscores, periods, and parentheses'
-        )
+          'Rule name can only contain letters, numbers, spaces, hyphens, underscores, periods, and parentheses',
+        ),
       );
     }
 
@@ -76,7 +76,7 @@ export class RuleName {
       's5-axiom',
     ];
     const lowerValue = this.value.toLowerCase();
-    return modalKeywords.some(keyword => lowerValue.includes(keyword));
+    return modalKeywords.some((keyword) => lowerValue.includes(keyword));
   }
 
   isQuantifierRule(): boolean {
@@ -88,7 +88,7 @@ export class RuleName {
       'quantifier',
     ];
     const lowerValue = this.value.toLowerCase();
-    return quantifierKeywords.some(keyword => lowerValue.includes(keyword));
+    return quantifierKeywords.some((keyword) => lowerValue.includes(keyword));
   }
 
   getComplexityLevel(): 'basic' | 'intermediate' | 'advanced' {

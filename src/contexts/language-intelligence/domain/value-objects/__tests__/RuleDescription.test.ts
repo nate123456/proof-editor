@@ -24,7 +24,7 @@ describe('RuleDescription', () => {
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         expect(result.value.getValue()).toBe(
-          'This is a rule description that explains the logical validation process.'
+          'This is a rule description that explains the logical validation process.',
         );
       }
     });

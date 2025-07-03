@@ -7,7 +7,7 @@ import { PackageMetadata } from '../value-objects/PackageMetadata';
 import { PackageName } from '../value-objects/PackageName';
 import { PackageVersion } from '../value-objects/PackageVersion';
 import { Timestamp } from '../value-objects/Timestamp';
-import { type InferenceRule } from './InferenceRule';
+import type { InferenceRule } from './InferenceRule';
 
 export class LanguagePackage {
   private constructor(
@@ -17,12 +17,12 @@ export class LanguagePackage {
     private readonly metadata: PackageMetadata,
     private readonly capabilities: LanguageCapabilities,
     private readonly timestamp: Timestamp,
-    private inferenceRules: Map<string, InferenceRule>,
+    private readonly inferenceRules: Map<string, InferenceRule>,
     private readonly symbols: Map<string, string>,
     private readonly parentPackageId: LanguagePackageId | null,
     private isActive: boolean,
     private readonly validationSettings: ValidationSettings,
-    private readonly performanceTargets: PerformanceTargets
+    private readonly performanceTargets: PerformanceTargets,
   ) {}
 
   static create(
@@ -32,7 +32,7 @@ export class LanguagePackage {
     validationSettings?: ValidationSettings,
     performanceTargets?: PerformanceTargets,
     parentPackageId?: LanguagePackageId,
-    metadata?: PackageMetadata
+    metadata?: PackageMetadata,
   ): Result<LanguagePackage, ValidationError> {
     const nameResult = PackageName.create(name);
     if (nameResult.isErr()) return err(nameResult.error);
@@ -52,23 +52,23 @@ export class LanguagePackage {
         new Map(),
         parentPackageId ?? null,
         true,
-        validationSettings ?? ValidationSettingsFactory.createDefault(),
-        performanceTargets ?? PerformanceTargetsFactory.createDefault()
-      )
+        validationSettings ?? createDefaultValidationSettings(),
+        performanceTargets ?? createDefaultPerformanceTargets(),
+      ),
     );
   }
 
   static createModalLogicPackage(): Result<LanguagePackage, ValidationError> {
     const capabilities = LanguageCapabilities.modalLogic();
 
-    const validationSettings = ValidationSettingsFactory.create({
+    const validationSettings = createValidationSettings({
       strictMode: true,
       axiomSystem: 'S5',
       allowIncompleteProofs: false,
       enableEducationalFeedback: true,
     });
 
-    const performanceTargets = PerformanceTargetsFactory.create({
+    const performanceTargets = createPerformanceTargets({
       validationTimeMs: 10,
       analysisTimeMs: 100,
       memoryLimitMb: 50,
@@ -79,7 +79,7 @@ export class LanguagePackage {
       '1.0.0',
       capabilities,
       validationSettings,
-      performanceTargets
+      performanceTargets,
     );
 
     if (packageResult.isErr()) return err(packageResult.error);
@@ -98,7 +98,7 @@ export class LanguagePackage {
   static createPropositionalLogicPackage(): Result<LanguagePackage, ValidationError> {
     const capabilities = LanguageCapabilities.propositionalOnly();
 
-    const validationSettings = ValidationSettingsFactory.create({
+    const validationSettings = createValidationSettings({
       strictMode: false,
       allowIncompleteProofs: true,
       enableEducationalFeedback: true,
@@ -108,7 +108,7 @@ export class LanguagePackage {
       'Propositional Logic',
       '2.0.0',
       capabilities,
-      validationSettings
+      validationSettings,
     );
 
     if (packageResult.isErr()) return err(packageResult.error);
@@ -252,12 +252,12 @@ export class LanguagePackage {
   }
 
   getActiveInferenceRules(): InferenceRule[] {
-    return Array.from(this.inferenceRules.values()).filter(rule => rule.isRuleActive());
+    return Array.from(this.inferenceRules.values()).filter((rule) => rule.isRuleActive());
   }
 
   findMatchingRules(premises: string[], conclusions: string[]): InferenceRule[] {
-    return this.getActiveInferenceRules().filter(rule =>
-      rule.matchesPattern(premises, conclusions)
+    return this.getActiveInferenceRules().filter((rule) =>
+      rule.matchesPattern(premises, conclusions),
     );
   }
 
@@ -332,38 +332,36 @@ export interface PackageSize {
   isLarge: boolean;
 }
 
-export class ValidationSettingsFactory {
-  static createDefault(): ValidationSettings {
-    return {
-      strictMode: false,
-      allowIncompleteProofs: true,
-      enableEducationalFeedback: true,
-      maxProofDepth: 100,
-    };
-  }
-
-  static create(settings: Partial<ValidationSettings>): ValidationSettings {
-    return {
-      ...ValidationSettingsFactory.createDefault(),
-      ...settings,
-    };
-  }
+export function createDefaultValidationSettings(): ValidationSettings {
+  return {
+    strictMode: false,
+    allowIncompleteProofs: true,
+    enableEducationalFeedback: true,
+    maxProofDepth: 100,
+  };
 }
 
-export class PerformanceTargetsFactory {
-  static createDefault(): PerformanceTargets {
-    return {
-      validationTimeMs: 10,
-      analysisTimeMs: 100,
-      memoryLimitMb: 50,
-      maxConcurrentValidations: 5,
-    };
-  }
+export function createValidationSettings(
+  settings: Partial<ValidationSettings>,
+): ValidationSettings {
+  return {
+    ...createDefaultValidationSettings(),
+    ...settings,
+  };
+}
 
-  static create(targets: Partial<PerformanceTargets>): PerformanceTargets {
-    return {
-      ...PerformanceTargetsFactory.createDefault(),
-      ...targets,
-    };
-  }
+export function createDefaultPerformanceTargets(): PerformanceTargets {
+  return {
+    validationTimeMs: 10,
+    analysisTimeMs: 100,
+    memoryLimitMb: 50,
+    maxConcurrentValidations: 5,
+  };
+}
+
+export function createPerformanceTargets(targets: Partial<PerformanceTargets>): PerformanceTargets {
+  return {
+    ...createDefaultPerformanceTargets(),
+    ...targets,
+  };
 }

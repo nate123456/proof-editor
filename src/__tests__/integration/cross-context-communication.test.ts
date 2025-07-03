@@ -23,8 +23,12 @@ import { ValidationLevel } from '../../contexts/language-intelligence/domain/val
 import { Package } from '../../contexts/package-ecosystem/domain/entities/Package.js';
 import { PackageVersion } from '../../contexts/package-ecosystem/domain/entities/PackageVersion.js';
 import { DependencyResolutionService } from '../../contexts/package-ecosystem/domain/services/DependencyResolutionService.js';
-import { PackageDiscoveryService } from '../../contexts/package-ecosystem/domain/services/package-discovery-service.js';
+import type {
+  IPackageFileSystem,
+  ISDKValidator,
+} from '../../contexts/package-ecosystem/domain/services/PackageValidationService.js';
 import { PackageValidationService } from '../../contexts/package-ecosystem/domain/services/PackageValidationService.js';
+import { PackageDiscoveryService } from '../../contexts/package-ecosystem/domain/services/package-discovery-service.js';
 import { VersionResolutionService } from '../../contexts/package-ecosystem/domain/services/VersionResolutionService.js';
 import { PackageId } from '../../contexts/package-ecosystem/domain/value-objects/package-id.js';
 import { PackageManifest } from '../../contexts/package-ecosystem/domain/value-objects/package-manifest.js';
@@ -43,6 +47,7 @@ import { PathCompletenessService } from '../../domain/services/PathCompletenessS
 // Core Domain
 import { StatementFlowService } from '../../domain/services/StatementFlowService.js';
 import { TreeStructureService } from '../../domain/services/TreeStructureService.js';
+
 // Shared (used in comments and future implementation)
 // import { SourceLocation } from '../../domain/shared/index.js';
 
@@ -52,33 +57,37 @@ import { TreeStructureService } from '../../domain/services/TreeStructureService
  */
 class CrossContextOrchestrator {
   constructor(
-    private coreServices: {
+    private readonly coreServices: {
       statementFlow: StatementFlowService;
       treeStructure: TreeStructureService;
       pathCompleteness: PathCompletenessService;
     },
-    private languageIntelligence: {
+    private readonly languageIntelligence: {
       validation: LogicValidationService;
       patternRecognition: PatternRecognitionService;
       defaultPackage: LanguagePackage;
     },
-    private packageEcosystem: {
+    private readonly packageEcosystem: {
       packageValidation: PackageValidationService;
       dependencyResolution: DependencyResolutionService;
       packageDiscovery: PackageDiscoveryService;
     },
-    private synchronization: {
+    private readonly synchronization: {
       operationCoordination: OperationCoordinationService;
       deviceId: DeviceId;
-    }
+    },
   ) {}
+
+  getSynchronization() {
+    return this.synchronization;
+  }
 
   /**
    * Validates a proof structure with package dependencies and sync coordination
    */
   async validateProofWithDependencies(
     statements: string[],
-    packageDependencies: Package[]
+    packageDependencies: Package[],
   ): Promise<{
     structuralValid: boolean;
     logicalValid: boolean;
@@ -89,11 +98,13 @@ class CrossContextOrchestrator {
     const errors: string[] = [];
 
     // 1. Core Domain: Create statement structure
-    const statementEntities = statements.map(content =>
-      this.coreServices.statementFlow.createStatementFromContent(content)
+    const statementEntities = statements.map((content) =>
+      this.coreServices.statementFlow.createStatementFromContent(content),
     );
 
-    const validStatements = statementEntities.filter(stmt => stmt.isOk()).map(stmt => stmt.value);
+    const validStatements = statementEntities
+      .filter((stmt) => stmt.isOk())
+      .map((stmt) => stmt.value);
 
     if (validStatements.length !== statements.length) {
       errors.push('Failed to create all statement entities');
@@ -102,7 +113,7 @@ class CrossContextOrchestrator {
     // 2. Package Ecosystem: Validate dependencies
     let dependenciesResolved = true;
     for (const pkg of packageDependencies) {
-      const validation = this.packageEcosystem.packageValidation.validatePackageStructure(pkg);
+      const validation = await this.packageEcosystem.packageValidation.validatePackage(pkg);
       if (validation.isErr() || !validation.value.isValid) {
         dependenciesResolved = false;
         errors.push(`Package validation failed: ${pkg.getId().toString()}`);
@@ -113,16 +124,25 @@ class CrossContextOrchestrator {
     let logicalValid = true;
     if (statements.length >= 2) {
       const premises = statements.slice(0, -1);
-      const conclusions = [statements[statements.length - 1]!];
+      const lastStatement = statements[statements.length - 1];
+      if (!lastStatement)
+        return {
+          structuralValid: false,
+          logicalValid: false,
+          dependenciesResolved: false,
+          syncCoordinated: false,
+          errors: ['No last statement'],
+        };
+      const conclusions = [lastStatement];
 
       const validationResult = this.languageIntelligence.validation.validateInference(
         premises,
         conclusions,
         this.languageIntelligence.defaultPackage,
-        ValidationLevel.semantic()
+        ValidationLevel.semantic(),
       );
 
-      if (validationResult.isErr() || !validationResult.value.isValid) {
+      if (validationResult.isErr() || !validationResult.value.isValidationSuccessful()) {
         logicalValid = false;
         errors.push('Logical validation failed');
       }
@@ -140,9 +160,9 @@ class CrossContextOrchestrator {
         const timestamp = LogicalTimestamp.create(
           this.synchronization.deviceId,
           Date.now(),
-          incrementResult.value
+          incrementResult.value,
         );
-        const opType = OperationType.create('PROOF_VALIDATION');
+        const opType = OperationType.create('UPDATE_METADATA');
 
         if (opType.isOk()) {
           const payload = OperationPayload.create(
@@ -150,17 +170,17 @@ class CrossContextOrchestrator {
               statements,
               validationResult: { logicalValid, dependenciesResolved },
             },
-            opType.value
+            opType.value,
           );
 
           if (operationId.isOk() && timestamp.isOk() && opType.isOk() && payload.isOk()) {
             const operation = Operation.create(
               operationId.value,
-              opType.value,
-              payload.value,
               this.synchronization.deviceId,
-              timestamp.value,
-              incrementResult.value
+              opType.value,
+              '/proof/validation',
+              payload.value,
+              incrementResult.value,
             );
 
             if (operation.isOk()) {
@@ -169,7 +189,7 @@ class CrossContextOrchestrator {
                 const coordinationResult =
                   await this.synchronization.operationCoordination.applyOperation(
                     operation.value,
-                    syncState.value
+                    syncState.value,
                   );
                 syncCoordinated = coordinationResult.isOk();
               }
@@ -218,7 +238,7 @@ class CrossContextOrchestrator {
         ref: 'main',
       });
       const logicManifest = PackageManifest.create({
-        name: 'Logic Package',
+        name: 'logic-package',
         version: '2.0.0',
         description: 'Logic validation package',
         author: 'Test Author',
@@ -228,16 +248,17 @@ class CrossContextOrchestrator {
         const logicVersion = PackageVersion.createNew(
           logicPackageId.value,
           '2.0.0',
-          logicSource.value
+          logicSource.value,
         );
 
         if (logicVersion.isOk()) {
-          const logicPackage = Package.create(
-            logicPackageId.value,
-            logicVersion.value.getVersion(),
-            logicManifest.value,
-            logicSource.value
-          );
+          const logicPackage = Package.create({
+            id: logicPackageId.value,
+            source: logicSource.value,
+            manifest: logicManifest.value,
+            sdkInterfaces: [],
+            validationResult: { isValid: true, errors: [], warnings: [] },
+          });
 
           if (logicPackage.isOk()) {
             discoveredPackages.push(logicPackage.value);
@@ -269,7 +290,7 @@ describe('Cross-Context Communication Integration', () => {
     const coreServices = {
       statementFlow: new StatementFlowService(),
       treeStructure: new TreeStructureService(),
-      pathCompleteness: new PathCompletenessService(),
+      pathCompleteness: new PathCompletenessService({} as any, {} as any),
     };
 
     // Create test language package
@@ -277,7 +298,7 @@ describe('Cross-Context Communication Integration', () => {
     const languagePackageResult = LanguagePackage.create(
       'Test Integration Package',
       '1.0.0',
-      capabilities
+      capabilities,
     );
     expect(languagePackageResult.isOk()).toBe(true);
     if (languagePackageResult.isOk()) {
@@ -292,15 +313,13 @@ describe('Cross-Context Communication Integration', () => {
 
     // Mock repositories for package ecosystem
     const mockPackageRepo = {
-      findById: vi.fn(),
-      findByName: vi.fn(),
-      save: vi.fn(),
-      delete: vi.fn(),
-      findAll: vi.fn(),
-      exists: vi.fn(),
-      findBySource: vi.fn(),
-      findByVersion: vi.fn(),
-      findInstalled: vi.fn(),
+      findById: vi.fn().mockResolvedValue(null),
+      findBySource: vi.fn().mockResolvedValue(ok(null)),
+      findByGitRepository: vi.fn().mockResolvedValue(ok([])),
+      searchByKeywords: vi.fn().mockResolvedValue(ok([])),
+      findAll: vi.fn().mockResolvedValue([]),
+      save: vi.fn().mockResolvedValue(ok(undefined)),
+      delete: vi.fn().mockResolvedValue(ok(undefined)),
     };
 
     const mockDependencyRepo = {
@@ -316,13 +335,28 @@ describe('Cross-Context Communication Integration', () => {
       hasCycle: vi.fn(),
     };
 
+    const mockFileSystem: IPackageFileSystem = {
+      fileExists: vi.fn().mockResolvedValue(true),
+      readFile: vi.fn().mockResolvedValue(ok('mock content')),
+      listFiles: vi.fn().mockResolvedValue(ok([])),
+      isExecutable: vi.fn().mockResolvedValue(false),
+    };
+
+    const mockSDKValidator: ISDKValidator = {
+      validateInterface: vi
+        .fn()
+        .mockResolvedValue(ok({ name: 'test', version: '1.0.0', methods: [] })),
+      listImplementedInterfaces: vi.fn().mockResolvedValue(ok([])),
+      checkVersionCompatibility: vi.fn().mockReturnValue(ok(true)),
+    };
+
     const packageEcosystem = {
-      packageValidation: new PackageValidationService(),
-      packageDiscovery: new PackageDiscoveryService(mockPackageRepo),
+      packageValidation: new PackageValidationService(mockFileSystem, mockSDKValidator),
+      packageDiscovery: new PackageDiscoveryService(mockPackageRepo, {} as any, {} as any),
       dependencyResolution: new DependencyResolutionService(
         mockDependencyRepo,
-        new PackageDiscoveryService(mockPackageRepo),
-        new VersionResolutionService()
+        new PackageDiscoveryService(mockPackageRepo, {} as any, {} as any),
+        new VersionResolutionService({} as any),
       ),
     };
 
@@ -341,7 +375,7 @@ describe('Cross-Context Communication Integration', () => {
       coreServices,
       languageIntelligence,
       packageEcosystem,
-      synchronization
+      synchronization,
     );
   });
 
@@ -377,12 +411,13 @@ describe('Cross-Context Communication Integration', () => {
         expect(version.isOk()).toBe(true);
 
         if (version.isOk()) {
-          const packageResult = Package.create(
-            packageId.value,
-            version.value.getVersion(),
-            manifest.value,
-            source.value
-          );
+          const packageResult = Package.create({
+            id: packageId.value,
+            source: source.value,
+            manifest: manifest.value,
+            sdkInterfaces: [],
+            validationResult: { isValid: true, errors: [], warnings: [] },
+          });
 
           expect(packageResult.isOk()).toBe(true);
 
@@ -392,7 +427,7 @@ describe('Cross-Context Communication Integration', () => {
             // Act - Validate proof with dependencies
             const result = await orchestrator.validateProofWithDependencies(
               statements,
-              dependencies
+              dependencies,
             );
 
             // Assert - All contexts should coordinate successfully
@@ -430,7 +465,7 @@ describe('Cross-Context Communication Integration', () => {
         // Act - Validate invalid proof
         const result = await orchestrator.validateProofWithDependencies(
           invalidStatements,
-          dependencies
+          dependencies,
         );
 
         // Assert - Should detect various validation failures
@@ -439,7 +474,9 @@ describe('Cross-Context Communication Integration', () => {
         expect(result.dependenciesResolved).toBe(true); // No dependencies to resolve
         expect(result.syncCoordinated).toBe(true); // Sync should still work
         expect(result.errors.length).toBeGreaterThan(0);
-        expect(result.errors.some(error => error.includes('Logical validation failed'))).toBe(true);
+        expect(result.errors.some((error) => error.includes('Logical validation failed'))).toBe(
+          true,
+        );
       }
     });
   });
@@ -456,14 +493,14 @@ describe('Cross-Context Communication Integration', () => {
       expect(discoveryResult.discoveredPackages.length).toBeGreaterThanOrEqual(1);
       expect(discoveryResult.recommendations.length).toBeGreaterThanOrEqual(2);
       expect(
-        discoveryResult.recommendations.some(rec => rec.includes('Logic package recommended'))
+        discoveryResult.recommendations.some((rec) => rec.includes('Logic package recommended')),
       ).toBe(true);
-      expect(discoveryResult.recommendations.some(rec => rec.includes('mathematics package'))).toBe(
-        true
-      );
+      expect(
+        discoveryResult.recommendations.some((rec) => rec.includes('mathematics package')),
+      ).toBe(true);
 
       // Verify discovered packages are valid
-      discoveryResult.discoveredPackages.forEach(pkg => {
+      discoveryResult.discoveredPackages.forEach((pkg) => {
         expect(pkg.getId()).toBeDefined();
         expect(pkg.getVersion()).toBeDefined();
         expect(pkg.getManifest()).toBeDefined();
@@ -506,7 +543,8 @@ describe('Cross-Context Communication Integration', () => {
 
         // Create operations from each device
         for (let i = 0; i < devices.length; i++) {
-          const device = devices[i]!;
+          const device = devices[i];
+          if (!device) continue;
           const vectorClock = VectorClock.create(device);
           expect(vectorClock.isOk()).toBe(true);
 
@@ -516,7 +554,7 @@ describe('Cross-Context Communication Integration', () => {
             if (incrementResult.isOk()) {
               const operationId = OperationId.create(`collab-edit-${i}`);
               const timestamp = LogicalTimestamp.create(device, i + 1, incrementResult.value);
-              const opType = OperationType.create('STATEMENT_EDIT');
+              const opType = OperationType.create('UPDATE_STATEMENT');
 
               if (opType.isOk()) {
                 const payload = OperationPayload.create(
@@ -524,7 +562,7 @@ describe('Cross-Context Communication Integration', () => {
                     statement: `Statement from device ${i + 1}`,
                     position: i * 10,
                   },
-                  opType.value
+                  opType.value,
                 );
 
                 expect(operationId.isOk()).toBe(true);
@@ -535,11 +573,11 @@ describe('Cross-Context Communication Integration', () => {
                 if (operationId.isOk() && timestamp.isOk() && opType.isOk() && payload.isOk()) {
                   const operation = Operation.create(
                     operationId.value,
-                    opType.value,
-                    payload.value,
                     device,
-                    timestamp.value,
-                    vectorClock.value
+                    opType.value,
+                    '/statement/edit',
+                    payload.value,
+                    vectorClock.value,
                   );
 
                   expect(operation.isOk()).toBe(true);
@@ -559,16 +597,16 @@ describe('Cross-Context Communication Integration', () => {
           expect(syncState.isOk()).toBe(true);
 
           if (syncState.isOk()) {
-            const result = await orchestrator[
-              'synchronization'
-            ].operationCoordination.applyOperation(operation, syncState.value);
+            const result = await orchestrator
+              .getSynchronization()
+              .operationCoordination.applyOperation(operation, syncState.value);
             coordinationResults.push(result);
           }
         }
 
         // Assert - All operations should be coordinated successfully
         expect(coordinationResults).toHaveLength(3);
-        coordinationResults.forEach(result => {
+        coordinationResults.forEach((result) => {
           expect(result.isOk()).toBe(true);
         });
       }
@@ -589,7 +627,7 @@ describe('Cross-Context Communication Integration', () => {
         if (incrementResult.isOk()) {
           const operationId = OperationId.create('collaborative-validation');
           const timestamp = LogicalTimestamp.create(testDevice, 1, incrementResult.value);
-          const opType = OperationType.create('PROOF_VALIDATION');
+          const opType = OperationType.create('UPDATE_METADATA');
 
           if (opType.isOk()) {
             const payload = OperationPayload.create(
@@ -597,7 +635,7 @@ describe('Cross-Context Communication Integration', () => {
                 proofId: 'test-proof-1',
                 validationType: 'collaborative',
               },
-              opType.value
+              opType.value,
             );
 
             expect(operationId.isOk()).toBe(true);
@@ -608,11 +646,11 @@ describe('Cross-Context Communication Integration', () => {
             if (operationId.isOk() && timestamp.isOk() && opType.isOk() && payload.isOk()) {
               const operation = Operation.create(
                 operationId.value,
-                opType.value,
-                payload.value,
                 testDevice,
-                timestamp.value,
-                incrementResult.value
+                opType.value,
+                '/proof/validation',
+                payload.value,
+                incrementResult.value,
               );
 
               expect(operation.isOk()).toBe(true);
@@ -621,7 +659,7 @@ describe('Cross-Context Communication Integration', () => {
                 // Act - Perform validation while maintaining context boundaries
                 const validationResult = await orchestrator.validateProofWithDependencies(
                   statements,
-                  []
+                  [],
                 );
 
                 // Coordinate the validation operation
@@ -629,9 +667,9 @@ describe('Cross-Context Communication Integration', () => {
                 expect(syncState.isOk()).toBe(true);
 
                 if (syncState.isOk()) {
-                  const coordinationResult = await orchestrator[
-                    'synchronization'
-                  ].operationCoordination.applyOperation(operation.value, syncState.value);
+                  const coordinationResult = await orchestrator
+                    .getSynchronization()
+                    .operationCoordination.applyOperation(operation.value, syncState.value);
 
                   // Assert - Validation and coordination should succeed independently
                   expect(validationResult.structuralValid).toBe(true);
@@ -640,7 +678,7 @@ describe('Cross-Context Communication Integration', () => {
 
                   // Verify context boundaries are maintained
                   expect(operation.value.getDeviceId()).toBe(testDevice);
-                  expect(operation.value.getOperationType().getValue()).toBe('PROOF_VALIDATION');
+                  expect(operation.value.getOperationType().getValue()).toBe('UPDATE_METADATA');
                 }
               }
             }
@@ -656,31 +694,32 @@ describe('Cross-Context Communication Integration', () => {
       const statementCount = 25;
       const statements = Array.from(
         { length: statementCount },
-        (_, i) => `Large scale statement ${i + 1}`
+        (_, i) => `Large scale statement ${i + 1}`,
       );
 
       // Create multiple package dependencies
       const packages = [];
       for (let i = 0; i < 5; i++) {
         const packageId = PackageId.create(`scale-package-${i}`);
-        const version = PackageVersion.create('1.0.0');
-        const manifest = PackageManifest.create({
-          name: `Scale Package ${i}`,
-          version: '1.0.0',
-          description: `Scalability test package ${i}`,
-        });
         const source = PackageSource.createFromGit({
           url: `https://github.com/scale/package-${i}`,
           ref: 'main',
         });
+        const manifest = PackageManifest.create({
+          name: `scale-package-${i}`,
+          version: '1.0.0',
+          description: `Scalability test package ${i}`,
+          author: 'Test Author',
+        });
 
-        if (packageId.isOk() && version.isOk() && manifest.isOk() && source.isOk()) {
-          const packageResult = Package.create(
-            packageId.value,
-            version.value.getValue(),
-            manifest.value,
-            source.value
-          );
+        if (packageId.isOk() && manifest.isOk() && source.isOk()) {
+          const packageResult = Package.create({
+            id: packageId.value,
+            source: source.value,
+            manifest: manifest.value,
+            sdkInterfaces: [],
+            validationResult: { isValid: true, errors: [], warnings: [] },
+          });
 
           if (packageResult.isOk()) {
             packages.push(packageResult.value);

@@ -29,7 +29,7 @@ describe('InferenceRule', () => {
           'Test Rule',
           'A test inference rule',
           patternResult.value,
-          validLanguagePackageId
+          validLanguagePackageId,
         );
 
         expect(result.isOk()).toBe(true);
@@ -67,7 +67,7 @@ describe('InferenceRule', () => {
           patternResult.value,
           validLanguagePackageId,
           examples,
-          prerequisites
+          prerequisites,
         );
 
         expect(result.isOk()).toBe(true);
@@ -97,7 +97,7 @@ describe('InferenceRule', () => {
           validLanguagePackageId,
           [],
           [],
-          metadata.value
+          metadata.value,
         );
 
         expect(result.isOk()).toBe(true);
@@ -118,7 +118,7 @@ describe('InferenceRule', () => {
           '',
           'A description',
           patternResult.value,
-          validLanguagePackageId
+          validLanguagePackageId,
         );
 
         expect(result.isErr()).toBe(true);
@@ -137,7 +137,7 @@ describe('InferenceRule', () => {
           'Valid Name',
           '',
           patternResult.value,
-          validLanguagePackageId
+          validLanguagePackageId,
         );
 
         expect(result.isErr()).toBe(true);
@@ -156,7 +156,7 @@ describe('InferenceRule', () => {
           'Valid Name',
           'Valid description',
           patternResult.value,
-          ''
+          '',
         );
 
         expect(result.isErr()).toBe(true);
@@ -175,7 +175,7 @@ describe('InferenceRule', () => {
           'Valid Name',
           'Valid description',
           patternResult.value,
-          '   '
+          '   ',
         );
 
         expect(result.isErr()).toBe(true);
@@ -195,7 +195,7 @@ describe('InferenceRule', () => {
         const rule = result.value;
         expect(rule.getName().getValue()).toBe('Modus Ponens');
         expect(rule.getDescription().getValue()).toBe(
-          'If P implies Q and P is true, then Q is true'
+          'If P implies Q and P is true, then Q is true',
         );
         expect(rule.getLanguagePackageId()).toBe(validLanguagePackageId);
         expect(rule.getExamples()).toHaveLength(2);
@@ -226,7 +226,7 @@ describe('InferenceRule', () => {
         const rule = result.value;
         expect(rule.getName().getValue()).toBe('Modus Tollens');
         expect(rule.getDescription().getValue()).toBe(
-          'If P implies Q and Q is false, then P is false'
+          'If P implies Q and Q is false, then P is false',
         );
         expect(rule.getLanguagePackageId()).toBe(validLanguagePackageId);
         expect(rule.getExamples()).toHaveLength(1);
@@ -353,7 +353,7 @@ describe('InferenceRule', () => {
           patternResult.value,
           validLanguagePackageId,
           [],
-          [prereqId]
+          [prereqId],
         );
 
         expect(result.isOk()).toBe(true);
@@ -420,7 +420,7 @@ describe('InferenceRule', () => {
             patternResult.value,
             validLanguagePackageId,
             [],
-            [prereqRule.getId()]
+            [prereqRule.getId()],
           );
 
           expect(ruleResult.isOk()).toBe(true);
@@ -490,7 +490,7 @@ describe('InferenceRule', () => {
           type: 'modus-ponens',
           name: 'Modus Ponens',
           confidence: 0.95,
-        })
+        }),
       );
     });
 
@@ -504,7 +504,7 @@ describe('InferenceRule', () => {
           type: 'modus-tollens',
           name: 'Modus Tollens',
           confidence: 0.9,
-        })
+        }),
       );
     });
 
@@ -518,7 +518,7 @@ describe('InferenceRule', () => {
           type: 'hypothetical-syllogism',
           name: 'Hypothetical Syllogism',
           confidence: 0.88,
-        })
+        }),
       );
     });
 
@@ -553,7 +553,7 @@ describe('InferenceRule', () => {
           type: 'necessity-distribution',
           name: 'Necessity Distribution',
           confidence: 0.7,
-        })
+        }),
       );
     });
 
@@ -564,7 +564,7 @@ describe('InferenceRule', () => {
           type: 'modal-duality',
           name: 'Modal Duality',
           confidence: 0.75,
-        })
+        }),
       );
 
       const patterns2 = rule.detectModalPatterns('¬□¬P', [], 0);
@@ -573,7 +573,7 @@ describe('InferenceRule', () => {
           type: 'modal-duality',
           name: 'Modal Duality',
           confidence: 0.75,
-        })
+        }),
       );
     });
 

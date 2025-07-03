@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { Operation } from '../../entities/Operation';
+import { VectorClock } from '../../entities/VectorClock';
 import { OperationCoordinationService } from '../../services/OperationCoordinationService';
 import { OperationType } from '../../value-objects/OperationType';
 import {
@@ -9,6 +10,8 @@ import {
   createOperationsWithComplexity,
   deviceIdFactory,
   operationFactory,
+  operationIdFactory,
+  operationPayloadFactory,
   sequentialOperationsFactory,
 } from '../test-factories';
 
@@ -32,13 +35,28 @@ describe('OperationCoordinationService', () => {
     it('should handle CREATE operations', async () => {
       const createOpType = OperationType.create('CREATE_STATEMENT');
       expect(createOpType.isOk()).toBe(true);
+      if (!createOpType.isOk()) return;
 
-      const operation = operationFactory.build({
-        operationType: createOpType.value,
-      });
+      const device = deviceIdFactory.build();
+      const opId = operationIdFactory.build();
+      const payload = operationPayloadFactory.build();
+      const vectorClock = VectorClock.create(device);
+      expect(vectorClock.isOk()).toBe(true);
+      if (!vectorClock.isOk()) return;
+
+      const operationResult = Operation.create(
+        opId,
+        device,
+        createOpType.value,
+        '/test/path',
+        payload,
+        vectorClock.value,
+      );
+      expect(operationResult.isOk()).toBe(true);
+      if (!operationResult.isOk()) return;
+
       const currentState = {};
-
-      const result = await service.applyOperation(operation, currentState);
+      const result = await service.applyOperation(operationResult.value, currentState);
 
       expect(result.isOk() || result.isErr()).toBe(true);
     });
@@ -46,13 +64,28 @@ describe('OperationCoordinationService', () => {
     it('should handle UPDATE operations', async () => {
       const updateOpType = OperationType.create('UPDATE_STATEMENT');
       expect(updateOpType.isOk()).toBe(true);
+      if (!updateOpType.isOk()) return;
 
-      const operation = operationFactory.build({
-        operationType: updateOpType.value,
-      });
+      const device = deviceIdFactory.build();
+      const opId = operationIdFactory.build();
+      const payload = operationPayloadFactory.build();
+      const vectorClock = VectorClock.create(device);
+      expect(vectorClock.isOk()).toBe(true);
+      if (!vectorClock.isOk()) return;
+
+      const operationResult = Operation.create(
+        opId,
+        device,
+        updateOpType.value,
+        '/test/path',
+        payload,
+        vectorClock.value,
+      );
+      expect(operationResult.isOk()).toBe(true);
+      if (!operationResult.isOk()) return;
+
       const currentState = { existingData: 'value' };
-
-      const result = await service.applyOperation(operation, currentState);
+      const result = await service.applyOperation(operationResult.value, currentState);
 
       expect(result.isOk() || result.isErr()).toBe(true);
     });
@@ -60,13 +93,28 @@ describe('OperationCoordinationService', () => {
     it('should handle DELETE operations', async () => {
       const deleteOpType = OperationType.create('DELETE_STATEMENT');
       expect(deleteOpType.isOk()).toBe(true);
+      if (!deleteOpType.isOk()) return;
 
-      const operation = operationFactory.build({
-        operationType: deleteOpType.value,
-      });
+      const device = deviceIdFactory.build();
+      const opId = operationIdFactory.build();
+      const payload = operationPayloadFactory.build();
+      const vectorClock = VectorClock.create(device);
+      expect(vectorClock.isOk()).toBe(true);
+      if (!vectorClock.isOk()) return;
+
+      const operationResult = Operation.create(
+        opId,
+        device,
+        deleteOpType.value,
+        '/test/path',
+        payload,
+        vectorClock.value,
+      );
+      expect(operationResult.isOk()).toBe(true);
+      if (!operationResult.isOk()) return;
+
       const currentState = { existingData: 'value' };
-
-      const result = await service.applyOperation(operation, currentState);
+      const result = await service.applyOperation(operationResult.value, currentState);
 
       expect(result.isOk() || result.isErr()).toBe(true);
     });
@@ -109,7 +157,9 @@ describe('OperationCoordinationService', () => {
       const result = await service.detectConflicts([]);
 
       expect(result.isOk()).toBe(true);
-      expect(result.isOk() && result.value).toEqual([]);
+      if (result.isOk()) {
+        expect(result.value).toEqual([]);
+      }
     });
 
     it('should return empty array for single operation', async () => {
@@ -117,7 +167,9 @@ describe('OperationCoordinationService', () => {
       const result = await service.detectConflicts([operation]);
 
       expect(result.isOk()).toBe(true);
-      expect(result.isOk() && result.value).toEqual([]);
+      if (result.isOk()) {
+        expect(result.value).toEqual([]);
+      }
     });
 
     it('should detect conflicts between concurrent operations', async () => {
@@ -174,41 +226,44 @@ describe('OperationCoordinationService', () => {
 
       expect(deleteOpType.isOk()).toBe(true);
       expect(updateOpType.isOk()).toBe(true);
+      if (!deleteOpType.isOk() || !updateOpType.isOk()) return;
 
       const targetPath = '/test/statement';
-      const deleteOp = operationFactory.build({
-        operationType: deleteOpType.value,
-      });
-      const updateOp = operationFactory.build({
-        operationType: updateOpType.value,
-      });
+      const device1 = deviceIdFactory.build();
+      const device2 = deviceIdFactory.build();
+      const opId1 = operationIdFactory.build();
+      const opId2 = operationIdFactory.build();
+      const payload1 = operationPayloadFactory.build();
+      const payload2 = operationPayloadFactory.build();
+      const vectorClock1 = VectorClock.create(device1);
+      const vectorClock2 = VectorClock.create(device2);
 
-      // Create operations with same target path
-      const deleteOpWithPath = Operation.create(
-        deleteOp.getId(),
-        deleteOp.getDeviceId(),
-        deleteOp.getOperationType(),
+      expect(vectorClock1.isOk()).toBe(true);
+      expect(vectorClock2.isOk()).toBe(true);
+      if (!vectorClock1.isOk() || !vectorClock2.isOk()) return;
+
+      const deleteOpResult = Operation.create(
+        opId1,
+        device1,
+        deleteOpType.value,
         targetPath,
-        deleteOp.getPayload(),
-        deleteOp.getVectorClock()
+        payload1,
+        vectorClock1.value,
       );
-      const updateOpWithPath = Operation.create(
-        updateOp.getId(),
-        updateOp.getDeviceId(),
-        updateOp.getOperationType(),
+      const updateOpResult = Operation.create(
+        opId2,
+        device2,
+        updateOpType.value,
         targetPath,
-        updateOp.getPayload(),
-        updateOp.getVectorClock()
+        payload2,
+        vectorClock2.value,
       );
 
-      expect(deleteOpWithPath.isOk()).toBe(true);
-      expect(updateOpWithPath.isOk()).toBe(true);
+      expect(deleteOpResult.isOk()).toBe(true);
+      expect(updateOpResult.isOk()).toBe(true);
 
-      if (deleteOpWithPath.isOk() && updateOpWithPath.isOk()) {
-        const result = await service.detectConflicts([
-          deleteOpWithPath.value,
-          updateOpWithPath.value,
-        ]);
+      if (deleteOpResult.isOk() && updateOpResult.isOk()) {
+        const result = await service.detectConflicts([deleteOpResult.value, updateOpResult.value]);
 
         expect(result.isOk()).toBe(true);
       }
@@ -232,7 +287,9 @@ describe('OperationCoordinationService', () => {
       const result = service.orderOperations([]);
 
       expect(result.isOk()).toBe(true);
-      expect(result.isOk() && result.value).toEqual([]);
+      if (result.isOk()) {
+        expect(result.value).toEqual([]);
+      }
     });
 
     it('should order single operation', () => {
@@ -240,7 +297,9 @@ describe('OperationCoordinationService', () => {
       const result = service.orderOperations([operation]);
 
       expect(result.isOk()).toBe(true);
-      expect(result.isOk() && result.value).toHaveLength(1);
+      if (result.isOk()) {
+        expect(result.value).toHaveLength(1);
+      }
     });
 
     it('should order operations by causal dependencies', () => {
@@ -305,11 +364,32 @@ describe('OperationCoordinationService', () => {
       const device2 = deviceIdFactory.build();
       const device3 = deviceIdFactory.build();
 
-      const operations = [
-        operationFactory.build({ deviceId: device1 }),
-        operationFactory.build({ deviceId: device2 }),
-        operationFactory.build({ deviceId: device3 }),
-      ];
+      const operations: Operation[] = [];
+
+      for (const device of [device1, device2, device3]) {
+        const opId = operationIdFactory.build();
+        const opType = OperationType.create('UPDATE_STATEMENT');
+        expect(opType.isOk()).toBe(true);
+        if (!opType.isOk()) continue;
+
+        const payload = operationPayloadFactory.build();
+        const vectorClock = VectorClock.create(device);
+        expect(vectorClock.isOk()).toBe(true);
+        if (!vectorClock.isOk()) continue;
+
+        const operationResult = Operation.create(
+          opId,
+          device,
+          opType.value,
+          '/test/path',
+          payload,
+          vectorClock.value,
+        );
+
+        if (operationResult.isOk()) {
+          operations.push(operationResult.value);
+        }
+      }
 
       const result = service.orderOperations(operations);
 
@@ -417,38 +497,40 @@ describe('OperationCoordinationService', () => {
 
       expect(createOpType.isOk()).toBe(true);
       expect(deleteOpType.isOk()).toBe(true);
+      if (!createOpType.isOk() || !deleteOpType.isOk()) return;
 
       const targetPath = '/test/statement';
-      const createOp = operationFactory.build({
-        operationType: createOpType.value,
-      });
-      const deleteOp = operationFactory.build({
-        operationType: deleteOpType.value,
-      });
+      const device = deviceIdFactory.build();
+      const opId1 = operationIdFactory.build();
+      const opId2 = operationIdFactory.build();
+      const payload1 = operationPayloadFactory.build();
+      const payload2 = operationPayloadFactory.build();
+      const vectorClock = VectorClock.create(device);
+      expect(vectorClock.isOk()).toBe(true);
+      if (!vectorClock.isOk()) return;
 
-      // Create operations with same target path
-      const createOpWithPath = Operation.create(
-        createOp.getId(),
-        createOp.getDeviceId(),
-        createOp.getOperationType(),
+      const createOpResult = Operation.create(
+        opId1,
+        device,
+        createOpType.value,
         targetPath,
-        createOp.getPayload(),
-        createOp.getVectorClock()
+        payload1,
+        vectorClock.value,
       );
-      const deleteOpWithPath = Operation.create(
-        deleteOp.getId(),
-        deleteOp.getDeviceId(),
-        deleteOp.getOperationType(),
+      const deleteOpResult = Operation.create(
+        opId2,
+        device,
+        deleteOpType.value,
         targetPath,
-        deleteOp.getPayload(),
-        deleteOp.getVectorClock()
+        payload2,
+        vectorClock.value,
       );
 
-      expect(createOpWithPath.isOk()).toBe(true);
-      expect(deleteOpWithPath.isOk()).toBe(true);
+      expect(createOpResult.isOk()).toBe(true);
+      expect(deleteOpResult.isOk()).toBe(true);
 
-      if (createOpWithPath.isOk() && deleteOpWithPath.isOk()) {
-        const result = service.canOperationsCommute(createOpWithPath.value, deleteOpWithPath.value);
+      if (createOpResult.isOk() && deleteOpResult.isOk()) {
+        const result = service.canOperationsCommute(createOpResult.value, deleteOpResult.value);
         expect(typeof result).toBe('boolean');
       }
     });
@@ -491,7 +573,7 @@ describe('OperationCoordinationService', () => {
       expect(result.size).toBe(operations.length);
 
       // Verify each operation has its dependencies recorded
-      operations.forEach(op => {
+      operations.forEach((op) => {
         const deps = result.get(op.getId().getValue());
         expect(Array.isArray(deps)).toBe(true);
       });
@@ -504,7 +586,7 @@ describe('OperationCoordinationService', () => {
       expect(result.size).toBe(operations.length);
 
       // Concurrent operations should have minimal dependencies
-      operations.forEach(op => {
+      operations.forEach((op) => {
         const deps = result.get(op.getId().getValue());
         expect(Array.isArray(deps)).toBe(true);
       });
@@ -517,7 +599,7 @@ describe('OperationCoordinationService', () => {
       expect(result.size).toBe(operations.length);
 
       // Verify all operations are included
-      operations.forEach(op => {
+      operations.forEach((op) => {
         expect(result.has(op.getId().getValue())).toBe(true);
       });
     });
@@ -526,7 +608,7 @@ describe('OperationCoordinationService', () => {
       const operations = createOperationsWithComplexity('SIMPLE');
       const result = service.calculateOperationDependencies(operations);
 
-      operations.forEach(op => {
+      operations.forEach((op) => {
         const deps = result.get(op.getId().getValue());
         expect(deps).toBeDefined();
         if (deps) {
@@ -552,12 +634,14 @@ describe('OperationCoordinationService', () => {
       const operation = operationFactory.build();
       const state = { data: 'test' };
 
-      const promises = Array.from({ length: 20 }, () => service.applyOperation(operation, state));
+      const promises = Array.from({ length: 20 }, async () =>
+        service.applyOperation(operation, state),
+      );
 
       const results = await Promise.all(promises);
 
       expect(results).toHaveLength(20);
-      results.forEach(result => {
+      results.forEach((result) => {
         expect(result.isOk() || result.isErr()).toBe(true);
       });
     });
@@ -650,11 +734,32 @@ describe('OperationCoordinationService', () => {
       const device2 = deviceIdFactory.build();
       const device3 = deviceIdFactory.build();
 
-      const operations = [
-        operationFactory.build({ deviceId: device1 }),
-        operationFactory.build({ deviceId: device2 }),
-        operationFactory.build({ deviceId: device3 }),
-      ];
+      const operations: Operation[] = [];
+
+      for (const device of [device1, device2, device3]) {
+        const opId = operationIdFactory.build();
+        const opType = OperationType.create('UPDATE_STATEMENT');
+        expect(opType.isOk()).toBe(true);
+        if (!opType.isOk()) continue;
+
+        const payload = operationPayloadFactory.build();
+        const vectorClock = VectorClock.create(device);
+        expect(vectorClock.isOk()).toBe(true);
+        if (!vectorClock.isOk()) continue;
+
+        const operationResult = Operation.create(
+          opId,
+          device,
+          opType.value,
+          '/test/path',
+          payload,
+          vectorClock.value,
+        );
+
+        if (operationResult.isOk()) {
+          operations.push(operationResult.value);
+        }
+      }
 
       // Detect conflicts across devices
       const conflictResult = await service.detectConflicts(operations);

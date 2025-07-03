@@ -1,13 +1,15 @@
 import { err, ok, type Result } from 'neverthrow';
+import { injectable } from 'tsyringe';
 
-import { type PatternInstance, type StructuralFeatures } from '../entities/AnalysisReport';
-import { type LogicalFeatures } from '../entities/InferenceRule';
-import { type LanguagePackage } from '../entities/LanguagePackage';
-import { type CommonMistake, type ValidationResult } from '../entities/ValidationResult';
+import type { PatternInstance, StructuralFeatures } from '../entities/AnalysisReport';
+import type { LogicalFeatures } from '../entities/InferenceRule';
+import type { LanguagePackage } from '../entities/LanguagePackage';
+import type { CommonMistake, ValidationResult } from '../entities/ValidationResult';
 import { PatternRecognitionError } from '../errors/DomainErrors';
 import { PerformanceMetrics } from '../value-objects/PerformanceMetrics';
 import { PerformanceTracker } from '../value-objects/PerformanceTracker';
 
+@injectable()
 export class PatternRecognitionService {
   private readonly patternCache = new Map<string, RecognizedPattern[]>();
   private readonly maxCacheSize = 1000;
@@ -16,7 +18,7 @@ export class PatternRecognitionService {
   recognizeProofPatterns(
     statements: string[],
     connections: { from: number; to: number }[],
-    languagePackage: LanguagePackage
+    languagePackage: LanguagePackage,
   ): Result<ProofPatternAnalysis, PatternRecognitionError> {
     const tracker = PerformanceTracker.start();
 
@@ -35,12 +37,14 @@ export class PatternRecognitionService {
       const inferencePatterns = this.recognizeInferencePatterns(
         statements,
         connections,
-        languagePackage
+        languagePackage,
       );
       patterns.push(...inferencePatterns);
 
       // Filter by confidence threshold
-      const highConfidencePatterns = patterns.filter(p => p.confidence >= this.confidenceThreshold);
+      const highConfidencePatterns = patterns.filter(
+        (p) => p.confidence >= this.confidenceThreshold,
+      );
 
       // Generate insights
       const insights = this.generatePatternInsights(highConfidencePatterns, languagePackage);
@@ -74,7 +78,7 @@ export class PatternRecognitionService {
             tracker.getElapsedMs(),
             tracker.getElapsedMs(), // Use same value for CPU time since we don't track separately
             tracker.getMemoryUsageMb() * 1024 * 1024, // Convert MB to bytes
-            tracker.getMemoryUsageMb() * 1024 * 1024 // Use same value for peak memory
+            tracker.getMemoryUsageMb() * 1024 * 1024, // Use same value for peak memory
           );
           if (perfResult.isOk()) {
             return perfResult.value;
@@ -92,8 +96,8 @@ export class PatternRecognitionService {
       return err(
         new PatternRecognitionError(
           'Failed to recognize proof patterns',
-          error instanceof Error ? error : undefined
-        )
+          error instanceof Error ? error : undefined,
+        ),
       );
     } finally {
       tracker.stop();
@@ -103,7 +107,7 @@ export class PatternRecognitionService {
   recognizeArgumentStructure(
     premises: string[],
     conclusions: string[],
-    languagePackage: LanguagePackage
+    languagePackage: LanguagePackage,
   ): Result<ArgumentStructureAnalysis, PatternRecognitionError> {
     try {
       const structure = this.analyzeArgumentStructureInternal(premises, conclusions);
@@ -123,8 +127,8 @@ export class PatternRecognitionService {
       return err(
         new PatternRecognitionError(
           'Failed to recognize argument structure',
-          error instanceof Error ? error : undefined
-        )
+          error instanceof Error ? error : undefined,
+        ),
       );
     }
   }
@@ -132,7 +136,7 @@ export class PatternRecognitionService {
   analyzeArgumentStructure(
     premises: string[],
     conclusion: string,
-    languagePackage: LanguagePackage
+    languagePackage: LanguagePackage,
   ): Result<DetailedArgumentStructureAnalysis, PatternRecognitionError> {
     try {
       // Convert single conclusion to array for internal processing
@@ -173,15 +177,15 @@ export class PatternRecognitionService {
       return err(
         new PatternRecognitionError(
           'Failed to analyze argument structure',
-          error instanceof Error ? error : undefined
-        )
+          error instanceof Error ? error : undefined,
+        ),
       );
     }
   }
 
   detectCommonMistakes(
     validationResults: ValidationResult[],
-    languagePackage: LanguagePackage
+    languagePackage: LanguagePackage,
   ): Result<MistakeAnalysis, PatternRecognitionError> {
     try {
       const mistakes: CommonMistake[] = [];
@@ -224,8 +228,8 @@ export class PatternRecognitionService {
       return err(
         new PatternRecognitionError(
           'Failed to detect common mistakes',
-          error instanceof Error ? error : undefined
-        )
+          error instanceof Error ? error : undefined,
+        ),
       );
     }
   }
@@ -234,7 +238,7 @@ export class PatternRecognitionService {
 
   private recognizeStructuralPatterns(
     _statements: string[],
-    _connections: { from: number; to: number }[]
+    _connections: { from: number; to: number }[],
   ): RecognizedPattern[] {
     // Delegate to AnalysisReport
     // This method is now handled by entities that own the analysis data
@@ -243,7 +247,7 @@ export class PatternRecognitionService {
 
   private recognizeLogicalPatterns(
     statements: string[],
-    _languagePackage: LanguagePackage
+    _languagePackage: LanguagePackage,
   ): RecognizedPattern[] {
     const patterns: RecognizedPattern[] = [];
 
@@ -272,7 +276,7 @@ export class PatternRecognitionService {
     }
 
     // Check for conjunction patterns
-    if (statements.some(s => s.includes('∧'))) {
+    if (statements.some((s) => s.includes('∧'))) {
       patterns.push({
         type: 'logical-pattern',
         name: 'conjunction',
@@ -289,7 +293,7 @@ export class PatternRecognitionService {
   private recognizeInferencePatterns(
     statements: string[],
     connections: { from: number; to: number }[],
-    languagePackage: LanguagePackage
+    languagePackage: LanguagePackage,
   ): RecognizedPattern[] {
     const patterns: RecognizedPattern[] = [];
     const rules = languagePackage.getInferenceRules();
@@ -328,11 +332,11 @@ export class PatternRecognitionService {
 
   private generatePatternInsights(
     patterns: RecognizedPattern[],
-    _languagePackage: LanguagePackage
+    _languagePackage: LanguagePackage,
   ): PatternInsight[] {
     const insights: PatternInsight[] = [];
 
-    const patternTypes = new Set(patterns.map(p => p.type));
+    const patternTypes = new Set(patterns.map((p) => p.type));
 
     if (patternTypes.has('modus-ponens')) {
       insights.push({
@@ -373,7 +377,7 @@ export class PatternRecognitionService {
 
   private analyzeArgumentStructureInternal(
     premises: string[],
-    conclusions: string[]
+    conclusions: string[],
   ): ArgumentStructure {
     // Simplified analysis
     return {
@@ -397,7 +401,7 @@ export class PatternRecognitionService {
   private matchInferenceRules(
     premises: string[],
     conclusions: string[],
-    languagePackage: LanguagePackage
+    languagePackage: LanguagePackage,
   ): { matchingRules: string[]; isValid: boolean; iSound: boolean } {
     const matchingRules: string[] = [];
 
@@ -438,7 +442,7 @@ export class PatternRecognitionService {
 
   private calculateArgumentComplexity(
     premises: string[],
-    conclusions: string[]
+    conclusions: string[],
   ): ArgumentComplexity {
     const allStatements = [...premises, ...conclusions];
     const totalLength = allStatements.join('').length;
@@ -457,7 +461,7 @@ export class PatternRecognitionService {
 
   private categorizeComplexity(
     totalLength: number,
-    symbolCount: number
+    symbolCount: number,
   ): 'low' | 'medium' | 'high' {
     const complexityScore = totalLength * 0.1 + symbolCount * 2;
     if (complexityScore < 10) return 'low';
@@ -469,10 +473,10 @@ export class PatternRecognitionService {
     const allStatements = [...premises, ...conclusions];
 
     return {
-      hasConditionals: allStatements.some(s => s.includes('→')),
-      hasNegations: allStatements.some(s => s.includes('¬')),
-      hasQuantifiers: allStatements.some(s => /[∀∃]/.test(s)),
-      hasModalOperators: allStatements.some(s => /[□◇]/.test(s)),
+      hasConditionals: allStatements.some((s) => s.includes('→')),
+      hasNegations: allStatements.some((s) => s.includes('¬')),
+      hasQuantifiers: allStatements.some((s) => /[∀∃]/.test(s)),
+      hasModalOperators: allStatements.some((s) => /[□◇]/.test(s)),
       averageStatementLength:
         allStatements.reduce((sum, s) => sum + s.length, 0) / allStatements.length,
       logicalDepth: this.calculateLogicalDepth(allStatements),
@@ -504,7 +508,7 @@ export class PatternRecognitionService {
 
   private generateStructureImprovement(
     structure: ArgumentStructure,
-    patterns: { matchingRules: string[]; isValid: boolean; iSound: boolean }
+    patterns: { matchingRules: string[]; isValid: boolean; iSound: boolean },
   ): string[] {
     const suggestions: string[] = [];
 
@@ -553,7 +557,7 @@ export class PatternRecognitionService {
 
   private detectInvalidInferences(
     validationResults: ValidationResult[],
-    _languagePackage: LanguagePackage
+    _languagePackage: LanguagePackage,
   ): CommonMistake[] {
     const mistakes: CommonMistake[] = [];
 
@@ -579,14 +583,14 @@ export class PatternRecognitionService {
 
     // Simplified detection - look for semantic errors that might indicate missing premises
     for (const result of validationResults) {
-      const semanticErrors = result.getDiagnostics().filter(d => d.isSemanticRelated());
+      const semanticErrors = result.getDiagnostics().filter((d) => d.isSemanticRelated());
 
       if (semanticErrors.length > 0) {
         mistakes.push({
           type: 'missing-premise',
           description: 'Possible missing premise detected',
           confidence: 0.6,
-          instances: semanticErrors.map(d => d.getLocation().toString()),
+          instances: semanticErrors.map((d) => d.getLocation().toString()),
           suggestion: 'Consider if additional premises are needed to support the conclusion',
         });
       }
@@ -625,7 +629,7 @@ export class PatternRecognitionService {
     const frequency: Record<string, number> = {};
     const total = Array.from(patterns.values()).reduce((sum, count) => sum + count, 0);
 
-    for (const [pattern, count] of patterns.entries()) {
+    for (const [pattern, count] of Array.from(patterns.entries())) {
       frequency[pattern] = total > 0 ? count / total : 0;
     }
 
@@ -633,7 +637,7 @@ export class PatternRecognitionService {
   }
 
   private analyzeSeverityDistribution(
-    validationResults: ValidationResult[]
+    validationResults: ValidationResult[],
   ): Record<string, number> {
     const distribution = { error: 0, warning: 0, info: 0 };
 
@@ -672,7 +676,7 @@ export class PatternRecognitionService {
 
   private generateLearningRecommendations(mistakes: CommonMistake[]): string[] {
     const recommendations: string[] = [];
-    const mistakeTypes = new Set(mistakes.map(m => m.type));
+    const mistakeTypes = new Set(mistakes.map((m) => m.type));
 
     if (mistakeTypes.has('invalid-inference')) {
       recommendations.push('Study basic inference rules (modus ponens, modus tollens, etc.)');
@@ -684,7 +688,7 @@ export class PatternRecognitionService {
 
     if (mistakeTypes.has('circular-reasoning')) {
       recommendations.push(
-        'Practice identifying logical dependencies and avoiding circular arguments'
+        'Practice identifying logical dependencies and avoiding circular arguments',
       );
     }
 
@@ -693,7 +697,7 @@ export class PatternRecognitionService {
 
   recognizePatterns(
     statements: string[],
-    languagePackage: LanguagePackage
+    languagePackage: LanguagePackage,
   ): Result<RecognizedPatternResult, PatternRecognitionError> {
     try {
       // Recognize logical patterns in statements
@@ -719,15 +723,15 @@ export class PatternRecognitionService {
       return err(
         new PatternRecognitionError(
           'Failed to recognize patterns',
-          error instanceof Error ? error : undefined
-        )
+          error instanceof Error ? error : undefined,
+        ),
       );
     }
   }
 
   detectLogicalStructure(
     statement: string,
-    languagePackage: LanguagePackage
+    languagePackage: LanguagePackage,
   ): Result<DetailedLogicalStructureAnalysis, PatternRecognitionError> {
     try {
       const mainOperator = this.identifyMainConnective(statement);
@@ -786,15 +790,15 @@ export class PatternRecognitionService {
       return err(
         new PatternRecognitionError(
           'Failed to detect logical structure',
-          error instanceof Error ? error : undefined
-        )
+          error instanceof Error ? error : undefined,
+        ),
       );
     }
   }
 
   suggestPatternCompletion(
     partialStatements: string[],
-    _languagePackage: LanguagePackage
+    _languagePackage: LanguagePackage,
   ): Result<PatternCompletionSuggestion[], PatternRecognitionError> {
     try {
       const suggestions: PatternCompletionSuggestion[] = [];
@@ -833,15 +837,15 @@ export class PatternRecognitionService {
       return err(
         new PatternRecognitionError(
           'Failed to suggest pattern completion',
-          error instanceof Error ? error : undefined
-        )
+          error instanceof Error ? error : undefined,
+        ),
       );
     }
   }
 
   extractPatternFeatures(
     statements: string[],
-    languagePackage: LanguagePackage
+    languagePackage: LanguagePackage,
   ): Result<ExtractedPatternFeatures, PatternRecognitionError> {
     try {
       const patterns = this.identifyInferencePatterns(statements, languagePackage);
@@ -867,8 +871,8 @@ export class PatternRecognitionService {
       return err(
         new PatternRecognitionError(
           'Failed to extract pattern features',
-          error instanceof Error ? error : undefined
-        )
+          error instanceof Error ? error : undefined,
+        ),
       );
     }
   }
@@ -894,7 +898,7 @@ export class PatternRecognitionService {
     const props1 = this.extractAtomicPropositions(statement1);
     const props2 = this.extractAtomicPropositions(statement2);
 
-    return props1.some(prop => props2.includes(prop));
+    return props1.some((prop) => props2.includes(prop));
   }
 
   private identifyMainConnective(statement: string): string | null {
@@ -902,9 +906,10 @@ export class PatternRecognitionService {
     const connectives = ['↔', '→', '∨', '∧'];
     let depth = 0;
     let mainConnective = null;
-    let minDepth = Infinity;
+    let minDepth = Number.POSITIVE_INFINITY;
 
-    for (const [, char] of Array.from(statement).entries()) {
+    for (let i = 0; i < statement.length; i++) {
+      const char = statement[i];
       if (char === '(') {
         depth++;
       } else if (char === ')') {
@@ -1021,18 +1026,18 @@ export class PatternRecognitionService {
 
   private analyzeExistingPatterns(
     statements: string[],
-    _languagePackage: LanguagePackage
+    _languagePackage: LanguagePackage,
   ): string[] {
     const patterns: string[] = [];
 
     // Check for common logical patterns
-    if (statements.some(s => s.includes('→'))) {
+    if (statements.some((s) => s.includes('→'))) {
       patterns.push('implication');
     }
-    if (statements.some(s => s.includes('∧'))) {
+    if (statements.some((s) => s.includes('∧'))) {
       patterns.push('conjunction');
     }
-    if (statements.some(s => s.includes('∨'))) {
+    if (statements.some((s) => s.includes('∨'))) {
       patterns.push('disjunction');
     }
 
@@ -1053,7 +1058,7 @@ export class PatternRecognitionService {
 
   private generateModusPonensSuggestion(statements: string[]): string {
     // Find the implication and try to complete modus ponens
-    const implication = statements.find(s => s.includes('→'));
+    const implication = statements.find((s) => s.includes('→'));
     if (implication) {
       const parts = implication.split('→');
       if (parts.length === 2) {
@@ -1065,7 +1070,7 @@ export class PatternRecognitionService {
 
   private looksLikeHypotheticalSyllogism(statements: string[]): boolean {
     // Check for P→Q and Q→R pattern
-    const implications = statements.filter(s => s.includes('→'));
+    const implications = statements.filter((s) => s.includes('→'));
     if (implications.length >= 2) {
       for (const impl1 of implications) {
         for (const impl2 of implications) {
@@ -1083,7 +1088,7 @@ export class PatternRecognitionService {
   }
 
   private generateHypotheticalSyllogismSuggestion(statements: string[]): string {
-    const implications = statements.filter(s => s.includes('→'));
+    const implications = statements.filter((s) => s.includes('→'));
     for (const impl1 of implications) {
       for (const impl2 of implications) {
         if (impl1 !== impl2) {
@@ -1103,13 +1108,13 @@ export class PatternRecognitionService {
     if (statements.length !== 2) return false;
 
     const hasLogicalOperators = statements.some(
-      s =>
-        s.includes('∧') || s.includes('→') || s.includes('∨') || s.includes('¬') || s.includes('↔')
+      (s) =>
+        s.includes('∧') || s.includes('→') || s.includes('∨') || s.includes('¬') || s.includes('↔'),
     );
 
     // Don't suggest conjunction for statements that look like they contain complex logical structure
     const hasComplexStructure = statements.some(
-      s => s.includes('(') || s.includes(')') || s.length > 20
+      (s) => s.includes('(') || s.includes(')') || s.length > 20,
     );
 
     return !hasLogicalOperators && !hasComplexStructure;
@@ -1141,7 +1146,7 @@ export class PatternRecognitionService {
 
   private identifyInferencePatterns(
     statements: string[],
-    _languagePackage: LanguagePackage
+    _languagePackage: LanguagePackage,
   ): string[] {
     const patterns: string[] = [];
 
@@ -1151,10 +1156,10 @@ export class PatternRecognitionService {
     if (this.looksLikeHypotheticalSyllogism(statements)) {
       patterns.push('hypothetical-syllogism');
     }
-    if (statements.some(s => s.includes('∧'))) {
+    if (statements.some((s) => s.includes('∧'))) {
       patterns.push('conjunction');
     }
-    if (statements.some(s => s.includes('∨'))) {
+    if (statements.some((s) => s.includes('∨'))) {
       patterns.push('disjunction');
     }
 
@@ -1164,27 +1169,27 @@ export class PatternRecognitionService {
   private calculateStructuralMetrics(statements: string[]): StructuralMetrics {
     return {
       averageLength: statements.reduce((sum, s) => sum + s.length, 0) / statements.length,
-      maxDepth: Math.max(...statements.map(s => this.calculateParenthesesDepth(s))),
+      maxDepth: Math.max(...statements.map((s) => this.calculateParenthesesDepth(s))),
       totalConnectives: statements.reduce((sum, s) => sum + (s.match(/[∧∨→↔¬]/g) ?? []).length, 0),
       statementCount: statements.length,
     };
   }
 
   private analyzeComplexityDistribution(statements: string[]): ComplexityDistribution {
-    const complexities = statements.map(s => this.calculateStatementComplexity(s));
+    const complexities = statements.map((s) => this.calculateStatementComplexity(s));
     const total = complexities.length;
 
     return {
-      low: complexities.filter(c => c <= 2).length / total,
-      medium: complexities.filter(c => c > 2 && c <= 5).length / total,
-      high: complexities.filter(c => c > 5).length / total,
+      low: complexities.filter((c) => c <= 2).length / total,
+      medium: complexities.filter((c) => c > 2 && c <= 5).length / total,
+      high: complexities.filter((c) => c > 5).length / total,
       average: complexities.reduce((sum, c) => sum + c, 0) / total,
     };
   }
 
   private calculatePatternDistribution(
     statements: string[],
-    languagePackage: LanguagePackage
+    languagePackage: LanguagePackage,
   ): Record<string, number> {
     const patterns = this.identifyInferencePatterns(statements, languagePackage);
     const distribution: Record<string, number> = {};
@@ -1215,7 +1220,7 @@ export class PatternRecognitionService {
   }
 
   private calculateOverallComplexity(statements: string[]): number {
-    const complexities = statements.map(s => this.calculateStatementComplexity(s));
+    const complexities = statements.map((s) => this.calculateStatementComplexity(s));
     return complexities.reduce((sum, c) => sum + c, 0);
   }
 
@@ -1224,7 +1229,7 @@ export class PatternRecognitionService {
   findSimilarPatterns(
     targetPattern: { type: string; premises: string[]; conclusions: string[]; confidence: number },
     statements: string[],
-    _languagePackage: LanguagePackage
+    _languagePackage: LanguagePackage,
   ): Result<SimilarPattern[], PatternRecognitionError> {
     try {
       const similarPatterns: SimilarPattern[] = [];
@@ -1234,13 +1239,13 @@ export class PatternRecognitionService {
         const candidatePremises = statements.slice(i, i + targetPattern.premises.length);
         const candidateConclusions = statements.slice(
           i + targetPattern.premises.length,
-          i + targetPattern.premises.length + targetPattern.conclusions.length
+          i + targetPattern.premises.length + targetPattern.conclusions.length,
         );
 
         if (candidateConclusions.length === targetPattern.conclusions.length) {
           const similarity = this.calculatePatternSimilarity(
             { premises: targetPattern.premises, conclusions: targetPattern.conclusions },
-            { premises: candidatePremises, conclusions: candidateConclusions }
+            { premises: candidatePremises, conclusions: candidateConclusions },
           );
 
           if (similarity > 0.5) {
@@ -1333,15 +1338,15 @@ export class PatternRecognitionService {
       return err(
         new PatternRecognitionError(
           'Failed to find similar patterns',
-          error instanceof Error ? error : undefined
-        )
+          error instanceof Error ? error : undefined,
+        ),
       );
     }
   }
 
   private calculatePatternSimilarity(
     pattern1: { premises: string[]; conclusions: string[] },
-    pattern2: { premises: string[]; conclusions: string[] }
+    pattern2: { premises: string[]; conclusions: string[] },
   ): number {
     if (
       pattern1.premises.length !== pattern2.premises.length ||
@@ -1389,26 +1394,40 @@ export class PatternRecognitionService {
 
   private levenshteinDistance(str1: string, str2: string): number {
     const matrix: number[][] = Array.from({ length: str2.length + 1 }, () =>
-      Array.from({ length: str1.length + 1 }, () => 0)
+      Array.from({ length: str1.length + 1 }, () => 0),
     );
 
     for (let i = 0; i <= str1.length; i++) {
-      matrix[0]![i] = i;
+      const firstRow = matrix[0];
+      if (firstRow) {
+        firstRow[i] = i;
+      }
     }
     for (let j = 0; j <= str2.length; j++) {
-      matrix[j]![0] = j;
+      const row = matrix[j];
+      if (row) {
+        row[0] = j;
+      }
     }
 
     for (let j = 1; j <= str2.length; j++) {
       for (let i = 1; i <= str1.length; i++) {
         const cost = str1[i - 1] === str2[j - 1] ? 0 : 1;
-        const current = matrix[j]!;
-        const above = matrix[j - 1]!;
-        current[i] = Math.min(current[i - 1]! + 1, above[i]! + 1, above[i - 1]! + cost);
+        const current = matrix[j];
+        const above = matrix[j - 1];
+        if (
+          current &&
+          above &&
+          current[i - 1] !== undefined &&
+          above[i] !== undefined &&
+          above[i - 1] !== undefined
+        ) {
+          current[i] = Math.min(current[i - 1] + 1, above[i] + 1, above[i - 1] + cost);
+        }
       }
     }
 
-    return matrix[str2.length]![str1.length]!;
+    return matrix[str2.length]?.[str1.length] ?? 0;
   }
 
   private analyzeDependencies(premises: string[], conclusion: string): string[] {
@@ -1419,7 +1438,7 @@ export class PatternRecognitionService {
 
     for (const premise of premises) {
       const premiseTerms = this.extractAtomicPropositions(premise);
-      if (premiseTerms.some(term => conclusionTerms.includes(term))) {
+      if (premiseTerms.some((term) => conclusionTerms.includes(term))) {
         dependencies.push(premise);
       }
     }
@@ -1441,7 +1460,7 @@ export class PatternRecognitionService {
 
   private extractAssumptions(premises: string[]): string[] {
     // Extract implicit assumptions (simplified)
-    return premises.filter(p => !p.includes('→') && !p.includes('∧') && !p.includes('∨'));
+    return premises.filter((p) => !p.includes('→') && !p.includes('∧') && !p.includes('∨'));
   }
 
   private extractQuantifiers(statement: string): string[] {
@@ -1452,7 +1471,7 @@ export class PatternRecognitionService {
   private extractVariables(statement: string): string[] {
     // Extract variables from quantified statements
     const variableMatches = statement.match(/[∀∃]([a-z])/g);
-    return variableMatches ? variableMatches.map(match => match.charAt(1)) : [];
+    return variableMatches ? variableMatches.map((match) => match.charAt(1)) : [];
   }
 
   private extractModalOperators(statement: string): string[] {

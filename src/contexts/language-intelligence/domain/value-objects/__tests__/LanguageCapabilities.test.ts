@@ -26,7 +26,7 @@ describe('LanguageCapabilities', () => {
         ['∧', '∨', '→', '¬'], // connectives
         ['∀', '∃'], // quantifiers
         ['□', '◇'], // modal operators
-        ['G', 'F', 'X', 'U'] // temporal operators
+        ['G', 'F', 'X', 'U'], // temporal operators
       );
 
       expect(result.isOk()).toBe(true);
@@ -54,7 +54,7 @@ describe('LanguageCapabilities', () => {
         ['∧', '∨'], // basic connectives
         [], // no quantifiers
         [], // no modal operators
-        [] // no temporal operators
+        [], // no temporal operators
       );
 
       expect(result.isOk()).toBe(true);
@@ -90,14 +90,14 @@ describe('LanguageCapabilities', () => {
         ['∧', '∨'], // but connectives provided
         ['∀'],
         [],
-        []
+        [],
       );
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
         expect(result.error).toBeInstanceOf(ValidationError);
         expect(result.error.message).toContain(
-          'Cannot have connectives without propositional logic support'
+          'Cannot have connectives without propositional logic support',
         );
       }
     });
@@ -112,14 +112,14 @@ describe('LanguageCapabilities', () => {
         ['∧'],
         ['∀', '∃'], // but quantifiers provided
         [],
-        []
+        [],
       );
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
         expect(result.error).toBeInstanceOf(ValidationError);
         expect(result.error.message).toContain(
-          'Cannot have quantifiers without first-order logic support'
+          'Cannot have quantifiers without first-order logic support',
         );
       }
     });
@@ -134,14 +134,14 @@ describe('LanguageCapabilities', () => {
         ['∧'],
         ['∀'],
         ['□', '◇'], // but modal operators provided
-        []
+        [],
       );
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
         expect(result.error).toBeInstanceOf(ValidationError);
         expect(result.error.message).toContain(
-          'Cannot have modal operators without modal logic support'
+          'Cannot have modal operators without modal logic support',
         );
       }
     });
@@ -156,14 +156,14 @@ describe('LanguageCapabilities', () => {
         ['∧'],
         ['∀'],
         [],
-        ['G', 'F'] // but temporal operators provided
+        ['G', 'F'], // but temporal operators provided
       );
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
         expect(result.error).toBeInstanceOf(ValidationError);
         expect(result.error.message).toContain(
-          'Cannot have temporal operators without temporal logic support'
+          'Cannot have temporal operators without temporal logic support',
         );
       }
     });
@@ -178,7 +178,7 @@ describe('LanguageCapabilities', () => {
         [], // empty connectives
         [], // empty quantifiers
         [], // empty modal operators
-        [] // empty temporal operators
+        [], // empty temporal operators
       );
 
       expect(result.isOk()).toBe(true);
@@ -309,7 +309,7 @@ describe('LanguageCapabilities', () => {
         ['∧', '∨', '→'],
         [],
         [],
-        []
+        [],
       );
       const result2 = LanguageCapabilities.create(
         true,
@@ -320,7 +320,7 @@ describe('LanguageCapabilities', () => {
         ['∧', '∨'],
         [],
         [],
-        []
+        [],
       );
 
       expect(result1.isOk()).toBe(true);
@@ -373,7 +373,7 @@ describe('LanguageCapabilities', () => {
         ['∧', '∨'],
         [],
         [],
-        []
+        [],
       );
       const result2 = LanguageCapabilities.create(
         true,
@@ -384,7 +384,7 @@ describe('LanguageCapabilities', () => {
         ['→', '¬'],
         [],
         [],
-        []
+        [],
       );
 
       expect(result1.isOk()).toBe(true);
@@ -434,7 +434,7 @@ describe('LanguageCapabilities', () => {
         fullFeatured.getSupportedConnectives().length +
           fullFeatured.getSupportedQuantifiers().length +
           fullFeatured.getSupportedModalOperators().length +
-          fullFeatured.getSupportedTemporalOperators().length
+          fullFeatured.getSupportedTemporalOperators().length,
       );
     });
   });
@@ -474,7 +474,7 @@ describe('LanguageCapabilities', () => {
         ['∧'],
         [],
         [],
-        []
+        [],
       );
       expect(inconsistentResult.isErr()).toBe(true);
     });
@@ -512,7 +512,7 @@ describe('LanguageCapabilities', () => {
       if (restored.isOk()) {
         const restoredCaps = restored.value;
         expect(restoredCaps.supportsPropositionalLogic()).toBe(
-          original.supportsPropositionalLogic()
+          original.supportsPropositionalLogic(),
         );
         expect(restoredCaps.supportsFirstOrderLogic()).toBe(original.supportsFirstOrderLogic());
         expect(restoredCaps.getSupportedConnectives()).toEqual(original.getSupportedConnectives());

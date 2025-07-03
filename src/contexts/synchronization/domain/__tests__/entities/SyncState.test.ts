@@ -32,20 +32,20 @@ const createMockVectorClock = (clocks: Record<string, number> = {}): VectorClock
     getTimestampForDevice: vi.fn((deviceId: DeviceId) => clocks[deviceId.getValue()] ?? 0),
     getAllClocks: vi.fn(() => clocks),
     getAllDeviceIds: vi.fn(() =>
-      Object.keys(clocks).map(id => {
+      Object.keys(clocks).map((id) => {
         const deviceIdResult = DeviceId.create(id);
         if (deviceIdResult.isErr()) {
           throw new Error(`Failed to create DeviceId: ${id}`);
         }
         return deviceIdResult.value;
-      })
+      }),
     ),
     getClockState: vi.fn(() => new Map(Object.entries(clocks))),
     toCompactString: vi.fn(
       () =>
         `{${Object.entries(clocks)
           .map(([k, v]) => `${k}:${v}`)
-          .join(',')}}`
+          .join(',')}}`,
     ),
     toJSON: vi.fn(() => ({ clocks })),
   } as unknown as VectorClock;
@@ -62,7 +62,7 @@ const createTestDeviceId = (deviceId: string): DeviceId => {
 const createTestPeerState = (
   deviceId: string,
   status: SyncStatus = 'SYNCED',
-  pendingCount = 0
+  pendingCount = 0,
 ): PeerSyncState => {
   return {
     deviceId: createTestDeviceId(deviceId),
@@ -664,7 +664,7 @@ describe('SyncState', () => {
           expect(completedState.getPendingOperationCount()).toBe(0);
           expect(completedState.getErrorMessage()).toBeUndefined();
           expect(completedState.getLastSyncAt().getTime()).toBeGreaterThan(
-            syncState.getLastSyncAt().getTime()
+            syncState.getLastSyncAt().getTime(),
           );
         }
       }
@@ -673,7 +673,7 @@ describe('SyncState', () => {
     it('should mark sync as completed with remaining conflicts', () => {
       const withConflictsAndPending = syncState
         .incrementConflictCount()
-        .andThen(state => state.updatePendingOperationCount(3));
+        .andThen((state) => state.updatePendingOperationCount(3));
 
       expect(withConflictsAndPending.isOk()).toBe(true);
 
@@ -756,7 +756,7 @@ describe('SyncState', () => {
         () => syncState.markSyncCompleted(),
       ];
 
-      operations.forEach(operation => {
+      operations.forEach((operation) => {
         const result = operation();
         expect(result.isOk()).toBe(true);
         if (result.isOk()) {

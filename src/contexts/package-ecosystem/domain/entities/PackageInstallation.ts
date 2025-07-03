@@ -2,8 +2,8 @@ import { err, ok, type Result } from 'neverthrow';
 
 import type { PackageInstallationInfo } from '../types/common-types.js';
 import { PackageInstallationError } from '../types/domain-errors.js';
-import { type PackageId } from '../value-objects/package-id.js';
-import { type PackageSource } from '../value-objects/package-source.js';
+import type { PackageId } from '../value-objects/package-id.js';
+import type { PackageSource } from '../value-objects/package-source.js';
 
 export type InstallationStatus =
   | 'installing'
@@ -26,7 +26,7 @@ export class PackageInstallation {
   private constructor(private readonly data: PackageInstallationData) {}
 
   static create(
-    data: PackageInstallationData
+    data: PackageInstallationData,
   ): Result<PackageInstallation, PackageInstallationError> {
     if (!data.packageVersion.trim()) {
       return err(new PackageInstallationError('Package version cannot be empty'));
@@ -51,11 +51,19 @@ export class PackageInstallation {
     packageId: PackageId,
     packageVersion: string,
     source: PackageSource,
-    installationPath: string
+    installationPath: string,
   ): Result<PackageInstallation, PackageInstallationError> {
+    const gitSource = source.asGitSource();
+    const localSource = source.asLocalSource();
+    const installedFrom = gitSource ?? localSource;
+
+    if (!installedFrom) {
+      return err(new PackageInstallationError('Invalid package source'));
+    }
+
     const installationInfo: PackageInstallationInfo = {
       installedAt: new Date(),
-      installedFrom: source.asGitSource() ?? source.asLocalSource()!,
+      installedFrom,
       isEnabled: true,
     };
 
@@ -125,7 +133,7 @@ export class PackageInstallation {
 
   withStatus(
     status: InstallationStatus,
-    errorMessage?: string
+    errorMessage?: string,
   ): Result<PackageInstallation, PackageInstallationError> {
     if (status === 'failed' && !errorMessage) {
       return err(new PackageInstallationError('Failed status requires error message'));
@@ -174,7 +182,7 @@ export class PackageInstallation {
   }
 
   withConfigurationOverrides(
-    overrides: Record<string, unknown>
+    overrides: Record<string, unknown>,
   ): Result<PackageInstallation, PackageInstallationError> {
     const updatedInstallationInfo = {
       ...this.data.installationInfo,

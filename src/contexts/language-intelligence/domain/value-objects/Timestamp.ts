@@ -6,7 +6,7 @@ export class Timestamp {
   private constructor(private readonly value: Date) {}
 
   static create(date: Date): Result<Timestamp, ValidationError> {
-    if (!date || isNaN(date.getTime())) {
+    if (!date || Number.isNaN(date.getTime())) {
       return _err(new ValidationError('Invalid date provided'));
     }
 

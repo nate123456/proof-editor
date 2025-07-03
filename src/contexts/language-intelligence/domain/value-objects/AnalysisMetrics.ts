@@ -7,7 +7,7 @@ export class AnalysisMetrics {
     private readonly totalTimeMs: number,
     private readonly issueCount: number,
     private readonly patternMatches: number,
-    private readonly complexityScore: number
+    private readonly complexityScore: number,
   ) {}
 
   static empty(): AnalysisMetrics {
@@ -18,7 +18,7 @@ export class AnalysisMetrics {
     totalTimeMs: number,
     issueCount: number,
     patternMatches: number,
-    complexityScore: number
+    complexityScore: number,
   ): Result<AnalysisMetrics, ValidationError> {
     if (totalTimeMs < 0) {
       return err(new ValidationError('Total time cannot be negative'));
@@ -57,14 +57,14 @@ export class AnalysisMetrics {
 
   getIssuesPerPatternRatio(): number {
     if (this.patternMatches === 0) {
-      return Infinity;
+      return Number.POSITIVE_INFINITY;
     }
     return this.issueCount / this.patternMatches;
   }
 
   getTimePerIssue(): number {
     if (this.issueCount === 0) {
-      return Infinity;
+      return Number.POSITIVE_INFINITY;
     }
     return this.totalTimeMs / this.issueCount;
   }
@@ -91,13 +91,13 @@ export class AnalysisMetrics {
       combinedTotalTime,
       combinedIssueCount,
       combinedPatternMatches,
-      averageComplexity
+      averageComplexity,
     );
   }
 
   getAnalysisEfficiency(): number {
     if (this.totalTimeMs === 0 || this.issueCount === 0) {
-      return Infinity;
+      return Number.POSITIVE_INFINITY;
     }
     return this.patternMatches / (this.totalTimeMs * this.issueCount);
   }

@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as vscode from 'vscode';
 
 import { ParseErrorType } from '../../parser/ParseError.js';
+import { ProofFileParser } from '../../parser/ProofFileParser.js';
+import { YAMLValidator } from '../../parser/YAMLValidator.js';
 import { ProofDiagnosticProvider } from '../DiagnosticProvider.js';
 
 describe('ProofDiagnosticProvider', () => {
@@ -22,7 +24,7 @@ describe('ProofDiagnosticProvider', () => {
 
     // Make createDiagnosticCollection return our mock
     vi.mocked(vscode.languages.createDiagnosticCollection).mockReturnValue(
-      mockDiagnosticCollection
+      mockDiagnosticCollection,
     );
 
     mockDocument = {
@@ -48,11 +50,11 @@ atomicArguments:
           lineNumber: line,
           range: new vscode.Range(
             new vscode.Position(line, 0),
-            new vscode.Position(line, line === 6 ? 32 : 9)
+            new vscode.Position(line, line === 6 ? 32 : 9),
           ),
           rangeIncludingLineBreak: new vscode.Range(
             new vscode.Position(line, 0),
-            new vscode.Position(line + 1, 0)
+            new vscode.Position(line + 1, 0),
           ),
           firstNonWhitespaceCharacterIndex: line === 6 ? 2 : 0,
           isEmptyOrWhitespace: false,
@@ -60,7 +62,8 @@ atomicArguments:
       },
     } as any;
 
-    provider = new ProofDiagnosticProvider();
+    const parser = new ProofFileParser(new YAMLValidator());
+    provider = new ProofDiagnosticProvider(parser);
   });
 
   describe('constructor', () => {
@@ -105,7 +108,7 @@ atomicArguments:
             message: expect.stringContaining('syntax'),
             severity: vscode.DiagnosticSeverity.Error,
           }),
-        ])
+        ]),
       );
     });
 
@@ -155,7 +158,7 @@ atomicArguments:
           expect.objectContaining({
             message: expect.stringContaining('referenced'),
           }),
-        ])
+        ]),
       );
     });
   });
@@ -205,7 +208,7 @@ orderedSets:
             code: ParseErrorType.MISSING_REFERENCE,
             severity: vscode.DiagnosticSeverity.Error,
           }),
-        ])
+        ]),
       );
     });
   });
@@ -222,11 +225,11 @@ orderedSets:
             lineNumber: line,
             range: new vscode.Range(
               new vscode.Position(line, 0),
-              new vscode.Position(line, line === 0 ? 16 : 0)
+              new vscode.Position(line, line === 0 ? 16 : 0),
             ),
             rangeIncludingLineBreak: new vscode.Range(
               new vscode.Position(line, 0),
-              new vscode.Position(line + 1, 0)
+              new vscode.Position(line + 1, 0),
             ),
             firstNonWhitespaceCharacterIndex: 0,
             isEmptyOrWhitespace: line !== 0,

@@ -394,10 +394,9 @@ Push back if any answer is "no".
 ## Code Quality Enforcement
 
 Work is NOT done until `npm test` passes. This runs:
-1. **Prettier** - Code formatting (pretest)
-2. **ESLint** - Linting with strict TypeScript rules (pretest) 
-3. **Vitest** - Unit tests with 80% coverage thresholds
-4. **TypeScript** - Type checking via test compilation
+1. **Biome** - Code formatting and linting (pretest)
+2. **Vitest** - Unit tests with 80% coverage thresholds
+3. **TypeScript** - Type checking via test compilation
 
 Coverage thresholds: 80% branches/functions/lines/statements. Use `npm run test:watch` during development.
 
@@ -628,4 +627,48 @@ DO NOT MAKE COMMITS.
 
 When splitting up work for task agents, try to split it up into at least 5 isolated tasks, minimum of one file to work on per agent. 
 
-DO NOT run any git commands that mutate state in any way. 
+DO NOT run any git commands that mutate state in any way.
+
+## Strategic Discovery Guidelines (Secondary Objective)
+
+**Purpose**: While working on tasks, naturally document strategic insights that require human judgment or design decisions.
+
+### Discovery Criteria - Document These:
+**✅ Strategic Insights Requiring Human Judgment**:
+- Design pattern violations (SRP, SOLID principles)
+- Result pattern adoption gaps  
+- Architecture decisions (CQRS opportunities, domain boundaries)
+- Test strategy issues (redundancies, missing coverage)
+- Dev principle violations or gaps
+- Project vision conflicts
+- Business logic needing extraction or clarification
+
+### Anti-Discovery - Fix These Immediately:
+**❌ Operational Issues (Just Fix, Don't Document)**:
+- TypeScript compilation errors
+- Syntax errors in files
+- Missing imports
+- Formatting violations
+- Test failures due to broken code
+- Linting violations
+
+### Discovery Test:
+Before documenting, ask:
+- Does this require **design decisions**? (Yes = document)
+- Does this reveal **architecture issues**? (Yes = document)  
+- Does this need **human judgment**? (Yes = document)
+- Is this just **broken code**? (Yes = just fix)
+
+### Discovery Format:
+```markdown
+## [TIMESTAMP] - Agent [ID] Working: [assigned files]
+**Discovery**: [What you encountered while working]
+**Context**: [What work triggered this observation]  
+**Evidence**: [Specific files/lines where found]
+**Type**: [Design Pattern/Result Pattern/Test Issue/Principle Violation/Vision Conflict]
+**Principle Impact**: [Update needed/gap found/conflict discovered]
+**Priority**: [High/Medium/Low]
+---
+```
+
+**Remember**: Discovery is a **secondary objective** that emerges naturally from work, not a primary goal to hunt for. 

@@ -57,7 +57,7 @@ describe('IDependencyRepository', () => {
         isPeerDependency: vi.fn().mockReturnValue(false),
         isDirectDependency: vi.fn().mockReturnValue(true),
         hasCircularReference: vi.fn().mockReturnValue(false),
-        equals: vi.fn().mockImplementation(other => other === mock),
+        equals: vi.fn().mockImplementation((other) => other === mock),
         toString: vi.fn().mockReturnValue('MockDependency'),
       };
       return mock;

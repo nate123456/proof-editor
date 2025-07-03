@@ -1,11 +1,17 @@
 import * as vscode from 'vscode';
 
-import { ValidationController } from '../validation/index.js';
+import { getContainer, initializeContainer } from '../infrastructure/di/container.js';
+import { TOKENS } from '../infrastructure/di/tokens.js';
+import type { ValidationController } from '../validation/index.js';
 import { ProofTreePanel } from '../webview/ProofTreePanel.js';
 
-export function activate(context: vscode.ExtensionContext) {
-  // Initialize validation controller
-  const validationController = new ValidationController();
+export async function activate(context: vscode.ExtensionContext) {
+  // Initialize the DI container
+  await initializeContainer();
+  const container = getContainer();
+
+  // Get validation controller from DI container
+  const validationController = container.resolve<ValidationController>(TOKENS.ValidationController);
 
   // Register command to show proof tree visualization
   const showTreeCommand = vscode.commands.registerCommand('proofEditor.showTree', () => {
@@ -25,11 +31,11 @@ export function activate(context: vscode.ExtensionContext) {
         ProofTreePanel.createOrShow(context.extensionUri, document.getText());
         validationController.validateDocumentImmediate(document);
       }
-    }
+    },
   );
 
   // Update tree and validate when proof file content changes
-  const onChangeDisposable = vscode.workspace.onDidChangeTextDocument(event => {
+  const onChangeDisposable = vscode.workspace.onDidChangeTextDocument((event) => {
     if (event.document.languageId === 'proof') {
       ProofTreePanel.updateContentIfExists(event.document.getText());
       validationController.validateDocumentDebounced(event.document);
@@ -37,7 +43,7 @@ export function activate(context: vscode.ExtensionContext) {
   });
 
   // Handle active editor changes
-  const onEditorChangeDisposable = vscode.window.onDidChangeActiveTextEditor(editor => {
+  const onEditorChangeDisposable = vscode.window.onDidChangeActiveTextEditor((editor) => {
     if (editor && editor.document.languageId === 'proof') {
       ProofTreePanel.createOrShow(context.extensionUri, editor.document.getText());
       validationController.validateDocumentImmediate(editor.document);
@@ -45,7 +51,7 @@ export function activate(context: vscode.ExtensionContext) {
   });
 
   // Clean up diagnostics when documents are closed
-  const onCloseDisposable = vscode.workspace.onDidCloseTextDocument(document => {
+  const onCloseDisposable = vscode.workspace.onDidCloseTextDocument((document) => {
     if (document.languageId === 'proof') {
       validationController.clearDocumentValidation(document);
     }
@@ -57,7 +63,7 @@ export function activate(context: vscode.ExtensionContext) {
     onOpenDisposable,
     onChangeDisposable,
     onEditorChangeDisposable,
-    onCloseDisposable
+    onCloseDisposable,
   );
 
   checkForExistingProofFiles(context.extensionUri);

@@ -1,5 +1,5 @@
 export abstract class AnalysisDomainError extends Error {
-  public override readonly cause?: Error;
+  public readonly cause?: Error;
 
   constructor(message: string, cause?: Error) {
     super(message);

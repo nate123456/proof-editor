@@ -302,7 +302,11 @@ describe('DiagnosticSeverity', () => {
       for (let i = 0; i < severities.length; i++) {
         for (let j = 0; j < severities.length; j++) {
           const expected = i === j;
-          expect(severities[i]?.equals(severities[j]!)).toBe(expected);
+          const severityI = severities[i];
+          const severityJ = severities[j];
+          if (severityI && severityJ) {
+            expect(severityI.equals(severityJ)).toBe(expected);
+          }
         }
       }
     });

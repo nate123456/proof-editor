@@ -46,8 +46,8 @@ describe('YAMLValidator', () => {
 
       const errors = result.error;
       expect(errors).toHaveLength(1);
-      expect(errors[0]!.type).toBe(ParseErrorType.INVALID_STRUCTURE);
-      expect(errors[0]!.message).toContain('must be an object');
+      expect(errors[0]?.type).toBe(ParseErrorType.INVALID_STRUCTURE);
+      expect(errors[0]?.message).toContain('must be an object');
     });
 
     it('should accept null data as empty document', () => {
@@ -90,12 +90,12 @@ describe('YAMLValidator', () => {
       expect(errors.length).toBeGreaterThan(0);
 
       const treeNodeError = errors.find(
-        e =>
+        (e) =>
           e.type === ParseErrorType.INVALID_TREE_STRUCTURE &&
-          e.message.includes('Tree nodes must be an object')
+          e.message.includes('Tree nodes must be an object'),
       );
       expect(treeNodeError).toBeDefined();
-      expect(treeNodeError!.reference).toBe('tree1');
+      expect(treeNodeError?.reference).toBe('tree1');
     });
 
     it('should reject null tree nodes (lines 378-385)', () => {
@@ -114,9 +114,9 @@ describe('YAMLValidator', () => {
 
       const errors = result.error;
       const treeNodeError = errors.find(
-        e =>
+        (e) =>
           e.type === ParseErrorType.INVALID_TREE_STRUCTURE &&
-          e.message.includes('Tree nodes must be an object')
+          e.message.includes('Tree nodes must be an object'),
       );
       expect(treeNodeError).toBeDefined();
     });
@@ -144,25 +144,25 @@ describe('YAMLValidator', () => {
 
       // Should have errors for n1, n3, and n4 (n2 is valid)
       const nodeSpecErrors = errors.filter(
-        e =>
+        (e) =>
           e.type === ParseErrorType.INVALID_TREE_STRUCTURE &&
-          e.message.includes('Node spec must be an object')
+          e.message.includes('Node spec must be an object'),
       );
 
       expect(nodeSpecErrors.length).toBe(3); // n1, n3, n4
 
       // Check specific error messages
-      const n1Error = nodeSpecErrors.find(e => e.reference === 'tree1.n1');
+      const n1Error = nodeSpecErrors.find((e) => e.reference === 'tree1.n1');
       expect(n1Error).toBeDefined();
-      expect(n1Error!.message).toContain('got string');
+      expect(n1Error?.message).toContain('got string');
 
-      const n3Error = nodeSpecErrors.find(e => e.reference === 'tree1.n3');
+      const n3Error = nodeSpecErrors.find((e) => e.reference === 'tree1.n3');
       expect(n3Error).toBeDefined();
-      expect(n3Error!.message).toContain('got number');
+      expect(n3Error?.message).toContain('got number');
 
-      const n4Error = nodeSpecErrors.find(e => e.reference === 'tree1.n4');
+      const n4Error = nodeSpecErrors.find((e) => e.reference === 'tree1.n4');
       expect(n4Error).toBeDefined();
-      expect(n4Error!.message).toContain('got object'); // null is typeof 'object'
+      expect(n4Error?.message).toContain('got object'); // null is typeof 'object'
     });
 
     it('should handle mixed valid and invalid node specs (lines 392-399)', () => {
@@ -193,24 +193,24 @@ describe('YAMLValidator', () => {
 
       // Should have errors for all invalid node specs
       const nodeSpecErrors = errors.filter(
-        e =>
+        (e) =>
           e.type === ParseErrorType.INVALID_TREE_STRUCTURE &&
-          e.message.includes('Node spec must be an object')
+          e.message.includes('Node spec must be an object'),
       );
 
       expect(nodeSpecErrors.length).toBe(3); // invalidString, invalidNumber, invalidBoolean (invalidArray might be treated as valid object)
 
       // Verify specific error types
-      const stringError = nodeSpecErrors.find(e => e.reference === 'tree1.invalidString');
+      const stringError = nodeSpecErrors.find((e) => e.reference === 'tree1.invalidString');
       expect(stringError?.message).toContain('got string');
 
-      const numberError = nodeSpecErrors.find(e => e.reference === 'tree1.invalidNumber');
+      const numberError = nodeSpecErrors.find((e) => e.reference === 'tree1.invalidNumber');
       expect(numberError?.message).toContain('got number');
 
-      const booleanError = nodeSpecErrors.find(e => e.reference === 'tree1.invalidBoolean');
+      const booleanError = nodeSpecErrors.find((e) => e.reference === 'tree1.invalidBoolean');
       expect(booleanError?.message).toContain('got boolean');
 
-      const arrayError = nodeSpecErrors.find(e => e.reference === 'tree1.invalidArray');
+      const arrayError = nodeSpecErrors.find((e) => e.reference === 'tree1.invalidArray');
       if (arrayError) {
         expect(arrayError.message).toContain('got object'); // Arrays are typeof 'object'
       }
@@ -262,7 +262,7 @@ describe('YAMLValidator', () => {
 
       const errors = result.error;
       const invalidTreeError = errors.find(
-        e => e.reference === 'invalidTree' && e.message.includes('Tree nodes must be an object')
+        (e) => e.reference === 'invalidTree' && e.message.includes('Tree nodes must be an object'),
       );
       expect(invalidTreeError).toBeDefined();
     });
@@ -291,13 +291,13 @@ describe('YAMLValidator', () => {
 
       const errors = result.error;
       const offsetYError = errors.find(
-        e =>
+        (e) =>
           e.type === ParseErrorType.INVALID_TREE_STRUCTURE &&
-          e.message.includes('Tree offset.y must be a number')
+          e.message.includes('Tree offset.y must be a number'),
       );
       expect(offsetYError).toBeDefined();
-      expect(offsetYError!.message).toContain('got string');
-      expect(offsetYError!.reference).toBe('tree1');
+      expect(offsetYError?.message).toContain('got string');
+      expect(offsetYError?.reference).toBe('tree1');
     });
 
     it('should reject both invalid x and y coordinates (lines 356-362 and 365-366)', () => {
@@ -322,13 +322,13 @@ describe('YAMLValidator', () => {
 
       const errors = result.error;
 
-      const offsetXError = errors.find(e => e.message.includes('Tree offset.x must be a number'));
-      const offsetYError = errors.find(e => e.message.includes('Tree offset.y must be a number'));
+      const offsetXError = errors.find((e) => e.message.includes('Tree offset.x must be a number'));
+      const offsetYError = errors.find((e) => e.message.includes('Tree offset.y must be a number'));
 
       expect(offsetXError).toBeDefined();
       expect(offsetYError).toBeDefined();
-      expect(offsetXError!.message).toContain('got string');
-      expect(offsetYError!.message).toContain('got string');
+      expect(offsetXError?.message).toContain('got string');
+      expect(offsetYError?.message).toContain('got string');
     });
 
     it('should handle various invalid offset types', () => {
@@ -364,7 +364,7 @@ describe('YAMLValidator', () => {
 
       // Should have multiple offset validation errors
       const offsetErrors = errors.filter(
-        e => e.message.includes('offset.') && e.message.includes('must be a number')
+        (e) => e.message.includes('offset.') && e.message.includes('must be a number'),
       );
 
       expect(offsetErrors.length).toBeGreaterThan(4); // At least 5 invalid coordinates
@@ -425,9 +425,13 @@ describe('YAMLValidator', () => {
       expect(errors.length).toBeGreaterThan(3); // Multiple errors should be accumulated
 
       // Check we have errors for different validation failures
-      const hasStructureError = errors.some(e => e.type === ParseErrorType.INVALID_STRUCTURE);
-      const hasTreeNodeError = errors.some(e => e.message.includes('Tree nodes must be an object'));
-      const hasNodeSpecError = errors.some(e => e.message.includes('Node spec must be an object'));
+      const hasStructureError = errors.some((e) => e.type === ParseErrorType.INVALID_STRUCTURE);
+      const hasTreeNodeError = errors.some((e) =>
+        e.message.includes('Tree nodes must be an object'),
+      );
+      const hasNodeSpecError = errors.some((e) =>
+        e.message.includes('Node spec must be an object'),
+      );
 
       expect(hasStructureError).toBe(true);
       expect(hasTreeNodeError).toBe(true);
@@ -460,22 +464,26 @@ describe('YAMLValidator', () => {
       const errors = result.error;
 
       // Should have multiple argument validation errors
-      const argumentErrors = errors.filter(e => e.type === ParseErrorType.INVALID_ARGUMENT);
+      const argumentErrors = errors.filter((e) => e.type === ParseErrorType.INVALID_ARGUMENT);
       expect(argumentErrors.length).toBeGreaterThan(0);
 
       // Check for specific invalid statement ID errors
-      const invalidIdErrors = argumentErrors.filter(e =>
-        e.message.includes('must be a valid statement ID')
+      const invalidIdErrors = argumentErrors.filter((e) =>
+        e.message.includes('must be a valid statement ID'),
       );
       expect(invalidIdErrors.length).toBeGreaterThan(0);
 
       // Verify specific invalid patterns are caught
-      const hasInvalidFormatError = invalidIdErrors.some(e => e.message.includes('invalid_format'));
-      const hasFormatExampleError = invalidIdErrors.some(e => e.message.includes('format_example'));
-      const hasTestPlaceholderError = invalidIdErrors.some(e =>
-        e.message.includes('test_placeholder')
+      const hasInvalidFormatError = invalidIdErrors.some((e) =>
+        e.message.includes('invalid_format'),
       );
-      const hasExampleError = invalidIdErrors.some(e => e.message.includes('example_statement'));
+      const hasFormatExampleError = invalidIdErrors.some((e) =>
+        e.message.includes('format_example'),
+      );
+      const hasTestPlaceholderError = invalidIdErrors.some((e) =>
+        e.message.includes('test_placeholder'),
+      );
+      const hasExampleError = invalidIdErrors.some((e) => e.message.includes('example_statement'));
 
       expect(hasInvalidFormatError).toBe(true);
       expect(hasFormatExampleError).toBe(true);
@@ -513,8 +521,8 @@ describe('YAMLValidator', () => {
       if (result.isOk()) return;
 
       const errors = result.error;
-      const invalidIdErrors = errors.filter(e =>
-        e.message.includes('must be a valid statement ID')
+      const invalidIdErrors = errors.filter((e) =>
+        e.message.includes('must be a valid statement ID'),
       );
 
       // Should have errors for all invalid patterns
@@ -543,14 +551,14 @@ describe('YAMLValidator', () => {
         string,
         { premises?: string[]; conclusions?: string[] }
       >;
-      expect(args['arg1']).toBeDefined();
-      expect(args['arg2']).toBeDefined();
+      expect(args.arg1).toBeDefined();
+      expect(args.arg2).toBeDefined();
 
       // Check premises and conclusions
-      expect(args['arg1']?.premises).toEqual([]); // Empty premises for bootstrap
-      expect(args['arg1']?.conclusions).toEqual(['s1']);
-      expect(args['arg2']?.premises).toEqual(['validPremise']);
-      expect(args['arg2']?.conclusions).toEqual([]); // Empty conclusions
+      expect(args.arg1?.premises).toEqual([]); // Empty premises for bootstrap
+      expect(args.arg1?.conclusions).toEqual(['s1']);
+      expect(args.arg2?.premises).toEqual(['validPremise']);
+      expect(args.arg2?.conclusions).toEqual([]); // Empty conclusions
     });
 
     it('should validate comma-separated premises in concise format', () => {
@@ -575,9 +583,9 @@ describe('YAMLValidator', () => {
       >;
 
       // Check comma-separated parsing
-      expect(args['arg1']?.premises).toEqual(['premise1', 'premise2', 'premise3']);
-      expect(args['arg2']?.premises).toEqual(['premise1', 'premise2', 'premise3']); // Trimmed spaces
-      expect(args['arg3']?.premises).toEqual(['singlePremise']);
+      expect(args.arg1?.premises).toEqual(['premise1', 'premise2', 'premise3']);
+      expect(args.arg2?.premises).toEqual(['premise1', 'premise2', 'premise3']); // Trimmed spaces
+      expect(args.arg3?.premises).toEqual(['singlePremise']);
     });
 
     it('should validate all conclusion validation paths', () => {
@@ -598,11 +606,11 @@ describe('YAMLValidator', () => {
 
       const errors = result.error;
       const conclusionErrors = errors.filter(
-        e => e.message.includes('Conclusion') && e.message.includes('must be a string')
+        (e) => e.message.includes('Conclusion') && e.message.includes('must be a string'),
       );
-      const emptyErrors = errors.filter(e => e.message.includes('cannot be empty'));
-      const invalidIdErrors = errors.filter(e =>
-        e.message.includes('must be a valid statement ID')
+      const emptyErrors = errors.filter((e) => e.message.includes('cannot be empty'));
+      const invalidIdErrors = errors.filter((e) =>
+        e.message.includes('must be a valid statement ID'),
       );
 
       expect(conclusionErrors.length).toBeGreaterThan(0);

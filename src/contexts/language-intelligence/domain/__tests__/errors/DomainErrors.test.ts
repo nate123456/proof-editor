@@ -10,6 +10,14 @@
  */
 
 import fc from 'fast-check';
+
+// Extend Error interface to include cause property for ES2022 compatibility
+declare global {
+  interface Error {
+    cause?: unknown;
+  }
+}
+
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -110,25 +118,25 @@ describe('DomainError (abstract base class)', () => {
   describe('property-based tests', () => {
     it('should handle any valid string message', () => {
       fc.assert(
-        fc.property(fc.string(), message => {
+        fc.property(fc.string(), (message) => {
           const error = new ConcreteDomainError(message);
           expect(error.message).toBe(message);
           expect(error.name).toBe('ConcreteDomainError');
           expect(error).toBeInstanceOf(DomainError);
-        })
+        }),
       );
     });
 
     it('should handle messages with special characters', () => {
       fc.assert(
         fc.property(
-          fc.string({ minLength: 1 }).filter(s => s.trim().length > 0),
-          message => {
+          fc.string({ minLength: 1 }).filter((s) => s.trim().length > 0),
+          (message) => {
             const error = new ConcreteDomainError(message);
             expect(error.message).toBe(message);
             expect(error.name).toBe('ConcreteDomainError');
-          }
-        )
+          },
+        ),
       );
     });
 
@@ -141,7 +149,7 @@ describe('DomainError (abstract base class)', () => {
         () => new ConcreteDomainError('Nested domain error'),
       ];
 
-      errorTypes.forEach(createError => {
+      errorTypes.forEach((createError) => {
         const cause = createError();
         const error = new ConcreteDomainError('Test message', cause);
 
@@ -178,7 +186,8 @@ describe('ValidationError', () => {
 
     it('should work with custom validation matcher', () => {
       const error = new ValidationError('Test validation error');
-      expect(error).toBeValidationError('Test validation error');
+      expect(error).toBeInstanceOf(ValidationError);
+      expect(error.message).toContain('Test validation error');
     });
   });
 
@@ -421,7 +430,7 @@ describe('Cross-cutting error behavior', () => {
 
   describe('consistent inheritance behavior', () => {
     it('should all extend DomainError', () => {
-      allErrorClasses.forEach(ErrorClass => {
+      allErrorClasses.forEach((ErrorClass) => {
         const error = new ErrorClass('test message');
         expect(error).toBeInstanceOf(DomainError);
         expect(error).toBeInstanceOf(Error);
@@ -447,7 +456,7 @@ describe('Cross-cutting error behavior', () => {
     it('should all handle cause parameter consistently', () => {
       const cause = new Error('Original cause');
 
-      allErrorClasses.forEach(ErrorClass => {
+      allErrorClasses.forEach((ErrorClass) => {
         const errorWithoutCause = new ErrorClass('test message');
         const errorWithCause = new ErrorClass('test message', cause);
 
@@ -459,7 +468,7 @@ describe('Cross-cutting error behavior', () => {
 
   describe('serialization behavior', () => {
     it('should maintain error properties after JSON roundtrip', () => {
-      allErrorClasses.forEach(ErrorClass => {
+      allErrorClasses.forEach((ErrorClass) => {
         const originalError = new ErrorClass('test message');
         const serialized = JSON.stringify({
           name: originalError.name,
@@ -486,8 +495,8 @@ describe('Cross-cutting error behavior', () => {
             expect(error).toBeInstanceOf(DomainError);
             expect(error).toBeInstanceOf(Error);
             expect(error.name).toBe(ErrorClass.name);
-          }
-        )
+          },
+        ),
       );
     });
 
@@ -504,8 +513,8 @@ describe('Cross-cutting error behavior', () => {
         'Error with special chars: !@#$%^&*()',
       ];
 
-      allErrorClasses.forEach(ErrorClass => {
-        edgeCaseMessages.forEach(message => {
+      allErrorClasses.forEach((ErrorClass) => {
+        edgeCaseMessages.forEach((message) => {
           const error = new ErrorClass(message);
           expect(error.message).toBe(message);
           expect(error.name).toBe(ErrorClass.name);

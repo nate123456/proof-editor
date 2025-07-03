@@ -7,6 +7,8 @@
  * - Shared test configuration
  */
 
+import 'reflect-metadata';
+
 import { expect } from 'vitest';
 
 import type { AtomicArgument } from '../entities/AtomicArgument.js';

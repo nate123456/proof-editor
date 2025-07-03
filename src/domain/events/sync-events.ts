@@ -1,9 +1,9 @@
-import {
+import type {
   // AtomicArgumentId,
-  type DocumentId,
-  type NodeId,
-  type TreeId,
-  type Version,
+  DocumentId,
+  NodeId,
+  TreeId,
+  Version,
 } from '../shared/value-objects.js';
 import { DomainEvent } from './base-event.js';
 
@@ -16,7 +16,7 @@ export class SyncConflictDetected extends DomainEvent {
     public readonly conflictDetails: ConflictDetails,
     public readonly localVersion: Version,
     public readonly remoteVersion: Version,
-    public readonly detectedBy: string
+    public readonly detectedBy: string,
   ) {
     super(documentId.getValue(), 'Document');
   }
@@ -41,7 +41,7 @@ export class SyncConflictResolved extends DomainEvent {
     public readonly conflictId: string,
     public readonly resolutionStrategy: ResolutionStrategy,
     public readonly resolutionDetails: ResolutionDetails,
-    public readonly resolvedBy: string
+    public readonly resolvedBy: string,
   ) {
     super(documentId.getValue(), 'Document');
   }
@@ -66,7 +66,7 @@ export class OperationApplied extends DomainEvent {
     public readonly operation: SyncOperation,
     public readonly sourceDevice: string,
     public readonly appliedBy: string,
-    public readonly causedConflicts = false
+    public readonly causedConflicts = false,
   ) {
     super(aggregateId, aggregateType);
   }
@@ -89,7 +89,7 @@ export class OperationRejected extends DomainEvent {
     aggregateType: string,
     public readonly operation: SyncOperation,
     public readonly rejectionReason: RejectionReason,
-    public readonly rejectedBy: string
+    public readonly rejectedBy: string,
   ) {
     super(aggregateId, aggregateType);
   }
@@ -111,7 +111,7 @@ export class SyncStateChanged extends DomainEvent {
     public readonly previousState: SyncState,
     public readonly newState: SyncState,
     public readonly reason: string,
-    public readonly changedBy: string
+    public readonly changedBy: string,
   ) {
     super(documentId.getValue(), 'Document');
   }
@@ -134,7 +134,7 @@ export class MergeCompleted extends DomainEvent {
     public readonly documentId: DocumentId,
     public readonly mergeStrategy: MergeStrategy,
     public readonly mergeResult: MergeResult,
-    public readonly mergedBy: string
+    public readonly mergedBy: string,
   ) {
     super(documentId.getValue(), 'Document');
   }
@@ -157,7 +157,7 @@ export class ConcurrentModificationDetected extends DomainEvent {
     aggregateType: string,
     public readonly modificationDetails: ConcurrentModification,
     public readonly participants: string[],
-    public readonly detectedBy: string
+    public readonly detectedBy: string,
   ) {
     super(aggregateId, aggregateType);
   }
@@ -179,7 +179,7 @@ export class VectorClockUpdated extends DomainEvent {
     aggregateType: string,
     public readonly previousClock: VectorClock,
     public readonly newClock: VectorClock,
-    public readonly updatedBy: string
+    public readonly updatedBy: string,
   ) {
     super(aggregateId, aggregateType);
   }
@@ -201,7 +201,7 @@ export class CausalityViolationDetected extends DomainEvent {
     aggregateType: string,
     public readonly violationDetails: CausalityViolation,
     public readonly affectedOperations: string[],
-    public readonly detectedBy: string
+    public readonly detectedBy: string,
   ) {
     super(aggregateId, aggregateType);
   }

@@ -477,14 +477,15 @@ describe('RuleMetadata', () => {
       const modal = RuleMetadata.create({ logicType: 'modal' });
       const higherOrder = RuleMetadata.create({ logicType: 'higher-order' });
 
-      const scores = [propositional, firstOrder, modal, higherOrder].map(result => {
+      const scores = [propositional, firstOrder, modal, higherOrder].map((result) => {
         expect(result.isOk()).toBe(true);
         return result.isOk() ? result.value.getDifficultyScore() : 0;
       });
 
-      expect(scores[0]!).toBeLessThan(scores[1]!);
-      expect(scores[1]!).toBeLessThan(scores[2]!);
-      expect(scores[2]!).toBeLessThan(scores[3]!);
+      expect(scores.length).toBe(4);
+      expect(scores[0]).toBeLessThan(scores[1]);
+      expect(scores[1]).toBeLessThan(scores[2]);
+      expect(scores[2]).toBeLessThan(scores[3]);
     });
 
     it('should include prerequisite knowledge in score', () => {

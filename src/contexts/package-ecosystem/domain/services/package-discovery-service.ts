@@ -1,10 +1,9 @@
 import { err, ok, type Result } from 'neverthrow';
-
-import { type Package } from '../entities/Package.js';
-import { type IPackageRepository } from '../repositories/IPackageRepository.js';
+import type { Package } from '../entities/Package.js';
+import type { IPackageRepository } from '../repositories/IPackageRepository.js';
 import type { GitPackageSource, LocalPackageSource } from '../types/common-types.js';
 import { PackageNotFoundError, PackageSourceUnavailableError } from '../types/domain-errors.js';
-import { type PackageId } from '../value-objects/package-id.js';
+import type { PackageId } from '../value-objects/package-id.js';
 import { PackageSource } from '../value-objects/package-source.js';
 
 export interface PackageDiscoveryResult {
@@ -30,20 +29,20 @@ export interface LocalPackageDiscoveryOptions {
 export interface IGitPackageProvider {
   discoverFromGitHub(
     searchQuery: string,
-    options?: GitPackageDiscoveryOptions
+    options?: GitPackageDiscoveryOptions,
   ): Promise<Result<readonly GitPackageSource[], PackageSourceUnavailableError>>;
   validateGitSource(
-    source: GitPackageSource
+    source: GitPackageSource,
   ): Promise<Result<boolean, PackageSourceUnavailableError>>;
   clonePackageToTemporary(
-    source: GitPackageSource
+    source: GitPackageSource,
   ): Promise<Result<string, PackageSourceUnavailableError>>;
 }
 
 export interface ILocalPackageProvider {
   discoverInDirectory(
     directoryPath: string,
-    options?: LocalPackageDiscoveryOptions
+    options?: LocalPackageDiscoveryOptions,
   ): Promise<Result<readonly LocalPackageSource[], PackageNotFoundError>>;
   validateLocalSource(source: LocalPackageSource): Promise<Result<boolean, PackageNotFoundError>>;
 }
@@ -52,12 +51,12 @@ export class PackageDiscoveryService {
   constructor(
     private readonly packageRepository: IPackageRepository,
     private readonly gitProvider: IGitPackageProvider,
-    private readonly localProvider: ILocalPackageProvider
+    private readonly localProvider: ILocalPackageProvider,
   ) {}
 
   async discoverPackagesFromGitHub(
     searchQuery: string,
-    options?: GitPackageDiscoveryOptions
+    options?: GitPackageDiscoveryOptions,
   ): Promise<Result<PackageDiscoveryResult, PackageSourceUnavailableError>> {
     const startTime = Date.now();
 
@@ -76,7 +75,7 @@ export class PackageDiscoveryService {
       }
 
       const existingPackageResult = await this.packageRepository.findBySource(
-        packageSourceResult.value
+        packageSourceResult.value,
       );
       if (existingPackageResult.isOk()) {
         packages.push(existingPackageResult.value);
@@ -97,7 +96,7 @@ export class PackageDiscoveryService {
 
   async discoverPackagesInDirectory(
     directoryPath: string,
-    options?: LocalPackageDiscoveryOptions
+    options?: LocalPackageDiscoveryOptions,
   ): Promise<Result<PackageDiscoveryResult, PackageNotFoundError>> {
     const startTime = Date.now();
 
@@ -115,7 +114,7 @@ export class PackageDiscoveryService {
       }
 
       const existingPackageResult = await this.packageRepository.findBySource(
-        packageSourceResult.value
+        packageSourceResult.value,
       );
       if (existingPackageResult.isOk()) {
         packages.push(existingPackageResult.value);
@@ -139,7 +138,7 @@ export class PackageDiscoveryService {
       return err(searchResult.error);
     }
 
-    const exactMatch = searchResult.value.find(pkg => pkg.getId().equals(packageId));
+    const exactMatch = searchResult.value.find((pkg) => pkg.getId().equals(packageId));
     if (!exactMatch) {
       return err(new PackageNotFoundError(`Package not found: ${packageId.toString()}`));
     }
@@ -148,7 +147,7 @@ export class PackageDiscoveryService {
   }
 
   async findPackagesByKeywords(
-    keywords: string[]
+    keywords: string[],
   ): Promise<Result<PackageDiscoveryResult, PackageNotFoundError>> {
     const startTime = Date.now();
 
@@ -173,11 +172,11 @@ export class PackageDiscoveryService {
   }
 
   async validatePackageSource(
-    source: PackageSource
+    source: PackageSource,
   ): Promise<Result<boolean, PackageSourceUnavailableError | PackageNotFoundError>> {
     const gitSource = source.asGitSource();
     if (gitSource) {
-      return await this.gitProvider.validateGitSource(gitSource);
+      return this.gitProvider.validateGitSource(gitSource);
     }
 
     const localSource = source.asLocalSource();
@@ -193,14 +192,14 @@ export class PackageDiscoveryService {
   }
 
   async findPackageVersionsFromGitRepository(
-    gitUrl: string
+    gitUrl: string,
   ): Promise<Result<readonly Package[], PackageNotFoundError>> {
     const normalizedUrl = gitUrl.trim();
     if (!normalizedUrl) {
       return err(new PackageNotFoundError('Git URL cannot be empty'));
     }
 
-    return await this.packageRepository.findByGitRepository(normalizedUrl);
+    return this.packageRepository.findByGitRepository(normalizedUrl);
   }
 
   async findLanguagePackages(): Promise<Result<PackageDiscoveryResult, PackageNotFoundError>> {
@@ -214,7 +213,7 @@ export class PackageDiscoveryService {
     }
 
     const languagePackages = keywordsResult.value.packages.filter((pkg: Package) =>
-      pkg.isLanguagePackage()
+      pkg.isLanguagePackage(),
     );
 
     const result: PackageDiscoveryResult = {
@@ -227,7 +226,7 @@ export class PackageDiscoveryService {
   }
 
   async findPackagesWithCapability(
-    capability: string
+    capability: string,
   ): Promise<Result<PackageDiscoveryResult, PackageNotFoundError>> {
     const startTime = Date.now();
 
@@ -240,8 +239,8 @@ export class PackageDiscoveryService {
       return err(allPackagesResult.error);
     }
 
-    const packagesWithCapability = allPackagesResult.value.filter(pkg =>
-      pkg.supportsCapability(capability)
+    const packagesWithCapability = allPackagesResult.value.filter((pkg) =>
+      pkg.supportsCapability(capability),
     );
 
     const searchTime = Date.now() - startTime;

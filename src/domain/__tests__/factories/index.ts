@@ -117,8 +117,8 @@ export const proofTestData = {
 };
 
 // Factory for creating Statement entities
-export const statementFactory = Factory.define<Statement>(({ sequence }) => {
-  const content = statementContentFactory.build({ sequence });
+export const statementFactory = Factory.define<Statement>(({ sequence: _sequence }) => {
+  const content = statementContentFactory.build();
   const result = Statement.create(content);
   if (result.isErr()) {
     throw result.error;
@@ -194,7 +194,7 @@ export const physicalPropertiesFactory = Factory.define<PhysicalProperties>(() =
     minWidth,
     minHeight,
     expansionDirection,
-    alignmentMode
+    alignmentMode,
   );
   if (result.isErr()) {
     throw result.error;

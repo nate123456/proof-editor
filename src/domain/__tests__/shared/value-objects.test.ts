@@ -35,19 +35,19 @@ import {
 // Property-based test generators for domain values
 const validIdArbitrary = fc
   .string({ minLength: 1, maxLength: 255 })
-  .filter(s => s.trim().length > 0);
+  .filter((s) => s.trim().length > 0);
 const invalidIdArbitrary = fc.oneof(
   fc.constant(''),
   fc.constant('   '),
-  fc.string({ minLength: 256 })
+  fc.string({ minLength: 256 }),
 );
 const validContentArbitrary = fc
   .string({ minLength: 1, maxLength: 10000 })
-  .filter(s => s.trim().length > 0);
+  .filter((s) => s.trim().length > 0);
 const invalidContentArbitrary = fc.oneof(
   fc.constant(''),
   fc.constant('   '),
-  fc.string({ minLength: 10001, maxLength: 15000 }) // Add reasonable upper bound
+  fc.string({ minLength: 10001, maxLength: 15000 }), // Add reasonable upper bound
 );
 
 describe('Utility Functions Coverage', () => {
@@ -57,9 +57,9 @@ describe('Utility Functions Coverage', () => {
     const uuids = Array.from({ length: 10 }, () => StatementId.generate().getValue());
 
     // All should match UUID pattern
-    uuids.forEach(uuid => {
+    uuids.forEach((uuid) => {
       expect(uuid).toMatch(
-        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
       );
     });
 
@@ -121,11 +121,7 @@ describe('Utility Functions Coverage', () => {
 
 describe('ValueObject Base Class', () => {
   // Example concrete implementation for testing
-  class TestValueObject extends ValueObject<string> {
-    constructor(value: string) {
-      super(value);
-    }
-  }
+  class TestValueObject extends ValueObject<string> {}
 
   describe('equality behavior', () => {
     it('should implement value equality correctly', () => {
@@ -140,7 +136,7 @@ describe('ValueObject Base Class', () => {
 
     it('should be reflexive, symmetric, and transitive', () => {
       fc.assert(
-        fc.property(fc.string(), value => {
+        fc.property(fc.string(), (value) => {
           const obj1 = new TestValueObject(value);
           const obj2 = new TestValueObject(value);
           const obj3 = new TestValueObject(value);
@@ -155,7 +151,7 @@ describe('ValueObject Base Class', () => {
           if (obj1.equals(obj2) && obj2.equals(obj3)) {
             expect(obj1.equals(obj3)).toBe(true);
           }
-        })
+        }),
       );
     });
   });
@@ -187,7 +183,7 @@ describe('ID Value Objects', () => {
       describe('creation patterns', () => {
         it('should create valid IDs from strings', () => {
           fc.assert(
-            fc.property(validIdArbitrary, validId => {
+            fc.property(validIdArbitrary, (validId) => {
               const result = IdClass.create(validId);
               expect(result.isOk()).toBe(true);
 
@@ -195,7 +191,7 @@ describe('ID Value Objects', () => {
                 expect(result.value).toBeInstanceOf(IdClass);
                 expect(result.value.getValue()).toBe(validId.trim());
               }
-            })
+            }),
           );
         });
 
@@ -203,7 +199,7 @@ describe('ID Value Objects', () => {
           const generated = IdClass.generate();
           expect(generated).toBeInstanceOf(IdClass);
           expect(generated.getValue()).toMatch(
-            /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+            /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
           );
         });
 
@@ -218,7 +214,7 @@ describe('ID Value Objects', () => {
       describe('validation rules', () => {
         it('should reject empty and whitespace-only strings', () => {
           fc.assert(
-            fc.property(invalidIdArbitrary, invalidId => {
+            fc.property(invalidIdArbitrary, (invalidId) => {
               const result = IdClass.create(invalidId);
               expect(result.isErr()).toBe(true);
 
@@ -226,7 +222,7 @@ describe('ID Value Objects', () => {
                 expect(result.error).toBeInstanceOf(ValidationError);
                 expect(result.error.message).toMatch(/cannot be empty|cannot exceed/i);
               }
-            })
+            }),
           );
         });
 
@@ -277,7 +273,7 @@ describe('StatementContent', () => {
   describe('creation and validation', () => {
     it('should create valid content from strings', () => {
       fc.assert(
-        fc.property(validContentArbitrary, validContent => {
+        fc.property(validContentArbitrary, (validContent) => {
           const result = StatementContent.create(validContent);
           expect(result.isOk()).toBe(true);
 
@@ -285,20 +281,20 @@ describe('StatementContent', () => {
             expect(result.value).toBeInstanceOf(StatementContent);
             expect(result.value.getValue()).toBe(validContent.trim());
           }
-        })
+        }),
       );
     });
 
     it('should reject empty content and oversized content', () => {
       fc.assert(
-        fc.property(invalidContentArbitrary, invalidContent => {
+        fc.property(invalidContentArbitrary, (invalidContent) => {
           const result = StatementContent.create(invalidContent);
           expect(result.isErr()).toBe(true);
 
           if (result.isErr()) {
             expect(result.error).toBeInstanceOf(ValidationError);
           }
-        })
+        }),
       );
     });
 
@@ -344,18 +340,18 @@ describe('StatementContent', () => {
   describe('property-based content analysis', () => {
     it('should maintain word count invariants', () => {
       fc.assert(
-        fc.property(fc.string({ minLength: 1, maxLength: 100 }), text => {
+        fc.property(fc.string({ minLength: 1, maxLength: 100 }), (text) => {
           fc.pre(text.trim().length > 0); // Only test valid content
 
           const content = StatementContent.fromString(text);
           const words = text
             .trim()
             .split(/\s+/)
-            .filter(word => word.length > 0);
+            .filter((word) => word.length > 0);
 
           expect(content.wordCount).toBe(words.length);
           expect(content.wordCount).toBeGreaterThanOrEqual(0);
-        })
+        }),
       );
     });
   });
@@ -365,21 +361,21 @@ describe('Version', () => {
   describe('creation and validation', () => {
     it('should create valid versions from non-negative integers', () => {
       fc.assert(
-        fc.property(fc.nat(), version => {
+        fc.property(fc.nat(), (version) => {
           const result = Version.create(version);
           expect(result.isOk()).toBe(true);
 
           if (result.isOk()) {
             expect(result.value.getValue()).toBe(version);
           }
-        })
+        }),
       );
     });
 
     it('should reject negative numbers and non-integers', () => {
-      const invalidVersions = [-1, -100, 1.5, 3.14, NaN, Infinity];
+      const invalidVersions = [-1, -100, 1.5, 3.14, Number.NaN, Number.POSITIVE_INFINITY];
 
-      invalidVersions.forEach(invalid => {
+      invalidVersions.forEach((invalid) => {
         const result = Version.create(invalid);
         expect(result.isErr()).toBe(true);
 
@@ -398,7 +394,7 @@ describe('Version', () => {
 
     it('should increment versions correctly', () => {
       fc.assert(
-        fc.property(fc.nat({ max: 1000 }), startVersion => {
+        fc.property(fc.nat({ max: 1000 }), (startVersion) => {
           const version = Version.create(startVersion);
           expect(version.isOk()).toBe(true);
 
@@ -406,7 +402,7 @@ describe('Version', () => {
             const next = version.value.nextVersion();
             expect(next.getValue()).toBe(startVersion + 1);
           }
-        })
+        }),
       );
     });
 
@@ -457,7 +453,7 @@ describe('Version', () => {
               expect(vA.isAfter(vB)).toBe(false);
             }
           }
-        })
+        }),
       );
     });
   });
@@ -467,14 +463,14 @@ describe('Timestamp', () => {
   describe('creation patterns', () => {
     it('should create from valid timestamps', () => {
       fc.assert(
-        fc.property(fc.nat(), timestamp => {
+        fc.property(fc.nat(), (timestamp) => {
           const result = Timestamp.create(timestamp);
           expect(result.isOk()).toBe(true);
 
           if (result.isOk()) {
             expect(result.value.getValue()).toBe(timestamp);
           }
-        })
+        }),
       );
     });
 
@@ -502,10 +498,10 @@ describe('Timestamp', () => {
       const floatResult = Timestamp.create(123.45);
       expect(floatResult.isErr()).toBe(true);
 
-      const nanResult = Timestamp.create(NaN);
+      const nanResult = Timestamp.create(Number.NaN);
       expect(nanResult.isErr()).toBe(true);
 
-      const infiniteResult = Timestamp.create(Infinity);
+      const infiniteResult = Timestamp.create(Number.POSITIVE_INFINITY);
       expect(infiniteResult.isErr()).toBe(true);
     });
   });
@@ -531,7 +527,7 @@ describe('Timestamp', () => {
 
     it('should convert to Date consistently', () => {
       fc.assert(
-        fc.property(fc.nat(), timestamp => {
+        fc.property(fc.nat(), (timestamp) => {
           const tsResult = Timestamp.create(timestamp);
           expect(tsResult.isOk()).toBe(true);
 
@@ -542,7 +538,7 @@ describe('Timestamp', () => {
 
             expect(roundTrip.getValue()).toBe(timestamp);
           }
-        })
+        }),
       );
     });
   });
@@ -563,15 +559,15 @@ describe('Position2D', () => {
               expect(result.value.getX()).toBe(x);
               expect(result.value.getY()).toBe(y);
             }
-          }
-        )
+          },
+        ),
       );
     });
 
     it('should reject NaN and infinite coordinates', () => {
-      const invalidCoords = [NaN, Infinity, -Infinity];
+      const invalidCoords = [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY];
 
-      invalidCoords.forEach(invalid => {
+      invalidCoords.forEach((invalid) => {
         const xResult = Position2D.create(invalid, 0);
         const yResult = Position2D.create(0, invalid);
 
@@ -682,8 +678,8 @@ describe('Position2D', () => {
               // Distance to self is zero
               expect(p1.distanceTo(p1)).toBe(0);
             }
-          }
-        )
+          },
+        ),
       );
     });
   });
@@ -801,16 +797,16 @@ describe('PhysicalProperties', () => {
       const negativeSpacingY = PhysicalProperties.create('bottom-up', 50, -10);
       expect(negativeSpacingY.isErr()).toBe(true);
 
-      const infiniteSpacingX = PhysicalProperties.create('bottom-up', Infinity, 40);
+      const infiniteSpacingX = PhysicalProperties.create('bottom-up', Number.POSITIVE_INFINITY, 40);
       expect(infiniteSpacingX.isErr()).toBe(true);
 
-      const infiniteSpacingY = PhysicalProperties.create('bottom-up', 50, Infinity);
+      const infiniteSpacingY = PhysicalProperties.create('bottom-up', 50, Number.POSITIVE_INFINITY);
       expect(infiniteSpacingY.isErr()).toBe(true);
 
-      const nanSpacingX = PhysicalProperties.create('bottom-up', NaN, 40);
+      const nanSpacingX = PhysicalProperties.create('bottom-up', Number.NaN, 40);
       expect(nanSpacingX.isErr()).toBe(true);
 
-      const nanSpacingY = PhysicalProperties.create('bottom-up', 50, NaN);
+      const nanSpacingY = PhysicalProperties.create('bottom-up', 50, Number.NaN);
       expect(nanSpacingY.isErr()).toBe(true);
     });
 
@@ -919,7 +915,7 @@ describe('PhysicalProperties', () => {
         100,
         80,
         'vertical',
-        'center'
+        'center',
       );
       const props2Result = PhysicalProperties.create(
         'bottom-up',
@@ -928,7 +924,7 @@ describe('PhysicalProperties', () => {
         100,
         80,
         'vertical',
-        'center'
+        'center',
       );
 
       expect(props1Result.isOk()).toBe(true);
@@ -950,7 +946,7 @@ describe('PhysicalProperties', () => {
         100,
         80,
         'vertical',
-        'center'
+        'center',
       );
       expect(baseResult.isOk()).toBe(true);
 
@@ -964,7 +960,7 @@ describe('PhysicalProperties', () => {
           100,
           80,
           'vertical',
-          'center'
+          'center',
         );
         expect(diffLayoutResult.isOk()).toBe(true);
 
@@ -980,7 +976,7 @@ describe('PhysicalProperties', () => {
           100,
           80,
           'vertical',
-          'center'
+          'center',
         );
         expect(diffSpacingXResult.isOk()).toBe(true);
         if (diffSpacingXResult.isOk()) {
@@ -994,7 +990,7 @@ describe('PhysicalProperties', () => {
           100,
           80,
           'vertical',
-          'center'
+          'center',
         );
         expect(diffSpacingYResult.isOk()).toBe(true);
         if (diffSpacingYResult.isOk()) {
@@ -1008,7 +1004,7 @@ describe('PhysicalProperties', () => {
           120,
           80,
           'vertical',
-          'center'
+          'center',
         );
         expect(diffMinWidthResult.isOk()).toBe(true);
         if (diffMinWidthResult.isOk()) {
@@ -1022,7 +1018,7 @@ describe('PhysicalProperties', () => {
           100,
           90,
           'vertical',
-          'center'
+          'center',
         );
         expect(diffMinHeightResult.isOk()).toBe(true);
         if (diffMinHeightResult.isOk()) {
@@ -1036,7 +1032,7 @@ describe('PhysicalProperties', () => {
           100,
           80,
           'horizontal',
-          'center'
+          'center',
         );
         expect(diffExpansionResult.isOk()).toBe(true);
         if (diffExpansionResult.isOk()) {
@@ -1050,7 +1046,7 @@ describe('PhysicalProperties', () => {
           100,
           80,
           'vertical',
-          'left'
+          'left',
         );
         expect(diffAlignmentResult.isOk()).toBe(true);
         if (diffAlignmentResult.isOk()) {
@@ -1068,8 +1064,8 @@ describe('Error Handling Patterns', () => {
 
     if (result.isErr()) {
       expect(result.error.context).toBeDefined();
-      expect(result.error.context?.['field']).toBe('value');
-      expect(result.error.context?.['value']).toBe('');
+      expect(result.error.context?.field).toBe('value');
+      expect(result.error.context?.value).toBe('');
     }
   });
 

@@ -33,17 +33,17 @@ describe('IDiagnosticRepository', () => {
 
       // Create a mock implementation to verify interface structure
       const mockRepository: IDiagnosticRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByLanguagePackageId: () => Promise.resolve([]),
-        findBySeverity: () => Promise.resolve([]),
-        findByDocumentId: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByLanguagePackageId: async () => Promise.resolve([]),
+        findBySeverity: async () => Promise.resolve([]),
+        findByDocumentId: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       // Verify all methods exist
-      repositoryMethods.forEach(method => {
+      repositoryMethods.forEach((method) => {
         expect(mockRepository).toHaveProperty(method);
         expect(typeof mockRepository[method as keyof IDiagnosticRepository]).toBe('function');
       });
@@ -51,13 +51,13 @@ describe('IDiagnosticRepository', () => {
 
     it('should have async methods that return correct types', () => {
       const mockRepository: IDiagnosticRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByLanguagePackageId: () => Promise.resolve([]),
-        findBySeverity: () => Promise.resolve([]),
-        findByDocumentId: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByLanguagePackageId: async () => Promise.resolve([]),
+        findBySeverity: async () => Promise.resolve([]),
+        findByDocumentId: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       // All methods should be functions
@@ -74,16 +74,16 @@ describe('IDiagnosticRepository', () => {
   describe('method signatures', () => {
     it('should accept correct parameter types for save', async () => {
       const mockRepository: IDiagnosticRepository = {
-        save: (diagnostic: Diagnostic) => {
+        save: async (diagnostic: Diagnostic) => {
           expect(diagnostic).toBeDefined();
           return Promise.resolve(ok(undefined));
         },
-        findById: () => Promise.resolve(null),
-        findByLanguagePackageId: () => Promise.resolve([]),
-        findBySeverity: () => Promise.resolve([]),
-        findByDocumentId: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByLanguagePackageId: async () => Promise.resolve([]),
+        findBySeverity: async () => Promise.resolve([]),
+        findByDocumentId: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       const mockDiagnostic = {} as Diagnostic;
@@ -92,16 +92,16 @@ describe('IDiagnosticRepository', () => {
 
     it('should accept correct parameter types for findById', async () => {
       const mockRepository: IDiagnosticRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: (id: DiagnosticId) => {
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async (id: DiagnosticId) => {
           expect(id).toBeDefined();
           return Promise.resolve(null);
         },
-        findByLanguagePackageId: () => Promise.resolve([]),
-        findBySeverity: () => Promise.resolve([]),
-        findByDocumentId: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        findByLanguagePackageId: async () => Promise.resolve([]),
+        findBySeverity: async () => Promise.resolve([]),
+        findByDocumentId: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       const mockId = { getValue: () => 'test-id' } as unknown as DiagnosticId;
@@ -110,17 +110,17 @@ describe('IDiagnosticRepository', () => {
 
     it('should accept correct parameter types for findByLanguagePackageId', async () => {
       const mockRepository: IDiagnosticRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByLanguagePackageId: (languagePackageId: string) => {
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByLanguagePackageId: async (languagePackageId: string) => {
           expect(languagePackageId).toBeDefined();
           expect(typeof languagePackageId).toBe('string');
           return Promise.resolve([]);
         },
-        findBySeverity: () => Promise.resolve([]),
-        findByDocumentId: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        findBySeverity: async () => Promise.resolve([]),
+        findByDocumentId: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       await mockRepository.findByLanguagePackageId('test-pkg-id');
@@ -128,16 +128,16 @@ describe('IDiagnosticRepository', () => {
 
     it('should accept correct parameter types for findBySeverity', async () => {
       const mockRepository: IDiagnosticRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByLanguagePackageId: () => Promise.resolve([]),
-        findBySeverity: (severity: DiagnosticSeverity) => {
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByLanguagePackageId: async () => Promise.resolve([]),
+        findBySeverity: async (severity: DiagnosticSeverity) => {
           expect(severity).toBeDefined();
           return Promise.resolve([]);
         },
-        findByDocumentId: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        findByDocumentId: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       const mockSeverity = { getSeverity: () => 'error' as const } as unknown as DiagnosticSeverity;
@@ -146,17 +146,17 @@ describe('IDiagnosticRepository', () => {
 
     it('should accept correct parameter types for findByDocumentId', async () => {
       const mockRepository: IDiagnosticRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByLanguagePackageId: () => Promise.resolve([]),
-        findBySeverity: () => Promise.resolve([]),
-        findByDocumentId: (documentId: string) => {
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByLanguagePackageId: async () => Promise.resolve([]),
+        findBySeverity: async () => Promise.resolve([]),
+        findByDocumentId: async (documentId: string) => {
           expect(documentId).toBeDefined();
           expect(typeof documentId).toBe('string');
           return Promise.resolve([]);
         },
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       await mockRepository.findByDocumentId('test-doc-id');
@@ -164,13 +164,13 @@ describe('IDiagnosticRepository', () => {
 
     it('should accept correct parameter types for delete', async () => {
       const mockRepository: IDiagnosticRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByLanguagePackageId: () => Promise.resolve([]),
-        findBySeverity: () => Promise.resolve([]),
-        findByDocumentId: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: (id: DiagnosticId) => {
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByLanguagePackageId: async () => Promise.resolve([]),
+        findBySeverity: async () => Promise.resolve([]),
+        findByDocumentId: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async (id: DiagnosticId) => {
           expect(id).toBeDefined();
           return Promise.resolve(ok(undefined));
         },
@@ -184,13 +184,13 @@ describe('IDiagnosticRepository', () => {
   describe('return types', () => {
     it('should return Promise types for all methods', () => {
       const mockRepository: IDiagnosticRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByLanguagePackageId: () => Promise.resolve([]),
-        findBySeverity: () => Promise.resolve([]),
-        findByDocumentId: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByLanguagePackageId: async () => Promise.resolve([]),
+        findBySeverity: async () => Promise.resolve([]),
+        findByDocumentId: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       // Test that methods return Promises
@@ -198,7 +198,7 @@ describe('IDiagnosticRepository', () => {
       expect(mockRepository.findById({} as unknown as DiagnosticId)).toBeInstanceOf(Promise);
       expect(mockRepository.findByLanguagePackageId('test')).toBeInstanceOf(Promise);
       expect(mockRepository.findBySeverity({} as unknown as DiagnosticSeverity)).toBeInstanceOf(
-        Promise
+        Promise,
       );
       expect(mockRepository.findByDocumentId('test')).toBeInstanceOf(Promise);
       expect(mockRepository.findAll()).toBeInstanceOf(Promise);
@@ -207,13 +207,13 @@ describe('IDiagnosticRepository', () => {
 
     it('should return Result types for save and delete operations', async () => {
       const mockRepository: IDiagnosticRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByLanguagePackageId: () => Promise.resolve([]),
-        findBySeverity: () => Promise.resolve([]),
-        findByDocumentId: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByLanguagePackageId: async () => Promise.resolve([]),
+        findBySeverity: async () => Promise.resolve([]),
+        findByDocumentId: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       const saveResult = await mockRepository.save({} as Diagnostic);
@@ -235,13 +235,13 @@ describe('IDiagnosticRepository', () => {
   describe('repository behavior patterns', () => {
     it('should handle null returns for findById when entity not found', async () => {
       const mockRepository: IDiagnosticRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByLanguagePackageId: () => Promise.resolve([]),
-        findBySeverity: () => Promise.resolve([]),
-        findByDocumentId: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByLanguagePackageId: async () => Promise.resolve([]),
+        findBySeverity: async () => Promise.resolve([]),
+        findByDocumentId: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       const result = await mockRepository.findById({} as unknown as DiagnosticId);
@@ -250,18 +250,18 @@ describe('IDiagnosticRepository', () => {
 
     it('should handle empty arrays for collection queries when no matches found', async () => {
       const mockRepository: IDiagnosticRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByLanguagePackageId: () => Promise.resolve([]),
-        findBySeverity: () => Promise.resolve([]),
-        findByDocumentId: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByLanguagePackageId: async () => Promise.resolve([]),
+        findBySeverity: async () => Promise.resolve([]),
+        findByDocumentId: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       const packageResult = await mockRepository.findByLanguagePackageId('non-existent');
       const severityResult = await mockRepository.findBySeverity(
-        {} as unknown as DiagnosticSeverity
+        {} as unknown as DiagnosticSeverity,
       );
       const documentResult = await mockRepository.findByDocumentId('non-existent');
       const allResult = await mockRepository.findAll();
@@ -299,24 +299,26 @@ describe('IDiagnosticRepository', () => {
       ];
 
       const mockRepository: IDiagnosticRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByLanguagePackageId: (packageId: string) => {
-          const filtered = mockDiagnostics.filter(d => (d as any).languagePackageId === packageId);
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByLanguagePackageId: async (packageId: string) => {
+          const filtered = mockDiagnostics.filter(
+            (d) => (d as any).languagePackageId === packageId,
+          );
           return Promise.resolve(filtered);
         },
-        findBySeverity: (severity: DiagnosticSeverity) => {
+        findBySeverity: async (severity: DiagnosticSeverity) => {
           const severityValue =
             (severity as any).getSeverity?.() ?? (severity as any).severity ?? 'error';
-          const filtered = mockDiagnostics.filter(d => (d as any).severity === severityValue);
+          const filtered = mockDiagnostics.filter((d) => (d as any).severity === severityValue);
           return Promise.resolve(filtered);
         },
-        findByDocumentId: (documentId: string) => {
-          const filtered = mockDiagnostics.filter(d => (d as any).documentId === documentId);
+        findByDocumentId: async (documentId: string) => {
+          const filtered = mockDiagnostics.filter((d) => (d as any).documentId === documentId);
           return Promise.resolve(filtered);
         },
-        findAll: () => Promise.resolve(mockDiagnostics),
-        delete: () => Promise.resolve(ok(undefined)),
+        findAll: async () => Promise.resolve(mockDiagnostics),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       const pkg1Results = await mockRepository.findByLanguagePackageId('pkg1');
@@ -335,13 +337,13 @@ describe('IDiagnosticRepository', () => {
     it('should enforce correct interface implementation', () => {
       // This test verifies that the interface can be properly implemented
       const implementRepository = (): IDiagnosticRepository => ({
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByLanguagePackageId: () => Promise.resolve([]),
-        findBySeverity: () => Promise.resolve([]),
-        findByDocumentId: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByLanguagePackageId: async () => Promise.resolve([]),
+        findBySeverity: async () => Promise.resolve([]),
+        findByDocumentId: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       });
 
       const repository = implementRepository();
@@ -359,13 +361,13 @@ describe('IDiagnosticRepository', () => {
   describe('error handling patterns', () => {
     it('should handle repository errors in save operations', async () => {
       const mockRepository: IDiagnosticRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByLanguagePackageId: () => Promise.resolve([]),
-        findBySeverity: () => Promise.resolve([]),
-        findByDocumentId: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByLanguagePackageId: async () => Promise.resolve([]),
+        findBySeverity: async () => Promise.resolve([]),
+        findByDocumentId: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       const result = await mockRepository.save({} as Diagnostic);
@@ -374,13 +376,13 @@ describe('IDiagnosticRepository', () => {
 
     it('should handle repository errors in delete operations', async () => {
       const mockRepository: IDiagnosticRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByLanguagePackageId: () => Promise.resolve([]),
-        findBySeverity: () => Promise.resolve([]),
-        findByDocumentId: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByLanguagePackageId: async () => Promise.resolve([]),
+        findBySeverity: async () => Promise.resolve([]),
+        findByDocumentId: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       const result = await mockRepository.delete({} as unknown as DiagnosticId);

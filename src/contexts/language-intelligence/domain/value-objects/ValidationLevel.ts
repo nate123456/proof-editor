@@ -11,7 +11,7 @@ export class ValidationLevel {
   private constructor(
     private readonly level: ValidationLevelType,
     private readonly priority: number,
-    private readonly performanceTargetMs: number
+    private readonly performanceTargetMs: number,
   ) {}
 
   static syntax(): ValidationLevel {

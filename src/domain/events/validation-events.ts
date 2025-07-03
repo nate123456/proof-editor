@@ -1,8 +1,8 @@
-import {
+import type {
   // AtomicArgumentId,
-  type DocumentId,
+  DocumentId,
   // StatementId,
-  type TreeId,
+  TreeId,
 } from '../shared/value-objects.js';
 import { DomainEvent } from './base-event.js';
 
@@ -15,7 +15,7 @@ export class ValidationCompleted extends DomainEvent {
     public readonly validationScope: ValidationScope,
     public readonly result: ValidationResult,
     public readonly validatedBy: string,
-    public readonly languagePackage: string
+    public readonly languagePackage: string,
   ) {
     super(aggregateId, aggregateType);
   }
@@ -39,7 +39,7 @@ export class ValidationFailed extends DomainEvent {
     public readonly validationScope: ValidationScope,
     public readonly failures: ValidationFailure[],
     public readonly validatedBy: string,
-    public readonly languagePackage: string
+    public readonly languagePackage: string,
   ) {
     super(aggregateId, aggregateType);
   }
@@ -63,7 +63,7 @@ export class ValidationPatternDetected extends DomainEvent {
     public readonly pattern: ValidationPattern,
     public readonly confidence: number,
     public readonly detectedBy: string,
-    public readonly suggestions: ValidationSuggestion[]
+    public readonly suggestions: ValidationSuggestion[],
   ) {
     super(aggregateId, aggregateType);
   }
@@ -87,7 +87,7 @@ export class CustomRuleApplied extends DomainEvent {
     public readonly ruleName: string,
     public readonly ruleVersion: string,
     public readonly applicationResult: RuleApplicationResult,
-    public readonly appliedBy: string
+    public readonly appliedBy: string,
   ) {
     super(aggregateId, aggregateType);
   }
@@ -111,7 +111,7 @@ export class SemanticAnalysisCompleted extends DomainEvent {
     public readonly analysisType: SemanticAnalysisType,
     public readonly findings: SemanticFinding[],
     public readonly analyzedBy: string,
-    public readonly languagePackage: string
+    public readonly languagePackage: string,
   ) {
     super(aggregateId, aggregateType);
   }
@@ -133,7 +133,7 @@ export class LogicalConsistencyChecked extends DomainEvent {
     public readonly documentId: DocumentId,
     public readonly checkedTrees: TreeId[],
     public readonly consistencyResult: ConsistencyResult,
-    public readonly checkedBy: string
+    public readonly checkedBy: string,
   ) {
     super(documentId.getValue(), 'Document');
   }
@@ -141,7 +141,7 @@ export class LogicalConsistencyChecked extends DomainEvent {
   get eventData(): Record<string, unknown> {
     return {
       documentId: this.documentId.getValue(),
-      checkedTrees: this.checkedTrees.map(id => id.getValue()),
+      checkedTrees: this.checkedTrees.map((id) => id.getValue()),
       consistencyResult: this.consistencyResult,
       checkedBy: this.checkedBy,
     };
@@ -156,7 +156,7 @@ export class ValidationCacheInvalidated extends DomainEvent {
     aggregateType: string,
     public readonly invalidationReason: CacheInvalidationReason,
     public readonly affectedScopes: ValidationScope[],
-    public readonly triggeredBy: string
+    public readonly triggeredBy: string,
   ) {
     super(aggregateId, aggregateType);
   }

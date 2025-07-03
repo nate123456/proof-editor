@@ -12,7 +12,7 @@ export class ValidationRule {
     private readonly severity: DiagnosticSeverity,
     private readonly pattern: ValidationRulePattern,
     private readonly isActive: boolean,
-    private readonly metadata: IValidationRuleMetadata
+    private readonly metadata: IValidationRuleMetadata,
   ) {}
 
   static create(
@@ -21,7 +21,7 @@ export class ValidationRule {
     category: ValidationRuleCategory,
     severity: DiagnosticSeverity,
     pattern: ValidationRulePattern,
-    metadata: IValidationRuleMetadata = ValidationRuleMetadata.createDefault()
+    metadata: IValidationRuleMetadata = createDefaultValidationRuleMetadata(),
   ): Result<ValidationRule, ValidationError> {
     if (!name || name.trim().length === 0) {
       return _err(new ValidationError('Rule name cannot be empty'));
@@ -42,8 +42,8 @@ export class ValidationRule {
         severity,
         pattern,
         true,
-        metadata
-      )
+        metadata,
+      ),
     );
   }
 
@@ -51,7 +51,7 @@ export class ValidationRule {
     name: string,
     description: string,
     pattern: ValidationRulePattern,
-    severity: DiagnosticSeverity = DiagnosticSeverity.error()
+    severity: DiagnosticSeverity = DiagnosticSeverity.error(),
   ): Result<ValidationRule, ValidationError> {
     return ValidationRule.create(
       name,
@@ -59,7 +59,7 @@ export class ValidationRule {
       'syntax',
       severity,
       pattern,
-      ValidationRuleMetadata.createForSyntax()
+      createSyntaxValidationRuleMetadata(),
     );
   }
 
@@ -67,7 +67,7 @@ export class ValidationRule {
     name: string,
     description: string,
     pattern: ValidationRulePattern,
-    severity: DiagnosticSeverity = DiagnosticSeverity.error()
+    severity: DiagnosticSeverity = DiagnosticSeverity.error(),
   ): Result<ValidationRule, ValidationError> {
     return ValidationRule.create(
       name,
@@ -75,7 +75,7 @@ export class ValidationRule {
       'semantic',
       severity,
       pattern,
-      ValidationRuleMetadata.createForSemantic()
+      createSemanticValidationRuleMetadata(),
     );
   }
 
@@ -83,7 +83,7 @@ export class ValidationRule {
     name: string,
     description: string,
     pattern: ValidationRulePattern,
-    severity: DiagnosticSeverity = DiagnosticSeverity.warning()
+    severity: DiagnosticSeverity = DiagnosticSeverity.warning(),
   ): Result<ValidationRule, ValidationError> {
     return ValidationRule.create(
       name,
@@ -91,7 +91,7 @@ export class ValidationRule {
       'style',
       severity,
       pattern,
-      ValidationRuleMetadata.createForStyle()
+      createStyleValidationRuleMetadata(),
     );
   }
 
@@ -169,8 +169,9 @@ export class ValidationRule {
       case 'regex':
         try {
           const regex = new RegExp(this.pattern.value, 'g');
-          let match;
-          while ((match = regex.exec(text)) !== null) {
+          let match: RegExpExecArray | null = null;
+          match = regex.exec(text);
+          while (match !== null) {
             matches.push({
               start: match.index,
               end: match.index + match[0].length,
@@ -178,6 +179,7 @@ export class ValidationRule {
               confidence: this.calculateConfidence(match[0]),
             });
             if (!regex.global) break;
+            match = regex.exec(text);
           }
         } catch {
           // Ignore regex errors
@@ -237,7 +239,7 @@ export class ValidationRule {
       newSeverity,
       this.pattern,
       this.isActive,
-      this.metadata
+      this.metadata,
     );
   }
 
@@ -250,7 +252,7 @@ export class ValidationRule {
       this.severity,
       this.pattern,
       true,
-      this.metadata
+      this.metadata,
     );
   }
 
@@ -263,7 +265,7 @@ export class ValidationRule {
       this.severity,
       this.pattern,
       false,
-      this.metadata
+      this.metadata,
     );
   }
 
@@ -280,7 +282,7 @@ export class ValidationRule {
     return Math.min(lengthScore + contextScore, 1);
   }
 
-  private generateSuggestions(text: string, matches: ValidationRuleMatch[]): string[] {
+  private generateSuggestions(_text: string, matches: ValidationRuleMatch[]): string[] {
     const suggestions: string[] = [];
 
     if (matches.length > 0 && this.metadata.autoFix) {
@@ -337,42 +339,40 @@ export interface ValidationRuleResult {
   };
 }
 
-export class ValidationRuleMetadata {
-  static createDefault(): IValidationRuleMetadata {
-    return {
-      autoFix: false,
-      educationalHints: [],
-      isExclusive: false,
-      performanceWeight: 1,
-      priority: 0,
-      tags: [],
-    };
-  }
+export function createDefaultValidationRuleMetadata(): IValidationRuleMetadata {
+  return {
+    autoFix: false,
+    educationalHints: [],
+    isExclusive: false,
+    performanceWeight: 1,
+    priority: 0,
+    tags: [],
+  };
+}
 
-  static createForSyntax(): IValidationRuleMetadata {
-    return {
-      ...ValidationRuleMetadata.createDefault(),
-      autoFix: true,
-      priority: 10,
-      tags: ['syntax', 'critical'],
-    };
-  }
+export function createSyntaxValidationRuleMetadata(): IValidationRuleMetadata {
+  return {
+    ...createDefaultValidationRuleMetadata(),
+    autoFix: true,
+    priority: 10,
+    tags: ['syntax', 'critical'],
+  };
+}
 
-  static createForSemantic(): IValidationRuleMetadata {
-    return {
-      ...ValidationRuleMetadata.createDefault(),
-      educationalHints: ['Review logical structure', 'Check inference validity'],
-      priority: 5,
-      tags: ['semantic', 'logic'],
-    };
-  }
+export function createSemanticValidationRuleMetadata(): IValidationRuleMetadata {
+  return {
+    ...createDefaultValidationRuleMetadata(),
+    educationalHints: ['Review logical structure', 'Check inference validity'],
+    priority: 5,
+    tags: ['semantic', 'logic'],
+  };
+}
 
-  static createForStyle(): IValidationRuleMetadata {
-    return {
-      ...ValidationRuleMetadata.createDefault(),
-      autoFix: true,
-      priority: 1,
-      tags: ['style', 'formatting'],
-    };
-  }
+export function createStyleValidationRuleMetadata(): IValidationRuleMetadata {
+  return {
+    ...createDefaultValidationRuleMetadata(),
+    autoFix: true,
+    priority: 1,
+    tags: ['style', 'formatting'],
+  };
 }

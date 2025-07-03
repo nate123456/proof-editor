@@ -1,12 +1,13 @@
 import * as yaml from 'js-yaml';
 import { err, ok, type Result } from 'neverthrow';
+import { inject, injectable } from 'tsyringe';
 
 import { AtomicArgument } from '../domain/entities/AtomicArgument.js';
 import { Node } from '../domain/entities/Node.js';
 import { OrderedSet } from '../domain/entities/OrderedSet.js';
 import { Statement } from '../domain/entities/Statement.js';
 import { Tree } from '../domain/entities/Tree.js';
-import { type ValidationError } from '../domain/shared/result.js';
+import type { ValidationError } from '../domain/shared/result.js';
 import {
   AtomicArgumentId,
   Attachment,
@@ -15,12 +16,14 @@ import {
   Position2D,
   StatementId,
 } from '../domain/shared/value-objects.js';
+import { TOKENS } from '../infrastructure/di/tokens.js';
 import { type ParseError, ParseErrorType, ParseFailureError } from './ParseError.js';
 import type { NodeSpec, ProofDocument } from './ProofDocument.js';
-import { YAMLValidator } from './YAMLValidator.js';
+import type { YAMLValidator } from './YAMLValidator.js';
 
+@injectable()
 export class ProofFileParser {
-  private readonly validator = new YAMLValidator();
+  constructor(@inject(TOKENS.YAMLValidator) private readonly validator: YAMLValidator) {}
 
   parseProofFile(yamlContent: string): Result<ProofDocument, ParseFailureError> {
     const errors: ParseError[] = [];
@@ -94,7 +97,7 @@ export class ProofFileParser {
     if (structure.atomicArguments) {
       const atomicArgumentsResult = this.createAtomicArguments(
         structure.atomicArguments,
-        document.orderedSets
+        document.orderedSets,
       );
       if (atomicArgumentsResult.isErr()) {
         errors.push(...atomicArgumentsResult.error);
@@ -144,7 +147,7 @@ export class ProofFileParser {
   }
 
   private createStatements(
-    statementsData: Record<string, string>
+    statementsData: Record<string, string>,
   ): Result<Map<string, Statement>, ParseError[]> {
     const errors: ParseError[] = [];
     const statements = new Map<string, Statement>();
@@ -169,7 +172,7 @@ export class ProofFileParser {
 
   private createOrderedSets(
     orderedSetsData: Record<string, string[]>,
-    statements: Map<string, Statement>
+    statements: Map<string, Statement>,
   ): Result<Map<string, OrderedSet>, ParseError[]> {
     const errors: ParseError[] = [];
     const orderedSets = new Map<string, OrderedSet>();
@@ -226,7 +229,7 @@ export class ProofFileParser {
       string,
       { premises?: string; conclusions?: string; sideLabel?: string }
     >,
-    orderedSets: Map<string, OrderedSet>
+    orderedSets: Map<string, OrderedSet>,
   ): Result<Map<string, AtomicArgument>, ParseError[]> {
     const errors: ParseError[] = [];
     const atomicArguments = new Map<string, AtomicArgument>();
@@ -245,7 +248,7 @@ export class ProofFileParser {
             reference: id,
           });
         } else {
-          premiseSetId = orderedSets.get(argSpec.premises)!.getId().getValue();
+          premiseSetId = orderedSets.get(argSpec.premises)?.getId().getValue();
         }
       }
 
@@ -259,7 +262,7 @@ export class ProofFileParser {
             reference: id,
           });
         } else {
-          conclusionSetId = orderedSets.get(argSpec.conclusions)!.getId().getValue();
+          conclusionSetId = orderedSets.get(argSpec.conclusions)?.getId().getValue();
         }
       }
 
@@ -301,7 +304,7 @@ export class ProofFileParser {
       const atomicArgumentResult = AtomicArgument.create(
         premiseOrderedSetId,
         conclusionOrderedSetId,
-        sideLabels
+        sideLabels,
       );
 
       if (atomicArgumentResult.isErr()) {
@@ -311,7 +314,7 @@ export class ProofFileParser {
           section: 'atomicArguments',
           reference: id,
         });
-        continue;
+        return;
       }
 
       atomicArguments.set(id, atomicArgumentResult.value);
@@ -324,7 +327,7 @@ export class ProofFileParser {
     argumentsData:
       | Record<string, { premises?: string[]; conclusions?: string[]; sideLabel?: string }>
       | Record<string, string[]>[],
-    statements: Map<string, Statement>
+    statements: Map<string, Statement>,
   ): Result<Map<string, AtomicArgument>, ParseError[]> {
     const errors: ParseError[] = [];
     const argumentsMap = new Map<string, AtomicArgument>();
@@ -350,7 +353,7 @@ export class ProofFileParser {
               section: 'arguments',
               reference: id,
             });
-            continue;
+            return;
           }
 
           const statementIdResult = StatementId.create(statementId);
@@ -361,7 +364,7 @@ export class ProofFileParser {
               section: 'arguments',
               reference: id,
             });
-            continue;
+            return;
           }
 
           validPremiseIds.push(statementIdResult.value);
@@ -393,7 +396,7 @@ export class ProofFileParser {
               section: 'arguments',
               reference: id,
             });
-            continue;
+            return;
           }
 
           const statementIdResult = StatementId.create(statementId);
@@ -404,7 +407,7 @@ export class ProofFileParser {
               section: 'arguments',
               reference: id,
             });
-            continue;
+            return;
           }
 
           validConclusionIds.push(statementIdResult.value);
@@ -430,7 +433,7 @@ export class ProofFileParser {
       const atomicArgumentResult = AtomicArgument.create(
         premiseSet?.getId(),
         conclusionSet?.getId(),
-        sideLabels
+        sideLabels,
       );
 
       if (atomicArgumentResult.isErr()) {
@@ -440,7 +443,7 @@ export class ProofFileParser {
           section: 'arguments',
           reference: id,
         });
-        continue;
+        return;
       }
 
       argumentsMap.set(id, atomicArgumentResult.value);
@@ -451,12 +454,12 @@ export class ProofFileParser {
 
   private createArgumentsFromConciseFormat(
     argumentsArray: Record<string, string[]>[],
-    statements: Map<string, Statement>
+    statements: Map<string, Statement>,
   ): Result<Map<string, AtomicArgument>, ParseError[]> {
     const errors: ParseError[] = [];
     const argumentsMap = new Map<string, AtomicArgument>();
 
-    for (const [index, argumentItem] of argumentsArray.entries()) {
+    argumentsArray.forEach((argumentItem, index) => {
       const keys = Object.keys(argumentItem);
       if (keys.length !== 1) {
         errors.push({
@@ -465,11 +468,29 @@ export class ProofFileParser {
           section: 'arguments',
           reference: `argument-${index}`,
         });
-        continue;
+        return;
       }
 
-      const premisesKey = keys[0]!;
-      const conclusionsValue = argumentItem[premisesKey]!;
+      const premisesKey = keys[0];
+      if (!premisesKey) {
+        errors.push({
+          type: ParseErrorType.INVALID_ARGUMENT,
+          message: `Argument at index ${index} has no valid key`,
+          section: 'arguments',
+          reference: `argument-${index}`,
+        });
+        return;
+      }
+      const conclusionsValue = argumentItem[premisesKey];
+      if (!conclusionsValue) {
+        errors.push({
+          type: ParseErrorType.INVALID_ARGUMENT,
+          message: `Argument at index ${index} has no conclusion value for key '${premisesKey}'`,
+          section: 'arguments',
+          reference: `argument-${index}`,
+        });
+        return;
+      }
 
       // Parse premises from key (YAML converts ['s1', 's2'] to "s1,s2")
       let premises: string[];
@@ -477,8 +498,8 @@ export class ProofFileParser {
         // Handle comma-separated format from YAML
         premises = premisesKey
           .split(',')
-          .map(s => s.trim())
-          .filter(s => s.length > 0);
+          .map((s) => s.trim())
+          .filter((s) => s.length > 0);
       } else if (premisesKey.length > 0) {
         // Handle single premise
         premises = [premisesKey.trim()];
@@ -499,7 +520,7 @@ export class ProofFileParser {
               section: 'arguments',
               reference: `argument-${index}`,
             });
-            continue;
+            return;
           }
 
           const statementIdResult = StatementId.create(statementId);
@@ -510,7 +531,7 @@ export class ProofFileParser {
               section: 'arguments',
               reference: `argument-${index}`,
             });
-            continue;
+            return;
           }
 
           validPremiseIds.push(statementIdResult.value);
@@ -543,7 +564,7 @@ export class ProofFileParser {
               section: 'arguments',
               reference: `argument-${index}`,
             });
-            continue;
+            return;
           }
 
           const statementIdResult = StatementId.create(statementId);
@@ -554,7 +575,7 @@ export class ProofFileParser {
               section: 'arguments',
               reference: `argument-${index}`,
             });
-            continue;
+            return;
           }
 
           validConclusionIds.push(statementIdResult.value);
@@ -579,7 +600,7 @@ export class ProofFileParser {
       const atomicArgumentResult = AtomicArgument.create(
         premiseSet?.getId(),
         conclusionSet?.getId(),
-        {}
+        {},
       );
 
       if (atomicArgumentResult.isErr()) {
@@ -589,13 +610,15 @@ export class ProofFileParser {
           section: 'arguments',
           reference: `argument-${index}`,
         });
-        continue;
+        return;
       }
 
       // Generate auto ID for concise arguments
       const autoId = `arg${index + 1}`;
-      argumentsMap.set(autoId, atomicArgumentResult.value);
-    }
+      // TypeScript needs help with type narrowing here
+      const atomicArgument = atomicArgumentResult.value;
+      argumentsMap.set(autoId, atomicArgument);
+    });
 
     return errors.length > 0 ? err(errors) : ok(argumentsMap);
   }
@@ -605,7 +628,7 @@ export class ProofFileParser {
       string,
       { offset?: { x: number; y: number }; nodes?: Record<string, NodeSpec> }
     >,
-    atomicArguments: Map<string, AtomicArgument>
+    atomicArguments: Map<string, AtomicArgument>,
   ): Result<{ trees: Map<string, Tree>; nodes: Map<string, Node> }, ParseError[]> {
     const errors: ParseError[] = [];
     const trees = new Map<string, Tree>();
@@ -624,7 +647,7 @@ export class ProofFileParser {
           section: 'trees',
           reference: treeId,
         });
-        continue;
+        return;
       }
 
       const treeResult = Tree.create('document', position.value);
@@ -635,7 +658,7 @@ export class ProofFileParser {
           section: 'trees',
           reference: treeId,
         });
-        continue;
+        return;
       }
 
       const tree = treeResult.value;
@@ -665,7 +688,7 @@ export class ProofFileParser {
   private createNodesForTree(
     nodesData: Record<string, NodeSpec>,
     atomicArguments: Map<string, AtomicArgument>,
-    tree: Tree
+    tree: Tree,
   ): Result<Map<string, Node>, ParseError[]> {
     const errors: ParseError[] = [];
     const nodes = new Map<string, Node>();
@@ -681,7 +704,7 @@ export class ProofFileParser {
           section: 'trees',
           reference: `${tree.getId().getValue()}.${nodeId}`,
         });
-        continue;
+        return;
       }
 
       if (!atomicArguments.has(argumentId)) {
@@ -691,7 +714,7 @@ export class ProofFileParser {
           section: 'trees',
           reference: `${tree.getId().getValue()}.${nodeId}`,
         });
-        continue;
+        return;
       }
 
       const argumentIdResult = AtomicArgumentId.create(argumentId);
@@ -702,7 +725,7 @@ export class ProofFileParser {
           section: 'trees',
           reference: `${tree.getId().getValue()}.${nodeId}`,
         });
-        continue;
+        return;
       }
 
       // Determine if this is a root node (no parent specified) or child node
@@ -724,7 +747,7 @@ export class ProofFileParser {
           section: 'trees',
           reference: `${tree.getId().getValue()}.${nodeId}`,
         });
-        continue;
+        return;
       }
 
       nodes.set(nodeId, nodeResult.value);
@@ -733,18 +756,18 @@ export class ProofFileParser {
     // Second pass: Set up attachments for child nodes
     for (const [nodeId, nodeSpec] of Object.entries(nodesData)) {
       if (this.isRootNode(nodeSpec)) {
-        continue; // Skip root nodes
+        return; // Skip root nodes
       }
 
       const node = nodes.get(nodeId);
       if (!node) {
-        continue; // Skip if node creation failed
+        return; // Skip if node creation failed
       }
 
       const attachmentResult = this.createAttachment(nodeSpec, nodes, tree.getId().getValue());
       if (attachmentResult.isErr()) {
         errors.push(...attachmentResult.error);
-        continue;
+        return;
       }
 
       const attachResult = node.attachToParent(attachmentResult.value);
@@ -786,7 +809,7 @@ export class ProofFileParser {
   private createAttachment(
     nodeSpec: NodeSpec,
     nodes: Map<string, Node>,
-    treeId: string
+    treeId: string,
   ): Result<Attachment, ParseError[]> {
     const errors: ParseError[] = [];
 
@@ -805,13 +828,17 @@ export class ProofFileParser {
           // Handle "from:to" format
           const parts = value.split(':');
           if (parts.length === 2) {
-            fromPosition = parseInt(parts[0]!, 10);
-            position = parseInt(parts[1]!, 10);
+            const fromPart = parts[0];
+            const toPart = parts[1];
+            if (fromPart && toPart) {
+              fromPosition = Number.parseInt(fromPart, 10);
+              position = Number.parseInt(toPart, 10);
+            }
           } else {
-            position = parseInt(value, 10);
+            position = Number.parseInt(value, 10);
           }
         }
-        continue;
+        return;
       }
 
       // This key should be a parent node ID
@@ -835,7 +862,7 @@ export class ProofFileParser {
       return err(errors);
     }
 
-    if (position === undefined || isNaN(position)) {
+    if (position === undefined || Number.isNaN(position)) {
       errors.push({
         type: ParseErrorType.INVALID_TREE_STRUCTURE,
         message: 'Child node must specify a valid position',

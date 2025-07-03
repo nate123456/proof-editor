@@ -188,7 +188,7 @@ describe('Timestamp', () => {
 
     it('should create different timestamps on subsequent calls', async () => {
       const timestamp1 = Timestamp.now();
-      await new Promise(resolve => setTimeout(resolve, 1)); // Wait 1ms
+      await new Promise((resolve) => setTimeout(resolve, 1)); // Wait 1ms
       const timestamp2 = Timestamp.now();
 
       expect(timestamp1.getMilliseconds()).toBeLessThanOrEqual(timestamp2.getMilliseconds());

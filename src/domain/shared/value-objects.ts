@@ -1,6 +1,6 @@
 // Simple UUID generation for development
 function randomUUID(): string {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
     const r = (Math.random() * 16) | 0;
     const v = c === 'x' ? r : (r & 0x3) | 0x8;
     return v.toString(16);
@@ -9,12 +9,15 @@ function randomUUID(): string {
 
 // Number compatibility functions
 function isInteger(value: number): boolean {
-  return typeof value === 'number' && globalThis.isFinite(value) && Math.floor(value) === value;
+  return (
+    typeof value === 'number' && globalThis.Number.isFinite(value) && Math.floor(value) === value
+  );
 }
 
-function isFinite(value: number): boolean {
-  return typeof value === 'number' && globalThis.isFinite(value);
+function isFiniteNumber(value: number): boolean {
+  return typeof value === 'number' && globalThis.Number.isFinite(value);
 }
+
 import { err, ok, type Result, ValidationError } from './result.js';
 
 export abstract class ValueObject<T> {
@@ -40,6 +43,8 @@ declare const NodeIdBrand: unique symbol;
 declare const TreeIdBrand: unique symbol;
 declare const DocumentIdBrand: unique symbol;
 declare const PackageIdBrand: unique symbol;
+declare const ProofIdBrand: unique symbol;
+declare const ProofTreeIdBrand: unique symbol;
 
 type BrandedStatementId = string & { readonly [StatementIdBrand]: never };
 type BrandedOrderedSetId = string & { readonly [OrderedSetIdBrand]: never };
@@ -48,6 +53,8 @@ type BrandedNodeId = string & { readonly [NodeIdBrand]: never };
 type BrandedTreeId = string & { readonly [TreeIdBrand]: never };
 type BrandedDocumentId = string & { readonly [DocumentIdBrand]: never };
 type BrandedPackageId = string & { readonly [PackageIdBrand]: never };
+type BrandedProofId = string & { readonly [ProofIdBrand]: never };
+type BrandedProofTreeId = string & { readonly [ProofTreeIdBrand]: never };
 
 export class StatementId extends ValueObject<BrandedStatementId> {
   private constructor(value: string) {
@@ -61,7 +68,7 @@ export class StatementId extends ValueObject<BrandedStatementId> {
 
     if (value.length > 255) {
       return err(
-        new ValidationError('StatementId cannot exceed 255 characters', { field: 'value', value })
+        new ValidationError('StatementId cannot exceed 255 characters', { field: 'value', value }),
       );
     }
 
@@ -93,7 +100,7 @@ export class OrderedSetId extends ValueObject<BrandedOrderedSetId> {
 
     if (value.length > 255) {
       return err(
-        new ValidationError('OrderedSetId cannot exceed 255 characters', { field: 'value', value })
+        new ValidationError('OrderedSetId cannot exceed 255 characters', { field: 'value', value }),
       );
     }
 
@@ -121,7 +128,7 @@ export class AtomicArgumentId extends ValueObject<BrandedAtomicArgumentId> {
   static create(value: string): Result<AtomicArgumentId, ValidationError> {
     if (!value || value.trim().length === 0) {
       return err(
-        new ValidationError('AtomicArgumentId cannot be empty', { field: 'value', value })
+        new ValidationError('AtomicArgumentId cannot be empty', { field: 'value', value }),
       );
     }
 
@@ -130,7 +137,7 @@ export class AtomicArgumentId extends ValueObject<BrandedAtomicArgumentId> {
         new ValidationError('AtomicArgumentId cannot exceed 255 characters', {
           field: 'value',
           value,
-        })
+        }),
       );
     }
 
@@ -162,7 +169,7 @@ export class NodeId extends ValueObject<BrandedNodeId> {
 
     if (value.length > 255) {
       return err(
-        new ValidationError('NodeId cannot exceed 255 characters', { field: 'value', value })
+        new ValidationError('NodeId cannot exceed 255 characters', { field: 'value', value }),
       );
     }
 
@@ -194,7 +201,7 @@ export class TreeId extends ValueObject<BrandedTreeId> {
 
     if (value.length > 255) {
       return err(
-        new ValidationError('TreeId cannot exceed 255 characters', { field: 'value', value })
+        new ValidationError('TreeId cannot exceed 255 characters', { field: 'value', value }),
       );
     }
 
@@ -226,7 +233,7 @@ export class DocumentId extends ValueObject<BrandedDocumentId> {
 
     if (value.length > 255) {
       return err(
-        new ValidationError('DocumentId cannot exceed 255 characters', { field: 'value', value })
+        new ValidationError('DocumentId cannot exceed 255 characters', { field: 'value', value }),
       );
     }
 
@@ -258,7 +265,7 @@ export class PackageId extends ValueObject<BrandedPackageId> {
 
     if (value.length > 255) {
       return err(
-        new ValidationError('PackageId cannot exceed 255 characters', { field: 'value', value })
+        new ValidationError('PackageId cannot exceed 255 characters', { field: 'value', value }),
       );
     }
 
@@ -289,14 +296,14 @@ export class StatementContent extends ValueObject<string> {
         new ValidationError('StatementContent cannot be null or undefined', {
           field: 'value',
           value,
-        })
+        }),
       );
     }
 
     const trimmed = value.trim();
     if (trimmed.length === 0) {
       return err(
-        new ValidationError('StatementContent cannot be empty', { field: 'value', value })
+        new ValidationError('StatementContent cannot be empty', { field: 'value', value }),
       );
     }
 
@@ -305,7 +312,7 @@ export class StatementContent extends ValueObject<string> {
         new ValidationError('StatementContent cannot exceed 10000 characters', {
           field: 'value',
           value,
-        })
+        }),
       );
     }
 
@@ -325,7 +332,7 @@ export class StatementContent extends ValueObject<string> {
   }
 
   get wordCount(): number {
-    return this.value.split(/\s+/).filter(word => word.length > 0).length;
+    return this.value.split(/\s+/).filter((word) => word.length > 0).length;
   }
 }
 
@@ -337,7 +344,7 @@ export class Version extends ValueObject<number> {
   static create(value: number): Result<Version, ValidationError> {
     if (!isInteger(value) || value < 0) {
       return err(
-        new ValidationError('Version must be a non-negative integer', { field: 'value', value })
+        new ValidationError('Version must be a non-negative integer', { field: 'value', value }),
       );
     }
 
@@ -369,7 +376,7 @@ export class Timestamp extends ValueObject<number> {
   static create(value: number): Result<Timestamp, ValidationError> {
     if (!isInteger(value) || value < 0) {
       return err(
-        new ValidationError('Timestamp must be a non-negative integer', { field: 'value', value })
+        new ValidationError('Timestamp must be a non-negative integer', { field: 'value', value }),
       );
     }
 
@@ -400,19 +407,19 @@ export class Timestamp extends ValueObject<number> {
 export class Position2D {
   private constructor(
     private readonly x: number,
-    private readonly y: number
+    private readonly y: number,
   ) {}
 
   static create(x: number, y: number): Result<Position2D, ValidationError> {
-    if (!isFinite(x)) {
+    if (!isFiniteNumber(x)) {
       return err(
-        new ValidationError('X coordinate must be a finite number', { field: 'x', value: x })
+        new ValidationError('X coordinate must be a finite number', { field: 'x', value: x }),
       );
     }
 
-    if (!isFinite(y)) {
+    if (!isFiniteNumber(y)) {
       return err(
-        new ValidationError('Y coordinate must be a finite number', { field: 'y', value: y })
+        new ValidationError('Y coordinate must be a finite number', { field: 'y', value: y }),
       );
     }
 
@@ -454,20 +461,20 @@ export class Attachment {
   private constructor(
     private readonly parentNodeId: NodeId,
     private readonly premisePosition: number,
-    private readonly fromPosition?: number
+    private readonly fromPosition?: number,
   ) {}
 
   static create(
     parentNodeId: NodeId,
     premisePosition: number,
-    fromPosition?: number
+    fromPosition?: number,
   ): Result<Attachment, ValidationError> {
     if (premisePosition < 0 || !isInteger(premisePosition)) {
       return err(
         new ValidationError('Premise position must be a non-negative integer', {
           field: 'premisePosition',
           value: premisePosition,
-        })
+        }),
       );
     }
 
@@ -476,7 +483,7 @@ export class Attachment {
         new ValidationError('From position must be a non-negative integer', {
           field: 'fromPosition',
           value: fromPosition,
-        })
+        }),
       );
     }
 
@@ -525,7 +532,7 @@ export class PhysicalProperties {
     private readonly minWidth: number,
     private readonly minHeight: number,
     private readonly expansionDirection: ExpansionDirection,
-    private readonly alignmentMode: AlignmentMode
+    private readonly alignmentMode: AlignmentMode,
   ) {}
 
   static create(
@@ -535,41 +542,41 @@ export class PhysicalProperties {
     minWidth = 100,
     minHeight = 80,
     expansionDirection: ExpansionDirection = 'vertical',
-    alignmentMode: AlignmentMode = 'center'
+    alignmentMode: AlignmentMode = 'center',
   ): Result<PhysicalProperties, ValidationError> {
-    if (spacingX < 0 || !isFinite(spacingX)) {
+    if (spacingX < 0 || !isFiniteNumber(spacingX)) {
       return err(
         new ValidationError('Horizontal spacing must be non-negative and finite', {
           field: 'spacingX',
           value: spacingX,
-        })
+        }),
       );
     }
 
-    if (spacingY < 0 || !isFinite(spacingY)) {
+    if (spacingY < 0 || !isFiniteNumber(spacingY)) {
       return err(
         new ValidationError('Vertical spacing must be non-negative and finite', {
           field: 'spacingY',
           value: spacingY,
-        })
+        }),
       );
     }
 
-    if (minWidth <= 0 || !isFinite(minWidth)) {
+    if (minWidth <= 0 || !isFiniteNumber(minWidth)) {
       return err(
         new ValidationError('Minimum width must be positive and finite', {
           field: 'minWidth',
           value: minWidth,
-        })
+        }),
       );
     }
 
-    if (minHeight <= 0 || !isFinite(minHeight)) {
+    if (minHeight <= 0 || !isFiniteNumber(minHeight)) {
       return err(
         new ValidationError('Minimum height must be positive and finite', {
           field: 'minHeight',
           value: minHeight,
-        })
+        }),
       );
     }
 
@@ -581,8 +588,8 @@ export class PhysicalProperties {
         minWidth,
         minHeight,
         expansionDirection,
-        alignmentMode
-      )
+        alignmentMode,
+      ),
     );
   }
 
@@ -626,7 +633,7 @@ export class PhysicalProperties {
       this.minWidth,
       this.minHeight,
       this.expansionDirection,
-      this.alignmentMode
+      this.alignmentMode,
     );
   }
 
@@ -638,13 +645,13 @@ export class PhysicalProperties {
       this.minWidth,
       this.minHeight,
       this.expansionDirection,
-      this.alignmentMode
+      this.alignmentMode,
     );
   }
 
   withMinDimensions(
     minWidth: number,
-    minHeight: number
+    minHeight: number,
   ): Result<PhysicalProperties, ValidationError> {
     return PhysicalProperties.create(
       this.layoutStyle,
@@ -653,12 +660,12 @@ export class PhysicalProperties {
       minWidth,
       minHeight,
       this.expansionDirection,
-      this.alignmentMode
+      this.alignmentMode,
     );
   }
 
   withExpansionDirection(
-    expansionDirection: ExpansionDirection
+    expansionDirection: ExpansionDirection,
   ): Result<PhysicalProperties, ValidationError> {
     return PhysicalProperties.create(
       this.layoutStyle,
@@ -667,7 +674,7 @@ export class PhysicalProperties {
       this.minWidth,
       this.minHeight,
       expansionDirection,
-      this.alignmentMode
+      this.alignmentMode,
     );
   }
 
@@ -679,7 +686,7 @@ export class PhysicalProperties {
       this.minWidth,
       this.minHeight,
       this.expansionDirection,
-      alignmentMode
+      alignmentMode,
     );
   }
 
@@ -713,5 +720,69 @@ export class PhysicalProperties {
 
   toString(): string {
     return `${this.layoutStyle}(${this.spacingX}×${this.spacingY}, min:${this.minWidth}×${this.minHeight})`;
+  }
+}
+
+export class ProofId extends ValueObject<BrandedProofId> {
+  private constructor(value: string) {
+    super(value as BrandedProofId);
+  }
+
+  static create(value: string): Result<ProofId, ValidationError> {
+    if (!value || value.trim().length === 0) {
+      return err(new ValidationError('ProofId cannot be empty', { field: 'value', value }));
+    }
+
+    if (value.length > 255) {
+      return err(
+        new ValidationError('ProofId cannot exceed 255 characters', { field: 'value', value }),
+      );
+    }
+
+    return ok(new ProofId(value.trim()));
+  }
+
+  static generate(): ProofId {
+    return new ProofId(randomUUID());
+  }
+
+  static fromString(value: string): ProofId {
+    const result = ProofId.create(value);
+    if (result.isErr()) {
+      throw result.error;
+    }
+    return result.value;
+  }
+}
+
+export class ProofTreeId extends ValueObject<BrandedProofTreeId> {
+  private constructor(value: string) {
+    super(value as BrandedProofTreeId);
+  }
+
+  static create(value: string): Result<ProofTreeId, ValidationError> {
+    if (!value || value.trim().length === 0) {
+      return err(new ValidationError('ProofTreeId cannot be empty', { field: 'value', value }));
+    }
+
+    if (value.length > 255) {
+      return err(
+        new ValidationError('ProofTreeId cannot exceed 255 characters', { field: 'value', value }),
+      );
+    }
+
+    return ok(new ProofTreeId(value.trim()));
+  }
+
+  static generate(): ProofTreeId {
+    return new ProofTreeId(randomUUID());
+  }
+
+  static fromString(value: string): ProofTreeId {
+    const result = ProofTreeId.create(value);
+    if (result.isErr()) {
+      throw result.error;
+    }
+    return result.value;
   }
 }

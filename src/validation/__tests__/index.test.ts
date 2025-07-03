@@ -10,7 +10,7 @@ describe('validation module exports', () => {
   it('should export ErrorMapper', async () => {
     const module = await import('../index.js');
     expect(module.ErrorMapper).toBeDefined();
-    expect(typeof module.ErrorMapper).toBe('function');
+    expect(typeof module.ErrorMapper).toBe('object');
   });
 
   it('should export ValidationController', async () => {
@@ -26,7 +26,8 @@ describe('validation module exports', () => {
     expect(exports).toContain('ProofDiagnosticProvider');
     expect(exports).toContain('ErrorMapper');
     expect(exports).toContain('ValidationController');
-    expect(exports).toHaveLength(3);
+    expect(exports).toContain('convertParseErrorToDiagnostic');
+    expect(exports).toHaveLength(4);
   });
 
   it('should be able to import all exports in a single statement', async () => {

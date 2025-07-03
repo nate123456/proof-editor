@@ -1,18 +1,17 @@
 import { err, ok, type Result } from 'neverthrow';
-
-import { type Dependency } from '../entities/Dependency.js';
-import { type Package } from '../entities/Package.js';
-import { type IDependencyRepository } from '../repositories/IDependencyRepository.js';
+import type { Dependency } from '../entities/Dependency.js';
+import type { Package } from '../entities/Package.js';
+import type { IDependencyRepository } from '../repositories/IDependencyRepository.js';
 import {
   PackageNotFoundError,
   type PackageSourceUnavailableError,
   PackageValidationError,
 } from '../types/domain-errors.js';
-import { PackageId } from '../value-objects/package-id.js';
 import { PackageVersion } from '../value-objects/PackageVersion.js';
-import { type VersionConstraint } from '../value-objects/version-constraint.js';
-import { type PackageDiscoveryService } from './package-discovery-service.js';
-import { type VersionResolutionService } from './VersionResolutionService.js';
+import { PackageId } from '../value-objects/package-id.js';
+import type { VersionConstraint } from '../value-objects/version-constraint.js';
+import type { PackageDiscoveryService } from './package-discovery-service.js';
+import type { VersionResolutionService } from './VersionResolutionService.js';
 
 export interface DependencyResolutionPlan {
   readonly rootPackage: Package;
@@ -49,12 +48,12 @@ export class DependencyResolutionService {
   constructor(
     private readonly dependencyRepository: IDependencyRepository,
     private readonly packageDiscoveryService: PackageDiscoveryService,
-    private readonly versionResolutionService: VersionResolutionService
+    private readonly versionResolutionService: VersionResolutionService,
   ) {}
 
   async resolveDependenciesForPackage(
     rootPackage: Package,
-    options: { includeDevDependencies?: boolean; maxDepth?: number } = {}
+    options: { includeDevDependencies?: boolean; maxDepth?: number } = {},
   ): Promise<
     Result<
       DependencyResolutionPlan,
@@ -77,7 +76,7 @@ export class DependencyResolutionService {
       visited,
       versionMap,
       options.includeDevDependencies ?? false,
-      new Set()
+      new Set(),
     );
 
     if (resolutionResult.isErr()) {
@@ -103,7 +102,7 @@ export class DependencyResolutionService {
 
   async buildDependencyTree(
     rootPackage: Package,
-    maxDepth = 5
+    maxDepth = 5,
   ): Promise<Result<DependencyTree, PackageNotFoundError | PackageValidationError>> {
     const treeResult = await this.buildTreeRecursively(rootPackage, 0, maxDepth, new Set());
     if (treeResult.isErr()) {
@@ -114,7 +113,7 @@ export class DependencyResolutionService {
   }
 
   async findCircularDependencies(
-    rootPackage: Package
+    rootPackage: Package,
   ): Promise<Result<readonly PackageId[][], PackageNotFoundError | PackageValidationError>> {
     const cycles: PackageId[][] = [];
     const visited = new Set<string>();
@@ -126,7 +125,7 @@ export class DependencyResolutionService {
       visited,
       recursionStack,
       currentPath,
-      cycles
+      cycles,
     );
 
     if (result.isErr()) {
@@ -138,7 +137,7 @@ export class DependencyResolutionService {
 
   validateDependencyCompatibility(
     packageA: Package,
-    packageB: Package
+    packageB: Package,
   ): Result<boolean, PackageValidationError> {
     const aRequiresProofEditor = packageA.getManifest().getRequiredProofEditorVersion();
     const aRequiresNode = packageA.getManifest().getRequiredNodeVersion();
@@ -149,13 +148,13 @@ export class DependencyResolutionService {
     if (aRequiresProofEditor && bRequiresProofEditor) {
       const compatibilityResult = this.checkVersionCompatibility(
         aRequiresProofEditor,
-        bRequiresProofEditor
+        bRequiresProofEditor,
       );
       if (compatibilityResult.isErr()) {
         return err(
           new PackageValidationError(
-            `Incompatible Proof Editor version requirements: ${packageA.getId().toString()} requires ${aRequiresProofEditor}, ${packageB.getId().toString()} requires ${bRequiresProofEditor}`
-          )
+            `Incompatible Proof Editor version requirements: ${packageA.getId().toString()} requires ${aRequiresProofEditor}, ${packageB.getId().toString()} requires ${bRequiresProofEditor}`,
+          ),
         );
       }
     }
@@ -165,8 +164,8 @@ export class DependencyResolutionService {
       if (compatibilityResult.isErr()) {
         return err(
           new PackageValidationError(
-            `Incompatible Node.js version requirements: ${packageA.getId().toString()} requires ${aRequiresNode}, ${packageB.getId().toString()} requires ${bRequiresNode}`
-          )
+            `Incompatible Node.js version requirements: ${packageA.getId().toString()} requires ${aRequiresNode}, ${packageB.getId().toString()} requires ${bRequiresNode}`,
+          ),
         );
       }
     }
@@ -181,7 +180,7 @@ export class DependencyResolutionService {
     visited: Set<string>,
     versionMap: Map<string, PackageVersion[]>,
     includeDevDependencies: boolean,
-    recursionStack = new Set<string>()
+    recursionStack = new Set<string>(),
   ): Promise<
     Result<void, PackageNotFoundError | PackageValidationError | PackageSourceUnavailableError>
   > {
@@ -204,7 +203,7 @@ export class DependencyResolutionService {
     recursionStack.add(packageKey);
 
     const dependenciesResult = await this.dependencyRepository.findDependenciesForPackage(
-      currentPackage.getId()
+      currentPackage.getId(),
     );
     if (dependenciesResult.isErr()) {
       return err(dependenciesResult.error);
@@ -216,7 +215,7 @@ export class DependencyResolutionService {
       }
 
       const packageResult = await this.packageDiscoveryService.findPackageById(
-        dependency.getTargetPackageId()
+        dependency.getTargetPackageId(),
       );
       if (packageResult.isErr()) {
         return err(packageResult.error);
@@ -232,7 +231,7 @@ export class DependencyResolutionService {
 
       const versionResolutionResult = await this.resolveVersionFromConstraint(
         resolvedPackage,
-        dependency.getVersionConstraint()
+        dependency.getVersionConstraint(),
       );
 
       if (versionResolutionResult.isErr()) {
@@ -255,7 +254,7 @@ export class DependencyResolutionService {
       if (!versionMap.has(packageId)) {
         versionMap.set(packageId, []);
       }
-      versionMap.get(packageId)!.push(resolvedVersion);
+      versionMap.get(packageId)?.push(resolvedVersion);
 
       const recursionResult = await this.resolveRecursively(
         resolvedPackage,
@@ -265,7 +264,7 @@ export class DependencyResolutionService {
         visited,
         versionMap,
         includeDevDependencies,
-        recursionStack
+        recursionStack,
       );
 
       if (recursionResult.isErr()) {
@@ -282,7 +281,7 @@ export class DependencyResolutionService {
     currentPackage: Package,
     depth: number,
     maxDepth: number,
-    visited: Set<string>
+    visited: Set<string>,
   ): Promise<Result<DependencyTree, PackageNotFoundError | PackageValidationError>> {
     if (depth > maxDepth) {
       return ok({
@@ -304,7 +303,7 @@ export class DependencyResolutionService {
     visited.add(packageKey);
 
     const dependenciesResult = await this.dependencyRepository.findDependenciesForPackage(
-      currentPackage.getId()
+      currentPackage.getId(),
     );
     if (dependenciesResult.isErr()) {
       return err(dependenciesResult.error);
@@ -314,7 +313,7 @@ export class DependencyResolutionService {
 
     for (const dependency of dependenciesResult.value) {
       const packageResult = await this.packageDiscoveryService.findPackageById(
-        dependency.getTargetPackageId()
+        dependency.getTargetPackageId(),
       );
       if (packageResult.isErr()) {
         continue;
@@ -324,7 +323,7 @@ export class DependencyResolutionService {
         packageResult.value,
         depth + 1,
         maxDepth,
-        new Set(visited)
+        new Set(visited),
       );
 
       if (childTreeResult.isOk()) {
@@ -344,12 +343,12 @@ export class DependencyResolutionService {
     visited: Set<string>,
     recursionStack: Set<string>,
     currentPath: PackageId[],
-    cycles: PackageId[][]
+    cycles: PackageId[][],
   ): Promise<Result<void, PackageNotFoundError | PackageValidationError>> {
     const packageKey = currentPackage.getId().toString();
 
     if (recursionStack.has(packageKey)) {
-      const cycleStart = currentPath.findIndex(id => id.toString() === packageKey);
+      const cycleStart = currentPath.findIndex((id) => id.toString() === packageKey);
       if (cycleStart !== -1) {
         cycles.push([...currentPath.slice(cycleStart), currentPackage.getId()]);
       }
@@ -365,12 +364,12 @@ export class DependencyResolutionService {
     currentPath.push(currentPackage.getId());
 
     const dependenciesResult = await this.dependencyRepository.findDependenciesForPackage(
-      currentPackage.getId()
+      currentPackage.getId(),
     );
     if (dependenciesResult.isOk()) {
       for (const dependency of dependenciesResult.value) {
         const packageResult = await this.packageDiscoveryService.findPackageById(
-          dependency.getTargetPackageId()
+          dependency.getTargetPackageId(),
         );
         if (packageResult.isOk()) {
           const recursionResult = await this.findCyclesRecursively(
@@ -378,7 +377,7 @@ export class DependencyResolutionService {
             visited,
             recursionStack,
             currentPath,
-            cycles
+            cycles,
           );
 
           if (recursionResult.isErr()) {
@@ -396,14 +395,14 @@ export class DependencyResolutionService {
 
   private async resolveVersionFromConstraint(
     packageEntity: Package,
-    constraint: VersionConstraint
+    constraint: VersionConstraint,
   ): Promise<Result<PackageVersion, PackageSourceUnavailableError | PackageNotFoundError>> {
     const gitSource = packageEntity.getSource().asGitSource();
     if (!gitSource) {
       const versionResult = PackageVersion.create(packageEntity.getVersion());
       if (versionResult.isErr()) {
         return err(
-          new PackageNotFoundError(`Invalid version format: ${versionResult.error.message}`)
+          new PackageNotFoundError(`Invalid version format: ${versionResult.error.message}`),
         );
       }
       return ok(versionResult.value);
@@ -411,7 +410,7 @@ export class DependencyResolutionService {
 
     const resolutionResult = await this.versionResolutionService.resolveVersionConstraint(
       gitSource.url,
-      constraint
+      constraint,
     );
 
     if (resolutionResult.isErr()) {
@@ -424,24 +423,30 @@ export class DependencyResolutionService {
   private detectConflicts(
     versionMap: Map<string, PackageVersion[]>,
     conflicts: DependencyConflict[],
-    resolvedDependencies: readonly ResolvedDependency[]
+    resolvedDependencies: readonly ResolvedDependency[],
   ): void {
     for (const [packageId, versions] of Array.from(versionMap.entries())) {
       if (versions.length <= 1) {
         continue;
       }
 
-      const uniqueVersions = Array.from(new Set(versions.map(v => v.toString())))
-        .map(vStr => versions.find(v => v.toString() === vStr)!)
+      const uniqueVersions = Array.from(new Set(versions.map((v) => v.toString())))
+        .map((vStr) => {
+          const foundVersion = versions.find((v) => v.toString() === vStr);
+          if (!foundVersion) {
+            throw new Error(`Version string ${vStr} not found in versions array`);
+          }
+          return foundVersion;
+        })
         .sort((a, b) => b.compareWith(a));
 
       if (uniqueVersions.length > 1) {
         const requiredBy = resolvedDependencies
-          .filter(rd => rd.resolvedPackage.getId().toString() === packageId)
-          .map(rd => rd.dependency.getTargetPackageId());
+          .filter((rd) => rd.resolvedPackage.getId().toString() === packageId)
+          .map((rd) => rd.dependency.getTargetPackageId());
 
         const hasIncompatibleVersions = uniqueVersions.some((v1, i) =>
-          uniqueVersions.slice(i + 1).some(v2 => !v1.isCompatibleWith(v2))
+          uniqueVersions.slice(i + 1).some((v2) => !v1.isCompatibleWith(v2)),
         );
 
         const conflict: DependencyConflict = {
@@ -466,7 +471,7 @@ export class DependencyResolutionService {
   }
 
   private calculateInstallationOrder(
-    resolvedDependencies: readonly ResolvedDependency[]
+    resolvedDependencies: readonly ResolvedDependency[],
   ): readonly PackageId[] {
     // Simple approach: sort by depth, deepest dependencies first
     // Packages at higher depth should be installed before packages at lower depth
@@ -482,12 +487,12 @@ export class DependencyResolutionService {
         .localeCompare(b.resolvedPackage.getId().toString());
     });
 
-    return sortedDeps.map(dep => dep.resolvedPackage.getId());
+    return sortedDeps.map((dep) => dep.resolvedPackage.getId());
   }
 
   private checkVersionCompatibility(
     versionA: string,
-    versionB: string
+    versionB: string,
   ): Result<boolean, PackageValidationError> {
     const versionAResult = PackageVersion.create(versionA);
     const versionBResult = PackageVersion.create(versionB);

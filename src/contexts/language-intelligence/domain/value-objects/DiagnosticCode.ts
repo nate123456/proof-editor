@@ -6,7 +6,7 @@ export class DiagnosticCode {
   private constructor(
     private readonly code: string,
     private readonly category: DiagnosticCategory,
-    private readonly severity: 'error' | 'warning' | 'info'
+    private readonly severity: 'error' | 'warning' | 'info',
   ) {}
 
   static create(code: string): Result<DiagnosticCode, ValidationError> {

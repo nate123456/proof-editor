@@ -31,7 +31,7 @@ const validTimestampArbitrary = fc.nat();
 const createTestAttachment = (
   parentNodeId?: NodeId,
   premisePosition = 0,
-  fromPosition?: number | null
+  fromPosition?: number | null,
 ) => {
   const parentId = parentNodeId ?? nodeIdFactory.build();
   // Convert null to undefined for the Attachment.create API
@@ -48,7 +48,9 @@ describe('Node Entity', () => {
   const FIXED_TIMESTAMP = 1640995200000; // 2022-01-01T00:00:00.000Z
 
   beforeEach(() => {
-    mockDateNow = vi.spyOn(Date, 'now').mockReturnValue(FIXED_TIMESTAMP);
+    mockDateNow = vi.spyOn(Date, 'now').mockReturnValue(FIXED_TIMESTAMP) as ReturnType<
+      typeof vi.fn
+    >;
   });
 
   afterEach(() => {
@@ -159,7 +161,7 @@ describe('Node Entity', () => {
     describe('property-based creation testing', () => {
       it('should handle various argument IDs for root nodes', () => {
         fc.assert(
-          fc.property(validAtomicArgumentIdArbitrary, argumentId => {
+          fc.property(validAtomicArgumentIdArbitrary, (argumentId) => {
             const result = Node.createRoot(argumentId);
             expect(result.isOk()).toBe(true);
 
@@ -169,7 +171,7 @@ describe('Node Entity', () => {
               expect(node.isRoot()).toBe(true);
               expect(node.getAttachment()).toBeNull();
             }
-          })
+          }),
         );
       });
 
@@ -193,8 +195,8 @@ describe('Node Entity', () => {
                 expect(node.getPremisePosition()).toBe(position);
                 expect(node.getFromPosition()).toBe(fromPosition ?? null);
               }
-            }
-          )
+            },
+          ),
         );
       });
     });
@@ -261,8 +263,8 @@ describe('Node Entity', () => {
                 expect(node.getCreatedAt()).toBe(createdAt);
                 expect(node.getModifiedAt()).toBe(modifiedAt);
               }
-            }
-          )
+            },
+          ),
         );
       });
     });
@@ -458,7 +460,7 @@ describe('Node Entity', () => {
           expect(attachResult.isErr()).toBe(true);
           if (attachResult.isErr()) {
             customExpect(attachResult.error).toBeValidationError(
-              'Node is already attached to a parent'
+              'Node is already attached to a parent',
             );
           }
         }
@@ -496,7 +498,7 @@ describe('Node Entity', () => {
           expect(detachResult.isErr()).toBe(true);
           if (detachResult.isErr()) {
             customExpect(detachResult.error).toBeValidationError(
-              'Node is not attached to a parent'
+              'Node is not attached to a parent',
             );
           }
         }
@@ -537,7 +539,7 @@ describe('Node Entity', () => {
           expect(changeResult.isErr()).toBe(true);
           if (changeResult.isErr()) {
             customExpect(changeResult.error).toBeValidationError(
-              'Cannot change attachment of root node'
+              'Cannot change attachment of root node',
             );
           }
         }
@@ -642,7 +644,9 @@ describe('Node Entity', () => {
           expect(change1.isOk()).toBe(true);
 
           // Change position
-          const newAttachment2 = createTestAttachment(node.getParentNodeId()!, 2, 1);
+          const parentId = node.getParentNodeId();
+          if (!parentId) return;
+          const newAttachment2 = createTestAttachment(parentId, 2, 1);
           const change2 = node.changeAttachment(newAttachment2);
           expect(change2.isOk()).toBe(true);
           expect(node.getPremisePosition()).toBe(2);
@@ -711,7 +715,7 @@ describe('Node Entity', () => {
           argumentId,
           null,
           FIXED_TIMESTAMP,
-          FIXED_TIMESTAMP
+          FIXED_TIMESTAMP,
         );
         expect(reconstructResult.isOk()).toBe(true);
       });
@@ -780,7 +784,7 @@ describe('Node Entity', () => {
 
       it('should satisfy reflexivity property', () => {
         fc.assert(
-          fc.property(validAtomicArgumentIdArbitrary, argumentId => {
+          fc.property(validAtomicArgumentIdArbitrary, (argumentId) => {
             const result = Node.createRoot(argumentId);
             expect(result.isOk()).toBe(true);
 
@@ -788,7 +792,7 @@ describe('Node Entity', () => {
               const node = result.value;
               expect(node.equals(node)).toBe(true);
             }
-          })
+          }),
         );
       });
     });
@@ -861,7 +865,7 @@ describe('Node Entity', () => {
             validAtomicArgumentIdArbitrary,
             fc.array(
               fc.oneof(fc.constant('attach'), fc.constant('detach'), fc.constant('change')),
-              { maxLength: 5 }
+              { maxLength: 5 },
             ),
             (argumentId, operations) => {
               const result = Node.createRoot(argumentId);
@@ -905,8 +909,8 @@ describe('Node Entity', () => {
                 expect(node.canProvideInputToParent()).toBe(node.isChild());
                 expect(node.providesBottomUpFlow()).toBe(node.isChild());
               }
-            }
-          )
+            },
+          ),
         );
       });
     });
@@ -932,7 +936,7 @@ describe('Node Entity', () => {
                 expect(node.getPremisePosition()).toBe(position);
                 expect(node.getFromPosition()).toBe(fromPosition ?? null);
                 expect(node.hasMultipleConclusionSource()).toBe(
-                  fromPosition !== undefined && fromPosition !== null
+                  fromPosition !== undefined && fromPosition !== null,
                 );
 
                 // Relationship queries should be consistent
@@ -942,8 +946,8 @@ describe('Node Entity', () => {
                   expect(node.usesParentsConclusionFrom(fromPosition)).toBe(true);
                 }
               }
-            }
-          )
+            },
+          ),
         );
       });
     });

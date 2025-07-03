@@ -52,7 +52,7 @@ describe('GitPackageSource Interface', () => {
         'ssh://git@bitbucket.org/user/repo.git',
       ];
 
-      gitUrls.forEach(url => {
+      gitUrls.forEach((url) => {
         const source: GitPackageSource = {
           url,
           ref: 'main',
@@ -71,7 +71,7 @@ describe('GitPackageSource Interface', () => {
         'commit-sha-1234567890abcdef',
       ];
 
-      refs.forEach(ref => {
+      refs.forEach((ref) => {
         const source: GitPackageSource = {
           url: 'https://github.com/user/repo.git',
           ref,
@@ -117,8 +117,8 @@ describe('GitPackageSource Interface', () => {
             } else {
               expect(source.path).toBeUndefined();
             }
-          }
-        )
+          },
+        ),
       );
     });
   });
@@ -144,7 +144,7 @@ describe('LocalPackageSource Interface', () => {
         './packages/core',
       ];
 
-      paths.forEach(path => {
+      paths.forEach((path) => {
         const source: LocalPackageSource = { path };
         expect(source.path).toBe(path);
       });
@@ -164,10 +164,10 @@ describe('LocalPackageSource Interface', () => {
   describe('property-based testing', () => {
     it('should handle any valid path string', () => {
       fc.assert(
-        fc.property(fc.string({ minLength: 1 }), path => {
+        fc.property(fc.string({ minLength: 1 }), (path) => {
           const source: LocalPackageSource = { path };
           expect(source.path).toBe(path);
-        })
+        }),
       );
     });
   });
@@ -404,8 +404,8 @@ describe('PackageManifestData Interface', () => {
             if (license !== undefined) {
               expect(manifest.license).toBe(license);
             }
-          }
-        )
+          },
+        ),
       );
     });
   });
@@ -555,7 +555,7 @@ describe('DependencyInfo Interface', () => {
         '1.0.0-alpha.1',
       ];
 
-      constraints.forEach(constraint => {
+      constraints.forEach((constraint) => {
         const depInfo: DependencyInfo = {
           targetPackageId: 'test-package',
           versionConstraint: constraint,
@@ -588,8 +588,8 @@ describe('DependencyInfo Interface', () => {
             if (resolvedVersion !== undefined) {
               expect(depInfo.resolvedVersion).toBe(resolvedVersion);
             }
-          }
-        )
+          },
+        ),
       );
     });
   });
@@ -661,8 +661,8 @@ describe('SDKInterface Interface', () => {
             expect(sdkInterface.name).toBe(name);
             expect(sdkInterface.version).toBe(version);
             expect(sdkInterface.methods).toEqual(methods);
-          }
-        )
+          },
+        ),
       );
     });
   });
@@ -739,8 +739,8 @@ describe('ValidationResult Interface', () => {
             expect(result.isValid).toBe(isValid);
             expect(result.errors).toEqual(errors);
             expect(result.warnings).toEqual(warnings);
-          }
-        )
+          },
+        ),
       );
     });
   });
@@ -846,7 +846,7 @@ describe('SDKValidationResult Interface', () => {
               name: fc.string({ minLength: 1 }),
               version: fc.string({ minLength: 1 }),
               methods: fc.array(fc.string({ minLength: 1 })),
-            })
+            }),
           ),
           fc.array(fc.string()),
           fc.boolean(),
@@ -856,7 +856,7 @@ describe('SDKValidationResult Interface', () => {
             warnings,
             implementedInterfaces,
             missingInterfaces,
-            versionCompatibility
+            versionCompatibility,
           ) => {
             const sdkResult: SDKValidationResult = {
               isValid,
@@ -873,8 +873,8 @@ describe('SDKValidationResult Interface', () => {
             expect(sdkResult.implementedInterfaces).toEqual(implementedInterfaces);
             expect(sdkResult.missingInterfaces).toEqual(missingInterfaces);
             expect(sdkResult.versionCompatibility).toBe(versionCompatibility);
-          }
-        )
+          },
+        ),
       );
     });
   });

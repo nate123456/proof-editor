@@ -24,7 +24,7 @@ import { PerformanceMetrics } from '../../value-objects/PerformanceMetrics';
 // Mock factories for test data
 const createMockInsight = (
   category: InsightCategory = 'syntax',
-  highPriority = false
+  highPriority = false,
 ): AnalysisInsight => {
   const result = AnalysisInsight.create(
     category,
@@ -34,7 +34,7 @@ const createMockInsight = (
     0.85,
     ['Evidence 1'],
     ['Recommendation 1'],
-    ['pattern-1']
+    ['pattern-1'],
   );
   if (result.isErr()) {
     throw new Error('Failed to create mock insight');
@@ -54,7 +54,7 @@ const createMockPatternMatch = (patternType: PatternType = 'structural'): Patter
     locationResult.value,
     0.95,
     'matched text',
-    new Map([['var1', 'value1']])
+    new Map([['var1', 'value1']]),
   );
   if (result.isErr()) {
     throw new Error('Failed to create mock pattern match');
@@ -126,7 +126,7 @@ describe('AnalysisReport', () => {
         AnalysisScope.Full,
       ];
 
-      scopes.forEach(scope => {
+      scopes.forEach((scope) => {
         const result = AnalysisReport.create('doc-123', 'lang-456', scope);
         expect(result.isOk()).toBe(true);
         if (result.isOk()) {
@@ -152,7 +152,7 @@ describe('AnalysisReport', () => {
         insights,
         patternMatches,
         performanceMetrics,
-        recommendations
+        recommendations,
       );
 
       expect(result.isOk()).toBe(true);
@@ -174,7 +174,7 @@ describe('AnalysisReport', () => {
         AnalysisMetrics.empty(),
         [],
         [],
-        PerformanceMetrics.empty()
+        PerformanceMetrics.empty(),
       );
 
       expect(result.isOk()).toBe(true);
@@ -191,7 +191,7 @@ describe('AnalysisReport', () => {
         AnalysisMetrics.empty(),
         [],
         [],
-        PerformanceMetrics.empty()
+        PerformanceMetrics.empty(),
       );
 
       expect(result.isErr()).toBe(true);
@@ -208,7 +208,7 @@ describe('AnalysisReport', () => {
         AnalysisMetrics.empty(),
         [],
         [],
-        PerformanceMetrics.empty()
+        PerformanceMetrics.empty(),
       );
 
       expect(result.isErr()).toBe(true);
@@ -420,7 +420,7 @@ describe('AnalysisReport', () => {
           (() => {
             const result = PerformanceMetrics.create(100, 50, 512, 1024);
             return result.isOk() ? result.value : PerformanceMetrics.empty();
-          })()
+          })(),
         );
 
         if (completedResult.isOk()) {
@@ -442,7 +442,7 @@ describe('AnalysisReport', () => {
         metrics,
         [],
         [],
-        PerformanceMetrics.empty()
+        PerformanceMetrics.empty(),
       );
 
       expect(result.isOk()).toBe(true);
@@ -468,7 +468,7 @@ describe('AnalysisReport', () => {
         AnalysisMetrics.empty(),
         [],
         [],
-        performanceMetrics
+        performanceMetrics,
       );
 
       expect(result.isOk()).toBe(true);
@@ -502,7 +502,7 @@ describe('AnalysisReport', () => {
         insights,
         patternMatches,
         performanceMetrics,
-        ['Recommendation 1', 'Recommendation 2']
+        ['Recommendation 1', 'Recommendation 2'],
       );
 
       expect(result.isOk()).toBe(true);
@@ -551,7 +551,7 @@ describe('AnalysisReport', () => {
             type: 'linear-proof',
             name: 'Linear Proof Structure',
             confidence: 0.9,
-          })
+          }),
         );
       });
 
@@ -570,7 +570,7 @@ describe('AnalysisReport', () => {
             type: 'tree-proof',
             name: 'Tree Proof Structure',
             confidence: 0.85,
-          })
+          }),
         );
       });
 
@@ -589,7 +589,7 @@ describe('AnalysisReport', () => {
             type: 'convergent-reasoning',
             name: 'Convergent Reasoning',
             confidence: 0.8,
-          })
+          }),
         );
       });
 
@@ -603,7 +603,7 @@ describe('AnalysisReport', () => {
           expect.objectContaining({
             type: 'linear-proof',
             confidence: 0.9,
-          })
+          }),
         );
       });
     });

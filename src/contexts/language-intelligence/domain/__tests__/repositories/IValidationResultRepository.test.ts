@@ -32,17 +32,17 @@ describe('IValidationResultRepository', () => {
 
       // Create a mock implementation to verify interface structure
       const mockRepository: IValidationResultRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByDocumentId: () => Promise.resolve([]),
-        findByLanguagePackageId: () => Promise.resolve([]),
-        findRecentResults: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByDocumentId: async () => Promise.resolve([]),
+        findByLanguagePackageId: async () => Promise.resolve([]),
+        findRecentResults: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       // Verify all methods exist
-      repositoryMethods.forEach(method => {
+      repositoryMethods.forEach((method) => {
         expect(mockRepository).toHaveProperty(method);
         expect(typeof mockRepository[method as keyof IValidationResultRepository]).toBe('function');
       });
@@ -50,13 +50,13 @@ describe('IValidationResultRepository', () => {
 
     it('should have async methods that return correct types', () => {
       const mockRepository: IValidationResultRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByDocumentId: () => Promise.resolve([]),
-        findByLanguagePackageId: () => Promise.resolve([]),
-        findRecentResults: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByDocumentId: async () => Promise.resolve([]),
+        findByLanguagePackageId: async () => Promise.resolve([]),
+        findRecentResults: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       // All methods should be functions
@@ -73,16 +73,16 @@ describe('IValidationResultRepository', () => {
   describe('method signatures', () => {
     it('should accept correct parameter types for save', async () => {
       const mockRepository: IValidationResultRepository = {
-        save: (result: ValidationResult) => {
+        save: async (result: ValidationResult) => {
           expect(result).toBeDefined();
           return Promise.resolve(ok(undefined));
         },
-        findById: () => Promise.resolve(null),
-        findByDocumentId: () => Promise.resolve([]),
-        findByLanguagePackageId: () => Promise.resolve([]),
-        findRecentResults: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByDocumentId: async () => Promise.resolve([]),
+        findByLanguagePackageId: async () => Promise.resolve([]),
+        findRecentResults: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       const mockResult = {} as ValidationResult;
@@ -91,16 +91,16 @@ describe('IValidationResultRepository', () => {
 
     it('should accept correct parameter types for findById', async () => {
       const mockRepository: IValidationResultRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: (id: ValidationResultId) => {
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async (id: ValidationResultId) => {
           expect(id).toBeDefined();
           return Promise.resolve(null);
         },
-        findByDocumentId: () => Promise.resolve([]),
-        findByLanguagePackageId: () => Promise.resolve([]),
-        findRecentResults: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        findByDocumentId: async () => Promise.resolve([]),
+        findByLanguagePackageId: async () => Promise.resolve([]),
+        findRecentResults: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       const mockId = { getValue: () => 'test-id' } as ValidationResultId;
@@ -109,17 +109,17 @@ describe('IValidationResultRepository', () => {
 
     it('should accept correct parameter types for findByDocumentId', async () => {
       const mockRepository: IValidationResultRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByDocumentId: (documentId: string) => {
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByDocumentId: async (documentId: string) => {
           expect(documentId).toBeDefined();
           expect(typeof documentId).toBe('string');
           return Promise.resolve([]);
         },
-        findByLanguagePackageId: () => Promise.resolve([]),
-        findRecentResults: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        findByLanguagePackageId: async () => Promise.resolve([]),
+        findRecentResults: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       await mockRepository.findByDocumentId('test-doc-id');
@@ -127,17 +127,17 @@ describe('IValidationResultRepository', () => {
 
     it('should accept correct parameter types for findByLanguagePackageId', async () => {
       const mockRepository: IValidationResultRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByDocumentId: () => Promise.resolve([]),
-        findByLanguagePackageId: (languagePackageId: string) => {
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByDocumentId: async () => Promise.resolve([]),
+        findByLanguagePackageId: async (languagePackageId: string) => {
           expect(languagePackageId).toBeDefined();
           expect(typeof languagePackageId).toBe('string');
           return Promise.resolve([]);
         },
-        findRecentResults: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        findRecentResults: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       await mockRepository.findByLanguagePackageId('test-pkg-id');
@@ -145,18 +145,18 @@ describe('IValidationResultRepository', () => {
 
     it('should accept correct parameter types for findRecentResults', async () => {
       const mockRepository: IValidationResultRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByDocumentId: () => Promise.resolve([]),
-        findByLanguagePackageId: () => Promise.resolve([]),
-        findRecentResults: (limit: number) => {
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByDocumentId: async () => Promise.resolve([]),
+        findByLanguagePackageId: async () => Promise.resolve([]),
+        findRecentResults: async (limit: number) => {
           expect(limit).toBeDefined();
           expect(typeof limit).toBe('number');
           expect(limit).toBeGreaterThan(0);
           return Promise.resolve([]);
         },
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       await mockRepository.findRecentResults(10);
@@ -164,13 +164,13 @@ describe('IValidationResultRepository', () => {
 
     it('should accept correct parameter types for delete', async () => {
       const mockRepository: IValidationResultRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByDocumentId: () => Promise.resolve([]),
-        findByLanguagePackageId: () => Promise.resolve([]),
-        findRecentResults: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: (id: ValidationResultId) => {
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByDocumentId: async () => Promise.resolve([]),
+        findByLanguagePackageId: async () => Promise.resolve([]),
+        findRecentResults: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async (id: ValidationResultId) => {
           expect(id).toBeDefined();
           return Promise.resolve(ok(undefined));
         },
@@ -184,13 +184,13 @@ describe('IValidationResultRepository', () => {
   describe('return types', () => {
     it('should return Promise types for all methods', () => {
       const mockRepository: IValidationResultRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByDocumentId: () => Promise.resolve([]),
-        findByLanguagePackageId: () => Promise.resolve([]),
-        findRecentResults: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByDocumentId: async () => Promise.resolve([]),
+        findByLanguagePackageId: async () => Promise.resolve([]),
+        findRecentResults: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       // Test that methods return Promises
@@ -205,13 +205,13 @@ describe('IValidationResultRepository', () => {
 
     it('should return Result types for save and delete operations', async () => {
       const mockRepository: IValidationResultRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByDocumentId: () => Promise.resolve([]),
-        findByLanguagePackageId: () => Promise.resolve([]),
-        findRecentResults: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByDocumentId: async () => Promise.resolve([]),
+        findByLanguagePackageId: async () => Promise.resolve([]),
+        findRecentResults: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       const saveResult = await mockRepository.save({} as ValidationResult);
@@ -231,13 +231,13 @@ describe('IValidationResultRepository', () => {
 
     it('should return nullable ValidationResult for findById', async () => {
       const mockRepository: IValidationResultRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByDocumentId: () => Promise.resolve([]),
-        findByLanguagePackageId: () => Promise.resolve([]),
-        findRecentResults: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByDocumentId: async () => Promise.resolve([]),
+        findByLanguagePackageId: async () => Promise.resolve([]),
+        findRecentResults: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       const result = await mockRepository.findById({} as ValidationResultId);
@@ -248,13 +248,13 @@ describe('IValidationResultRepository', () => {
   describe('repository behavior patterns', () => {
     it('should handle null returns for findById when entity not found', async () => {
       const mockRepository: IValidationResultRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByDocumentId: () => Promise.resolve([]),
-        findByLanguagePackageId: () => Promise.resolve([]),
-        findRecentResults: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByDocumentId: async () => Promise.resolve([]),
+        findByLanguagePackageId: async () => Promise.resolve([]),
+        findRecentResults: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       const result = await mockRepository.findById({} as ValidationResultId);
@@ -263,13 +263,13 @@ describe('IValidationResultRepository', () => {
 
     it('should handle empty arrays for collection queries when no matches found', async () => {
       const mockRepository: IValidationResultRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByDocumentId: () => Promise.resolve([]),
-        findByLanguagePackageId: () => Promise.resolve([]),
-        findRecentResults: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByDocumentId: async () => Promise.resolve([]),
+        findByLanguagePackageId: async () => Promise.resolve([]),
+        findRecentResults: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       const documentResult = await mockRepository.findByDocumentId('non-existent');
@@ -313,31 +313,33 @@ describe('IValidationResultRepository', () => {
       ];
 
       const mockRepository: IValidationResultRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: (id: ValidationResultId) => {
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async (id: ValidationResultId) => {
           const found = mockValidationResults.find(
-            r => (r as any).id === ((id as any).getValue?.() ?? id)
+            (r) => (r as any).id === ((id as any).getValue?.() ?? id),
           );
           return Promise.resolve(found ?? null);
         },
-        findByDocumentId: (documentId: string) => {
-          const filtered = mockValidationResults.filter(r => (r as any).documentId === documentId);
-          return Promise.resolve(filtered);
-        },
-        findByLanguagePackageId: (packageId: string) => {
+        findByDocumentId: async (documentId: string) => {
           const filtered = mockValidationResults.filter(
-            r => (r as any).languagePackageId === packageId
+            (r) => (r as any).documentId === documentId,
           );
           return Promise.resolve(filtered);
         },
-        findRecentResults: (limit: number) => {
+        findByLanguagePackageId: async (packageId: string) => {
+          const filtered = mockValidationResults.filter(
+            (r) => (r as any).languagePackageId === packageId,
+          );
+          return Promise.resolve(filtered);
+        },
+        findRecentResults: async (limit: number) => {
           const sorted = [...mockValidationResults].sort(
-            (a, b) => (b as any).timestamp.getTime() - (a as any).timestamp.getTime()
+            (a, b) => (b as any).timestamp.getTime() - (a as any).timestamp.getTime(),
           );
           return Promise.resolve(sorted.slice(0, limit));
         },
-        findAll: () => Promise.resolve(mockValidationResults),
-        delete: () => Promise.resolve(ok(undefined)),
+        findAll: async () => Promise.resolve(mockValidationResults),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       const doc1Results = await mockRepository.findByDocumentId('doc1');
@@ -371,18 +373,18 @@ describe('IValidationResultRepository', () => {
       ];
 
       const mockRepository: IValidationResultRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByDocumentId: () => Promise.resolve([]),
-        findByLanguagePackageId: () => Promise.resolve([]),
-        findRecentResults: (limit: number) => {
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByDocumentId: async () => Promise.resolve([]),
+        findByLanguagePackageId: async () => Promise.resolve([]),
+        findRecentResults: async (limit: number) => {
           const sorted = [...mockValidationResults].sort(
-            (a, b) => (b as any).timestamp.getTime() - (a as any).timestamp.getTime()
+            (a, b) => (b as any).timestamp.getTime() - (a as any).timestamp.getTime(),
           );
           return Promise.resolve(sorted.slice(0, limit));
         },
-        findAll: () => Promise.resolve(mockValidationResults),
-        delete: () => Promise.resolve(ok(undefined)),
+        findAll: async () => Promise.resolve(mockValidationResults),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       const recent1 = await mockRepository.findRecentResults(1);
@@ -405,18 +407,18 @@ describe('IValidationResultRepository', () => {
 
     it('should handle edge cases for findRecentResults', async () => {
       const mockRepository: IValidationResultRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByDocumentId: () => Promise.resolve([]),
-        findByLanguagePackageId: () => Promise.resolve([]),
-        findRecentResults: (limit: number) => {
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByDocumentId: async () => Promise.resolve([]),
+        findByLanguagePackageId: async () => Promise.resolve([]),
+        findRecentResults: async (limit: number) => {
           if (limit <= 0) {
             return Promise.resolve([]);
           }
           return Promise.resolve([]);
         },
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       const zeroLimit = await mockRepository.findRecentResults(0);
@@ -451,16 +453,18 @@ describe('IValidationResultRepository', () => {
       ];
 
       const mockRepository: IValidationResultRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByDocumentId: (documentId: string) => {
-          const filtered = mockValidationResults.filter(r => (r as any).documentId === documentId);
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByDocumentId: async (documentId: string) => {
+          const filtered = mockValidationResults.filter(
+            (r) => (r as any).documentId === documentId,
+          );
           return Promise.resolve(filtered);
         },
-        findByLanguagePackageId: () => Promise.resolve([]),
-        findRecentResults: () => Promise.resolve([]),
-        findAll: () => Promise.resolve(mockValidationResults),
-        delete: () => Promise.resolve(ok(undefined)),
+        findByLanguagePackageId: async () => Promise.resolve([]),
+        findRecentResults: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve(mockValidationResults),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       const doc1Results = await mockRepository.findByDocumentId('doc1');
@@ -477,13 +481,13 @@ describe('IValidationResultRepository', () => {
     it('should enforce correct interface implementation', () => {
       // This test verifies that the interface can be properly implemented
       const implementRepository = (): IValidationResultRepository => ({
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByDocumentId: () => Promise.resolve([]),
-        findByLanguagePackageId: () => Promise.resolve([]),
-        findRecentResults: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByDocumentId: async () => Promise.resolve([]),
+        findByLanguagePackageId: async () => Promise.resolve([]),
+        findRecentResults: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       });
 
       const repository = implementRepository();
@@ -501,13 +505,13 @@ describe('IValidationResultRepository', () => {
   describe('error handling patterns', () => {
     it('should handle repository errors in save operations', async () => {
       const mockRepository: IValidationResultRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByDocumentId: () => Promise.resolve([]),
-        findByLanguagePackageId: () => Promise.resolve([]),
-        findRecentResults: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByDocumentId: async () => Promise.resolve([]),
+        findByLanguagePackageId: async () => Promise.resolve([]),
+        findRecentResults: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       const result = await mockRepository.save({} as ValidationResult);
@@ -516,13 +520,13 @@ describe('IValidationResultRepository', () => {
 
     it('should handle repository errors in delete operations', async () => {
       const mockRepository: IValidationResultRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByDocumentId: () => Promise.resolve([]),
-        findByLanguagePackageId: () => Promise.resolve([]),
-        findRecentResults: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByDocumentId: async () => Promise.resolve([]),
+        findByLanguagePackageId: async () => Promise.resolve([]),
+        findRecentResults: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       const result = await mockRepository.delete({} as ValidationResultId);

@@ -13,7 +13,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Operation } from '../../entities/Operation';
-import { type VectorClock } from '../../entities/VectorClock';
+import type { VectorClock } from '../../entities/VectorClock';
 import { DeviceId } from '../../value-objects/DeviceId';
 import { OperationId } from '../../value-objects/OperationId';
 import { OperationPayload } from '../../value-objects/OperationPayload';
@@ -34,20 +34,20 @@ const createMockVectorClock = (clocks: Record<string, number> = {}): VectorClock
     getTimestampForDevice: vi.fn((deviceId: DeviceId) => clocks[deviceId.getValue()] ?? 0),
     getAllClocks: vi.fn(() => clocks),
     getAllDeviceIds: vi.fn(() =>
-      Object.keys(clocks).map(id => {
+      Object.keys(clocks).map((id) => {
         const deviceIdResult = DeviceId.create(id);
         if (deviceIdResult.isErr()) {
           throw new Error(`Failed to create DeviceId: ${id}`);
         }
         return deviceIdResult.value;
-      })
+      }),
     ),
     getClockState: vi.fn(() => new Map(Object.entries(clocks))),
     toCompactString: vi.fn(
       () =>
         `{${Object.entries(clocks)
           .map(([k, v]) => `${k}:${v}`)
-          .join(',')}}`
+          .join(',')}}`,
     ),
     toJSON: vi.fn(() => ({ clocks })),
   } as unknown as VectorClock;
@@ -56,8 +56,14 @@ const createMockVectorClock = (clocks: Record<string, number> = {}): VectorClock
 // Helper to generate operation IDs for tests
 let testOperationSequence = 0;
 const generateTestOperationId = (deviceId?: DeviceId): OperationId => {
-  const device = deviceId ?? (DeviceId.create('test-device').value as DeviceId);
-  const operationId = OperationId.generate(device, ++testOperationSequence);
+  if (!deviceId) {
+    const deviceResult = DeviceId.create('test-device');
+    if (deviceResult.isErr()) {
+      throw new Error('Failed to create test device ID');
+    }
+    deviceId = deviceResult.value;
+  }
+  const operationId = OperationId.generate(deviceId, ++testOperationSequence);
   if (operationId.isErr()) {
     throw new Error('Failed to generate test operation ID');
   }
@@ -73,6 +79,15 @@ const createOperationType = (type: OperationTypeValue): OperationType => {
   return result.value;
 };
 
+// Helper to create device IDs for tests
+const createDeviceId = (id: string): DeviceId => {
+  const result = DeviceId.create(id);
+  if (result.isErr()) {
+    throw new Error(`Failed to create device ID: ${id}`);
+  }
+  return result.value;
+};
+
 // Helper to create delete payload
 const createDeletePayload = (operationType: OperationType): OperationPayload => {
   const payload = OperationPayload.create(
@@ -80,7 +95,7 @@ const createDeletePayload = (operationType: OperationType): OperationPayload => 
       id: 'stmt-1',
       content: 'content to delete',
     },
-    operationType
+    operationType,
   );
   if (payload.isErr()) {
     throw new Error('Failed to create delete payload');
@@ -108,7 +123,7 @@ const createValidOperationParams = () => {
       id: 'stmt-1',
       content: 'test content',
     },
-    operationTypeResult.value
+    operationTypeResult.value,
   );
 
   if (payload.isErr()) {
@@ -136,7 +151,7 @@ describe('Operation', () => {
         params.operationType,
         params.targetPath,
         params.payload,
-        params.vectorClock
+        params.vectorClock,
       );
 
       expect(result.isOk()).toBe(true);
@@ -162,7 +177,7 @@ describe('Operation', () => {
         params.targetPath,
         params.payload,
         params.vectorClock,
-        parentId
+        parentId,
       );
 
       expect(result.isOk()).toBe(true);
@@ -180,7 +195,7 @@ describe('Operation', () => {
         params.operationType,
         '',
         params.payload,
-        params.vectorClock
+        params.vectorClock,
       );
 
       expect(result.isErr()).toBe(true);
@@ -198,7 +213,7 @@ describe('Operation', () => {
         params.operationType,
         '   ',
         params.payload,
-        params.vectorClock
+        params.vectorClock,
       );
 
       expect(result.isErr()).toBe(true);
@@ -217,7 +232,7 @@ describe('Operation', () => {
         'UPDATE_ARGUMENT',
       ];
 
-      operationTypeValues.forEach(opTypeValue => {
+      operationTypeValues.forEach((opTypeValue) => {
         const opTypeResult = OperationType.create(opTypeValue);
         if (opTypeResult.isErr()) return;
 
@@ -227,7 +242,7 @@ describe('Operation', () => {
           opTypeResult.value,
           params.targetPath,
           params.payload,
-          params.vectorClock
+          params.vectorClock,
         );
 
         expect(result.isOk()).toBe(true);
@@ -252,16 +267,16 @@ describe('Operation', () => {
         createOperationType('CREATE_STATEMENT'),
         '/document/content',
         params1.payload,
-        params1.vectorClock
+        params1.vectorClock,
       );
 
       const result2 = Operation.create(
         params2.operationId,
-        DeviceId.create('device-2').value as DeviceId,
+        createDeviceId('device-2'),
         createOperationType('CREATE_STATEMENT'),
         '/document/content',
         params2.payload,
-        createMockVectorClock({ 'device-2': 1 })
+        createMockVectorClock({ 'device-2': 1 }),
       );
 
       if (result1.isOk()) operation1 = result1.value;
@@ -275,7 +290,7 @@ describe('Operation', () => {
 
       expect(isConcurrent).toBe(true);
       expect(operation1.getVectorClock().isConcurrent).toHaveBeenCalledWith(
-        operation2.getVectorClock()
+        operation2.getVectorClock(),
       );
     });
 
@@ -295,7 +310,7 @@ describe('Operation', () => {
 
       expect(happensBefore).toBe(true);
       expect(operation2.getVectorClock().happensBefore).toHaveBeenCalledWith(
-        operation1.getVectorClock()
+        operation1.getVectorClock(),
       );
     });
 
@@ -316,7 +331,7 @@ describe('Operation', () => {
       const deleteOpType = createOperationType('DELETE_STATEMENT');
       const deletePayload = OperationPayload.create(
         { id: 'stmt-to-delete', content: 'content to delete' },
-        deleteOpType
+        deleteOpType,
       );
       if (deletePayload.isErr()) return;
 
@@ -331,7 +346,7 @@ describe('Operation', () => {
         createOperationType('DELETE_STATEMENT'),
         operation2.getTargetPath(),
         deletePayload.value,
-        concurrentVectorClock
+        concurrentVectorClock,
       );
 
       if (deleteOpResult.isOk()) {
@@ -347,7 +362,7 @@ describe('Operation', () => {
         createOperationType('CREATE_STATEMENT'),
         '/different/path',
         operation2.getPayload(),
-        operation2.getVectorClock()
+        operation2.getVectorClock(),
       );
 
       if (differentPathOp.isOk()) {
@@ -370,16 +385,16 @@ describe('Operation', () => {
         createOperationType('UPDATE_STATEMENT'),
         '/document/title',
         params.payload,
-        params.vectorClock
+        params.vectorClock,
       );
 
       const op2 = Operation.create(
         generateTestOperationId(),
-        DeviceId.create('device-2').value as DeviceId,
+        createDeviceId('device-2'),
         createOperationType('UPDATE_STATEMENT'),
         '/document/title',
         params.payload,
-        createMockVectorClock({ 'device-2': 1 })
+        createMockVectorClock({ 'device-2': 1 }),
       );
 
       if (op1.isOk() && op2.isOk()) {
@@ -410,16 +425,16 @@ describe('Operation', () => {
         createOperationType('UPDATE_STATEMENT'),
         '/document/title',
         params.payload,
-        params.vectorClock
+        params.vectorClock,
       );
 
       const op2 = Operation.create(
         generateTestOperationId(),
-        DeviceId.create('device-2').value as DeviceId,
+        createDeviceId('device-2'),
         createOperationType('UPDATE_STATEMENT'),
         '/document/content',
         params.payload,
-        createMockVectorClock({ 'device-2': 1 })
+        createMockVectorClock({ 'device-2': 1 }),
       );
 
       if (op1.isOk() && op2.isOk()) {
@@ -439,16 +454,16 @@ describe('Operation', () => {
         createOperationType('DELETE_STATEMENT'),
         '/document/section',
         createDeletePayload(createOperationType('DELETE_STATEMENT')),
-        params.vectorClock
+        params.vectorClock,
       );
 
       const updateOp = Operation.create(
         generateTestOperationId(),
-        DeviceId.create('device-2').value as DeviceId,
+        createDeviceId('device-2'),
         createOperationType('UPDATE_STATEMENT'),
         '/document/section',
         params.payload,
-        createMockVectorClock({ 'device-2': 1 })
+        createMockVectorClock({ 'device-2': 1 }),
       );
 
       if (deleteOp.isOk() && updateOp.isOk()) {
@@ -474,16 +489,16 @@ describe('Operation', () => {
         createOperationType('UPDATE_STATEMENT'),
         '/document/title',
         params.payload,
-        params.vectorClock
+        params.vectorClock,
       );
 
       const op2 = Operation.create(
         generateTestOperationId(),
-        DeviceId.create('device-2').value as DeviceId,
+        createDeviceId('device-2'),
         createOperationType('UPDATE_STATEMENT'),
         '/document/title',
         params.payload,
-        createMockVectorClock({ 'device-1': 2, 'device-2': 1 }) // op2 happens after op1
+        createMockVectorClock({ 'device-1': 2, 'device-2': 1 }), // op2 happens after op1
       );
 
       if (op1.isOk() && op2.isOk()) {
@@ -508,7 +523,7 @@ describe('Operation', () => {
         createOperationType('DELETE_STATEMENT'),
         params.targetPath,
         createDeletePayload(createOperationType('DELETE_STATEMENT')),
-        params.vectorClock
+        params.vectorClock,
       );
 
       if (deleteOp.isOk()) {
@@ -522,7 +537,7 @@ describe('Operation', () => {
         createOperationType('CREATE_STATEMENT'),
         params.targetPath,
         params.payload,
-        params.vectorClock
+        params.vectorClock,
       );
 
       if (insertOp.isOk()) {
@@ -540,7 +555,7 @@ describe('Operation', () => {
         createOperationType('CREATE_STATEMENT'),
         params.targetPath,
         params.payload,
-        params.vectorClock
+        params.vectorClock,
       );
 
       if (insertOp.isOk()) {
@@ -554,7 +569,7 @@ describe('Operation', () => {
         createOperationType('UPDATE_METADATA'),
         params.targetPath,
         params.payload,
-        params.vectorClock
+        params.vectorClock,
       );
 
       if (mergeOp.isOk()) {
@@ -571,7 +586,7 @@ describe('Operation', () => {
         params.operationType,
         params.targetPath,
         params.payload,
-        params.vectorClock
+        params.vectorClock,
       );
 
       expect(result.isOk()).toBe(true);
@@ -592,7 +607,7 @@ describe('Operation', () => {
         createOperationType('CREATE_STATEMENT'),
         params.targetPath,
         params.payload,
-        params.vectorClock
+        params.vectorClock,
       );
 
       if (insertOp.isOk()) {
@@ -605,7 +620,7 @@ describe('Operation', () => {
           key: 'metadata-key',
           value: { content: 'x'.repeat(10000), complex: true, nested: { data: 'structure' } },
         },
-        createOperationType('UPDATE_METADATA')
+        createOperationType('UPDATE_METADATA'),
       );
 
       if (largePayload.isOk()) {
@@ -615,7 +630,7 @@ describe('Operation', () => {
           createOperationType('UPDATE_METADATA'),
           params.targetPath,
           largePayload.value,
-          params.vectorClock
+          params.vectorClock,
         );
 
         if (mergeOp.isOk()) {
@@ -636,9 +651,9 @@ describe('Operation', () => {
         params.targetPath,
         OperationPayload.create(
           { id: 'stmt-hello', content: 'Hello' },
-          createOperationType('CREATE_STATEMENT')
+          createOperationType('CREATE_STATEMENT'),
         ).value as OperationPayload,
-        params.vectorClock
+        params.vectorClock,
       );
 
       const op2 = Operation.create(
@@ -648,9 +663,9 @@ describe('Operation', () => {
         params.targetPath,
         OperationPayload.create(
           { id: 'stmt-world', content: ' World' },
-          createOperationType('CREATE_STATEMENT')
+          createOperationType('CREATE_STATEMENT'),
         ).value as OperationPayload,
-        createMockVectorClock({ 'device-1': 2 })
+        createMockVectorClock({ 'device-1': 2 }),
       );
 
       if (op1.isOk() && op2.isOk()) {
@@ -674,7 +689,7 @@ describe('Operation', () => {
         createOperationType('CREATE_STATEMENT'),
         params.targetPath,
         params.payload,
-        params.vectorClock
+        params.vectorClock,
       );
 
       const deleteOp = Operation.create(
@@ -683,7 +698,7 @@ describe('Operation', () => {
         createOperationType('DELETE_STATEMENT'),
         params.targetPath,
         createDeletePayload(createOperationType('DELETE_STATEMENT')),
-        createMockVectorClock({ 'device-1': 2 })
+        createMockVectorClock({ 'device-1': 2 }),
       );
 
       if (insertOp.isOk() && deleteOp.isOk()) {
@@ -701,16 +716,16 @@ describe('Operation', () => {
         createOperationType('CREATE_STATEMENT'),
         params.targetPath,
         params.payload,
-        params.vectorClock
+        params.vectorClock,
       );
 
       const op2 = Operation.create(
         generateTestOperationId(),
-        DeviceId.create('device-2').value as DeviceId,
+        createDeviceId('device-2'),
         createOperationType('CREATE_STATEMENT'),
         params.targetPath,
         params.payload,
-        createMockVectorClock({ 'device-2': 1 })
+        createMockVectorClock({ 'device-2': 1 }),
       );
 
       if (op1.isOk() && op2.isOk()) {
@@ -733,7 +748,7 @@ describe('Operation', () => {
         params.operationType,
         params.targetPath,
         params.payload,
-        params.vectorClock
+        params.vectorClock,
       );
 
       expect(result.isOk()).toBe(true);
@@ -761,7 +776,7 @@ describe('Operation', () => {
         params.targetPath,
         params.payload,
         params.vectorClock,
-        parentId
+        parentId,
       );
 
       expect(result.isOk()).toBe(true);
@@ -780,7 +795,7 @@ describe('Operation', () => {
         params.operationType,
         params.targetPath,
         params.payload,
-        params.vectorClock
+        params.vectorClock,
       );
 
       if (original.isOk()) {
@@ -791,10 +806,10 @@ describe('Operation', () => {
         if (restored.isOk()) {
           expect(restored.value.getId().getValue()).toBe(original.value.getId().getValue());
           expect(restored.value.getDeviceId().getValue()).toBe(
-            original.value.getDeviceId().getValue()
+            original.value.getDeviceId().getValue(),
           );
           expect(restored.value.getOperationType()).toStrictEqual(
-            original.value.getOperationType()
+            original.value.getOperationType(),
           );
           expect(restored.value.getTargetPath()).toBe(original.value.getTargetPath());
         }
@@ -812,19 +827,19 @@ describe('Operation', () => {
         params.operationType,
         params.targetPath,
         params.payload,
-        params.vectorClock
+        params.vectorClock,
       );
 
       const op2 = Operation.create(
         params.operationId, // Same ID
-        DeviceId.create('device-2').value as DeviceId, // Different device
+        createDeviceId('device-2'), // Different device
         createOperationType('DELETE_STATEMENT'), // Different type
         '/different/path', // Different path
         OperationPayload.create(
           { id: 'stmt-diff', content: 'different data' },
-          createOperationType('UPDATE_STATEMENT')
+          createOperationType('UPDATE_STATEMENT'),
         ).value as OperationPayload,
-        createMockVectorClock({ 'device-2': 5 })
+        createMockVectorClock({ 'device-2': 5 }),
       );
 
       if (op1.isOk() && op2.isOk()) {
@@ -842,7 +857,7 @@ describe('Operation', () => {
         params.operationType,
         params.targetPath,
         params.payload,
-        params.vectorClock
+        params.vectorClock,
       );
 
       const op2 = Operation.create(
@@ -851,7 +866,7 @@ describe('Operation', () => {
         params.operationType,
         params.targetPath,
         params.payload,
-        params.vectorClock
+        params.vectorClock,
       );
 
       if (op1.isOk() && op2.isOk()) {
@@ -865,7 +880,7 @@ describe('Operation', () => {
       const params = createValidOperationParams();
       const structuralTypes = ['CREATE_TREE', 'DELETE_TREE', 'UPDATE_TREE_POSITION'];
 
-      structuralTypes.forEach(type => {
+      structuralTypes.forEach((type) => {
         const opType = createOperationType(type as any);
         const op = Operation.create(
           generateTestOperationId(),
@@ -873,7 +888,7 @@ describe('Operation', () => {
           opType,
           params.targetPath,
           params.payload,
-          params.vectorClock
+          params.vectorClock,
         );
 
         if (op.isOk()) {
@@ -887,7 +902,7 @@ describe('Operation', () => {
       const params = createValidOperationParams();
       const semanticTypes = ['CREATE_STATEMENT', 'UPDATE_STATEMENT', 'DELETE_STATEMENT'];
 
-      semanticTypes.forEach(type => {
+      semanticTypes.forEach((type) => {
         const opType = createOperationType(type as any);
         const op = Operation.create(
           generateTestOperationId(),
@@ -895,7 +910,7 @@ describe('Operation', () => {
           opType,
           params.targetPath,
           params.payload,
-          params.vectorClock
+          params.vectorClock,
         );
 
         if (op.isOk()) {
@@ -916,7 +931,7 @@ describe('Operation', () => {
         params.operationType,
         '/path/one',
         params.payload,
-        params.vectorClock
+        params.vectorClock,
       );
 
       const op2 = Operation.create(
@@ -925,7 +940,7 @@ describe('Operation', () => {
         params.operationType,
         '/path/two',
         params.payload,
-        params.vectorClock
+        params.vectorClock,
       );
 
       if (op1.isOk() && op2.isOk()) {
@@ -943,7 +958,7 @@ describe('Operation', () => {
         createOperationType('CREATE_STATEMENT'),
         params.targetPath,
         params.payload,
-        params.vectorClock
+        params.vectorClock,
       );
 
       const op2 = Operation.create(
@@ -952,7 +967,7 @@ describe('Operation', () => {
         createOperationType('DELETE_STATEMENT'),
         params.targetPath,
         createDeletePayload(createOperationType('DELETE_STATEMENT')),
-        params.vectorClock
+        params.vectorClock,
       );
 
       if (op1.isOk() && op2.isOk()) {
@@ -971,7 +986,7 @@ describe('Operation', () => {
         createOperationType('CREATE_STATEMENT'),
         '/document/statements/new',
         params.payload,
-        params.vectorClock
+        params.vectorClock,
       );
 
       if (createOp.isOk()) {
@@ -993,7 +1008,7 @@ describe('Operation', () => {
         createOperationType('UPDATE_STATEMENT'),
         '/document/content',
         params.payload,
-        params.vectorClock
+        params.vectorClock,
       );
 
       if (updateOp.isOk()) {
@@ -1015,7 +1030,7 @@ describe('Operation', () => {
         createOperationType('DELETE_STATEMENT'),
         '/document/content',
         createDeletePayload(createOperationType('DELETE_STATEMENT')),
-        params.vectorClock
+        params.vectorClock,
       );
 
       if (deleteOp.isOk()) {
@@ -1037,7 +1052,7 @@ describe('Operation', () => {
         createOperationType('DELETE_STATEMENT'),
         '/document/nonexistent',
         createDeletePayload(createOperationType('DELETE_STATEMENT')),
-        params.vectorClock
+        params.vectorClock,
       );
 
       if (deleteOp.isOk()) {
@@ -1059,7 +1074,7 @@ describe('Operation', () => {
         createOperationType('UPDATE_STATEMENT'),
         '/document/nonexistent',
         params.payload,
-        params.vectorClock
+        params.vectorClock,
       );
 
       if (updateOp.isOk()) {
@@ -1081,7 +1096,7 @@ describe('Operation', () => {
         createOperationType('CREATE_STATEMENT'),
         '/document/existing',
         params.payload,
-        params.vectorClock
+        params.vectorClock,
       );
 
       if (createOp.isOk()) {
@@ -1106,33 +1121,33 @@ describe('Operation', () => {
         params.operationType,
         params.targetPath,
         params.payload,
-        params.vectorClock
+        params.vectorClock,
       );
 
       const otherOps = [
         Operation.create(
           generateTestOperationId(),
-          DeviceId.create('device-2').value as DeviceId,
+          createDeviceId('device-2'),
           params.operationType,
           params.targetPath,
           params.payload,
-          createMockVectorClock({ 'device-2': 1 })
+          createMockVectorClock({ 'device-2': 1 }),
         ),
         Operation.create(
           generateTestOperationId(),
-          DeviceId.create('device-3').value as DeviceId,
+          createDeviceId('device-3'),
           params.operationType,
           params.targetPath,
           params.payload,
-          createMockVectorClock({ 'device-3': 1 })
+          createMockVectorClock({ 'device-3': 1 }),
         ),
       ];
 
-      if (baseOp.isOk() && otherOps.every(op => op.isOk())) {
-        const validOps = otherOps.map(op => op.value);
+      if (baseOp.isOk() && otherOps.every((op) => op.isOk())) {
+        const validOps = otherOps.map((op) => op.value);
 
         // Mock concurrent relationships
-        validOps.forEach(_op => {
+        validOps.forEach((_op) => {
           vi.mocked(baseOp.value.getVectorClock().isConcurrent).mockReturnValue(true);
         });
 
@@ -1150,16 +1165,16 @@ describe('Operation', () => {
         params.operationType,
         params.targetPath,
         params.payload,
-        params.vectorClock
+        params.vectorClock,
       );
 
       const otherOp = Operation.create(
         generateTestOperationId(),
-        DeviceId.create('device-2').value as DeviceId,
+        createDeviceId('device-2'),
         params.operationType,
         params.targetPath,
         params.payload,
-        createMockVectorClock({ 'device-2': 1 })
+        createMockVectorClock({ 'device-2': 1 }),
       );
 
       if (baseOp.isOk() && otherOp.isOk()) {
@@ -1186,20 +1201,20 @@ describe('Operation', () => {
           params.operationType,
           params.targetPath,
           params.payload,
-          params.vectorClock
+          params.vectorClock,
         ),
         Operation.create(
           generateTestOperationId(),
-          DeviceId.create('device-2').value as DeviceId,
+          createDeviceId('device-2'),
           params.operationType,
           params.targetPath,
           params.payload,
-          createMockVectorClock({ 'device-2': 1 })
+          createMockVectorClock({ 'device-2': 1 }),
         ),
       ];
 
-      if (operations.every(op => op.isOk())) {
-        const validOps = operations.map(op => op.value);
+      if (operations.every((op) => op.isOk())) {
+        const validOps = operations.map((op) => op.value);
         const result = Operation.transformOperationSequence(validOps);
 
         expect(result.isOk()).toBe(true);
@@ -1225,7 +1240,7 @@ describe('Operation', () => {
         params.operationType,
         params.targetPath,
         params.payload,
-        params.vectorClock
+        params.vectorClock,
       );
 
       if (op.isOk()) {
@@ -1249,7 +1264,7 @@ describe('Operation', () => {
           params.operationType,
           params.targetPath,
           params.payload,
-          params.vectorClock
+          params.vectorClock,
         ),
         Operation.create(
           generateTestOperationId(),
@@ -1257,12 +1272,12 @@ describe('Operation', () => {
           params.operationType,
           params.targetPath,
           params.payload,
-          params.vectorClock
+          params.vectorClock,
         ),
       ];
 
-      if (simpleOps.every(op => op.isOk())) {
-        const validSimpleOps = simpleOps.map(op => op.value);
+      if (simpleOps.every((op) => op.isOk())) {
+        const validSimpleOps = simpleOps.map((op) => op.value);
         expect(Operation.calculateTransformationComplexity(validSimpleOps)).toBe('SIMPLE');
       }
 
@@ -1274,12 +1289,12 @@ describe('Operation', () => {
           params.operationType,
           params.targetPath,
           params.payload,
-          params.vectorClock
-        )
+          params.vectorClock,
+        ),
       );
 
-      if (complexOps.every(op => op.isOk())) {
-        const validComplexOps = complexOps.map(op => op.value);
+      if (complexOps.every((op) => op.isOk())) {
+        const validComplexOps = complexOps.map((op) => op.value);
         expect(Operation.calculateTransformationComplexity(validComplexOps)).toBe('INTRACTABLE');
       }
     });
@@ -1293,23 +1308,23 @@ describe('Operation', () => {
         params.operationType,
         params.targetPath,
         params.payload,
-        params.vectorClock
+        params.vectorClock,
       );
       const op2 = Operation.create(
         generateTestOperationId(),
-        DeviceId.create('device-2').value as DeviceId,
+        createDeviceId('device-2'),
         params.operationType,
         params.targetPath,
         params.payload,
-        createMockVectorClock({ 'device-2': 1 })
+        createMockVectorClock({ 'device-2': 1 }),
       );
       const op3 = Operation.create(
         generateTestOperationId(),
-        DeviceId.create('device-3').value as DeviceId,
+        createDeviceId('device-3'),
         params.operationType,
         params.targetPath,
         params.payload,
-        createMockVectorClock({ 'device-3': 1 })
+        createMockVectorClock({ 'device-3': 1 }),
       );
 
       if (op1.isOk() && op2.isOk() && op3.isOk()) {
@@ -1341,7 +1356,7 @@ describe('Operation', () => {
         'UPDATE_METADATA',
       ];
 
-      allTypes.forEach(type => {
+      allTypes.forEach((type) => {
         const opType = createOperationType(type as any);
         const payload = type.includes('DELETE') ? createDeletePayload(opType) : params.payload;
 
@@ -1351,7 +1366,7 @@ describe('Operation', () => {
           opType,
           params.targetPath,
           payload,
-          params.vectorClock
+          params.vectorClock,
         );
 
         expect(op.isOk()).toBe(true);
@@ -1365,7 +1380,7 @@ describe('Operation', () => {
       const params = createValidOperationParams();
       const metadataPayload = OperationPayload.create(
         { key: 'metadata', value: { timestamp: Date.now(), version: '1.0' } },
-        createOperationType('UPDATE_METADATA')
+        createOperationType('UPDATE_METADATA'),
       );
 
       if (metadataPayload.isOk()) {
@@ -1375,7 +1390,7 @@ describe('Operation', () => {
           createOperationType('UPDATE_METADATA'),
           params.targetPath,
           metadataPayload.value,
-          params.vectorClock
+          params.vectorClock,
         );
 
         expect(op.isOk()).toBe(true);

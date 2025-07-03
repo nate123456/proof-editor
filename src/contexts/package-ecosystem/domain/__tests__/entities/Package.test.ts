@@ -148,7 +148,7 @@ describe('Package', () => {
         const afterCreation = new Date();
 
         expect(package_.getLastUpdated().getTime()).toBeGreaterThanOrEqual(
-          beforeCreation.getTime()
+          beforeCreation.getTime(),
         );
         expect(package_.getLastUpdated().getTime()).toBeLessThanOrEqual(afterCreation.getTime());
       }
@@ -200,7 +200,7 @@ describe('Package', () => {
       if (result.isErr()) {
         expect(result.error).toBeInstanceOf(PackageValidationError);
         expect(result.error.message).toBe(
-          'Invalid validation result: must have errors if not valid'
+          'Invalid validation result: must have errors if not valid',
         );
       }
     });
@@ -426,8 +426,8 @@ describe('Package', () => {
     it('should return all SDK interfaces', () => {
       const interfaces = package_.getSDKInterfaces();
       expect(interfaces).toHaveLength(2);
-      expect(interfaces[0]!.name).toBe('ProofEditor');
-      expect(interfaces[1]!.name).toBe('LanguageServer');
+      expect(interfaces[0]?.name).toBe('ProofEditor');
+      expect(interfaces[1]?.name).toBe('LanguageServer');
     });
   });
 
@@ -571,7 +571,7 @@ describe('Package', () => {
           expect(updatedPackage.isValid()).toBe(false);
           expect(updatedPackage.hasWarnings()).toBe(true);
           expect(updatedPackage.getLastUpdated().getTime()).toBeGreaterThan(
-            oldLastUpdated.getTime()
+            oldLastUpdated.getTime(),
           );
         }
       }, 1);
@@ -628,7 +628,7 @@ describe('Package', () => {
           const updatedPackage = result.value;
           expect(updatedPackage.getCacheLocation()).toBe('/new/cache/location');
           expect(updatedPackage.getLastUpdated().getTime()).toBeGreaterThan(
-            oldLastUpdated.getTime()
+            oldLastUpdated.getTime(),
           );
         }
       }, 1);

@@ -19,7 +19,7 @@ export class DeviceId {
 
     if (!/^[a-zA-Z0-9-_]+$/.test(trimmedValue)) {
       return err(
-        new Error('Device ID can only contain alphanumeric characters, hyphens, and underscores')
+        new Error('Device ID can only contain alphanumeric characters, hyphens, and underscores'),
       );
     }
 

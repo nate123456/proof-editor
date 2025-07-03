@@ -1,8 +1,8 @@
-import { type Result } from 'neverthrow';
+import type { Result } from 'neverthrow';
 
-import { type RepositoryError } from '../../../../domain/errors/DomainErrors.js';
-import { type VectorClock } from '../entities/VectorClock';
-import { type DeviceId } from '../value-objects/DeviceId';
+import type { RepositoryError } from '../../../../domain/errors/DomainErrors.js';
+import type { VectorClock } from '../entities/VectorClock';
+import type { DeviceId } from '../value-objects/DeviceId';
 
 export interface IVectorClockRepository {
   save(vectorClock: VectorClock): Promise<Result<void, RepositoryError>>;

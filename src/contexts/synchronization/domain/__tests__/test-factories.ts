@@ -176,7 +176,7 @@ export const operationPayloadFactory = Factory.define<OperationPayload>(() => {
   const payloadResult = OperationPayload.create(payloadData, operationType);
   if (payloadResult.isErr()) {
     throw new Error(
-      `Failed to create test operation payload for ${operationType.getValue()}: ${payloadResult.error.message}`
+      `Failed to create test operation payload for ${operationType.getValue()}: ${payloadResult.error.message}`,
     );
   }
   return payloadResult.value;
@@ -197,7 +197,7 @@ export const operationFactory = Factory.define<Operation>(() => {
     operationType,
     targetPath,
     payload,
-    vectorClock
+    vectorClock,
   );
 
   if (operationResult.isErr()) {
@@ -211,7 +211,7 @@ export const conflictTypeFactory = Factory.define<ConflictType>(() => {
   const types = ['structural', 'semantic', 'deletion', 'concurrentModification'] as const;
   const randomType = faker.helpers.arrayElement(types);
 
-  let conflictTypeResult;
+  let conflictTypeResult: ConflictType;
   switch (randomType) {
     case 'structural':
       conflictTypeResult = ConflictType.structural();
@@ -236,9 +236,9 @@ export const conflictTypeFactory = Factory.define<ConflictType>(() => {
 // Conflict factory
 export const conflictFactory = Factory.define<Conflict>(({ params }) => {
   const id = params.id ?? `conflict-${faker.string.uuid()}`;
-  const conflictType = params.conflictType ?? conflictTypeFactory.build();
-  const targetPath = params.targetPath ?? `/${faker.word.noun()}/${faker.string.uuid()}`;
-  const operations = params.conflictingOperations ?? [
+  const conflictType = params.getConflictType?.() ?? conflictTypeFactory.build();
+  const targetPath = params.getTargetPath?.() ?? `/${faker.word.noun()}/${faker.string.uuid()}`;
+  const operations = params.getConflictingOperations?.() ?? [
     operationFactory.build(),
     operationFactory.build(),
   ];
@@ -280,7 +280,7 @@ export const concurrentOperationsFactory = Factory.define<Operation[]>(() => {
     operationTypeFactory.build(),
     targetPath,
     operationPayloadFactory.build(),
-    vectorClock1Result.value
+    vectorClock1Result.value,
   );
 
   const op2Result = Operation.create(
@@ -289,7 +289,7 @@ export const concurrentOperationsFactory = Factory.define<Operation[]>(() => {
     operationTypeFactory.build(),
     targetPath,
     operationPayloadFactory.build(),
-    vectorClock2Result.value
+    vectorClock2Result.value,
   );
 
   if (op1Result.isErr() || op2Result.isErr()) {
@@ -324,7 +324,7 @@ export const sequentialOperationsFactory = Factory.define<Operation[]>(() => {
     operationTypeFactory.build(),
     targetPath,
     operationPayloadFactory.build(),
-    vectorClock1Result.value
+    vectorClock1Result.value,
   );
 
   const op2Result = Operation.create(
@@ -333,7 +333,7 @@ export const sequentialOperationsFactory = Factory.define<Operation[]>(() => {
     operationTypeFactory.build(),
     targetPath,
     operationPayloadFactory.build(),
-    vectorClock2Result.value
+    vectorClock2Result.value,
   );
 
   if (op1Result.isErr() || op2Result.isErr()) {
@@ -390,7 +390,7 @@ export const createConflictingOperations = (targetPath: string, count = 2): Oper
       operation.getOperationType(),
       targetPath,
       operation.getPayload(),
-      operation.getVectorClock()
+      operation.getVectorClock(),
     );
 
     if (operationResult.isErr()) {
@@ -401,7 +401,7 @@ export const createConflictingOperations = (targetPath: string, count = 2): Oper
 };
 
 export const createOperationsWithComplexity = (
-  complexity: 'SIMPLE' | 'MODERATE' | 'COMPLEX'
+  complexity: 'SIMPLE' | 'MODERATE' | 'COMPLEX',
 ): Operation[] => {
   let count: number;
   switch (complexity) {

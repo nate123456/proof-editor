@@ -24,11 +24,11 @@ import {
 // Property-based test generators
 const validTitleArbitrary = fc
   .string({ minLength: 1, maxLength: 200 })
-  .filter(s => s.trim().length > 0);
+  .filter((s) => s.trim().length > 0);
 
 const validDescriptionArbitrary = fc
   .string({ minLength: 1, maxLength: 1000 })
-  .filter(s => s.trim().length > 0);
+  .filter((s) => s.trim().length > 0);
 
 const insightCategoryArbitrary = fc.constantFrom<InsightCategory>(
   'syntax',
@@ -38,7 +38,7 @@ const insightCategoryArbitrary = fc.constantFrom<InsightCategory>(
   'style',
   'structure',
   'patterns',
-  'validation'
+  'validation',
 );
 
 const insightPriorityArbitrary = fc.constantFrom<InsightPriority>('low', 'medium', 'high');
@@ -56,7 +56,7 @@ describe('AnalysisInsight Value Object', () => {
         const result = AnalysisInsight.create(
           'syntax',
           'Missing semicolon',
-          'A semicolon is missing at the end of the statement'
+          'A semicolon is missing at the end of the statement',
         );
 
         expect(result.isOk()).toBe(true);
@@ -65,7 +65,7 @@ describe('AnalysisInsight Value Object', () => {
           expect(insight.getCategory()).toBe('syntax');
           expect(insight.getTitle()).toBe('Missing semicolon');
           expect(insight.getDescription()).toBe(
-            'A semicolon is missing at the end of the statement'
+            'A semicolon is missing at the end of the statement',
           );
           expect(insight.getPriority()).toBe('medium'); // default
           expect(insight.getConfidence()).toBe(1.0); // default
@@ -88,7 +88,7 @@ describe('AnalysisInsight Value Object', () => {
           0.95,
           evidence,
           recommendations,
-          relatedPatterns
+          relatedPatterns,
         );
 
         expect(result.isOk()).toBe(true);
@@ -108,7 +108,7 @@ describe('AnalysisInsight Value Object', () => {
         const result = AnalysisInsight.create(
           'semantics',
           '  Logical inconsistency  ',
-          '  The premise contradicts the conclusion  '
+          '  The premise contradicts the conclusion  ',
         );
 
         expect(result.isOk()).toBe(true);
@@ -138,7 +138,7 @@ describe('AnalysisInsight Value Object', () => {
               confidence,
               evidence,
               recommendations,
-              patterns
+              patterns,
             ) => {
               const result = AnalysisInsight.create(
                 category,
@@ -148,7 +148,7 @@ describe('AnalysisInsight Value Object', () => {
                 confidence,
                 evidence,
                 recommendations,
-                patterns
+                patterns,
               );
 
               expect(result.isOk()).toBe(true);
@@ -163,8 +163,8 @@ describe('AnalysisInsight Value Object', () => {
                 expect(insight.getRecommendations()).toEqual(recommendations);
                 expect(insight.getRelatedPatterns()).toEqual(patterns);
               }
-            }
-          )
+            },
+          ),
         );
       });
     });
@@ -216,7 +216,7 @@ describe('AnalysisInsight Value Object', () => {
           'Valid title',
           'Valid description',
           'medium',
-          -0.1
+          -0.1,
         );
 
         expect(result.isErr()).toBe(true);
@@ -232,7 +232,7 @@ describe('AnalysisInsight Value Object', () => {
           'Valid title',
           'Valid description',
           'medium',
-          1.1
+          1.1,
         );
 
         expect(result.isErr()).toBe(true);
@@ -249,7 +249,7 @@ describe('AnalysisInsight Value Object', () => {
         const undefinedTitleResult = AnalysisInsight.create(
           'syntax',
           undefined as any,
-          'Valid description'
+          'Valid description',
         );
         expect(undefinedTitleResult.isErr()).toBe(true);
 
@@ -259,7 +259,7 @@ describe('AnalysisInsight Value Object', () => {
         const undefinedDescResult = AnalysisInsight.create(
           'syntax',
           'Valid title',
-          undefined as any
+          undefined as any,
         );
         expect(undefinedDescResult.isErr()).toBe(true);
       });
@@ -273,7 +273,7 @@ describe('AnalysisInsight Value Object', () => {
           'Syntax error',
           'Missing closing bracket',
           'high',
-          ['Add closing bracket']
+          ['Add closing bracket'],
         );
 
         expect(result.isOk()).toBe(true);
@@ -292,7 +292,7 @@ describe('AnalysisInsight Value Object', () => {
       it('should use default priority when not specified', () => {
         const result = AnalysisInsight.createSyntaxInsight(
           'Syntax warning',
-          'Inconsistent spacing'
+          'Inconsistent spacing',
         );
 
         expect(result.isOk()).toBe(true);
@@ -311,7 +311,7 @@ describe('AnalysisInsight Value Object', () => {
           'Logical inconsistency',
           'The argument contains a contradiction',
           evidence,
-          recommendations
+          recommendations,
         );
 
         expect(result.isOk()).toBe(true);
@@ -331,7 +331,7 @@ describe('AnalysisInsight Value Object', () => {
       it('should create performance insight with correct defaults', () => {
         const result = AnalysisInsight.createPerformanceInsight(
           'Redundant operations',
-          'Multiple identical calculations detected'
+          'Multiple identical calculations detected',
         );
 
         expect(result.isOk()).toBe(true);
@@ -349,7 +349,7 @@ describe('AnalysisInsight Value Object', () => {
         const result = AnalysisInsight.createPerformanceInsight(
           'Performance issue',
           'Slow operation detected',
-          0.85
+          0.85,
         );
 
         expect(result.isOk()).toBe(true);
@@ -366,7 +366,7 @@ describe('AnalysisInsight Value Object', () => {
         const result = AnalysisInsight.createEducationalInsight(
           'Learning opportunity',
           'This is an example of circular reasoning',
-          recommendations
+          recommendations,
         );
 
         expect(result.isOk()).toBe(true);
@@ -390,7 +390,7 @@ describe('AnalysisInsight Value Object', () => {
           'Validation failed',
           'Custom validation rule violated',
           evidence,
-          recommendations
+          recommendations,
         );
 
         expect(result.isOk()).toBe(true);
@@ -453,7 +453,7 @@ describe('AnalysisInsight Value Object', () => {
             'Title',
             'Description',
             'medium',
-            confidence
+            confidence,
           );
 
           expect(result.isOk()).toBe(true);
@@ -492,7 +492,7 @@ describe('AnalysisInsight Value Object', () => {
           'medium',
           1.0,
           [],
-          ['Recommendation 1']
+          ['Recommendation 1'],
         );
 
         const withoutRecommendations = AnalysisInsight.create('syntax', 'Title', 'Desc');
@@ -528,7 +528,7 @@ describe('AnalysisInsight Value Object', () => {
             priority as InsightPriority,
             confidence,
             [],
-            hasRecs ? ['Do something'] : []
+            hasRecs ? ['Do something'] : [],
           );
 
           expect(result.isOk()).toBe(true);
@@ -556,7 +556,7 @@ describe('AnalysisInsight Value Object', () => {
             'Title',
             'Description',
             priority as InsightPriority,
-            confidence
+            confidence,
           );
 
           expect(result.isOk()).toBe(true);
@@ -665,7 +665,7 @@ describe('AnalysisInsight Value Object', () => {
           'medium',
           1.0,
           [],
-          ['Recommendation 1']
+          ['Recommendation 1'],
         );
 
         expect(result.isOk()).toBe(true);
@@ -703,7 +703,7 @@ describe('AnalysisInsight Value Object', () => {
           1.0,
           evidence,
           recommendations,
-          patterns
+          patterns,
         );
 
         expect(result.isOk()).toBe(true);
@@ -739,7 +739,7 @@ describe('AnalysisInsight Value Object', () => {
         0.956,
         ['Line 10', 'Line 15'],
         ['Add semicolon'],
-        []
+        [],
       );
 
       expect(result.isOk()).toBe(true);
@@ -767,7 +767,7 @@ describe('AnalysisInsight Value Object', () => {
         'Performance issue',
         'Minor performance degradation',
         'low',
-        0.333
+        0.333,
       );
 
       expect(result.isOk()).toBe(true);
@@ -845,7 +845,7 @@ describe('AnalysisInsight Value Object', () => {
         'Same description',
         'high',
         0.9,
-        ['Evidence']
+        ['Evidence'],
       );
 
       const result2 = AnalysisInsight.create(
@@ -854,7 +854,7 @@ describe('AnalysisInsight Value Object', () => {
         'Same description',
         'low',
         0.1,
-        []
+        [],
       );
 
       expect(result1.isOk()).toBe(true);
@@ -886,7 +886,7 @@ describe('AnalysisInsight Value Object', () => {
               priority,
               confidence,
               evidence,
-              recommendations
+              recommendations,
             );
 
             expect(result.isOk()).toBe(true);
@@ -905,7 +905,7 @@ describe('AnalysisInsight Value Object', () => {
               expect(withEvidence.getCategory()).toBe(insight.getCategory());
               expect(withEvidence.getPriority()).toBe(insight.getPriority());
               expect(withEvidence.getEvidence().length).toBeGreaterThanOrEqual(
-                insight.getEvidence().length
+                insight.getEvidence().length,
               );
 
               // Test withAdditionalRecommendations invariants
@@ -913,11 +913,11 @@ describe('AnalysisInsight Value Object', () => {
               expect(withRecs.getCategory()).toBe(insight.getCategory());
               expect(withRecs.getPriority()).toBe(insight.getPriority());
               expect(withRecs.getRecommendations().length).toBeGreaterThanOrEqual(
-                insight.getRecommendations().length
+                insight.getRecommendations().length,
               );
             }
-          }
-        )
+          },
+        ),
       );
     });
 
@@ -932,7 +932,7 @@ describe('AnalysisInsight Value Object', () => {
               'Title',
               'Description',
               priority,
-              confidence
+              confidence,
             );
 
             const result2 = AnalysisInsight.create(
@@ -940,7 +940,7 @@ describe('AnalysisInsight Value Object', () => {
               'Title',
               'Description',
               priority,
-              confidence * 0.5
+              confidence * 0.5,
             );
 
             expect(result1.isOk()).toBe(true);
@@ -949,11 +949,11 @@ describe('AnalysisInsight Value Object', () => {
             if (result1.isOk() && result2.isOk()) {
               // Higher confidence should yield higher score for same priority
               expect(result1.value.getPriorityScore()).toBeGreaterThan(
-                result2.value.getPriorityScore()
+                result2.value.getPriorityScore(),
               );
             }
-          }
-        )
+          },
+        ),
       );
     });
   });
@@ -990,7 +990,7 @@ describe('AnalysisInsight Value Object', () => {
         longDescription,
         'medium',
         1.0,
-        manyEvidence
+        manyEvidence,
       );
 
       expect(result.isOk()).toBe(true);

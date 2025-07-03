@@ -1,7 +1,7 @@
 import { err, ok, type Result } from 'neverthrow';
 
 import { ValidationError } from '../errors/AnalysisErrors.js';
-import { type SourceLocation } from './SourceLocation.js';
+import type { SourceLocation } from './SourceLocation.js';
 
 export class PatternMatch {
   private constructor(
@@ -13,7 +13,7 @@ export class PatternMatch {
     private readonly matchedContent: string,
     private readonly variables: Map<string, string>,
     private readonly context: MatchContext,
-    private readonly validationScope?: ValidationScope
+    private readonly validationScope?: ValidationScope,
   ) {}
 
   static create(
@@ -25,7 +25,7 @@ export class PatternMatch {
     matchedContent: string,
     variables = new Map<string, string>(),
     context: MatchContext = MatchContext.createDefault(),
-    validationScope?: ValidationScope
+    validationScope?: ValidationScope,
   ): Result<PatternMatch, ValidationError> {
     if (!patternId || patternId.trim().length === 0) {
       return err(new ValidationError('Pattern ID cannot be empty'));
@@ -53,8 +53,8 @@ export class PatternMatch {
         matchedContent.trim(),
         variables,
         context,
-        validationScope
-      )
+        validationScope,
+      ),
     );
   }
 
@@ -64,7 +64,7 @@ export class PatternMatch {
     location: SourceLocation,
     confidence: number,
     matchedContent: string,
-    variables = new Map<string, string>()
+    variables = new Map<string, string>(),
   ): Result<PatternMatch, ValidationError> {
     return PatternMatch.create(
       patternId,
@@ -74,7 +74,7 @@ export class PatternMatch {
       confidence,
       matchedContent,
       variables,
-      MatchContext.createForInference()
+      MatchContext.createForInference(),
     );
   }
 
@@ -83,7 +83,7 @@ export class PatternMatch {
     patternName: string,
     location: SourceLocation,
     confidence: number,
-    matchedContent: string
+    matchedContent: string,
   ): Result<PatternMatch, ValidationError> {
     return PatternMatch.create(
       patternId,
@@ -93,7 +93,7 @@ export class PatternMatch {
       confidence,
       matchedContent,
       new Map(),
-      MatchContext.createForStructural()
+      MatchContext.createForStructural(),
     );
   }
 
@@ -104,7 +104,7 @@ export class PatternMatch {
     confidence: number,
     matchedContent: string,
     validationScope: ValidationScope,
-    indicators: PatternIndicator[]
+    indicators: PatternIndicator[],
   ): Result<PatternMatch, ValidationError> {
     const variables = new Map<string, string>();
     indicators.forEach((indicator, index) => {
@@ -120,7 +120,7 @@ export class PatternMatch {
       matchedContent,
       variables,
       MatchContext.createForValidation(),
-      validationScope
+      validationScope,
     );
   }
 
@@ -130,7 +130,7 @@ export class PatternMatch {
     location: SourceLocation,
     confidence: number,
     matchedContent: string,
-    modalOperators: string[]
+    modalOperators: string[],
   ): Result<PatternMatch, ValidationError> {
     const variables = new Map<string, string>();
     modalOperators.forEach((op, index) => {
@@ -145,7 +145,7 @@ export class PatternMatch {
       confidence,
       matchedContent,
       variables,
-      MatchContext.createForModal()
+      MatchContext.createForModal(),
     );
   }
 
@@ -254,7 +254,7 @@ export class PatternMatch {
     if (this.variables.size === 0) return 1.0;
 
     const unboundVariables = Array.from(this.variables.values()).filter(
-      value => !value || value.trim().length === 0
+      (value) => !value || value.trim().length === 0,
     ).length;
 
     return (this.variables.size - unboundVariables) / this.variables.size;
@@ -283,7 +283,7 @@ export class PatternMatch {
       this.matchedContent,
       this.variables,
       this.context,
-      this.validationScope
+      this.validationScope,
     );
   }
 
@@ -299,7 +299,7 @@ export class PatternMatch {
       this.matchedContent,
       combinedVariables,
       this.context,
-      this.validationScope
+      this.validationScope,
     );
   }
 
@@ -384,7 +384,7 @@ export class MatchContext {
     private readonly surroundingContext: string,
     private readonly relatedMatches: string[],
     private readonly relevanceScore: number,
-    private readonly additionalMetadata: Record<string, unknown>
+    private readonly additionalMetadata: Record<string, unknown>,
   ) {}
 
   static createDefault(): MatchContext {

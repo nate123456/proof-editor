@@ -12,7 +12,7 @@
 import { err, ok } from 'neverthrow';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { type Package } from '../../entities/Package';
+import type { Package } from '../../entities/Package';
 import {
   type IPackageFileSystem,
   type ISDKValidator,
@@ -20,8 +20,8 @@ import {
 } from '../../services/PackageValidationService';
 import { PackageValidationError } from '../../types/domain-errors';
 import { InstallationPath } from '../../value-objects/InstallationPath';
-import { PackageId } from '../../value-objects/package-id';
 import { PackageVersion } from '../../value-objects/PackageVersion';
+import { PackageId } from '../../value-objects/package-id';
 
 // Mock factories
 const createMockPackage = (
@@ -34,7 +34,7 @@ const createMockPackage = (
     hasLSPSupport?: boolean;
     allowInvalidId?: boolean;
     allowInvalidVersion?: boolean;
-  } = {}
+  } = {},
 ): Package => {
   // For testing invalid packages, we'll use a mock instead of actual validation
   const mockPackageId: PackageId = (() => {
@@ -44,7 +44,7 @@ const createMockPackage = (
         toString: () => '',
         equals: () => false,
         toJSON: () => '',
-      } as PackageId;
+      } as unknown as PackageId;
     } else {
       const packageId = PackageId.create(id || 'test-package');
       if (packageId.isErr()) {
@@ -98,18 +98,18 @@ const createMockPackage = (
               isValid: () => true,
             },
           ]
-        : []
+        : [],
     ),
     getDevDependencies: vi.fn(() => []),
     getPeerDependencies: vi.fn(() => []),
     getConflicts: vi.fn(() => []),
     getKeywords: vi.fn(() => ['test', 'package']),
-    getAuthors: vi.fn(() => [{ name: 'Test Author', email: 'test@example.com' }]),
+    getAuthor: vi.fn(() => ({ name: 'Test Author', email: 'test@example.com' })),
     getCreatedAt: vi.fn(() => new Date()),
     getUpdatedAt: vi.fn(() => new Date()),
     isPublished: vi.fn(() => options.isPublished ?? false),
-    validateDependencies: vi.fn(() => ok(undefined)),
-    hasCircularDependencies: vi.fn(() => false),
+    checkPackageHealth: vi.fn(() => ok(undefined)),
+    checkCircularDependencies: vi.fn(() => false),
     getMetadata: vi.fn(() => ({
       homepage: 'https://example.com',
       repository: 'https://github.com/example/repo',
@@ -132,7 +132,7 @@ const createMockManifest = (
     keywords?: string[];
     author?: string;
     license?: string;
-  } = {}
+  } = {},
 ): any => {
   const deps = new Map();
   if (options.dependencies) {
@@ -188,7 +188,7 @@ const createMockSDKValidator = (): ISDKValidator => {
         name: 'test-interface',
         version: '1.0.0',
         methods: ['method1', 'method2'],
-      })
+      }),
     ),
     listImplementedInterfaces: vi.fn().mockResolvedValue(ok([])),
     checkVersionCompatibility: vi.fn().mockReturnValue(ok(true)),
@@ -236,7 +236,7 @@ describe('PackageValidationService', () => {
         const validationResult = result.value;
         expect(validationResult.isValid).toBe(false);
         expect(validationResult.errors.length).toBeGreaterThan(0);
-        expect(validationResult.errors.some(e => e.toLowerCase().includes('name'))).toBe(true);
+        expect(validationResult.errors.some((e) => e.toLowerCase().includes('name'))).toBe(true);
       }
     });
 
@@ -250,8 +250,8 @@ describe('PackageValidationService', () => {
         const validationResult = result.value;
         expect(validationResult.isValid).toBe(false);
         expect(validationResult.errors.length).toBeGreaterThan(0);
-        expect(validationResult.errors.some(e => e.toLowerCase().includes('description'))).toBe(
-          true
+        expect(validationResult.errors.some((e) => e.toLowerCase().includes('description'))).toBe(
+          true,
         );
       }
     });
@@ -262,12 +262,12 @@ describe('PackageValidationService', () => {
       const result = await service.validatePackage(pkg);
 
       expect(result.isOk()).toBe(true);
-      expect(pkg.validateDependencies).toHaveBeenCalled();
+      expect((pkg as any).checkPackageHealth).toHaveBeenCalled();
     });
 
     it('should check for circular dependencies', async () => {
       const pkg = createMockPackage('test-package', '1.0.0');
-      vi.mocked(pkg.hasCircularDependencies).mockReturnValue(true);
+      vi.mocked((pkg as any).checkCircularDependencies).mockReturnValue(true);
 
       const result = await service.validatePackage(pkg);
 
@@ -275,13 +275,15 @@ describe('PackageValidationService', () => {
       if (result.isOk()) {
         const validationResult = result.value;
         expect(validationResult.isValid).toBe(false);
-        expect(validationResult.errors.some(e => e.toLowerCase().includes('circular'))).toBe(true);
+        expect(validationResult.errors.some((e) => e.toLowerCase().includes('circular'))).toBe(
+          true,
+        );
       }
     });
 
     it('should add warning for missing keywords', async () => {
       const pkg = createMockPackage('test-package', '1.0.0');
-      vi.mocked(pkg.getKeywords).mockReturnValue([]);
+      vi.mocked((pkg as any).getKeywords).mockReturnValue([]);
 
       const result = await service.validatePackage(pkg);
 
@@ -289,13 +291,15 @@ describe('PackageValidationService', () => {
       if (result.isOk()) {
         const validationResult = result.value;
         expect(validationResult.warnings.length).toBeGreaterThan(0);
-        expect(validationResult.warnings.some(w => w.toLowerCase().includes('keyword'))).toBe(true);
+        expect(validationResult.warnings.some((w) => w.toLowerCase().includes('keyword'))).toBe(
+          true,
+        );
       }
     });
 
     it('should add warning for missing authors', async () => {
       const pkg = createMockPackage('test-package', '1.0.0');
-      vi.mocked(pkg.getAuthors).mockReturnValue([]);
+      vi.mocked(pkg.getAuthor).mockReturnValue('' as any);
 
       const result = await service.validatePackage(pkg);
 
@@ -303,7 +307,9 @@ describe('PackageValidationService', () => {
       if (result.isOk()) {
         const validationResult = result.value;
         expect(validationResult.warnings.length).toBeGreaterThan(0);
-        expect(validationResult.warnings.some(w => w.toLowerCase().includes('author'))).toBe(true);
+        expect(validationResult.warnings.some((w) => w.toLowerCase().includes('author'))).toBe(
+          true,
+        );
       }
     });
   });
@@ -368,7 +374,7 @@ describe('PackageValidationService', () => {
       // Mock file system to return JavaScript file with network access
       vi.mocked(mockFileSystem.listFiles).mockResolvedValue(ok(['network.js']));
       vi.mocked(mockFileSystem.readFile).mockResolvedValue(
-        ok('fetch("https://api.example.com/data");')
+        ok('fetch("https://api.example.com/data");'),
       );
 
       const result = await service.validatePackage(pkg, installPath.value, {
@@ -378,7 +384,7 @@ describe('PackageValidationService', () => {
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         const validationResult = result.value;
-        expect(validationResult.warnings.some(w => w.includes('Network access'))).toBe(true);
+        expect(validationResult.warnings.some((w) => w.includes('Network access'))).toBe(true);
       }
     });
 
@@ -401,7 +407,7 @@ describe('PackageValidationService', () => {
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         const validationResult = result.value;
-        expect(validationResult.warnings.some(w => w.includes('File system access'))).toBe(true);
+        expect(validationResult.warnings.some((w) => w.includes('File system access'))).toBe(true);
       }
     });
 
@@ -426,7 +432,9 @@ describe('PackageValidationService', () => {
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         const validationResult = result.value;
-        expect(validationResult.warnings.some(w => w.includes('Elevated permissions'))).toBe(true);
+        expect(validationResult.warnings.some((w) => w.includes('Elevated permissions'))).toBe(
+          true,
+        );
       }
     });
 
@@ -449,7 +457,7 @@ describe('PackageValidationService', () => {
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         const validationResult = result.value;
-        expect(validationResult.warnings.some(w => w.includes('Executable file'))).toBe(true);
+        expect(validationResult.warnings.some((w) => w.includes('Executable file'))).toBe(true);
       }
     });
   });
@@ -507,9 +515,9 @@ describe('PackageValidationService', () => {
       if (result.isOk()) {
         const validationResult = result.value;
         expect(validationResult.isValid).toBe(false);
-        expect(validationResult.errors.some(e => e.includes('LSP desktop binary not found'))).toBe(
-          true
-        );
+        expect(
+          validationResult.errors.some((e) => e.includes('LSP desktop binary not found')),
+        ).toBe(true);
       }
     });
 
@@ -561,9 +569,9 @@ describe('PackageValidationService', () => {
         const validationResult = result.value;
         expect(validationResult.isValid).toBe(false);
         expect(
-          validationResult.errors.some(e =>
-            e.includes('LSP mobile websocket configuration requires service URL')
-          )
+          validationResult.errors.some((e) =>
+            e.includes('LSP mobile websocket configuration requires service URL'),
+          ),
         ).toBe(true);
       }
     });
@@ -601,7 +609,7 @@ describe('PackageValidationService', () => {
 
       // Mock SDK validator to return error
       vi.mocked(mockSDKValidator.listImplementedInterfaces).mockResolvedValue(
-        err(new PackageValidationError('SDK validation failed'))
+        err(new PackageValidationError('SDK validation failed')),
       );
 
       const result = await service.validatePackage(pkg, installPath.value, {
@@ -625,7 +633,9 @@ describe('PackageValidationService', () => {
       if (result.isOk()) {
         const validationResult = result.value;
         expect(validationResult.isValid).toBe(false);
-        expect(validationResult.errors.some(e => e.includes('Invalid version format'))).toBe(true);
+        expect(validationResult.errors.some((e) => e.includes('Invalid version format'))).toBe(
+          true,
+        );
       }
     });
 
@@ -646,7 +656,7 @@ describe('PackageValidationService', () => {
       if (result.isOk()) {
         const validationResult = result.value;
         expect(
-          validationResult.warnings.some(w => w.includes('Package manifest file not found'))
+          validationResult.warnings.some((w) => w.includes('Package manifest file not found')),
         ).toBe(true);
       }
     });
@@ -689,7 +699,7 @@ describe('PackageValidationService', () => {
         throw new Error('Failed to create installation path');
       }
 
-      vi.mocked(pkg.hasCircularDependencies).mockReturnValue(true);
+      vi.mocked((pkg as any).checkCircularDependencies).mockReturnValue(true);
 
       const result = await service.validatePackage(pkg, installPath.value);
 
@@ -698,9 +708,9 @@ describe('PackageValidationService', () => {
         const validationResult = result.value;
         expect(validationResult.isValid).toBe(false);
         expect(validationResult.errors.length).toBeGreaterThan(1);
-        expect(validationResult.errors.some(e => e.includes('description'))).toBe(true);
-        expect(validationResult.errors.some(e => e.includes('circular'))).toBe(true);
-        expect(validationResult.errors.some(e => e.includes('Invalid version'))).toBe(true);
+        expect(validationResult.errors.some((e) => e.includes('description'))).toBe(true);
+        expect(validationResult.errors.some((e) => e.includes('circular'))).toBe(true);
+        expect(validationResult.errors.some((e) => e.includes('Invalid version'))).toBe(true);
       }
     });
   });

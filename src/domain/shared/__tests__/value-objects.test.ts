@@ -38,33 +38,29 @@ import {
 // Property-based test generators
 const validStringArbitrary = fc
   .string({ minLength: 1, maxLength: 255 })
-  .filter(s => s.trim().length > 0);
+  .filter((s) => s.trim().length > 0);
 const emptyOrWhitespaceArbitrary = fc.oneof(
   fc.constant(''),
   fc.constant('   '),
   fc.constant('\t\n\r'),
-  fc.constant('  \t  \n  ')
+  fc.constant('  \t  \n  '),
 );
 const oversizedStringArbitrary = fc.string({ minLength: 256, maxLength: 300 });
 const validPositionArbitrary = fc.tuple(
   fc.float({ min: -1000, max: 1000, noNaN: true }),
-  fc.float({ min: -1000, max: 1000, noNaN: true })
+  fc.float({ min: -1000, max: 1000, noNaN: true }),
 );
 const invalidPositionArbitrary = fc.oneof(
   fc.tuple(fc.constant(Number.NaN), fc.float({ noNaN: true })),
   fc.tuple(fc.float({ noNaN: true }), fc.constant(Number.NaN)),
   fc.tuple(fc.constant(Number.POSITIVE_INFINITY), fc.float({ noNaN: true })),
-  fc.tuple(fc.float({ noNaN: true }), fc.constant(Number.NEGATIVE_INFINITY))
+  fc.tuple(fc.float({ noNaN: true }), fc.constant(Number.NEGATIVE_INFINITY)),
 );
 
 describe('Value Objects', () => {
   describe('ValueObject Base Class', () => {
     // Create a concrete implementation for testing
-    class TestValueObject extends ValueObject<string> {
-      constructor(value: string) {
-        super(value);
-      }
-    }
+    class TestValueObject extends ValueObject<string> {}
 
     describe('equals method', () => {
       it('should return true for same values', () => {
@@ -81,10 +77,10 @@ describe('Value Objects', () => {
 
       it('should satisfy reflexivity', () => {
         fc.assert(
-          fc.property(fc.string(), value => {
+          fc.property(fc.string(), (value) => {
             const obj = new TestValueObject(value);
             expect(obj.equals(obj)).toBe(true);
-          })
+          }),
         );
       });
 
@@ -94,7 +90,7 @@ describe('Value Objects', () => {
             const obj1 = new TestValueObject(value1);
             const obj2 = new TestValueObject(value2);
             expect(obj1.equals(obj2)).toBe(obj2.equals(obj1));
-          })
+          }),
         );
       });
     });
@@ -102,10 +98,10 @@ describe('Value Objects', () => {
     describe('getValue method', () => {
       it('should return the underlying value', () => {
         fc.assert(
-          fc.property(fc.string(), value => {
+          fc.property(fc.string(), (value) => {
             const obj = new TestValueObject(value);
             expect(obj.getValue()).toBe(value);
-          })
+          }),
         );
       });
     });
@@ -113,10 +109,10 @@ describe('Value Objects', () => {
     describe('toString method', () => {
       it('should return string representation of value', () => {
         fc.assert(
-          fc.property(fc.string(), value => {
+          fc.property(fc.string(), (value) => {
             const obj = new TestValueObject(value);
             expect(obj.toString()).toBe(String(value));
-          })
+          }),
         );
       });
     });
@@ -126,20 +122,20 @@ describe('Value Objects', () => {
     describe('creation and validation', () => {
       it('should create valid StatementId from valid strings', () => {
         fc.assert(
-          fc.property(validStringArbitrary, value => {
+          fc.property(validStringArbitrary, (value) => {
             const result = StatementId.create(value);
             expect(result.isOk()).toBe(true);
 
             if (result.isOk()) {
               expect(result.value.getValue()).toBe(value.trim());
             }
-          })
+          }),
         );
       });
 
       it('should reject empty or whitespace-only strings', () => {
         fc.assert(
-          fc.property(emptyOrWhitespaceArbitrary, value => {
+          fc.property(emptyOrWhitespaceArbitrary, (value) => {
             const result = StatementId.create(value);
             expect(result.isErr()).toBe(true);
 
@@ -147,13 +143,13 @@ describe('Value Objects', () => {
               expect(result.error).toBeInstanceOf(ValidationError);
               expect(result.error.message).toContain('StatementId cannot be empty');
             }
-          })
+          }),
         );
       });
 
       it('should reject oversized strings', () => {
         fc.assert(
-          fc.property(oversizedStringArbitrary, value => {
+          fc.property(oversizedStringArbitrary, (value) => {
             const result = StatementId.create(value);
             expect(result.isErr()).toBe(true);
 
@@ -161,7 +157,7 @@ describe('Value Objects', () => {
               expect(result.error).toBeInstanceOf(ValidationError);
               expect(result.error.message).toContain('cannot exceed 255 characters');
             }
-          })
+          }),
         );
       });
 
@@ -221,14 +217,14 @@ describe('Value Objects', () => {
     describe('creation and validation', () => {
       it('should create valid OrderedSetId from valid strings', () => {
         fc.assert(
-          fc.property(validStringArbitrary, value => {
+          fc.property(validStringArbitrary, (value) => {
             const result = OrderedSetId.create(value);
             expect(result.isOk()).toBe(true);
 
             if (result.isOk()) {
               expect(result.value.getValue()).toBe(value.trim());
             }
-          })
+          }),
         );
       });
 
@@ -251,14 +247,14 @@ describe('Value Objects', () => {
     describe('creation and validation', () => {
       it('should create valid AtomicArgumentId from valid strings', () => {
         fc.assert(
-          fc.property(validStringArbitrary, value => {
+          fc.property(validStringArbitrary, (value) => {
             const result = AtomicArgumentId.create(value);
             expect(result.isOk()).toBe(true);
 
             if (result.isOk()) {
               expect(result.value.getValue()).toBe(value.trim());
             }
-          })
+          }),
         );
       });
 
@@ -275,14 +271,14 @@ describe('Value Objects', () => {
     describe('creation and validation', () => {
       it('should create valid NodeId from valid strings', () => {
         fc.assert(
-          fc.property(validStringArbitrary, value => {
+          fc.property(validStringArbitrary, (value) => {
             const result = NodeId.create(value);
             expect(result.isOk()).toBe(true);
 
             if (result.isOk()) {
               expect(result.value.getValue()).toBe(value.trim());
             }
-          })
+          }),
         );
       });
 
@@ -299,14 +295,14 @@ describe('Value Objects', () => {
     describe('creation and validation', () => {
       it('should create valid TreeId from valid strings', () => {
         fc.assert(
-          fc.property(validStringArbitrary, value => {
+          fc.property(validStringArbitrary, (value) => {
             const result = TreeId.create(value);
             expect(result.isOk()).toBe(true);
 
             if (result.isOk()) {
               expect(result.value.getValue()).toBe(value.trim());
             }
-          })
+          }),
         );
       });
 
@@ -323,14 +319,14 @@ describe('Value Objects', () => {
     describe('creation and validation', () => {
       it('should create valid DocumentId from valid strings', () => {
         fc.assert(
-          fc.property(validStringArbitrary, value => {
+          fc.property(validStringArbitrary, (value) => {
             const result = DocumentId.create(value);
             expect(result.isOk()).toBe(true);
 
             if (result.isOk()) {
               expect(result.value.getValue()).toBe(value.trim());
             }
-          })
+          }),
         );
       });
 
@@ -347,20 +343,20 @@ describe('Value Objects', () => {
     describe('creation and validation', () => {
       it('should create valid PackageId from valid strings', () => {
         fc.assert(
-          fc.property(validStringArbitrary, value => {
+          fc.property(validStringArbitrary, (value) => {
             const result = PackageId.create(value);
             expect(result.isOk()).toBe(true);
 
             if (result.isOk()) {
               expect(result.value.getValue()).toBe(value.trim());
             }
-          })
+          }),
         );
       });
 
       it('should reject empty or whitespace-only strings', () => {
         fc.assert(
-          fc.property(emptyOrWhitespaceArbitrary, value => {
+          fc.property(emptyOrWhitespaceArbitrary, (value) => {
             const result = PackageId.create(value);
             expect(result.isErr()).toBe(true);
 
@@ -368,13 +364,13 @@ describe('Value Objects', () => {
               expect(result.error).toBeInstanceOf(ValidationError);
               expect(result.error.message).toContain('PackageId cannot be empty');
             }
-          })
+          }),
         );
       });
 
       it('should reject oversized strings', () => {
         fc.assert(
-          fc.property(oversizedStringArbitrary, value => {
+          fc.property(oversizedStringArbitrary, (value) => {
             const result = PackageId.create(value);
             expect(result.isErr()).toBe(true);
 
@@ -382,7 +378,7 @@ describe('Value Objects', () => {
               expect(result.error).toBeInstanceOf(ValidationError);
               expect(result.error.message).toContain('cannot exceed 255 characters');
             }
-          })
+          }),
         );
       });
 
@@ -429,7 +425,7 @@ describe('Value Objects', () => {
     describe('creation and validation', () => {
       it('should create valid StatementContent from valid strings', () => {
         fc.assert(
-          fc.property(fc.string({ minLength: 1, maxLength: 10000 }), value => {
+          fc.property(fc.string({ minLength: 1, maxLength: 10000 }), (value) => {
             if (value.trim().length > 0) {
               const result = StatementContent.create(value);
               expect(result.isOk()).toBe(true);
@@ -438,7 +434,7 @@ describe('Value Objects', () => {
                 expect(result.value.getValue()).toBe(value.trim());
               }
             }
-          })
+          }),
         );
       });
 
@@ -456,14 +452,14 @@ describe('Value Objects', () => {
 
       it('should reject empty and whitespace-only content', () => {
         fc.assert(
-          fc.property(emptyOrWhitespaceArbitrary, value => {
+          fc.property(emptyOrWhitespaceArbitrary, (value) => {
             const result = StatementContent.create(value);
             expect(result.isErr()).toBe(true);
 
             if (result.isErr()) {
               expect(result.error.message).toContain('StatementContent cannot be empty');
             }
-          })
+          }),
         );
       });
 
@@ -564,27 +560,27 @@ describe('Value Objects', () => {
     describe('creation and validation', () => {
       it('should create valid Version from non-negative integers', () => {
         fc.assert(
-          fc.property(fc.nat(), value => {
+          fc.property(fc.nat(), (value) => {
             const result = Version.create(value);
             expect(result.isOk()).toBe(true);
 
             if (result.isOk()) {
               expect(result.value.getValue()).toBe(value);
             }
-          })
+          }),
         );
       });
 
       it('should reject negative numbers', () => {
         fc.assert(
-          fc.property(fc.integer({ max: -1 }), value => {
+          fc.property(fc.integer({ max: -1 }), (value) => {
             const result = Version.create(value);
             expect(result.isErr()).toBe(true);
 
             if (result.isErr()) {
               expect(result.error.message).toContain('must be a non-negative integer');
             }
-          })
+          }),
         );
       });
 
@@ -608,7 +604,7 @@ describe('Value Objects', () => {
     describe('version operations', () => {
       it('should increment version correctly', () => {
         fc.assert(
-          fc.property(fc.nat({ max: 1000 }), value => {
+          fc.property(fc.nat({ max: 1000 }), (value) => {
             const versionResult = Version.create(value);
             expect(versionResult.isOk()).toBe(true);
 
@@ -617,7 +613,7 @@ describe('Value Objects', () => {
               const next = version.nextVersion();
               expect(next.getValue()).toBe(value + 1);
             }
-          })
+          }),
         );
       });
 
@@ -662,7 +658,7 @@ describe('Value Objects', () => {
 
               expect(Number(isAfter) + Number(isBefore) + Number(isEqual)).toBe(1);
             }
-          })
+          }),
         );
       });
     });
@@ -672,14 +668,14 @@ describe('Value Objects', () => {
     describe('creation and validation', () => {
       it('should create valid Timestamp from non-negative integers', () => {
         fc.assert(
-          fc.property(fc.nat(), value => {
+          fc.property(fc.nat(), (value) => {
             const result = Timestamp.create(value);
             expect(result.isOk()).toBe(true);
 
             if (result.isOk()) {
               expect(result.value.getValue()).toBe(value);
             }
-          })
+          }),
         );
       });
 
@@ -708,7 +704,7 @@ describe('Value Objects', () => {
     describe('timestamp operations', () => {
       it('should convert back to Date correctly', () => {
         fc.assert(
-          fc.property(fc.nat(), value => {
+          fc.property(fc.nat(), (value) => {
             const timestampResult = Timestamp.create(value);
             expect(timestampResult.isOk()).toBe(true);
 
@@ -717,7 +713,7 @@ describe('Value Objects', () => {
               const date = timestamp.toDate();
               expect(date.getTime()).toBe(value);
             }
-          })
+          }),
         );
       });
 
@@ -756,7 +752,7 @@ describe('Value Objects', () => {
               expect(result.value.getX()).toBe(x);
               expect(result.value.getY()).toBe(y);
             }
-          })
+          }),
         );
       });
 
@@ -769,7 +765,7 @@ describe('Value Objects', () => {
             if (result.isErr()) {
               expect(result.error.message).toMatch(/coordinate must be a finite number/);
             }
-          })
+          }),
         );
       });
 
@@ -799,8 +795,8 @@ describe('Value Objects', () => {
                   expect(moveResult.value.getY()).toBeCloseTo(y + deltaY, 10);
                 }
               }
-            }
-          )
+            },
+          ),
         );
       });
 
@@ -1003,8 +999,8 @@ describe('Value Objects', () => {
                 expect(result.value.getFromPosition()).toBe(fromPos);
                 expect(result.value.hasMultipleConclusionSource()).toBe(fromPos !== undefined);
               }
-            }
-          )
+            },
+          ),
         );
       });
     });
@@ -1032,7 +1028,7 @@ describe('Value Objects', () => {
           120,
           90,
           'horizontal' as ExpansionDirection,
-          'left' as AlignmentMode
+          'left' as AlignmentMode,
         );
 
         expect(result.isOk()).toBe(true);
@@ -1053,7 +1049,7 @@ describe('Value Objects', () => {
         expect(negativeXResult.isErr()).toBe(true);
         if (negativeXResult.isErr()) {
           expect(negativeXResult.error.message).toContain(
-            'Horizontal spacing must be non-negative'
+            'Horizontal spacing must be non-negative',
           );
         }
 
@@ -1082,7 +1078,7 @@ describe('Value Objects', () => {
         const infiniteSpacingResult = PhysicalProperties.create(
           'bottom-up',
           Number.POSITIVE_INFINITY,
-          40
+          40,
         );
         expect(infiniteSpacingResult.isErr()).toBe(true);
 
@@ -1090,7 +1086,7 @@ describe('Value Objects', () => {
           'bottom-up',
           50,
           40,
-          Number.POSITIVE_INFINITY
+          Number.POSITIVE_INFINITY,
         );
         expect(infiniteDimensionResult.isErr()).toBe(true);
       });
@@ -1126,7 +1122,7 @@ describe('Value Objects', () => {
             expect(modifiedResult.value.getSpacingY()).toBe(65);
             // Other properties should remain the same
             expect(modifiedResult.value.getLayoutStyle()).toBe(
-              originalResult.value.getLayoutStyle()
+              originalResult.value.getLayoutStyle(),
             );
           }
         }
@@ -1269,7 +1265,7 @@ describe('Value Objects', () => {
                 minWidth,
                 minHeight,
                 expansion as ExpansionDirection,
-                alignment as AlignmentMode
+                alignment as AlignmentMode,
               );
 
               expect(result.isOk()).toBe(true);
@@ -1283,8 +1279,8 @@ describe('Value Objects', () => {
                 expect(props.getExpansionDirection()).toBe(expansion);
                 expect(props.getAlignmentMode()).toBe(alignment);
               }
-            }
-          )
+            },
+          ),
         );
       });
     });

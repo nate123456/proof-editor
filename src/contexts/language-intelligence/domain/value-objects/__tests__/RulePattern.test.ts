@@ -34,7 +34,7 @@ describe('RulePattern', () => {
       const result = RulePattern.createLogicalPattern(
         ['  P  ', '  P → Q  '],
         ['  Q  '],
-        '  test-pattern  '
+        '  test-pattern  ',
       );
 
       expect(result.isOk()).toBe(true);
@@ -64,7 +64,7 @@ describe('RulePattern', () => {
       const result = RulePattern.createLogicalPattern(
         ['F(x,y)', 'G(x)'],
         ['H(x)'],
-        'mixed-pattern'
+        'mixed-pattern',
       );
 
       expect(result.isOk()).toBe(true);
@@ -89,7 +89,7 @@ describe('RulePattern', () => {
         const pattern = result.value;
         const constraints = pattern.getConstraints();
         expect(constraints.length).toBeGreaterThan(0);
-        expect(constraints.some(c => c.type === 'consistency')).toBe(true);
+        expect(constraints.some((c) => c.type === 'consistency')).toBe(true);
         // No arity-consistency constraints since these are propositions, not predicates
       }
     });
@@ -175,8 +175,12 @@ describe('RulePattern', () => {
         expect(pattern.isLogical()).toBe(false);
 
         const constraints = pattern.getConstraints();
-        expect(constraints.some(c => c.type === 'modal-operator' && c.operator === '□')).toBe(true);
-        expect(constraints.some(c => c.type === 'modal-operator' && c.operator === '◇')).toBe(true);
+        expect(constraints.some((c) => c.type === 'modal-operator' && c.operator === '□')).toBe(
+          true,
+        );
+        expect(constraints.some((c) => c.type === 'modal-operator' && c.operator === '◇')).toBe(
+          true,
+        );
       }
     });
 
@@ -186,18 +190,22 @@ describe('RulePattern', () => {
         ['◻P'],
         ['◊Q'],
         'custom-modal',
-        customOperators
+        customOperators,
       );
 
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         const pattern = result.value;
         const constraints = pattern.getConstraints();
-        expect(constraints.some(c => c.type === 'modal-operator' && c.operator === '◻')).toBe(
-          true
+        expect(constraints.some((c) => c.type === 'modal-operator' && c.operator === '◻')).toBe(
+          true,
         );
-        expect(constraints.some(c => c.type === 'modal-operator' && c.operator === '◊')).toBe(true);
-        expect(constraints.some(c => c.type === 'modal-operator' && c.operator === '⊞')).toBe(true);
+        expect(constraints.some((c) => c.type === 'modal-operator' && c.operator === '◊')).toBe(
+          true,
+        );
+        expect(constraints.some((c) => c.type === 'modal-operator' && c.operator === '⊞')).toBe(
+          true,
+        );
       }
     });
 
@@ -364,7 +372,7 @@ describe('RulePattern', () => {
           const simpleConfidence = pattern.calculateConfidence(['A'], ['B']);
           const complexConfidence = pattern.calculateConfidence(
             ['very long complex statement that should reduce confidence'],
-            ['another very long complex statement']
+            ['another very long complex statement'],
           );
           expect(complexConfidence).toBeLessThan(simpleConfidence);
         }
@@ -457,7 +465,7 @@ describe('RulePattern', () => {
         const result = RulePattern.createLogicalPattern(
           ['always true'],
           ['always true'],
-          'constant'
+          'constant',
         );
 
         expect(result.isOk()).toBe(true);
@@ -483,7 +491,7 @@ describe('RulePattern', () => {
         const result = RulePattern.createLogicalPattern(
           ['A', 'B', 'C', 'D', 'E', 'F'],
           ['G'],
-          'complex'
+          'complex',
         );
 
         expect(result.isOk()).toBe(true);
@@ -509,7 +517,7 @@ describe('RulePattern', () => {
         const result = RulePattern.createLogicalPattern(
           ['A', 'B', 'C', 'D', 'E', 'F'],
           ['G'],
-          'many-vars'
+          'many-vars',
         );
 
         expect(result.isOk()).toBe(true);

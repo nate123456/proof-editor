@@ -7,12 +7,14 @@
  */
 
 import fc from 'fast-check';
+import { mock } from 'jest-mock-extended';
+import { err, ok } from 'neverthrow';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AtomicArgument } from '../../entities/AtomicArgument.js';
-import { type OrderedSet } from '../../entities/OrderedSet.js';
+import type { OrderedSet } from '../../entities/OrderedSet.js';
 import { Statement } from '../../entities/Statement.js';
-import { ProcessingError } from '../../errors/DomainErrors.js';
+import { ProcessingError, RepositoryError } from '../../errors/DomainErrors.js';
 import type { IAtomicArgumentRepository } from '../../repositories/IAtomicArgumentRepository.js';
 import type { IOrderedSetRepository } from '../../repositories/IOrderedSetRepository.js';
 import type { IStatementRepository } from '../../repositories/IStatementRepository.js';
@@ -20,7 +22,7 @@ import {
   StatementFlowValidationResult,
   StatementProcessingService,
 } from '../../services/StatementProcessingService.js';
-import { err, ok, ValidationError } from '../../shared/result.js';
+import { ValidationError } from '../../shared/result.js';
 import {
   atomicArgumentIdFactory,
   createTestStatements,
@@ -35,41 +37,65 @@ describe('StatementProcessingService', () => {
   let mockStatementRepo: IStatementRepository;
   let mockOrderedSetRepo: IOrderedSetRepository;
   let mockAtomicArgumentRepo: IAtomicArgumentRepository;
-  let mockDateNow: ReturnType<typeof vi.fn>;
   const FIXED_TIMESTAMP = 1640995200000; // 2022-01-01T00:00:00.000Z
 
   beforeEach(() => {
     // Mock Date.now for consistent testing
-    mockDateNow = vi.spyOn(Date, 'now').mockReturnValue(FIXED_TIMESTAMP);
+    vi.spyOn(Date, 'now').mockReturnValue(FIXED_TIMESTAMP);
 
-    // Create mocked repositories using Vitest
-    mockStatementRepo = {
-      save: vi.fn(),
-      findById: vi.fn(),
-      findByContent: vi.fn(),
-      findAll: vi.fn(),
-      delete: vi.fn(),
-    };
+    // Create mocked repositories using jest-mock-extended
+    mockStatementRepo = mock<IStatementRepository>();
+    mockOrderedSetRepo = mock<IOrderedSetRepository>();
+    mockAtomicArgumentRepo = mock<IAtomicArgumentRepository>();
 
-    mockOrderedSetRepo = {
-      save: vi.fn(),
-      findById: vi.fn(),
-      findAll: vi.fn(),
-      delete: vi.fn(),
-    };
+    // Set default implementations
+    mockStatementRepo.save.mockResolvedValue(ok(undefined));
+    mockStatementRepo.findById.mockResolvedValue(null);
+    mockStatementRepo.findByContent.mockResolvedValue(null);
+    mockStatementRepo.findAll.mockResolvedValue([]);
+    mockStatementRepo.delete.mockResolvedValue(ok(undefined));
+    mockStatementRepo.findStatementsByPattern.mockResolvedValue([]);
+    mockStatementRepo.findFrequentlyUsedStatements.mockResolvedValue([]);
+    mockStatementRepo.findByLogicalStructure.mockResolvedValue([]);
+    mockStatementRepo.findStatementsByUsageCount.mockResolvedValue([]);
+    mockStatementRepo.findRelatedStatements.mockResolvedValue([]);
+    mockStatementRepo.searchStatementsByKeywords.mockResolvedValue([]);
+    mockStatementRepo.findStatementsInProof.mockResolvedValue([]);
+    mockStatementRepo.getStatementUsageMetrics.mockResolvedValue(null);
+    mockStatementRepo.findUnusedStatements.mockResolvedValue([]);
 
-    mockAtomicArgumentRepo = {
-      save: vi.fn(),
-      findById: vi.fn(),
-      findAll: vi.fn(),
-      findByOrderedSetReference: vi.fn(),
-      delete: vi.fn(),
-    };
+    mockOrderedSetRepo.save.mockResolvedValue(ok(undefined));
+    mockOrderedSetRepo.findById.mockResolvedValue(null);
+    mockOrderedSetRepo.findAll.mockResolvedValue([]);
+    mockOrderedSetRepo.delete.mockResolvedValue(ok(undefined));
+    mockOrderedSetRepo.findOrderedSetsBySize.mockResolvedValue([]);
+    mockOrderedSetRepo.findOrderedSetsContaining.mockResolvedValue([]);
+    mockOrderedSetRepo.findSharedOrderedSets.mockResolvedValue([]);
+    mockOrderedSetRepo.findOrderedSetsByPattern.mockResolvedValue([]);
+    mockOrderedSetRepo.findUnusedOrderedSets.mockResolvedValue([]);
+    mockOrderedSetRepo.findOrderedSetsByReferenceCount.mockResolvedValue([]);
+    mockOrderedSetRepo.findSimilarOrderedSets.mockResolvedValue([]);
+    mockOrderedSetRepo.findEmptyOrderedSets.mockResolvedValue([]);
+
+    mockAtomicArgumentRepo.save.mockResolvedValue(ok(undefined));
+    mockAtomicArgumentRepo.findById.mockResolvedValue(null);
+    mockAtomicArgumentRepo.findAll.mockResolvedValue([]);
+    mockAtomicArgumentRepo.findByOrderedSetReference.mockResolvedValue([]);
+    mockAtomicArgumentRepo.delete.mockResolvedValue(ok(undefined));
+    mockAtomicArgumentRepo.findArgumentsByPremiseCount.mockResolvedValue([]);
+    mockAtomicArgumentRepo.findArgumentsUsingStatement.mockResolvedValue([]);
+    mockAtomicArgumentRepo.findArgumentsByComplexity.mockResolvedValue([]);
+    mockAtomicArgumentRepo.findArgumentsWithConclusion.mockResolvedValue([]);
+    mockAtomicArgumentRepo.findArgumentChains.mockResolvedValue([]);
+    mockAtomicArgumentRepo.findCircularDependencies.mockResolvedValue([]);
+    mockAtomicArgumentRepo.findArgumentsByValidationStatus.mockResolvedValue([]);
+    mockAtomicArgumentRepo.findMostReferencedArguments.mockResolvedValue([]);
+    mockAtomicArgumentRepo.findOrphanedArguments.mockResolvedValue([]);
 
     service = new StatementProcessingService(
       mockStatementRepo,
       mockOrderedSetRepo,
-      mockAtomicArgumentRepo
+      mockAtomicArgumentRepo,
     );
   });
 
@@ -110,7 +136,9 @@ describe('StatementProcessingService', () => {
 
       it('should reuse existing statements when available', async () => {
         // Arrange
-        const existingStatement = Statement.create('Existing statement').value as Statement;
+        const statementResult = Statement.create('Existing statement');
+        if (statementResult.isErr()) throw new Error('Failed to create statement');
+        const existingStatement = statementResult.value;
         const sourceStatements = ['Existing statement', 'New statement'];
         const targetStatements = ['Conclusion'];
 
@@ -135,7 +163,7 @@ describe('StatementProcessingService', () => {
           expect.objectContaining({
             getContent: expect.any(Function),
             getUsageCount: expect.any(Function),
-          })
+          }),
         );
       });
 
@@ -166,7 +194,7 @@ describe('StatementProcessingService', () => {
 
         vi.mocked(mockStatementRepo.findByContent).mockResolvedValue(null);
         vi.mocked(mockStatementRepo.save).mockResolvedValue(ok(undefined));
-        vi.mocked(mockOrderedSetRepo.save).mockImplementation(orderedSet => {
+        vi.mocked(mockOrderedSetRepo.save).mockImplementation(async (orderedSet) => {
           capturedOrderedSets.push(orderedSet);
           return Promise.resolve(ok(undefined));
         });
@@ -210,7 +238,7 @@ describe('StatementProcessingService', () => {
 
         vi.mocked(mockStatementRepo.findByContent).mockResolvedValue(null);
         vi.mocked(mockStatementRepo.save).mockResolvedValue(
-          err(new ValidationError('Save failed'))
+          err(new RepositoryError('Save failed')),
         );
 
         // Act
@@ -253,7 +281,7 @@ describe('StatementProcessingService', () => {
         vi.mocked(mockStatementRepo.findByContent).mockResolvedValue(null);
         vi.mocked(mockStatementRepo.save).mockResolvedValue(ok(undefined));
         vi.mocked(mockOrderedSetRepo.save).mockResolvedValue(
-          err(new ValidationError('OrderedSet save failed'))
+          err(new RepositoryError('OrderedSet save failed')),
         );
 
         // Act
@@ -276,7 +304,7 @@ describe('StatementProcessingService', () => {
         vi.mocked(mockStatementRepo.save).mockResolvedValue(ok(undefined));
         vi.mocked(mockOrderedSetRepo.save).mockResolvedValue(ok(undefined));
         vi.mocked(mockAtomicArgumentRepo.save).mockResolvedValue(
-          err(new ValidationError('Argument save failed'))
+          err(new RepositoryError('Argument save failed')),
         );
 
         // Act
@@ -296,12 +324,12 @@ describe('StatementProcessingService', () => {
         await fc.assert(
           fc.asyncProperty(
             fc.array(
-              fc.string({ minLength: 1, maxLength: 100 }).filter(s => s.trim().length > 0),
-              { minLength: 1, maxLength: 5 }
+              fc.string({ minLength: 1, maxLength: 100 }).filter((s) => s.trim().length > 0),
+              { minLength: 1, maxLength: 5 },
             ),
             fc.array(
-              fc.string({ minLength: 1, maxLength: 100 }).filter(s => s.trim().length > 0),
-              { minLength: 1, maxLength: 5 }
+              fc.string({ minLength: 1, maxLength: 100 }).filter((s) => s.trim().length > 0),
+              { minLength: 1, maxLength: 5 },
             ),
             async (sources, targets) => {
               vi.mocked(mockStatementRepo.findByContent).mockResolvedValue(null);
@@ -311,8 +339,8 @@ describe('StatementProcessingService', () => {
 
               const result = await service.createStatementFlow(sources, targets);
               expect(result.isOk()).toBe(true);
-            }
-          )
+            },
+          ),
         );
       });
     });
@@ -346,7 +374,9 @@ describe('StatementProcessingService', () => {
       it('should fail to create branch from bootstrap parent', async () => {
         // Arrange
         const parentId = atomicArgumentIdFactory.build();
-        const bootstrapParent = AtomicArgument.create().value as AtomicArgument; // Creates empty argument
+        const atomicResult = AtomicArgument.create(); // Creates empty argument
+        if (atomicResult.isErr()) throw new Error('Failed to create atomic argument');
+        const bootstrapParent = atomicResult.value;
 
         vi.mocked(mockAtomicArgumentRepo.findById).mockResolvedValue(bootstrapParent);
 
@@ -382,8 +412,9 @@ describe('StatementProcessingService', () => {
       it('should fail when parent has no conclusion', async () => {
         // Arrange
         const parentId = atomicArgumentIdFactory.build();
-        const incompleteParent = AtomicArgument.create(orderedSetIdFactory.build())
-          .value as AtomicArgument; // Only premise set
+        const argResult = AtomicArgument.create(orderedSetIdFactory.build()); // Only premise set
+        if (argResult.isErr()) throw new Error('Failed to create atomic argument');
+        const incompleteParent = argResult.value;
 
         vi.mocked(mockAtomicArgumentRepo.findById).mockResolvedValue(incompleteParent);
 
@@ -403,12 +434,12 @@ describe('StatementProcessingService', () => {
         const parentId = atomicArgumentIdFactory.build();
         const parentArgument = AtomicArgument.createComplete(
           orderedSetIdFactory.build(),
-          orderedSetIdFactory.build()
+          orderedSetIdFactory.build(),
         );
 
         vi.mocked(mockAtomicArgumentRepo.findById).mockResolvedValue(parentArgument);
         vi.mocked(mockAtomicArgumentRepo.save).mockResolvedValue(
-          err(new ValidationError('Save failed'))
+          err(new RepositoryError('Save failed')),
         );
 
         // Act
@@ -431,7 +462,7 @@ describe('StatementProcessingService', () => {
         const argumentId = atomicArgumentIdFactory.build();
         const completeArgument = AtomicArgument.createComplete(
           orderedSetIdFactory.build(),
-          orderedSetIdFactory.build()
+          orderedSetIdFactory.build(),
         );
 
         vi.mocked(mockAtomicArgumentRepo.findById).mockResolvedValue(completeArgument);
@@ -452,7 +483,9 @@ describe('StatementProcessingService', () => {
       it('should validate empty argument', async () => {
         // Arrange
         const argumentId = atomicArgumentIdFactory.build();
-        const emptyArgument = AtomicArgument.create().value as AtomicArgument; // Empty/bootstrap argument
+        const argResult = AtomicArgument.create(); // Empty/bootstrap argument
+        if (argResult.isErr()) throw new Error('Failed to create atomic argument');
+        const emptyArgument = argResult.value;
 
         vi.mocked(mockAtomicArgumentRepo.findById).mockResolvedValue(emptyArgument);
 
@@ -472,8 +505,9 @@ describe('StatementProcessingService', () => {
       it('should validate partial argument', async () => {
         // Arrange
         const argumentId = atomicArgumentIdFactory.build();
-        const partialArgument = AtomicArgument.create(orderedSetIdFactory.build())
-          .value as AtomicArgument; // Only premise
+        const argResult = AtomicArgument.create(orderedSetIdFactory.build()); // Only premise
+        if (argResult.isErr()) throw new Error('Failed to create atomic argument');
+        const partialArgument = argResult.value;
 
         vi.mocked(mockAtomicArgumentRepo.findById).mockResolvedValue(partialArgument);
 
@@ -515,7 +549,9 @@ describe('StatementProcessingService', () => {
       it('should reuse and increment usage count', async () => {
         // Arrange
         const content = 'Existing statement';
-        const existingStatement = Statement.create(content).value as Statement;
+        const stmtResult = Statement.create(content);
+        if (stmtResult.isErr()) throw new Error('Failed to create statement');
+        const existingStatement = stmtResult.value;
 
         vi.mocked(mockStatementRepo.findByContent).mockResolvedValue(existingStatement);
         vi.mocked(mockStatementRepo.save).mockResolvedValue(ok(undefined));
@@ -538,7 +574,9 @@ describe('StatementProcessingService', () => {
       it('should handle multiple reuses', async () => {
         // Arrange
         const content = 'Frequently used statement';
-        const existingStatement = Statement.create(content).value as Statement;
+        const stmtResult = Statement.create(content);
+        if (stmtResult.isErr()) throw new Error('Failed to create statement');
+        const existingStatement = stmtResult.value;
 
         vi.mocked(mockStatementRepo.findByContent).mockResolvedValue(existingStatement);
         vi.mocked(mockStatementRepo.save).mockResolvedValue(ok(undefined));
@@ -610,11 +648,13 @@ describe('StatementProcessingService', () => {
       it('should fail when update save fails', async () => {
         // Arrange
         const content = 'Statement';
-        const existingStatement = Statement.create(content).value as Statement;
+        const stmtResult = Statement.create(content);
+        if (stmtResult.isErr()) throw new Error('Failed to create statement');
+        const existingStatement = stmtResult.value;
 
         vi.mocked(mockStatementRepo.findByContent).mockResolvedValue(existingStatement);
         vi.mocked(mockStatementRepo.save).mockResolvedValue(
-          err(new ValidationError('Update failed'))
+          err(new RepositoryError('Update failed')),
         );
 
         // Act
@@ -633,7 +673,7 @@ describe('StatementProcessingService', () => {
         const content = 'New statement';
         vi.mocked(mockStatementRepo.findByContent).mockResolvedValue(null);
         vi.mocked(mockStatementRepo.save).mockResolvedValue(
-          err(new ValidationError('Save failed'))
+          err(new RepositoryError('Save failed')),
         );
 
         // Act
@@ -652,8 +692,8 @@ describe('StatementProcessingService', () => {
       it('should handle any valid content', async () => {
         await fc.assert(
           fc.asyncProperty(
-            fc.string({ minLength: 1, maxLength: 1000 }).filter(s => s.trim().length > 0),
-            async content => {
+            fc.string({ minLength: 1, maxLength: 1000 }).filter((s) => s.trim().length > 0),
+            async (content) => {
               vi.mocked(mockStatementRepo.findByContent).mockResolvedValue(null);
               vi.mocked(mockStatementRepo.save).mockResolvedValue(ok(undefined));
 
@@ -662,8 +702,8 @@ describe('StatementProcessingService', () => {
               if (result.isOk()) {
                 expect(result.value.getContent()).toBe(content.trim());
               }
-            }
-          )
+            },
+          ),
         );
       });
     });
@@ -674,7 +714,9 @@ describe('StatementProcessingService', () => {
       it('should update statement content', async () => {
         // Arrange
         const statementId = statementIdFactory.build();
-        const statement = Statement.create('Original content').value as Statement;
+        const stmtResult = Statement.create('Original content');
+        if (stmtResult.isErr()) throw new Error('Failed to create statement');
+        const statement = stmtResult.value;
         const newContent = 'Updated content';
 
         vi.mocked(mockStatementRepo.findById).mockResolvedValue(statement);
@@ -692,7 +734,9 @@ describe('StatementProcessingService', () => {
       it('should handle content trimming', async () => {
         // Arrange
         const statementId = statementIdFactory.build();
-        const statement = Statement.create('Original').value as Statement;
+        const stmtResult = Statement.create('Original');
+        if (stmtResult.isErr()) throw new Error('Failed to create statement');
+        const statement = stmtResult.value;
         const newContent = '  Trimmed content  ';
 
         vi.mocked(mockStatementRepo.findById).mockResolvedValue(statement);
@@ -709,14 +753,16 @@ describe('StatementProcessingService', () => {
       it('should update modified timestamp', async () => {
         // Arrange
         const statementId = statementIdFactory.build();
-        const statement = Statement.create('Original').value as Statement;
+        const stmtResult = Statement.create('Original');
+        if (stmtResult.isErr()) throw new Error('Failed to create statement');
+        const statement = stmtResult.value;
         const originalModified = statement.getModifiedAt();
 
         vi.mocked(mockStatementRepo.findById).mockResolvedValue(statement);
         vi.mocked(mockStatementRepo.save).mockResolvedValue(ok(undefined));
 
         // Advance time
-        mockDateNow.mockReturnValue(FIXED_TIMESTAMP + 1000);
+        vi.spyOn(Date, 'now').mockReturnValue(FIXED_TIMESTAMP + 1000);
 
         // Act
         const result = await service.updateStatementContent(statementId, 'New content');
@@ -747,7 +793,9 @@ describe('StatementProcessingService', () => {
       it('should fail with invalid content', async () => {
         // Arrange
         const statementId = statementIdFactory.build();
-        const statement = Statement.create('Original').value as Statement;
+        const stmtResult = Statement.create('Original');
+        if (stmtResult.isErr()) throw new Error('Failed to create statement');
+        const statement = stmtResult.value;
 
         vi.mocked(mockStatementRepo.findById).mockResolvedValue(statement);
 
@@ -765,11 +813,13 @@ describe('StatementProcessingService', () => {
       it('should fail when save fails', async () => {
         // Arrange
         const statementId = statementIdFactory.build();
-        const statement = Statement.create('Original').value as Statement;
+        const stmtResult = Statement.create('Original');
+        if (stmtResult.isErr()) throw new Error('Failed to create statement');
+        const statement = stmtResult.value;
 
         vi.mocked(mockStatementRepo.findById).mockResolvedValue(statement);
         vi.mocked(mockStatementRepo.save).mockResolvedValue(
-          err(new ValidationError('Save failed'))
+          err(new RepositoryError('Save failed')),
         );
 
         // Act
@@ -822,11 +872,11 @@ describe('StatementProcessingService', () => {
       vi.mocked(mockAtomicArgumentRepo.save).mockResolvedValue(ok(undefined));
 
       // Act - Create flow
-      const createResult = await service.createStatementFlow(sourceStatements, targetStatements);
+      const result = await service.createStatementFlow(sourceStatements, targetStatements);
 
-      expect(createResult.isOk()).toBe(true);
-      if (createResult.isOk()) {
-        const argument = createResult.value;
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        const argument = result.value;
 
         // Setup for validation
         vi.mocked(mockAtomicArgumentRepo.findById).mockResolvedValue(argument);

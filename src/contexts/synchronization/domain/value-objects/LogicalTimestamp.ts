@@ -1,19 +1,19 @@
 import { err, ok, type Result } from 'neverthrow';
 
 import { VectorClock } from '../entities/VectorClock';
-import { type DeviceId } from './DeviceId';
+import type { DeviceId } from './DeviceId';
 
 export class LogicalTimestamp {
   private constructor(
     private readonly deviceId: DeviceId,
     private readonly timestamp: number,
-    private readonly vectorClockHash: string
+    private readonly vectorClockHash: string,
   ) {}
 
   static create(
     deviceId: DeviceId,
     timestamp: number,
-    vectorClock: VectorClock
+    vectorClock: VectorClock,
   ): Result<LogicalTimestamp, Error> {
     if (timestamp < 0) {
       return err(new Error('Timestamp cannot be negative'));

@@ -23,8 +23,8 @@ export class PackageName {
     if (!/^[a-zA-Z0-9\s\-_.]+$/.test(trimmedValue)) {
       return err(
         new ValidationError(
-          'Package name can only contain letters, numbers, spaces, hyphens, underscores, and periods'
-        )
+          'Package name can only contain letters, numbers, spaces, hyphens, underscores, and periods',
+        ),
       );
     }
 

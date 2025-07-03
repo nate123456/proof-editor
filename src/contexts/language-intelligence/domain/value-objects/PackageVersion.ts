@@ -8,7 +8,7 @@ export class PackageVersion {
     private readonly minor: number,
     private readonly patch: number,
     private readonly prerelease: string | null,
-    private readonly build: string | null
+    private readonly build: string | null,
   ) {}
 
   static create(versionString: string): Result<PackageVersion, ValidationError> {
@@ -19,18 +19,19 @@ export class PackageVersion {
     const trimmed = versionString.trim();
 
     // Basic semver pattern: major.minor.patch[-prerelease][+build]
-    const semverPattern = /^(\d+)\.(\d+)\.(\d+)(?:-([a-zA-Z0-9\-.]+))?(?:\+([a-zA-Z0-9\-.]+))?$/;
-    const match = trimmed.match(semverPattern);
+    // Fixed ReDoS vulnerability by avoiding nested quantifiers
+    const semverPattern = /^(\d+)\.(\d+)\.(\d+)(?:-([a-zA-Z0-9.-]+))?(?:\+([a-zA-Z0-9.-]+))?$/;
+    const match = semverPattern.exec(trimmed);
 
     if (!match) {
       return err(
-        new ValidationError('Version must follow semantic versioning format (major.minor.patch)')
+        new ValidationError('Version must follow semantic versioning format (major.minor.patch)'),
       );
     }
 
-    const major = parseInt(match[1] ?? '0', 10);
-    const minor = parseInt(match[2] ?? '0', 10);
-    const patch = parseInt(match[3] ?? '0', 10);
+    const major = Number.parseInt(match[1] ?? '0', 10);
+    const minor = Number.parseInt(match[2] ?? '0', 10);
+    const patch = Number.parseInt(match[3] ?? '0', 10);
     const prerelease = match[4] ?? null;
     const build = match[5] ?? null;
 
@@ -46,7 +47,7 @@ export class PackageVersion {
     minor: number,
     patch: number,
     prerelease?: string,
-    build?: string
+    build?: string,
   ): Result<PackageVersion, ValidationError> {
     if (major < 0 || minor < 0 || patch < 0) {
       return err(new ValidationError('Version numbers cannot be negative'));

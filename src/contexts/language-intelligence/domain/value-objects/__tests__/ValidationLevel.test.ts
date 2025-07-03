@@ -291,9 +291,16 @@ describe('ValidationLevel', () => {
 
       for (let i = 0; i < levels.length; i++) {
         for (let j = 0; j < levels.length; j++) {
-          const combined = levels[i]!.combineWith(levels[j]!);
-          const expectedIndex = Math.min(i, j); // Lower index = higher priority
-          expect(combined).toBe(levels[expectedIndex]!);
+          const levelI = levels[i];
+          const levelJ = levels[j];
+          if (levelI && levelJ) {
+            const combined = levelI.combineWith(levelJ);
+            const expectedIndex = Math.min(i, j); // Lower index = higher priority
+            const expectedLevel = levels[expectedIndex];
+            if (expectedLevel) {
+              expect(combined).toBe(expectedLevel);
+            }
+          }
         }
       }
     });
@@ -302,13 +309,13 @@ describe('ValidationLevel', () => {
   describe('getDescription', () => {
     it('should return correct descriptions', () => {
       expect(ValidationLevel.syntax().getDescription()).toBe(
-        'Basic syntax and structure validation'
+        'Basic syntax and structure validation',
       );
       expect(ValidationLevel.flow().getDescription()).toBe(
-        'Statement flow and connection validation'
+        'Statement flow and connection validation',
       );
       expect(ValidationLevel.semantic().getDescription()).toBe(
-        'Logical meaning and inference validation'
+        'Logical meaning and inference validation',
       );
       expect(ValidationLevel.style().getDescription()).toBe('Style and convention validation');
     });
@@ -352,34 +359,64 @@ describe('ValidationLevel', () => {
       const levels = ValidationLevel.syntax().getIncludedLevels();
 
       expect(levels).toHaveLength(1);
-      expect(levels[0]!.getLevel()).toBe('syntax');
+      const firstLevel = levels[0];
+      if (firstLevel) {
+        expect(firstLevel.getLevel()).toBe('syntax');
+      }
     });
 
     it('should return correct included levels for flow', () => {
       const levels = ValidationLevel.flow().getIncludedLevels();
 
       expect(levels).toHaveLength(2);
-      expect(levels[0]!.getLevel()).toBe('syntax');
-      expect(levels[1]!.getLevel()).toBe('flow');
+      const firstLevel = levels[0];
+      const secondLevel = levels[1];
+      if (firstLevel) {
+        expect(firstLevel.getLevel()).toBe('syntax');
+      }
+      if (secondLevel) {
+        expect(secondLevel.getLevel()).toBe('flow');
+      }
     });
 
     it('should return correct included levels for semantic', () => {
       const levels = ValidationLevel.semantic().getIncludedLevels();
 
       expect(levels).toHaveLength(3);
-      expect(levels[0]!.getLevel()).toBe('syntax');
-      expect(levels[1]!.getLevel()).toBe('flow');
-      expect(levels[2]!.getLevel()).toBe('semantic');
+      const firstLevel = levels[0];
+      const secondLevel = levels[1];
+      const thirdLevel = levels[2];
+      if (firstLevel) {
+        expect(firstLevel.getLevel()).toBe('syntax');
+      }
+      if (secondLevel) {
+        expect(secondLevel.getLevel()).toBe('flow');
+      }
+      if (thirdLevel) {
+        expect(thirdLevel.getLevel()).toBe('semantic');
+      }
     });
 
     it('should return correct included levels for style', () => {
       const levels = ValidationLevel.style().getIncludedLevels();
 
       expect(levels).toHaveLength(4);
-      expect(levels[0]!.getLevel()).toBe('syntax');
-      expect(levels[1]!.getLevel()).toBe('flow');
-      expect(levels[2]!.getLevel()).toBe('semantic');
-      expect(levels[3]!.getLevel()).toBe('style');
+      const firstLevel = levels[0];
+      const secondLevel = levels[1];
+      const thirdLevel = levels[2];
+      const fourthLevel = levels[3];
+      if (firstLevel) {
+        expect(firstLevel.getLevel()).toBe('syntax');
+      }
+      if (secondLevel) {
+        expect(secondLevel.getLevel()).toBe('flow');
+      }
+      if (thirdLevel) {
+        expect(thirdLevel.getLevel()).toBe('semantic');
+      }
+      if (fourthLevel) {
+        expect(fourthLevel.getLevel()).toBe('style');
+      }
     });
   });
 
@@ -409,7 +446,11 @@ describe('ValidationLevel', () => {
       for (let i = 0; i < levels.length; i++) {
         for (let j = 0; j < levels.length; j++) {
           const expected = i === j;
-          expect(levels[i]!.equals(levels[j]!)).toBe(expected);
+          const levelI = levels[i];
+          const levelJ = levels[j];
+          if (levelI && levelJ) {
+            expect(levelI.equals(levelJ)).toBe(expected);
+          }
         }
       }
     });

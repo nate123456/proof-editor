@@ -1,11 +1,13 @@
 import { err, ok, type Result } from 'neverthrow';
+import { injectable } from 'tsyringe';
 
-import { type SourceLocation } from '../../../../domain/shared/index.js';
-import { type Diagnostic } from '../entities/Diagnostic';
-import { type LanguagePackage } from '../entities/LanguagePackage';
-import { type ValidationResult } from '../entities/ValidationResult';
+import type { SourceLocation } from '../../../../domain/shared/index.js';
+import type { Diagnostic } from '../entities/Diagnostic';
+import type { LanguagePackage } from '../entities/LanguagePackage';
+import type { ValidationResult } from '../entities/ValidationResult';
 import { ValidationError } from '../errors/DomainErrors';
 
+@injectable()
 export class EducationalFeedbackService {
   private readonly maxHintsPerDiagnostic = 3;
   private readonly maxExamplesPerConcept = 2;
@@ -13,7 +15,7 @@ export class EducationalFeedbackService {
   generateLearningHints(
     diagnostic: Diagnostic,
     languagePackage: LanguagePackage,
-    userLevel: LearningLevel = 'intermediate'
+    userLevel: LearningLevel = 'intermediate',
   ): Result<LearningHints, ValidationError> {
     try {
       const hints: string[] = [];
@@ -57,8 +59,8 @@ export class EducationalFeedbackService {
       return err(
         new ValidationError(
           'Failed to generate learning hints',
-          error instanceof Error ? error : undefined
-        )
+          error instanceof Error ? error : undefined,
+        ),
       );
     }
   }
@@ -67,7 +69,7 @@ export class EducationalFeedbackService {
     statement: string,
     targetConcepts: string[],
     languagePackage: LanguagePackage,
-    userLevel: LearningLevel = 'intermediate'
+    userLevel: LearningLevel = 'intermediate',
   ): Result<StepByStepGuidance, ValidationError> {
     try {
       const steps: GuidanceStep[] = [];
@@ -82,8 +84,8 @@ export class EducationalFeedbackService {
             'Break down nested structures',
             'Start by identifying the main logical structure and work from inside out',
             [`For "${statement}", identify the main connective`],
-            ['logical-structure', 'parsing']
-          )
+            ['logical-structure', 'parsing'],
+          ),
         );
       }
 
@@ -93,8 +95,8 @@ export class EducationalFeedbackService {
             'Handle quantifiers',
             'Identify the scope and binding of quantifiers',
             ['∀x means "for all x"', '∃x means "there exists an x"'],
-            ['quantifiers', 'variable-binding']
-          )
+            ['quantifiers', 'variable-binding'],
+          ),
         );
       }
 
@@ -104,8 +106,8 @@ export class EducationalFeedbackService {
             'Interpret modal operators',
             'Understand necessity (□) and possibility (◇) operators',
             ['□P means "P is necessarily true"', '◇P means "P is possibly true"'],
-            ['modal-logic', 'necessity', 'possibility']
-          )
+            ['modal-logic', 'necessity', 'possibility'],
+          ),
         );
       }
 
@@ -118,8 +120,8 @@ export class EducationalFeedbackService {
             'Read the statement aloud in natural language',
             'Verify all symbols are interpreted correctly',
           ],
-          ['verification', 'comprehension']
-        )
+          ['verification', 'comprehension'],
+        ),
       );
 
       return ok({
@@ -135,8 +137,8 @@ export class EducationalFeedbackService {
       return err(
         new ValidationError(
           'Failed to generate step-by-step guidance',
-          error instanceof Error ? error : undefined
-        )
+          error instanceof Error ? error : undefined,
+        ),
       );
     }
   }
@@ -145,7 +147,7 @@ export class EducationalFeedbackService {
     premises: string[],
     conclusions: string[],
     languagePackage: LanguagePackage,
-    userLevel: LearningLevel = 'intermediate'
+    userLevel: LearningLevel = 'intermediate',
   ): Result<ProofStrategySuggestions, ValidationError> {
     try {
       const strategies: ProofStrategy[] = [];
@@ -210,15 +212,15 @@ export class EducationalFeedbackService {
       return err(
         new ValidationError(
           'Failed to generate proof strategy suggestions',
-          error instanceof Error ? error : undefined
-        )
+          error instanceof Error ? error : undefined,
+        ),
       );
     }
   }
 
   analyzeValidationResults(
     results: ValidationResult[],
-    languagePackage: LanguagePackage
+    languagePackage: LanguagePackage,
   ): Result<LearningAnalysis, ValidationError> {
     try {
       const analysis: LearningAnalysis = {
@@ -233,7 +235,7 @@ export class EducationalFeedbackService {
       const errorPatterns = this.identifyErrorPatterns(results);
 
       // Identify strength areas (consistently passing validations)
-      for (const [concept, errorRate] of errorPatterns.entries()) {
+      for (const [concept, errorRate] of Array.from(errorPatterns.entries())) {
         if (errorRate < 0.2) {
           analysis.strengthAreas.push(concept);
         } else if (errorRate > 0.6) {
@@ -248,7 +250,7 @@ export class EducationalFeedbackService {
       analysis.recommendations = this.generateLearningRecommendations(
         analysis.improvementAreas,
         analysis.conceptGaps,
-        languagePackage
+        languagePackage,
       );
 
       // Calculate progress indicators
@@ -259,8 +261,8 @@ export class EducationalFeedbackService {
       return err(
         new ValidationError(
           'Failed to analyze validation results',
-          error instanceof Error ? error : undefined
-        )
+          error instanceof Error ? error : undefined,
+        ),
       );
     }
   }
@@ -268,7 +270,7 @@ export class EducationalFeedbackService {
   private generateSyntaxHints(
     diagnostic: Diagnostic,
     languagePackage: LanguagePackage,
-    userLevel: LearningLevel
+    userLevel: LearningLevel,
   ): HintGeneration {
     const hints: string[] = [];
     const examples: string[] = [];
@@ -293,7 +295,7 @@ export class EducationalFeedbackService {
       const symbols = Array.from(languagePackage.getSymbols().entries());
       if (symbols.length > 0) {
         examples.push(
-          `Available symbols: ${symbols.map(([name, symbol]) => `${symbol} (${name})`).join(', ')}`
+          `Available symbols: ${symbols.map(([name, symbol]) => `${symbol} (${name})`).join(', ')}`,
         );
       }
     }
@@ -303,8 +305,8 @@ export class EducationalFeedbackService {
 
   private generateSemanticHints(
     diagnostic: Diagnostic,
-    languagePackage: LanguagePackage,
-    userLevel: LearningLevel
+    _languagePackage: LanguagePackage,
+    userLevel: LearningLevel,
   ): HintGeneration {
     const hints: string[] = [];
     const examples: string[] = [];
@@ -340,7 +342,7 @@ export class EducationalFeedbackService {
   private generateStyleHints(
     diagnostic: Diagnostic,
     _languagePackage: LanguagePackage,
-    _userLevel: LearningLevel
+    _userLevel: LearningLevel,
   ): HintGeneration {
     const hints: string[] = [];
     const examples: string[] = [];
@@ -351,7 +353,7 @@ export class EducationalFeedbackService {
     if (message.includes('length')) {
       hints.push('Consider breaking long statements into smaller, more manageable parts');
       examples.push(
-        'Instead of: (P ∧ Q ∧ R) → (S ∨ T ∨ U), try: Let A = (P ∧ Q ∧ R) and B = (S ∨ T ∨ U), then A → B'
+        'Instead of: (P ∧ Q ∧ R) → (S ∨ T ∨ U), try: Let A = (P ∧ Q ∧ R) and B = (S ∨ T ∨ U), then A → B',
       );
     }
 
@@ -399,7 +401,7 @@ export class EducationalFeedbackService {
 
   private analyzeStatementComplexity(
     statement: string,
-    languagePackage: LanguagePackage
+    languagePackage: LanguagePackage,
   ): StatementComplexity {
     return {
       hasNestedStructure: (statement.match(/\(/g) ?? []).length > 1,
@@ -430,7 +432,7 @@ export class EducationalFeedbackService {
     title: string,
     description: string,
     examples: string[],
-    concepts: string[]
+    concepts: string[],
   ): GuidanceStep {
     return {
       title,
@@ -444,7 +446,7 @@ export class EducationalFeedbackService {
   private estimateGuidanceTime(steps: GuidanceStep[], userLevel: LearningLevel): number {
     const multiplier = { beginner: 1.5, intermediate: 1.0, advanced: 0.7 };
     return Math.round(
-      steps.reduce((total, step) => total + step.estimatedTime, 0) * multiplier[userLevel]
+      steps.reduce((total, step) => total + step.estimatedTime, 0) * multiplier[userLevel],
     );
   }
 
@@ -503,12 +505,12 @@ export class EducationalFeedbackService {
   private analyzeProofStructure(
     premises: string[],
     conclusions: string[],
-    languagePackage: LanguagePackage
+    languagePackage: LanguagePackage,
   ): ProofAnalysis {
     return {
       isDirectProofPossible: true, // Simplified analysis
       isContradictionProofSuitable: conclusions.length === 1,
-      isCaseAnalysisNeeded: premises.some(p => p.includes('∨')),
+      isCaseAnalysisNeeded: premises.some((p) => p.includes('∨')),
       complexity: this.calculateProofComplexity(premises, conclusions),
       requiredRules: this.identifyRequiredRules(premises, conclusions, languagePackage),
     };
@@ -523,16 +525,16 @@ export class EducationalFeedbackService {
   private identifyRequiredRules(
     premises: string[],
     conclusions: string[],
-    _languagePackage: LanguagePackage
+    _languagePackage: LanguagePackage,
   ): string[] {
     const rules: string[] = [];
 
     // Simplified rule identification
-    if (premises.some(p => p.includes('→')) && conclusions.some(c => !c.includes('→'))) {
+    if (premises.some((p) => p.includes('→')) && conclusions.some((c) => !c.includes('→'))) {
       rules.push('modus-ponens');
     }
 
-    if (premises.some(p => p.includes('∧'))) {
+    if (premises.some((p) => p.includes('∧'))) {
       rules.push('conjunction-elimination');
     }
 
@@ -569,7 +571,7 @@ export class EducationalFeedbackService {
 
   private suggestSimilarProblems(
     analysis: ProofAnalysis,
-    languagePackage: LanguagePackage
+    languagePackage: LanguagePackage,
   ): string[] {
     const problems: string[] = [];
 
@@ -597,7 +599,7 @@ export class EducationalFeedbackService {
     }
 
     // Normalize by number of results
-    for (const [tag, count] of patterns.entries()) {
+    for (const [tag, count] of Array.from(patterns.entries())) {
       patterns.set(tag, count / results.length);
     }
 
@@ -606,13 +608,13 @@ export class EducationalFeedbackService {
 
   private identifyConceptGaps(
     results: ValidationResult[],
-    languagePackage: LanguagePackage
+    languagePackage: LanguagePackage,
   ): string[] {
     const gaps: string[] = [];
 
     // Simplified gap identification
-    const hasModalErrors = results.some(r =>
-      r.getDiagnostics().some(d => d.getMessage().getText().includes('modal'))
+    const hasModalErrors = results.some((r) =>
+      r.getDiagnostics().some((d) => d.getMessage().getText().includes('modal')),
     );
 
     if (hasModalErrors && languagePackage.supportsModalLogic()) {
@@ -625,7 +627,7 @@ export class EducationalFeedbackService {
   private generateLearningRecommendations(
     improvementAreas: string[],
     _conceptGaps: string[],
-    _languagePackage: LanguagePackage
+    _languagePackage: LanguagePackage,
   ): string[] {
     const recommendations: string[] = [];
 
@@ -647,10 +649,10 @@ export class EducationalFeedbackService {
     const indicators: Record<string, number> = {};
 
     const totalResults = results.length;
-    const successfulResults = results.filter(r => r.isValid()).length;
+    const successfulResults = results.filter((r) => r.isValid()).length;
 
-    indicators['successRate'] = totalResults > 0 ? successfulResults / totalResults : 0;
-    indicators['averageErrors'] =
+    indicators.successRate = totalResults > 0 ? successfulResults / totalResults : 0;
+    indicators.averageErrors =
       totalResults > 0 ? results.reduce((sum, r) => sum + r.getErrorCount(), 0) / totalResults : 0;
 
     return indicators;
@@ -659,7 +661,7 @@ export class EducationalFeedbackService {
   generateInteractiveFeedback(
     validationResult: ValidationResult,
     languagePackage: LanguagePackage,
-    userLevel: LearningLevel = 'intermediate'
+    userLevel: LearningLevel = 'intermediate',
   ): Result<InteractiveFeedback, ValidationError> {
     try {
       const diagnostics = validationResult.getDiagnostics();
@@ -686,8 +688,8 @@ export class EducationalFeedbackService {
 
       // Calculate overall score
       const totalIssues = diagnostics.length;
-      const errorCount = diagnostics.filter(d => d.getSeverity().isError()).length;
-      const warningCount = diagnostics.filter(d => d.getSeverity().isWarning()).length;
+      const errorCount = diagnostics.filter((d) => d.getSeverity().isError()).length;
+      const warningCount = diagnostics.filter((d) => d.getSeverity().isWarning()).length;
 
       const overallScore =
         totalIssues === 0 ? 100 : Math.max(0, 100 - (errorCount * 20 + warningCount * 10));
@@ -710,7 +712,7 @@ export class EducationalFeedbackService {
       } else {
         // Find most problematic areas
         const sortedCategories = Array.from(categoryFrequency.entries()).sort(
-          ([, a], [, b]) => b - a
+          ([, a], [, b]) => b - a,
         );
 
         for (const [category, count] of sortedCategories) {
@@ -752,15 +754,15 @@ export class EducationalFeedbackService {
       return err(
         new ValidationError(
           'Failed to generate interactive feedback',
-          error instanceof Error ? error : undefined
-        )
+          error instanceof Error ? error : undefined,
+        ),
       );
     }
   }
 
   analyzeConceptDifficulty(
     concepts: string[],
-    languagePackage: LanguagePackage
+    languagePackage: LanguagePackage,
   ): Result<ConceptDifficultyAnalysis, ValidationError> {
     try {
       const conceptAnalyses: ConceptAnalysis[] = [];
@@ -837,13 +839,13 @@ export class EducationalFeedbackService {
       // Generate learning path
       const sortedConcepts = [...concepts].sort((a, b) => {
         const difficultyOrder = { beginner: 0, intermediate: 1, advanced: 2 };
-        const aDifficulty = conceptAnalyses.find(c => c.name === a)?.difficulty ?? 'beginner';
-        const bDifficulty = conceptAnalyses.find(c => c.name === b)?.difficulty ?? 'beginner';
+        const aDifficulty = conceptAnalyses.find((c) => c.name === a)?.difficulty ?? 'beginner';
+        const bDifficulty = conceptAnalyses.find((c) => c.name === b)?.difficulty ?? 'beginner';
         return difficultyOrder[aDifficulty] - difficultyOrder[bDifficulty];
       });
 
       // Collect all prerequisites
-      const allPrerequisites = Array.from(new Set(conceptAnalyses.flatMap(c => c.prerequisites)));
+      const allPrerequisites = Array.from(new Set(conceptAnalyses.flatMap((c) => c.prerequisites)));
 
       return ok({
         concepts: conceptAnalyses,
@@ -855,8 +857,8 @@ export class EducationalFeedbackService {
       return err(
         new ValidationError(
           'Failed to analyze concept difficulty',
-          error instanceof Error ? error : undefined
-        )
+          error instanceof Error ? error : undefined,
+        ),
       );
     }
   }
@@ -865,7 +867,7 @@ export class EducationalFeedbackService {
     concepts: string[],
     userLevel: LearningLevel,
     languagePackage: LanguagePackage,
-    maxProblems = 10
+    maxProblems = 10,
   ): Result<PracticeProblems, ValidationError> {
     try {
       const problems: PracticeProblem[] = [];
@@ -875,7 +877,7 @@ export class EducationalFeedbackService {
         const conceptProblems = this.generateProblemsForConcept(
           concept,
           userLevel,
-          languagePackage
+          languagePackage,
         );
         problems.push(...conceptProblems);
       }
@@ -895,15 +897,15 @@ export class EducationalFeedbackService {
       return err(
         new ValidationError(
           'Failed to suggest practice problems',
-          error instanceof Error ? error : undefined
-        )
+          error instanceof Error ? error : undefined,
+        ),
       );
     }
   }
 
   adaptContentToUserLevel(
     content: string,
-    userLevel: LearningLevel
+    userLevel: LearningLevel,
   ): Result<ContentAdaptation, ValidationError> {
     try {
       let adaptedContent = content;
@@ -941,8 +943,8 @@ export class EducationalFeedbackService {
       return err(
         new ValidationError(
           'Failed to adapt content to user level',
-          error instanceof Error ? error : undefined
-        )
+          error instanceof Error ? error : undefined,
+        ),
       );
     }
   }
@@ -950,7 +952,7 @@ export class EducationalFeedbackService {
   generateContentForConcept(
     concept: string,
     _userLevel: LearningLevel = 'intermediate',
-    languagePackage?: LanguagePackage
+    languagePackage?: LanguagePackage,
   ): Result<ConceptContent, ValidationError> {
     try {
       const conceptMap: Record<string, ConceptContent> = {
@@ -1025,8 +1027,8 @@ export class EducationalFeedbackService {
       return err(
         new ValidationError(
           'Failed to generate content for concept',
-          error instanceof Error ? error : undefined
-        )
+          error instanceof Error ? error : undefined,
+        ),
       );
     }
   }
@@ -1034,7 +1036,7 @@ export class EducationalFeedbackService {
   suggestRelatedTopics(
     currentTopic: string,
     userLevel: LearningLevel = 'intermediate',
-    languagePackage?: LanguagePackage
+    languagePackage?: LanguagePackage,
   ): Result<RelatedTopics, ValidationError> {
     try {
       const topicRelations: Record<
@@ -1100,8 +1102,8 @@ export class EducationalFeedbackService {
       return err(
         new ValidationError(
           'Failed to suggest related topics',
-          error instanceof Error ? error : undefined
-        )
+          error instanceof Error ? error : undefined,
+        ),
       );
     }
   }
@@ -1134,7 +1136,7 @@ export class EducationalFeedbackService {
   private enrichWithLanguagePackageInfo(
     content: ConceptContent,
     concept: string,
-    languagePackage: LanguagePackage
+    languagePackage: LanguagePackage,
   ): void {
     if (concept === 'modal-logic' && languagePackage.supportsModalLogic()) {
       if (
@@ -1144,7 +1146,7 @@ export class EducationalFeedbackService {
         const modalOps = (languagePackage.getSupportedModalOperators as () => unknown[])();
         if (Array.isArray(modalOps) && modalOps.length > 0) {
           content.examples.push(
-            ...modalOps.map(op => `${String(op)} - modal operator supported by this package`)
+            ...modalOps.map((op) => `${String(op)} - modal operator supported by this package`),
           );
         }
       }
@@ -1158,7 +1160,7 @@ export class EducationalFeedbackService {
         const quantifiers = (languagePackage.getSupportedQuantifiers as () => unknown[])();
         if (Array.isArray(quantifiers) && quantifiers.length > 0) {
           content.examples.push(
-            ...quantifiers.map(q => `${String(q)} - quantifier supported by this package`)
+            ...quantifiers.map((q) => `${String(q)} - quantifier supported by this package`),
           );
         }
       }
@@ -1167,9 +1169,9 @@ export class EducationalFeedbackService {
 
   private filterTopicsByLanguagePackage(
     topics: string[],
-    languagePackage: LanguagePackage
+    languagePackage: LanguagePackage,
   ): string[] {
-    return topics.filter(topic => {
+    return topics.filter((topic) => {
       switch (topic) {
         case 'modal-logic':
         case 'temporal-logic':
@@ -1188,7 +1190,7 @@ export class EducationalFeedbackService {
   private generateProblemsForConcept(
     concept: string,
     difficultyLevel: LearningLevel,
-    languagePackage: LanguagePackage
+    languagePackage: LanguagePackage,
   ): PracticeProblem[] {
     const problems: PracticeProblem[] = [];
 

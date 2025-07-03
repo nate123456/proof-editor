@@ -1,16 +1,17 @@
+import { inject, injectable } from 'tsyringe';
 import * as vscode from 'vscode';
 
-import { type ParseFailureError } from '../parser/ParseError.js';
-import { ProofFileParser } from '../parser/ProofFileParser.js';
-import { ErrorMapper } from './ErrorMapper.js';
+import { TOKENS } from '../infrastructure/di/tokens.js';
+import type { ParseFailureError } from '../parser/ParseError.js';
+import type { ProofFileParser } from '../parser/ProofFileParser.js';
+import { convertParseErrorToDiagnostic } from './ErrorMapper.js';
 
+@injectable()
 export class ProofDiagnosticProvider {
   private readonly diagnosticCollection: vscode.DiagnosticCollection;
-  private readonly parser: ProofFileParser;
 
-  constructor() {
+  constructor(@inject(TOKENS.ProofFileParser) private readonly parser: ProofFileParser) {
     this.diagnosticCollection = vscode.languages.createDiagnosticCollection('proof');
-    this.parser = new ProofFileParser();
   }
 
   public validateDocument(document: vscode.TextDocument): void {
@@ -46,10 +47,8 @@ export class ProofDiagnosticProvider {
 
   private convertErrorsToDiagnostics(
     parseError: ParseFailureError,
-    document: vscode.TextDocument
+    document: vscode.TextDocument,
   ): vscode.Diagnostic[] {
-    return parseError
-      .getAllErrors()
-      .map(error => ErrorMapper.convertParseErrorToDiagnostic(error, document));
+    return parseError.getAllErrors().map((error) => convertParseErrorToDiagnostic(error, document));
   }
 }

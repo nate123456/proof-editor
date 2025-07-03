@@ -20,13 +20,13 @@ describe('Repository Interfaces Module', () => {
     it('should export IConflictRepository interface', () => {
       // This test verifies the interface is properly exported and importable
       const mockImplementation: IConflictRepository = {
-        save: () => Promise.resolve({ isOk: () => true } as any),
-        findById: () => Promise.resolve(null),
-        findByDeviceId: () => Promise.resolve([]),
-        findByType: () => Promise.resolve([]),
-        findUnresolvedConflicts: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve({ isOk: () => true } as any),
+        save: async () => Promise.resolve({ isOk: () => true } as any),
+        findById: async () => Promise.resolve(null),
+        findByDeviceId: async () => Promise.resolve([]),
+        findByType: async () => Promise.resolve([]),
+        findUnresolvedConflicts: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve({ isOk: () => true } as any),
       };
 
       expect(mockImplementation).toBeDefined();
@@ -41,14 +41,14 @@ describe('Repository Interfaces Module', () => {
 
     it('should export IOperationRepository interface', () => {
       const mockImplementation: IOperationRepository = {
-        save: () => Promise.resolve({ isOk: () => true } as any),
-        findById: () => Promise.resolve(null),
-        findByDeviceId: () => Promise.resolve([]),
-        findByType: () => Promise.resolve([]),
-        findPendingOperations: () => Promise.resolve([]),
-        findOperationsAfterTimestamp: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve({ isOk: () => true } as any),
+        save: async () => Promise.resolve({ isOk: () => true } as any),
+        findById: async () => Promise.resolve(null),
+        findByDeviceId: async () => Promise.resolve([]),
+        findByType: async () => Promise.resolve([]),
+        findPendingOperations: async () => Promise.resolve([]),
+        findOperationsAfterTimestamp: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve({ isOk: () => true } as any),
       };
 
       expect(mockImplementation).toBeDefined();
@@ -64,12 +64,12 @@ describe('Repository Interfaces Module', () => {
 
     it('should export ISyncStateRepository interface', () => {
       const mockImplementation: ISyncStateRepository = {
-        save: () => Promise.resolve({ isOk: () => true } as any),
-        findByDeviceId: () => Promise.resolve(null),
-        findConflictingStates: () => Promise.resolve([]),
-        findOfflineStates: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve({ isOk: () => true } as any),
+        save: async () => Promise.resolve({ isOk: () => true } as any),
+        findByDeviceId: async () => Promise.resolve(null),
+        findConflictingStates: async () => Promise.resolve([]),
+        findOfflineStates: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve({ isOk: () => true } as any),
       };
 
       expect(mockImplementation).toBeDefined();
@@ -83,11 +83,11 @@ describe('Repository Interfaces Module', () => {
 
     it('should export IVectorClockRepository interface', () => {
       const mockImplementation: IVectorClockRepository = {
-        save: () => Promise.resolve({ isOk: () => true } as any),
-        findByDeviceId: () => Promise.resolve(null),
-        findLatestClocks: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve({ isOk: () => true } as any),
+        save: async () => Promise.resolve({ isOk: () => true } as any),
+        findByDeviceId: async () => Promise.resolve(null),
+        findLatestClocks: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve({ isOk: () => true } as any),
       };
 
       expect(mockImplementation).toBeDefined();
@@ -143,63 +143,63 @@ describe('Repository Interfaces Module', () => {
 
       // IConflictRepository should work with Conflict entities
       const conflictRepo: IConflictRepository = {
-        save: conflict => {
+        save: async (conflict) => {
           // Should accept Conflict entity
           expect(conflict).toBeDefined();
           return Promise.resolve({ isOk: () => true } as any);
         },
-        findById: () => Promise.resolve(null),
-        findByDeviceId: () => Promise.resolve([]),
-        findByType: () => Promise.resolve([]),
-        findUnresolvedConflicts: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve({ isOk: () => true } as any),
+        findById: async () => Promise.resolve(null),
+        findByDeviceId: async () => Promise.resolve([]),
+        findByType: async () => Promise.resolve([]),
+        findUnresolvedConflicts: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve({ isOk: () => true } as any),
       };
 
       expect(conflictRepo).toBeDefined();
 
       // IOperationRepository should work with Operation entities
       const operationRepo: IOperationRepository = {
-        save: operation => {
+        save: async (operation) => {
           expect(operation).toBeDefined();
           return Promise.resolve({ isOk: () => true } as any);
         },
-        findById: () => Promise.resolve(null),
-        findByDeviceId: () => Promise.resolve([]),
-        findByType: () => Promise.resolve([]),
-        findPendingOperations: () => Promise.resolve([]),
-        findOperationsAfterTimestamp: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve({ isOk: () => true } as any),
+        findById: async () => Promise.resolve(null),
+        findByDeviceId: async () => Promise.resolve([]),
+        findByType: async () => Promise.resolve([]),
+        findPendingOperations: async () => Promise.resolve([]),
+        findOperationsAfterTimestamp: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve({ isOk: () => true } as any),
       };
 
       expect(operationRepo).toBeDefined();
 
       // ISyncStateRepository should work with SyncState entities
       const syncStateRepo: ISyncStateRepository = {
-        save: syncState => {
+        save: async (syncState) => {
           expect(syncState).toBeDefined();
           return Promise.resolve({ isOk: () => true } as any);
         },
-        findByDeviceId: () => Promise.resolve(null),
-        findConflictingStates: () => Promise.resolve([]),
-        findOfflineStates: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve({ isOk: () => true } as any),
+        findByDeviceId: async () => Promise.resolve(null),
+        findConflictingStates: async () => Promise.resolve([]),
+        findOfflineStates: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve({ isOk: () => true } as any),
       };
 
       expect(syncStateRepo).toBeDefined();
 
       // IVectorClockRepository should work with VectorClock entities
       const vectorClockRepo: IVectorClockRepository = {
-        save: vectorClock => {
+        save: async (vectorClock) => {
           expect(vectorClock).toBeDefined();
           return Promise.resolve({ isOk: () => true } as any);
         },
-        findByDeviceId: () => Promise.resolve(null),
-        findLatestClocks: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve({ isOk: () => true } as any),
+        findByDeviceId: async () => Promise.resolve(null),
+        findLatestClocks: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve({ isOk: () => true } as any),
       };
 
       expect(vectorClockRepo).toBeDefined();
@@ -227,15 +227,15 @@ describe('Repository Interfaces Module', () => {
 
       // Mock implementations to test pattern compliance
       const conflictRepo = {
-        save: () => Promise.resolve({ isOk: () => true }),
-        delete: () => Promise.resolve({ isOk: () => true }),
-        findAll: () => Promise.resolve([]),
+        save: async () => Promise.resolve({ isOk: () => true }),
+        delete: async () => Promise.resolve({ isOk: () => true }),
+        findAll: async () => Promise.resolve([]),
       };
 
       const operationRepo = {
-        save: () => Promise.resolve({ isOk: () => true }),
-        delete: () => Promise.resolve({ isOk: () => true }),
-        findAll: () => Promise.resolve([]),
+        save: async () => Promise.resolve({ isOk: () => true }),
+        delete: async () => Promise.resolve({ isOk: () => true }),
+        findAll: async () => Promise.resolve([]),
       };
 
       checkRepositoryPattern(conflictRepo);
@@ -253,8 +253,8 @@ describe('Repository Interfaces Module', () => {
         'IVectorClockRepository',
       ];
 
-      repositories.forEach(_repoName => {
-        operations.forEach(operation => {
+      repositories.forEach((_repoName) => {
+        operations.forEach((operation) => {
           // This test verifies that the naming convention is consistent
           expect(operation).toMatch(/^(save|find|delete)/);
         });

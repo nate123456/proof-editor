@@ -1,4 +1,4 @@
-import { type DocumentId, type PackageId, type Version } from '../shared/value-objects.js';
+import type { DocumentId, PackageId, Version } from '../shared/value-objects.js';
 import { DomainEvent } from './base-event.js';
 
 export class PackageInstalled extends DomainEvent {
@@ -9,7 +9,7 @@ export class PackageInstalled extends DomainEvent {
     public readonly version: Version,
     public readonly installationSource: InstallationSource,
     public readonly installedBy: string,
-    public readonly capabilities: PackageCapability[]
+    public readonly capabilities: PackageCapability[],
   ) {
     super(packageId.getValue(), 'Package');
   }
@@ -33,7 +33,7 @@ export class PackageUpdated extends DomainEvent {
     public readonly previousVersion: Version,
     public readonly newVersion: Version,
     public readonly updateResult: UpdateResult,
-    public readonly updatedBy: string
+    public readonly updatedBy: string,
   ) {
     super(packageId.getValue(), 'Package');
   }
@@ -57,7 +57,7 @@ export class PackageUninstalled extends DomainEvent {
     public readonly version: Version,
     public readonly uninstallReason: UninstallReason,
     public readonly uninstalledBy: string,
-    public readonly cleanupResult: CleanupResult
+    public readonly cleanupResult: CleanupResult,
   ) {
     super(packageId.getValue(), 'Package');
   }
@@ -81,7 +81,7 @@ export class PackageValidated extends DomainEvent {
     public readonly version: Version,
     public readonly validationResult: PackageValidationResult,
     public readonly validatedBy: string,
-    public readonly validationContext: ValidationContext
+    public readonly validationContext: ValidationContext,
   ) {
     super(packageId.getValue(), 'Package');
   }
@@ -105,7 +105,7 @@ export class PackageDependencyResolved extends DomainEvent {
     public readonly dependencyId: PackageId,
     public readonly dependencyVersion: Version,
     public readonly resolutionStrategy: DependencyResolutionStrategy,
-    public readonly resolvedBy: string
+    public readonly resolvedBy: string,
   ) {
     super(packageId.getValue(), 'Package');
   }
@@ -128,14 +128,14 @@ export class PackageConflictDetected extends DomainEvent {
     public readonly conflictingPackages: PackageId[],
     public readonly conflictType: PackageConflictType,
     public readonly conflictDetails: PackageConflictDetails,
-    public readonly detectedBy: string
+    public readonly detectedBy: string,
   ) {
     super('package-system', 'PackageSystem');
   }
 
   get eventData(): Record<string, unknown> {
     return {
-      conflictingPackages: this.conflictingPackages.map(id => id.getValue()),
+      conflictingPackages: this.conflictingPackages.map((id) => id.getValue()),
       conflictType: this.conflictType,
       conflictDetails: this.conflictDetails,
       detectedBy: this.detectedBy,
@@ -150,7 +150,7 @@ export class PackageActivated extends DomainEvent {
     public readonly packageId: PackageId,
     public readonly documentId: DocumentId,
     public readonly activationContext: ActivationContext,
-    public readonly activatedBy: string
+    public readonly activatedBy: string,
   ) {
     super(packageId.getValue(), 'Package');
   }
@@ -172,7 +172,7 @@ export class PackageDeactivated extends DomainEvent {
     public readonly packageId: PackageId,
     public readonly documentId: DocumentId,
     public readonly deactivationReason: DeactivationReason,
-    public readonly deactivatedBy: string
+    public readonly deactivatedBy: string,
   ) {
     super(packageId.getValue(), 'Package');
   }
@@ -195,7 +195,7 @@ export class PackageSecurityViolationDetected extends DomainEvent {
     public readonly violationType: SecurityViolationType,
     public readonly violationDetails: SecurityViolationDetails,
     public readonly detectedBy: string,
-    public readonly riskLevel: RiskLevel
+    public readonly riskLevel: RiskLevel,
   ) {
     super(packageId.getValue(), 'Package');
   }
@@ -218,7 +218,7 @@ export class PackageRegistryUpdated extends DomainEvent {
     public readonly registrySource: string,
     public readonly updateType: RegistryUpdateType,
     public readonly affectedPackages: PackageId[],
-    public readonly updatedBy: string
+    public readonly updatedBy: string,
   ) {
     super('package-registry', 'PackageRegistry');
   }
@@ -227,7 +227,7 @@ export class PackageRegistryUpdated extends DomainEvent {
     return {
       registrySource: this.registrySource,
       updateType: this.updateType,
-      affectedPackages: this.affectedPackages.map(id => id.getValue()),
+      affectedPackages: this.affectedPackages.map((id) => id.getValue()),
       updatedBy: this.updatedBy,
     };
   }

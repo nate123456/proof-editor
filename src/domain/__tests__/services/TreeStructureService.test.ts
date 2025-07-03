@@ -1,7 +1,7 @@
 import fc from 'fast-check';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { type AtomicArgument } from '../../entities/AtomicArgument.js';
+import type { AtomicArgument } from '../../entities/AtomicArgument.js';
 import { Node } from '../../entities/Node.js';
 import { Tree } from '../../entities/Tree.js';
 import { TreeStructureService } from '../../services/TreeStructureService.js';
@@ -12,7 +12,11 @@ import {
   PhysicalProperties,
   Position2D,
 } from '../../shared/value-objects.js';
-import { atomicArgumentIdFactory, nodeIdFactory } from '../factories/index.js';
+import {
+  atomicArgumentFactory,
+  atomicArgumentIdFactory,
+  nodeIdFactory,
+} from '../factories/index.js';
 
 describe('TreeStructureService', () => {
   let service: TreeStructureService;
@@ -23,13 +27,8 @@ describe('TreeStructureService', () => {
   beforeEach(() => {
     service = new TreeStructureService();
 
-    // Create a consistent ID for mocking
-    const mockArgumentId = atomicArgumentIdFactory.build();
-
-    // Create a mock AtomicArgument using Vitest
-    mockAtomicArgument = {
-      getId: vi.fn(() => mockArgumentId),
-    } as unknown as AtomicArgument;
+    // Create a proper AtomicArgument using the factory
+    mockAtomicArgument = atomicArgumentFactory.build();
 
     // Mock Date.now for consistent testing
     mockDateNow = vi.fn(() => FIXED_TIMESTAMP);
@@ -80,7 +79,7 @@ describe('TreeStructureService', () => {
             mockAtomicArgument,
             positionResult.value,
             propertiesResult.value,
-            title
+            title,
           );
 
           expect(result.isOk()).toBe(true);
@@ -126,10 +125,7 @@ describe('TreeStructureService', () => {
         ({ tree, rootNode: parentNode } = treeResult.value);
       }
 
-      const childArgumentId = atomicArgumentIdFactory.build();
-      childArgument = {
-        getId: vi.fn(() => childArgumentId),
-      } as unknown as AtomicArgument;
+      childArgument = atomicArgumentFactory.build();
     });
 
     describe('successful addition cases', () => {
@@ -166,7 +162,7 @@ describe('TreeStructureService', () => {
           parentNode,
           childArgument,
           premisePosition,
-          fromPosition
+          fromPosition,
         );
 
         expect(result.isOk()).toBe(true);
@@ -209,7 +205,7 @@ describe('TreeStructureService', () => {
           tree,
           parentNode,
           childArgument,
-          invalidPremisePosition
+          invalidPremisePosition,
         );
 
         expect(result.isErr()).toBe(true);
@@ -235,9 +231,7 @@ describe('TreeStructureService', () => {
         ({ tree, rootNode } = treeResult.value);
       }
 
-      const childArgument = {
-        getId: vi.fn(() => atomicArgumentIdFactory.build()),
-      } as unknown as AtomicArgument;
+      const childArgument = atomicArgumentFactory.build();
 
       const childResult = service.addChildNodeToTree(tree, rootNode, childArgument, 0);
       expect(childResult.isOk()).toBe(true);
@@ -245,9 +239,7 @@ describe('TreeStructureService', () => {
         childNode = childResult.value;
       }
 
-      const grandChildArgument = {
-        getId: vi.fn(() => atomicArgumentIdFactory.build()),
-      } as unknown as AtomicArgument;
+      const grandChildArgument = atomicArgumentFactory.build();
 
       const grandChildResult = service.addChildNodeToTree(tree, childNode, grandChildArgument, 0);
       expect(grandChildResult.isOk()).toBe(true);
@@ -346,9 +338,7 @@ describe('TreeStructureService', () => {
       }
 
       // Add child to root
-      const childArgument = {
-        getId: vi.fn(() => atomicArgumentIdFactory.build()),
-      } as unknown as AtomicArgument;
+      const childArgument = atomicArgumentFactory.build();
 
       const childResult = service.addChildNodeToTree(tree, rootNode, childArgument, 0);
       expect(childResult.isOk()).toBe(true);
@@ -357,9 +347,7 @@ describe('TreeStructureService', () => {
       }
 
       // Add another child to root (will become new parent)
-      const newParentArgument = {
-        getId: vi.fn(() => atomicArgumentIdFactory.build()),
-      } as unknown as AtomicArgument;
+      const newParentArgument = atomicArgumentFactory.build();
 
       const newParentResult = service.addChildNodeToTree(tree, rootNode, newParentArgument, 1);
       expect(newParentResult.isOk()).toBe(true);
@@ -376,7 +364,7 @@ describe('TreeStructureService', () => {
           tree,
           childNode,
           newParentNode,
-          newPremisePosition
+          newPremisePosition,
         );
 
         expect(result.isOk()).toBe(true);
@@ -399,7 +387,7 @@ describe('TreeStructureService', () => {
           childNode,
           newParentNode,
           newPremisePosition,
-          newFromPosition
+          newFromPosition,
         );
 
         expect(result.isOk()).toBe(true);
@@ -421,7 +409,7 @@ describe('TreeStructureService', () => {
 
         const orphanNodeResult = Node.createChild(
           atomicArgumentIdFactory.build(),
-          attachmentResult.value
+          attachmentResult.value,
         );
         expect(orphanNodeResult.isOk()).toBe(true);
 
@@ -568,7 +556,7 @@ describe('TreeStructureService', () => {
 
       const grandChildNodeResult = Node.createChild(
         atomicArgumentIdFactory.build(),
-        grandAttachment
+        grandAttachment,
       );
       expect(grandChildNodeResult.isOk()).toBe(true);
       if (!grandChildNodeResult.isOk()) throw new Error('Failed to create grandChildNode');
@@ -645,7 +633,7 @@ describe('TreeStructureService', () => {
 
       const grandChildNodeResult = Node.createChild(
         atomicArgumentIdFactory.build(),
-        grandAttachment
+        grandAttachment,
       );
       expect(grandChildNodeResult.isOk()).toBe(true);
       if (!grandChildNodeResult.isOk()) throw new Error('Failed to create grandChildNode');
@@ -725,9 +713,7 @@ describe('TreeStructureService', () => {
         if (treeResult.isOk()) {
           const { tree, rootNode } = treeResult.value;
 
-          const childArgument = {
-            getId: vi.fn(() => atomicArgumentIdFactory.build()),
-          } as unknown as AtomicArgument;
+          const childArgument = atomicArgumentFactory.build();
 
           const childResult = service.addChildNodeToTree(tree, rootNode, childArgument, 0);
           expect(childResult.isOk()).toBe(true);
@@ -843,7 +829,7 @@ describe('TreeStructureService', () => {
           node1.getArgumentId(),
           attachment1,
           node1.getCreatedAt(),
-          node1.getModifiedAt()
+          node1.getModifiedAt(),
         ).value;
 
         const reconstructedNode2 = Node.reconstruct(
@@ -851,7 +837,7 @@ describe('TreeStructureService', () => {
           node2.getArgumentId(),
           attachment2,
           node2.getCreatedAt(),
-          node2.getModifiedAt()
+          node2.getModifiedAt(),
         ).value;
 
         tree.addNode(node1Id);
@@ -902,7 +888,7 @@ describe('TreeStructureService', () => {
 
       const grandChildNodeResult = Node.createChild(
         atomicArgumentIdFactory.build(),
-        grandAttachment
+        grandAttachment,
       );
       expect(grandChildNodeResult.isOk()).toBe(true);
       if (!grandChildNodeResult.isOk()) throw new Error('Failed to create grand child node');
@@ -966,7 +952,7 @@ describe('TreeStructureService', () => {
 
       const grandChildNodeResult = Node.createChild(
         atomicArgumentIdFactory.build(),
-        grandAttachment
+        grandAttachment,
       );
       expect(grandChildNodeResult.isOk()).toBe(true);
       if (!grandChildNodeResult.isOk()) throw new Error('Failed to create grand child node');
@@ -1027,9 +1013,7 @@ describe('TreeStructureService', () => {
         if (treeResult.isOk()) {
           const { tree, rootNode } = treeResult.value;
 
-          const childArgument = {
-            getId: vi.fn(() => atomicArgumentIdFactory.build()),
-          } as unknown as AtomicArgument;
+          const childArgument = atomicArgumentFactory.build();
 
           const childResult = service.addChildNodeToTree(tree, rootNode, childArgument, 0);
           expect(childResult.isOk()).toBe(true);
@@ -1083,7 +1067,7 @@ describe('TreeStructureService', () => {
           atomicArgumentIdFactory.build(),
           attachment1,
           Date.now(),
-          Date.now()
+          Date.now(),
         ).value;
 
         const node2 = Node.reconstruct(
@@ -1091,7 +1075,7 @@ describe('TreeStructureService', () => {
           atomicArgumentIdFactory.build(),
           attachment2,
           Date.now(),
-          Date.now()
+          Date.now(),
         ).value;
 
         _tree.addNode(node1Id);
@@ -1124,9 +1108,7 @@ describe('TreeStructureService', () => {
         ({ tree, rootNode } = treeResult.value);
       }
 
-      const childArgument = {
-        getId: vi.fn(() => atomicArgumentIdFactory.build()),
-      } as unknown as AtomicArgument;
+      const childArgument = atomicArgumentFactory.build();
 
       const childResult = service.addChildNodeToTree(tree, rootNode, childArgument, 0);
       expect(childResult.isOk()).toBe(true);
@@ -1196,15 +1178,13 @@ describe('TreeStructureService', () => {
 
                 // Add children
                 for (let i = 0; i < childCount; i++) {
-                  const childArgument = {
-                    getId: vi.fn(() => atomicArgumentIdFactory.build()),
-                  } as unknown as AtomicArgument;
+                  const childArgument = atomicArgumentFactory.build();
 
                   const childResult = service.addChildNodeToTree(
                     tree,
                     rootNode,
                     childArgument,
-                    premisePosition
+                    premisePosition,
                   );
 
                   if (childResult.isOk()) {
@@ -1224,8 +1204,8 @@ describe('TreeStructureService', () => {
                 // Verify node counts
                 expect(tree.getNodeCount()).toBe(allNodes.size);
               }
-            }
-          )
+            },
+          ),
         );
       });
     });
@@ -1235,7 +1215,7 @@ describe('TreeStructureService', () => {
         fc.assert(
           fc.property(
             fc.integer({ min: 2, max: 5 }), // Tree depth
-            depth => {
+            (depth) => {
               const treeResult = service.createTreeWithRootNode('test-doc', mockAtomicArgument);
               expect(treeResult.isOk()).toBe(true);
 
@@ -1248,15 +1228,13 @@ describe('TreeStructureService', () => {
                 const nodeChain = [rootNode];
 
                 for (let i = 1; i < depth; i++) {
-                  const childArgument = {
-                    getId: vi.fn(() => atomicArgumentIdFactory.build()),
-                  } as unknown as AtomicArgument;
+                  const childArgument = atomicArgumentFactory.build();
 
                   const childResult = service.addChildNodeToTree(
                     tree,
                     currentParent,
                     childArgument,
-                    0
+                    0,
                   );
 
                   if (childResult.isOk()) {
@@ -1285,14 +1263,14 @@ describe('TreeStructureService', () => {
                     // Validate remaining structure
                     const validationResult = service.validateTreeStructuralIntegrity(
                       tree,
-                      allNodes
+                      allNodes,
                     );
                     expect(validationResult.isOk()).toBe(true);
                   }
                 }
               }
-            }
-          )
+            },
+          ),
         );
       });
     });
@@ -1306,9 +1284,7 @@ describe('TreeStructureService', () => {
 
         if (treeResult.isOk()) {
           const { tree, rootNode } = treeResult.value;
-          const childArgument = {
-            getId: vi.fn(() => atomicArgumentIdFactory.build()),
-          } as unknown as AtomicArgument;
+          const childArgument = atomicArgumentFactory.build();
 
           // Test with large premise position
           const result = service.addChildNodeToTree(tree, rootNode, childArgument, 999);
@@ -1340,9 +1316,7 @@ describe('TreeStructureService', () => {
         if (treeResult.isOk()) {
           const { tree: _tree, rootNode } = treeResult.value;
 
-          const childArgument = {
-            getId: vi.fn(() => atomicArgumentIdFactory.build()),
-          } as unknown as AtomicArgument;
+          const childArgument = atomicArgumentFactory.build();
 
           const childResult = service.addChildNodeToTree(_tree, rootNode, childArgument, 0);
           expect(childResult.isOk()).toBe(true);

@@ -14,8 +14,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SourceLocation } from '../../../../../domain/shared/index.js';
 import { Diagnostic } from '../../entities/Diagnostic';
-import { type InferenceRule } from '../../entities/InferenceRule';
-import { type LanguagePackage } from '../../entities/LanguagePackage';
+import type { InferenceRule } from '../../entities/InferenceRule';
+import type { LanguagePackage } from '../../entities/LanguagePackage';
 import { ValidationResult } from '../../entities/ValidationResult';
 import { ValidationError } from '../../errors/DomainErrors';
 import { LogicValidationService } from '../../services/LogicValidationService';
@@ -45,10 +45,10 @@ const createMockLanguagePackage = (
     supportsPropositionalLogic?: boolean;
     rulesCount?: number;
     ruleConfidence?: number;
-  } = {}
+  } = {},
 ): LanguagePackage => {
   const rules = Array.from({ length: features.rulesCount ?? 1 }, () =>
-    createMockInferenceRule(features.ruleConfidence ?? 0.9, features.ruleConfidence ?? 0.9)
+    createMockInferenceRule(features.ruleConfidence ?? 0.9, features.ruleConfidence ?? 0.9),
   );
 
   return {
@@ -113,7 +113,7 @@ describe('LogicValidationService', () => {
       if (result.isOk()) {
         expect(result.value.isValid()).toBe(false);
         expect(result.value.getDiagnostics()).toHaveLength(1);
-        expect(result.value.getDiagnostics()[0]!.getMessage().getValue()).toContain('empty');
+        expect(result.value.getDiagnostics()[0]?.getMessage().getValue()).toContain('empty');
       }
     });
 
@@ -128,7 +128,7 @@ describe('LogicValidationService', () => {
         expect(result.value.isValid()).toBe(false);
         const diagnostics = result.value.getDiagnostics();
         expect(
-          diagnostics.some(d => d.getMessage().getValue().toLowerCase().includes('parentheses'))
+          diagnostics.some((d) => d.getMessage().getValue().toLowerCase().includes('parentheses')),
         ).toBe(true);
       }
     });
@@ -144,7 +144,9 @@ describe('LogicValidationService', () => {
         expect(result.value.isValid()).toBe(false);
         const diagnostics = result.value.getDiagnostics();
         expect(
-          diagnostics.some(d => d.getMessage().getValue().toLowerCase().includes('contradiction'))
+          diagnostics.some((d) =>
+            d.getMessage().getValue().toLowerCase().includes('contradiction'),
+          ),
         ).toBe(true);
       }
     });
@@ -157,7 +159,7 @@ describe('LogicValidationService', () => {
         longStatement,
         mockLocation,
         mockLanguagePackage,
-        level
+        level,
       );
 
       expect(result.isOk()).toBe(true);
@@ -165,10 +167,10 @@ describe('LogicValidationService', () => {
         const diagnostics = result.value.getDiagnostics();
         expect(
           diagnostics.some(
-            d =>
+            (d) =>
               d.getSeverity().isWarning() &&
-              d.getMessage().getValue().toLowerCase().includes('long')
-          )
+              d.getMessage().getValue().toLowerCase().includes('long'),
+          ),
         ).toBe(true);
       }
     });
@@ -201,7 +203,7 @@ describe('LogicValidationService', () => {
         'P',
         mockLocation,
         errorLanguagePackage,
-        ValidationLevel.syntax()
+        ValidationLevel.syntax(),
       );
 
       expect(result.isErr()).toBe(true);
@@ -223,7 +225,7 @@ describe('LogicValidationService', () => {
         'P',
         mockLocation,
         mockLanguagePackage,
-        ValidationLevel.syntax()
+        ValidationLevel.syntax(),
       );
 
       expect(result.isErr()).toBe(true);
@@ -268,9 +270,9 @@ describe('LogicValidationService', () => {
         expect(result.value.isValid()).toBe(false);
         const diagnostics = result.value.getDiagnostics();
         expect(
-          diagnostics.some(d =>
-            d.getMessage().getValue().toLowerCase().includes('no valid inference rule')
-          )
+          diagnostics.some((d) =>
+            d.getMessage().getValue().toLowerCase().includes('no valid inference rule'),
+          ),
         ).toBe(true);
       }
     });
@@ -290,10 +292,10 @@ describe('LogicValidationService', () => {
         const diagnostics = result.value.getDiagnostics();
         expect(
           diagnostics.some(
-            d =>
+            (d) =>
               d.getSeverity().isWarning() &&
-              d.getMessage().getValue().toLowerCase().includes('confidence')
-          )
+              d.getMessage().getValue().toLowerCase().includes('confidence'),
+          ),
         ).toBe(true);
       }
     });
@@ -327,7 +329,7 @@ describe('LogicValidationService', () => {
         premises,
         conclusions,
         mockLanguagePackage,
-        ValidationLevel.syntax()
+        ValidationLevel.syntax(),
       );
 
       expect(result.isErr()).toBe(true);
@@ -354,7 +356,7 @@ describe('LogicValidationService', () => {
         premises,
         conclusions,
         errorPackage,
-        ValidationLevel.semantic()
+        ValidationLevel.semantic(),
       );
 
       expect(result.isErr()).toBe(true);
@@ -385,7 +387,7 @@ describe('LogicValidationService', () => {
         premises,
         conclusions,
         packageWithNoRules,
-        ValidationLevel.semantic()
+        ValidationLevel.semantic(),
       );
 
       expect(result.isErr()).toBe(true);
@@ -411,7 +413,7 @@ describe('LogicValidationService', () => {
         statements,
         connections,
         mockLanguagePackage,
-        level
+        level,
       );
 
       expect(result.isOk()).toBe(true);
@@ -430,7 +432,7 @@ describe('LogicValidationService', () => {
         statements,
         connections,
         mockLanguagePackage,
-        level
+        level,
       );
 
       expect(result.isOk()).toBe(true);
@@ -451,18 +453,18 @@ describe('LogicValidationService', () => {
         '(P) ∧ (Q)',
       ];
 
-      validStatements.forEach(statement => {
+      validStatements.forEach((statement) => {
         const result = service.validateStatement(
           statement,
           mockLocation,
           mockLanguagePackage,
-          ValidationLevel.syntax()
+          ValidationLevel.syntax(),
         );
         expect(result.isOk()).toBe(true);
         if (result.isOk()) {
           const hasParenthesesError = result.value
             .getDiagnostics()
-            .some(d => d.getMessage().getValue().toLowerCase().includes('parentheses'));
+            .some((d) => d.getMessage().getValue().toLowerCase().includes('parentheses'));
           expect(hasParenthesesError).toBe(false);
         }
       });
@@ -471,18 +473,18 @@ describe('LogicValidationService', () => {
     it('should correctly identify unbalanced parentheses', () => {
       const invalidStatements = ['(P ∧ Q', 'P ∧ Q)', '((P → Q)', '(P ∧ (Q)', ')P ∧ Q('];
 
-      invalidStatements.forEach(statement => {
+      invalidStatements.forEach((statement) => {
         const result = service.validateStatement(
           statement,
           mockLocation,
           mockLanguagePackage,
-          ValidationLevel.syntax()
+          ValidationLevel.syntax(),
         );
         expect(result.isOk()).toBe(true);
         if (result.isOk()) {
           const hasParenthesesError = result.value
             .getDiagnostics()
-            .some(d => d.getMessage().getValue().toLowerCase().includes('parentheses'));
+            .some((d) => d.getMessage().getValue().toLowerCase().includes('parentheses'));
           expect(hasParenthesesError).toBe(true);
         }
       });
@@ -495,14 +497,14 @@ describe('LogicValidationService', () => {
         statementWithInvalidSymbol,
         mockLocation,
         mockLanguagePackage,
-        ValidationLevel.syntax()
+        ValidationLevel.syntax(),
       );
 
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         const diagnostics = result.value.getDiagnostics();
-        const hasInvalidSymbolError = diagnostics.some(d =>
-          d.getMessage().getValue().toLowerCase().includes('invalid symbol')
+        const hasInvalidSymbolError = diagnostics.some((d) =>
+          d.getMessage().getValue().toLowerCase().includes('invalid symbol'),
         );
         expect(hasInvalidSymbolError).toBe(true);
       }
@@ -526,7 +528,7 @@ describe('LogicValidationService', () => {
         premises,
         conclusions,
         packageWithRule,
-        ValidationLevel.semantic()
+        ValidationLevel.semantic(),
       );
 
       expect(result.isOk()).toBe(true);
@@ -549,7 +551,7 @@ describe('LogicValidationService', () => {
         premises,
         conclusions,
         emptyRulesPackage,
-        ValidationLevel.semantic()
+        ValidationLevel.semantic(),
       );
 
       expect(result.isOk()).toBe(true);
@@ -557,9 +559,9 @@ describe('LogicValidationService', () => {
         // Should generate error diagnostic for no rules
         const diagnostics = result.value.getDiagnostics();
         expect(
-          diagnostics.some(d =>
-            d.getMessage().getValue().toLowerCase().includes('no valid inference rule')
-          )
+          diagnostics.some((d) =>
+            d.getMessage().getValue().toLowerCase().includes('no valid inference rule'),
+          ),
         ).toBe(true);
       }
     });
@@ -582,7 +584,7 @@ describe('LogicValidationService', () => {
         premises,
         conclusions,
         multiRulePackage,
-        ValidationLevel.semantic()
+        ValidationLevel.semantic(),
       );
 
       expect(result.isOk()).toBe(true);

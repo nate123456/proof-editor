@@ -33,17 +33,17 @@ describe('IInferenceRuleRepository', () => {
 
       // Create a mock implementation to verify interface structure
       const mockRepository: IInferenceRuleRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByName: () => Promise.resolve(null),
-        findByLanguagePackageId: () => Promise.resolve([]),
-        findActiveRules: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByName: async () => Promise.resolve(null),
+        findByLanguagePackageId: async () => Promise.resolve([]),
+        findActiveRules: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       // Verify all methods exist
-      repositoryMethods.forEach(method => {
+      repositoryMethods.forEach((method) => {
         expect(mockRepository).toHaveProperty(method);
         expect(typeof mockRepository[method as keyof IInferenceRuleRepository]).toBe('function');
       });
@@ -51,13 +51,13 @@ describe('IInferenceRuleRepository', () => {
 
     it('should have async methods that return correct types', () => {
       const mockRepository: IInferenceRuleRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByName: () => Promise.resolve(null),
-        findByLanguagePackageId: () => Promise.resolve([]),
-        findActiveRules: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByName: async () => Promise.resolve(null),
+        findByLanguagePackageId: async () => Promise.resolve([]),
+        findActiveRules: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       // All methods should be functions
@@ -74,16 +74,16 @@ describe('IInferenceRuleRepository', () => {
   describe('method signatures', () => {
     it('should accept correct parameter types for save', async () => {
       const mockRepository: IInferenceRuleRepository = {
-        save: (rule: InferenceRule) => {
+        save: async (rule: InferenceRule) => {
           expect(rule).toBeDefined();
           return Promise.resolve(ok(undefined));
         },
-        findById: () => Promise.resolve(null),
-        findByName: () => Promise.resolve(null),
-        findByLanguagePackageId: () => Promise.resolve([]),
-        findActiveRules: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByName: async () => Promise.resolve(null),
+        findByLanguagePackageId: async () => Promise.resolve([]),
+        findActiveRules: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       const mockRule = {} as InferenceRule;
@@ -92,16 +92,16 @@ describe('IInferenceRuleRepository', () => {
 
     it('should accept correct parameter types for findById', async () => {
       const mockRepository: IInferenceRuleRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: (id: InferenceRuleId) => {
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async (id: InferenceRuleId) => {
           expect(id).toBeDefined();
           return Promise.resolve(null);
         },
-        findByName: () => Promise.resolve(null),
-        findByLanguagePackageId: () => Promise.resolve([]),
-        findActiveRules: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        findByName: async () => Promise.resolve(null),
+        findByLanguagePackageId: async () => Promise.resolve([]),
+        findActiveRules: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       const mockId = { getValue: () => 'test-id' } as InferenceRuleId;
@@ -110,16 +110,16 @@ describe('IInferenceRuleRepository', () => {
 
     it('should accept correct parameter types for findByName', async () => {
       const mockRepository: IInferenceRuleRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByName: (name: RuleName) => {
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByName: async (name: RuleName) => {
           expect(name).toBeDefined();
           return Promise.resolve(null);
         },
-        findByLanguagePackageId: () => Promise.resolve([]),
-        findActiveRules: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        findByLanguagePackageId: async () => Promise.resolve([]),
+        findActiveRules: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       const mockName = { getValue: () => 'modus-ponens' } as RuleName;
@@ -128,17 +128,17 @@ describe('IInferenceRuleRepository', () => {
 
     it('should accept correct parameter types for findByLanguagePackageId', async () => {
       const mockRepository: IInferenceRuleRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByName: () => Promise.resolve(null),
-        findByLanguagePackageId: (languagePackageId: string) => {
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByName: async () => Promise.resolve(null),
+        findByLanguagePackageId: async (languagePackageId: string) => {
           expect(languagePackageId).toBeDefined();
           expect(typeof languagePackageId).toBe('string');
           return Promise.resolve([]);
         },
-        findActiveRules: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        findActiveRules: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       await mockRepository.findByLanguagePackageId('test-pkg-id');
@@ -146,13 +146,13 @@ describe('IInferenceRuleRepository', () => {
 
     it('should accept correct parameter types for delete', async () => {
       const mockRepository: IInferenceRuleRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByName: () => Promise.resolve(null),
-        findByLanguagePackageId: () => Promise.resolve([]),
-        findActiveRules: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: (id: InferenceRuleId) => {
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByName: async () => Promise.resolve(null),
+        findByLanguagePackageId: async () => Promise.resolve([]),
+        findActiveRules: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async (id: InferenceRuleId) => {
           expect(id).toBeDefined();
           return Promise.resolve(ok(undefined));
         },
@@ -166,13 +166,13 @@ describe('IInferenceRuleRepository', () => {
   describe('return types', () => {
     it('should return Promise types for all methods', () => {
       const mockRepository: IInferenceRuleRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByName: () => Promise.resolve(null),
-        findByLanguagePackageId: () => Promise.resolve([]),
-        findActiveRules: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByName: async () => Promise.resolve(null),
+        findByLanguagePackageId: async () => Promise.resolve([]),
+        findActiveRules: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       // Test that methods return Promises
@@ -187,13 +187,13 @@ describe('IInferenceRuleRepository', () => {
 
     it('should return Result types for save and delete operations', async () => {
       const mockRepository: IInferenceRuleRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByName: () => Promise.resolve(null),
-        findByLanguagePackageId: () => Promise.resolve([]),
-        findActiveRules: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByName: async () => Promise.resolve(null),
+        findByLanguagePackageId: async () => Promise.resolve([]),
+        findActiveRules: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       const saveResult = await mockRepository.save({} as InferenceRule);
@@ -213,13 +213,13 @@ describe('IInferenceRuleRepository', () => {
 
     it('should return nullable InferenceRule for single entity queries', async () => {
       const mockRepository: IInferenceRuleRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByName: () => Promise.resolve(null),
-        findByLanguagePackageId: () => Promise.resolve([]),
-        findActiveRules: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByName: async () => Promise.resolve(null),
+        findByLanguagePackageId: async () => Promise.resolve([]),
+        findActiveRules: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       const byIdResult = await mockRepository.findById({} as InferenceRuleId);
@@ -233,13 +233,13 @@ describe('IInferenceRuleRepository', () => {
   describe('repository behavior patterns', () => {
     it('should handle null returns for findById when entity not found', async () => {
       const mockRepository: IInferenceRuleRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByName: () => Promise.resolve(null),
-        findByLanguagePackageId: () => Promise.resolve([]),
-        findActiveRules: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByName: async () => Promise.resolve(null),
+        findByLanguagePackageId: async () => Promise.resolve([]),
+        findActiveRules: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       const result = await mockRepository.findById({} as InferenceRuleId);
@@ -248,13 +248,13 @@ describe('IInferenceRuleRepository', () => {
 
     it('should handle null returns for findByName when entity not found', async () => {
       const mockRepository: IInferenceRuleRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByName: () => Promise.resolve(null),
-        findByLanguagePackageId: () => Promise.resolve([]),
-        findActiveRules: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByName: async () => Promise.resolve(null),
+        findByLanguagePackageId: async () => Promise.resolve([]),
+        findActiveRules: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       const result = await mockRepository.findByName({} as RuleName);
@@ -263,13 +263,13 @@ describe('IInferenceRuleRepository', () => {
 
     it('should handle empty arrays for collection queries when no matches found', async () => {
       const mockRepository: IInferenceRuleRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByName: () => Promise.resolve(null),
-        findByLanguagePackageId: () => Promise.resolve([]),
-        findActiveRules: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByName: async () => Promise.resolve(null),
+        findByLanguagePackageId: async () => Promise.resolve([]),
+        findActiveRules: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       const packageResult = await mockRepository.findByLanguagePackageId('non-existent');
@@ -307,26 +307,26 @@ describe('IInferenceRuleRepository', () => {
       ];
 
       const mockRepository: IInferenceRuleRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: (id: InferenceRuleId) => {
-          const found = mockRules.find(r => (r as any).id === ((id as any).getValue?.() ?? id));
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async (id: InferenceRuleId) => {
+          const found = mockRules.find((r) => (r as any).id === ((id as any).getValue?.() ?? id));
           return Promise.resolve(found ?? null);
         },
-        findByName: (name: RuleName) => {
+        findByName: async (name: RuleName) => {
           const nameValue = (name as any).getValue?.() ?? name;
-          const found = mockRules.find(r => (r as any).name === nameValue);
+          const found = mockRules.find((r) => (r as any).name === nameValue);
           return Promise.resolve(found ?? null);
         },
-        findByLanguagePackageId: (packageId: string) => {
-          const filtered = mockRules.filter(r => (r as any).languagePackageId === packageId);
+        findByLanguagePackageId: async (packageId: string) => {
+          const filtered = mockRules.filter((r) => (r as any).languagePackageId === packageId);
           return Promise.resolve(filtered);
         },
-        findActiveRules: () => {
-          const filtered = mockRules.filter(r => (r as any).isActive === true);
+        findActiveRules: async () => {
+          const filtered = mockRules.filter((r) => (r as any).isActive === true);
           return Promise.resolve(filtered);
         },
-        findAll: () => Promise.resolve(mockRules),
-        delete: () => Promise.resolve(ok(undefined)),
+        findAll: async () => Promise.resolve(mockRules),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       const pkg1Results = await mockRepository.findByLanguagePackageId('pkg1');
@@ -351,17 +351,17 @@ describe('IInferenceRuleRepository', () => {
       ];
 
       const mockRepository: IInferenceRuleRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByName: (name: RuleName) => {
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByName: async (name: RuleName) => {
           const nameValue = (name as any).getValue?.() ?? name;
-          const found = mockRules.find(r => (r as any).name === nameValue);
+          const found = mockRules.find((r) => (r as any).name === nameValue);
           return Promise.resolve(found ?? null);
         },
-        findByLanguagePackageId: () => Promise.resolve([]),
-        findActiveRules: () => Promise.resolve([]),
-        findAll: () => Promise.resolve(mockRules),
-        delete: () => Promise.resolve(ok(undefined)),
+        findByLanguagePackageId: async () => Promise.resolve([]),
+        findActiveRules: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve(mockRules),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       const result1 = await mockRepository.findByName({
@@ -380,13 +380,13 @@ describe('IInferenceRuleRepository', () => {
     it('should enforce correct interface implementation', () => {
       // This test verifies that the interface can be properly implemented
       const implementRepository = (): IInferenceRuleRepository => ({
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByName: () => Promise.resolve(null),
-        findByLanguagePackageId: () => Promise.resolve([]),
-        findActiveRules: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByName: async () => Promise.resolve(null),
+        findByLanguagePackageId: async () => Promise.resolve([]),
+        findActiveRules: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       });
 
       const repository = implementRepository();
@@ -404,13 +404,13 @@ describe('IInferenceRuleRepository', () => {
   describe('error handling patterns', () => {
     it('should handle repository errors in save operations', async () => {
       const mockRepository: IInferenceRuleRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByName: () => Promise.resolve(null),
-        findByLanguagePackageId: () => Promise.resolve([]),
-        findActiveRules: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByName: async () => Promise.resolve(null),
+        findByLanguagePackageId: async () => Promise.resolve([]),
+        findActiveRules: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       const result = await mockRepository.save({} as InferenceRule);
@@ -419,13 +419,13 @@ describe('IInferenceRuleRepository', () => {
 
     it('should handle repository errors in delete operations', async () => {
       const mockRepository: IInferenceRuleRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByName: () => Promise.resolve(null),
-        findByLanguagePackageId: () => Promise.resolve([]),
-        findActiveRules: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByName: async () => Promise.resolve(null),
+        findByLanguagePackageId: async () => Promise.resolve([]),
+        findActiveRules: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       const result = await mockRepository.delete({} as InferenceRuleId);

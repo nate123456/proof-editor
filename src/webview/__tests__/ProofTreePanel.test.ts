@@ -75,7 +75,7 @@ describe('ProofTreePanel', () => {
           enableScripts: true,
           retainContextWhenHidden: true,
           localResourceRoots: [mockExtensionUri],
-        }
+        },
       );
     });
 

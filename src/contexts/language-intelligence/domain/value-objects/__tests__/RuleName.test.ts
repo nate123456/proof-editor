@@ -95,7 +95,7 @@ describe('RuleName', () => {
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
         expect(result.error.message).toBe(
-          'Rule name can only contain letters, numbers, spaces, hyphens, underscores, periods, and parentheses'
+          'Rule name can only contain letters, numbers, spaces, hyphens, underscores, periods, and parentheses',
         );
       }
     });
@@ -106,7 +106,7 @@ describe('RuleName', () => {
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
         expect(result.error.message).toBe(
-          'Rule name can only contain letters, numbers, spaces, hyphens, underscores, periods, and parentheses'
+          'Rule name can only contain letters, numbers, spaces, hyphens, underscores, periods, and parentheses',
         );
       }
     });

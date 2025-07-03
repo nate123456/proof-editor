@@ -117,7 +117,7 @@ describe('PackageId', () => {
       if (result.isErr()) {
         expect(result.error).toBeInstanceOf(PackageValidationError);
         expect(result.error.message).toBe(
-          'Package ID must contain only lowercase letters, numbers, and hyphens'
+          'Package ID must contain only lowercase letters, numbers, and hyphens',
         );
       }
     });
@@ -163,7 +163,7 @@ describe('PackageId', () => {
         if (result.isErr()) {
           expect(result.error).toBeInstanceOf(PackageValidationError);
           expect(result.error.message).toBe(
-            'Package ID must contain only lowercase letters, numbers, and hyphens'
+            'Package ID must contain only lowercase letters, numbers, and hyphens',
           );
         }
       }
@@ -176,7 +176,7 @@ describe('PackageId', () => {
       if (result.isErr()) {
         expect(result.error).toBeInstanceOf(PackageValidationError);
         expect(result.error.message).toBe(
-          'Package ID must contain only lowercase letters, numbers, and hyphens'
+          'Package ID must contain only lowercase letters, numbers, and hyphens',
         );
       }
     });
@@ -188,7 +188,7 @@ describe('PackageId', () => {
       if (result.isErr()) {
         expect(result.error).toBeInstanceOf(PackageValidationError);
         expect(result.error.message).toBe(
-          'Package ID must contain only lowercase letters, numbers, and hyphens'
+          'Package ID must contain only lowercase letters, numbers, and hyphens',
         );
       }
     });
@@ -294,7 +294,7 @@ describe('PackageId', () => {
         'x'.repeat(100), // max length
       ];
 
-      it.each(validIds)('should accept valid package ID: %s', validId => {
+      it.each(validIds)('should accept valid package ID: %s', (validId) => {
         const result = PackageId.create(validId);
         expect(result.isOk()).toBe(true);
       });
@@ -465,22 +465,22 @@ describe('PackageId', () => {
         PackageId.create('package-c'),
       ];
 
-      expect(packageIds.every(result => result.isOk())).toBe(true);
+      expect(packageIds.every((result) => result.isOk())).toBe(true);
 
-      if (packageIds.every(result => result.isOk())) {
+      if (packageIds.every((result) => result.isOk())) {
         const ids = packageIds
-          .map(result => (result.isOk() ? result.value : undefined))
+          .map((result) => (result.isOk() ? result.value : undefined))
           .filter(Boolean) as PackageId[];
 
         // Test with Set
-        const idSet = new Set(ids.map(id => id.toString()));
+        const idSet = new Set(ids.map((id) => id.toString()));
         expect(idSet.size).toBe(3);
         expect(idSet.has('package-a')).toBe(true);
         expect(idSet.has('package-b')).toBe(true);
         expect(idSet.has('package-c')).toBe(true);
 
         // Test with Map
-        const idMap = new Map(ids.map(id => [id.toString(), id]));
+        const idMap = new Map(ids.map((id) => [id.toString(), id]));
         expect(idMap.size).toBe(3);
         expect(idMap.get('package-a')?.toString()).toBe('package-a');
       }

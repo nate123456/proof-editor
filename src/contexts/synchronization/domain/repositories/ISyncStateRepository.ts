@@ -1,8 +1,8 @@
-import { type Result } from 'neverthrow';
+import type { Result } from 'neverthrow';
 
-import { type RepositoryError } from '../../../../domain/errors/DomainErrors.js';
-import { type SyncState } from '../entities/SyncState';
-import { type DeviceId } from '../value-objects/DeviceId';
+import type { RepositoryError } from '../../../../domain/errors/DomainErrors.js';
+import type { SyncState } from '../entities/SyncState';
+import type { DeviceId } from '../value-objects/DeviceId';
 
 export interface ISyncStateRepository {
   save(syncState: SyncState): Promise<Result<void, RepositoryError>>;

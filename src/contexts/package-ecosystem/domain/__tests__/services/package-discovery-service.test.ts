@@ -15,8 +15,8 @@
 import { err, ok } from 'neverthrow';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { type Package } from '../../entities/Package';
-import { type IPackageRepository } from '../../repositories/IPackageRepository';
+import type { Package } from '../../entities/Package';
+import type { IPackageRepository } from '../../repositories/IPackageRepository';
 import {
   type IGitPackageProvider,
   type ILocalPackageProvider,
@@ -24,14 +24,15 @@ import {
 } from '../../services/package-discovery-service';
 import type { GitPackageSource, LocalPackageSource } from '../../types/common-types';
 import { PackageNotFoundError, PackageSourceUnavailableError } from '../../types/domain-errors';
-import { type PackageId } from '../../value-objects/package-id';
+import { PackageValidationError } from '../../types/domain-errors.js';
+import type { PackageId } from '../../value-objects/package-id';
 import { PackageSource } from '../../value-objects/package-source';
 
 // Mock factories
 const createMockPackage = (
   id: string,
   isLanguagePackage = false,
-  capabilities: string[] = []
+  capabilities: string[] = [],
 ): Package => {
   return {
     getId: vi.fn(() => ({ toString: () => id, equals: vi.fn() })),
@@ -52,7 +53,6 @@ const createMockPackageRepository = (): IPackageRepository => {
     searchByKeywords: vi.fn(),
     findByGitRepository: vi.fn(),
     findById: vi.fn(),
-    findByName: vi.fn(),
     findByVersion: vi.fn(),
     findByKeyword: vi.fn(),
     save: vi.fn(),
@@ -105,7 +105,7 @@ describe('PackageDiscoveryService', () => {
     service = new PackageDiscoveryService(
       mockPackageRepository,
       mockGitProvider,
-      mockLocalProvider
+      mockLocalProvider,
     );
 
     vi.clearAllMocks();
@@ -173,7 +173,7 @@ describe('PackageDiscoveryService', () => {
     it('should limit results based on maxResults option', async () => {
       const searchQuery = 'popular package';
       const manyGitSources = Array.from({ length: 100 }, (_, i) =>
-        createMockGitSource(`https://github.com/user/package${i}.git`)
+        createMockGitSource(`https://github.com/user/package${i}.git`),
       );
 
       vi.mocked(mockGitProvider.discoverFromGitHub).mockResolvedValue(ok(manyGitSources));
@@ -183,7 +183,7 @@ describe('PackageDiscoveryService', () => {
 
       // Mock repository to return packages for first 5 calls
       vi.mocked(mockPackageRepository.findBySource).mockResolvedValue(
-        ok(createMockPackage('test-package'))
+        ok(createMockPackage('test-package')),
       );
 
       const result = await service.discoverPackagesFromGitHub(searchQuery, { maxResults: 5 });
@@ -200,7 +200,7 @@ describe('PackageDiscoveryService', () => {
       const searchQuery = 'failing search';
 
       vi.mocked(mockGitProvider.discoverFromGitHub).mockResolvedValue(
-        err(new PackageSourceUnavailableError('GitHub API unavailable'))
+        err(new PackageSourceUnavailableError('GitHub API unavailable')),
       );
 
       const result = await service.discoverPackagesFromGitHub(searchQuery);
@@ -223,10 +223,10 @@ describe('PackageDiscoveryService', () => {
       // Mock PackageSource creation - first succeeds, second fails
       vi.spyOn(PackageSource, 'createFromGit')
         .mockReturnValueOnce(ok({} as any))
-        .mockReturnValueOnce(err(new Error('Invalid source')));
+        .mockReturnValueOnce(err(new PackageValidationError('Invalid source')));
 
       vi.mocked(mockPackageRepository.findBySource).mockResolvedValue(
-        ok(createMockPackage('valid-package'))
+        ok(createMockPackage('valid-package')),
       );
 
       const result = await service.discoverPackagesFromGitHub(searchQuery);
@@ -246,7 +246,7 @@ describe('PackageDiscoveryService', () => {
       vi.mocked(mockGitProvider.discoverFromGitHub).mockResolvedValue(ok(gitSources));
       vi.spyOn(PackageSource, 'createFromGit').mockReturnValue(ok({} as any));
       vi.mocked(mockPackageRepository.findBySource).mockResolvedValue(
-        err(new PackageNotFoundError('Package not in repository'))
+        err(new PackageNotFoundError('Package not in repository')),
       );
 
       const result = await service.discoverPackagesFromGitHub(searchQuery);
@@ -312,7 +312,7 @@ describe('PackageDiscoveryService', () => {
       const directoryPath = '/invalid/path';
 
       vi.mocked(mockLocalProvider.discoverInDirectory).mockResolvedValue(
-        err(new PackageNotFoundError('Directory not found'))
+        err(new PackageNotFoundError('Directory not found')),
       );
 
       const result = await service.discoverPackagesInDirectory(directoryPath);
@@ -334,10 +334,10 @@ describe('PackageDiscoveryService', () => {
 
       vi.spyOn(PackageSource, 'createFromLocal')
         .mockReturnValueOnce(ok({} as any))
-        .mockReturnValueOnce(err(new Error('Invalid local source')));
+        .mockReturnValueOnce(err(new PackageValidationError('Invalid local source')));
 
       vi.mocked(mockPackageRepository.findBySource).mockResolvedValue(
-        ok(createMockPackage('valid-local'))
+        ok(createMockPackage('valid-local')),
       );
 
       const result = await service.discoverPackagesInDirectory(directoryPath);
@@ -353,7 +353,10 @@ describe('PackageDiscoveryService', () => {
 
   describe('findPackageById', () => {
     it('should find package by ID successfully', async () => {
-      const packageId = { toString: () => 'test-package', equals: vi.fn(() => true) } as PackageId;
+      const packageId = {
+        toString: () => 'test-package',
+        equals: vi.fn(() => true),
+      } as unknown as PackageId;
       const matchingPackage = createMockPackage('test-package');
 
       // Ensure the mock package returns the expected ID
@@ -370,7 +373,10 @@ describe('PackageDiscoveryService', () => {
     });
 
     it('should return error when package not found', async () => {
-      const packageId = { toString: () => 'nonexistent-package', equals: vi.fn() } as PackageId;
+      const packageId = {
+        toString: () => 'nonexistent-package',
+        equals: vi.fn(),
+      } as unknown as PackageId;
       const otherPackage = createMockPackage('other-package');
 
       vi.mocked(mockPackageRepository.searchByKeywords).mockResolvedValue(ok([otherPackage]));
@@ -386,10 +392,10 @@ describe('PackageDiscoveryService', () => {
     });
 
     it('should handle repository search errors', async () => {
-      const packageId = { toString: () => 'test-package', equals: vi.fn() } as PackageId;
+      const packageId = { toString: () => 'test-package', equals: vi.fn() } as unknown as PackageId;
 
       vi.mocked(mockPackageRepository.searchByKeywords).mockResolvedValue(
-        err(new PackageNotFoundError('Search failed'))
+        err(new PackageNotFoundError('Search failed')),
       );
 
       const result = await service.findPackageById(packageId);
@@ -433,7 +439,7 @@ describe('PackageDiscoveryService', () => {
       const keywords = ['failing-search'];
 
       vi.mocked(mockPackageRepository.searchByKeywords).mockResolvedValue(
-        err(new PackageNotFoundError('Repository error'))
+        err(new PackageNotFoundError('Repository error')),
       );
 
       const result = await service.findPackagesByKeywords(keywords);
@@ -488,7 +494,7 @@ describe('PackageDiscoveryService', () => {
       } as any;
 
       vi.mocked(mockGitProvider.validateGitSource).mockResolvedValue(
-        err(new PackageSourceUnavailableError('Git repository not accessible'))
+        err(new PackageSourceUnavailableError('Git repository not accessible')),
       );
 
       const result = await service.validatePackageSource(packageSource);
@@ -507,7 +513,7 @@ describe('PackageDiscoveryService', () => {
       } as any;
 
       vi.mocked(mockLocalProvider.validateLocalSource).mockResolvedValue(
-        err(new PackageNotFoundError('Local path not found'))
+        err(new PackageNotFoundError('Local path not found')),
       );
 
       const result = await service.validatePackageSource(packageSource);
@@ -574,7 +580,7 @@ describe('PackageDiscoveryService', () => {
       const gitUrl = 'https://github.com/user/failing-repo.git';
 
       vi.mocked(mockPackageRepository.findByGitRepository).mockResolvedValue(
-        err(new PackageNotFoundError('Repository access failed'))
+        err(new PackageNotFoundError('Repository access failed')),
       );
 
       const result = await service.findPackageVersionsFromGitRepository(gitUrl);
@@ -609,7 +615,7 @@ describe('PackageDiscoveryService', () => {
 
     it('should handle search errors for language packages', async () => {
       vi.mocked(mockPackageRepository.searchByKeywords).mockResolvedValue(
-        err(new PackageNotFoundError('Language package search failed'))
+        err(new PackageNotFoundError('Language package search failed')),
       );
 
       const result = await service.findLanguagePackages();
@@ -688,7 +694,7 @@ describe('PackageDiscoveryService', () => {
       const capability = 'failing-capability';
 
       vi.mocked(mockPackageRepository.searchByKeywords).mockResolvedValue(
-        err(new PackageNotFoundError('Capability search failed'))
+        err(new PackageNotFoundError('Capability search failed')),
       );
 
       const result = await service.findPackagesWithCapability(capability);
@@ -723,7 +729,7 @@ describe('PackageDiscoveryService', () => {
     it('should handle large result sets efficiently', async () => {
       const searchQuery = 'popular package';
       const largeGitSources = Array.from({ length: 1000 }, (_, i) =>
-        createMockGitSource(`https://github.com/user/package${i}.git`)
+        createMockGitSource(`https://github.com/user/package${i}.git`),
       );
 
       vi.mocked(mockGitProvider.discoverFromGitHub).mockResolvedValue(ok(largeGitSources));
@@ -733,7 +739,7 @@ describe('PackageDiscoveryService', () => {
 
       // Mock repository to return packages
       vi.mocked(mockPackageRepository.findBySource).mockResolvedValue(
-        ok(createMockPackage('test-package'))
+        ok(createMockPackage('test-package')),
       );
 
       const result = await service.discoverPackagesFromGitHub(searchQuery, { maxResults: 50 });
@@ -761,7 +767,7 @@ describe('PackageDiscoveryService', () => {
       vi.mocked(mockLocalProvider.validateLocalSource).mockResolvedValue(ok(true));
 
       const results = await Promise.all(
-        sources.map(source => service.validatePackageSource(source as any))
+        sources.map(async (source) => service.validatePackageSource(source as any)),
       );
 
       expect(results[0]?.isOk()).toBe(true);
@@ -775,7 +781,7 @@ describe('PackageDiscoveryService', () => {
 
       vi.mocked(mockPackageRepository.searchByKeywords).mockImplementation(async () => {
         // Simulate some processing time
-        await new Promise(resolve => setTimeout(resolve, 10));
+        await new Promise((resolve) => setTimeout(resolve, 10));
         return ok(packages);
       });
 

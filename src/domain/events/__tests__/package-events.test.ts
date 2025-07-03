@@ -1,11 +1,6 @@
 import { describe, expect, it } from 'vitest';
-
-import {
-  type DocumentId,
-  type PackageId,
-  type ValueObject,
-  type Version,
-} from '../../shared/value-objects.js';
+import type { DocumentId, PackageId } from '../../shared/value-objects.js';
+import { Version } from '../../shared/value-objects.js';
 import {
   type ActivationContext,
   type CleanupResult,
@@ -29,24 +24,9 @@ import {
 } from '../package-events.js';
 
 const mockPackageId = { getValue: () => 'test-package-id' } as PackageId;
-const mockVersion = {
-  getValue: () => '1.0.0',
-  nextVersion: () =>
-    ({
-      getValue: () => '2.0.0',
-      nextVersion: () => ({}) as Version,
-      isAfter: () => true,
-      isBefore: () => false,
-      value: 2,
-      equals: () => false,
-      toString: () => '2.0.0',
-    }) as Version,
-  isAfter: (_other: Version) => true,
-  isBefore: (_other: Version) => false,
-  value: 1,
-  equals: (_other: ValueObject<number>) => false,
-  toString: () => '1.0.0',
-} as Version;
+const versionResult = Version.create(1);
+if (versionResult.isErr()) throw new Error('Failed to create version');
+const mockVersion = versionResult.value;
 const mockDocumentId = { getValue: () => 'test-document-id' } as DocumentId;
 
 describe('PackageInstalled', () => {
@@ -73,7 +53,7 @@ describe('PackageInstalled', () => {
       mockVersion,
       mockInstallationSource,
       'test-user',
-      mockCapabilities
+      mockCapabilities,
     );
 
     expect(event.eventType).toBe('PackageInstalled');
@@ -92,14 +72,14 @@ describe('PackageInstalled', () => {
       mockVersion,
       mockInstallationSource,
       'test-user',
-      mockCapabilities
+      mockCapabilities,
     );
 
     const data = event.eventData;
 
     expect(data).toEqual({
       packageId: 'test-package-id',
-      version: '1.0.0',
+      version: 1,
       installationSource: mockInstallationSource,
       installedBy: 'test-user',
       capabilities: mockCapabilities,
@@ -112,7 +92,7 @@ describe('PackageInstalled', () => {
       mockVersion,
       mockInstallationSource,
       'test-user',
-      mockCapabilities
+      mockCapabilities,
     );
 
     const record = event.toEventRecord();
@@ -127,24 +107,9 @@ describe('PackageInstalled', () => {
 });
 
 describe('PackageUpdated', () => {
-  const mockPreviousVersion = {
-    getValue: () => '0.9.0',
-    nextVersion: () =>
-      ({
-        getValue: () => '1.0.0',
-        nextVersion: () => ({}) as Version,
-        isAfter: () => false,
-        isBefore: () => true,
-        value: 1,
-        equals: () => false,
-        toString: () => '1.0.0',
-      }) as Version,
-    isAfter: (_other: Version) => false,
-    isBefore: (_other: Version) => true,
-    value: 0.9,
-    equals: (_other: ValueObject<number>) => false,
-    toString: () => '0.9.0',
-  } as Version;
+  const prevVersionResult = Version.create(0);
+  if (prevVersionResult.isErr()) throw new Error('Failed to create previous version');
+  const mockPreviousVersion = prevVersionResult.value;
   const mockUpdateResult: UpdateResult = {
     success: true,
     warnings: ['Minor compatibility issue'],
@@ -161,7 +126,7 @@ describe('PackageUpdated', () => {
       mockPreviousVersion,
       mockVersion,
       mockUpdateResult,
-      'test-user'
+      'test-user',
     );
 
     expect(event.eventType).toBe('PackageUpdated');
@@ -180,15 +145,15 @@ describe('PackageUpdated', () => {
       mockPreviousVersion,
       mockVersion,
       mockUpdateResult,
-      'test-user'
+      'test-user',
     );
 
     const data = event.eventData;
 
     expect(data).toEqual({
       packageId: 'test-package-id',
-      previousVersion: '0.9.0',
-      newVersion: '1.0.0',
+      previousVersion: 0,
+      newVersion: 1,
       updateResult: mockUpdateResult,
       updatedBy: 'test-user',
     });
@@ -211,7 +176,7 @@ describe('PackageUninstalled', () => {
       mockVersion,
       'user_request',
       'test-user',
-      mockCleanupResult
+      mockCleanupResult,
     );
 
     expect(event.eventType).toBe('PackageUninstalled');
@@ -230,14 +195,14 @@ describe('PackageUninstalled', () => {
       mockVersion,
       'security_violation',
       'system',
-      mockCleanupResult
+      mockCleanupResult,
     );
 
     const data = event.eventData;
 
     expect(data).toEqual({
       packageId: 'test-package-id',
-      version: '1.0.0',
+      version: 1,
       uninstallReason: 'security_violation',
       uninstalledBy: 'system',
       cleanupResult: mockCleanupResult,
@@ -270,7 +235,7 @@ describe('PackageValidated', () => {
       mockVersion,
       mockValidationResult,
       'validator-service',
-      mockValidationContext
+      mockValidationContext,
     );
 
     expect(event.eventType).toBe('PackageValidated');
@@ -289,14 +254,14 @@ describe('PackageValidated', () => {
       mockVersion,
       mockValidationResult,
       'validator-service',
-      mockValidationContext
+      mockValidationContext,
     );
 
     const data = event.eventData;
 
     expect(data).toEqual({
       packageId: 'test-package-id',
-      version: '1.0.0',
+      version: 1,
       validationResult: mockValidationResult,
       validatedBy: 'validator-service',
       validationContext: mockValidationContext,
@@ -306,24 +271,9 @@ describe('PackageValidated', () => {
 
 describe('PackageDependencyResolved', () => {
   const mockDependencyId = { getValue: () => 'dependency-package-id' } as PackageId;
-  const mockDependencyVersion = {
-    getValue: () => '2.1.0',
-    nextVersion: () =>
-      ({
-        getValue: () => '3.0.0',
-        nextVersion: () => ({}) as Version,
-        isAfter: () => true,
-        isBefore: () => false,
-        value: 3,
-        equals: () => false,
-        toString: () => '3.0.0',
-      }) as Version,
-    isAfter: (_other: Version) => true,
-    isBefore: (_other: Version) => false,
-    value: 2.1,
-    equals: (_other: ValueObject<number>) => false,
-    toString: () => '2.1.0',
-  } as Version;
+  const depVersionResult = Version.create(2);
+  if (depVersionResult.isErr()) throw new Error('Failed to create dependency version');
+  const mockDependencyVersion = depVersionResult.value;
 
   it('should create event with correct properties', () => {
     const event = new PackageDependencyResolved(
@@ -331,7 +281,7 @@ describe('PackageDependencyResolved', () => {
       mockDependencyId,
       mockDependencyVersion,
       'compatible_version',
-      'dependency-resolver'
+      'dependency-resolver',
     );
 
     expect(event.eventType).toBe('PackageDependencyResolved');
@@ -350,7 +300,7 @@ describe('PackageDependencyResolved', () => {
       mockDependencyId,
       mockDependencyVersion,
       'latest_compatible',
-      'dependency-resolver'
+      'dependency-resolver',
     );
 
     const data = event.eventData;
@@ -358,7 +308,7 @@ describe('PackageDependencyResolved', () => {
     expect(data).toEqual({
       packageId: 'test-package-id',
       dependencyId: 'dependency-package-id',
-      dependencyVersion: '2.1.0',
+      dependencyVersion: 2,
       resolutionStrategy: 'latest_compatible',
       resolvedBy: 'dependency-resolver',
     });
@@ -392,7 +342,7 @@ describe('PackageConflictDetected', () => {
       mockConflictingPackages,
       'capability_conflict',
       mockConflictDetails,
-      'conflict-detector'
+      'conflict-detector',
     );
 
     expect(event.eventType).toBe('PackageConflictDetected');
@@ -409,7 +359,7 @@ describe('PackageConflictDetected', () => {
       mockConflictingPackages,
       'version_conflict',
       mockConflictDetails,
-      'conflict-detector'
+      'conflict-detector',
     );
 
     const data = event.eventData;
@@ -436,7 +386,7 @@ describe('PackageActivated', () => {
       mockPackageId,
       mockDocumentId,
       mockActivationContext,
-      'test-user'
+      'test-user',
     );
 
     expect(event.eventType).toBe('PackageActivated');
@@ -453,7 +403,7 @@ describe('PackageActivated', () => {
       mockPackageId,
       mockDocumentId,
       mockActivationContext,
-      'test-user'
+      'test-user',
     );
 
     const data = event.eventData;
@@ -473,7 +423,7 @@ describe('PackageDeactivated', () => {
       mockPackageId,
       mockDocumentId,
       'document_close',
-      'test-user'
+      'test-user',
     );
 
     expect(event.eventType).toBe('PackageDeactivated');
@@ -490,7 +440,7 @@ describe('PackageDeactivated', () => {
       mockPackageId,
       mockDocumentId,
       'security_policy',
-      'system'
+      'system',
     );
 
     const data = event.eventData;
@@ -519,7 +469,7 @@ describe('PackageSecurityViolationDetected', () => {
       'unauthorized_access',
       mockViolationDetails,
       'security-monitor',
-      'critical'
+      'critical',
     );
 
     expect(event.eventType).toBe('PackageSecurityViolationDetected');
@@ -538,7 +488,7 @@ describe('PackageSecurityViolationDetected', () => {
       'malicious_code',
       mockViolationDetails,
       'security-monitor',
-      'high'
+      'high',
     );
 
     const data = event.eventData;
@@ -561,7 +511,7 @@ describe('PackageRegistryUpdated', () => {
       'https://registry.example.com',
       'package_updated',
       mockAffectedPackages,
-      'registry-sync'
+      'registry-sync',
     );
 
     expect(event.eventType).toBe('PackageRegistryUpdated');
@@ -578,7 +528,7 @@ describe('PackageRegistryUpdated', () => {
       'https://github.com/packages',
       'security_advisory',
       mockAffectedPackages,
-      'security-team'
+      'security-team',
     );
 
     const data = event.eventData;

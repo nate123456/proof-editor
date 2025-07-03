@@ -1,6 +1,6 @@
 import { err, ok, type Result } from 'neverthrow';
 
-import { type DeviceId } from './DeviceId';
+import type { DeviceId } from './DeviceId';
 
 export type ConflictResolutionStrategy =
   | 'LAST_WRITER_WINS'
@@ -37,7 +37,7 @@ export class ConflictResolution {
     private readonly context: ResolutionContext,
     private readonly resultData: unknown,
     private readonly userSelection?: UserSelection,
-    private readonly automaticResolution = true
+    private readonly automaticResolution = true,
   ) {}
 
   static createAutomatic(
@@ -45,7 +45,7 @@ export class ConflictResolution {
     confidence: ResolutionConfidence,
     resolvedBy: DeviceId,
     context: ResolutionContext,
-    resultData: unknown
+    resultData: unknown,
   ): Result<ConflictResolution, Error> {
     if (!ConflictResolution.isAutomaticStrategy(strategy)) {
       return err(new Error(`Strategy ${strategy} is not suitable for automatic resolution`));
@@ -60,8 +60,8 @@ export class ConflictResolution {
         context,
         resultData,
         undefined,
-        true
-      )
+        true,
+      ),
     );
   }
 
@@ -70,7 +70,7 @@ export class ConflictResolution {
     resolvedBy: DeviceId,
     context: ResolutionContext,
     resultData: unknown,
-    userSelection: UserSelection
+    userSelection: UserSelection,
   ): Result<ConflictResolution, Error> {
     if (ConflictResolution.isAutomaticStrategy(strategy)) {
       return err(new Error(`Strategy ${strategy} should be used for automatic resolution`));
@@ -85,8 +85,8 @@ export class ConflictResolution {
         context,
         resultData,
         userSelection,
-        false
-      )
+        false,
+      ),
     );
   }
 
@@ -94,7 +94,7 @@ export class ConflictResolution {
     resolvedBy: DeviceId,
     context: ResolutionContext,
     mergeResult: unknown,
-    mergeStrategy: 'OPERATIONAL_TRANSFORM' | 'THREE_WAY_MERGE' = 'OPERATIONAL_TRANSFORM'
+    mergeStrategy: 'OPERATIONAL_TRANSFORM' | 'THREE_WAY_MERGE' = 'OPERATIONAL_TRANSFORM',
   ): Result<ConflictResolution, Error> {
     const confidence = ConflictResolution.calculateMergeConfidence(context, mergeResult);
 
@@ -107,8 +107,8 @@ export class ConflictResolution {
         context,
         mergeResult,
         undefined,
-        true
-      )
+        true,
+      ),
     );
   }
 
@@ -126,7 +126,7 @@ export class ConflictResolution {
 
   private static calculateMergeConfidence(
     context: ResolutionContext,
-    mergeResult: unknown
+    mergeResult: unknown,
   ): ResolutionConfidence {
     if (context.operationCount > 5) {
       return 'LOW';
@@ -297,8 +297,8 @@ export class ConflictResolution {
           { ...this.context },
           JSON.parse(JSON.stringify(this.resultData)),
           this.userSelection ? { ...this.userSelection } : undefined,
-          this.automaticResolution
-        )
+          this.automaticResolution,
+        ),
       );
     } catch (error) {
       return err(error instanceof Error ? error : new Error('Failed to clone conflict resolution'));

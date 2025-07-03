@@ -13,8 +13,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SourceLocation } from '../../../../../domain/shared/index.js';
 import { Diagnostic } from '../../entities/Diagnostic';
-import { type LanguagePackage } from '../../entities/LanguagePackage';
-import { type ValidationResult } from '../../entities/ValidationResult';
+import type { LanguagePackage } from '../../entities/LanguagePackage';
+import type { ValidationResult } from '../../entities/ValidationResult';
 import { EducationalFeedbackService } from '../../services/EducationalFeedbackService';
 import { DiagnosticMessage } from '../../value-objects/DiagnosticMessage';
 import { DiagnosticSeverity } from '../../value-objects/DiagnosticSeverity';
@@ -53,14 +53,14 @@ const createMockDiagnostic = (category: 'syntax' | 'semantic' | 'style' = 'synta
       range.value,
       'test-source',
       [],
-      [category]
+      [category],
     );
 
     if (result.isOk()) {
       const diagnostic = result.value;
       // Add missing methods that are expected by the service
       vi.spyOn(diagnostic, 'hasTag').mockImplementation((tag: string) =>
-        [category as string].includes(tag)
+        [category as string].includes(tag),
       );
       vi.spyOn(diagnostic, 'getTags').mockImplementation(() => [category]);
       return diagnostic;
@@ -70,7 +70,7 @@ const createMockDiagnostic = (category: 'syntax' | 'semantic' | 'style' = 'synta
   }
 
   throw new Error(
-    `Failed to create range: ${range.isErr() ? range.error.message : 'unknown error'}`
+    `Failed to create range: ${range.isErr() ? range.error.message : 'unknown error'}`,
   );
 };
 
@@ -79,7 +79,7 @@ const createMockLanguagePackage = (
     supportsFirstOrderLogic?: boolean;
     supportsModalLogic?: boolean;
     supportsPropositionalLogic?: boolean;
-  } = {}
+  } = {},
 ): LanguagePackage => {
   const symbolsMap = new Map([
     ['conjunction', '∧'],
@@ -123,20 +123,20 @@ const createMockValidationResult = (diagnostics: Diagnostic[] = []): ValidationR
     })),
     isValid: vi.fn(() => diagnostics.length === 0),
     getDiagnosticsByCategory: vi.fn((category: string) =>
-      diagnostics.filter(d => d.hasTag(category))
+      diagnostics.filter((d) => d.hasTag(category)),
     ),
     getDiagnosticsBySeverity: vi.fn((severity: string) =>
-      diagnostics.filter(d => d.getSeverity().toString() === severity)
+      diagnostics.filter((d) => d.getSeverity().toString() === severity),
     ),
     getSeverityCounts: vi.fn(() => ({
-      error: diagnostics.filter(d => d.getSeverity().isError()).length,
-      warning: diagnostics.filter(d => d.getSeverity().isWarning()).length,
-      info: diagnostics.filter(d => d.getSeverity().isInfo()).length,
+      error: diagnostics.filter((d) => d.getSeverity().isError()).length,
+      warning: diagnostics.filter((d) => d.getSeverity().isWarning()).length,
+      info: diagnostics.filter((d) => d.getSeverity().isInfo()).length,
       hint: 0, // No hint severity in DiagnosticSeverity
     })),
-    hasErrors: vi.fn(() => diagnostics.some(d => d.getSeverity().isError())),
-    hasWarnings: vi.fn(() => diagnostics.some(d => d.getSeverity().isWarning())),
-    getErrorCount: vi.fn(() => diagnostics.filter(d => d.getSeverity().isError()).length),
+    hasErrors: vi.fn(() => diagnostics.some((d) => d.getSeverity().isError())),
+    hasWarnings: vi.fn(() => diagnostics.some((d) => d.getSeverity().isWarning())),
+    getErrorCount: vi.fn(() => diagnostics.filter((d) => d.getSeverity().isError()).length),
   } as unknown as ValidationResult;
 };
 
@@ -243,7 +243,7 @@ describe('EducationalFeedbackService', () => {
         statement,
         targetConcepts,
         languagePackage,
-        'beginner'
+        'beginner',
       );
 
       expect(result.isOk()).toBe(true);
@@ -269,7 +269,9 @@ describe('EducationalFeedbackService', () => {
         const guidance = result.value;
         expect(guidance.steps.length).toBeGreaterThan(0);
         // Should have step for breaking down nested structures
-        expect(guidance.steps.some(step => step.title.toLowerCase().includes('nested'))).toBe(true);
+        expect(guidance.steps.some((step) => step.title.toLowerCase().includes('nested'))).toBe(
+          true,
+        );
       }
     });
 
@@ -284,8 +286,8 @@ describe('EducationalFeedbackService', () => {
       if (result.isOk()) {
         const guidance = result.value;
         // Should have step for handling quantifiers
-        expect(guidance.steps.some(step => step.title.toLowerCase().includes('quantifier'))).toBe(
-          true
+        expect(guidance.steps.some((step) => step.title.toLowerCase().includes('quantifier'))).toBe(
+          true,
         );
       }
     });
@@ -301,7 +303,9 @@ describe('EducationalFeedbackService', () => {
       if (result.isOk()) {
         const guidance = result.value;
         // Should have step for modal operators
-        expect(guidance.steps.some(step => step.title.toLowerCase().includes('modal'))).toBe(true);
+        expect(guidance.steps.some((step) => step.title.toLowerCase().includes('modal'))).toBe(
+          true,
+        );
       }
     });
 
@@ -328,7 +332,7 @@ describe('EducationalFeedbackService', () => {
       const result = service.generateInteractiveFeedback(
         validationResult,
         languagePackage,
-        'beginner'
+        'beginner',
       );
 
       expect(result.isOk()).toBe(true);
@@ -378,7 +382,7 @@ describe('EducationalFeedbackService', () => {
         expect(feedback.areasForImprovement.length).toBeGreaterThan(0);
         // Should identify syntax as main area for improvement (2 issues)
         expect(
-          feedback.areasForImprovement.some(area => area.toLowerCase().includes('syntax'))
+          feedback.areasForImprovement.some((area) => area.toLowerCase().includes('syntax')),
         ).toBe(true);
       }
     });
@@ -434,9 +438,10 @@ describe('EducationalFeedbackService', () => {
         // Should include basic logic as prerequisite
         expect(
           analysis.prerequisiteConcepts.some(
-            prereq =>
-              prereq.toLowerCase().includes('logic') || prereq.toLowerCase().includes('proposition')
-          )
+            (prereq) =>
+              prereq.toLowerCase().includes('logic') ||
+              prereq.toLowerCase().includes('proposition'),
+          ),
         ).toBe(true);
       }
     });
@@ -474,7 +479,7 @@ describe('EducationalFeedbackService', () => {
         expect(problems.difficultyLevel).toBe('beginner');
 
         // Each problem should have required fields
-        problems.problems.forEach(problem => {
+        problems.problems.forEach((problem) => {
           expect(problem.statement).toBeDefined();
           expect(problem.solution).toBeDefined();
           expect(problem.hints).toBeDefined();
@@ -519,7 +524,7 @@ describe('EducationalFeedbackService', () => {
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         const problems = result.value;
-        problems.problems.forEach(problem => {
+        problems.problems.forEach((problem) => {
           expect(problem.difficulty).toBe('advanced');
         });
       }
@@ -584,7 +589,7 @@ describe('EducationalFeedbackService', () => {
         premises,
         conclusions,
         languagePackage,
-        'beginner'
+        'beginner',
       );
 
       expect(result.isOk()).toBe(true);
@@ -597,8 +602,8 @@ describe('EducationalFeedbackService', () => {
         expect(suggestions.practiceProblems).toBeDefined();
 
         // Should suggest direct proof
-        expect(suggestions.strategies.some(s => s.name.toLowerCase().includes('direct'))).toBe(
-          true
+        expect(suggestions.strategies.some((s) => s.name.toLowerCase().includes('direct'))).toBe(
+          true,
         );
       }
     });
@@ -611,14 +616,14 @@ describe('EducationalFeedbackService', () => {
       const result = service.generateProofStrategySuggestions(
         premises,
         conclusions,
-        languagePackage
+        languagePackage,
       );
 
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         const suggestions = result.value;
         expect(
-          suggestions.strategies.some(s => s.name.toLowerCase().includes('contradiction'))
+          suggestions.strategies.some((s) => s.name.toLowerCase().includes('contradiction')),
         ).toBe(true);
       }
     });
@@ -631,13 +636,15 @@ describe('EducationalFeedbackService', () => {
       const result = service.generateProofStrategySuggestions(
         premises,
         conclusions,
-        languagePackage
+        languagePackage,
       );
 
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         const suggestions = result.value;
-        expect(suggestions.strategies.some(s => s.name.toLowerCase().includes('case'))).toBe(true);
+        expect(suggestions.strategies.some((s) => s.name.toLowerCase().includes('case'))).toBe(
+          true,
+        );
       }
     });
 
@@ -649,7 +656,7 @@ describe('EducationalFeedbackService', () => {
       const result = service.generateProofStrategySuggestions(
         premises,
         conclusions,
-        languagePackage
+        languagePackage,
       );
 
       expect(result.isOk()).toBe(true);
@@ -660,7 +667,7 @@ describe('EducationalFeedbackService', () => {
         if (suggestions.strategies) {
           for (let i = 0; i < suggestions.strategies.length - 1; i++) {
             expect(suggestions.strategies[i]?.applicability).toBeGreaterThanOrEqual(
-              suggestions.strategies[i + 1]?.applicability ?? 0
+              suggestions.strategies[i + 1]?.applicability ?? 0,
             );
           }
         }
@@ -676,7 +683,7 @@ describe('EducationalFeedbackService', () => {
         premises,
         conclusions,
         languagePackage,
-        'beginner'
+        'beginner',
       );
 
       expect(result.isOk()).toBe(true);
@@ -754,9 +761,9 @@ describe('EducationalFeedbackService', () => {
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         const analysis = result.value;
-        expect(analysis.progressIndicators['successRate']).toBeDefined();
-        expect(analysis.progressIndicators['averageErrors']).toBeDefined();
-        expect(analysis.progressIndicators['successRate']).toBe(0.5); // 1 out of 2 valid
+        expect(analysis.progressIndicators.successRate).toBeDefined();
+        expect(analysis.progressIndicators.averageErrors).toBeDefined();
+        expect(analysis.progressIndicators.successRate).toBe(0.5); // 1 out of 2 valid
       }
     });
   });
@@ -785,7 +792,7 @@ describe('EducationalFeedbackService', () => {
       if (result.isOk()) {
         const content = result.value;
         expect(content.title).toBe('Inference Rules');
-        expect(content.examples.some(ex => ex.includes('Modus Ponens'))).toBe(true);
+        expect(content.examples.some((ex) => ex.includes('Modus Ponens'))).toBe(true);
         expect(content.prerequisites.includes('logical-operators')).toBe(true);
       }
     });
@@ -798,7 +805,7 @@ describe('EducationalFeedbackService', () => {
       if (result.isOk()) {
         const content = result.value;
         expect(content.title).toBe('Modal Logic');
-        expect(content.examples.some(ex => ex.includes('□P'))).toBe(true);
+        expect(content.examples.some((ex) => ex.includes('□P'))).toBe(true);
       }
     });
 
@@ -822,7 +829,7 @@ describe('EducationalFeedbackService', () => {
       const result = service.generateContentForConcept(
         'modal-logic',
         'intermediate',
-        languagePackage
+        languagePackage,
       );
 
       expect(result.isOk()).toBe(true);
@@ -866,7 +873,7 @@ describe('EducationalFeedbackService', () => {
       if (result.isOk()) {
         const topics = result.value;
         // Advanced users should get more advanced suggestions
-        expect(topics.suggestions.some(s => s.includes('theory'))).toBe(true);
+        expect(topics.suggestions.some((s) => s.includes('theory'))).toBe(true);
       }
     });
 
@@ -880,11 +887,11 @@ describe('EducationalFeedbackService', () => {
         // Should filter out temporal-logic and dynamic-logic topics if modal logic not supported
         expect(
           topics.suggestions.every(
-            s =>
+            (s) =>
               !s.includes('temporal-logic') &&
               !s.includes('dynamic-logic') &&
-              !s.includes('modal-logic')
-          )
+              !s.includes('modal-logic'),
+          ),
         ).toBe(true);
       }
     });
@@ -931,7 +938,7 @@ describe('EducationalFeedbackService', () => {
       const result = service.generateStepByStepGuidance(
         '∀x P(x)',
         ['quantifiers'],
-        languagePackage
+        languagePackage,
       );
 
       expect(result.isErr()).toBe(true);
@@ -1080,9 +1087,9 @@ describe('EducationalFeedbackService', () => {
 
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
-        expect(result.value.hints.some(h => h.includes('symbol'))).toBe(true);
+        expect(result.value.hints.some((h) => h.includes('symbol'))).toBe(true);
         expect(result.value.concepts.includes('logical-symbols')).toBe(true);
-        expect(result.value.resources.some(r => r.includes('Symbol Guide'))).toBe(true);
+        expect(result.value.resources.some((r) => r.includes('Symbol Guide'))).toBe(true);
       }
     });
 
@@ -1101,7 +1108,7 @@ describe('EducationalFeedbackService', () => {
 
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
-        expect(result.value.hints.some(h => h.includes('always true'))).toBe(true);
+        expect(result.value.hints.some((h) => h.includes('always true'))).toBe(true);
         expect(result.value.concepts.includes('tautology')).toBe(true);
       }
     });
@@ -1121,7 +1128,7 @@ describe('EducationalFeedbackService', () => {
 
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
-        expect(result.value.hints.some(h => h.includes('always false'))).toBe(true);
+        expect(result.value.hints.some((h) => h.includes('always false'))).toBe(true);
         expect(result.value.concepts.includes('contradiction')).toBe(true);
       }
     });
@@ -1141,7 +1148,7 @@ describe('EducationalFeedbackService', () => {
 
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
-        expect(result.value.hints.some(h => h.includes('breaking'))).toBe(true);
+        expect(result.value.hints.some((h) => h.includes('breaking'))).toBe(true);
       }
     });
 
@@ -1160,7 +1167,7 @@ describe('EducationalFeedbackService', () => {
 
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
-        expect(result.value.hints.some(h => h.includes('consistent'))).toBe(true);
+        expect(result.value.hints.some((h) => h.includes('consistent'))).toBe(true);
       }
     });
 
@@ -1181,7 +1188,7 @@ describe('EducationalFeedbackService', () => {
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         // This test is mainly checking that the service handles semantic inference hints
-        expect(result.value.hints.some(h => h.includes('inference'))).toBe(true);
+        expect(result.value.hints.some((h) => h.includes('inference'))).toBe(true);
         expect(result.value.concepts.includes('logical-inference')).toBe(true);
       }
     });
@@ -1200,9 +1207,9 @@ describe('EducationalFeedbackService', () => {
       if (result.isOk()) {
         const analysis = result.value;
         expect(analysis.overallDifficulty).toBe('advanced');
-        expect(analysis.concepts.some(c => c.difficulty === 'beginner')).toBe(true);
-        expect(analysis.concepts.some(c => c.difficulty === 'intermediate')).toBe(true);
-        expect(analysis.concepts.some(c => c.difficulty === 'advanced')).toBe(true);
+        expect(analysis.concepts.some((c) => c.difficulty === 'beginner')).toBe(true);
+        expect(analysis.concepts.some((c) => c.difficulty === 'intermediate')).toBe(true);
+        expect(analysis.concepts.some((c) => c.difficulty === 'advanced')).toBe(true);
       }
     });
 
@@ -1217,9 +1224,9 @@ describe('EducationalFeedbackService', () => {
         const problems = result.value;
         expect(problems.problems.length).toBeGreaterThan(0);
         // Should have problems for each concept
-        expect(problems.problems.some(p => p.concepts.includes('conjunction'))).toBe(true);
-        expect(problems.problems.some(p => p.concepts.includes('disjunction'))).toBe(true);
-        expect(problems.problems.some(p => p.concepts.includes('modal-logic'))).toBe(true);
+        expect(problems.problems.some((p) => p.concepts.includes('conjunction'))).toBe(true);
+        expect(problems.problems.some((p) => p.concepts.includes('disjunction'))).toBe(true);
+        expect(problems.problems.some((p) => p.concepts.includes('modal-logic'))).toBe(true);
       }
     });
 
@@ -1227,7 +1234,7 @@ describe('EducationalFeedbackService', () => {
       const result = service.suggestPracticeProblems(
         ['conjunction'],
         'intermediate',
-        createMockLanguagePackage()
+        createMockLanguagePackage(),
       );
 
       expect(result.isOk()).toBe(true);

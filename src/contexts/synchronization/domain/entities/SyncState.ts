@@ -1,6 +1,6 @@
 import { err, ok, type Result } from 'neverthrow';
 
-import { type DeviceId } from '../value-objects/DeviceId';
+import type { DeviceId } from '../value-objects/DeviceId';
 import { VectorClock } from './VectorClock';
 
 export type SyncStatus = 'SYNCED' | 'SYNCING' | 'CONFLICT_PENDING' | 'OFFLINE' | 'ERROR';
@@ -22,7 +22,7 @@ export class SyncState {
     private readonly lastSyncAt: Date,
     private readonly conflictCount: number,
     private readonly pendingOperationCount: number,
-    private readonly errorMessage?: string
+    private readonly errorMessage?: string,
   ) {}
 
   static create(localDeviceId: DeviceId, initialClock?: VectorClock): Result<SyncState, Error> {
@@ -93,11 +93,11 @@ export class SyncState {
   }
 
   getActivePeerCount(): number {
-    return Array.from(this.peerStates.values()).filter(peer => peer.status !== 'OFFLINE').length;
+    return Array.from(this.peerStates.values()).filter((peer) => peer.status !== 'OFFLINE').length;
   }
 
   getOutOfSyncPeers(): PeerSyncState[] {
-    return Array.from(this.peerStates.values()).filter(peer => !this.isPeerSynced(peer));
+    return Array.from(this.peerStates.values()).filter((peer) => !this.isPeerSynced(peer));
   }
 
   private isPeerSynced(peer: PeerSyncState): boolean {
@@ -118,8 +118,8 @@ export class SyncState {
         this.lastSyncAt,
         this.conflictCount,
         this.pendingOperationCount,
-        this.errorMessage
-      )
+        this.errorMessage,
+      ),
     );
   }
 
@@ -133,8 +133,8 @@ export class SyncState {
         this.lastSyncAt,
         this.conflictCount,
         this.pendingOperationCount,
-        errorMessage
-      )
+        errorMessage,
+      ),
     );
   }
 
@@ -151,8 +151,8 @@ export class SyncState {
         this.lastSyncAt,
         this.conflictCount,
         this.pendingOperationCount,
-        this.errorMessage
-      )
+        this.errorMessage,
+      ),
     );
   }
 
@@ -169,8 +169,8 @@ export class SyncState {
         this.lastSyncAt,
         this.conflictCount,
         this.pendingOperationCount,
-        this.errorMessage
-      )
+        this.errorMessage,
+      ),
     );
   }
 
@@ -186,8 +186,8 @@ export class SyncState {
         this.lastSyncAt,
         this.conflictCount + 1,
         this.pendingOperationCount,
-        this.errorMessage
-      )
+        this.errorMessage,
+      ),
     );
   }
 
@@ -209,8 +209,8 @@ export class SyncState {
         this.lastSyncAt,
         newConflictCount,
         this.pendingOperationCount,
-        this.errorMessage
-      )
+        this.errorMessage,
+      ),
     );
   }
 
@@ -231,8 +231,8 @@ export class SyncState {
         this.lastSyncAt,
         this.conflictCount,
         count,
-        this.errorMessage
-      )
+        this.errorMessage,
+      ),
     );
   }
 
@@ -253,8 +253,8 @@ export class SyncState {
         completionTime,
         this.conflictCount,
         0,
-        undefined
-      )
+        undefined,
+      ),
     );
   }
 }

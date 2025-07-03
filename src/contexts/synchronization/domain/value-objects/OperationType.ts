@@ -126,7 +126,7 @@ export class OperationType {
 
     return !nonCommutativePairs.some(
       ([op1, op2]) =>
-        (this.value === op1 && other.value === op2) || (this.value === op2 && other.value === op1)
+        (this.value === op1 && other.value === op2) || (this.value === op2 && other.value === op1),
     );
   }
 

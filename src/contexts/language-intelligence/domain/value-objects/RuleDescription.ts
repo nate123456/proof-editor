@@ -43,7 +43,7 @@ export class RuleDescription {
   }
 
   getWordCount(): number {
-    return this.value.split(/\s+/).filter(word => word.length > 0).length;
+    return this.value.split(/\s+/).filter((word) => word.length > 0).length;
   }
 
   containsKeyword(keyword: string): boolean {

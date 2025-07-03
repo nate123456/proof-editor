@@ -6,18 +6,18 @@ import type { IAtomicArgumentRepository } from '../repositories/IAtomicArgumentR
 import type { IOrderedSetRepository } from '../repositories/IOrderedSetRepository';
 import type { IStatementRepository } from '../repositories/IStatementRepository';
 import { err, ok, type Result, type ValidationError } from '../shared/result.js';
-import { type AtomicArgumentId, type StatementId } from '../shared/value-objects.js';
+import type { AtomicArgumentId, StatementId } from '../shared/value-objects.js';
 
 export class StatementProcessingService {
   constructor(
     private readonly statementRepo: IStatementRepository,
     private readonly orderedSetRepo: IOrderedSetRepository,
-    private readonly atomicArgumentRepo: IAtomicArgumentRepository
+    private readonly atomicArgumentRepo: IAtomicArgumentRepository,
   ) {}
 
   async createStatementFlow(
     sourceStatements: string[],
-    targetStatements: string[]
+    targetStatements: string[],
   ): Promise<Result<AtomicArgument, ProcessingError>> {
     const premiseStatements = await this.createOrFindStatements(sourceStatements);
     if (premiseStatements.isErr()) return err(premiseStatements.error);
@@ -33,7 +33,7 @@ export class StatementProcessingService {
 
     const atomicArgument = AtomicArgument.createComplete(
       premiseSetResult.value.getId(),
-      conclusionSetResult.value.getId()
+      conclusionSetResult.value.getId(),
     );
 
     const saveResult = await this.atomicArgumentRepo.save(atomicArgument);
@@ -45,7 +45,7 @@ export class StatementProcessingService {
   }
 
   async createBranchConnection(
-    parentArgumentId: AtomicArgumentId
+    parentArgumentId: AtomicArgumentId,
   ): Promise<Result<AtomicArgument, ProcessingError>> {
     const parent = await this.atomicArgumentRepo.findById(parentArgumentId);
     if (!parent) {
@@ -67,7 +67,7 @@ export class StatementProcessingService {
   }
 
   async validateStatementFlow(
-    argumentId: AtomicArgumentId
+    argumentId: AtomicArgumentId,
   ): Promise<Result<StatementFlowValidationResult, ProcessingError>> {
     const argument = await this.atomicArgumentRepo.findById(argumentId);
     if (!argument) {
@@ -82,7 +82,7 @@ export class StatementProcessingService {
   }
 
   async processStatementReuse(
-    statementContent: string
+    statementContent: string,
   ): Promise<Result<Statement, ProcessingError>> {
     const existingStatement = await this.statementRepo.findByContent(statementContent);
 
@@ -110,7 +110,7 @@ export class StatementProcessingService {
 
   async updateStatementContent(
     statementId: StatementId,
-    newContent: string
+    newContent: string,
   ): Promise<Result<void, ProcessingError>> {
     const statement = await this.statementRepo.findById(statementId);
     if (!statement) {
@@ -131,7 +131,7 @@ export class StatementProcessingService {
   }
 
   private async createOrFindStatements(
-    contents: string[]
+    contents: string[],
   ): Promise<Result<Statement[], ProcessingError>> {
     const statements: Statement[] = [];
 
@@ -139,7 +139,7 @@ export class StatementProcessingService {
       const statementResult = await this.processStatementReuse(content);
       if (statementResult.isErr()) {
         return err(
-          new ProcessingError(`Failed to process statement: ${content}`, statementResult.error)
+          new ProcessingError(`Failed to process statement: ${content}`, statementResult.error),
         );
       }
       statements.push(statementResult.value);
@@ -149,9 +149,9 @@ export class StatementProcessingService {
   }
 
   private async createOrderedSet(
-    statements: Statement[]
+    statements: Statement[],
   ): Promise<Result<OrderedSet, ProcessingError>> {
-    const statementIds = statements.map(s => s.getId());
+    const statementIds = statements.map((s) => s.getId());
     const orderedSetResult = OrderedSet.createFromStatements(statementIds);
 
     if (orderedSetResult.isErr()) {
@@ -171,6 +171,6 @@ export class StatementFlowValidationResult {
   constructor(
     public readonly isComplete: boolean,
     public readonly isEmpty: boolean,
-    public readonly violations: ValidationError[]
+    public readonly violations: ValidationError[],
   ) {}
 }

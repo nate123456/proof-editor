@@ -47,7 +47,7 @@ vi.mock('vscode', () => ({
         end: { line: endLine, character: endChar },
         isEmpty: startLine === endLine && startChar === endChar,
         isSingleLine: startLine === endLine,
-      })
+      }),
     ),
   Position: vi.fn().mockImplementation((line: number, character: number) => ({
     line,
@@ -71,7 +71,7 @@ vi.mock('vscode', () => ({
         isSingleLine: anchorLine === activeLine,
         isReversed:
           anchorLine > activeLine || (anchorLine === activeLine && anchorChar > activeChar),
-      })
+      }),
     ),
   ViewColumn: {
     One: 1,
@@ -264,22 +264,22 @@ describe('Extension', () => {
     };
 
     // Set up VS Code API mocks to capture event handlers
-    vi.mocked(vscode.workspace.onDidOpenTextDocument).mockImplementation(handler => {
+    vi.mocked(vscode.workspace.onDidOpenTextDocument).mockImplementation((handler) => {
       onOpenHandler = handler;
       return { dispose: vi.fn() };
     });
 
-    vi.mocked(vscode.workspace.onDidChangeTextDocument).mockImplementation(handler => {
+    vi.mocked(vscode.workspace.onDidChangeTextDocument).mockImplementation((handler) => {
       onChangeHandler = handler;
       return { dispose: vi.fn() };
     });
 
-    vi.mocked(vscode.workspace.onDidCloseTextDocument).mockImplementation(handler => {
+    vi.mocked(vscode.workspace.onDidCloseTextDocument).mockImplementation((handler) => {
       onCloseHandler = handler;
       return { dispose: vi.fn() };
     });
 
-    vi.mocked(vscode.window.onDidChangeActiveTextEditor).mockImplementation(handler => {
+    vi.mocked(vscode.window.onDidChangeActiveTextEditor).mockImplementation((handler) => {
       onEditorChangeHandler = handler;
       return { dispose: vi.fn() };
     });
@@ -309,7 +309,7 @@ describe('Extension', () => {
 
       expect(vscode.commands.registerCommand).toHaveBeenCalledWith(
         'proofEditor.showTree',
-        expect.any(Function)
+        expect.any(Function),
       );
     });
 
@@ -340,7 +340,7 @@ describe('Extension', () => {
 
       expect(ProofTreePanel.createOrShow).toHaveBeenCalledWith(
         mockContext.extensionUri,
-        'mock proof content'
+        'mock proof content',
       );
     });
 
@@ -360,7 +360,9 @@ describe('Extension', () => {
 
   describe('deactivate', () => {
     it('should complete without error', () => {
-      expect(() => deactivate()).not.toThrow();
+      expect(() => {
+        deactivate();
+      }).not.toThrow();
     });
 
     it('should be callable multiple times', () => {
@@ -383,14 +385,14 @@ describe('Extension', () => {
       // Get the registered command handler
       const commandCall = vi
         .mocked(vscode.commands.registerCommand)
-        .mock.calls.find(call => call[0] === 'proofEditor.showTree');
+        .mock.calls.find((call) => call[0] === 'proofEditor.showTree');
       const commandHandler = commandCall?.[1] as () => void;
 
       commandHandler();
 
       expect(ProofTreePanel.createOrShow).toHaveBeenCalledWith(
         mockContext.extensionUri,
-        'mock proof content'
+        'mock proof content',
       );
     });
 
@@ -399,13 +401,13 @@ describe('Extension', () => {
 
       const commandCall = vi
         .mocked(vscode.commands.registerCommand)
-        .mock.calls.find(call => call[0] === 'proofEditor.showTree');
+        .mock.calls.find((call) => call[0] === 'proofEditor.showTree');
       const commandHandler = commandCall?.[1] as () => void;
 
       commandHandler();
 
       expect(vscode.window.showWarningMessage).toHaveBeenCalledWith(
-        'Please open a .proof file to view the tree visualization.'
+        'Please open a .proof file to view the tree visualization.',
       );
       expect(ProofTreePanel.createOrShow).not.toHaveBeenCalled();
     });
@@ -419,13 +421,13 @@ describe('Extension', () => {
 
       const commandCall = vi
         .mocked(vscode.commands.registerCommand)
-        .mock.calls.find(call => call[0] === 'proofEditor.showTree');
+        .mock.calls.find((call) => call[0] === 'proofEditor.showTree');
       const commandHandler = commandCall?.[1] as () => void;
 
       commandHandler();
 
       expect(vscode.window.showWarningMessage).toHaveBeenCalledWith(
-        'Please open a .proof file to view the tree visualization.'
+        'Please open a .proof file to view the tree visualization.',
       );
       expect(ProofTreePanel.createOrShow).not.toHaveBeenCalled();
     });
@@ -440,14 +442,14 @@ describe('Extension', () => {
       onOpenHandler(mockTextDocument);
 
       expect(vscode.window.showInformationMessage).toHaveBeenCalledWith(
-        'Proof Editor: Working with test.proof'
+        'Proof Editor: Working with test.proof',
       );
       expect(ProofTreePanel.createOrShow).toHaveBeenCalledWith(
         mockContext.extensionUri,
-        'mock proof content'
+        'mock proof content',
       );
       expect(mockValidationController.validateDocumentImmediate).toHaveBeenCalledWith(
-        mockTextDocument
+        mockTextDocument,
       );
     });
 
@@ -460,7 +462,7 @@ describe('Extension', () => {
       onOpenHandler(docWithLongPath);
 
       expect(vscode.window.showInformationMessage).toHaveBeenCalledWith(
-        'Proof Editor: Working with complex-file.proof'
+        'Proof Editor: Working with complex-file.proof',
       );
     });
 
@@ -473,7 +475,7 @@ describe('Extension', () => {
       onOpenHandler(docWithSimpleName);
 
       expect(vscode.window.showInformationMessage).toHaveBeenCalledWith(
-        'Proof Editor: Working with simple.proof'
+        'Proof Editor: Working with simple.proof',
       );
     });
 
@@ -498,7 +500,7 @@ describe('Extension', () => {
 
       expect(ProofTreePanel.updateContentIfExists).toHaveBeenCalledWith('mock proof content');
       expect(mockValidationController.validateDocumentDebounced).toHaveBeenCalledWith(
-        mockTextDocument
+        mockTextDocument,
       );
     });
 
@@ -525,10 +527,10 @@ describe('Extension', () => {
 
       expect(ProofTreePanel.createOrShow).toHaveBeenCalledWith(
         mockContext.extensionUri,
-        'mock proof content'
+        'mock proof content',
       );
       expect(mockValidationController.validateDocumentImmediate).toHaveBeenCalledWith(
-        mockTextDocument
+        mockTextDocument,
       );
     });
 
@@ -561,7 +563,7 @@ describe('Extension', () => {
       onCloseHandler(mockTextDocument);
 
       expect(mockValidationController.clearDocumentValidation).toHaveBeenCalledWith(
-        mockTextDocument
+        mockTextDocument,
       );
     });
 
@@ -586,7 +588,7 @@ describe('Extension', () => {
       onOpenHandler(docWithPath);
 
       expect(vscode.window.showInformationMessage).toHaveBeenCalledWith(
-        'Proof Editor: Working with file.proof'
+        'Proof Editor: Working with file.proof',
       );
     });
 
@@ -601,7 +603,7 @@ describe('Extension', () => {
       onOpenHandler(docWithEmptyName);
 
       expect(vscode.window.showInformationMessage).toHaveBeenCalledWith(
-        'Proof Editor: Working with '
+        'Proof Editor: Working with ',
       );
     });
   });
@@ -612,7 +614,9 @@ describe('Extension', () => {
         throw new Error('Mock validation error');
       });
 
-      expect(() => activate(mockContext)).toThrow('Mock validation error');
+      expect(() => {
+        activate(mockContext);
+      }).toThrow('Mock validation error');
     });
 
     it('should handle ProofTreePanel.createOrShow throwing', () => {
@@ -621,7 +625,9 @@ describe('Extension', () => {
         throw new Error('Mock webview error');
       });
 
-      expect(() => onOpenHandler(mockTextDocument)).toThrow('Mock webview error');
+      expect(() => {
+        onOpenHandler(mockTextDocument);
+      }).toThrow('Mock webview error');
     });
 
     it('should handle getText() throwing', () => {
@@ -633,7 +639,9 @@ describe('Extension', () => {
         },
       };
 
-      expect(() => onOpenHandler(docWithBadGetText)).toThrow('Mock getText error');
+      expect(() => {
+        onOpenHandler(docWithBadGetText);
+      }).toThrow('Mock getText error');
     });
   });
 
@@ -700,7 +708,7 @@ describe('Extension', () => {
       activate(mockContext);
 
       // Each subscription should have a dispose method
-      mockContext.subscriptions.forEach(subscription => {
+      mockContext.subscriptions.forEach((subscription) => {
         expect(subscription).toHaveProperty('dispose');
         expect(typeof subscription.dispose).toBe('function');
       });

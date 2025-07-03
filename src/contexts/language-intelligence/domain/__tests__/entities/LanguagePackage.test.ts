@@ -16,16 +16,29 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import { InferenceRule } from '../../entities/InferenceRule';
 import {
+  createDefaultPerformanceTargets,
+  createDefaultValidationSettings,
+  createPerformanceTargets,
+  createValidationSettings,
   LanguagePackage,
   type PerformanceTargets,
-  PerformanceTargetsFactory,
   type ValidationSettings,
-  ValidationSettingsFactory,
 } from '../../entities/LanguagePackage';
 import { ValidationError } from '../../errors/DomainErrors';
 import { LanguageCapabilities } from '../../value-objects/LanguageCapabilities';
 import { LanguagePackageId } from '../../value-objects/LanguagePackageId';
 import { PackageMetadata } from '../../value-objects/PackageMetadata';
+
+// Test factory objects to wrap existing factory functions
+const ValidationSettingsFactory = {
+  createDefault: createDefaultValidationSettings,
+  create: createValidationSettings,
+};
+
+const PerformanceTargetsFactory = {
+  createDefault: createDefaultPerformanceTargets,
+  create: createPerformanceTargets,
+};
 
 describe('LanguagePackage', () => {
   let mockCapabilities: LanguageCapabilities;
@@ -65,7 +78,7 @@ describe('LanguagePackage', () => {
         'Strict Package',
         '2.0.0',
         mockCapabilities,
-        validationSettings
+        validationSettings,
       );
 
       expect(result.isOk()).toBe(true);
@@ -94,7 +107,7 @@ describe('LanguagePackage', () => {
         '1.5.0',
         mockCapabilities,
         undefined,
-        performanceTargets
+        performanceTargets,
       );
 
       expect(result.isOk()).toBe(true);
@@ -116,7 +129,7 @@ describe('LanguagePackage', () => {
         mockCapabilities,
         undefined,
         undefined,
-        parentId
+        parentId,
       );
 
       expect(result.isOk()).toBe(true);
@@ -136,7 +149,7 @@ describe('LanguagePackage', () => {
         undefined,
         undefined,
         undefined,
-        metadata
+        metadata,
       );
 
       expect(result.isOk()).toBe(true);
@@ -557,7 +570,7 @@ describe('LanguagePackage', () => {
         mockCapabilities,
         undefined,
         undefined,
-        parentId
+        parentId,
       );
 
       expect(childResult.isOk()).toBe(true);
@@ -653,7 +666,7 @@ describe('LanguagePackage', () => {
         validationSettings,
         performanceTargets,
         parentId,
-        metadata
+        metadata,
       );
 
       expect(result.isOk()).toBe(true);

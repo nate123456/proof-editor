@@ -132,7 +132,7 @@ describe('Package Ecosystem Domain Errors', () => {
         { localPath: '/path/to/package', type: 'local' },
       ];
 
-      contexts.forEach(context => {
+      contexts.forEach((context) => {
         const error = new PackageNotFoundError('Package not found', context);
         expect(error.context).toEqual(context);
         expect(error.code).toBe('PACKAGE_NOT_FOUND');
@@ -161,7 +161,7 @@ describe('Package Ecosystem Domain Errors', () => {
       };
       const error = new PackageInstallationError(
         'Installation failed during dependency resolution',
-        context
+        context,
       );
 
       expect(error.context).toEqual(context);
@@ -176,7 +176,7 @@ describe('Package Ecosystem Domain Errors', () => {
         { stage: 'validation', error: 'checksum-mismatch', retryable: true },
       ];
 
-      scenarios.forEach(context => {
+      scenarios.forEach((context) => {
         const error = new PackageInstallationError('Installation failed', context);
         expect(error.context).toEqual(context);
         expect(error.code).toBe('PACKAGE_INSTALLATION_ERROR');
@@ -286,7 +286,7 @@ describe('Package Ecosystem Domain Errors', () => {
       };
       const error = new InvalidPackageVersionError(
         'Version does not follow semantic versioning',
-        context
+        context,
       );
 
       expect(error.context).toEqual(context);
@@ -332,7 +332,7 @@ describe('Package Ecosystem Domain Errors', () => {
       };
       const error = new PackageSourceUnavailableError(
         'Remote repository is not responding',
-        context
+        context,
       );
 
       expect(error.context).toEqual(context);
@@ -383,7 +383,7 @@ describe('Package Ecosystem Domain Errors', () => {
       };
       const error = new SDKComplianceError(
         'Package does not implement required interfaces',
-        context
+        context,
       );
 
       expect(error.context).toEqual(context);
@@ -430,7 +430,7 @@ describe('Package Ecosystem Domain Errors', () => {
         complianceError,
       ];
 
-      errors.forEach(error => {
+      errors.forEach((error) => {
         expect(error).toBeInstanceOf(Error);
         expect(error).toBeInstanceOf(DomainError);
         expect(error.code).toBeTruthy();
@@ -459,7 +459,7 @@ describe('Package Ecosystem Domain Errors', () => {
         new SDKComplianceError('Compliance violation'),
       ];
 
-      errors.forEach(error => {
+      errors.forEach((error) => {
         expect(error).toBeInstanceOf(DomainError);
         expect(error).toBeInstanceOf(Error);
         expect(error.code).toBeTruthy();
@@ -478,7 +478,7 @@ describe('Package Ecosystem Domain Errors', () => {
       };
       const installError = new PackageInstallationError(
         'Install failed due to source',
-        installContext
+        installContext,
       );
 
       expect(sourceError.context).toEqual(sourceContext);
@@ -500,7 +500,7 @@ describe('Package Ecosystem Domain Errors', () => {
         new SDKComplianceError('test'),
       ];
 
-      const codes = errors.map(error => error.code);
+      const codes = errors.map((error) => error.code);
       const uniqueCodes = new Set(codes);
 
       expect(uniqueCodes.size).toBe(codes.length);

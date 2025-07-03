@@ -638,7 +638,7 @@ describe('VectorClock', () => {
         const deviceIds = clock.getAllDeviceIds();
         expect(deviceIds).toHaveLength(3);
 
-        const deviceValues = deviceIds.map(d => d.getValue()).sort();
+        const deviceValues = deviceIds.map((d) => d.getValue()).sort();
         expect(deviceValues).toEqual(['device-1', 'device-2', 'device-3']);
       }
     });
@@ -741,14 +741,14 @@ describe('VectorClock', () => {
       if (clockResult.isOk()) {
         const clock = clockResult.value;
         expect(clock.getTimestampForDevice(createTestDeviceId('device-large'))).toBe(
-          largeTimestamp
+          largeTimestamp,
         );
 
         const incremented = clock.incrementForDevice(createTestDeviceId('device-large'));
         expect(incremented.isOk()).toBe(true);
         if (incremented.isOk()) {
           expect(incremented.value.getTimestampForDevice(createTestDeviceId('device-large'))).toBe(
-            largeTimestamp + 1
+            largeTimestamp + 1,
           );
         }
       }
@@ -792,7 +792,7 @@ describe('VectorClock', () => {
 
         // Should only include devices that can be converted to valid DeviceIds
         expect(deviceIds.length).toBeLessThanOrEqual(2);
-        const validDevices = deviceIds.filter(d => d.getValue() === 'valid-device');
+        const validDevices = deviceIds.filter((d) => d.getValue() === 'valid-device');
         expect(validDevices).toHaveLength(1);
       }
     });
@@ -816,7 +816,7 @@ describe('VectorClock', () => {
         expect(incremented.isOk()).toBe(true);
         if (incremented.isOk()) {
           expect(incremented.value.getTimestampForDevice(createTestDeviceId('device-zero'))).toBe(
-            1
+            1,
           );
         }
 

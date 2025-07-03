@@ -1,12 +1,12 @@
 import { err, ok, type Result } from 'neverthrow';
 
-import { type ConflictType } from '../value-objects/ConflictType';
+import type { ConflictType } from '../value-objects/ConflictType';
 import { DeviceId } from '../value-objects/DeviceId';
-import {
-  type ConflictResolutionOption,
-  type ConflictResolutionStrategy,
-  type IConflict,
-  type IOperation,
+import type {
+  ConflictResolutionOption,
+  ConflictResolutionStrategy,
+  IConflict,
+  IOperation,
 } from './shared-types';
 
 // Re-export types for backward compatibility
@@ -20,16 +20,16 @@ export class Conflict implements IConflict {
     private readonly conflictingOperations: readonly IOperation[],
     private readonly detectedAt: Date,
     private readonly resolutionOptions: readonly ConflictResolutionOption[],
-    private resolvedAt?: Date,
-    private selectedResolution?: ConflictResolutionStrategy,
-    private resolutionResult?: unknown
+    private readonly resolvedAt?: Date,
+    private readonly selectedResolution?: ConflictResolutionStrategy,
+    private readonly resolutionResult?: unknown,
   ) {}
 
   static create(
     id: string,
     conflictType: ConflictType,
     targetPath: string,
-    conflictingOperations: IOperation[]
+    conflictingOperations: IOperation[],
   ): Result<Conflict, Error> {
     if (!id.trim()) {
       return err(new Error('Conflict ID cannot be empty'));
@@ -45,7 +45,7 @@ export class Conflict implements IConflict {
 
     const resolutionOptions = Conflict.generateResolutionOptions(
       conflictType,
-      conflictingOperations
+      conflictingOperations,
     );
 
     return ok(
@@ -55,14 +55,14 @@ export class Conflict implements IConflict {
         targetPath,
         conflictingOperations,
         new Date(),
-        resolutionOptions
-      )
+        resolutionOptions,
+      ),
     );
   }
 
   private static generateResolutionOptions(
     conflictType: ConflictType,
-    operations: IOperation[]
+    operations: IOperation[],
   ): ConflictResolutionOption[] {
     const options: ConflictResolutionOption[] = [];
 
@@ -176,11 +176,11 @@ export class Conflict implements IConflict {
   }
 
   canBeAutomaticallyResolved(): boolean {
-    return this.resolutionOptions.some(option => option.automaticResolution);
+    return this.resolutionOptions.some((option) => option.automaticResolution);
   }
 
   getAutomaticResolutionOptions(): ConflictResolutionOption[] {
-    return this.resolutionOptions.filter(option => option.automaticResolution);
+    return this.resolutionOptions.filter((option) => option.automaticResolution);
   }
 
   requiresUserDecision(): boolean {
@@ -195,7 +195,7 @@ export class Conflict implements IConflict {
     }
 
     return Array.from(deviceIds)
-      .map(deviceId => {
+      .map((deviceId) => {
         const result = DeviceId.create(deviceId);
         return result.isOk() ? result.value : null;
       })
@@ -207,7 +207,7 @@ export class Conflict implements IConflict {
       return err(new Error('Conflict is already resolved'));
     }
 
-    const validOption = this.resolutionOptions.find(option => option.strategy === strategy);
+    const validOption = this.resolutionOptions.find((option) => option.strategy === strategy);
     if (!validOption) {
       return err(new Error(`Invalid resolution strategy: ${strategy}`));
     }
@@ -222,8 +222,8 @@ export class Conflict implements IConflict {
         this.resolutionOptions,
         new Date(),
         strategy,
-        result
-      )
+        result,
+      ),
     );
   }
 

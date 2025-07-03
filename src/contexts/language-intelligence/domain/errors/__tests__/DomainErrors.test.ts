@@ -319,7 +319,7 @@ describe('error hierarchy integration', () => {
       new RepositoryError('Repository failed'),
     ];
 
-    errors.forEach(error => {
+    errors.forEach((error) => {
       expect(error).toBeInstanceOf(DomainError);
       expect(error).toBeInstanceOf(Error);
       expect(error.name).toBeTruthy();
@@ -391,14 +391,14 @@ describe('property-based testing', () => {
   describe('DomainError properties', () => {
     it('should maintain error properties with arbitrary messages', () => {
       fc.assert(
-        fc.property(fc.string(), message => {
+        fc.property(fc.string(), (message) => {
           const error = new ValidationError(message);
 
           expect(error.message).toBe(message);
           expect(error.name).toBe('ValidationError');
           expect(error).toBeInstanceOf(Error);
           expect(error).toBeInstanceOf(DomainError);
-        })
+        }),
       );
     });
 
@@ -412,9 +412,9 @@ describe('property-based testing', () => {
           expect(topError.message).toBe(msg3);
           expect(topError.cause).toBe(midError);
           expect(topError.cause?.message).toBe(msg2);
-          expect(topError.cause?.cause).toBe(rootError);
-          expect(topError.cause?.cause?.message).toBe(msg1);
-        })
+          expect((topError.cause as any)?.cause).toBe(rootError);
+          expect((topError.cause as any)?.cause?.message).toBe(msg1);
+        }),
       );
     });
 
@@ -429,14 +429,14 @@ describe('property-based testing', () => {
       ];
 
       fc.assert(
-        fc.property(fc.string(), message => {
+        fc.property(fc.string(), (message) => {
           errorTypes.forEach(({ constructor: ErrorConstructor, expectedName }) => {
             const error = new ErrorConstructor(message);
             expect(error.name).toBe(expectedName);
             expect(error.message).toBe(message);
             expect(error).toBeInstanceOf(DomainError);
           });
-        })
+        }),
       );
     });
   });
@@ -444,7 +444,7 @@ describe('property-based testing', () => {
   describe('error serialization and JSON compatibility', () => {
     it('should handle JSON serialization scenarios', () => {
       fc.assert(
-        fc.property(fc.string(), message => {
+        fc.property(fc.string(), (message) => {
           const error = new ValidationError(message);
 
           // Test that error can be serialized (common in logging scenarios)
@@ -458,7 +458,7 @@ describe('property-based testing', () => {
           expect(parsed.name).toBe('ValidationError');
           expect(parsed.message).toBe(message);
           expect(parsed.stack).toBeDefined();
-        })
+        }),
       );
     });
   });
@@ -519,7 +519,7 @@ describe('real-world error scenarios', () => {
       'Custom validation rule "uniqueUsername" failed',
     ];
 
-    scenarios.forEach(message => {
+    scenarios.forEach((message) => {
       const error = new ValidationError(message);
       expect(error.message).toBe(message);
       expect(error).toBeInstanceOf(ValidationError);
@@ -535,7 +535,7 @@ describe('real-world error scenarios', () => {
       'Memory analysis failed: heap overflow detected',
     ];
 
-    scenarios.forEach(message => {
+    scenarios.forEach((message) => {
       const error = new AnalysisError(message);
       expect(error.message).toBe(message);
       expect(error).toBeInstanceOf(AnalysisError);
@@ -551,7 +551,7 @@ describe('real-world error scenarios', () => {
       'Package not found: "unknown-package" does not exist in registry',
     ];
 
-    scenarios.forEach(message => {
+    scenarios.forEach((message) => {
       const error = new LanguagePackageError(message);
       expect(error.message).toBe(message);
       expect(error).toBeInstanceOf(LanguagePackageError);
@@ -567,7 +567,7 @@ describe('real-world error scenarios', () => {
       'Pattern engine failed: insufficient memory',
     ];
 
-    scenarios.forEach(message => {
+    scenarios.forEach((message) => {
       const error = new PatternRecognitionError(message);
       expect(error.message).toBe(message);
       expect(error).toBeInstanceOf(PatternRecognitionError);
@@ -583,7 +583,7 @@ describe('real-world error scenarios', () => {
       'Educational context missing: insufficient information for feedback',
     ];
 
-    scenarios.forEach(message => {
+    scenarios.forEach((message) => {
       const error = new EducationalFeedbackError(message);
       expect(error.message).toBe(message);
       expect(error).toBeInstanceOf(EducationalFeedbackError);
@@ -599,7 +599,7 @@ describe('real-world error scenarios', () => {
       'Repository timeout: operation exceeded 30 seconds',
     ];
 
-    scenarios.forEach(message => {
+    scenarios.forEach((message) => {
       const error = new RepositoryError(message);
       expect(error.message).toBe(message);
       expect(error).toBeInstanceOf(RepositoryError);
@@ -617,7 +617,7 @@ describe('error message formatting and internationalization', () => {
       'Special chars: ¡¿Error with inverted punctuation?!',
     ];
 
-    messages.forEach(message => {
+    messages.forEach((message) => {
       const error = new ValidationError(message);
       expect(error.message).toBe(message);
       expect(error.message.length).toBeGreaterThan(0);
@@ -633,7 +633,7 @@ describe('error message formatting and internationalization', () => {
       'Tab\tseparated\terror',
     ];
 
-    messages.forEach(message => {
+    messages.forEach((message) => {
       const error = new AnalysisError(message);
       expect(error.message).toBe(message);
     });
@@ -661,7 +661,7 @@ describe('error debugging and development support', () => {
       RepositoryError,
     ];
 
-    errorTypes.forEach(ErrorType => {
+    errorTypes.forEach((ErrorType) => {
       const error = new ErrorType('Test');
       expect(error.constructor).toBe(ErrorType);
       expect(error.constructor.name).toBe(ErrorType.name);
@@ -677,9 +677,9 @@ describe('error debugging and development support', () => {
       new AnalysisError('Analysis 2'),
     ];
 
-    const validationErrors = errors.filter(e => e instanceof ValidationError);
-    const analysisErrors = errors.filter(e => e instanceof AnalysisError);
-    const packageErrors = errors.filter(e => e instanceof LanguagePackageError);
+    const validationErrors = errors.filter((e) => e instanceof ValidationError);
+    const analysisErrors = errors.filter((e) => e instanceof AnalysisError);
+    const packageErrors = errors.filter((e) => e instanceof LanguagePackageError);
 
     expect(validationErrors).toHaveLength(2);
     expect(analysisErrors).toHaveLength(2);

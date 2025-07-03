@@ -8,7 +8,7 @@ export class SourceLocation {
     private readonly startColumn: number,
     private readonly endLine: number,
     private readonly endColumn: number,
-    private readonly documentUri?: string
+    private readonly documentUri?: string,
   ) {}
 
   static create(
@@ -16,7 +16,7 @@ export class SourceLocation {
     startColumn: number,
     endLine: number,
     endColumn: number,
-    documentUri?: string
+    documentUri?: string,
   ): Result<SourceLocation, ValidationError> {
     if (startLine < 0) {
       return err(new ValidationError('Start line cannot be negative'));
@@ -40,7 +40,7 @@ export class SourceLocation {
   static createSinglePosition(
     line: number,
     column: number,
-    documentUri?: string
+    documentUri?: string,
   ): Result<SourceLocation, ValidationError> {
     return SourceLocation.create(line, column, line, column, documentUri);
   }
@@ -48,7 +48,7 @@ export class SourceLocation {
   static createLineRange(
     startLine: number,
     endLine: number,
-    documentUri?: string
+    documentUri?: string,
   ): Result<SourceLocation, ValidationError> {
     return SourceLocation.create(startLine, 0, endLine, Number.MAX_SAFE_INTEGER, documentUri);
   }
@@ -60,7 +60,7 @@ export class SourceLocation {
   static createFromRange(
     start: Position,
     end: Position,
-    documentUri?: string
+    documentUri?: string,
   ): Result<SourceLocation, ValidationError> {
     return SourceLocation.create(start.line, start.column, end.line, end.column, documentUri);
   }
@@ -178,7 +178,7 @@ export class SourceLocation {
       startColumn,
       endLine,
       endColumn,
-      this.documentUri ?? other.documentUri
+      this.documentUri ?? other.documentUri,
     );
   }
 
@@ -188,7 +188,7 @@ export class SourceLocation {
       this.startColumn,
       this.endLine,
       this.endColumn,
-      documentUri
+      documentUri,
     );
   }
 

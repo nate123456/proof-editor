@@ -27,8 +27,8 @@ describe('VersionConstraint', () => {
         const constraint = result.value;
         expect(constraint.getConstraintString()).toBe('1.0.0');
         expect(constraint.getRanges()).toHaveLength(1);
-        expect(constraint.getRanges()[0].operator).toBe('exact');
-        expect(constraint.getRanges()[0].version).toBe('1.0.0');
+        expect(constraint.getRanges()[0]?.operator).toBe('exact');
+        expect(constraint.getRanges()[0]?.version).toBe('1.0.0');
       }
     });
 
@@ -39,8 +39,8 @@ describe('VersionConstraint', () => {
       if (result.isOk()) {
         const constraint = result.value;
         expect(constraint.getConstraintString()).toBe('^1.2.3');
-        expect(constraint.getRanges()[0].operator).toBe('caret');
-        expect(constraint.getRanges()[0].version).toBe('1.2.3');
+        expect(constraint.getRanges()[0]?.operator).toBe('caret');
+        expect(constraint.getRanges()[0]?.version).toBe('1.2.3');
       }
     });
 
@@ -51,8 +51,8 @@ describe('VersionConstraint', () => {
       if (result.isOk()) {
         const constraint = result.value;
         expect(constraint.getConstraintString()).toBe('~1.2.3');
-        expect(constraint.getRanges()[0].operator).toBe('tilde');
-        expect(constraint.getRanges()[0].version).toBe('1.2.3');
+        expect(constraint.getRanges()[0]?.operator).toBe('tilde');
+        expect(constraint.getRanges()[0]?.version).toBe('1.2.3');
       }
     });
 
@@ -63,8 +63,8 @@ describe('VersionConstraint', () => {
       if (result.isOk()) {
         const constraint = result.value;
         expect(constraint.getConstraintString()).toBe('>=1.2.3');
-        expect(constraint.getRanges()[0].operator).toBe('gte');
-        expect(constraint.getRanges()[0].version).toBe('1.2.3');
+        expect(constraint.getRanges()[0]?.operator).toBe('gte');
+        expect(constraint.getRanges()[0]?.version).toBe('1.2.3');
       }
     });
 
@@ -75,8 +75,8 @@ describe('VersionConstraint', () => {
       if (result.isOk()) {
         const constraint = result.value;
         expect(constraint.getConstraintString()).toBe('<=1.2.3');
-        expect(constraint.getRanges()[0].operator).toBe('lte');
-        expect(constraint.getRanges()[0].version).toBe('1.2.3');
+        expect(constraint.getRanges()[0]?.operator).toBe('lte');
+        expect(constraint.getRanges()[0]?.version).toBe('1.2.3');
       }
     });
 
@@ -87,8 +87,8 @@ describe('VersionConstraint', () => {
       if (result.isOk()) {
         const constraint = result.value;
         expect(constraint.getConstraintString()).toBe('>1.2.3');
-        expect(constraint.getRanges()[0].operator).toBe('gt');
-        expect(constraint.getRanges()[0].version).toBe('1.2.3');
+        expect(constraint.getRanges()[0]?.operator).toBe('gt');
+        expect(constraint.getRanges()[0]?.version).toBe('1.2.3');
       }
     });
 
@@ -99,8 +99,8 @@ describe('VersionConstraint', () => {
       if (result.isOk()) {
         const constraint = result.value;
         expect(constraint.getConstraintString()).toBe('<1.2.3');
-        expect(constraint.getRanges()[0].operator).toBe('lt');
-        expect(constraint.getRanges()[0].version).toBe('1.2.3');
+        expect(constraint.getRanges()[0]?.operator).toBe('lt');
+        expect(constraint.getRanges()[0]?.version).toBe('1.2.3');
       }
     });
 
@@ -111,9 +111,9 @@ describe('VersionConstraint', () => {
       if (result.isOk()) {
         const constraint = result.value;
         expect(constraint.getConstraintString()).toBe('1.0.0 - 2.0.0');
-        expect(constraint.getRanges()[0].operator).toBe('range');
-        expect(constraint.getRanges()[0].version).toBe('1.0.0');
-        expect(constraint.getRanges()[0].upperBound).toBe('2.0.0');
+        expect(constraint.getRanges()[0]?.operator).toBe('range');
+        expect(constraint.getRanges()[0]?.version).toBe('1.0.0');
+        expect(constraint.getRanges()[0]?.upperBound).toBe('2.0.0');
       }
     });
 
@@ -133,8 +133,8 @@ describe('VersionConstraint', () => {
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         const constraint = result.value;
-        expect(constraint.getRanges()[0].operator).toBe('gte');
-        expect(constraint.getRanges()[0].version).toBe('1.2.3');
+        expect(constraint.getRanges()[0]?.operator).toBe('gte');
+        expect(constraint.getRanges()[0]?.version).toBe('1.2.3');
       }
     });
 
@@ -144,8 +144,8 @@ describe('VersionConstraint', () => {
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         const constraint = result.value;
-        expect(constraint.getRanges()[0].operator).toBe('lte');
-        expect(constraint.getRanges()[0].version).toBe('1.2.3');
+        expect(constraint.getRanges()[0]?.operator).toBe('lte');
+        expect(constraint.getRanges()[0]?.version).toBe('1.2.3');
       }
     });
 
@@ -155,8 +155,8 @@ describe('VersionConstraint', () => {
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         const constraint = result.value;
-        expect(constraint.getRanges()[0].operator).toBe('gt');
-        expect(constraint.getRanges()[0].version).toBe('1.2.3');
+        expect(constraint.getRanges()[0]?.operator).toBe('gt');
+        expect(constraint.getRanges()[0]?.version).toBe('1.2.3');
       }
     });
 
@@ -166,8 +166,8 @@ describe('VersionConstraint', () => {
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         const constraint = result.value;
-        expect(constraint.getRanges()[0].operator).toBe('lt');
-        expect(constraint.getRanges()[0].version).toBe('1.2.3');
+        expect(constraint.getRanges()[0]?.operator).toBe('lt');
+        expect(constraint.getRanges()[0]?.version).toBe('1.2.3');
       }
     });
 

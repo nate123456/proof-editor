@@ -89,13 +89,13 @@ describe('DomainError (Abstract Base Class)', () => {
   describe('property-based tests', () => {
     it('should handle any valid string message', () => {
       fc.assert(
-        fc.property(fc.string(), message => {
+        fc.property(fc.string(), (message) => {
           const error = new TestDomainError(message);
 
           expect(error.message).toBe(message);
           expect(error.name).toBe('TestDomainError');
           expect(error.code).toBe('TEST_ERROR');
-        })
+        }),
       );
     });
 
@@ -114,8 +114,8 @@ describe('DomainError (Abstract Base Class)', () => {
 
             expect(error.message).toBe(message);
             expect(error.context).toEqual(context);
-          }
-        )
+          },
+        ),
       );
     });
   });
@@ -195,7 +195,7 @@ describe('PackageNotFoundError', () => {
       };
       const error = new PackageNotFoundError(
         'Package "non-existent-package" not found in any source',
-        context
+        context,
       );
 
       expect(error.context?.packageName).toBe('non-existent-package');
@@ -210,7 +210,7 @@ describe('PackageNotFoundError', () => {
       };
       const error = new PackageNotFoundError(
         'Version 2.0.0 of existing-package not found',
-        context
+        context,
       );
 
       expect(error.context?.requestedVersion).toBe('2.0.0');
@@ -243,7 +243,7 @@ describe('PackageInstallationError', () => {
       };
       const error = new PackageInstallationError(
         'Failed to install some-package due to insufficient permissions',
-        context
+        context,
       );
 
       expect(error.context?.reason).toBe('insufficient permissions');
@@ -259,7 +259,7 @@ describe('PackageInstallationError', () => {
       };
       const error = new PackageInstallationError(
         'Failed to download remote-package from registry',
-        context
+        context,
       );
 
       expect(error.context?.networkError).toBe('ENOTFOUND');
@@ -305,7 +305,7 @@ describe('DependencyResolutionError', () => {
       };
       const error = new DependencyResolutionError(
         'Cannot resolve version constraints for shared-dependency',
-        context
+        context,
       );
 
       expect(error.context?.conflictingConstraints).toHaveLength(2);
@@ -337,7 +337,7 @@ describe('PackageConflictError', () => {
       };
       const error = new PackageConflictError(
         'Package name conflict: duplicate-package already exists',
-        context
+        context,
       );
 
       expect(error.context?.conflictType).toBe('name');
@@ -353,7 +353,7 @@ describe('PackageConflictError', () => {
       };
       const error = new PackageConflictError(
         'File system conflict detected between packages',
-        context
+        context,
       );
 
       expect(error.context?.conflictingFiles).toHaveLength(2);
@@ -385,7 +385,7 @@ describe('InvalidPackageVersionError', () => {
       };
       const error = new InvalidPackageVersionError(
         'Version "1.0.0.0.0" does not follow semantic versioning',
-        context
+        context,
       );
 
       expect(error.context?.providedVersion).toBe('1.0.0.0.0');
@@ -409,16 +409,18 @@ describe('InvalidPackageVersionError', () => {
     it('should handle any invalid version string', () => {
       fc.assert(
         fc.property(
-          fc.string().filter(s => !/^\d+\.\d+\.\d+/.test(s)), // Invalid semver pattern
-          invalidVersion => {
+          fc
+            .string()
+            .filter((s) => !/^\d+\.\d+\.\d+/.test(s)), // Invalid semver pattern
+          (invalidVersion) => {
             const error = new InvalidPackageVersionError(`Invalid version: ${invalidVersion}`, {
               providedVersion: invalidVersion,
             });
 
             expect(error.context?.providedVersion).toBe(invalidVersion);
             expect(error.code).toBe('INVALID_PACKAGE_VERSION');
-          }
-        )
+          },
+        ),
       );
     });
   });
@@ -448,7 +450,7 @@ describe('PackageSourceUnavailableError', () => {
       };
       const error = new PackageSourceUnavailableError(
         'NPM registry is currently unavailable',
-        context
+        context,
       );
 
       expect(error.context?.httpStatus).toBe(503);
@@ -464,7 +466,7 @@ describe('PackageSourceUnavailableError', () => {
       };
       const error = new PackageSourceUnavailableError(
         'Authentication failed for private registry',
-        context
+        context,
       );
 
       expect(error.context?.authenticationMethod).toBe('token');
@@ -497,7 +499,7 @@ describe('SDKComplianceError', () => {
       };
       const error = new SDKComplianceError(
         'Package requires SDK v2.0.0 but v1.5.0 is installed',
-        context
+        context,
       );
 
       expect(error.context?.requiredSDKVersion).toBe('2.0.0');
@@ -577,7 +579,7 @@ describe('Error Class Integration Tests', () => {
         expect(error.context).toEqual(context);
         expect(error).toBeInstanceOf(DomainError);
         expect(error).toBeInstanceOf(Error);
-      }
+      },
     );
 
     it.each(errorClasses)(
@@ -591,7 +593,7 @@ describe('Error Class Integration Tests', () => {
         expect(error.name).toBe(name);
         expect(error.message).toBe(message);
         expect(error.context).toBeUndefined();
-      }
+      },
     );
   });
 
@@ -631,8 +633,8 @@ describe('Error Class Integration Tests', () => {
             expect(error.name).toBe(errorClass.name);
             expect(error.context).toBe(context);
             expect(error).toBeInstanceOf(DomainError);
-          }
-        )
+          },
+        ),
       );
     });
   });
@@ -663,11 +665,11 @@ describe('Error Class Integration Tests', () => {
 
       const errorResult = err(notFoundError);
       const transformedResult = errorResult.mapErr(
-        error =>
+        (error) =>
           new PackageInstallationError(`Installation failed: ${error.message}`, {
             originalError: error.code,
             packageName: error.context?.packageName,
-          })
+          }),
       );
 
       expect(transformedResult.isErr()).toBe(true);
@@ -687,7 +689,7 @@ describe('Error Class Integration Tests', () => {
 
       const result = err(dependencyError)
         .andThen(() => ok('should not reach here'))
-        .mapErr(error => {
+        .mapErr((error) => {
           expect(error.context?.cyclePath).toEqual(['package-a', 'package-b', 'package-a']);
           expect(error.context?.resolutionStrategy).toBe('fail-fast');
           return error;
@@ -705,7 +707,7 @@ describe('Error Class Integration Tests', () => {
       errorResults.forEach((result, index) => {
         expect(result.isErr()).toBe(true);
         if (result.isErr()) {
-          expect(result.error.code).toBe(errorClasses[index].code);
+          expect(result.error.code).toBe(errorClasses[index]?.code);
           expect(result.error.context?.testContext).toBe('value');
         }
       });

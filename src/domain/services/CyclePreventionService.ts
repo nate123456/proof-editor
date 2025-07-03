@@ -1,22 +1,22 @@
 // import type { AtomicArgument } from '../entities/AtomicArgument';
-import { type Tree } from '../entities/Tree';
+import type { Tree } from '../entities/Tree';
 import { StructureError } from '../errors/DomainErrors';
 import type { IAtomicArgumentRepository } from '../repositories/IAtomicArgumentRepository';
 import type { ITreeRepository } from '../repositories/ITreeRepository';
 import { err, ok, type Result } from '../shared/result.js';
-import { type AtomicArgumentId, type NodeId, type TreeId } from '../shared/value-objects.js';
-import { type ConnectionResolutionService } from './ConnectionResolutionService';
+import type { AtomicArgumentId, NodeId, TreeId } from '../shared/value-objects.js';
+import type { ConnectionResolutionService } from './ConnectionResolutionService';
 
 export class CyclePreventionService {
   constructor(
     private readonly atomicArgumentRepo: IAtomicArgumentRepository,
     private readonly treeRepo: ITreeRepository,
-    private readonly connectionService: ConnectionResolutionService
+    private readonly connectionService: ConnectionResolutionService,
   ) {}
 
   async validateLogicalCyclePrevention(
     parentArgumentId: AtomicArgumentId,
-    childArgumentId: AtomicArgumentId
+    childArgumentId: AtomicArgumentId,
   ): Promise<Result<CycleValidationResult, StructureError>> {
     const parentArgument = await this.atomicArgumentRepo.findById(parentArgumentId);
     const childArgument = await this.atomicArgumentRepo.findById(childArgumentId);
@@ -30,7 +30,7 @@ export class CyclePreventionService {
       const result = new CycleValidationResult(
         true,
         [parentArgumentId, childArgumentId],
-        safetyValidation.error.message
+        safetyValidation.error.message,
       );
       return ok(result);
     }
@@ -39,7 +39,7 @@ export class CyclePreventionService {
     const result = new CycleValidationResult(
       wouldCreateDirectCycle,
       wouldCreateDirectCycle ? [parentArgumentId, childArgumentId] : [],
-      wouldCreateDirectCycle ? 'Direct cycle detected' : undefined
+      wouldCreateDirectCycle ? 'Direct cycle detected' : undefined,
     );
 
     return ok(result);
@@ -48,7 +48,7 @@ export class CyclePreventionService {
   async validateTreeCyclePrevention(
     treeId: TreeId,
     parentNodeId: NodeId,
-    childNodeId: NodeId
+    childNodeId: NodeId,
   ): Promise<Result<TreeCycleValidationResult, StructureError>> {
     const tree = await this.treeRepo.findById(treeId);
     if (!tree) {
@@ -63,14 +63,14 @@ export class CyclePreventionService {
     const result = new TreeCycleValidationResult(
       wouldCreateCycle,
       ancestorPath,
-      wouldCreateCycle ? "Child node found in parent's ancestor chain" : undefined
+      wouldCreateCycle ? "Child node found in parent's ancestor chain" : undefined,
     );
 
     return ok(result);
   }
 
   detectCyclesInArgumentTree(
-    _startArgumentId: AtomicArgumentId
+    _startArgumentId: AtomicArgumentId,
   ): Result<ArgumentTreeCycleReport, StructureError> {
     // Tree-level functionality has been moved to Tree
     // This service should be refactored to work with Tree instances
@@ -78,7 +78,7 @@ export class CyclePreventionService {
   }
 
   preventCircularReasoning(
-    argumentChain: AtomicArgumentId[]
+    argumentChain: AtomicArgumentId[],
   ): Result<CircularReasoningValidationResult, StructureError> {
     if (argumentChain.length < 2) {
       const result = new CircularReasoningValidationResult(false, [], undefined);
@@ -86,18 +86,18 @@ export class CyclePreventionService {
     }
 
     // Validate that all elements in the chain are valid
-    const hasInvalidElements = argumentChain.some(id => id === null || id === undefined);
+    const hasInvalidElements = argumentChain.some((id) => id === null || id === undefined);
     if (hasInvalidElements) {
       return err(new StructureError('Invalid argument chain: contains null or undefined values'));
     }
 
-    const uniqueArguments = new Set(argumentChain.map(id => id.getValue()));
+    const uniqueArguments = new Set(argumentChain.map((id) => id.getValue()));
     if (uniqueArguments.size !== argumentChain.length) {
       const duplicateId = this.findFirstDuplicate(argumentChain);
       const result = new CircularReasoningValidationResult(
         true,
         argumentChain,
-        `Circular reasoning detected: argument ${duplicateId?.getValue()} appears multiple times`
+        `Circular reasoning detected: argument ${duplicateId?.getValue()} appears multiple times`,
       );
       return ok(result);
     }
@@ -109,8 +109,8 @@ export class CyclePreventionService {
       if (!currentId || !nextId) {
         return err(
           new StructureError(
-            `Invalid argument chain: missing argument at position ${i} or ${i + 1}`
-          )
+            `Invalid argument chain: missing argument at position ${i} or ${i + 1}`,
+          ),
         );
       }
 
@@ -125,11 +125,11 @@ export class CyclePreventionService {
 
   async validateConnectionSafety(
     sourceArgumentId: AtomicArgumentId,
-    targetArgumentId: AtomicArgumentId
+    targetArgumentId: AtomicArgumentId,
   ): Promise<Result<ConnectionSafetyResult, StructureError>> {
     const logicalCycleResult = await this.validateLogicalCyclePrevention(
       sourceArgumentId,
-      targetArgumentId
+      targetArgumentId,
     );
     if (logicalCycleResult.isErr()) return err(logicalCycleResult.error);
 
@@ -145,7 +145,7 @@ export class CyclePreventionService {
     const result = new ConnectionSafetyResult(
       isSafe,
       logicalCycleResult.value,
-      circularReasoningResult.value
+      circularReasoningResult.value,
     );
 
     return ok(result);
@@ -153,7 +153,7 @@ export class CyclePreventionService {
 
   private detectLogicalCycle(
     _parentId: AtomicArgumentId,
-    _childId: AtomicArgumentId
+    _childId: AtomicArgumentId,
   ): { wouldCreateCycle: boolean; cyclePath: AtomicArgumentId[]; reason?: string } {
     // Path completeness checking has been moved to Tree
     // For now, assume no cycle would be created to allow compilation
@@ -205,7 +205,7 @@ export class CyclePreventionService {
     currentId: AtomicArgumentId,
     visited: Set<string>,
     recursionStack: Set<string>,
-    currentPath: AtomicArgumentId[]
+    currentPath: AtomicArgumentId[],
   ): ArgumentCycle | null {
     const idString = currentId.getValue();
     visited.add(idString);
@@ -240,7 +240,7 @@ export class CycleValidationResult {
   constructor(
     public readonly wouldCreateCycle: boolean,
     public readonly cyclePath: AtomicArgumentId[],
-    public readonly reason?: string
+    public readonly reason?: string,
   ) {}
 }
 
@@ -248,14 +248,14 @@ export class TreeCycleValidationResult {
   constructor(
     public readonly wouldCreateCycle: boolean,
     public readonly ancestorPath: NodeId[],
-    public readonly reason?: string
+    public readonly reason?: string,
   ) {}
 }
 
 export class ArgumentTreeCycleReport {
   constructor(
     public readonly rootArgumentId: AtomicArgumentId,
-    public readonly cycles: ArgumentCycle[]
+    public readonly cycles: ArgumentCycle[],
   ) {}
 
   hasCycles(): boolean {
@@ -271,7 +271,7 @@ export class CircularReasoningValidationResult {
   constructor(
     public readonly isCircular: boolean,
     public readonly argumentChain: AtomicArgumentId[],
-    public readonly reason?: string
+    public readonly reason?: string,
   ) {}
 }
 
@@ -279,6 +279,6 @@ export class ConnectionSafetyResult {
   constructor(
     public readonly isSafe: boolean,
     public readonly logicalCycleResult: CycleValidationResult,
-    public readonly circularReasoningResult: CircularReasoningValidationResult
+    public readonly circularReasoningResult: CircularReasoningValidationResult,
   ) {}
 }

@@ -92,6 +92,53 @@ Technical implementation details will be documented in `/technical-planning` whe
 
 This is an early-stage project. Active development has not yet begun. Current work focuses on conceptual design and requirements analysis.
 
+## Development Setup
+
+### Prerequisites
+- Node.js 22+ LTS
+- VS Code with Biome extension (recommended)
+
+### Installation
+```bash
+npm install
+```
+
+### Development Toolchain
+
+This project uses **Biome** for ultra-fast formatting and linting.
+
+#### Available Commands
+```bash
+# Development
+npm run dev                 # TypeScript watch mode
+npm run build              # Build project
+npm run type-check         # TypeScript type checking
+
+# Quality Tools (Biome)
+npm run format             # Format code
+npm run lint               # Lint code  
+npm run biome:check        # Format + lint (recommended)
+npm run biome:check:fix    # Format + lint with auto-fix
+
+# Testing
+npm test                   # Run tests with coverage
+npm run test:watch         # Watch mode
+
+# Analysis
+npm run deps:report        # Dependency analysis
+npm run test:prioritize    # Test prioritization
+```
+
+#### VS Code Setup
+1. Install the Biome extension: `biomejs.biome`
+2. The project includes optimized VS Code settings for Biome integration
+3. Format-on-save is enabled automatically
+
+#### Performance Benefits
+- **Formatting**: Ultra-fast code formatting
+- **Linting**: Comprehensive code quality checks
+- **Development**: Near-instant feedback in watch mode
+
 ## Licensing
 
 Licensing model to be determined based on community needs and project goals.

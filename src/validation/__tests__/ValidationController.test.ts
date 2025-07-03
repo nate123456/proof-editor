@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type * as vscode from 'vscode';
-
+import type { ProofDiagnosticProvider } from '../DiagnosticProvider.js';
 import { ValidationController } from '../ValidationController.js';
 
 // Mock timers
@@ -12,7 +12,7 @@ const mockDiagnosticProvider = {
   clearDiagnostics: vi.fn(),
   clearAllDiagnostics: vi.fn(),
   dispose: vi.fn(),
-};
+} as unknown as ProofDiagnosticProvider;
 
 vi.mock('../DiagnosticProvider.js', () => ({
   ProofDiagnosticProvider: vi.fn(() => mockDiagnosticProvider),
@@ -31,7 +31,7 @@ describe('ValidationController', () => {
       getText: () => 'test content',
     } as any;
 
-    controller = new ValidationController(500); // 500ms delay
+    controller = new ValidationController(mockDiagnosticProvider, 500); // 500ms delay
   });
 
   afterEach(() => {
@@ -45,7 +45,7 @@ describe('ValidationController', () => {
     });
 
     it('should use default validation delay when not specified', () => {
-      const defaultController = new ValidationController();
+      const defaultController = new ValidationController(mockDiagnosticProvider);
       expect(defaultController).toBeDefined();
     });
   });
@@ -119,7 +119,7 @@ describe('ValidationController', () => {
     });
 
     it('should respect custom validation delay', () => {
-      const customController = new ValidationController(1000);
+      const customController = new ValidationController(mockDiagnosticProvider, 1000);
 
       customController.validateDocumentDebounced(mockDocument);
 

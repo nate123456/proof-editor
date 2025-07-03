@@ -1,7 +1,7 @@
 import fc from 'fast-check';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { type AtomicArgument } from '../../entities/AtomicArgument';
+import type { AtomicArgument } from '../../entities/AtomicArgument';
 import {
   Tree,
   TreeArgumentStructure,
@@ -68,7 +68,15 @@ describe('Tree Entity', () => {
       it('should create a tree with all parameters', () => {
         const documentId = 'doc-456';
         const positionResult = Position2D.create(100, 200);
-        const propertiesResult = PhysicalProperties.create(300, 400);
+        const propertiesResult = PhysicalProperties.create(
+          'bottom-up',
+          50,
+          50,
+          100,
+          50,
+          'horizontal',
+          'center',
+        );
         const title = 'Test Tree';
 
         expect(positionResult.isOk()).toBe(true);
@@ -79,7 +87,7 @@ describe('Tree Entity', () => {
             documentId,
             positionResult.value,
             propertiesResult.value,
-            title
+            title,
           );
 
           expect(result.isOk()).toBe(true);
@@ -148,7 +156,15 @@ describe('Tree Entity', () => {
         const id = treeIdFactory.build();
         const documentId = 'reconstructed-doc';
         const positionResult = Position2D.create(50, 75);
-        const propertiesResult = PhysicalProperties.create(200, 300);
+        const propertiesResult = PhysicalProperties.create(
+          'top-down',
+          40,
+          40,
+          80,
+          40,
+          'vertical',
+          'left',
+        );
         const nodeIds = [nodeIdFactory.build(), nodeIdFactory.build()];
         const createdAt = 1000000;
         const modifiedAt = 2000000;
@@ -166,7 +182,7 @@ describe('Tree Entity', () => {
             nodeIds,
             createdAt,
             modifiedAt,
-            title
+            title,
           );
 
           expect(result.isOk()).toBe(true);
@@ -195,7 +211,7 @@ describe('Tree Entity', () => {
           PhysicalProperties.default(),
           [],
           1000000,
-          2000000
+          2000000,
         );
 
         expect(result.isOk()).toBe(true);
@@ -279,19 +295,15 @@ describe('Tree Entity', () => {
     });
 
     it('should update physical properties', () => {
-      const newPropertiesResult = PhysicalProperties.create(500, 600);
-      expect(newPropertiesResult.isOk()).toBe(true);
+      const newPhysicalProperties = PhysicalProperties.default();
+      const laterTimestamp = FIXED_TIMESTAMP + 1000;
+      mockDateNow.mockReturnValueOnce(laterTimestamp);
 
-      if (newPropertiesResult.isOk()) {
-        const laterTimestamp = FIXED_TIMESTAMP + 1000;
-        mockDateNow.mockReturnValueOnce(laterTimestamp);
+      const result = tree.updatePhysicalProperties(newPhysicalProperties);
 
-        const result = tree.updatePhysicalProperties(newPropertiesResult.value);
-
-        expect(result.isOk()).toBe(true);
-        expect(tree.getPhysicalProperties()).toEqual(newPropertiesResult.value);
-        expect(tree.getModifiedAt()).toBe(laterTimestamp);
-      }
+      expect(result.isOk()).toBe(true);
+      expect(tree.getPhysicalProperties()).toEqual(newPhysicalProperties);
+      expect(tree.getModifiedAt()).toBe(laterTimestamp);
     });
   });
 
@@ -465,7 +477,15 @@ describe('Tree Entity', () => {
     beforeEach(() => {
       const pos1Result = Position2D.create(0, 0);
       const pos2Result = Position2D.create(200, 200);
-      const propsResult = PhysicalProperties.create(100, 100);
+      const propsResult = PhysicalProperties.create(
+        'bottom-up',
+        30,
+        30,
+        60,
+        30,
+        'radial',
+        'center',
+      );
 
       expect(pos1Result.isOk()).toBe(true);
       expect(pos2Result.isOk()).toBe(true);
@@ -576,7 +596,15 @@ describe('Tree Entity', () => {
   describe('String Representation', () => {
     it('should provide meaningful string representation', () => {
       const posResult = Position2D.create(10, 20);
-      const propsResult = PhysicalProperties.create(100, 200);
+      const propsResult = PhysicalProperties.create(
+        'bottom-up',
+        30,
+        30,
+        60,
+        30,
+        'radial',
+        'center',
+      );
 
       expect(posResult.isOk()).toBe(true);
       expect(propsResult.isOk()).toBe(true);
@@ -805,6 +833,15 @@ describe('Tree Entity', () => {
         findAll: vi.fn(),
         findByOrderedSetReference: vi.fn(),
         delete: vi.fn(),
+        findArgumentsByPremiseCount: vi.fn(),
+        findArgumentsUsingStatement: vi.fn(),
+        findArgumentsByComplexity: vi.fn(),
+        findArgumentsWithConclusion: vi.fn(),
+        findArgumentChains: vi.fn(),
+        findCircularDependencies: vi.fn(),
+        findArgumentsByValidationStatus: vi.fn(),
+        findMostReferencedArguments: vi.fn(),
+        findOrphanedArguments: vi.fn(),
       };
 
       mockOrderedSetRepo = {
@@ -812,6 +849,14 @@ describe('Tree Entity', () => {
         findById: vi.fn(),
         findAll: vi.fn(),
         delete: vi.fn(),
+        findOrderedSetsBySize: vi.fn(),
+        findOrderedSetsContaining: vi.fn(),
+        findSharedOrderedSets: vi.fn(),
+        findOrderedSetsByPattern: vi.fn(),
+        findUnusedOrderedSets: vi.fn(),
+        findOrderedSetsByReferenceCount: vi.fn(),
+        findSimilarOrderedSets: vi.fn(),
+        findEmptyOrderedSets: vi.fn(),
       };
     });
 
@@ -851,7 +896,7 @@ describe('Tree Entity', () => {
         vi.mocked(mockAtomicArgumentRepo.findById).mockRejectedValue(repositoryError);
 
         await expect(
-          tree.findDirectConnections(argumentId1, mockAtomicArgumentRepo)
+          tree.findDirectConnections(argumentId1, mockAtomicArgumentRepo),
         ).rejects.toThrow('Database connection failed');
       });
     });
@@ -894,7 +939,7 @@ describe('Tree Entity', () => {
     describe('findPathCompleteArgument', () => {
       it('should find path complete argument between two points', async () => {
         // Setup connected arguments
-        vi.mocked(mockAtomicArgumentRepo.findById).mockImplementation(id => {
+        vi.mocked(mockAtomicArgumentRepo.findById).mockImplementation(async (id) => {
           if (id.equals(argumentId1)) return Promise.resolve(mockArgument1);
           if (id.equals(argumentId2)) return Promise.resolve(mockArgument2);
           return Promise.resolve(null);
@@ -904,7 +949,7 @@ describe('Tree Entity', () => {
         const result = await tree.findPathCompleteArgument(
           argumentId1,
           argumentId2,
-          mockAtomicArgumentRepo
+          mockAtomicArgumentRepo,
         );
 
         expect(result.isOk()).toBe(true);
@@ -921,10 +966,10 @@ describe('Tree Entity', () => {
         const disconnectedArgument = createMockAtomicArgument(
           argumentId2,
           orderedSetIdFactory.build(), // Different set
-          null
+          null,
         );
 
-        vi.mocked(mockAtomicArgumentRepo.findById).mockImplementation(id => {
+        vi.mocked(mockAtomicArgumentRepo.findById).mockImplementation(async (id) => {
           if (id.equals(argumentId1)) return Promise.resolve(mockArgument1);
           if (id.equals(argumentId2)) return Promise.resolve(disconnectedArgument);
           return Promise.resolve(null);
@@ -937,7 +982,7 @@ describe('Tree Entity', () => {
         const result = await tree.findPathCompleteArgument(
           argumentId1,
           argumentId2,
-          mockAtomicArgumentRepo
+          mockAtomicArgumentRepo,
         );
 
         expect(result.isErr()).toBe(true);
@@ -961,7 +1006,7 @@ describe('Tree Entity', () => {
         if (result.isOk()) {
           const references = result.value;
           expect(Array.isArray(references)).toBe(true);
-          references.forEach(ref => {
+          references.forEach((ref) => {
             expect(ref).toBeInstanceOf(TreeOrderedSetReference);
             expect(['premise', 'conclusion']).toContain(ref.referenceType);
           });
@@ -990,7 +1035,7 @@ describe('Tree Entity', () => {
         const result = await tree.validateConnectionIntegrity(
           argumentId1,
           mockAtomicArgumentRepo,
-          mockOrderedSetRepo
+          mockOrderedSetRepo,
         );
 
         expect(result.isOk()).toBe(true);
@@ -1003,7 +1048,7 @@ describe('Tree Entity', () => {
 
       it('should detect missing premise set', async () => {
         vi.mocked(mockAtomicArgumentRepo.findById).mockResolvedValue(mockArgument1);
-        vi.mocked(mockOrderedSetRepo.findById).mockImplementation(id => {
+        vi.mocked(mockOrderedSetRepo.findById).mockImplementation(async (id) => {
           if (id.equals(orderedSetId1)) return Promise.resolve(null); // Missing premise set
           return Promise.resolve({} as any); // Other sets exist
         });
@@ -1011,20 +1056,20 @@ describe('Tree Entity', () => {
         const result = await tree.validateConnectionIntegrity(
           argumentId1,
           mockAtomicArgumentRepo,
-          mockOrderedSetRepo
+          mockOrderedSetRepo,
         );
 
         expect(result.isOk()).toBe(true);
         if (result.isOk()) {
           const report = result.value;
           expect(report.hasIssues()).toBe(true);
-          expect(report.issues.some(issue => issue.type === 'missing_premise_set')).toBe(true);
+          expect(report.issues.some((issue) => issue.type === 'missing_premise_set')).toBe(true);
         }
       });
 
       it('should detect missing conclusion set', async () => {
         vi.mocked(mockAtomicArgumentRepo.findById).mockResolvedValue(mockArgument1);
-        vi.mocked(mockOrderedSetRepo.findById).mockImplementation(id => {
+        vi.mocked(mockOrderedSetRepo.findById).mockImplementation(async (id) => {
           if (id.equals(orderedSetId2)) return Promise.resolve(null); // Missing conclusion set
           return Promise.resolve({} as any); // Other sets exist
         });
@@ -1032,14 +1077,14 @@ describe('Tree Entity', () => {
         const result = await tree.validateConnectionIntegrity(
           argumentId1,
           mockAtomicArgumentRepo,
-          mockOrderedSetRepo
+          mockOrderedSetRepo,
         );
 
         expect(result.isOk()).toBe(true);
         if (result.isOk()) {
           const report = result.value;
           expect(report.hasIssues()).toBe(true);
-          expect(report.issues.some(issue => issue.type === 'missing_conclusion_set')).toBe(true);
+          expect(report.issues.some((issue) => issue.type === 'missing_conclusion_set')).toBe(true);
         }
       });
 
@@ -1049,7 +1094,7 @@ describe('Tree Entity', () => {
         const result = await tree.validateConnectionIntegrity(
           argumentId1,
           mockAtomicArgumentRepo,
-          mockOrderedSetRepo
+          mockOrderedSetRepo,
         );
 
         expect(result.isErr()).toBe(true);
@@ -1068,7 +1113,7 @@ describe('Tree Entity', () => {
         const result = await tree.validateConnectionIntegrity(
           argumentId1,
           mockAtomicArgumentRepo,
-          mockOrderedSetRepo
+          mockOrderedSetRepo,
         );
 
         expect(result.isErr()).toBe(true);
@@ -1174,7 +1219,7 @@ describe('Tree Entity', () => {
       it('should store issue data correctly', () => {
         const issue = new TreeConnectionIntegrityIssue(
           'missing_premise_set',
-          'The premise set could not be found'
+          'The premise set could not be found',
         );
 
         expect(issue.type).toBe('missing_premise_set');
@@ -1220,11 +1265,15 @@ describe('Tree Entity', () => {
         const nodes = Array.from({ length: 5 }, () => nodeIdFactory.build());
 
         // Add all nodes
-        nodes.forEach(nodeId => tree.addNode(nodeId));
+        nodes.forEach((nodeId) => tree.addNode(nodeId));
 
         // Create chain: nodes[0] -> nodes[1] -> nodes[2] -> nodes[3] -> nodes[4]
         for (let i = 0; i < nodes.length - 1; i++) {
-          tree.setNodeParent(nodes[i], nodes[i + 1]);
+          const child = nodes[i];
+          const parent = nodes[i + 1];
+          if (child && parent) {
+            tree.setNodeParent(child, parent);
+          }
         }
 
         // Try to create cycle by making last node parent of first
@@ -1252,6 +1301,15 @@ describe('Tree Entity', () => {
           findAll: vi.fn(),
           findByOrderedSetReference: vi.fn(),
           delete: vi.fn(),
+          findArgumentsByPremiseCount: vi.fn(),
+          findArgumentsUsingStatement: vi.fn(),
+          findArgumentsByComplexity: vi.fn(),
+          findArgumentsWithConclusion: vi.fn(),
+          findArgumentChains: vi.fn(),
+          findCircularDependencies: vi.fn(),
+          findArgumentsByValidationStatus: vi.fn(),
+          findMostReferencedArguments: vi.fn(),
+          findOrphanedArguments: vi.fn(),
         };
       });
 
@@ -1261,7 +1319,7 @@ describe('Tree Entity', () => {
         vi.mocked(mockAtomicArgumentRepo.findById).mockRejectedValue(timeoutError);
 
         await expect(
-          tree.findDirectConnections(argumentId, mockAtomicArgumentRepo)
+          tree.findDirectConnections(argumentId, mockAtomicArgumentRepo),
         ).rejects.toThrow('Network timeout');
       });
 
@@ -1285,18 +1343,18 @@ describe('Tree Entity', () => {
               {
                 minLength: 0,
                 maxLength: 5,
-              }
+              },
             ),
-            nodeIds => {
+            (nodeIds) => {
               const result = Tree.create('test-doc');
               expect(result.isOk()).toBe(true);
 
               if (result.isOk()) {
                 const tree = result.value;
-                const uniqueNodeIds = [...new Set(nodeIds.map(id => id.getValue()))];
+                const uniqueNodeIds = Array.from(new Set(nodeIds.map((id) => id.getValue())));
 
                 // Add all unique nodes
-                uniqueNodeIds.forEach(idStr => {
+                uniqueNodeIds.forEach((idStr) => {
                   try {
                     const nodeId = NodeId.fromString(idStr);
                     tree.addNode(nodeId);
@@ -1306,7 +1364,7 @@ describe('Tree Entity', () => {
                 });
 
                 // Count how many were actually added (only valid ones)
-                const actualCount = uniqueNodeIds.filter(idStr => {
+                const actualCount = uniqueNodeIds.filter((idStr) => {
                   try {
                     NodeId.fromString(idStr);
                     return true;
@@ -1319,7 +1377,7 @@ describe('Tree Entity', () => {
                 expect(tree.isEmpty()).toBe(actualCount === 0);
 
                 // Verify all valid nodes are contained
-                uniqueNodeIds.forEach(idStr => {
+                uniqueNodeIds.forEach((idStr) => {
                   try {
                     const nodeId = NodeId.fromString(idStr);
                     expect(tree.containsNode(nodeId)).toBe(true);
@@ -1328,8 +1386,8 @@ describe('Tree Entity', () => {
                   }
                 });
               }
-            }
-          )
+            },
+          ),
         );
       });
 
@@ -1338,9 +1396,9 @@ describe('Tree Entity', () => {
           fc.property(
             fc.array(
               fc.constant(null).map(() => nodeIdFactory.build()),
-              { minLength: 2, maxLength: 4 }
+              { minLength: 2, maxLength: 4 },
             ),
-            nodeIds => {
+            (nodeIds) => {
               const result = Tree.create('test-doc');
               expect(result.isOk()).toBe(true);
 
@@ -1348,12 +1406,16 @@ describe('Tree Entity', () => {
                 const tree = result.value;
 
                 // Add all nodes
-                nodeIds.forEach(nodeId => tree.addNode(nodeId));
+                nodeIds.forEach((nodeId) => tree.addNode(nodeId));
 
                 // Create valid parent-child relationships (linear chain)
                 for (let i = 0; i < nodeIds.length - 1; i++) {
-                  const setParentResult = tree.setNodeParent(nodeIds[i], nodeIds[i + 1]);
-                  expect(setParentResult.isOk()).toBe(true);
+                  const child = nodeIds[i];
+                  const parent = nodeIds[i + 1];
+                  if (child && parent) {
+                    const setParentResult = tree.setNodeParent(child, parent);
+                    expect(setParentResult.isOk()).toBe(true);
+                  }
                 }
 
                 // Verify relationships are maintained
@@ -1366,8 +1428,8 @@ describe('Tree Entity', () => {
                 const lastNode = tree.getNode(nodeIds[nodeIds.length - 1]);
                 expect(lastNode?.getParentId()).toBeNull();
               }
-            }
-          )
+            },
+          ),
         );
       });
     });
@@ -1378,7 +1440,7 @@ describe('Tree Entity', () => {
 function createMockAtomicArgument(
   id: AtomicArgumentId,
   premiseSetRef: OrderedSetId | null,
-  conclusionSetRef: OrderedSetId | null
+  conclusionSetRef: OrderedSetId | null,
 ): AtomicArgument {
   return {
     getId: vi.fn(() => id),

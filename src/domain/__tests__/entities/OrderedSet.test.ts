@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { OrderedSet } from '../../entities/OrderedSet';
 import { ValidationError } from '../../shared/result';
-import { type AtomicArgumentId, type StatementId } from '../../shared/value-objects';
+import type { AtomicArgumentId, StatementId } from '../../shared/value-objects';
 import { atomicArgumentIdFactory, orderedSetIdFactory, statementIdFactory } from '../factories';
 
 describe('OrderedSet Entity', () => {
@@ -48,8 +48,9 @@ describe('OrderedSet Entity', () => {
           expect(orderedSet.getStatementIds()).toEqual(statementIds);
           expect(orderedSet.size()).toBe(2);
           expect(orderedSet.isEmpty()).toBe(false);
-          expect(orderedSet.containsStatement(statementIds[0]!)).toBe(true);
-          expect(orderedSet.containsStatement(statementIds[1]!)).toBe(true);
+          expect(statementIds.length).toBeGreaterThanOrEqual(2);
+          expect(orderedSet.containsStatement(statementIds[0])).toBe(true);
+          expect(orderedSet.containsStatement(statementIds[1])).toBe(true);
         }
       });
 
@@ -557,13 +558,13 @@ describe('OrderedSet Entity', () => {
               {
                 minLength: 0,
                 maxLength: 10,
-              }
+              },
             ),
-            statementIds => {
+            (statementIds) => {
               // Create unique statement IDs to avoid duplicates
               const uniqueIds = statementIds.filter(
                 (id, index, arr) =>
-                  arr.findIndex(otherId => otherId.getValue() === id.getValue()) === index
+                  arr.findIndex((otherId) => otherId.getValue() === id.getValue()) === index,
               );
 
               const result = OrderedSet.create(uniqueIds);
@@ -581,12 +582,12 @@ describe('OrderedSet Entity', () => {
                 expect(retrievedIds).toEqual(uniqueIds);
 
                 // Verify all statements can be found
-                uniqueIds.forEach(id => {
+                uniqueIds.forEach((id) => {
                   expect(orderedSet.containsStatement(id)).toBe(true);
                 });
               }
-            }
-          )
+            },
+          ),
         );
       });
 
@@ -595,21 +596,21 @@ describe('OrderedSet Entity', () => {
           fc.property(
             fc.array(
               fc.constant(null).map(() => statementIdFactory.build()),
-              { maxLength: 5 }
+              { maxLength: 5 },
             ),
             fc.array(
               fc.constant(null).map(() => statementIdFactory.build()),
-              { maxLength: 3 }
+              { maxLength: 3 },
             ),
             (initialIds, additionalIds) => {
               // Ensure unique IDs
               const uniqueInitial = initialIds.filter(
-                (id, i, arr) => arr.findIndex(other => other.getValue() === id.getValue()) === i
+                (id, i, arr) => arr.findIndex((other) => other.getValue() === id.getValue()) === i,
               );
               const uniqueAdditional = additionalIds.filter(
                 (id, i, arr) =>
-                  arr.findIndex(other => other.getValue() === id.getValue()) === i &&
-                  !uniqueInitial.some(initial => initial.getValue() === id.getValue())
+                  arr.findIndex((other) => other.getValue() === id.getValue()) === i &&
+                  !uniqueInitial.some((initial) => initial.getValue() === id.getValue()),
               );
 
               const result = OrderedSet.create(uniqueInitial);
@@ -619,7 +620,7 @@ describe('OrderedSet Entity', () => {
                 const orderedSet = result.value;
 
                 // Add additional statements
-                uniqueAdditional.forEach(id => {
+                uniqueAdditional.forEach((id) => {
                   const addResult = orderedSet.addStatement(id);
                   expect(addResult.isOk()).toBe(true);
                 });
@@ -629,8 +630,8 @@ describe('OrderedSet Entity', () => {
                 expect(orderedSet.getStatementIds()).toEqual(expectedIds);
                 expect(orderedSet.size()).toBe(expectedIds.length);
               }
-            }
-          )
+            },
+          ),
         );
       });
     });

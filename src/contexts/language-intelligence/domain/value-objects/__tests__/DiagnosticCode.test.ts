@@ -111,7 +111,7 @@ describe('DiagnosticCode', () => {
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
         expect(result.error.message).toBe(
-          'Diagnostic code must follow format: category-specific-code'
+          'Diagnostic code must follow format: category-specific-code',
         );
       }
     });
@@ -122,7 +122,7 @@ describe('DiagnosticCode', () => {
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
         expect(result.error.message).toBe(
-          'Diagnostic code must follow format: category-specific-code'
+          'Diagnostic code must follow format: category-specific-code',
         );
       }
     });
@@ -133,7 +133,7 @@ describe('DiagnosticCode', () => {
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
         expect(result.error.message).toBe(
-          'Diagnostic code must follow format: category-specific-code'
+          'Diagnostic code must follow format: category-specific-code',
         );
       }
     });
@@ -144,7 +144,7 @@ describe('DiagnosticCode', () => {
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
         expect(result.error.message).toBe(
-          'Diagnostic code must follow format: category-specific-code'
+          'Diagnostic code must follow format: category-specific-code',
         );
       }
     });
@@ -473,7 +473,7 @@ describe('DiagnosticCode', () => {
             'educational',
             'performance',
             'general',
-          ].filter(cat => cat !== category);
+          ].filter((cat) => cat !== category);
 
           for (const otherCategory of otherCategories) {
             expect(result.value.belongsToCategory(otherCategory as any)).toBe(false);

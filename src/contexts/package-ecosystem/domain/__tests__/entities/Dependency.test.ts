@@ -237,7 +237,7 @@ describe('Dependency', () => {
       const result = Dependency.createFromDependencyInfo(
         sourcePackageId,
         dependencyInfo,
-        'runtime'
+        'runtime',
       );
 
       expect(result.isOk()).toBe(true);
@@ -262,7 +262,7 @@ describe('Dependency', () => {
       const result = Dependency.createFromDependencyInfo(
         sourcePackageId,
         dependencyInfo,
-        'development'
+        'development',
       );
 
       expect(result.isOk()).toBe(true);
@@ -389,7 +389,7 @@ describe('Dependency', () => {
   describe('dependency type checking', () => {
     const dependencyTypes: DependencyType[] = ['runtime', 'development', 'optional', 'peer'];
 
-    dependencyTypes.forEach(type => {
+    dependencyTypes.forEach((type) => {
       it(`should handle ${type} dependency type`, () => {
         const data: DependencyData = {
           sourcePackageId,

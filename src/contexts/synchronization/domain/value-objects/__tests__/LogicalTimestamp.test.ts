@@ -443,7 +443,7 @@ describe('LogicalTimestamp', () => {
 
     it('should use short device ID in string representation', () => {
       const longDeviceResult = DeviceId.create(
-        'very-long-device-identifier-that-should-be-shortened'
+        'very-long-device-identifier-that-should-be-shortened',
       );
       expect(longDeviceResult.isOk()).toBe(true);
 

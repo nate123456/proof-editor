@@ -11,7 +11,7 @@
 import fc from 'fast-check';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { type AtomicArgument } from '../../entities/AtomicArgument.js';
+import type { AtomicArgument } from '../../entities/AtomicArgument.js';
 import { ProcessingError } from '../../errors/DomainErrors.js';
 import type { IAtomicArgumentRepository } from '../../repositories/IAtomicArgumentRepository.js';
 import type { IOrderedSetRepository } from '../../repositories/IOrderedSetRepository.js';
@@ -40,6 +40,15 @@ describe('ConnectionResolutionService', () => {
       findAll: vi.fn(),
       findByOrderedSetReference: vi.fn(),
       delete: vi.fn(),
+      findArgumentsByPremiseCount: vi.fn(),
+      findArgumentsUsingStatement: vi.fn(),
+      findArgumentsByComplexity: vi.fn(),
+      findArgumentsWithConclusion: vi.fn(),
+      findArgumentChains: vi.fn(),
+      findCircularDependencies: vi.fn(),
+      findArgumentsByValidationStatus: vi.fn(),
+      findMostReferencedArguments: vi.fn(),
+      findOrphanedArguments: vi.fn(),
     };
 
     mockOrderedSetRepo = {
@@ -47,6 +56,14 @@ describe('ConnectionResolutionService', () => {
       findById: vi.fn(),
       findAll: vi.fn(),
       delete: vi.fn(),
+      findOrderedSetsBySize: vi.fn(),
+      findOrderedSetsContaining: vi.fn(),
+      findSharedOrderedSets: vi.fn(),
+      findOrderedSetsByPattern: vi.fn(),
+      findUnusedOrderedSets: vi.fn(),
+      findOrderedSetsByReferenceCount: vi.fn(),
+      findSimilarOrderedSets: vi.fn(),
+      findEmptyOrderedSets: vi.fn(),
     };
 
     service = new ConnectionResolutionService(mockAtomicArgumentRepo, mockOrderedSetRepo);
@@ -64,12 +81,12 @@ describe('ConnectionResolutionService', () => {
         const parentArgument = createMockAtomicArgument(
           atomicArgumentIdFactory.build(),
           orderedSetIdFactory.build(),
-          premiseSetId // Parent's conclusion matches target's premise
+          premiseSetId, // Parent's conclusion matches target's premise
         );
         const childArgument = createMockAtomicArgument(
           atomicArgumentIdFactory.build(),
           conclusionSetId, // Child's premise matches target's conclusion
-          orderedSetIdFactory.build()
+          orderedSetIdFactory.build(),
         );
 
         vi.mocked(mockAtomicArgumentRepo.findById).mockResolvedValue(targetArgument);
@@ -106,24 +123,24 @@ describe('ConnectionResolutionService', () => {
         const parent1 = createMockAtomicArgument(
           atomicArgumentIdFactory.build(),
           orderedSetIdFactory.build(),
-          premiseSetId
+          premiseSetId,
         );
         const parent2 = createMockAtomicArgument(
           atomicArgumentIdFactory.build(),
           orderedSetIdFactory.build(),
-          premiseSetId
+          premiseSetId,
         );
 
         // Multiple children with same premise set
         const child1 = createMockAtomicArgument(
           atomicArgumentIdFactory.build(),
           conclusionSetId,
-          orderedSetIdFactory.build()
+          orderedSetIdFactory.build(),
         );
         const child2 = createMockAtomicArgument(
           atomicArgumentIdFactory.build(),
           conclusionSetId,
-          orderedSetIdFactory.build()
+          orderedSetIdFactory.build(),
         );
 
         vi.mocked(mockAtomicArgumentRepo.findById).mockResolvedValue(targetArgument);
@@ -156,7 +173,7 @@ describe('ConnectionResolutionService', () => {
         const childArgument = createMockAtomicArgument(
           atomicArgumentIdFactory.build(),
           conclusionSetId,
-          orderedSetIdFactory.build()
+          orderedSetIdFactory.build(),
         );
 
         vi.mocked(mockAtomicArgumentRepo.findById).mockResolvedValue(targetArgument);
@@ -186,7 +203,7 @@ describe('ConnectionResolutionService', () => {
         const parentArgument = createMockAtomicArgument(
           atomicArgumentIdFactory.build(),
           orderedSetIdFactory.build(),
-          premiseSetId
+          premiseSetId,
         );
 
         vi.mocked(mockAtomicArgumentRepo.findById).mockResolvedValue(targetArgument);
@@ -275,7 +292,7 @@ describe('ConnectionResolutionService', () => {
 
         // Act & Assert
         await expect(service.findBasicConnections(argumentId)).rejects.toThrow(
-          'Database connection failed'
+          'Database connection failed',
         );
       });
     });
@@ -286,13 +303,13 @@ describe('ConnectionResolutionService', () => {
           fc.asyncProperty(
             fc
               .array(
-                fc.string({ minLength: 1 }).filter(s => s.trim().length > 0),
-                { minLength: 2, maxLength: 10 }
+                fc.string({ minLength: 1 }).filter((s) => s.trim().length > 0),
+                { minLength: 2, maxLength: 10 },
               )
-              .filter(strings => new Set(strings).size >= 2), // Ensure at least 2 unique strings
-            async argumentIdStrings => {
+              .filter((strings) => new Set(strings).size >= 2), // Ensure at least 2 unique strings
+            async (argumentIdStrings) => {
               // Arrange - Create arguments with shared ordered sets
-              const argumentIds = argumentIdStrings.map(str => AtomicArgumentId.fromString(str));
+              const argumentIds = argumentIdStrings.map((str) => AtomicArgumentId.fromString(str));
               const sharedOrderedSetId = orderedSetIdFactory.build();
 
               const testArguments = argumentIds.map((id, index) => {
@@ -303,11 +320,15 @@ describe('ConnectionResolutionService', () => {
                 }
               });
 
-              vi.mocked(mockAtomicArgumentRepo.findById).mockResolvedValue(testArguments[0]);
+              vi.mocked(mockAtomicArgumentRepo.findById).mockResolvedValue(
+                testArguments[0] ?? null,
+              );
               vi.mocked(mockAtomicArgumentRepo.findAll).mockResolvedValue(testArguments);
 
               // Act
-              const result = await service.findBasicConnections(argumentIds[0]);
+              const firstArgumentId = argumentIds[0];
+              if (!firstArgumentId) return;
+              const result = await service.findBasicConnections(firstArgumentId);
 
               // Assert - Connection should be consistent
               expect(result.isOk()).toBe(true);
@@ -319,8 +340,8 @@ describe('ConnectionResolutionService', () => {
                 // At least one connection should exist if we have multiple unique arguments
                 expect(parentCount + childCount).toBeGreaterThan(0);
               }
-            }
-          )
+            },
+          ),
         );
       });
     });
@@ -459,12 +480,12 @@ describe('ConnectionMap', () => {
     const parentArg = createMockAtomicArgument(
       atomicArgumentIdFactory.build(),
       null,
-      orderedSetIdFactory.build()
+      orderedSetIdFactory.build(),
     );
     const childArg = createMockAtomicArgument(
       atomicArgumentIdFactory.build(),
       orderedSetIdFactory.build(),
-      null
+      null,
     );
 
     // Act
@@ -529,7 +550,9 @@ describe('PathCompleteArgument', () => {
   it('should store arguments and paths correctly', () => {
     // Arrange
     const argumentIds = [atomicArgumentIdFactory.build(), atomicArgumentIdFactory.build()];
-    const paths = [argumentIds, [argumentIds[1]]];
+    const secondArgument = argumentIds[1];
+    if (!secondArgument) throw new Error('Missing second argument');
+    const paths = [argumentIds, [secondArgument]];
 
     // Act
     const pathComplete = new PathCompleteArgument(argumentIds, paths);
@@ -620,7 +643,7 @@ describe('ConnectionIntegrityIssue', () => {
 function createMockAtomicArgument(
   id: AtomicArgumentId,
   premiseSetRef: OrderedSetId | null,
-  conclusionSetRef: OrderedSetId | null
+  conclusionSetRef: OrderedSetId | null,
 ): AtomicArgument {
   return {
     getId: vi.fn(() => id),

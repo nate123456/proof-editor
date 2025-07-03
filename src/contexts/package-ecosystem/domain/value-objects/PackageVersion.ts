@@ -9,7 +9,7 @@ export class PackageVersion {
     private readonly patch: number,
     private readonly prerelease?: string,
     private readonly build?: string,
-    private readonly original?: string
+    private readonly original?: string,
   ) {}
 
   static create(versionString: string): Result<PackageVersion, PackageValidationError> {
@@ -19,15 +19,14 @@ export class PackageVersion {
       return err(new PackageValidationError('Version string cannot be empty'));
     }
 
-    const semverPattern =
-      /^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$/;
-    const match = trimmed.match(semverPattern);
+    const semverPattern = /^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?(?:\+([0-9A-Za-z.-]+))?$/;
+    const match = semverPattern.exec(trimmed);
 
     if (!match) {
       return err(
         new PackageValidationError(
-          `Invalid semantic version format: ${trimmed}. Expected format: MAJOR.MINOR.PATCH[-PRERELEASE][+BUILD]`
-        )
+          `Invalid semantic version format: ${trimmed}. Expected format: MAJOR.MINOR.PATCH[-PRERELEASE][+BUILD]`,
+        ),
       );
     }
 
@@ -37,9 +36,9 @@ export class PackageVersion {
       return err(new PackageValidationError('Invalid version format: missing components'));
     }
 
-    const major = parseInt(majorStr, 10);
-    const minor = parseInt(minorStr, 10);
-    const patch = parseInt(patchStr, 10);
+    const major = Number.parseInt(majorStr, 10);
+    const minor = Number.parseInt(minorStr, 10);
+    const patch = Number.parseInt(patchStr, 10);
 
     if (major < 0 || minor < 0 || patch < 0) {
       return err(new PackageValidationError('Version numbers must be non-negative integers'));
@@ -59,7 +58,7 @@ export class PackageVersion {
       return PackageVersion.create(normalizedRef.slice(1));
     }
 
-    if (normalizedRef.match(/^\d+\.\d+\.\d+/)) {
+    if (/^\d+\.\d+\.\d+/.exec(normalizedRef)) {
       return PackageVersion.create(normalizedRef);
     }
 
@@ -67,7 +66,7 @@ export class PackageVersion {
       return ok(new PackageVersion(0, 0, 0, 'dev', normalizedRef, `0.0.0-dev+${normalizedRef}`));
     }
 
-    if (normalizedRef.match(/^[a-f0-9]{7,40}$/)) {
+    if (/^[a-f0-9]{7,40}$/.exec(normalizedRef)) {
       const shortHash = normalizedRef.slice(0, 7);
       return ok(new PackageVersion(0, 0, 0, 'dev', shortHash, `0.0.0-dev+${shortHash}`));
     }

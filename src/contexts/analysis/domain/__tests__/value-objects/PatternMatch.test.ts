@@ -29,7 +29,7 @@ const createTestLocation = (
   startLine = 1,
   startColumn = 0,
   endLine = 1,
-  endColumn = 10
+  endColumn = 10,
 ): SourceLocation => {
   const result = SourceLocation.create(startLine, startColumn, endLine, endColumn);
   if (result.isErr()) throw new Error('Failed to create test location');
@@ -39,7 +39,7 @@ const createTestLocation = (
 // Property-based test generators
 const validPatternIdArbitrary = fc
   .string({ minLength: 1, maxLength: 50 })
-  .filter(s => s.trim().length > 0);
+  .filter((s) => s.trim().length > 0);
 
 const patternTypeArbitrary = fc.constantFrom<PatternType>(
   'inference',
@@ -48,23 +48,23 @@ const patternTypeArbitrary = fc.constantFrom<PatternType>(
   'syntax',
   'semantic',
   'educational',
-  'validation'
+  'validation',
 );
 
 const validPatternNameArbitrary = fc
   .string({ minLength: 1, maxLength: 100 })
-  .filter(s => s.trim().length > 0);
+  .filter((s) => s.trim().length > 0);
 
 const confidenceArbitrary = fc.float({ min: 0, max: 1, noNaN: true });
 
 const validMatchedContentArbitrary = fc
   .string({ minLength: 1, maxLength: 500 })
-  .filter(s => s.trim().length > 0);
+  .filter((s) => s.trim().length > 0);
 
 const variableMapArbitrary = fc.dictionary(
   fc.string({ minLength: 1, maxLength: 20 }),
   fc.string({ minLength: 0, maxLength: 100 }),
-  { maxKeys: 10 }
+  { maxKeys: 10 },
 );
 
 const locationArbitrary = fc
@@ -83,7 +83,7 @@ describe('PatternMatch Value Object', () => {
           'Modus Ponens',
           location,
           0.85,
-          'If P then Q, P, therefore Q'
+          'If P then Q, P, therefore Q',
         );
 
         expect(result.isOk()).toBe(true);
@@ -124,7 +124,7 @@ describe('PatternMatch Value Object', () => {
           'If it is raining then the ground is wet',
           variables,
           context,
-          validationScope
+          validationScope,
         );
 
         expect(result.isOk()).toBe(true);
@@ -146,7 +146,7 @@ describe('PatternMatch Value Object', () => {
           '  Pattern Name  ',
           location,
           0.8,
-          '  Matched content  '
+          '  Matched content  ',
         );
 
         expect(result.isOk()).toBe(true);
@@ -175,7 +175,7 @@ describe('PatternMatch Value Object', () => {
               location,
               confidence,
               matchedContent,
-              variablesObj
+              variablesObj,
             ) => {
               const variables = new Map(Object.entries(variablesObj));
               const result = PatternMatch.create(
@@ -185,7 +185,7 @@ describe('PatternMatch Value Object', () => {
                 location,
                 confidence,
                 matchedContent,
-                variables
+                variables,
               );
 
               expect(result.isOk()).toBe(true);
@@ -199,8 +199,8 @@ describe('PatternMatch Value Object', () => {
                 expect(match.getMatchedContent()).toBe(matchedContent.trim());
                 expect(match.getVariables().size).toBe(variables.size);
               }
-            }
-          )
+            },
+          ),
         );
       });
     });
@@ -214,7 +214,7 @@ describe('PatternMatch Value Object', () => {
           'Pattern Name',
           location,
           0.8,
-          'Content'
+          'Content',
         );
 
         expect(result.isErr()).toBe(true);
@@ -232,7 +232,7 @@ describe('PatternMatch Value Object', () => {
           'Pattern Name',
           location,
           0.8,
-          'Content'
+          'Content',
         );
 
         expect(result.isErr()).toBe(true);
@@ -261,7 +261,7 @@ describe('PatternMatch Value Object', () => {
           'Pattern Name',
           location,
           -0.1,
-          'Content'
+          'Content',
         );
 
         expect(result.isErr()).toBe(true);
@@ -279,7 +279,7 @@ describe('PatternMatch Value Object', () => {
           'Pattern Name',
           location,
           1.1,
-          'Content'
+          'Content',
         );
 
         expect(result.isErr()).toBe(true);
@@ -297,7 +297,7 @@ describe('PatternMatch Value Object', () => {
           'Pattern Name',
           location,
           0.8,
-          ''
+          '',
         );
 
         expect(result.isErr()).toBe(true);
@@ -315,7 +315,7 @@ describe('PatternMatch Value Object', () => {
           'Pattern Name',
           location,
           0.8,
-          '   '
+          '   ',
         );
 
         expect(result.isErr()).toBe(true);
@@ -342,7 +342,7 @@ describe('PatternMatch Value Object', () => {
           location,
           0.9,
           'If P then C',
-          variables
+          variables,
         );
 
         expect(result.isOk()).toBe(true);
@@ -366,7 +366,7 @@ describe('PatternMatch Value Object', () => {
           'Tree Structure',
           location,
           0.85,
-          'Branching argument pattern'
+          'Branching argument pattern',
         );
 
         expect(result.isOk()).toBe(true);
@@ -401,7 +401,7 @@ describe('PatternMatch Value Object', () => {
           0.95,
           'Validation pattern detected',
           validationScope,
-          indicators
+          indicators,
         );
 
         expect(result.isOk()).toBe(true);
@@ -427,7 +427,7 @@ describe('PatternMatch Value Object', () => {
           location,
           0.88,
           'Necessarily P implies possibly Q',
-          modalOperators
+          modalOperators,
         );
 
         expect(result.isOk()).toBe(true);
@@ -464,7 +464,7 @@ describe('PatternMatch Value Object', () => {
             'Test Pattern',
             location,
             confidence,
-            'Content'
+            'Content',
           );
 
           expect(result.isOk()).toBe(true);
@@ -483,14 +483,14 @@ describe('PatternMatch Value Object', () => {
         const location = createTestLocation();
         const types: PatternType[] = ['inference', 'structural', 'modal', 'syntax', 'validation'];
 
-        types.forEach(type => {
+        types.forEach((type) => {
           const result = PatternMatch.create(
             'pattern-1',
             type,
             'Test Pattern',
             location,
             0.8,
-            'Content'
+            'Content',
           );
 
           expect(result.isOk()).toBe(true);
@@ -521,7 +521,7 @@ describe('PatternMatch Value Object', () => {
           location,
           0.8,
           'Content',
-          variables
+          variables,
         );
 
         expect(result.isOk()).toBe(true);
@@ -547,7 +547,7 @@ describe('PatternMatch Value Object', () => {
           location,
           0.8,
           'Content',
-          variables
+          variables,
         );
 
         expect(result.isOk()).toBe(true);
@@ -581,7 +581,7 @@ describe('PatternMatch Value Object', () => {
           location,
           0.9,
           'A reasonably sized matched content string',
-          variables
+          variables,
         );
 
         expect(result.isOk()).toBe(true);
@@ -609,7 +609,7 @@ describe('PatternMatch Value Object', () => {
           'Test Pattern',
           location,
           0.8,
-          'Content'
+          'Content',
         );
 
         expect(result.isOk()).toBe(true);
@@ -633,7 +633,7 @@ describe('PatternMatch Value Object', () => {
           'Test Pattern',
           location,
           0.7,
-          'Content'
+          'Content',
         );
 
         expect(result.isOk()).toBe(true);
@@ -659,7 +659,7 @@ describe('PatternMatch Value Object', () => {
           'Test Pattern',
           location,
           0.9,
-          'Content'
+          'Content',
         );
 
         expect(result.isOk()).toBe(true);
@@ -688,7 +688,7 @@ describe('PatternMatch Value Object', () => {
           location,
           0.8,
           'Content',
-          originalVars
+          originalVars,
         );
 
         expect(result.isOk()).toBe(true);
@@ -720,7 +720,7 @@ describe('PatternMatch Value Object', () => {
           location,
           0.8,
           'Content',
-          originalVars
+          originalVars,
         );
 
         expect(result.isOk()).toBe(true);
@@ -750,7 +750,7 @@ describe('PatternMatch Value Object', () => {
         location,
         0.856,
         'If it rains then the ground is wet, it rains, therefore the ground is wet',
-        variables
+        variables,
       );
 
       expect(result.isOk()).toBe(true);
@@ -779,7 +779,7 @@ describe('PatternMatch Value Object', () => {
         'Short Pattern',
         location,
         0.9,
-        'Short content'
+        'Short content',
       );
 
       expect(result.isOk()).toBe(true);
@@ -802,7 +802,7 @@ describe('PatternMatch Value Object', () => {
         'Test Pattern',
         location1,
         0.8,
-        'Same content'
+        'Same content',
       );
 
       const result2 = PatternMatch.create(
@@ -811,7 +811,7 @@ describe('PatternMatch Value Object', () => {
         'Test Pattern',
         location1,
         0.8,
-        'Same content'
+        'Same content',
       );
 
       const result3 = PatternMatch.create(
@@ -820,7 +820,7 @@ describe('PatternMatch Value Object', () => {
         'Test Pattern',
         location2,
         0.8,
-        'Same content'
+        'Same content',
       );
 
       expect(result1.isOk()).toBe(true);
@@ -845,7 +845,7 @@ describe('PatternMatch Value Object', () => {
         'Test Pattern',
         location,
         0.8,
-        'Content'
+        'Content',
       );
 
       const result2 = PatternMatch.create(
@@ -854,7 +854,7 @@ describe('PatternMatch Value Object', () => {
         'Test Pattern',
         location,
         0.8,
-        'Content'
+        'Content',
       );
 
       expect(result1.isOk()).toBe(true);
@@ -874,7 +874,7 @@ describe('PatternMatch Value Object', () => {
         'Test Pattern',
         location,
         0.8,
-        'Content 1'
+        'Content 1',
       );
 
       const result2 = PatternMatch.create(
@@ -883,7 +883,7 @@ describe('PatternMatch Value Object', () => {
         'Test Pattern',
         location,
         0.8,
-        'Content 2'
+        'Content 2',
       );
 
       expect(result1.isOk()).toBe(true);
@@ -904,7 +904,7 @@ describe('PatternMatch Value Object', () => {
         location,
         0.8,
         'Same content',
-        new Map([['var', 'value1']])
+        new Map([['var', 'value1']]),
       );
 
       const result2 = PatternMatch.create(
@@ -914,7 +914,7 @@ describe('PatternMatch Value Object', () => {
         location,
         0.3, // different confidence
         'Same content',
-        new Map([['var', 'value2']]) // different variables
+        new Map([['var', 'value2']]), // different variables
       );
 
       expect(result1.isOk()).toBe(true);
@@ -1011,7 +1011,7 @@ describe('PatternMatch Value Object', () => {
             location,
             confidence,
             matchedContent,
-            variablesObj
+            variablesObj,
           ) => {
             const variables = new Map(Object.entries(variablesObj));
             const result = PatternMatch.create(
@@ -1021,7 +1021,7 @@ describe('PatternMatch Value Object', () => {
               location,
               confidence,
               matchedContent,
-              variables
+              variables,
             );
 
             expect(result.isOk()).toBe(true);
@@ -1041,8 +1041,8 @@ describe('PatternMatch Value Object', () => {
               expect(withVars.getVariableCount()).toBeGreaterThanOrEqual(match.getVariableCount());
               expect(withVars.hasVariable('new')).toBe(true);
             }
-          }
-        )
+          },
+        ),
       );
     });
 
@@ -1062,7 +1062,7 @@ describe('PatternMatch Value Object', () => {
               location,
               confidence,
               matchedContent,
-              variables
+              variables,
             );
 
             expect(result.isOk()).toBe(true);
@@ -1084,8 +1084,8 @@ describe('PatternMatch Value Object', () => {
                 expect(quality.overallScore).toBeLessThanOrEqual(1);
               }
             }
-          }
-        )
+          },
+        ),
       );
     });
   });
@@ -1100,7 +1100,7 @@ describe('PatternMatch Value Object', () => {
         'Test Pattern',
         location,
         0,
-        'Content'
+        'Content',
       );
 
       const maxConfidence = PatternMatch.create(
@@ -1109,7 +1109,7 @@ describe('PatternMatch Value Object', () => {
         'Test Pattern',
         location,
         1,
-        'Content'
+        'Content',
       );
 
       expect(zeroConfidence.isOk()).toBe(true);
@@ -1140,7 +1140,7 @@ describe('PatternMatch Value Object', () => {
         location,
         0.8,
         longContent,
-        manyVariables
+        manyVariables,
       );
 
       expect(result.isOk()).toBe(true);
@@ -1171,7 +1171,7 @@ describe('PatternMatch Value Object', () => {
         location,
         0.9,
         specialContent,
-        unicodeVars
+        unicodeVars,
       );
 
       expect(result.isOk()).toBe(true);
@@ -1199,7 +1199,7 @@ describe('PatternMatch Value Object', () => {
         location,
         0.8,
         'Content',
-        emptyVars
+        emptyVars,
       );
 
       expect(result.isOk()).toBe(true);

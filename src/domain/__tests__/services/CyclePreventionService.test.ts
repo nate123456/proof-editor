@@ -1,8 +1,8 @@
 import { err, ok } from 'neverthrow';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { type AtomicArgument } from '../../entities/AtomicArgument.js';
-import { type Tree } from '../../entities/Tree.js';
+import type { AtomicArgument } from '../../entities/AtomicArgument.js';
+import type { Tree } from '../../entities/Tree.js';
 import { StructureError } from '../../errors/DomainErrors.js';
 import type { IAtomicArgumentRepository } from '../../repositories/IAtomicArgumentRepository.js';
 import type { ITreeRepository } from '../../repositories/ITreeRepository.js';
@@ -25,31 +25,76 @@ describe('CyclePreventionService', () => {
   let mockConnectionService: ConnectionResolutionService;
 
   beforeEach(() => {
-    // Create Vitest mocks
+    // Create mocks with Vitest
     mockAtomicArgumentRepo = {
-      findById: vi.fn(),
       save: vi.fn(),
-      delete: vi.fn(),
+      findById: vi.fn(),
       findAll: vi.fn(),
+      findByOrderedSetReference: vi.fn(),
+      delete: vi.fn(),
+      findArgumentsByPremiseCount: vi.fn(),
+      findArgumentsUsingStatement: vi.fn(),
+      findArgumentsByComplexity: vi.fn(),
+      findArgumentsWithConclusion: vi.fn(),
+      findArgumentChains: vi.fn(),
+      findCircularDependencies: vi.fn(),
+      findArgumentsByValidationStatus: vi.fn(),
+      findMostReferencedArguments: vi.fn(),
+      findOrphanedArguments: vi.fn(),
     } as IAtomicArgumentRepository;
 
     mockTreeRepo = {
-      findById: vi.fn(),
       save: vi.fn(),
+      findById: vi.fn(),
+      findByDocument: vi.fn(),
       delete: vi.fn(),
-      findAll: vi.fn(),
     } as ITreeRepository;
 
     mockConnectionService = {
+      atomicArgumentRepo: mockAtomicArgumentRepo,
+      orderedSetRepo: {} as any,
+      findBasicConnections: vi.fn(),
       findDirectConnections: vi.fn(),
-      findPathCompleteArgument: vi.fn(),
-      findArgumentTree: vi.fn(),
-    } as ConnectionResolutionService;
+    } as unknown as ConnectionResolutionService;
+
+    // Set default implementations
+    (mockAtomicArgumentRepo.findById as any).mockResolvedValue(null);
+    (mockAtomicArgumentRepo.findAll as any).mockResolvedValue([]);
+    (mockAtomicArgumentRepo.save as any).mockResolvedValue(ok(undefined));
+    (mockAtomicArgumentRepo.delete as any).mockResolvedValue(ok(undefined));
+    (mockAtomicArgumentRepo.findByOrderedSetReference as any).mockResolvedValue([]);
+    (mockAtomicArgumentRepo.findArgumentsByPremiseCount as any).mockResolvedValue([]);
+    (mockAtomicArgumentRepo.findArgumentsUsingStatement as any).mockResolvedValue([]);
+    (mockAtomicArgumentRepo.findArgumentsByComplexity as any).mockResolvedValue([]);
+    (mockAtomicArgumentRepo.findArgumentsWithConclusion as any).mockResolvedValue([]);
+    (mockAtomicArgumentRepo.findArgumentChains as any).mockResolvedValue([]);
+    (mockAtomicArgumentRepo.findCircularDependencies as any).mockResolvedValue([]);
+    (mockAtomicArgumentRepo.findArgumentsByValidationStatus as any).mockResolvedValue([]);
+    (mockAtomicArgumentRepo.findMostReferencedArguments as any).mockResolvedValue([]);
+    (mockAtomicArgumentRepo.findOrphanedArguments as any).mockResolvedValue([]);
+
+    (mockTreeRepo.findById as any).mockResolvedValue(null);
+    (mockTreeRepo.findByDocument as any).mockResolvedValue([]);
+    (mockTreeRepo.save as any).mockResolvedValue(ok(undefined));
+    (mockTreeRepo.delete as any).mockResolvedValue(ok(undefined));
+
+    (mockConnectionService.findDirectConnections as any).mockResolvedValue(
+      err(new StructureError('Not found')),
+    );
+    (mockConnectionService.findPathCompleteArgument as any).mockReturnValue(
+      err(new StructureError('Not found')),
+    );
+    (mockConnectionService.findArgumentTree as any).mockReturnValue(
+      err(new StructureError('Not found')),
+    );
+    (mockConnectionService.findBasicConnections as any).mockResolvedValue(
+      err(new StructureError('Not found')),
+    );
 
     service = new CyclePreventionService(
       mockAtomicArgumentRepo,
       mockTreeRepo,
-      mockConnectionService
+      mockConnectionService,
     );
   });
 
@@ -61,18 +106,27 @@ describe('CyclePreventionService', () => {
 
         // Mock parent argument
         const mockParentArg = {
+          getId: vi.fn().mockReturnValue(parentId),
+          getPremiseSetRef: vi.fn(),
+          getConclusionSetRef: vi.fn(),
           validateConnectionSafety: vi.fn().mockReturnValue(ok(undefined)),
           wouldCreateDirectCycle: vi.fn().mockReturnValue(false),
-        } as AtomicArgument;
+        } as unknown as AtomicArgument;
 
         // Mock child argument
-        const mockChildArg = {} as AtomicArgument;
+        const mockChildArg = {
+          getId: vi.fn().mockReturnValue(childId),
+          getPremiseSetRef: vi.fn(),
+          getConclusionSetRef: vi.fn(),
+          validateConnectionSafety: vi.fn(),
+          wouldCreateDirectCycle: vi.fn(),
+        } as unknown as AtomicArgument;
 
         // Mock repository responses
-        vi.mocked(mockAtomicArgumentRepo.findById).mockImplementation(id => {
-          if (id.equals(parentId)) return Promise.resolve(mockParentArg);
-          if (id.equals(childId)) return Promise.resolve(mockChildArg);
-          return Promise.resolve(null);
+        (mockAtomicArgumentRepo.findById as any).mockImplementation(async (id: any) => {
+          if (id.equals(parentId)) return mockParentArg;
+          if (id.equals(childId)) return mockChildArg;
+          return null;
         });
 
         const result = await service.validateLogicalCyclePrevention(parentId, childId);
@@ -92,18 +146,27 @@ describe('CyclePreventionService', () => {
 
         // Mock parent argument that would create cycle
         const mockParentArg = {
+          getId: vi.fn().mockReturnValue(parentId),
+          getPremiseSetRef: vi.fn(),
+          getConclusionSetRef: vi.fn(),
           validateConnectionSafety: vi.fn().mockReturnValue(ok(undefined)),
           wouldCreateDirectCycle: vi.fn().mockReturnValue(true),
-        } as AtomicArgument;
+        } as unknown as AtomicArgument;
 
         // Mock child argument
-        const mockChildArg = {} as AtomicArgument;
+        const mockChildArg = {
+          getId: vi.fn().mockReturnValue(childId),
+          getPremiseSetRef: vi.fn(),
+          getConclusionSetRef: vi.fn(),
+          validateConnectionSafety: vi.fn(),
+          wouldCreateDirectCycle: vi.fn(),
+        } as unknown as AtomicArgument;
 
         // Mock repository responses
-        vi.mocked(mockAtomicArgumentRepo.findById).mockImplementation(id => {
-          if (id.equals(parentId)) return Promise.resolve(mockParentArg);
-          if (id.equals(childId)) return Promise.resolve(mockChildArg);
-          return Promise.resolve(null);
+        (mockAtomicArgumentRepo.findById as any).mockImplementation(async (id: any) => {
+          if (id.equals(parentId)) return mockParentArg;
+          if (id.equals(childId)) return mockChildArg;
+          return null;
         });
 
         const result = await service.validateLogicalCyclePrevention(parentId, childId);
@@ -124,17 +187,27 @@ describe('CyclePreventionService', () => {
         // Mock parent argument with connection safety issue
         const safetyError = new StructureError('Connection would create invalid reference');
         const mockParentArg = {
+          getId: vi.fn().mockReturnValue(parentId),
+          getPremiseSetRef: vi.fn(),
+          getConclusionSetRef: vi.fn(),
           validateConnectionSafety: vi.fn().mockReturnValue(err(safetyError)),
-        } as AtomicArgument;
+          wouldCreateDirectCycle: vi.fn(),
+        } as unknown as AtomicArgument;
 
         // Mock child argument
-        const mockChildArg = {} as AtomicArgument;
+        const mockChildArg = {
+          getId: vi.fn().mockReturnValue(childId),
+          getPremiseSetRef: vi.fn(),
+          getConclusionSetRef: vi.fn(),
+          validateConnectionSafety: vi.fn(),
+          wouldCreateDirectCycle: vi.fn(),
+        } as unknown as AtomicArgument;
 
         // Mock repository responses
-        vi.mocked(mockAtomicArgumentRepo.findById).mockImplementation(id => {
-          if (id.equals(parentId)) return Promise.resolve(mockParentArg);
-          if (id.equals(childId)) return Promise.resolve(mockChildArg);
-          return Promise.resolve(null);
+        (mockAtomicArgumentRepo.findById as any).mockImplementation(async (id: any) => {
+          if (id.equals(parentId)) return mockParentArg;
+          if (id.equals(childId)) return mockChildArg;
+          return null;
         });
 
         const result = await service.validateLogicalCyclePrevention(parentId, childId);
@@ -155,7 +228,7 @@ describe('CyclePreventionService', () => {
         const childId = atomicArgumentIdFactory.build();
 
         // Mock repository to return null for parent
-        vi.mocked(mockAtomicArgumentRepo.findById).mockImplementation(id => {
+        (mockAtomicArgumentRepo.findById as any).mockImplementation(async (id: any) => {
           if (id.equals(parentId)) return Promise.resolve(null);
           if (id.equals(childId)) return Promise.resolve({} as AtomicArgument);
           return Promise.resolve(null);
@@ -175,7 +248,7 @@ describe('CyclePreventionService', () => {
         const childId = atomicArgumentIdFactory.build();
 
         // Mock repository to return null for child
-        vi.mocked(mockAtomicArgumentRepo.findById).mockImplementation(id => {
+        (mockAtomicArgumentRepo.findById as any).mockImplementation(async (id: any) => {
           if (id.equals(parentId)) return Promise.resolve({} as AtomicArgument);
           if (id.equals(childId)) return Promise.resolve(null);
           return Promise.resolve(null);
@@ -218,7 +291,7 @@ describe('CyclePreventionService', () => {
         // Mock tree that would not create cycle
         const mockTree = {
           wouldCreateCycle: vi.fn().mockReturnValue(false),
-        } as Tree;
+        } as unknown as Tree;
 
         // Mock repository response
         vi.mocked(mockTreeRepo.findById).mockResolvedValue(mockTree);
@@ -244,7 +317,7 @@ describe('CyclePreventionService', () => {
         const mockTree = {
           wouldCreateCycle: vi.fn().mockReturnValue(true),
           getNode: vi.fn(),
-        } as Tree;
+        } as unknown as Tree;
 
         // Mock ancestor path tracing
         const mockParentNode = {
@@ -255,7 +328,7 @@ describe('CyclePreventionService', () => {
           getParentId: vi.fn().mockReturnValue(null),
         };
 
-        vi.mocked(mockTree.getNode).mockImplementation(nodeId => {
+        (mockTree.getNode as any).mockImplementation((nodeId: any) => {
           if (nodeId.equals(parentNodeId)) return mockParentNode;
           if (nodeId.equals(grandparentNodeId)) return mockGrandparentNode;
           return null;
@@ -283,9 +356,11 @@ describe('CyclePreventionService', () => {
 
         // Mock tree that would create cycle
         const mockTree = {
-          wouldCreateCycle: vi.fn().mockReturnValue(true),
+          getId: vi.fn(),
+          wouldCreateCycle: vi.fn(),
           getNode: vi.fn(),
-        } as Tree;
+        } as unknown as Tree;
+        (mockTree.wouldCreateCycle as any).mockReturnValue(true);
 
         // Mock complete ancestor chain
         const mockParentNode = {
@@ -300,7 +375,7 @@ describe('CyclePreventionService', () => {
           getParentId: vi.fn().mockReturnValue(null),
         };
 
-        vi.mocked(mockTree.getNode).mockImplementation(nodeId => {
+        (mockTree.getNode as any).mockImplementation((nodeId: any) => {
           if (nodeId.equals(parentNodeId)) return mockParentNode;
           if (nodeId.equals(grandparentNodeId)) return mockGrandparentNode;
           if (nodeId.equals(childNodeId)) return mockChildNode;
@@ -308,7 +383,7 @@ describe('CyclePreventionService', () => {
         });
 
         // Mock repository response
-        vi.mocked(mockTreeRepo.findById).mockResolvedValue(mockTree);
+        (mockTreeRepo.findById as any).mockResolvedValue(mockTree);
 
         const result = await service.validateTreeCyclePrevention(treeId, parentNodeId, childNodeId);
 
@@ -329,7 +404,7 @@ describe('CyclePreventionService', () => {
         const childNodeId = nodeIdFactory.build();
 
         // Mock repository to return null
-        vi.mocked(mockTreeRepo.findById).mockResolvedValue(null);
+        (mockTreeRepo.findById as any).mockResolvedValue(null);
 
         const result = await service.validateTreeCyclePrevention(treeId, parentNodeId, childNodeId);
 
@@ -415,7 +490,7 @@ describe('CyclePreventionService', () => {
           expect(validation.isCircular).toBe(true);
           expect(validation.argumentChain).toEqual(argumentChain);
           expect(validation.reason).toContain(
-            `Circular reasoning detected: argument ${argumentA.getValue()} appears multiple times`
+            `Circular reasoning detected: argument ${argumentA.getValue()} appears multiple times`,
           );
         }
       });
@@ -434,7 +509,7 @@ describe('CyclePreventionService', () => {
           expect(validation.isCircular).toBe(true);
           expect(validation.argumentChain).toEqual(argumentChain);
           expect(validation.reason).toContain(
-            `Circular reasoning detected: argument ${argumentB.getValue()} appears multiple times`
+            `Circular reasoning detected: argument ${argumentB.getValue()} appears multiple times`,
           );
         }
       });
@@ -493,17 +568,28 @@ describe('CyclePreventionService', () => {
 
         // Mock arguments that are safe to connect
         const mockSourceArg = {
-          validateConnectionSafety: vi.fn().mockReturnValue(ok(undefined)),
-          wouldCreateDirectCycle: vi.fn().mockReturnValue(false),
-        } as AtomicArgument;
+          getId: vi.fn(),
+          getPremiseSetRef: vi.fn(),
+          getConclusionSetRef: vi.fn(),
+          validateConnectionSafety: vi.fn(),
+          wouldCreateDirectCycle: vi.fn(),
+        } as unknown as AtomicArgument;
+        (mockSourceArg.validateConnectionSafety as any).mockReturnValue(ok(undefined));
+        (mockSourceArg.wouldCreateDirectCycle as any).mockReturnValue(false);
 
-        const mockTargetArg = {} as AtomicArgument;
+        const mockTargetArg = {
+          getId: vi.fn(),
+          getPremiseSetRef: vi.fn(),
+          getConclusionSetRef: vi.fn(),
+          validateConnectionSafety: vi.fn(),
+          wouldCreateDirectCycle: vi.fn(),
+        } as unknown as AtomicArgument;
 
         // Mock repository responses
-        vi.mocked(mockAtomicArgumentRepo.findById).mockImplementation(id => {
-          if (id.equals(sourceId)) return Promise.resolve(mockSourceArg);
-          if (id.equals(targetId)) return Promise.resolve(mockTargetArg);
-          return Promise.resolve(null);
+        (mockAtomicArgumentRepo.findById as any).mockImplementation(async (id: any) => {
+          if (id.equals(sourceId)) return mockSourceArg;
+          if (id.equals(targetId)) return mockTargetArg;
+          return null;
         });
 
         const result = await service.validateConnectionSafety(sourceId, targetId);
@@ -523,17 +609,28 @@ describe('CyclePreventionService', () => {
 
         // Mock arguments that would create logical cycle
         const mockSourceArg = {
-          validateConnectionSafety: vi.fn().mockReturnValue(ok(undefined)),
-          wouldCreateDirectCycle: vi.fn().mockReturnValue(true),
-        } as AtomicArgument;
+          getId: vi.fn(),
+          getPremiseSetRef: vi.fn(),
+          getConclusionSetRef: vi.fn(),
+          validateConnectionSafety: vi.fn(),
+          wouldCreateDirectCycle: vi.fn(),
+        } as unknown as AtomicArgument;
+        (mockSourceArg.validateConnectionSafety as any).mockReturnValue(ok(undefined));
+        (mockSourceArg.wouldCreateDirectCycle as any).mockReturnValue(true);
 
-        const mockTargetArg = {} as AtomicArgument;
+        const mockTargetArg = {
+          getId: vi.fn(),
+          getPremiseSetRef: vi.fn(),
+          getConclusionSetRef: vi.fn(),
+          validateConnectionSafety: vi.fn(),
+          wouldCreateDirectCycle: vi.fn(),
+        } as unknown as AtomicArgument;
 
         // Mock repository responses
-        vi.mocked(mockAtomicArgumentRepo.findById).mockImplementation(id => {
-          if (id.equals(sourceId)) return Promise.resolve(mockSourceArg);
-          if (id.equals(targetId)) return Promise.resolve(mockTargetArg);
-          return Promise.resolve(null);
+        (mockAtomicArgumentRepo.findById as any).mockImplementation(async (id: any) => {
+          if (id.equals(sourceId)) return mockSourceArg;
+          if (id.equals(targetId)) return mockTargetArg;
+          return null;
         });
 
         const result = await service.validateConnectionSafety(sourceId, targetId);
@@ -553,14 +650,19 @@ describe('CyclePreventionService', () => {
 
         // Mock argument that doesn't create logical cycle but creates circular reasoning
         const mockArg = {
-          validateConnectionSafety: vi.fn().mockReturnValue(ok(undefined)),
-          wouldCreateDirectCycle: vi.fn().mockReturnValue(false),
-        } as AtomicArgument;
+          getId: vi.fn(),
+          getPremiseSetRef: vi.fn(),
+          getConclusionSetRef: vi.fn(),
+          validateConnectionSafety: vi.fn(),
+          wouldCreateDirectCycle: vi.fn(),
+        } as unknown as AtomicArgument;
+        (mockArg.validateConnectionSafety as any).mockReturnValue(ok(undefined));
+        (mockArg.wouldCreateDirectCycle as any).mockReturnValue(false);
 
         // Mock repository responses
-        vi.mocked(mockAtomicArgumentRepo.findById).mockImplementation(id => {
-          if (id.equals(sourceId)) return Promise.resolve(mockArg);
-          return Promise.resolve(null);
+        (mockAtomicArgumentRepo.findById as any).mockImplementation(async (id: any) => {
+          if (id.equals(sourceId)) return mockArg;
+          return null;
         });
 
         const result = await service.validateConnectionSafety(sourceId, targetId);
@@ -580,14 +682,19 @@ describe('CyclePreventionService', () => {
 
         // Mock argument that creates both logical cycle and circular reasoning
         const mockArg = {
-          validateConnectionSafety: vi.fn().mockReturnValue(ok(undefined)),
-          wouldCreateDirectCycle: vi.fn().mockReturnValue(true),
-        } as AtomicArgument;
+          getId: vi.fn(),
+          getPremiseSetRef: vi.fn(),
+          getConclusionSetRef: vi.fn(),
+          validateConnectionSafety: vi.fn(),
+          wouldCreateDirectCycle: vi.fn(),
+        } as unknown as AtomicArgument;
+        (mockArg.validateConnectionSafety as any).mockReturnValue(ok(undefined));
+        (mockArg.wouldCreateDirectCycle as any).mockReturnValue(true);
 
         // Mock repository responses
-        vi.mocked(mockAtomicArgumentRepo.findById).mockImplementation(id => {
-          if (id.equals(sourceId)) return Promise.resolve(mockArg);
-          return Promise.resolve(null);
+        (mockAtomicArgumentRepo.findById as any).mockImplementation(async (id: any) => {
+          if (id.equals(sourceId)) return mockArg;
+          return null;
         });
 
         const result = await service.validateConnectionSafety(sourceId, targetId);
@@ -608,7 +715,7 @@ describe('CyclePreventionService', () => {
         const targetId = atomicArgumentIdFactory.build();
 
         // Mock repository to return null (arguments not found)
-        vi.mocked(mockAtomicArgumentRepo.findById).mockResolvedValue(null);
+        (mockAtomicArgumentRepo.findById as any).mockResolvedValue(null);
 
         const result = await service.validateConnectionSafety(sourceId, targetId);
 
@@ -625,7 +732,8 @@ describe('CyclePreventionService', () => {
     describe('complex cycle detection', () => {
       it('should handle deeply nested argument chains', () => {
         const argumentIds = Array.from({ length: 10 }, () => atomicArgumentIdFactory.build());
-        argumentIds.push(argumentIds[0]); // Create cycle by adding first argument at end
+        const firstArgument = argumentIds[0];
+        if (firstArgument) argumentIds.push(firstArgument); // Create cycle by adding first argument at end
 
         const result = service.preventCircularReasoning(argumentIds);
 
@@ -633,7 +741,7 @@ describe('CyclePreventionService', () => {
         if (result.isOk()) {
           const validation = result.value;
           expect(validation.isCircular).toBe(true);
-          expect(validation.reason).toContain(argumentIds[0].getValue());
+          expect(validation.reason).toContain(argumentIds[0]?.getValue());
         }
       });
 
@@ -679,20 +787,22 @@ describe('CyclePreventionService', () => {
 
         // Mock tree and nodes
         const mockTree = {
-          wouldCreateCycle: vi.fn().mockReturnValue(false),
+          getId: vi.fn(),
+          wouldCreateCycle: vi.fn(),
           getNode: vi.fn(),
-        } as Tree;
+        } as unknown as Tree;
+        (mockTree.wouldCreateCycle as any).mockReturnValue(false);
 
         const mockParentNode = {
           getParentId: vi.fn().mockReturnValue(null), // Root node
         };
 
-        vi.mocked(mockTree.getNode).mockImplementation(nodeId => {
+        (mockTree.getNode as any).mockImplementation((nodeId: any) => {
           if (nodeId.equals(parentNodeId)) return mockParentNode;
           return null;
         });
 
-        vi.mocked(mockTreeRepo.findById).mockResolvedValue(mockTree);
+        (mockTreeRepo.findById as any).mockResolvedValue(mockTree);
 
         const result = await service.validateTreeCyclePrevention(treeId, parentNodeId, childNodeId);
 
@@ -715,13 +825,15 @@ describe('CyclePreventionService', () => {
         nodeIds.push(rootNodeId);
 
         const mockTree = {
-          wouldCreateCycle: vi.fn().mockReturnValue(false),
+          getId: vi.fn(),
+          wouldCreateCycle: vi.fn(),
           getNode: vi.fn(),
-        } as Tree;
+        } as unknown as Tree;
+        (mockTree.wouldCreateCycle as any).mockReturnValue(false);
 
         // Mock nodes with parent-child relationships forming a deep chain
-        vi.mocked(mockTree.getNode).mockImplementation(nodeId => {
-          const index = nodeIds.findIndex(id => id.equals(nodeId));
+        (mockTree.getNode as any).mockImplementation((nodeId: any) => {
+          const index = nodeIds.findIndex((id) => id.equals(nodeId));
           if (index === -1) return null;
 
           const mockNode = {
@@ -735,7 +847,7 @@ describe('CyclePreventionService', () => {
           return mockNode;
         });
 
-        vi.mocked(mockTreeRepo.findById).mockResolvedValue(mockTree);
+        (mockTreeRepo.findById as any).mockResolvedValue(mockTree);
 
         const result = await service.validateTreeCyclePrevention(treeId, leafNodeId, rootNodeId);
 
@@ -754,27 +866,38 @@ describe('CyclePreventionService', () => {
 
         // Mock safe arguments
         const mockSourceArg = {
-          validateConnectionSafety: vi.fn().mockReturnValue(ok(undefined)),
-          wouldCreateDirectCycle: vi.fn().mockReturnValue(false),
-        } as AtomicArgument;
+          getId: vi.fn(),
+          getPremiseSetRef: vi.fn(),
+          getConclusionSetRef: vi.fn(),
+          validateConnectionSafety: vi.fn(),
+          wouldCreateDirectCycle: vi.fn(),
+        } as unknown as AtomicArgument;
+        (mockSourceArg.validateConnectionSafety as any).mockReturnValue(ok(undefined));
+        (mockSourceArg.wouldCreateDirectCycle as any).mockReturnValue(false);
 
-        const mockTargetArg = {} as AtomicArgument;
+        const mockTargetArg = {
+          getId: vi.fn(),
+          getPremiseSetRef: vi.fn(),
+          getConclusionSetRef: vi.fn(),
+          validateConnectionSafety: vi.fn(),
+          wouldCreateDirectCycle: vi.fn(),
+        } as unknown as AtomicArgument;
 
-        vi.mocked(mockAtomicArgumentRepo.findById).mockImplementation(id => {
-          if (id.equals(sourceId)) return Promise.resolve(mockSourceArg);
-          if (id.equals(targetId)) return Promise.resolve(mockTargetArg);
-          return Promise.resolve(null);
+        (mockAtomicArgumentRepo.findById as any).mockImplementation(async (id: any) => {
+          if (id.equals(sourceId)) return mockSourceArg;
+          if (id.equals(targetId)) return mockTargetArg;
+          return null;
         });
 
         // Run many validations
-        const promises = Array.from({ length: 100 }, () =>
-          service.validateConnectionSafety(sourceId, targetId)
+        const promises = Array.from({ length: 100 }, async () =>
+          service.validateConnectionSafety(sourceId, targetId),
         );
 
         const results = await Promise.all(promises);
 
         // All should succeed
-        results.forEach(result => {
+        results.forEach((result) => {
           expect(result.isOk()).toBe(true);
         });
       });
@@ -850,7 +973,7 @@ describe('CyclePreventionService', () => {
         const result = new CircularReasoningValidationResult(
           true,
           argumentChain,
-          'Circular reasoning detected'
+          'Circular reasoning detected',
         );
 
         expect(result.isCircular).toBe(true);
@@ -866,7 +989,7 @@ describe('CyclePreventionService', () => {
         const result = new ConnectionSafetyResult(
           true,
           logicalCycleResult,
-          circularReasoningResult
+          circularReasoningResult,
         );
 
         expect(result.isSafe).toBe(true);
@@ -878,13 +1001,13 @@ describe('CyclePreventionService', () => {
         const logicalCycleResult = new CycleValidationResult(
           true,
           [atomicArgumentIdFactory.build()],
-          'Cycle detected'
+          'Cycle detected',
         );
         const circularReasoningResult = new CircularReasoningValidationResult(false, []);
         const result = new ConnectionSafetyResult(
           false,
           logicalCycleResult,
-          circularReasoningResult
+          circularReasoningResult,
         );
 
         expect(result.isSafe).toBe(false);

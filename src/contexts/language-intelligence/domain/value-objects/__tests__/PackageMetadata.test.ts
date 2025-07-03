@@ -13,14 +13,23 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ValidationError } from '../../errors/DomainErrors';
 import {
-  EducationalSettingsFactory,
+  createDefaultEducationalSettings,
+  createDefaultPerformanceSettings,
   PackageConfiguration,
   PackageDocumentation,
   PackageMetadata,
   type PackageMetadataOptions,
-  PerformanceSettingsFactory,
 } from '../PackageMetadata';
 import { Timestamp } from '../Timestamp';
+
+// Test factory objects to wrap existing factory functions
+const PerformanceSettingsFactory = {
+  createDefault: createDefaultPerformanceSettings,
+};
+
+const EducationalSettingsFactory = {
+  createDefault: createDefaultEducationalSettings,
+};
 
 describe('PackageMetadata', () => {
   let mockTimestamp: Timestamp;

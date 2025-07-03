@@ -10,6 +10,7 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+// Mock vscode module for testing
 
 // Core Domain Services
 import { StatementFlowService } from '../../domain/services/StatementFlowService.js';
@@ -18,11 +19,12 @@ import { TreeStructureService } from '../../domain/services/TreeStructureService
 import { activate, deactivate } from '../../extension/extension.js';
 // Parser layer
 import { ProofFileParser } from '../../parser/ProofFileParser.js';
+import { YAMLValidator } from '../../parser/YAMLValidator.js';
+import type { ProofDiagnosticProvider } from '../../validation/DiagnosticProvider.js';
 // Validation layer
 import { ValidationController } from '../../validation/ValidationController.js';
 // WebView layer
 import { ProofTreePanel } from '../../webview/ProofTreePanel.js';
-// Mock vscode module for testing
 import { commands, window, workspace } from '../__mocks__/vscode.js';
 
 // Mock VS Code environment
@@ -94,9 +96,11 @@ describe('Extension Integration Tests', () => {
     };
 
     // Initialize extension services
+    const yamlValidator = new YAMLValidator();
+    const mockDiagnosticProvider = {} as ProofDiagnosticProvider; // Mock for test
     extensionServices = {
-      parser: new ProofFileParser(),
-      validation: new ValidationController(),
+      parser: new ProofFileParser(yamlValidator),
+      validation: new ValidationController(mockDiagnosticProvider),
     };
   });
 
@@ -111,7 +115,7 @@ describe('Extension Integration Tests', () => {
       // Should register proof-specific commands
       const registeredCommands = vi
         .mocked(commands.registerCommand)
-        .mock.calls.map(call => call[0]);
+        .mock.calls.map((call: any[]) => call[0]);
 
       expect(registeredCommands).toContain('proof-editor.openProofTree');
       expect(registeredCommands).toContain('proof-editor.validateProof');
@@ -175,7 +179,7 @@ proof:
       // Act - Execute validation command
       const validateCommand = vi
         .mocked(commands.registerCommand)
-        .mock.calls.find(call => call[0] === 'proof-editor.validateProof');
+        .mock.calls.find((call: any[]) => call[0] === 'proof-editor.validateProof');
       expect(validateCommand).toBeDefined();
 
       if (validateCommand) {
@@ -194,7 +198,7 @@ proof:
       // Act - Execute create new proof command
       const createCommand = vi
         .mocked(commands.registerCommand)
-        .mock.calls.find(call => call[0] === 'proof-editor.createNewProof');
+        .mock.calls.find((call: any[]) => call[0] === 'proof-editor.createNewProof');
       expect(createCommand).toBeDefined();
 
       if (createCommand) {
@@ -206,7 +210,7 @@ proof:
           'workbench.action.files.newUntitledFile',
           expect.objectContaining({
             language: 'yaml',
-          })
+          }),
         );
       }
     });
@@ -259,7 +263,7 @@ proof:
       // Act - Execute open proof tree command
       const treeCommand = vi
         .mocked(commands.registerCommand)
-        .mock.calls.find(call => call[0] === 'proof-editor.openProofTree');
+        .mock.calls.find((call: any[]) => call[0] === 'proof-editor.openProofTree');
       expect(treeCommand).toBeDefined();
 
       if (treeCommand) {
@@ -274,7 +278,7 @@ proof:
           expect.objectContaining({
             enableScripts: true,
             retainContextWhenHidden: true,
-          })
+          }),
         );
 
         // Should populate webview with domain data
@@ -394,7 +398,7 @@ proof:
         if (premiseSet.isOk() && conclusionSet.isOk()) {
           const atomicArgument = domainServices.statementFlow.createAtomicArgumentWithSets(
             premiseSet.value,
-            conclusionSet.value
+            conclusionSet.value,
           );
 
           expect(atomicArgument.isOk()).toBe(true);
@@ -403,7 +407,7 @@ proof:
             // Act - Create proof tree panel with domain data
             const _proofTreePanel = ProofTreePanel.createOrShow(
               '/test/extension/path',
-              mockPanel as any
+              mockPanel as any,
             );
 
             // Simulate message from webview
@@ -446,7 +450,7 @@ proof:
 
       // Act - Simulate domain data update
       const updatedStatement = domainServices.statementFlow.createStatementFromContent(
-        'Updated statement content'
+        'Updated statement content',
       );
       expect(updatedStatement.isOk()).toBe(true);
 
@@ -469,7 +473,7 @@ proof:
         expect(mockWebview.postMessage).toHaveBeenCalledWith(
           expect.objectContaining({
             command: 'updateTree',
-          })
+          }),
         );
       }
     });
@@ -499,7 +503,7 @@ proof:
       // Act - Execute command that uses domain services
       const validateCommand = vi
         .mocked(commands.registerCommand)
-        .mock.calls.find(call => call[0] === 'proof-editor.validateProof');
+        .mock.calls.find((call: any[]) => call[0] === 'proof-editor.validateProof');
 
       if (validateCommand) {
         const commandHandler = validateCommand[1];
@@ -528,7 +532,7 @@ proof:
       try {
         // Execute multiple commands that might fail
         const validateCommand = vi.mocked(window.showErrorMessage);
-        validateCommand.mockImplementation(() => Promise.resolve());
+        validateCommand.mockImplementation(async () => Promise.resolve());
 
         // Extension should remain functional
         expect(mockContext.subscriptions.length).toBeGreaterThan(0);

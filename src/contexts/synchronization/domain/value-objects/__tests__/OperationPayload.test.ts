@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 import {
   type ArgumentPayload,
@@ -39,9 +39,9 @@ describe('OperationPayload', () => {
       expect(operationTypeResult.isOk()).toBe(true);
 
       if (operationTypeResult.isOk()) {
-        // @ts-expect-error - Testing invalid input
+        // Testing invalid input
         const nullResult = OperationPayload.create(null, operationTypeResult.value);
-        // @ts-expect-error - Testing invalid input
+        // Testing invalid input
         const undefinedResult = OperationPayload.create(undefined, operationTypeResult.value);
 
         expect(nullResult.isErr()).toBe(true);
@@ -115,7 +115,7 @@ describe('OperationPayload', () => {
         content: 'Statement without ID',
       };
 
-      // @ts-expect-error - Testing invalid payload
+      // Testing invalid payload
       const result = OperationPayload.create(data, createStatementType);
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
@@ -141,7 +141,7 @@ describe('OperationPayload', () => {
         id: 'stmt-1',
       };
 
-      // @ts-expect-error - Testing invalid payload
+      // Testing invalid payload
       const result = OperationPayload.create(data, createStatementType);
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
@@ -202,7 +202,7 @@ describe('OperationPayload', () => {
         conclusions: ['stmt-2'],
       };
 
-      // @ts-expect-error - Testing invalid payload
+      // Testing invalid payload
       const result = OperationPayload.create(data, createArgumentType);
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
@@ -216,7 +216,7 @@ describe('OperationPayload', () => {
         conclusions: ['stmt-2'],
       };
 
-      // @ts-expect-error - Testing invalid payload
+      // Testing invalid payload
       const result = OperationPayload.create(data, createArgumentType);
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
@@ -230,7 +230,7 @@ describe('OperationPayload', () => {
         premises: ['stmt-1'],
       };
 
-      // @ts-expect-error - Testing invalid payload
+      // Testing invalid payload
       const result = OperationPayload.create(data, createArgumentType);
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
@@ -279,7 +279,7 @@ describe('OperationPayload', () => {
         position: { x: 100, y: 200 },
       };
 
-      // @ts-expect-error - Testing invalid payload
+      // Testing invalid payload
       const result = OperationPayload.create(data, createTreeType);
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
@@ -293,7 +293,7 @@ describe('OperationPayload', () => {
         position: { x: 100, y: 200 },
       };
 
-      // @ts-expect-error - Testing invalid payload
+      // Testing invalid payload
       const result = OperationPayload.create(data, createTreeType);
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
@@ -307,7 +307,7 @@ describe('OperationPayload', () => {
         rootNodeId: 'node-1',
       };
 
-      // @ts-expect-error - Testing invalid payload
+      // Testing invalid payload
       const result = OperationPayload.create(data, createTreeType);
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
@@ -353,7 +353,7 @@ describe('OperationPayload', () => {
         y: 200,
       };
 
-      // @ts-expect-error - Testing invalid payload
+      // Testing invalid payload
       const result = OperationPayload.create(data, updatePositionType);
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
@@ -366,7 +366,7 @@ describe('OperationPayload', () => {
         x: 100,
       };
 
-      // @ts-expect-error - Testing invalid payload
+      // Testing invalid payload
       const result = OperationPayload.create(data, updatePositionType);
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
@@ -380,7 +380,7 @@ describe('OperationPayload', () => {
         y: 200,
       };
 
-      // @ts-expect-error - Testing invalid payload
+      // Testing invalid payload
       const result = OperationPayload.create(data, updatePositionType);
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
@@ -418,7 +418,7 @@ describe('OperationPayload', () => {
         connectionType: 'LOGICAL_FLOW',
       };
 
-      // @ts-expect-error - Testing invalid payload
+      // Testing invalid payload
       const result = OperationPayload.create(data, createConnectionType);
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
@@ -432,7 +432,7 @@ describe('OperationPayload', () => {
         connectionType: 'LOGICAL_FLOW',
       };
 
-      // @ts-expect-error - Testing invalid payload
+      // Testing invalid payload
       const result = OperationPayload.create(data, createConnectionType);
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
@@ -468,7 +468,7 @@ describe('OperationPayload', () => {
         value: 'John Doe',
       };
 
-      // @ts-expect-error - Testing invalid payload
+      // Testing invalid payload
       const result = OperationPayload.create(data, updateMetadataType);
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
@@ -676,7 +676,7 @@ describe('OperationPayload', () => {
           if (payload1Result.isOk() && payload2Result.isOk()) {
             const transformResult = payload1Result.value.transform(
               payload2Result.value,
-              'POSITION_OFFSET'
+              'POSITION_OFFSET',
             );
             expect(transformResult.isOk()).toBe(true);
 
@@ -701,7 +701,7 @@ describe('OperationPayload', () => {
           if (payloadResult.isOk()) {
             const transformResult = payloadResult.value.transform(
               payloadResult.value,
-              'POSITION_OFFSET'
+              'POSITION_OFFSET',
             );
             expect(transformResult.isOk()).toBe(true);
 
@@ -731,7 +731,7 @@ describe('OperationPayload', () => {
           if (payload1Result.isOk() && payload2Result.isOk()) {
             const transformResult = payload1Result.value.transform(
               payload2Result.value,
-              'CONTENT_MERGE'
+              'CONTENT_MERGE',
             );
             expect(transformResult.isOk()).toBe(true);
 
@@ -754,14 +754,14 @@ describe('OperationPayload', () => {
           const objectData = { id: 'test' };
           const objectPayloadResult = OperationPayload.create(
             objectData,
-            statementTypeResult.value
+            statementTypeResult.value,
           );
 
           // This tests the transform logic path for object payloads
           if (objectPayloadResult.isOk()) {
             const transformResult = objectPayloadResult.value.transform(
               objectPayloadResult.value,
-              'CONTENT_MERGE'
+              'CONTENT_MERGE',
             );
             expect(transformResult.isOk()).toBe(true);
           }
@@ -793,7 +793,7 @@ describe('OperationPayload', () => {
           if (payload1Result.isOk() && payload2Result.isOk()) {
             const transformResult = payload1Result.value.transform(
               payload2Result.value,
-              'METADATA_MERGE'
+              'METADATA_MERGE',
             );
             expect(transformResult.isOk()).toBe(true);
 
@@ -830,7 +830,7 @@ describe('OperationPayload', () => {
           if (payload1Result.isOk() && payload2Result.isOk()) {
             const transformResult = payload1Result.value.transform(
               payload2Result.value,
-              'METADATA_MERGE'
+              'METADATA_MERGE',
             );
             expect(transformResult.isOk()).toBe(true);
 
@@ -854,7 +854,7 @@ describe('OperationPayload', () => {
         if (payloadResult.isOk()) {
           const transformResult = payloadResult.value.transform(
             payloadResult.value,
-            'UNKNOWN_TRANSFORMATION'
+            'UNKNOWN_TRANSFORMATION',
           );
           expect(transformResult.isOk()).toBe(true);
 

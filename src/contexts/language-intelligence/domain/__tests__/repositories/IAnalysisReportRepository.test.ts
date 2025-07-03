@@ -32,17 +32,17 @@ describe('IAnalysisReportRepository', () => {
 
       // Create a mock implementation to verify interface structure
       const mockRepository: IAnalysisReportRepository = {
-        findById: () => Promise.resolve(null),
-        findByDocumentId: () => Promise.resolve([]),
-        findByLanguagePackageId: () => Promise.resolve([]),
-        findRecentReports: () => Promise.resolve([]),
-        save: () => Promise.resolve(ok(undefined)),
-        delete: () => Promise.resolve(ok(undefined)),
-        findAll: () => Promise.resolve([]),
+        findById: async () => Promise.resolve(null),
+        findByDocumentId: async () => Promise.resolve([]),
+        findByLanguagePackageId: async () => Promise.resolve([]),
+        findRecentReports: async () => Promise.resolve([]),
+        save: async () => Promise.resolve(ok(undefined)),
+        delete: async () => Promise.resolve(ok(undefined)),
+        findAll: async () => Promise.resolve([]),
       };
 
       // Verify all methods exist
-      repositoryMethods.forEach(method => {
+      repositoryMethods.forEach((method) => {
         expect(mockRepository).toHaveProperty(method);
         expect(typeof mockRepository[method as keyof IAnalysisReportRepository]).toBe('function');
       });
@@ -50,13 +50,13 @@ describe('IAnalysisReportRepository', () => {
 
     it('should have async methods that return correct types', () => {
       const mockRepository: IAnalysisReportRepository = {
-        findById: () => Promise.resolve(null),
-        findByDocumentId: () => Promise.resolve([]),
-        findByLanguagePackageId: () => Promise.resolve([]),
-        findRecentReports: () => Promise.resolve([]),
-        save: () => Promise.resolve(ok(undefined)),
-        delete: () => Promise.resolve(ok(undefined)),
-        findAll: () => Promise.resolve([]),
+        findById: async () => Promise.resolve(null),
+        findByDocumentId: async () => Promise.resolve([]),
+        findByLanguagePackageId: async () => Promise.resolve([]),
+        findRecentReports: async () => Promise.resolve([]),
+        save: async () => Promise.resolve(ok(undefined)),
+        delete: async () => Promise.resolve(ok(undefined)),
+        findAll: async () => Promise.resolve([]),
       };
 
       // All methods should be functions
@@ -73,16 +73,16 @@ describe('IAnalysisReportRepository', () => {
   describe('method signatures', () => {
     it('should accept correct parameter types for findById', async () => {
       const mockRepository: IAnalysisReportRepository = {
-        findById: (id: AnalysisReportId) => {
+        findById: async (id: AnalysisReportId) => {
           expect(id).toBeDefined();
           return Promise.resolve(null);
         },
-        findByDocumentId: () => Promise.resolve([]),
-        findByLanguagePackageId: () => Promise.resolve([]),
-        findRecentReports: () => Promise.resolve([]),
-        save: () => Promise.resolve(ok(undefined)),
-        delete: () => Promise.resolve(ok(undefined)),
-        findAll: () => Promise.resolve([]),
+        findByDocumentId: async () => Promise.resolve([]),
+        findByLanguagePackageId: async () => Promise.resolve([]),
+        findRecentReports: async () => Promise.resolve([]),
+        save: async () => Promise.resolve(ok(undefined)),
+        delete: async () => Promise.resolve(ok(undefined)),
+        findAll: async () => Promise.resolve([]),
       };
 
       const mockId = { getValue: () => 'test-id' } as AnalysisReportId;
@@ -91,17 +91,17 @@ describe('IAnalysisReportRepository', () => {
 
     it('should accept correct parameter types for findByDocumentId', async () => {
       const mockRepository: IAnalysisReportRepository = {
-        findById: () => Promise.resolve(null),
-        findByDocumentId: (documentId: string) => {
+        findById: async () => Promise.resolve(null),
+        findByDocumentId: async (documentId: string) => {
           expect(documentId).toBeDefined();
           expect(typeof documentId).toBe('string');
           return Promise.resolve([]);
         },
-        findByLanguagePackageId: () => Promise.resolve([]),
-        findRecentReports: () => Promise.resolve([]),
-        save: () => Promise.resolve(ok(undefined)),
-        delete: () => Promise.resolve(ok(undefined)),
-        findAll: () => Promise.resolve([]),
+        findByLanguagePackageId: async () => Promise.resolve([]),
+        findRecentReports: async () => Promise.resolve([]),
+        save: async () => Promise.resolve(ok(undefined)),
+        delete: async () => Promise.resolve(ok(undefined)),
+        findAll: async () => Promise.resolve([]),
       };
 
       await mockRepository.findByDocumentId('test-doc-id');
@@ -109,17 +109,17 @@ describe('IAnalysisReportRepository', () => {
 
     it('should accept correct parameter types for findByLanguagePackageId', async () => {
       const mockRepository: IAnalysisReportRepository = {
-        findById: () => Promise.resolve(null),
-        findByDocumentId: () => Promise.resolve([]),
-        findByLanguagePackageId: (languagePackageId: string) => {
+        findById: async () => Promise.resolve(null),
+        findByDocumentId: async () => Promise.resolve([]),
+        findByLanguagePackageId: async (languagePackageId: string) => {
           expect(languagePackageId).toBeDefined();
           expect(typeof languagePackageId).toBe('string');
           return Promise.resolve([]);
         },
-        findRecentReports: () => Promise.resolve([]),
-        save: () => Promise.resolve(ok(undefined)),
-        delete: () => Promise.resolve(ok(undefined)),
-        findAll: () => Promise.resolve([]),
+        findRecentReports: async () => Promise.resolve([]),
+        save: async () => Promise.resolve(ok(undefined)),
+        delete: async () => Promise.resolve(ok(undefined)),
+        findAll: async () => Promise.resolve([]),
       };
 
       await mockRepository.findByLanguagePackageId('test-pkg-id');
@@ -127,16 +127,16 @@ describe('IAnalysisReportRepository', () => {
 
     it('should accept correct parameter types for save', async () => {
       const mockRepository: IAnalysisReportRepository = {
-        findById: () => Promise.resolve(null),
-        findByDocumentId: () => Promise.resolve([]),
-        findByLanguagePackageId: () => Promise.resolve([]),
-        findRecentReports: () => Promise.resolve([]),
-        save: (report: AnalysisReport) => {
+        findById: async () => Promise.resolve(null),
+        findByDocumentId: async () => Promise.resolve([]),
+        findByLanguagePackageId: async () => Promise.resolve([]),
+        findRecentReports: async () => Promise.resolve([]),
+        save: async (report: AnalysisReport) => {
           expect(report).toBeDefined();
           return Promise.resolve(ok(undefined));
         },
-        delete: () => Promise.resolve(ok(undefined)),
-        findAll: () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
+        findAll: async () => Promise.resolve([]),
       };
 
       const mockReport = {} as AnalysisReport;
@@ -145,16 +145,16 @@ describe('IAnalysisReportRepository', () => {
 
     it('should accept correct parameter types for delete', async () => {
       const mockRepository: IAnalysisReportRepository = {
-        findById: () => Promise.resolve(null),
-        findByDocumentId: () => Promise.resolve([]),
-        findByLanguagePackageId: () => Promise.resolve([]),
-        findRecentReports: () => Promise.resolve([]),
-        save: () => Promise.resolve(ok(undefined)),
-        delete: (id: AnalysisReportId) => {
+        findById: async () => Promise.resolve(null),
+        findByDocumentId: async () => Promise.resolve([]),
+        findByLanguagePackageId: async () => Promise.resolve([]),
+        findRecentReports: async () => Promise.resolve([]),
+        save: async () => Promise.resolve(ok(undefined)),
+        delete: async (id: AnalysisReportId) => {
           expect(id).toBeDefined();
           return Promise.resolve(ok(undefined));
         },
-        findAll: () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
       };
 
       const mockId = { getValue: () => 'test-id' } as AnalysisReportId;
@@ -165,13 +165,13 @@ describe('IAnalysisReportRepository', () => {
   describe('return types', () => {
     it('should return Promise types for all methods', () => {
       const mockRepository: IAnalysisReportRepository = {
-        findById: () => Promise.resolve(null),
-        findByDocumentId: () => Promise.resolve([]),
-        findByLanguagePackageId: () => Promise.resolve([]),
-        findRecentReports: () => Promise.resolve([]),
-        save: () => Promise.resolve(ok(undefined)),
-        delete: () => Promise.resolve(ok(undefined)),
-        findAll: () => Promise.resolve([]),
+        findById: async () => Promise.resolve(null),
+        findByDocumentId: async () => Promise.resolve([]),
+        findByLanguagePackageId: async () => Promise.resolve([]),
+        findRecentReports: async () => Promise.resolve([]),
+        save: async () => Promise.resolve(ok(undefined)),
+        delete: async () => Promise.resolve(ok(undefined)),
+        findAll: async () => Promise.resolve([]),
       };
 
       // Test that methods return Promises
@@ -189,13 +189,13 @@ describe('IAnalysisReportRepository', () => {
     it('should enforce correct interface implementation', () => {
       // This test verifies that the interface can be properly implemented
       const implementRepository = (): IAnalysisReportRepository => ({
-        findById: () => Promise.resolve(null),
-        findByDocumentId: () => Promise.resolve([]),
-        findByLanguagePackageId: () => Promise.resolve([]),
-        findRecentReports: () => Promise.resolve([]),
-        save: () => Promise.resolve(ok(undefined)),
-        delete: () => Promise.resolve(ok(undefined)),
-        findAll: () => Promise.resolve([]),
+        findById: async () => Promise.resolve(null),
+        findByDocumentId: async () => Promise.resolve([]),
+        findByLanguagePackageId: async () => Promise.resolve([]),
+        findRecentReports: async () => Promise.resolve([]),
+        save: async () => Promise.resolve(ok(undefined)),
+        delete: async () => Promise.resolve(ok(undefined)),
+        findAll: async () => Promise.resolve([]),
       });
 
       const repository = implementRepository();

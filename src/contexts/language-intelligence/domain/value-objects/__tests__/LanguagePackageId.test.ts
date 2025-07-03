@@ -95,7 +95,7 @@ describe('LanguagePackageId', () => {
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
         expect(result.error.message).toBe(
-          'Language package ID can only contain letters, numbers, dots, hyphens, and underscores'
+          'Language package ID can only contain letters, numbers, dots, hyphens, and underscores',
         );
       }
     });
@@ -106,7 +106,7 @@ describe('LanguagePackageId', () => {
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
         expect(result.error.message).toBe(
-          'Language package ID can only contain letters, numbers, dots, hyphens, and underscores'
+          'Language package ID can only contain letters, numbers, dots, hyphens, and underscores',
         );
       }
     });
@@ -117,7 +117,7 @@ describe('LanguagePackageId', () => {
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
         expect(result.error.message).toBe(
-          'Language package ID can only contain letters, numbers, dots, hyphens, and underscores'
+          'Language package ID can only contain letters, numbers, dots, hyphens, and underscores',
         );
       }
     });

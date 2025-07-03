@@ -23,7 +23,7 @@ const columnArbitrary = fc.integer({ min: 0, max: 500 });
 const documentUriArbitrary = fc.oneof(
   fc.constant(undefined),
   fc.webUrl(),
-  fc.string({ minLength: 1, maxLength: 200 }).map(s => `file:///${s}`)
+  fc.string({ minLength: 1, maxLength: 200 }).map((s) => `file:///${s}`),
 );
 
 // Generate valid position pairs where end >= start
@@ -37,7 +37,7 @@ const _nonOverlappingRangesArbitrary = fc
     lineArbitrary,
     columnArbitrary,
     fc.integer({ min: 1, max: 10 }),
-    fc.integer({ min: 1, max: 50 })
+    fc.integer({ min: 1, max: 50 }),
   )
   .chain(([startLine, startCol, lineGap, colWidth]) => {
     const endLine1 = startLine;
@@ -106,7 +106,7 @@ describe('SourceLocation Value Object', () => {
                 startColumn,
                 endLine,
                 endColumn,
-                documentUri
+                documentUri,
               );
 
               expect(result.isOk()).toBe(true);
@@ -118,8 +118,8 @@ describe('SourceLocation Value Object', () => {
                 expect(location.getEndColumn()).toBe(endColumn);
                 expect(location.getDocumentUri()).toBe(documentUri);
               }
-            }
-          )
+            },
+          ),
         );
       });
     });
@@ -162,7 +162,7 @@ describe('SourceLocation Value Object', () => {
         if (result.isErr()) {
           expect(result.error).toBeInstanceOf(ValidationError);
           expect(result.error.message).toBe(
-            'End column cannot be before start column on same line'
+            'End column cannot be before start column on same line',
           );
         }
       });
@@ -485,7 +485,7 @@ describe('SourceLocation Value Object', () => {
 
         if (range1.isOk() && range2.isOk()) {
           expect(range1.value.intersects(range2.value)).toBe(
-            range1.value.overlapsRange(range2.value)
+            range1.value.overlapsRange(range2.value),
           );
         }
       });
@@ -581,7 +581,7 @@ describe('SourceLocation Value Object', () => {
           if (unionResult.isErr()) {
             expect(unionResult.error).toBeInstanceOf(ValidationError);
             expect(unionResult.error.message).toBe(
-              'Cannot union locations from different documents'
+              'Cannot union locations from different documents',
             );
           }
         }
@@ -772,8 +772,8 @@ describe('SourceLocation Value Object', () => {
                 expect(l1.contains(l3)).toBe(true);
               }
             }
-          }
-        )
+          },
+        ),
       );
     });
 
@@ -794,8 +794,8 @@ describe('SourceLocation Value Object', () => {
                 expect(union1.value.equals(union2.value)).toBe(true);
               }
             }
-          }
-        )
+          },
+        ),
       );
     });
 
@@ -810,11 +810,11 @@ describe('SourceLocation Value Object', () => {
 
             if (loc1.isOk() && loc2.isOk()) {
               expect(loc1.value.overlapsRange(loc2.value)).toBe(
-                loc2.value.overlapsRange(loc1.value)
+                loc2.value.overlapsRange(loc1.value),
               );
             }
-          }
-        )
+          },
+        ),
       );
     });
 
@@ -829,7 +829,7 @@ describe('SourceLocation Value Object', () => {
             expect(lineCount).toBeGreaterThan(0);
             expect(lineCount).toBe(endLine - startLine + 1);
           }
-        })
+        }),
       );
     });
 
@@ -852,8 +852,8 @@ describe('SourceLocation Value Object', () => {
                 expect(union.contains(loc2.value)).toBe(true);
               }
             }
-          }
-        )
+          },
+        ),
       );
     });
   });

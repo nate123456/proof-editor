@@ -15,21 +15,22 @@ import { OrderedSet } from '../../entities/OrderedSet';
 import { Statement } from '../../entities/Statement';
 import { RepositoryError } from '../../errors/DomainErrors';
 import type { IOrderedSetRepository } from '../../repositories/IOrderedSetRepository';
-import { OrderedSetId } from '../../shared/value-objects';
+import type { QueryOptions } from '../../shared/repository-types';
+import { OrderedSetId, type StatementId } from '../../shared/value-objects';
 import { orderedSetIdFactory, statementContentFactory } from '../factories';
 
 // Mock implementation of IOrderedSetRepository for testing
 class MockOrderedSetRepository implements IOrderedSetRepository {
-  private orderedSets = new Map<string, OrderedSet>();
+  private readonly orderedSets = new Map<string, OrderedSet>();
 
-  save(orderedSet: OrderedSet): Promise<Result<void, RepositoryError>> {
+  async save(orderedSet: OrderedSet): Promise<Result<void, RepositoryError>> {
     try {
       // Simulate validation
       if (!orderedSet?.getId()) {
         return err(new RepositoryError('Invalid ordered set provided'));
       }
 
-      const id = orderedSet.getId().value;
+      const id = orderedSet.getId().getValue();
 
       // Check for circular references (simplified check)
       const statementIds = orderedSet.getStatementIds();
@@ -45,18 +46,18 @@ class MockOrderedSetRepository implements IOrderedSetRepository {
     }
   }
 
-  findById(id: OrderedSetId): Promise<OrderedSet | null> {
-    const orderedSet = this.orderedSets.get(id.value);
+  async findById(id: OrderedSetId): Promise<OrderedSet | null> {
+    const orderedSet = this.orderedSets.get(id.getValue());
     return Promise.resolve(orderedSet ?? null);
   }
 
-  findAll(): Promise<OrderedSet[]> {
+  async findAll(): Promise<OrderedSet[]> {
     return Promise.resolve(Array.from(this.orderedSets.values()));
   }
 
-  delete(id: OrderedSetId): Promise<Result<void, RepositoryError>> {
+  async delete(id: OrderedSetId): Promise<Result<void, RepositoryError>> {
     try {
-      const orderedSet = this.orderedSets.get(id.value);
+      const orderedSet = this.orderedSets.get(id.getValue());
       if (!orderedSet) {
         return err(new RepositoryError('Ordered set not found'));
       }
@@ -67,7 +68,7 @@ class MockOrderedSetRepository implements IOrderedSetRepository {
         return err(new RepositoryError('Cannot delete ordered set that is referenced'));
       }
 
-      this.orderedSets.delete(id.value);
+      this.orderedSets.delete(id.getValue());
 
       return ok(undefined);
     } catch (error) {
@@ -87,7 +88,72 @@ class MockOrderedSetRepository implements IOrderedSetRepository {
   // Simulate reference checking
   private isReferenced(id: OrderedSetId): boolean {
     // In tests, we'll mark some IDs as "referenced"
-    return id.value.includes('referenced');
+    return id.getValue().includes('referenced');
+  }
+
+  // New business query methods - placeholder implementations for testing
+  async findOrderedSetsBySize(size: number, _options?: QueryOptions): Promise<OrderedSet[]> {
+    const allSets = Array.from(this.orderedSets.values());
+    const results: OrderedSet[] = [];
+    for (const set of allSets) {
+      if (set.getStatementIds().length === size) {
+        results.push(set);
+      }
+    }
+    return results;
+  }
+
+  async findOrderedSetsContaining(
+    statementId: StatementId,
+    _options?: QueryOptions,
+  ): Promise<OrderedSet[]> {
+    const allSets = Array.from(this.orderedSets.values());
+    const results: OrderedSet[] = [];
+    for (const set of allSets) {
+      if (set.getStatementIds().some((id) => id.equals(statementId))) {
+        results.push(set);
+      }
+    }
+    return results;
+  }
+
+  async findSharedOrderedSets(
+    _minSharedCount?: number,
+    _options?: QueryOptions,
+  ): Promise<OrderedSet[]> {
+    return [];
+  }
+
+  async findOrderedSetsByPattern(
+    _pattern: string[],
+    _exactMatch?: boolean,
+    _options?: QueryOptions,
+  ): Promise<OrderedSet[]> {
+    return [];
+  }
+
+  async findUnusedOrderedSets(_options?: QueryOptions): Promise<OrderedSet[]> {
+    return [];
+  }
+
+  async findOrderedSetsByReferenceCount(
+    _minReferences: number,
+    _options?: QueryOptions,
+  ): Promise<OrderedSet[]> {
+    return [];
+  }
+
+  async findSimilarOrderedSets(
+    _orderedSetId: OrderedSetId,
+    _similarityThreshold?: number,
+    _options?: QueryOptions,
+  ): Promise<OrderedSet[]> {
+    return [];
+  }
+
+  async findEmptyOrderedSets(_options?: QueryOptions): Promise<OrderedSet[]> {
+    const allSets = Array.from(this.orderedSets.values());
+    return allSets.filter((set) => set.getStatementIds().length === 0);
   }
 }
 
@@ -104,14 +170,16 @@ describe('IOrderedSetRepository', () => {
 
   describe('save', () => {
     it('should save a valid ordered set successfully', async () => {
-      const statements = Array.from(
-        { length: 3 },
-        () => Statement.create(statementContentFactory.build()).value
-      );
+      const statements = Array.from({ length: 3 }, () => {
+        const result = Statement.create(statementContentFactory.build());
+        if (!result.isOk()) throw new Error('Statement creation failed');
+        return result.value;
+      });
 
-      const orderedSetResult = OrderedSet.create(statements.map(s => s.getId()));
+      const orderedSetResult = OrderedSet.create(statements.map((s) => s.getId()));
       expect(orderedSetResult.isOk()).toBe(true);
 
+      if (!orderedSetResult.isOk()) throw new Error('OrderedSet creation failed');
       const orderedSet = orderedSetResult.value;
       const result = await repository.save(orderedSet);
 
@@ -120,12 +188,17 @@ describe('IOrderedSetRepository', () => {
     });
 
     it('should update an existing ordered set', async () => {
-      const statements = Array.from(
-        { length: 2 },
-        () => Statement.create(statementContentFactory.build()).value
-      );
+      const statements = Array.from({ length: 2 }, () => {
+        const result = Statement.create(statementContentFactory.build());
+        if (!result.isOk()) throw new Error('Statement creation failed');
+        return result.value;
+      });
 
-      const orderedSet = OrderedSet.create(statements.map(s => s.getId())).value;
+      const orderedSetResult = OrderedSet.create(statements.map((s) => s.getId()));
+
+      if (!orderedSetResult.isOk()) throw new Error('OrderedSet creation failed');
+
+      const orderedSet = orderedSetResult.value;
 
       // Save initially
       await repository.save(orderedSet);
@@ -141,18 +214,23 @@ describe('IOrderedSetRepository', () => {
       const orderedSetResult = OrderedSet.create([]);
       expect(orderedSetResult.isOk()).toBe(true);
 
+      if (!orderedSetResult.isOk()) throw new Error('OrderedSet creation failed');
       const result = await repository.save(orderedSetResult.value);
 
       expect(result.isErr()).toBe(true);
-      expect(result.error.message).toContain('empty ordered set');
+      if (result.isErr()) {
+        expect(result.error.message).toContain('empty ordered set');
+      }
     });
 
     it('should handle null ordered set gracefully', async () => {
       const result = await repository.save(null as any);
 
       expect(result.isErr()).toBe(true);
-      expect(result.error).toBeInstanceOf(RepositoryError);
-      expect(result.error.message).toContain('Invalid ordered set');
+      if (result.isErr()) {
+        expect(result.error).toBeInstanceOf(RepositoryError);
+        expect(result.error.message).toContain('Invalid ordered set');
+      }
     });
 
     it('should handle save failures with proper error', async () => {
@@ -162,26 +240,43 @@ describe('IOrderedSetRepository', () => {
         throw new Error('Storage failure');
       });
 
-      const statements = [Statement.create('test').value];
-      const orderedSet = OrderedSet.create(statements.map(s => s.getId())).value;
+      const statements = [
+        (() => {
+          const result = Statement.create('test');
+          if (!result.isOk()) throw new Error('Statement creation failed');
+          return result.value;
+        })(),
+      ];
+      const orderedSetResult = OrderedSet.create(statements.map((s) => s.getId()));
+
+      if (!orderedSetResult.isOk()) throw new Error('OrderedSet creation failed');
+
+      const orderedSet = orderedSetResult.value;
       const result = await failingRepo.save(orderedSet);
 
       expect(result.isErr()).toBe(true);
-      expect(result.error).toBeInstanceOf(RepositoryError);
-      expect(result.error.message).toContain('Failed to save');
-      expect(result.error.cause?.message).toContain('Storage failure');
+      if (result.isErr()) {
+        expect(result.error).toBeInstanceOf(RepositoryError);
+        expect(result.error.message).toContain('Failed to save');
+        expect(result.error.cause?.message).toContain('Storage failure');
+      }
     });
 
     it('should save ordered sets with different sizes', async () => {
       const sizes = [1, 5, 10, 20];
 
       for (const size of sizes) {
-        const statements = Array.from(
-          { length: size },
-          () => Statement.create(statementContentFactory.build()).value
-        );
+        const statements = Array.from({ length: size }, () => {
+          const result = Statement.create(statementContentFactory.build());
+          if (!result.isOk()) throw new Error('Statement creation failed');
+          return result.value;
+        });
 
-        const orderedSet = OrderedSet.create(statements.map(s => s.getId())).value;
+        const orderedSetResult = OrderedSet.create(statements.map((s) => s.getId()));
+
+        if (!orderedSetResult.isOk()) throw new Error('OrderedSet creation failed');
+
+        const orderedSet = orderedSetResult.value;
         const result = await repository.save(orderedSet);
 
         expect(result.isOk()).toBe(true);
@@ -193,12 +288,17 @@ describe('IOrderedSetRepository', () => {
 
   describe('findById', () => {
     it('should find existing ordered set by ID', async () => {
-      const statements = Array.from(
-        { length: 2 },
-        () => Statement.create(statementContentFactory.build()).value
-      );
+      const statements = Array.from({ length: 2 }, () => {
+        const result = Statement.create(statementContentFactory.build());
+        if (!result.isOk()) throw new Error('Statement creation failed');
+        return result.value;
+      });
 
-      const orderedSet = OrderedSet.create(statements.map(s => s.getId())).value;
+      const orderedSetResult = OrderedSet.create(statements.map((s) => s.getId()));
+
+      if (!orderedSetResult.isOk()) throw new Error('OrderedSet creation failed');
+
+      const orderedSet = orderedSetResult.value;
       await repository.save(orderedSet);
 
       const found = await repository.findById(orderedSet.getId());
@@ -217,11 +317,16 @@ describe('IOrderedSetRepository', () => {
 
     it('should handle multiple ordered sets correctly', async () => {
       const orderedSets = Array.from({ length: 5 }, () => {
-        const statements = Array.from(
-          { length: 3 },
-          () => Statement.create(statementContentFactory.build()).value
-        );
-        return OrderedSet.create(statements.map(s => s.getId())).value;
+        const statements = Array.from({ length: 3 }, () => {
+          const result = Statement.create(statementContentFactory.build());
+          if (!result.isOk()) throw new Error('Statement creation failed');
+          return result.value;
+        });
+        const result = OrderedSet.create(statements.map((s) => s.getId()));
+
+        if (!result.isOk()) throw new Error('OrderedSet creation failed');
+
+        return result.value;
       });
 
       for (const orderedSet of orderedSets) {
@@ -236,19 +341,26 @@ describe('IOrderedSetRepository', () => {
     });
 
     it('should preserve statement order', async () => {
-      const statements = Array.from(
-        { length: 5 },
-        (_, i) => Statement.create(`Statement ${i}`).value
+      const statements = Array.from({ length: 5 }, (_, i) =>
+        (() => {
+          const result = Statement.create(`Statement ${i}`);
+          if (!result.isOk()) throw new Error('Statement creation failed');
+          return result.value;
+        })(),
       );
 
-      const orderedSet = OrderedSet.create(statements.map(s => s.getId())).value;
+      const orderedSetResult = OrderedSet.create(statements.map((s) => s.getId()));
+
+      if (!orderedSetResult.isOk()) throw new Error('OrderedSet creation failed');
+
+      const orderedSet = orderedSetResult.value;
       await repository.save(orderedSet);
 
       const found = await repository.findById(orderedSet.getId());
       expect(found).not.toBeNull();
 
-      const originalIds = orderedSet.getStatementIds().map(id => id.value);
-      const foundIds = found!.getStatementIds().map(id => id.value);
+      const originalIds = orderedSet.getStatementIds().map((id) => id.getValue());
+      const foundIds = found?.getStatementIds().map((id) => id.getValue());
 
       expect(foundIds).toEqual(originalIds);
     });
@@ -265,11 +377,16 @@ describe('IOrderedSetRepository', () => {
     it('should return all saved ordered sets', async () => {
       const count = 10;
       const orderedSets = Array.from({ length: count }, () => {
-        const statements = Array.from(
-          { length: 2 },
-          () => Statement.create(statementContentFactory.build()).value
-        );
-        return OrderedSet.create(statements.map(s => s.getId())).value;
+        const statements = Array.from({ length: 2 }, () => {
+          const result = Statement.create(statementContentFactory.build());
+          if (!result.isOk()) throw new Error('Statement creation failed');
+          return result.value;
+        });
+        const result = OrderedSet.create(statements.map((s) => s.getId()));
+
+        if (!result.isOk()) throw new Error('OrderedSet creation failed');
+
+        return result.value;
       });
 
       for (const orderedSet of orderedSets) {
@@ -280,8 +397,8 @@ describe('IOrderedSetRepository', () => {
 
       expect(all.length).toBe(count);
 
-      const allIds = all.map(os => os.getId().value).sort();
-      const expectedIds = orderedSets.map(os => os.getId().value).sort();
+      const allIds = all.map((os) => os.getId().getValue()).sort();
+      const expectedIds = orderedSets.map((os) => os.getId().getValue()).sort();
       expect(allIds).toEqual(expectedIds);
     });
 
@@ -289,30 +406,40 @@ describe('IOrderedSetRepository', () => {
       const configs = [{ size: 1 }, { size: 3 }, { size: 5 }, { size: 10 }];
 
       for (const config of configs) {
-        const statements = Array.from(
-          { length: config.size },
-          () => Statement.create(statementContentFactory.build()).value
-        );
-        const orderedSet = OrderedSet.create(statements.map(s => s.getId())).value;
+        const statements = Array.from({ length: config.size }, () => {
+          const result = Statement.create(statementContentFactory.build());
+          if (!result.isOk()) throw new Error('Statement creation failed');
+          return result.value;
+        });
+        const orderedSetResult = OrderedSet.create(statements.map((s) => s.getId()));
+
+        if (!orderedSetResult.isOk()) throw new Error('OrderedSet creation failed');
+
+        const orderedSet = orderedSetResult.value;
         await repository.save(orderedSet);
       }
 
       const all = await repository.findAll();
       expect(all.length).toBe(configs.length);
 
-      const sizes = all.map(os => os.size()).sort((a, b) => a - b);
+      const sizes = all.map((os) => os.size()).sort((a, b) => a - b);
       expect(sizes).toEqual([1, 3, 5, 10]);
     });
   });
 
   describe('delete', () => {
     it('should delete existing unreferenced ordered set', async () => {
-      const statements = Array.from(
-        { length: 2 },
-        () => Statement.create(statementContentFactory.build()).value
-      );
+      const statements = Array.from({ length: 2 }, () => {
+        const result = Statement.create(statementContentFactory.build());
+        if (!result.isOk()) throw new Error('Statement creation failed');
+        return result.value;
+      });
 
-      const orderedSet = OrderedSet.create(statements.map(s => s.getId())).value;
+      const orderedSetResult = OrderedSet.create(statements.map((s) => s.getId()));
+
+      if (!orderedSetResult.isOk()) throw new Error('OrderedSet creation failed');
+
+      const orderedSet = orderedSetResult.value;
       await repository.save(orderedSet);
 
       const result = await repository.delete(orderedSet.getId());
@@ -327,17 +454,19 @@ describe('IOrderedSetRepository', () => {
     it('should reject deleting referenced ordered set', async () => {
       // Create an ordered set with "referenced" in its ID
       const id = OrderedSetId.fromString('referenced-12345');
-      const statements = Array.from(
-        { length: 2 },
-        () => Statement.create(statementContentFactory.build()).value
-      );
+      const statements = Array.from({ length: 2 }, () => {
+        const result = Statement.create(statementContentFactory.build());
+        if (!result.isOk()) throw new Error('Statement creation failed');
+        return result.value;
+      });
 
       // Use Object.create to set a custom ID
-      const orderedSetResult = OrderedSet.create(statements.map(s => s.getId()));
+      const orderedSetResult = OrderedSet.create(statements.map((s) => s.getId()));
+      if (!orderedSetResult.isOk()) throw new Error('OrderedSet creation failed');
       const orderedSet = Object.create(orderedSetResult.value);
       orderedSet.getId = () => id;
       orderedSet.getStatementIds = orderedSetResult.value.getStatementIds.bind(
-        orderedSetResult.value
+        orderedSetResult.value,
       );
       orderedSet.size = orderedSetResult.value.size.bind(orderedSetResult.value);
 
@@ -346,7 +475,9 @@ describe('IOrderedSetRepository', () => {
       const result = await repository.delete(id);
 
       expect(result.isErr()).toBe(true);
-      expect(result.error.message).toContain('referenced');
+      if (result.isErr()) {
+        expect(result.error.message).toContain('referenced');
+      }
       expect(repository.size()).toBe(1);
     });
 
@@ -355,12 +486,24 @@ describe('IOrderedSetRepository', () => {
       const result = await repository.delete(randomId);
 
       expect(result.isErr()).toBe(true);
-      expect(result.error.message).toContain('not found');
+      if (result.isErr()) {
+        expect(result.error.message).toContain('not found');
+      }
     });
 
     it('should handle delete failures with proper error', async () => {
-      const statements = [Statement.create('test').value];
-      const orderedSet = OrderedSet.create(statements.map(s => s.getId())).value;
+      const statements = [
+        (() => {
+          const result = Statement.create('test');
+          if (!result.isOk()) throw new Error('Statement creation failed');
+          return result.value;
+        })(),
+      ];
+      const orderedSetResult = OrderedSet.create(statements.map((s) => s.getId()));
+
+      if (!orderedSetResult.isOk()) throw new Error('OrderedSet creation failed');
+
+      const orderedSet = orderedSetResult.value;
       await repository.save(orderedSet);
 
       // Mock a failure during delete
@@ -374,17 +517,24 @@ describe('IOrderedSetRepository', () => {
       const result = await failingRepo.delete(orderedSet.getId());
 
       expect(result.isErr()).toBe(true);
-      expect(result.error).toBeInstanceOf(RepositoryError);
-      expect(result.error.cause?.message).toContain('Delete operation failed');
+      if (result.isErr()) {
+        expect(result.error).toBeInstanceOf(RepositoryError);
+        expect(result.error.cause?.message).toContain('Delete operation failed');
+      }
     });
 
     it('should delete multiple ordered sets independently', async () => {
       const orderedSets = Array.from({ length: 5 }, () => {
-        const statements = Array.from(
-          { length: 2 },
-          () => Statement.create(statementContentFactory.build()).value
-        );
-        return OrderedSet.create(statements.map(s => s.getId())).value;
+        const statements = Array.from({ length: 2 }, () => {
+          const result = Statement.create(statementContentFactory.build());
+          if (!result.isOk()) throw new Error('Statement creation failed');
+          return result.value;
+        });
+        const result = OrderedSet.create(statements.map((s) => s.getId()));
+
+        if (!result.isOk()) throw new Error('OrderedSet creation failed');
+
+        return result.value;
       });
 
       for (const orderedSet of orderedSets) {
@@ -393,7 +543,10 @@ describe('IOrderedSetRepository', () => {
 
       // Delete every other ordered set
       for (let i = 0; i < orderedSets.length; i += 2) {
-        await repository.delete(orderedSets[i].getId());
+        const setToDelete = orderedSets[i];
+        if (setToDelete) {
+          await repository.delete(setToDelete.getId());
+        }
       }
 
       const remaining = await repository.findAll();
@@ -410,23 +563,41 @@ describe('IOrderedSetRepository', () => {
         findById: vi.fn(),
         findAll: vi.fn(),
         delete: vi.fn(),
+        findOrderedSetsBySize: vi.fn(),
+        findOrderedSetsContaining: vi.fn(),
+        findSharedOrderedSets: vi.fn(),
+        findOrderedSetsByPattern: vi.fn(),
+        findUnusedOrderedSets: vi.fn(),
+        findOrderedSetsByReferenceCount: vi.fn(),
+        findSimilarOrderedSets: vi.fn(),
+        findEmptyOrderedSets: vi.fn(),
       };
     });
 
     it('should allow mocking specific scenarios', async () => {
-      const statements = [Statement.create('Test content').value];
-      const orderedSet = OrderedSet.create(statements.map(s => s.getId())).value;
+      const statements = [
+        (() => {
+          const result = Statement.create('Test content');
+          if (!result.isOk()) throw new Error('Statement creation failed');
+          return result.value;
+        })(),
+      ];
+      const orderedSetResult = OrderedSet.create(statements.map((s) => s.getId()));
 
-      vi.mocked(mockRepository.save).mockImplementation(os => {
+      if (!orderedSetResult.isOk()) throw new Error('OrderedSet creation failed');
+
+      const orderedSet = orderedSetResult.value;
+
+      vi.mocked(mockRepository.save).mockImplementation(async (os) => {
         if (os === orderedSet) return Promise.resolve(ok(undefined));
         return Promise.resolve(err(new RepositoryError('Unknown ordered set')));
       });
-      vi.mocked(mockRepository.findById).mockImplementation(id => {
+      vi.mocked(mockRepository.findById).mockImplementation(async (id) => {
         if (id.equals(orderedSet.getId())) return Promise.resolve(orderedSet);
         return Promise.resolve(null);
       });
       vi.mocked(mockRepository.findAll).mockResolvedValue([orderedSet]);
-      vi.mocked(mockRepository.delete).mockImplementation(id => {
+      vi.mocked(mockRepository.delete).mockImplementation(async (id) => {
         if (id.equals(orderedSet.getId()))
           return Promise.resolve(err(new RepositoryError('Cannot delete')));
         return Promise.resolve(ok(undefined));
@@ -443,22 +614,29 @@ describe('IOrderedSetRepository', () => {
 
       const deleteResult = await mockRepository.delete(orderedSet.getId());
       expect(deleteResult.isErr()).toBe(true);
-      expect(deleteResult.error.message).toBe('Cannot delete');
+      if (deleteResult.isErr()) {
+        expect(deleteResult.error.message).toBe('Cannot delete');
+      }
     });
 
     it('should mock complex query scenarios', async () => {
       const orderedSets = Array.from({ length: 3 }, () => {
-        const statements = Array.from(
-          { length: 2 },
-          () => Statement.create(statementContentFactory.build()).value
-        );
-        return OrderedSet.create(statements.map(s => s.getId())).value;
+        const statements = Array.from({ length: 2 }, () => {
+          const result = Statement.create(statementContentFactory.build());
+          if (!result.isOk()) throw new Error('Statement creation failed');
+          return result.value;
+        });
+        const result = OrderedSet.create(statements.map((s) => s.getId()));
+
+        if (!result.isOk()) throw new Error('OrderedSet creation failed');
+
+        return result.value;
       });
 
       vi.mocked(mockRepository.findAll).mockResolvedValue(orderedSets);
 
-      vi.mocked(mockRepository.findById).mockImplementation(id => {
-        return Promise.resolve(orderedSets.find(os => os.getId().equals(id)) ?? null);
+      vi.mocked(mockRepository.findById).mockImplementation(async (id) => {
+        return Promise.resolve(orderedSets.find((os) => os.getId().equals(id)) ?? null);
       });
 
       const all = await mockRepository.findAll();
@@ -473,7 +651,11 @@ describe('IOrderedSetRepository', () => {
 
   describe('Edge Cases', () => {
     it('should handle ordered sets with duplicate statement IDs gracefully', async () => {
-      const statement = Statement.create('Duplicate test').value;
+      const statement = (() => {
+        const result = Statement.create('Duplicate test');
+        if (!result.isOk()) throw new Error('Statement creation failed');
+        return result.value;
+      })();
       const statementId = statement.getId();
 
       // OrderedSet should handle duplicates internally
@@ -487,43 +669,62 @@ describe('IOrderedSetRepository', () => {
 
         const found = await repository.findById(orderedSet.getId());
         expect(found).not.toBeNull();
-        expect(found!.size()).toBe(1); // Should only have one unique statement
+        expect(found?.size()).toBe(1); // Should only have one unique statement
       }
     });
 
     it('should handle very large ordered sets', async () => {
       const largeSize = 100;
-      const statements = Array.from(
-        { length: largeSize },
-        (_, i) => Statement.create(`Statement ${i}`).value
+      const statements = Array.from({ length: largeSize }, (_, i) =>
+        (() => {
+          const result = Statement.create(`Statement ${i}`);
+          if (!result.isOk()) throw new Error('Statement creation failed');
+          return result.value;
+        })(),
       );
 
-      const orderedSet = OrderedSet.create(statements.map(s => s.getId())).value;
+      const orderedSetResult = OrderedSet.create(statements.map((s) => s.getId()));
+
+      if (!orderedSetResult.isOk()) throw new Error('OrderedSet creation failed');
+
+      const orderedSet = orderedSetResult.value;
 
       const saveResult = await repository.save(orderedSet);
       expect(saveResult.isOk()).toBe(true);
 
       const found = await repository.findById(orderedSet.getId());
       expect(found).not.toBeNull();
-      expect(found!.size()).toBe(largeSize);
+      expect(found?.size()).toBe(largeSize);
     });
 
     it('should maintain consistency under concurrent-like operations', async () => {
       const orderedSets = Array.from({ length: 20 }, (_, i) => {
-        const statements = Array.from(
-          { length: 3 },
-          (_, j) => Statement.create(`Statement ${i}-${j}`).value
+        const statements = Array.from({ length: 3 }, (_, j) =>
+          (() => {
+            const result = Statement.create(`Statement ${i}-${j}`);
+            if (!result.isOk()) throw new Error('Statement creation failed');
+            return result.value;
+          })(),
         );
-        return OrderedSet.create(statements.map(s => s.getId())).value;
+        const result = OrderedSet.create(statements.map((s) => s.getId()));
+
+        if (!result.isOk()) throw new Error('OrderedSet creation failed');
+
+        return result.value;
       });
 
       // Simulate interleaved saves and deletes
       for (let i = 0; i < orderedSets.length; i++) {
-        await repository.save(orderedSets[i]);
+        const currentSet = orderedSets[i];
+        if (!currentSet) continue;
+        await repository.save(currentSet);
 
         if (i > 0 && i % 3 === 0) {
           // Delete some previous ordered sets
-          await repository.delete(orderedSets[i - 1].getId());
+          const prevSet = orderedSets[i - 1];
+          if (prevSet) {
+            await repository.delete(prevSet.getId());
+          }
         }
       }
 
@@ -533,16 +734,29 @@ describe('IOrderedSetRepository', () => {
     });
 
     it('should handle ordered sets with single statement', async () => {
-      const statement = Statement.create('Single statement').value;
-      const orderedSet = OrderedSet.create([statement.getId()]).value;
+      const statement = (() => {
+        const result = Statement.create('Single statement');
+        if (!result.isOk()) throw new Error('Statement creation failed');
+        return result.value;
+      })();
+      const orderedSetResult = OrderedSet.create([statement.getId()]);
+
+      if (!orderedSetResult.isOk()) throw new Error('OrderedSet creation failed');
+
+      const orderedSet = orderedSetResult.value;
 
       const saveResult = await repository.save(orderedSet);
       expect(saveResult.isOk()).toBe(true);
 
       const found = await repository.findById(orderedSet.getId());
       expect(found).not.toBeNull();
-      expect(found!.size()).toBe(1);
-      expect(found!.getStatementIds()[0].equals(statement.getId())).toBe(true);
+      expect(found?.size()).toBe(1);
+      const statementIds = found?.getStatementIds();
+      if (statementIds?.[0]) {
+        expect(statementIds[0].equals(statement.getId())).toBe(true);
+      } else {
+        throw new Error('Statement IDs not found');
+      }
     });
   });
 });

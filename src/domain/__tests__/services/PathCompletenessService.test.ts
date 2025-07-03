@@ -1,12 +1,11 @@
 import { err, ok } from 'neverthrow';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { type AtomicArgument } from '../../entities/AtomicArgument.js';
+import type { AtomicArgument } from '../../entities/AtomicArgument.js';
 import { ProcessingError } from '../../errors/DomainErrors.js';
 import type { IAtomicArgumentRepository } from '../../repositories/IAtomicArgumentRepository.js';
 import {
   ArgumentTreeStructure,
-  type ConnectionMap,
   type ConnectionResolutionService,
   PathCompleteArgument,
 } from '../../services/ConnectionResolutionService.js';
@@ -43,7 +42,7 @@ describe('PathCompletenessService', () => {
 
     // Set default mock implementations to avoid undefined errors
     vi.mocked(mockConnectionService.findPathCompleteArgument).mockReturnValue(
-      err(new ProcessingError('No path found'))
+      err(new ProcessingError('No path found')),
     );
 
     service = new PathCompletenessService(mockAtomicArgumentRepo, mockConnectionService);
@@ -72,15 +71,15 @@ describe('PathCompletenessService', () => {
 
         // Mock repository calls
         const mockArguments = argumentIds.map(
-          id =>
+          (id) =>
             ({
               getId: () => id,
               isComplete: () => true,
-            }) as AtomicArgument
+            }) as AtomicArgument,
         );
 
-        vi.mocked(mockAtomicArgumentRepo.findById).mockImplementation(id => {
-          const index = argumentIds.findIndex(argId => argId.equals(id));
+        vi.mocked(mockAtomicArgumentRepo.findById).mockImplementation(async (id) => {
+          const index = argumentIds.findIndex((argId) => argId.equals(id));
           return Promise.resolve(index >= 0 ? mockArguments[index] : null);
         });
 
@@ -88,10 +87,10 @@ describe('PathCompletenessService', () => {
         const mockConnectionMap = {
           getParents: () => [],
           getChildren: () => [],
-        } as ConnectionMap;
+        } as any;
 
         vi.mocked(mockConnectionService.findDirectConnections).mockResolvedValue(
-          ok(mockConnectionMap)
+          ok(mockConnectionMap),
         );
 
         const result = await service.validatePathCompleteness(argumentIds);
@@ -110,15 +109,15 @@ describe('PathCompletenessService', () => {
 
         // Mock repository calls
         const mockArguments = argumentIds.map(
-          id =>
+          (id) =>
             ({
               getId: () => id,
               isComplete: () => true,
-            }) as AtomicArgument
+            }) as AtomicArgument,
         );
 
-        vi.mocked(mockAtomicArgumentRepo.findById).mockImplementation(id => {
-          const index = argumentIds.findIndex(argId => argId.equals(id));
+        vi.mocked(mockAtomicArgumentRepo.findById).mockImplementation(async (id) => {
+          const index = argumentIds.findIndex((argId) => argId.equals(id));
           return Promise.resolve(index >= 0 ? mockArguments[index] : null);
         });
 
@@ -126,16 +125,16 @@ describe('PathCompletenessService', () => {
         const mockConnectionMap = {
           getParents: () => [],
           getChildren: () => [],
-        } as ConnectionMap;
+        } as any;
 
         vi.mocked(mockConnectionService.findDirectConnections).mockResolvedValue(
-          ok(mockConnectionMap)
+          ok(mockConnectionMap),
         );
 
         // Mock path complete argument to return missing intermediate
         const mockPathComplete = new PathCompleteArgument([missingId], [[missingId]]);
         vi.mocked(mockConnectionService.findPathCompleteArgument).mockReturnValue(
-          ok(mockPathComplete)
+          ok(mockPathComplete),
         );
 
         const result = await service.validatePathCompleteness(argumentIds);
@@ -159,24 +158,24 @@ describe('PathCompletenessService', () => {
 
         const mockPathComplete = new PathCompleteArgument(
           [startId, intermediateId, endId],
-          [[startId, intermediateId, endId]]
+          [[startId, intermediateId, endId]],
         );
 
         vi.mocked(mockConnectionService.findPathCompleteArgument).mockReturnValue(
-          ok(mockPathComplete)
+          ok(mockPathComplete),
         );
 
         // Mock repository calls for validation
         const mockArguments = [startId, intermediateId, endId].map(
-          id =>
+          (id) =>
             ({
               getId: () => id,
               isComplete: () => true,
-            }) as AtomicArgument
+            }) as AtomicArgument,
         );
 
-        vi.mocked(mockAtomicArgumentRepo.findById).mockImplementation(id => {
-          const index = [startId, intermediateId, endId].findIndex(argId => argId.equals(id));
+        vi.mocked(mockAtomicArgumentRepo.findById).mockImplementation(async (id) => {
+          const index = [startId, intermediateId, endId].findIndex((argId) => argId.equals(id));
           return Promise.resolve(index >= 0 ? mockArguments[index] : null);
         });
 
@@ -199,7 +198,7 @@ describe('PathCompletenessService', () => {
 
         const connectionError = new ProcessingError('No connection found');
         vi.mocked(mockConnectionService.findPathCompleteArgument).mockReturnValue(
-          err(connectionError)
+          err(connectionError),
         );
 
         const result = await service.ensurePathCompleteness(startId, endId);
@@ -218,20 +217,20 @@ describe('PathCompletenessService', () => {
 
         const mockPathComplete = new PathCompleteArgument(
           [startId, missingId, endId],
-          [[startId, missingId, endId]]
+          [[startId, missingId, endId]],
         );
 
-        vi.mocked(mockConnectionService.findPathCompleteArgument).mockReturnValue(
-          ok(mockPathComplete)
+        (mockConnectionService.findPathCompleteArgument as any).mockReturnValue(
+          ok(mockPathComplete),
         );
 
-        vi.mocked(mockAtomicArgumentRepo.findById).mockImplementation(id => {
+        (mockAtomicArgumentRepo.findById as any).mockImplementation(async (id) => {
           // Return null for the missing argument
-          if (id.equals(missingId)) return Promise.resolve(null);
-          return Promise.resolve({
+          if (id.equals(missingId)) return null;
+          return {
             getId: () => id,
             isComplete: () => true,
-          } as AtomicArgument);
+          } as AtomicArgument;
         });
 
         const result = await service.ensurePathCompleteness(startId, endId);
@@ -250,24 +249,24 @@ describe('PathCompletenessService', () => {
 
         const mockPathComplete = new PathCompleteArgument(
           [startId, incompleteId, endId],
-          [[startId, incompleteId, endId]]
+          [[startId, incompleteId, endId]],
         );
 
-        vi.mocked(mockConnectionService.findPathCompleteArgument).mockReturnValue(
-          ok(mockPathComplete)
+        (mockConnectionService.findPathCompleteArgument as any).mockReturnValue(
+          ok(mockPathComplete),
         );
 
-        vi.mocked(mockAtomicArgumentRepo.findById).mockImplementation(id => {
+        (mockAtomicArgumentRepo.findById as any).mockImplementation(async (id) => {
           if (id.equals(incompleteId)) {
-            return Promise.resolve({
+            return {
               getId: () => incompleteId,
               isComplete: () => false, // Incomplete argument
-            } as AtomicArgument);
+            } as AtomicArgument;
           }
-          return Promise.resolve({
+          return {
             getId: () => id,
             isComplete: () => true,
-          } as AtomicArgument);
+          } as AtomicArgument;
         });
 
         const result = await service.ensurePathCompleteness(startId, endId);
@@ -294,16 +293,16 @@ describe('PathCompletenessService', () => {
       const mockConnectionMap = {
         getParents: () => [mockParentArg], // Create a connection to form gaps
         getChildren: () => [],
-      } as ConnectionMap;
+      } as any;
 
       vi.mocked(mockConnectionService.findDirectConnections).mockResolvedValue(
-        ok(mockConnectionMap)
+        ok(mockConnectionMap),
       );
 
       // Mock path complete argument to return required intermediate
       const mockPathComplete = new PathCompleteArgument([requiredId], [[requiredId]]);
       vi.mocked(mockConnectionService.findPathCompleteArgument).mockReturnValue(
-        ok(mockPathComplete)
+        ok(mockPathComplete),
       );
 
       const result = await service.findRequiredIntermediateArguments(partialSet);
@@ -340,16 +339,16 @@ describe('PathCompletenessService', () => {
 
         // Mock arguments that can connect to each other
         const mockArguments = argumentIds.map(
-          id =>
+          (id) =>
             ({
               getId: () => id,
               isComplete: () => true,
               canConnectTo: () => true,
-            }) as AtomicArgument
+            }) as AtomicArgument,
         );
 
-        vi.mocked(mockAtomicArgumentRepo.findById).mockImplementation(id => {
-          const index = argumentIds.findIndex(argId => argId.equals(id));
+        vi.mocked(mockAtomicArgumentRepo.findById).mockImplementation(async (id) => {
+          const index = argumentIds.findIndex((argId) => argId.equals(id));
           return Promise.resolve(index >= 0 ? mockArguments[index] : null);
         });
 
@@ -397,16 +396,16 @@ describe('PathCompletenessService', () => {
 
         // Mock arguments that cannot connect to each other
         const mockArguments = argumentIds.map(
-          id =>
+          (id) =>
             ({
               getId: () => id,
               isComplete: () => true,
               canConnectTo: () => false, // Cannot connect
-            }) as AtomicArgument
+            }) as AtomicArgument,
         );
 
-        vi.mocked(mockAtomicArgumentRepo.findById).mockImplementation(id => {
-          const index = argumentIds.findIndex(argId => argId.equals(id));
+        vi.mocked(mockAtomicArgumentRepo.findById).mockImplementation(async (id) => {
+          const index = argumentIds.findIndex((argId) => argId.equals(id));
           return Promise.resolve(index >= 0 ? mockArguments[index] : null);
         });
 
@@ -427,7 +426,7 @@ describe('PathCompletenessService', () => {
         const argumentIds = [atomicArgumentIdFactory.build(), atomicArgumentIdFactory.build()];
 
         // Mock repository to return null for second argument
-        vi.mocked(mockAtomicArgumentRepo.findById).mockImplementation(id => {
+        vi.mocked(mockAtomicArgumentRepo.findById).mockImplementation(async (id) => {
           if (id.equals(argumentIds[0])) {
             return Promise.resolve({
               getId: () => argumentIds[0],
@@ -491,10 +490,10 @@ describe('PathCompletenessService', () => {
         const mockConnectionMap = {
           getParents: () => [],
           getChildren: () => [],
-        } as ConnectionMap;
+        } as any;
 
         vi.mocked(mockConnectionService.findDirectConnections).mockResolvedValue(
-          ok(mockConnectionMap)
+          ok(mockConnectionMap),
         );
 
         const result = await service.computeMinimalPathCompleteSet(argumentIds);
@@ -505,7 +504,7 @@ describe('PathCompletenessService', () => {
           expect(minimalSet.minimalArguments).toBeDefined();
           expect(minimalSet.redundantArguments).toBeDefined();
           expect(
-            minimalSet.minimalArguments.length + minimalSet.redundantArguments.length
+            minimalSet.minimalArguments.length + minimalSet.redundantArguments.length,
           ).toBeLessThanOrEqual(argumentIds.length);
         }
       });
@@ -520,19 +519,19 @@ describe('PathCompletenessService', () => {
 
         // Mock connected arguments where some are redundant
         const mockConnectedArgs = argumentIds.slice(0, 2).map(
-          id =>
+          (id) =>
             ({
               getId: () => id,
-            }) as AtomicArgument
+            }) as AtomicArgument,
         );
 
         const mockConnectionMap = {
           getParents: () => [],
           getChildren: () => mockConnectedArgs,
-        } as ConnectionMap;
+        } as any;
 
         vi.mocked(mockConnectionService.findDirectConnections).mockResolvedValue(
-          ok(mockConnectionMap)
+          ok(mockConnectionMap),
         );
 
         const result = await service.computeMinimalPathCompleteSet(argumentIds);
@@ -562,10 +561,10 @@ describe('PathCompletenessService', () => {
         const mockConnectionMap = {
           getParents: () => [parentArg],
           getChildren: () => [],
-        } as ConnectionMap;
+        } as any;
 
         vi.mocked(mockConnectionService.findDirectConnections).mockResolvedValue(
-          ok(mockConnectionMap)
+          ok(mockConnectionMap),
         );
 
         // Mock transitive dependencies
@@ -592,10 +591,10 @@ describe('PathCompletenessService', () => {
         const mockConnectionMap = {
           getParents: () => [],
           getChildren: () => [],
-        } as ConnectionMap;
+        } as any;
 
         vi.mocked(mockConnectionService.findDirectConnections).mockResolvedValue(
-          ok(mockConnectionMap)
+          ok(mockConnectionMap),
         );
 
         const mockTreeStructure = new ArgumentTreeStructure([isolatedId]);
@@ -621,7 +620,7 @@ describe('PathCompletenessService', () => {
         // Mock connection service failure
         const connectionError = new ProcessingError('Connection lookup failed');
         vi.mocked(mockConnectionService.findDirectConnections).mockResolvedValue(
-          err(connectionError)
+          err(connectionError),
         );
         vi.mocked(mockConnectionService.findArgumentTree).mockReturnValue(err(connectionError));
 
@@ -657,7 +656,7 @@ describe('PathCompletenessService', () => {
           canConnectTo: () => true,
         } as AtomicArgument;
 
-        vi.mocked(mockAtomicArgumentRepo.findById).mockImplementation(id => {
+        vi.mocked(mockAtomicArgumentRepo.findById).mockImplementation(async (id) => {
           if (id.equals(argA)) return Promise.resolve(mockArgA);
           if (id.equals(argB)) return Promise.resolve(mockArgB);
           return Promise.resolve(null);
@@ -667,10 +666,10 @@ describe('PathCompletenessService', () => {
         const mockConnectionMap = {
           getParents: () => [mockArgB],
           getChildren: () => [mockArgA],
-        } as ConnectionMap;
+        } as any;
 
         vi.mocked(mockConnectionService.findDirectConnections).mockResolvedValue(
-          ok(mockConnectionMap)
+          ok(mockConnectionMap),
         );
 
         const result = await service.validatePathCompleteness([argA, argB]);
@@ -695,15 +694,15 @@ describe('PathCompletenessService', () => {
 
         // Mock arguments for diamond pattern
         const mockArguments = argumentIds.map(
-          id =>
+          (id) =>
             ({
               getId: () => id,
               isComplete: () => true,
-            }) as AtomicArgument
+            }) as AtomicArgument,
         );
 
-        vi.mocked(mockAtomicArgumentRepo.findById).mockImplementation(id => {
-          const index = argumentIds.findIndex(argId => argId.equals(id));
+        vi.mocked(mockAtomicArgumentRepo.findById).mockImplementation(async (id) => {
+          const index = argumentIds.findIndex((argId) => argId.equals(id));
           return Promise.resolve(index >= 0 ? mockArguments[index] : null);
         });
 
@@ -711,10 +710,10 @@ describe('PathCompletenessService', () => {
         const mockConnectionMap = {
           getParents: () => [],
           getChildren: () => [],
-        } as ConnectionMap;
+        } as any;
 
         vi.mocked(mockConnectionService.findDirectConnections).mockResolvedValue(
-          ok(mockConnectionMap)
+          ok(mockConnectionMap),
         );
 
         const result = await service.validatePathCompleteness(argumentIds);
@@ -731,21 +730,21 @@ describe('PathCompletenessService', () => {
         const largeArgumentSet = Array.from({ length: 100 }, () => atomicArgumentIdFactory.build());
 
         // Mock repository to return simple arguments
-        vi.mocked(mockAtomicArgumentRepo.findById).mockImplementation(id =>
+        vi.mocked(mockAtomicArgumentRepo.findById).mockImplementation(async (id) =>
           Promise.resolve({
             getId: () => id,
             isComplete: () => true,
-          } as AtomicArgument)
+          } as AtomicArgument),
         );
 
         // Mock connection service
         const mockConnectionMap = {
           getParents: () => [],
           getChildren: () => [],
-        } as ConnectionMap;
+        } as any;
 
         vi.mocked(mockConnectionService.findDirectConnections).mockResolvedValue(
-          ok(mockConnectionMap)
+          ok(mockConnectionMap),
         );
 
         const startTime = Date.now();
@@ -767,25 +766,25 @@ describe('PathCompletenessService', () => {
 
         // Mock arguments
         const mockArguments = orderedIds.map(
-          id =>
+          (id) =>
             ({
               getId: () => id,
               isComplete: () => true,
-            }) as AtomicArgument
+            }) as AtomicArgument,
         );
 
-        vi.mocked(mockAtomicArgumentRepo.findById).mockImplementation(id => {
-          const index = orderedIds.findIndex(argId => argId.equals(id));
+        vi.mocked(mockAtomicArgumentRepo.findById).mockImplementation(async (id) => {
+          const index = orderedIds.findIndex((argId) => argId.equals(id));
           return Promise.resolve(index >= 0 ? mockArguments[index] : null);
         });
 
         const mockConnectionMap = {
           getParents: () => [],
           getChildren: () => [],
-        } as ConnectionMap;
+        } as any;
 
         vi.mocked(mockConnectionService.findDirectConnections).mockResolvedValue(
-          ok(mockConnectionMap)
+          ok(mockConnectionMap),
         );
 
         const result = await service.validatePathCompleteness(orderedIds);
@@ -837,7 +836,7 @@ describe('PathCompletenessService', () => {
         const brokenLink = new BrokenLink(
           atomicArgumentIdFactory.build(),
           atomicArgumentIdFactory.build(),
-          'No shared reference'
+          'No shared reference',
         );
         const result = new ChainIntegrityValidationResult(false, [issue], [brokenLink]);
 
@@ -857,7 +856,7 @@ describe('PathCompletenessService', () => {
           targetId,
           directDeps,
           transitiveDeps,
-          levels
+          levels,
         );
 
         expect(analysis.targetArgument).toEqual(targetId);

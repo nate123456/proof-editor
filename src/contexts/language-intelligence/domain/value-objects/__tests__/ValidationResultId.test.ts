@@ -57,7 +57,7 @@ describe('ValidationResultId', () => {
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
         expect(result.error.message).toBe(
-          'Validation result ID must be at least 5 characters long'
+          'Validation result ID must be at least 5 characters long',
         );
       }
     });
@@ -68,7 +68,7 @@ describe('ValidationResultId', () => {
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
         expect(result.error.message).toBe(
-          'Validation result ID must be at least 5 characters long'
+          'Validation result ID must be at least 5 characters long',
         );
       }
     });

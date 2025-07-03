@@ -596,7 +596,7 @@ describe('AnalysisInsight', () => {
       const result = AnalysisInsight.create(
         'syntax',
         'Missing semicolon',
-        'Statement is missing a semicolon'
+        'Statement is missing a semicolon',
       );
 
       expect(result.isOk()).toBe(true);
@@ -626,7 +626,7 @@ describe('AnalysisInsight', () => {
         0.85,
         evidence,
         recommendations,
-        patterns
+        patterns,
       );
 
       expect(result.isOk()).toBe(true);
@@ -685,7 +685,7 @@ describe('AnalysisInsight', () => {
         'Valid title',
         'Valid description',
         'medium',
-        -0.1
+        -0.1,
       );
 
       expect(result.isErr()).toBe(true);
@@ -700,7 +700,7 @@ describe('AnalysisInsight', () => {
         'Valid title',
         'Valid description',
         'medium',
-        1.1
+        1.1,
       );
 
       expect(result.isErr()).toBe(true);
@@ -715,7 +715,7 @@ describe('AnalysisInsight', () => {
         'Valid title',
         'Valid description',
         'medium',
-        0
+        0,
       );
 
       expect(result.isOk()).toBe(true);
@@ -727,7 +727,7 @@ describe('AnalysisInsight', () => {
         'Valid title',
         'Valid description',
         'medium',
-        1
+        1,
       );
 
       expect(result.isOk()).toBe(true);
@@ -737,7 +737,7 @@ describe('AnalysisInsight', () => {
       const result = AnalysisInsight.create(
         'syntax',
         '  Trimmed title  ',
-        '  Trimmed description  '
+        '  Trimmed description  ',
       );
 
       expect(result.isOk()).toBe(true);
@@ -769,7 +769,7 @@ describe('AnalysisInsight', () => {
         'Minor syntax issue',
         'Non-critical syntax problem',
         'low',
-        recommendations
+        recommendations,
       );
 
       expect(result.isOk()).toBe(true);
@@ -791,7 +791,7 @@ describe('AnalysisInsight', () => {
     it('should create semantic insight with defaults', () => {
       const result = AnalysisInsight.createSemanticInsight(
         'Logic error',
-        'Semantic inconsistency detected'
+        'Semantic inconsistency detected',
       );
 
       expect(result.isOk()).toBe(true);
@@ -813,7 +813,7 @@ describe('AnalysisInsight', () => {
         'Logical inconsistency',
         'Arguments contain contradiction',
         evidence,
-        recommendations
+        recommendations,
       );
 
       expect(result.isOk()).toBe(true);
@@ -844,13 +844,13 @@ describe('AnalysisInsight', () => {
 
     it('should identify high confidence insights', () => {
       const highConf = unwrap(
-        AnalysisInsight.create('syntax', 'Title', 'Description', 'medium', 0.8)
+        AnalysisInsight.create('syntax', 'Title', 'Description', 'medium', 0.8),
       );
       const mediumConf = unwrap(
-        AnalysisInsight.create('syntax', 'Title', 'Description', 'medium', 0.7)
+        AnalysisInsight.create('syntax', 'Title', 'Description', 'medium', 0.7),
       );
       const equalConf = unwrap(
-        AnalysisInsight.create('syntax', 'Title', 'Description', 'medium', 0.8)
+        AnalysisInsight.create('syntax', 'Title', 'Description', 'medium', 0.8),
       );
 
       expect(highConf.isHighConfidence()).toBe(true);
@@ -860,10 +860,10 @@ describe('AnalysisInsight', () => {
 
     it('should detect insights with evidence', () => {
       const withEvidence = unwrap(
-        AnalysisInsight.create('syntax', 'Title', 'Description', 'medium', 1.0, ['evidence'])
+        AnalysisInsight.create('syntax', 'Title', 'Description', 'medium', 1.0, ['evidence']),
       );
       const withoutEvidence = unwrap(
-        AnalysisInsight.create('syntax', 'Title', 'Description', 'medium', 1.0, [])
+        AnalysisInsight.create('syntax', 'Title', 'Description', 'medium', 1.0, []),
       );
 
       expect(withEvidence.hasEvidence()).toBe(true);
@@ -879,11 +879,11 @@ describe('AnalysisInsight', () => {
           'medium',
           1.0,
           [],
-          ['recommendation']
-        )
+          ['recommendation'],
+        ),
       );
       const withoutRecs = unwrap(
-        AnalysisInsight.create('syntax', 'Title', 'Description', 'medium', 1.0, [], [])
+        AnalysisInsight.create('syntax', 'Title', 'Description', 'medium', 1.0, [], []),
       );
 
       expect(withRecs.hasRecommendations()).toBe(true);
@@ -893,22 +893,22 @@ describe('AnalysisInsight', () => {
     it('should identify actionable insights', () => {
       // High priority with recommendations
       const actionableHigh = unwrap(
-        AnalysisInsight.create('syntax', 'Title', 'Description', 'high', 0.5, [], ['fix it'])
+        AnalysisInsight.create('syntax', 'Title', 'Description', 'high', 0.5, [], ['fix it']),
       );
 
       // High confidence with recommendations
       const actionableConf = unwrap(
-        AnalysisInsight.create('syntax', 'Title', 'Description', 'medium', 0.9, [], ['fix it'])
+        AnalysisInsight.create('syntax', 'Title', 'Description', 'medium', 0.9, [], ['fix it']),
       );
 
       // No recommendations
       const notActionable = unwrap(
-        AnalysisInsight.create('syntax', 'Title', 'Description', 'high', 0.9, [], [])
+        AnalysisInsight.create('syntax', 'Title', 'Description', 'high', 0.9, [], []),
       );
 
       // Low priority and confidence
       const notActionable2 = unwrap(
-        AnalysisInsight.create('syntax', 'Title', 'Description', 'low', 0.5, [], ['fix it'])
+        AnalysisInsight.create('syntax', 'Title', 'Description', 'low', 0.5, [], ['fix it']),
       );
 
       expect(actionableHigh.isActionable()).toBe(true);
@@ -922,7 +922,7 @@ describe('AnalysisInsight', () => {
     it('should return readonly copy of evidence array', () => {
       const evidence = ['evidence 1', 'evidence 2'];
       const insight = unwrap(
-        AnalysisInsight.create('syntax', 'Title', 'Description', 'medium', 1.0, evidence)
+        AnalysisInsight.create('syntax', 'Title', 'Description', 'medium', 1.0, evidence),
       );
 
       const returnedEvidence = insight.getEvidence();
@@ -939,7 +939,15 @@ describe('AnalysisInsight', () => {
     it('should return readonly copy of recommendations array', () => {
       const recommendations = ['rec 1', 'rec 2'];
       const insight = unwrap(
-        AnalysisInsight.create('syntax', 'Title', 'Description', 'medium', 1.0, [], recommendations)
+        AnalysisInsight.create(
+          'syntax',
+          'Title',
+          'Description',
+          'medium',
+          1.0,
+          [],
+          recommendations,
+        ),
       );
 
       const returnedRecs = insight.getRecommendations();
@@ -954,7 +962,7 @@ describe('AnalysisInsight', () => {
     it('should return readonly copy of related patterns array', () => {
       const patterns = ['pattern 1', 'pattern 2'];
       const insight = unwrap(
-        AnalysisInsight.create('syntax', 'Title', 'Description', 'medium', 1.0, [], [], patterns)
+        AnalysisInsight.create('syntax', 'Title', 'Description', 'medium', 1.0, [], [], patterns),
       );
 
       const returnedPatterns = insight.getRelatedPatterns();
@@ -970,10 +978,10 @@ describe('AnalysisInsight', () => {
   describe('equals', () => {
     it('should return true for insights with same category, title, and description', () => {
       const first = unwrap(
-        AnalysisInsight.create('syntax', 'Title', 'Description', 'high', 0.9, ['evidence'])
+        AnalysisInsight.create('syntax', 'Title', 'Description', 'high', 0.9, ['evidence']),
       );
       const second = unwrap(
-        AnalysisInsight.create('syntax', 'Title', 'Description', 'low', 0.5, [])
+        AnalysisInsight.create('syntax', 'Title', 'Description', 'low', 0.5, []),
       );
 
       expect(first.equals(second)).toBe(true);
@@ -1015,7 +1023,7 @@ describe('PatternMatch', () => {
         'Modus Ponens',
         location,
         0.9,
-        'if A then B, A, therefore B'
+        'if A then B, A, therefore B',
       );
 
       expect(result.isOk()).toBe(true);
@@ -1054,7 +1062,7 @@ describe('PatternMatch', () => {
         'Major premise, minor premise, conclusion',
         variables,
         context,
-        validationScope
+        validationScope,
       );
 
       expect(result.isOk()).toBe(true);
@@ -1073,7 +1081,7 @@ describe('PatternMatch', () => {
         'Valid Name',
         createTestLocation(),
         0.8,
-        'valid content'
+        'valid content',
       );
 
       expect(result.isErr()).toBe(true);
@@ -1089,7 +1097,7 @@ describe('PatternMatch', () => {
         'Valid Name',
         createTestLocation(),
         0.8,
-        'valid content'
+        'valid content',
       );
 
       expect(result.isErr()).toBe(true);
@@ -1105,7 +1113,7 @@ describe('PatternMatch', () => {
         '',
         createTestLocation(),
         0.8,
-        'valid content'
+        'valid content',
       );
 
       expect(result.isErr()).toBe(true);
@@ -1121,7 +1129,7 @@ describe('PatternMatch', () => {
         '   \t\n  ',
         createTestLocation(),
         0.8,
-        'valid content'
+        'valid content',
       );
 
       expect(result.isErr()).toBe(true);
@@ -1137,7 +1145,7 @@ describe('PatternMatch', () => {
         'Valid Name',
         createTestLocation(),
         -0.1,
-        'valid content'
+        'valid content',
       );
 
       expect(result.isErr()).toBe(true);
@@ -1153,7 +1161,7 @@ describe('PatternMatch', () => {
         'Valid Name',
         createTestLocation(),
         1.1,
-        'valid content'
+        'valid content',
       );
 
       expect(result.isErr()).toBe(true);
@@ -1169,7 +1177,7 @@ describe('PatternMatch', () => {
         'Valid Name',
         createTestLocation(),
         0,
-        'valid content'
+        'valid content',
       );
       const result2 = PatternMatch.create(
         'valid-id',
@@ -1177,7 +1185,7 @@ describe('PatternMatch', () => {
         'Valid Name',
         createTestLocation(),
         1,
-        'valid content'
+        'valid content',
       );
 
       expect(result1.isOk()).toBe(true);
@@ -1191,7 +1199,7 @@ describe('PatternMatch', () => {
         'Valid Name',
         createTestLocation(),
         0.8,
-        ''
+        '',
       );
 
       expect(result.isErr()).toBe(true);
@@ -1207,7 +1215,7 @@ describe('PatternMatch', () => {
         'Valid Name',
         createTestLocation(),
         0.8,
-        '   \t\n  '
+        '   \t\n  ',
       );
 
       expect(result.isErr()).toBe(true);
@@ -1223,7 +1231,7 @@ describe('PatternMatch', () => {
         '  Pattern Name  ',
         createTestLocation(),
         0.8,
-        '  matched content  '
+        '  matched content  ',
       );
 
       expect(result.isOk()).toBe(true);
@@ -1239,13 +1247,13 @@ describe('PatternMatch', () => {
   describe('utility methods', () => {
     it('should identify high confidence matches', () => {
       const highConf = unwrap(
-        PatternMatch.create('id', 'inference', 'name', createTestLocation(), 0.8, 'content')
+        PatternMatch.create('id', 'inference', 'name', createTestLocation(), 0.8, 'content'),
       );
       const lowConf = unwrap(
-        PatternMatch.create('id', 'inference', 'name', createTestLocation(), 0.7, 'content')
+        PatternMatch.create('id', 'inference', 'name', createTestLocation(), 0.7, 'content'),
       );
       const equalConf = unwrap(
-        PatternMatch.create('id', 'inference', 'name', createTestLocation(), 0.8, 'content')
+        PatternMatch.create('id', 'inference', 'name', createTestLocation(), 0.8, 'content'),
       );
 
       expect(highConf.isHighConfidence()).toBe(true);
@@ -1262,8 +1270,8 @@ describe('PatternMatch', () => {
           createTestLocation(),
           0.8,
           'content',
-          new Map([['A', 'value']])
-        )
+          new Map([['A', 'value']]),
+        ),
       );
       const withoutVars = unwrap(
         PatternMatch.create(
@@ -1273,8 +1281,8 @@ describe('PatternMatch', () => {
           createTestLocation(),
           0.8,
           'content',
-          new Map()
-        )
+          new Map(),
+        ),
       );
 
       expect(withVars.hasVariables()).toBe(true);
@@ -1294,8 +1302,8 @@ describe('PatternMatch', () => {
           createTestLocation(),
           0.8,
           'content',
-          variables
-        )
+          variables,
+        ),
       );
 
       expect(match.getVariable('A')).toBe('All men');
@@ -1313,8 +1321,8 @@ describe('PatternMatch', () => {
           createTestLocation(),
           0.8,
           'content',
-          variables
-        )
+          variables,
+        ),
       );
 
       expect(match.hasVariable('A')).toBe(true);
@@ -1336,8 +1344,8 @@ describe('PatternMatch', () => {
           createTestLocation(),
           0.8,
           'content',
-          variables
-        )
+          variables,
+        ),
       );
 
       const returnedVars = match.getVariables();
@@ -1357,10 +1365,10 @@ describe('PatternMatch', () => {
     it('should return true for matches with same pattern ID, location, and content', () => {
       const location = createTestLocation();
       const first = unwrap(
-        PatternMatch.create('pattern-1', 'inference', 'Name 1', location, 0.9, 'content')
+        PatternMatch.create('pattern-1', 'inference', 'Name 1', location, 0.9, 'content'),
       );
       const second = unwrap(
-        PatternMatch.create('pattern-1', 'structural', 'Name 2', location, 0.5, 'content')
+        PatternMatch.create('pattern-1', 'structural', 'Name 2', location, 0.5, 'content'),
       );
 
       expect(first.equals(second)).toBe(true);
@@ -1369,10 +1377,10 @@ describe('PatternMatch', () => {
     it('should return false for different pattern IDs', () => {
       const location = createTestLocation();
       const first = unwrap(
-        PatternMatch.create('pattern-1', 'inference', 'name', location, 0.8, 'content')
+        PatternMatch.create('pattern-1', 'inference', 'name', location, 0.8, 'content'),
       );
       const second = unwrap(
-        PatternMatch.create('pattern-2', 'inference', 'name', location, 0.8, 'content')
+        PatternMatch.create('pattern-2', 'inference', 'name', location, 0.8, 'content'),
       );
 
       expect(first.equals(second)).toBe(false);
@@ -1382,10 +1390,10 @@ describe('PatternMatch', () => {
       const location1 = unwrap(SourceLocation.create(1, 0, 2, 10));
       const location2 = unwrap(SourceLocation.create(3, 0, 4, 10));
       const first = unwrap(
-        PatternMatch.create('pattern-1', 'inference', 'name', location1, 0.8, 'content')
+        PatternMatch.create('pattern-1', 'inference', 'name', location1, 0.8, 'content'),
       );
       const second = unwrap(
-        PatternMatch.create('pattern-1', 'inference', 'name', location2, 0.8, 'content')
+        PatternMatch.create('pattern-1', 'inference', 'name', location2, 0.8, 'content'),
       );
 
       expect(first.equals(second)).toBe(false);
@@ -1394,10 +1402,10 @@ describe('PatternMatch', () => {
     it('should return false for different matched content', () => {
       const location = createTestLocation();
       const first = unwrap(
-        PatternMatch.create('pattern-1', 'inference', 'name', location, 0.8, 'content 1')
+        PatternMatch.create('pattern-1', 'inference', 'name', location, 0.8, 'content 1'),
       );
       const second = unwrap(
-        PatternMatch.create('pattern-1', 'inference', 'name', location, 0.8, 'content 2')
+        PatternMatch.create('pattern-1', 'inference', 'name', location, 0.8, 'content 2'),
       );
 
       expect(first.equals(second)).toBe(false);
@@ -1447,7 +1455,7 @@ describe('MatchContext', () => {
       expect(metadata).toEqual({ type: 'logical-inference' });
 
       // Modifying returned object should not affect internal state
-      metadata['newField'] = 'added';
+      metadata.newField = 'added';
       expect(context.getAdditionalMetadata()).toEqual({ type: 'logical-inference' });
     });
   });
@@ -1466,7 +1474,7 @@ describe('type validation', () => {
       'validation',
     ];
 
-    categories.forEach(category => {
+    categories.forEach((category) => {
       const result = AnalysisInsight.create(category, 'Title', 'Description');
       expect(result.isOk()).toBe(true);
     });
@@ -1475,7 +1483,7 @@ describe('type validation', () => {
   it('should accept all InsightPriority values', () => {
     const priorities: InsightPriority[] = ['low', 'medium', 'high'];
 
-    priorities.forEach(priority => {
+    priorities.forEach((priority) => {
       const result = AnalysisInsight.create('syntax', 'Title', 'Description', priority);
       expect(result.isOk()).toBe(true);
     });
@@ -1492,14 +1500,14 @@ describe('type validation', () => {
       'validation',
     ];
 
-    types.forEach(type => {
+    types.forEach((type) => {
       const result = PatternMatch.create(
         'id',
         type,
         'name',
         SourceLocation.createDefault(),
         0.8,
-        'content'
+        'content',
       );
       expect(result.isOk()).toBe(true);
     });
@@ -1508,7 +1516,7 @@ describe('type validation', () => {
   it('should accept all AnalysisDepth values', () => {
     const depths: AnalysisDepth[] = ['basic', 'moderate', 'deep'];
 
-    depths.forEach(depth => {
+    depths.forEach((depth) => {
       // Can't directly test AnalysisDepth since it's used internally in MatchContext
       // but we can verify through MatchContext factory methods
       expect(typeof depth).toBe('string');
@@ -1549,7 +1557,7 @@ describe('edge cases and boundary conditions', () => {
         'title',
         'description',
         'medium',
-        Number.MIN_VALUE
+        Number.MIN_VALUE,
       );
 
       expect(result.isOk()).toBe(true);
@@ -1561,7 +1569,7 @@ describe('edge cases and boundary conditions', () => {
         'title',
         'description',
         'medium',
-        1 - Number.EPSILON
+        1 - Number.EPSILON,
       );
 
       expect(result.isOk()).toBe(true);
@@ -1589,7 +1597,7 @@ describe('edge cases and boundary conditions', () => {
       const newlines = '\n\n\n';
       const mixed = ' \t\n \t\n ';
 
-      [spaces, tabs, newlines, mixed].forEach(whitespace => {
+      [spaces, tabs, newlines, mixed].forEach((whitespace) => {
         const result = AnalysisInsight.create('syntax', whitespace, 'valid');
         expect(result.isErr()).toBe(true);
       });
@@ -1599,7 +1607,7 @@ describe('edge cases and boundary conditions', () => {
   describe('array and collection edge cases', () => {
     it('should handle empty collections correctly', () => {
       const insight = unwrap(
-        AnalysisInsight.create('syntax', 'title', 'description', 'medium', 1.0, [], [], [])
+        AnalysisInsight.create('syntax', 'title', 'description', 'medium', 1.0, [], [], []),
       );
 
       expect(insight.hasEvidence()).toBe(false);
@@ -1621,8 +1629,8 @@ describe('edge cases and boundary conditions', () => {
           1.0,
           largeArray,
           largeArray,
-          largeArray
-        )
+          largeArray,
+        ),
       );
 
       expect(insight.getEvidence()).toHaveLength(1000);

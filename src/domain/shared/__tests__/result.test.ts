@@ -65,7 +65,7 @@ describe('Domain Shared Result', () => {
     describe('Result operations', () => {
       it('should support map operation', () => {
         const result = ok(5);
-        const mapped = result.map(x => x * 2);
+        const mapped = result.map((x) => x * 2);
 
         expect(mapped.isOk()).toBe(true);
         if (mapped.isOk()) {
@@ -75,7 +75,7 @@ describe('Domain Shared Result', () => {
 
       it('should support map operation on error', () => {
         const result = err(new Error('test'));
-        const mapped = result.map(x => x * 2);
+        const mapped = result.map((x) => x * 2);
 
         expect(mapped.isErr()).toBe(true);
         if (mapped.isErr()) {
@@ -85,7 +85,7 @@ describe('Domain Shared Result', () => {
 
       it('should support andThen operation', () => {
         const result = ok(5);
-        const chained = result.andThen(x => ok(x * 2));
+        const chained = result.andThen((x) => ok(x * 2));
 
         expect(chained.isOk()).toBe(true);
         if (chained.isOk()) {
@@ -105,7 +105,7 @@ describe('Domain Shared Result', () => {
 
       it('should support mapErr operation', () => {
         const result = err(new Error('original'));
-        const mapped = result.mapErr(error => new Error(`wrapped: ${error.message}`));
+        const mapped = result.mapErr((error) => new Error(`wrapped: ${error.message}`));
 
         expect(mapped.isErr()).toBe(true);
         if (mapped.isErr()) {
@@ -115,7 +115,7 @@ describe('Domain Shared Result', () => {
 
       it('should support mapErr operation on success', () => {
         const result = ok('success');
-        const mapped = result.mapErr(error => new Error(`wrapped: ${(error as Error).message}`));
+        const mapped = result.mapErr((error) => new Error(`wrapped: ${(error as Error).message}`));
 
         expect(mapped.isOk()).toBe(true);
         if (mapped.isOk()) {
@@ -138,13 +138,13 @@ describe('Domain Shared Result', () => {
         const errorResult = err(new Error('error'));
 
         const successMatch = successResult.match(
-          value => `got: ${value}`,
-          error => `error: ${(error as Error).message}`
+          (value) => `got: ${value}`,
+          (error) => `error: ${(error as Error).message}`,
         );
 
         const errorMatch = errorResult.match(
-          value => `got: ${String(value)}`,
-          error => `error: ${error.message}`
+          (value) => `got: ${String(value)}`,
+          (error) => `error: ${error.message}`,
         );
 
         expect(successMatch).toBe('got: success');
@@ -231,7 +231,7 @@ describe('Domain Shared Result', () => {
     describe('basic async operations', () => {
       it('should support async map operations', async () => {
         const result = okAsync(5);
-        const mapped = result.map(x => x * 2);
+        const mapped = result.map((x) => x * 2);
 
         const resolved = await mapped;
         expect(resolved.isOk()).toBe(true);
@@ -242,7 +242,7 @@ describe('Domain Shared Result', () => {
 
       it('should support async andThen operations', async () => {
         const result = okAsync(5);
-        const chained = result.andThen(x => okAsync(x * 2));
+        const chained = result.andThen((x) => okAsync(x * 2));
 
         const resolved = await chained;
         expect(resolved.isOk()).toBe(true);
@@ -254,7 +254,7 @@ describe('Domain Shared Result', () => {
       it('should support async error operations', async () => {
         const error = new Error('async error');
         const result = errAsync(error);
-        const mapped = result.map(x => x * 2);
+        const mapped = result.map((x) => x * 2);
 
         const resolved = await mapped;
         expect(resolved.isErr()).toBe(true);
@@ -269,7 +269,7 @@ describe('Domain Shared Result', () => {
         const rejectedPromise = Promise.reject(new Error('promise rejection'));
         const result = ResultAsync.fromPromise(
           rejectedPromise,
-          error => new ValidationError(`Wrapped: ${(error as Error).message}`)
+          (error) => new ValidationError(`Wrapped: ${(error as Error).message}`),
         );
 
         const resolved = await result;
@@ -284,7 +284,7 @@ describe('Domain Shared Result', () => {
         const successfulPromise = Promise.resolve('async success');
         const result = ResultAsync.fromPromise(
           successfulPromise,
-          error => new Error((error as Error).message)
+          (error) => new Error((error as Error).message),
         );
 
         const resolved = await result;
@@ -296,9 +296,9 @@ describe('Domain Shared Result', () => {
 
       it('should chain async operations correctly', async () => {
         const result = okAsync(1)
-          .map(x => x + 1)
-          .andThen(x => okAsync(x * 2))
-          .map(x => x + 1);
+          .map((x) => x + 1)
+          .andThen((x) => okAsync(x * 2))
+          .map((x) => x + 1);
 
         const resolved = await result;
         expect(resolved.isOk()).toBe(true);
@@ -308,7 +308,7 @@ describe('Domain Shared Result', () => {
       });
 
       it('should short-circuit on error in async chains', async () => {
-        const mapSpy = vi.fn(x => x * 2);
+        const mapSpy = vi.fn((x) => x * 2);
         const result = okAsync(1)
           .andThen(() => errAsync(new Error('chain break')))
           .map(mapSpy); // Should not be called
@@ -366,8 +366,8 @@ describe('Domain Shared Result', () => {
         const error = new ValidationError('Age must be a positive integer', context);
 
         expect(error.context).toEqual(context);
-        expect((error.context?.['constraints'] as any)?.min).toBe(0);
-        expect(error.context?.['validationRules']).toEqual(['positive', 'realistic-age']);
+        expect((error.context?.constraints as any)?.min).toBe(0);
+        expect(error.context?.validationRules).toEqual(['positive', 'realistic-age']);
       });
 
       it('should handle null and undefined context', () => {
@@ -389,7 +389,7 @@ describe('Domain Shared Result', () => {
         const error = new ValidationError('test', context);
 
         context.mutable = 'changed';
-        expect(error.context?.['mutable']).toBe('changed');
+        expect(error.context?.mutable).toBe('changed');
       });
     });
 
@@ -424,7 +424,7 @@ describe('Domain Shared Result', () => {
         expect(result.isErr()).toBe(true);
         if (result.isErr()) {
           expect(result.error).toBeInstanceOf(ValidationError);
-          expect(result.error.context?.['field']).toBe('value');
+          expect(result.error.context?.field).toBe('value');
         }
       });
     });
@@ -437,10 +437,10 @@ describe('Domain Shared Result', () => {
           new ValidationError('Age must be positive', { field: 'age', code: 'POSITIVE_NUMBER' }),
         ];
 
-        fieldErrors.forEach(error => {
+        fieldErrors.forEach((error) => {
           expect(error).toBeInstanceOf(ValidationError);
-          expect(error.context?.['field']).toBeTruthy();
-          expect(error.context?.['code']).toBeTruthy();
+          expect(error.context?.field).toBeTruthy();
+          expect(error.context?.code).toBeTruthy();
         });
       });
 
@@ -453,8 +453,8 @@ describe('Domain Shared Result', () => {
           ],
         });
 
-        expect(nestedError.context?.['nested']).toHaveLength(2);
-        expect((nestedError.context?.['nested'] as any)[0]?.['field']).toBe('street');
+        expect(nestedError.context?.nested).toHaveLength(2);
+        expect((nestedError.context?.nested as any)[0]?.field).toBe('street');
       });
 
       it('should support validation with multiple values', () => {
@@ -465,8 +465,8 @@ describe('Domain Shared Result', () => {
           constraint: 'unique',
         });
 
-        expect(multiValueError.context?.['values']).toEqual(['tag1', 'tag2', 'tag1']);
-        expect(multiValueError.context?.['duplicates']).toEqual(['tag1']);
+        expect(multiValueError.context?.values).toEqual(['tag1', 'tag2', 'tag1']);
+        expect(multiValueError.context?.duplicates).toEqual(['tag1']);
       });
     });
   });
@@ -477,7 +477,7 @@ describe('Domain Shared Result', () => {
         const validateEmail = (email: string): Result<string, ValidationError> => {
           if (!email.includes('@')) {
             return err(
-              new ValidationError('Email must contain @', { field: 'email', value: email })
+              new ValidationError('Email must contain @', { field: 'email', value: email }),
             );
           }
           return ok(email);
@@ -503,25 +503,25 @@ describe('Domain Shared Result', () => {
 
       it('should support error mapping in chains', () => {
         const parseNumber = (str: string): Result<number, ValidationError> => {
-          const num = parseInt(str, 10);
-          if (isNaN(num)) {
+          const num = Number.parseInt(str, 10);
+          if (Number.isNaN(num)) {
             return err(new ValidationError('Not a valid number', { input: str }));
           }
           return ok(num);
         };
 
         const result = parseNumber('abc').mapErr(
-          error =>
+          (error) =>
             new ValidationError(`Parse error: ${error.message}`, {
               originalError: error,
               type: 'parse_error',
-            })
+            }),
         );
 
         expect(result.isErr()).toBe(true);
         if (result.isErr()) {
           expect(result.error.message).toBe('Parse error: Not a valid number');
-          expect(result.error.context?.['type']).toBe('parse_error');
+          expect(result.error.context?.type).toBe('parse_error');
         }
       });
     });
@@ -539,10 +539,10 @@ describe('Domain Shared Result', () => {
                 }
               }, 10);
             }),
-            error =>
+            (error) =>
               new ValidationError('Async validation error', {
                 originalError: (error as Error).message,
-              })
+              }),
           );
         };
 
@@ -559,7 +559,7 @@ describe('Domain Shared Result', () => {
       it('should support async error transformation', async () => {
         const asyncOperation = errAsync(new Error('Original async error'));
         const transformed = asyncOperation.mapErr(
-          error => new ValidationError(`Transformed: ${error.message}`, { source: 'async' })
+          (error) => new ValidationError(`Transformed: ${error.message}`, { source: 'async' }),
         );
 
         const result = await transformed;
@@ -579,8 +579,8 @@ describe('Domain Shared Result', () => {
         const result3 = err(new ValidationError('third failed'));
 
         // Using array destructuring to simulate combine behavior
-        const allSuccess = [result1, result2].every(r => r.isOk());
-        const hasError = [result1, result2, result3].some(r => r.isErr());
+        const allSuccess = [result1, result2].every((r) => r.isOk());
+        const hasError = [result1, result2, result3].some((r) => r.isErr());
 
         expect(allSuccess).toBe(true);
         expect(hasError).toBe(true);
@@ -617,8 +617,8 @@ describe('Domain Shared Result', () => {
         circularContext.self = circularContext;
 
         const error = new ValidationError('Circular reference test', circularContext);
-        expect(error.context?.['name']).toBe('circular');
-        expect(error.context?.['self']).toBe(circularContext);
+        expect(error.context?.name).toBe('circular');
+        expect(error.context?.self).toBe(circularContext);
       });
 
       it('should handle context with functions', () => {
@@ -629,8 +629,8 @@ describe('Domain Shared Result', () => {
         };
 
         const error = new ValidationError('Context with functions', contextWithFunctions);
-        expect((error.context?.['data'] as any)?.value).toBe(42);
-        expect(typeof error.context?.['validator']).toBe('function');
+        expect((error.context?.data as any)?.value).toBe(42);
+        expect(typeof error.context?.validator).toBe('function');
       });
 
       it('should handle context with undefined and null values', () => {
@@ -644,12 +644,12 @@ describe('Domain Shared Result', () => {
         };
 
         const error = new ValidationError('Mixed context test', mixedContext);
-        expect(error.context?.['defined']).toBe('value');
-        expect(error.context?.['nullValue']).toBe(null);
-        expect(error.context?.['undefinedValue']).toBe(undefined);
-        expect(error.context?.['zero']).toBe(0);
-        expect(error.context?.['emptyString']).toBe('');
-        expect(error.context?.['falsy']).toBe(false);
+        expect(error.context?.defined).toBe('value');
+        expect(error.context?.nullValue).toBe(null);
+        expect(error.context?.undefinedValue).toBe(undefined);
+        expect(error.context?.zero).toBe(0);
+        expect(error.context?.emptyString).toBe('');
+        expect(error.context?.falsy).toBe(false);
       });
     });
 
@@ -686,7 +686,7 @@ describe('Domain Shared Result', () => {
         const largeContext = {
           largeArray: Array.from({ length: 10000 }, (_, i) => `item-${i}`),
           largeObject: Object.fromEntries(
-            Array.from({ length: 1000 }, (_, i) => [`key-${i}`, `value-${i}`])
+            Array.from({ length: 1000 }, (_, i) => [`key-${i}`, `value-${i}`]),
           ),
           metadata: { size: 'large', created: new Date() },
         };
@@ -695,8 +695,8 @@ describe('Domain Shared Result', () => {
         const error = new ValidationError('Large context test', largeContext);
         const endTime = performance.now();
 
-        expect(error.context?.['largeArray']).toHaveLength(10000);
-        expect(Object.keys(error.context?.['largeObject'] ?? {})).toHaveLength(1000);
+        expect(error.context?.largeArray).toHaveLength(10000);
+        expect(Object.keys(error.context?.largeObject ?? {})).toHaveLength(1000);
         expect(endTime - startTime).toBeLessThan(100); // Should be fast
       });
 
@@ -705,7 +705,7 @@ describe('Domain Shared Result', () => {
 
         const startTime = performance.now();
         for (let i = 0; i < 1000; i++) {
-          result = result.map(x => x + 1);
+          result = result.map((x) => x + 1);
         }
         const endTime = performance.now();
 

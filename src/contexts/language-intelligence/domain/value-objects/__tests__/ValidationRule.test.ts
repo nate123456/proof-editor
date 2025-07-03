@@ -3,9 +3,12 @@ import { describe, expect, it } from 'vitest';
 import { ValidationError } from '../../errors/DomainErrors.js';
 import { DiagnosticSeverity } from '../DiagnosticSeverity.js';
 import {
+  createDefaultValidationRuleMetadata,
+  createSemanticValidationRuleMetadata,
+  createStyleValidationRuleMetadata,
+  createSyntaxValidationRuleMetadata,
   type IValidationRuleMetadata,
   ValidationRule,
-  ValidationRuleMetadata,
   type ValidationRulePattern,
 } from '../ValidationRule.js';
 
@@ -22,7 +25,7 @@ describe('ValidationRule', () => {
         'A test validation rule',
         'syntax',
         DiagnosticSeverity.error(),
-        createTestPattern()
+        createTestPattern(),
       );
 
       expect(result.isOk()).toBe(true);
@@ -45,14 +48,14 @@ describe('ValidationRule', () => {
         'First rule',
         'syntax',
         DiagnosticSeverity.error(),
-        createTestPattern()
+        createTestPattern(),
       );
       const rule2 = ValidationRule.create(
         'Rule Two',
         'Second rule',
         'syntax',
         DiagnosticSeverity.error(),
-        createTestPattern()
+        createTestPattern(),
       );
 
       expect(rule1.isOk()).toBe(true);
@@ -69,7 +72,7 @@ describe('ValidationRule', () => {
         '  A test description  ',
         'syntax',
         DiagnosticSeverity.error(),
-        createTestPattern()
+        createTestPattern(),
       );
 
       expect(result.isOk()).toBe(true);
@@ -96,7 +99,7 @@ describe('ValidationRule', () => {
         'syntax',
         DiagnosticSeverity.error(),
         createTestPattern(),
-        customMetadata
+        customMetadata,
       );
 
       expect(result.isOk()).toBe(true);
@@ -112,7 +115,7 @@ describe('ValidationRule', () => {
         'Valid description',
         'syntax',
         DiagnosticSeverity.error(),
-        createTestPattern()
+        createTestPattern(),
       );
 
       expect(result.isErr()).toBe(true);
@@ -128,7 +131,7 @@ describe('ValidationRule', () => {
         'Valid description',
         'syntax',
         DiagnosticSeverity.error(),
-        createTestPattern()
+        createTestPattern(),
       );
 
       expect(result.isErr()).toBe(true);
@@ -143,7 +146,7 @@ describe('ValidationRule', () => {
         '',
         'syntax',
         DiagnosticSeverity.error(),
-        createTestPattern()
+        createTestPattern(),
       );
 
       expect(result.isErr()).toBe(true);
@@ -159,7 +162,7 @@ describe('ValidationRule', () => {
         '   ',
         'syntax',
         DiagnosticSeverity.error(),
-        createTestPattern()
+        createTestPattern(),
       );
 
       expect(result.isErr()).toBe(true);
@@ -175,7 +178,7 @@ describe('ValidationRule', () => {
         const result = ValidationRule.createSyntaxRule(
           'Syntax Rule',
           'A syntax validation rule',
-          createTestPattern()
+          createTestPattern(),
         );
 
         expect(result.isOk()).toBe(true);
@@ -195,7 +198,7 @@ describe('ValidationRule', () => {
           'Syntax Rule',
           'A syntax validation rule',
           createTestPattern(),
-          DiagnosticSeverity.warning()
+          DiagnosticSeverity.warning(),
         );
 
         expect(result.isOk()).toBe(true);
@@ -211,7 +214,7 @@ describe('ValidationRule', () => {
         const result = ValidationRule.createSemanticRule(
           'Semantic Rule',
           'A semantic validation rule',
-          createTestPattern()
+          createTestPattern(),
         );
 
         expect(result.isOk()).toBe(true);
@@ -232,7 +235,7 @@ describe('ValidationRule', () => {
           'Semantic Rule',
           'A semantic validation rule',
           createTestPattern(),
-          DiagnosticSeverity.info()
+          DiagnosticSeverity.info(),
         );
 
         expect(result.isOk()).toBe(true);
@@ -248,7 +251,7 @@ describe('ValidationRule', () => {
         const result = ValidationRule.createStyleRule(
           'Style Rule',
           'A style validation rule',
-          createTestPattern()
+          createTestPattern(),
         );
 
         expect(result.isOk()).toBe(true);
@@ -268,7 +271,7 @@ describe('ValidationRule', () => {
           'Style Rule',
           'A style validation rule',
           createTestPattern(),
-          DiagnosticSeverity.info()
+          DiagnosticSeverity.info(),
         );
 
         expect(result.isOk()).toBe(true);
@@ -289,7 +292,7 @@ describe('ValidationRule', () => {
           'Tests literal matching',
           'syntax',
           DiagnosticSeverity.error(),
-          pattern
+          pattern,
         );
 
         expect(result.isOk()).toBe(true);
@@ -307,7 +310,7 @@ describe('ValidationRule', () => {
           'Tests regex matching',
           'syntax',
           DiagnosticSeverity.error(),
-          pattern
+          pattern,
         );
 
         expect(result.isOk()).toBe(true);
@@ -329,7 +332,7 @@ describe('ValidationRule', () => {
           'Tests case insensitive matching',
           'syntax',
           DiagnosticSeverity.error(),
-          pattern
+          pattern,
         );
 
         expect(result.isOk()).toBe(true);
@@ -348,7 +351,7 @@ describe('ValidationRule', () => {
           'Tests invalid regex handling',
           'syntax',
           DiagnosticSeverity.error(),
-          pattern
+          pattern,
         );
 
         expect(result.isOk()).toBe(true);
@@ -365,7 +368,7 @@ describe('ValidationRule', () => {
           'Tests function pattern security',
           'syntax',
           DiagnosticSeverity.error(),
-          pattern
+          pattern,
         );
 
         expect(result.isOk()).toBe(true);
@@ -382,7 +385,7 @@ describe('ValidationRule', () => {
           'Tests AST pattern',
           'syntax',
           DiagnosticSeverity.error(),
-          pattern
+          pattern,
         );
 
         expect(result.isOk()).toBe(true);
@@ -398,7 +401,7 @@ describe('ValidationRule', () => {
           'An inactive rule',
           'syntax',
           DiagnosticSeverity.error(),
-          createTestPattern('literal')
+          createTestPattern('literal'),
         );
 
         expect(result.isOk()).toBe(true);
@@ -417,7 +420,7 @@ describe('ValidationRule', () => {
           'Test description',
           'syntax',
           DiagnosticSeverity.error(),
-          pattern
+          pattern,
         );
 
         expect(result.isOk()).toBe(true);
@@ -435,7 +438,7 @@ describe('ValidationRule', () => {
           'Test description',
           'syntax',
           DiagnosticSeverity.error(),
-          pattern
+          pattern,
         );
 
         expect(result.isOk()).toBe(true);
@@ -465,7 +468,7 @@ describe('ValidationRule', () => {
           'Test description',
           'syntax',
           DiagnosticSeverity.error(),
-          pattern
+          pattern,
         );
 
         expect(result.isOk()).toBe(true);
@@ -473,10 +476,10 @@ describe('ValidationRule', () => {
           const rule = result.value;
           const matches = rule.getMatchPositions('This has CAPS and MORE words');
           expect(matches).toHaveLength(2);
-          expect(matches[0]!.matchedText).toBe('CAPS');
-          expect(matches[1]!.matchedText).toBe('MORE');
-          expect(matches[0]!.confidence).toBeGreaterThan(0);
-          expect(matches[1]!.confidence).toBeGreaterThan(0);
+          expect(matches[0]?.matchedText).toBe('CAPS');
+          expect(matches[1]?.matchedText).toBe('MORE');
+          expect(matches[0]?.confidence).toBeGreaterThan(0);
+          expect(matches[1]?.confidence).toBeGreaterThan(0);
         }
       });
 
@@ -487,7 +490,7 @@ describe('ValidationRule', () => {
           'Test description',
           'syntax',
           DiagnosticSeverity.error(),
-          pattern
+          pattern,
         );
 
         expect(result.isOk()).toBe(true);
@@ -507,7 +510,7 @@ describe('ValidationRule', () => {
           'Test description',
           'syntax',
           DiagnosticSeverity.error(),
-          pattern
+          pattern,
         );
 
         expect(result.isOk()).toBe(true);
@@ -529,7 +532,7 @@ describe('ValidationRule', () => {
           'Test description',
           'syntax',
           DiagnosticSeverity.error(),
-          pattern
+          pattern,
         );
 
         expect(result.isOk()).toBe(true);
@@ -538,13 +541,13 @@ describe('ValidationRule', () => {
           const validationResult = rule.validate('This has forbidden content');
           expect(validationResult.isValid).toBe(false);
           expect(validationResult.matches).toHaveLength(1);
-          expect(validationResult.matches[0]!.matchedText).toBe('forbidden');
+          expect(validationResult.matches[0]?.matchedText).toBe('forbidden');
         }
       });
 
       it('should include suggestions when metadata has educational hints', () => {
         const metadata: IValidationRuleMetadata = {
-          ...ValidationRuleMetadata.createDefault(),
+          ...createDefaultValidationRuleMetadata(),
           educationalHints: ['Consider alternative wording', 'Check grammar rules'],
         };
         const result = ValidationRule.create(
@@ -553,7 +556,7 @@ describe('ValidationRule', () => {
           'educational',
           DiagnosticSeverity.warning(),
           createTestPattern('literal'),
-          metadata
+          metadata,
         );
 
         expect(result.isOk()).toBe(true);
@@ -567,7 +570,7 @@ describe('ValidationRule', () => {
 
       it('should include auto-fix suggestion when applicable', () => {
         const metadata: IValidationRuleMetadata = {
-          ...ValidationRuleMetadata.createDefault(),
+          ...createDefaultValidationRuleMetadata(),
           autoFix: true,
         };
         const result = ValidationRule.create(
@@ -576,7 +579,7 @@ describe('ValidationRule', () => {
           'style',
           DiagnosticSeverity.warning(),
           createTestPattern('literal'),
-          metadata
+          metadata,
         );
 
         expect(result.isOk()).toBe(true);
@@ -597,14 +600,14 @@ describe('ValidationRule', () => {
           'First rule',
           'syntax',
           DiagnosticSeverity.error(),
-          createTestPattern()
+          createTestPattern(),
         );
         const rule2Result = ValidationRule.create(
           'Rule 2',
           'Second rule',
           'syntax',
           DiagnosticSeverity.error(),
-          createTestPattern()
+          createTestPattern(),
         );
 
         expect(rule1Result.isOk()).toBe(true);
@@ -621,14 +624,14 @@ describe('ValidationRule', () => {
           'Syntax rule',
           'syntax',
           DiagnosticSeverity.error(),
-          createTestPattern()
+          createTestPattern(),
         );
         const semanticRule = ValidationRule.create(
           'Semantic Rule',
           'Semantic rule',
           'semantic',
           DiagnosticSeverity.error(),
-          createTestPattern()
+          createTestPattern(),
         );
 
         expect(syntaxRule.isOk()).toBe(true);
@@ -645,14 +648,14 @@ describe('ValidationRule', () => {
           'Error rule',
           'syntax',
           DiagnosticSeverity.error(),
-          createTestPattern()
+          createTestPattern(),
         );
         const warningRule = ValidationRule.create(
           'Warning Rule',
           'Warning rule',
           'syntax',
           DiagnosticSeverity.warning(),
-          createTestPattern()
+          createTestPattern(),
         );
 
         expect(errorRule.isOk()).toBe(true);
@@ -665,7 +668,7 @@ describe('ValidationRule', () => {
 
       it('should reject combination when either rule is exclusive', () => {
         const exclusiveMetadata: IValidationRuleMetadata = {
-          ...ValidationRuleMetadata.createDefault(),
+          ...createDefaultValidationRuleMetadata(),
           isExclusive: true,
         };
         const normalRule = ValidationRule.create(
@@ -673,7 +676,7 @@ describe('ValidationRule', () => {
           'Normal rule',
           'syntax',
           DiagnosticSeverity.error(),
-          createTestPattern()
+          createTestPattern(),
         );
         const exclusiveRule = ValidationRule.create(
           'Exclusive Rule',
@@ -681,7 +684,7 @@ describe('ValidationRule', () => {
           'syntax',
           DiagnosticSeverity.error(),
           createTestPattern(),
-          exclusiveMetadata
+          exclusiveMetadata,
         );
 
         expect(normalRule.isOk()).toBe(true);
@@ -701,7 +704,7 @@ describe('ValidationRule', () => {
           'Test description',
           'syntax',
           DiagnosticSeverity.error(),
-          createTestPattern()
+          createTestPattern(),
         );
 
         expect(originalResult.isOk()).toBe(true);
@@ -724,7 +727,7 @@ describe('ValidationRule', () => {
           'Test description',
           'syntax',
           DiagnosticSeverity.error(),
-          createTestPattern()
+          createTestPattern(),
         );
 
         expect(originalResult.isOk()).toBe(true);
@@ -745,7 +748,7 @@ describe('ValidationRule', () => {
           'Test description',
           'syntax',
           DiagnosticSeverity.error(),
-          createTestPattern()
+          createTestPattern(),
         );
 
         expect(originalResult.isOk()).toBe(true);
@@ -769,7 +772,7 @@ describe('ValidationRule', () => {
         'Test description',
         'syntax',
         DiagnosticSeverity.error(),
-        createTestPattern()
+        createTestPattern(),
       );
 
       expect(ruleResult.isOk()).toBe(true);
@@ -786,14 +789,14 @@ describe('ValidationRule', () => {
         'First rule',
         'syntax',
         DiagnosticSeverity.error(),
-        createTestPattern()
+        createTestPattern(),
       );
       const rule2Result = ValidationRule.create(
         'Rule 2',
         'Second rule',
         'syntax',
         DiagnosticSeverity.error(),
-        createTestPattern()
+        createTestPattern(),
       );
 
       expect(rule1Result.isOk()).toBe(true);
@@ -808,7 +811,7 @@ describe('ValidationRule', () => {
   describe('ValidationRuleMetadata factory methods', () => {
     describe('createDefault', () => {
       it('should create default metadata', () => {
-        const metadata = ValidationRuleMetadata.createDefault();
+        const metadata = createDefaultValidationRuleMetadata();
 
         expect(metadata.autoFix).toBe(false);
         expect(metadata.educationalHints).toEqual([]);
@@ -821,7 +824,7 @@ describe('ValidationRule', () => {
 
     describe('createForSyntax', () => {
       it('should create syntax-specific metadata', () => {
-        const metadata = ValidationRuleMetadata.createForSyntax();
+        const metadata = createSyntaxValidationRuleMetadata();
 
         expect(metadata.autoFix).toBe(true);
         expect(metadata.priority).toBe(10);
@@ -832,7 +835,7 @@ describe('ValidationRule', () => {
 
     describe('createForSemantic', () => {
       it('should create semantic-specific metadata', () => {
-        const metadata = ValidationRuleMetadata.createForSemantic();
+        const metadata = createSemanticValidationRuleMetadata();
 
         expect(metadata.educationalHints).toContain('Review logical structure');
         expect(metadata.educationalHints).toContain('Check inference validity');
@@ -844,7 +847,7 @@ describe('ValidationRule', () => {
 
     describe('createForStyle', () => {
       it('should create style-specific metadata', () => {
-        const metadata = ValidationRuleMetadata.createForStyle();
+        const metadata = createStyleValidationRuleMetadata();
 
         expect(metadata.autoFix).toBe(true);
         expect(metadata.priority).toBe(1);
@@ -861,7 +864,7 @@ describe('ValidationRule', () => {
         'Test description',
         'syntax',
         DiagnosticSeverity.error(),
-        createTestPattern('literal')
+        createTestPattern('literal'),
       );
 
       expect(result.isOk()).toBe(true);
@@ -881,7 +884,7 @@ describe('ValidationRule', () => {
         'Tests performance with long text',
         'syntax',
         DiagnosticSeverity.error(),
-        pattern
+        pattern,
       );
 
       expect(result.isOk()).toBe(true);
@@ -899,7 +902,7 @@ describe('ValidationRule', () => {
         'Tests special characters',
         'syntax',
         DiagnosticSeverity.error(),
-        pattern
+        pattern,
       );
 
       expect(result.isOk()).toBe(true);
@@ -921,15 +924,15 @@ describe('ValidationRule', () => {
         'Tests context weight',
         'syntax',
         DiagnosticSeverity.error(),
-        pattern
+        pattern,
       );
 
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         const rule = result.value;
         const matches = rule.getMatchPositions('test');
-        expect(matches[0]!.confidence).toBeGreaterThan(0);
-        expect(matches[0]!.confidence).toBeLessThanOrEqual(1);
+        expect(matches[0]?.confidence).toBeGreaterThan(0);
+        expect(matches[0]?.confidence).toBeLessThanOrEqual(1);
       }
     });
   });

@@ -49,12 +49,12 @@ describe('ParseError', () => {
 
       const syntaxErrors = parseError.getErrorsByType(ParseErrorType.YAML_SYNTAX);
       expect(syntaxErrors).toHaveLength(2);
-      expect(syntaxErrors[0]!.message).toBe('Syntax error 1');
-      expect(syntaxErrors[1]!.message).toBe('Syntax error 2');
+      expect(syntaxErrors[0]?.message).toBe('Syntax error 1');
+      expect(syntaxErrors[1]?.message).toBe('Syntax error 2');
 
       const refErrors = parseError.getErrorsByType(ParseErrorType.MISSING_REFERENCE);
       expect(refErrors).toHaveLength(1);
-      expect(refErrors[0]!.message).toBe('Missing ref');
+      expect(refErrors[0]?.message).toBe('Missing ref');
     });
 
     it('should format errors as readable string', () => {
@@ -210,7 +210,7 @@ describe('ParseError', () => {
 
       const parseError = new ParseFailureError(errors);
 
-      allTypes.forEach(type => {
+      allTypes.forEach((type) => {
         expect(parseError.hasErrorType(type)).toBe(true);
         expect(parseError.getErrorsByType(type)).toHaveLength(1);
       });
@@ -339,13 +339,13 @@ describe('ParseError', () => {
       expect(formatted).toContain('yaml-syntax: YAML parsing failed (line 1, col 1)');
       expect(formatted).toContain('invalid-structure: Document structure is invalid in root');
       expect(formatted).toContain(
-        'missing-reference: Referenced statement not found in orderedSets'
+        'missing-reference: Referenced statement not found in orderedSets',
       );
       expect(formatted).toContain(
-        'circular-dependency: Circular dependency detected (line 15) in arguments'
+        'circular-dependency: Circular dependency detected (line 15) in arguments',
       );
       expect(formatted).toContain(
-        'duplicate-id: Duplicate statement ID found (line 20, col 5) in statements'
+        'duplicate-id: Duplicate statement ID found (line 20, col 5) in statements',
       );
     });
 

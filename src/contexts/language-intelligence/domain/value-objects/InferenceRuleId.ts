@@ -19,8 +19,8 @@ export class InferenceRuleId {
     if (!/^[a-zA-Z0-9_-]+$/.test(trimmedValue)) {
       return err(
         new ValidationError(
-          'Inference rule ID can only contain letters, numbers, hyphens, and underscores'
-        )
+          'Inference rule ID can only contain letters, numbers, hyphens, and underscores',
+        ),
       );
     }
 

@@ -1,9 +1,9 @@
-import { type AtomicArgument } from '../entities/AtomicArgument';
+import type { AtomicArgument } from '../entities/AtomicArgument';
 import { ProcessingError } from '../errors/DomainErrors';
 import type { IAtomicArgumentRepository } from '../repositories/IAtomicArgumentRepository';
 import type { IOrderedSetRepository } from '../repositories/IOrderedSetRepository';
 import { err, ok, type Result } from '../shared/result.js';
-import { type AtomicArgumentId, type OrderedSetId } from '../shared/value-objects.js';
+import type { AtomicArgumentId, OrderedSetId } from '../shared/value-objects.js';
 
 /**
  * Basic connection resolution service for argument-level operations.
@@ -15,7 +15,7 @@ import { type AtomicArgumentId, type OrderedSetId } from '../shared/value-object
 export class ConnectionResolutionService {
   constructor(
     private readonly atomicArgumentRepo: IAtomicArgumentRepository,
-    private readonly orderedSetRepo: IOrderedSetRepository
+    private readonly orderedSetRepo: IOrderedSetRepository,
   ) {}
 
   /**
@@ -23,7 +23,7 @@ export class ConnectionResolutionService {
    * For tree-aware connection resolution, use TreeEntity.findDirectConnections().
    */
   async findBasicConnections(
-    argumentId: AtomicArgumentId
+    argumentId: AtomicArgumentId,
   ): Promise<Result<ConnectionMap, ProcessingError>> {
     const argument = await this.atomicArgumentRepo.findById(argumentId);
     if (!argument) {
@@ -41,7 +41,7 @@ export class ConnectionResolutionService {
    * @deprecated This method has been moved to TreeEntity. This is a compatibility wrapper.
    */
   async findDirectConnections(
-    argumentId: AtomicArgumentId
+    argumentId: AtomicArgumentId,
   ): Promise<Result<ConnectionMap, ProcessingError>> {
     return this.findBasicConnections(argumentId);
   }
@@ -60,7 +60,7 @@ export class ConnectionResolutionService {
    */
   findPathCompleteArgument(
     startId: AtomicArgumentId,
-    endId: AtomicArgumentId
+    endId: AtomicArgumentId,
   ): Result<PathCompleteArgument, ProcessingError> {
     // Simplified implementation for compatibility
     const pathComplete = new PathCompleteArgument([startId, endId], [[startId, endId]]);
@@ -73,8 +73,8 @@ export class ConnectionResolutionService {
 
     const allArguments = await this.atomicArgumentRepo.findAll();
     return allArguments.filter(
-      arg =>
-        arg.getConclusionSetRef()?.equals(premiseSetRef) && !arg.getId().equals(argument.getId())
+      (arg) =>
+        arg.getConclusionSetRef()?.equals(premiseSetRef) && !arg.getId().equals(argument.getId()),
     );
   }
 
@@ -84,8 +84,8 @@ export class ConnectionResolutionService {
 
     const allArguments = await this.atomicArgumentRepo.findAll();
     return allArguments.filter(
-      arg =>
-        arg.getPremiseSetRef()?.equals(conclusionSetRef) && !arg.getId().equals(argument.getId())
+      (arg) =>
+        arg.getPremiseSetRef()?.equals(conclusionSetRef) && !arg.getId().equals(argument.getId()),
     );
   }
 }
@@ -94,7 +94,7 @@ export class ConnectionMap {
   constructor(
     private readonly centralArgumentId: AtomicArgumentId,
     private readonly parents: AtomicArgument[],
-    private readonly children: AtomicArgument[]
+    private readonly children: AtomicArgument[],
   ) {}
 
   getCentralArgumentId(): AtomicArgumentId {
@@ -122,7 +122,7 @@ export class ArgumentTreeStructure {
 export class PathCompleteArgument {
   constructor(
     private readonly argumentIds: AtomicArgumentId[],
-    private readonly paths: AtomicArgumentId[][]
+    private readonly paths: AtomicArgumentId[][],
   ) {}
 
   getAllArguments(): readonly AtomicArgumentId[] {
@@ -137,14 +137,14 @@ export class OrderedSetReference {
   constructor(
     public readonly argumentId: AtomicArgumentId,
     public readonly referenceType: 'premise' | 'conclusion',
-    public readonly orderedSetId: OrderedSetId
+    public readonly orderedSetId: OrderedSetId,
   ) {}
 }
 
 export class ConnectionIntegrityReport {
   constructor(
     public readonly argumentId: AtomicArgumentId,
-    public readonly issues: ConnectionIntegrityIssue[]
+    public readonly issues: ConnectionIntegrityIssue[],
   ) {}
 
   hasIssues(): boolean {
@@ -155,6 +155,6 @@ export class ConnectionIntegrityReport {
 export class ConnectionIntegrityIssue {
   constructor(
     public readonly type: string,
-    public readonly description: string
+    public readonly description: string,
   ) {}
 }

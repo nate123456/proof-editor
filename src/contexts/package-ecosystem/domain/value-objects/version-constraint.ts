@@ -21,7 +21,7 @@ export interface VersionRange {
 export class VersionConstraint {
   private constructor(
     private readonly constraint: string,
-    private readonly ranges: VersionRange[]
+    private readonly ranges: VersionRange[],
   ) {}
 
   static create(constraint: string): Result<VersionConstraint, InvalidPackageVersionError> {
@@ -31,7 +31,7 @@ export class VersionConstraint {
       return err(new InvalidPackageVersionError('Version constraint cannot be empty'));
     }
 
-    const parseResult = this.parseConstraint(constraint); // Pass original, not trimmed
+    const parseResult = VersionConstraint.parseConstraint(constraint); // Pass original, not trimmed
     if (parseResult.isErr()) {
       return err(parseResult.error);
     }
@@ -68,7 +68,7 @@ export class VersionConstraint {
   }
 
   private static parseConstraint(
-    constraint: string
+    constraint: string,
   ): Result<VersionRange[], InvalidPackageVersionError> {
     const ranges: VersionRange[] = [];
 
@@ -77,7 +77,10 @@ export class VersionConstraint {
       if (!lower?.trim() || !upper?.trim()) {
         return err(new InvalidPackageVersionError(`Invalid range format: ${constraint}`));
       }
-      if (!this.isValidVersion(lower.trim()) || !this.isValidVersion(upper.trim())) {
+      if (
+        !VersionConstraint.isValidVersion(lower.trim()) ||
+        !VersionConstraint.isValidVersion(upper.trim())
+      ) {
         return err(new InvalidPackageVersionError(`Invalid range format: ${constraint}`));
       }
       ranges.push({ operator: 'range', version: lower.trim(), upperBound: upper.trim() });
@@ -86,42 +89,42 @@ export class VersionConstraint {
       const trimmed = constraint.trim();
       if (trimmed.startsWith('^')) {
         const version = trimmed.slice(1);
-        if (!this.isValidVersion(version)) {
+        if (!VersionConstraint.isValidVersion(version)) {
           return err(new InvalidPackageVersionError(`Invalid caret constraint: ${constraint}`));
         }
         ranges.push({ operator: 'caret', version });
       } else if (trimmed.startsWith('~')) {
         const version = trimmed.slice(1);
-        if (!this.isValidVersion(version)) {
+        if (!VersionConstraint.isValidVersion(version)) {
           return err(new InvalidPackageVersionError(`Invalid tilde constraint: ${constraint}`));
         }
         ranges.push({ operator: 'tilde', version });
       } else if (trimmed.startsWith('>=')) {
         const version = trimmed.slice(2).trim();
-        if (!this.isValidVersion(version)) {
+        if (!VersionConstraint.isValidVersion(version)) {
           return err(new InvalidPackageVersionError(`Invalid gte constraint: ${constraint}`));
         }
         ranges.push({ operator: 'gte', version });
       } else if (trimmed.startsWith('<=')) {
         const version = trimmed.slice(2).trim();
-        if (!this.isValidVersion(version)) {
+        if (!VersionConstraint.isValidVersion(version)) {
           return err(new InvalidPackageVersionError(`Invalid lte constraint: ${constraint}`));
         }
         ranges.push({ operator: 'lte', version });
       } else if (trimmed.startsWith('>')) {
         const version = trimmed.slice(1).trim();
-        if (!this.isValidVersion(version)) {
+        if (!VersionConstraint.isValidVersion(version)) {
           return err(new InvalidPackageVersionError(`Invalid gt constraint: ${constraint}`));
         }
         ranges.push({ operator: 'gt', version });
       } else if (trimmed.startsWith('<')) {
         const version = trimmed.slice(1).trim();
-        if (!this.isValidVersion(version)) {
+        if (!VersionConstraint.isValidVersion(version)) {
           return err(new InvalidPackageVersionError(`Invalid lt constraint: ${constraint}`));
         }
         ranges.push({ operator: 'lt', version });
       } else {
-        if (!this.isValidVersion(trimmed)) {
+        if (!VersionConstraint.isValidVersion(trimmed)) {
           return err(new InvalidPackageVersionError(`Invalid version format: ${constraint}`));
         }
         ranges.push({ operator: 'exact', version: trimmed });
@@ -133,7 +136,7 @@ export class VersionConstraint {
 
   private static isValidVersion(version: string): boolean {
     const semverRegex =
-      /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/;
+      /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9a-zA-Z.-]+))?(?:\+([0-9a-zA-Z.-]+))?$/;
     return semverRegex.test(version);
   }
 
@@ -183,22 +186,22 @@ export class VersionConstraint {
     patch: number;
     prerelease?: string;
   } {
-    const match = version.match(/^(\d+)\.(\d+)\.(\d+)(?:-(.+))?/);
+    const match = /^(\d+)\.(\d+)\.(\d+)(?:-([a-zA-Z0-9.-]+))?/.exec(version);
     if (!match?.[1] || !match[2] || !match[3]) {
       throw new Error(`Invalid version format: ${version}`);
     }
 
     return {
-      major: parseInt(match[1], 10),
-      minor: parseInt(match[2], 10),
-      patch: parseInt(match[3], 10),
+      major: Number.parseInt(match[1], 10),
+      minor: Number.parseInt(match[2], 10),
+      patch: Number.parseInt(match[3], 10),
       ...(match[4] ? { prerelease: match[4] } : {}),
     };
   }
 
   private compareVersions(
     a: { major: number; minor: number; patch: number; prerelease?: string },
-    b: { major: number; minor: number; patch: number; prerelease?: string }
+    b: { major: number; minor: number; patch: number; prerelease?: string },
   ): number {
     if (a.major !== b.major) return a.major - b.major;
     if (a.minor !== b.minor) return a.minor - b.minor;
@@ -215,7 +218,7 @@ export class VersionConstraint {
 
   private satisfiesCaretRange(
     version: { major: number; minor: number; patch: number },
-    range: { major: number; minor: number; patch: number }
+    range: { major: number; minor: number; patch: number },
   ): boolean {
     // Major version must always match
     if (version.major !== range.major) return false;
@@ -240,7 +243,7 @@ export class VersionConstraint {
 
   private satisfiesTildeRange(
     version: { major: number; minor: number; patch: number },
-    range: { major: number; minor: number; patch: number }
+    range: { major: number; minor: number; patch: number },
   ): boolean {
     if (version.major !== range.major) return false;
     if (version.minor !== range.minor) return false;

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import * as parserIndex from '../index.js';
 import { ParseFailureError } from '../ParseError.js';
 import { ProofFileParser } from '../ProofFileParser.js';
+import { YAMLValidator } from '../YAMLValidator.js';
 
 describe('Parser Index Exports', () => {
   it('should export ParseError type and related classes', () => {
@@ -23,8 +24,9 @@ describe('Parser Index Exports', () => {
     expect(parserIndex.ProofFileParser).toBeDefined();
     expect(parserIndex.ProofFileParser).toBe(ProofFileParser);
 
-    // Verify it can be instantiated
-    const parser = new parserIndex.ProofFileParser();
+    // Verify it can be instantiated with required dependency
+    const validator = new YAMLValidator();
+    const parser = new parserIndex.ProofFileParser(validator);
     expect(parser).toBeInstanceOf(ProofFileParser);
     expect(typeof parser.parseProofFile).toBe('function');
   });
@@ -69,7 +71,7 @@ describe('Parser Index Exports', () => {
     const actualExports = Object.keys(parserIndex);
 
     // All expected exports should be present
-    expectedExports.forEach(exportName => {
+    expectedExports.forEach((exportName) => {
       expect(actualExports).toContain(exportName);
     });
 
@@ -79,7 +81,7 @@ describe('Parser Index Exports', () => {
 
   it('should re-export functionality works correctly', () => {
     // Test that re-exported functionality works as expected
-    const parser = new parserIndex.ProofFileParser();
+    const parser = new parserIndex.ProofFileParser(new YAMLValidator());
 
     // Test with invalid YAML to trigger ParseFailureError
     const invalidYaml = 'invalid: yaml: content: [';

@@ -1,10 +1,10 @@
-import { type Result } from 'neverthrow';
+import type { Result } from 'neverthrow';
 
-import { type RepositoryError } from '../../../../domain/errors/DomainErrors.js';
-import { type Operation } from '../entities/Operation';
-import { type DeviceId } from '../value-objects/DeviceId';
-import { type OperationId } from '../value-objects/OperationId';
-import { type OperationType } from '../value-objects/OperationType';
+import type { RepositoryError } from '../../../../domain/errors/DomainErrors.js';
+import type { Operation } from '../entities/Operation';
+import type { DeviceId } from '../value-objects/DeviceId';
+import type { OperationId } from '../value-objects/OperationId';
+import type { OperationType } from '../value-objects/OperationType';
 
 export interface IOperationRepository {
   save(operation: Operation): Promise<Result<void, RepositoryError>>;

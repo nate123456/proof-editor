@@ -75,7 +75,7 @@ describe('InferenceRuleId', () => {
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
         expect(result.error.message).toBe(
-          'Inference rule ID can only contain letters, numbers, hyphens, and underscores'
+          'Inference rule ID can only contain letters, numbers, hyphens, and underscores',
         );
       }
     });
@@ -86,7 +86,7 @@ describe('InferenceRuleId', () => {
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
         expect(result.error.message).toBe(
-          'Inference rule ID can only contain letters, numbers, hyphens, and underscores'
+          'Inference rule ID can only contain letters, numbers, hyphens, and underscores',
         );
       }
     });
@@ -97,7 +97,7 @@ describe('InferenceRuleId', () => {
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
         expect(result.error.message).toBe(
-          'Inference rule ID can only contain letters, numbers, hyphens, and underscores'
+          'Inference rule ID can only contain letters, numbers, hyphens, and underscores',
         );
       }
     });

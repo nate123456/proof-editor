@@ -1,6 +1,6 @@
 import { err, ok, type Result } from 'neverthrow';
 
-import { type AnalysisInsight, type PatternMatch } from '../../../../domain/shared/index.js';
+import type { AnalysisInsight, PatternMatch } from '../../../../domain/shared/index.js';
 import { ValidationError } from '../errors/DomainErrors';
 import { AnalysisMetrics } from '../value-objects/AnalysisMetrics';
 import { AnalysisReportId } from '../value-objects/AnalysisReportId';
@@ -18,13 +18,13 @@ export class AnalysisReport {
     private readonly performanceMetrics: PerformanceMetrics,
     private readonly timestamp: Timestamp,
     private readonly analysisScope: AnalysisScope,
-    private recommendations: string[]
+    private readonly recommendations: string[],
   ) {}
 
   static create(
     documentId: string,
     languagePackageId: string,
-    analysisScope: AnalysisScope
+    analysisScope: AnalysisScope,
   ): Result<AnalysisReport, ValidationError> {
     if (!documentId || documentId.trim().length === 0) {
       return err(new ValidationError('Document ID is required'));
@@ -45,8 +45,8 @@ export class AnalysisReport {
         PerformanceMetrics.empty(),
         Timestamp.now(),
         analysisScope,
-        []
-      )
+        [],
+      ),
     );
   }
 
@@ -58,7 +58,7 @@ export class AnalysisReport {
     insights: AnalysisInsight[],
     patternMatches: PatternMatch[],
     performanceMetrics: PerformanceMetrics,
-    recommendations: string[] = []
+    recommendations: string[] = [],
   ): Result<AnalysisReport, ValidationError> {
     if (!documentId || documentId.trim().length === 0) {
       return err(new ValidationError('Document ID is required'));
@@ -79,8 +79,8 @@ export class AnalysisReport {
         performanceMetrics,
         Timestamp.now(),
         analysisScope,
-        recommendations
-      )
+        recommendations,
+      ),
     );
   }
 
@@ -156,15 +156,15 @@ export class AnalysisReport {
   }
 
   getInsightsByCategory(category: string): AnalysisInsight[] {
-    return this.insights.filter(insight => insight.getCategory() === category);
+    return this.insights.filter((insight) => insight.getCategory() === category);
   }
 
   getPatternMatchesByType(patternType: string): PatternMatch[] {
-    return this.patternMatches.filter(match => match.getPatternType() === patternType);
+    return this.patternMatches.filter((match) => match.getPatternType() === patternType);
   }
 
   hasHighPriorityInsights(): boolean {
-    return this.insights.some(insight => insight.isHighPriority());
+    return this.insights.some((insight) => insight.isHighPriority());
   }
 
   getComplexityScore(): number {
@@ -206,7 +206,7 @@ export class AnalysisReport {
 
   analyzeStructuralPatterns(
     statements: string[],
-    connections: { from: number; to: number }[]
+    connections: { from: number; to: number }[],
   ): StructuralPattern[] {
     const patterns: StructuralPattern[] = [];
 
@@ -243,7 +243,7 @@ export class AnalysisReport {
 
   extractStructuralFeatures(
     statements: string[],
-    connections: { from: number; to: number }[]
+    connections: { from: number; to: number }[],
   ): StructuralFeatures {
     return {
       statementCount: statements.length,
@@ -283,7 +283,7 @@ export class AnalysisReport {
     }
 
     // Initialize all nodes in inDegree to ensure we count nodes with 0 in-degree
-    for (const node of allNodes) {
+    for (const node of Array.from(allNodes)) {
       if (!inDegree.has(node)) {
         inDegree.set(node, 0);
       }
@@ -304,7 +304,7 @@ export class AnalysisReport {
       outDegree.set(from, (outDegree.get(from) ?? 0) + 1);
     }
 
-    for (const [node, degree] of outDegree.entries()) {
+    for (const [node, degree] of Array.from(outDegree.entries())) {
       if (degree > 1) {
         branches.push({ startIndex: node, endIndex: node });
       }
@@ -325,7 +325,7 @@ export class AnalysisReport {
       inDegree.set(to, (inDegree.get(to) ?? 0) + 1);
     }
 
-    for (const [node, degree] of inDegree.entries()) {
+    for (const [node, degree] of Array.from(inDegree.entries())) {
       if (degree > 1) {
         patterns.push({
           type: 'convergent-reasoning',
@@ -350,14 +350,14 @@ export class AnalysisReport {
 
     for (const { from, to } of connections) {
       if (!graph.has(from)) graph.set(from, []);
-      graph.get(from)!.push(to);
+      graph.get(from)?.push(to);
       inDegree.set(to, (inDegree.get(to) ?? 0) + 1);
       allNodes.add(from);
       allNodes.add(to);
     }
 
     // Initialize all nodes in inDegree to ensure we find all roots
-    for (const node of allNodes) {
+    for (const node of Array.from(allNodes)) {
       if (!inDegree.has(node)) {
         inDegree.set(node, 0);
       }
@@ -408,7 +408,7 @@ export class AnalysisReport {
 
     for (const { from, to } of connections) {
       if (!graph.has(from)) graph.set(from, []);
-      graph.get(from)!.push(to);
+      graph.get(from)?.push(to);
     }
 
     const visited = new Set<number>();
@@ -431,7 +431,7 @@ export class AnalysisReport {
       return false;
     };
 
-    for (const [node] of graph) {
+    for (const [node] of Array.from(graph)) {
       if (!visited.has(node)) {
         if (hasCycleDFS(node)) return true;
       }

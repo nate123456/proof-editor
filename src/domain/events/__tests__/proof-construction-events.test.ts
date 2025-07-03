@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  type AtomicArgumentId,
-  type DocumentId,
-  type NodeId,
-  type OrderedSetId,
-  type TreeId,
+import type {
+  AtomicArgumentId,
+  DocumentId,
+  NodeId,
+  OrderedSetId,
+  TreeId,
 } from '../../shared/value-objects.js';
 import {
   type ArgumentModification,
@@ -45,7 +45,7 @@ describe('AtomicArgumentCreated', () => {
       mockOrderedSetId,
       mockOrderedSetId,
       mockSideLabels,
-      'test-user'
+      'test-user',
     );
 
     expect(event.eventType).toBe('AtomicArgumentCreated');
@@ -72,7 +72,7 @@ describe('AtomicArgumentCreated', () => {
       mockOrderedSetId,
       null,
       mockSideLabels,
-      'test-user'
+      'test-user',
     );
 
     const data = event.eventData;
@@ -92,7 +92,7 @@ describe('AtomicArgumentCreated', () => {
       mockOrderedSetId,
       mockOrderedSetId,
       mockSideLabels,
-      'test-user'
+      'test-user',
     );
 
     const record = event.toEventRecord();
@@ -147,11 +147,11 @@ describe('AtomicArgumentModified', () => {
     const event = new AtomicArgumentModified(
       mockAtomicArgumentId,
       conclusionModification,
-      'editor'
+      'editor',
     );
 
-    expect(event['changes'].type).toBe('conclusion_modified');
-    expect(event.eventData['changes']).toBe(conclusionModification);
+    expect(event.changes.type).toBe('conclusion_modified');
+    expect(event.eventData.changes).toBe(conclusionModification);
   });
 });
 
@@ -177,7 +177,7 @@ describe('AtomicArgumentDeleted', () => {
     expect(event.aggregateType).toBe('AtomicArgument');
     expect(event.argumentId).toBe(mockAtomicArgumentId);
     expect(event.deletedBy).toBe('test-user');
-    expect(event['cascadeEffects']).toBe(mockCascadeEffects);
+    expect(event.cascadeEffects).toBe(mockCascadeEffects);
   });
 
   it('should serialize event data correctly', () => {
@@ -195,8 +195,8 @@ describe('AtomicArgumentDeleted', () => {
   it('should handle empty cascade effects', () => {
     const event = new AtomicArgumentDeleted(mockAtomicArgumentId, 'test-user', []);
 
-    expect(event['cascadeEffects']).toEqual([]);
-    expect(event.eventData['cascadeEffects']).toEqual([]);
+    expect(event.cascadeEffects).toEqual([]);
+    expect(event.eventData.cascadeEffects).toEqual([]);
   });
 });
 
@@ -222,7 +222,7 @@ describe('ProofTreeCreated', () => {
       mockDocumentId,
       mockPosition,
       mockPhysicalProperties,
-      'test-user'
+      'test-user',
     );
 
     expect(event.eventType).toBe('ProofTreeCreated');
@@ -241,7 +241,7 @@ describe('ProofTreeCreated', () => {
       mockDocumentId,
       mockPosition,
       mockPhysicalProperties,
-      'test-user'
+      'test-user',
     );
 
     const data = event.eventData;
@@ -267,7 +267,7 @@ describe('NodeAddedToTree', () => {
       mockParentNodeId,
       1,
       0,
-      'test-user'
+      'test-user',
     );
 
     expect(event.eventType).toBe('NodeAddedToTree');
@@ -290,7 +290,7 @@ describe('NodeAddedToTree', () => {
       null,
       0,
       undefined,
-      'test-user'
+      'test-user',
     );
 
     expect(event.parentNodeId).toBeNull();
@@ -305,7 +305,7 @@ describe('NodeAddedToTree', () => {
       mockParentNodeId,
       2,
       1,
-      'test-user'
+      'test-user',
     );
 
     const data = event.eventData;
@@ -341,7 +341,7 @@ describe('NodeRemovedFromTree', () => {
     expect(event.treeId).toBe(mockTreeId);
     expect(event.nodeId).toBe(mockNodeId);
     expect(event.removedBy).toBe('test-user');
-    expect(event['cascadeEffects']).toBe(mockCascadeEffects);
+    expect(event.cascadeEffects).toBe(mockCascadeEffects);
   });
 
   it('should serialize event data correctly', () => {
@@ -406,7 +406,7 @@ describe('TreePositionChanged', () => {
       mockTreeId,
       mockPreviousPosition,
       mockNewPosition,
-      'test-user'
+      'test-user',
     );
 
     expect(event.eventType).toBe('TreePositionChanged');
@@ -423,7 +423,7 @@ describe('TreePositionChanged', () => {
       mockTreeId,
       mockPreviousPosition,
       mockNewPosition,
-      'test-user'
+      'test-user',
     );
 
     const data = event.eventData;
@@ -463,7 +463,7 @@ describe('TreePhysicalPropertiesChanged', () => {
       mockTreeId,
       mockPreviousProperties,
       mockNewProperties,
-      'test-user'
+      'test-user',
     );
 
     expect(event.eventType).toBe('TreePhysicalPropertiesChanged');
@@ -480,7 +480,7 @@ describe('TreePhysicalPropertiesChanged', () => {
       mockTreeId,
       mockPreviousProperties,
       mockNewProperties,
-      'test-user'
+      'test-user',
     );
 
     const data = event.eventData;
@@ -504,7 +504,7 @@ describe('BranchCreated', () => {
       mockParentNodeId,
       mockNewNodeId,
       'from_conclusion',
-      'test-user'
+      'test-user',
     );
 
     expect(event.eventType).toBe('BranchCreated');
@@ -513,7 +513,7 @@ describe('BranchCreated', () => {
     expect(event.treeId).toBe(mockTreeId);
     expect(event.parentNodeId).toBe(mockParentNodeId);
     expect(event.newNodeId).toBe(mockNewNodeId);
-    expect(event['branchType']).toBe('from_conclusion');
+    expect(event.branchType).toBe('from_conclusion');
     expect(event.createdBy).toBe('test-user');
   });
 
@@ -523,7 +523,7 @@ describe('BranchCreated', () => {
       mockParentNodeId,
       mockNewNodeId,
       'from_selected_text',
-      'test-user'
+      'test-user',
     );
 
     const data = event.eventData;
@@ -543,10 +543,10 @@ describe('BranchCreated', () => {
       mockParentNodeId,
       mockNewNodeId,
       'independent',
-      'test-user'
+      'test-user',
     );
 
-    expect(event['branchType']).toBe('independent');
-    expect(event.eventData['branchType']).toBe('independent');
+    expect(event.branchType).toBe('independent');
+    expect(event.eventData.branchType).toBe('independent');
   });
 });

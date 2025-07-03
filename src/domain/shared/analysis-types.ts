@@ -1,4 +1,5 @@
-import { err, ok, type Result, ValidationError } from './result.js';
+import { err, ok, type Result } from 'neverthrow';
+import { ValidationError } from './result.js';
 
 export class SourceLocation {
   private constructor(
@@ -6,7 +7,7 @@ export class SourceLocation {
     private readonly startColumn: number,
     private readonly endLine: number,
     private readonly endColumn: number,
-    private readonly documentUri?: string
+    private readonly documentUri?: string,
   ) {}
 
   static create(
@@ -14,7 +15,7 @@ export class SourceLocation {
     startColumn: number,
     endLine: number,
     endColumn: number,
-    documentUri?: string
+    documentUri?: string,
   ): Result<SourceLocation, ValidationError> {
     if (startLine < 0) {
       return err(new ValidationError('Start line cannot be negative'));
@@ -38,7 +39,7 @@ export class SourceLocation {
   static createSinglePosition(
     line: number,
     column: number,
-    documentUri?: string
+    documentUri?: string,
   ): Result<SourceLocation, ValidationError> {
     return SourceLocation.create(line, column, line, column, documentUri);
   }
@@ -46,7 +47,7 @@ export class SourceLocation {
   static createLineRange(
     startLine: number,
     endLine: number,
-    documentUri?: string
+    documentUri?: string,
   ): Result<SourceLocation, ValidationError> {
     return SourceLocation.create(startLine, 0, endLine, Number.MAX_SAFE_INTEGER, documentUri);
   }
@@ -58,7 +59,7 @@ export class SourceLocation {
   static createFromRange(
     start: Position,
     end: Position,
-    documentUri?: string
+    documentUri?: string,
   ): Result<SourceLocation, ValidationError> {
     return SourceLocation.create(start.line, start.column, end.line, end.column, documentUri);
   }
@@ -176,7 +177,7 @@ export class SourceLocation {
       startColumn,
       endLine,
       endColumn,
-      this.documentUri ?? other.documentUri
+      this.documentUri ?? other.documentUri,
     );
   }
 
@@ -186,7 +187,7 @@ export class SourceLocation {
       this.startColumn,
       this.endLine,
       this.endColumn,
-      documentUri
+      documentUri,
     );
   }
 
@@ -229,7 +230,7 @@ export class AnalysisInsight {
     private readonly confidence: number,
     private readonly evidence: string[],
     private readonly recommendations: string[],
-    private readonly relatedPatterns: string[]
+    private readonly relatedPatterns: string[],
   ) {}
 
   static create(
@@ -240,7 +241,7 @@ export class AnalysisInsight {
     confidence = 1.0,
     evidence: string[] = [],
     recommendations: string[] = [],
-    relatedPatterns: string[] = []
+    relatedPatterns: string[] = [],
   ): Result<AnalysisInsight, ValidationError> {
     if (!title || title.trim().length === 0) {
       return err(new ValidationError('Insight title cannot be empty'));
@@ -263,8 +264,8 @@ export class AnalysisInsight {
         confidence,
         [...evidence],
         [...recommendations],
-        [...relatedPatterns]
-      )
+        [...relatedPatterns],
+      ),
     );
   }
 
@@ -272,7 +273,7 @@ export class AnalysisInsight {
     title: string,
     description: string,
     priority: InsightPriority = 'high',
-    recommendations: string[] = []
+    recommendations: string[] = [],
   ): Result<AnalysisInsight, ValidationError> {
     return AnalysisInsight.create('syntax', title, description, priority, 0.9, [], recommendations);
   }
@@ -281,7 +282,7 @@ export class AnalysisInsight {
     title: string,
     description: string,
     evidence: string[] = [],
-    recommendations: string[] = []
+    recommendations: string[] = [],
   ): Result<AnalysisInsight, ValidationError> {
     return AnalysisInsight.create(
       'semantics',
@@ -290,7 +291,7 @@ export class AnalysisInsight {
       'medium',
       0.8,
       evidence,
-      recommendations
+      recommendations,
     );
   }
 
@@ -365,7 +366,7 @@ export class PatternMatch {
     private readonly matchedContent: string,
     private readonly variables: Map<string, string>,
     private readonly context: MatchContext,
-    private readonly validationScope?: ValidationScope
+    private readonly validationScope?: ValidationScope,
   ) {}
 
   static create(
@@ -377,7 +378,7 @@ export class PatternMatch {
     matchedContent: string,
     variables = new Map<string, string>(),
     context: MatchContext = MatchContext.createDefault(),
-    validationScope?: ValidationScope
+    validationScope?: ValidationScope,
   ): Result<PatternMatch, ValidationError> {
     if (!patternId || patternId.trim().length === 0) {
       return err(new ValidationError('Pattern ID cannot be empty'));
@@ -405,8 +406,8 @@ export class PatternMatch {
         matchedContent.trim(),
         new Map(variables),
         context,
-        validationScope
-      )
+        validationScope,
+      ),
     );
   }
 
@@ -473,7 +474,7 @@ export class MatchContext {
     private readonly surroundingContext: string,
     private readonly relatedMatches: string[],
     private readonly relevanceScore: number,
-    private readonly additionalMetadata: Record<string, unknown>
+    private readonly additionalMetadata: Record<string, unknown>,
   ) {}
 
   static createDefault(): MatchContext {
@@ -543,4 +544,45 @@ export interface ValidationScope {
   targetId: string;
   includeConnected?: boolean;
   depth?: number;
+}
+
+export interface ProofStrategyRecommendation {
+  name: string;
+  description: string;
+  confidence: number;
+  difficulty: string;
+  steps: string[];
+  applicableRules: string[];
+}
+
+export interface LogicalStructureAnalysis {
+  hasConditionals: boolean;
+  hasNegations: boolean;
+  hasQuantifiers: boolean;
+  hasModalOperators: boolean;
+  logicalComplexity: number;
+  structureType: string;
+}
+
+export interface ComplexityAssessment {
+  score: number;
+  level: string;
+  factors: string[];
+  recommendations: string[];
+}
+
+export interface ProofStrategyRecommendations {
+  recommendedStrategies: ProofStrategyRecommendation[];
+  structuralAnalysis: LogicalStructureAnalysis;
+  complexityAssessment: ComplexityAssessment;
+  alternativeApproaches: string[];
+  prerequisiteChecks: string[];
+}
+
+export interface ProofViabilityAnalysis {
+  viable: boolean;
+  confidence: number;
+  difficulty: string;
+  steps: string[];
+  rules: string[];
 }

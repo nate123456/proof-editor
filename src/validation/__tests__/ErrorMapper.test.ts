@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type * as vscode from 'vscode';
 
 import { type ParseError, ParseErrorType } from '../../parser/ParseError.js';
-import { ErrorMapper } from '../ErrorMapper.js';
+import { convertParseErrorToDiagnostic } from '../ErrorMapper.js';
 
 // Mock VS Code API
 const mockVscode = {
@@ -15,13 +15,13 @@ const mockVscode = {
   Position: class MockPosition {
     constructor(
       public line: number,
-      public character: number
+      public character: number,
     ) {}
   },
   Range: class MockRange {
     constructor(
       public start: any,
-      public end: any
+      public end: any,
     ) {}
   },
   Diagnostic: class MockDiagnostic {
@@ -31,7 +31,7 @@ const mockVscode = {
     constructor(
       public range: any,
       public message: string,
-      public severity?: number
+      public severity?: number,
     ) {}
   },
 } as any;
@@ -48,11 +48,11 @@ describe('ErrorMapper', () => {
         lineNumber: line,
         range: new mockVscode.Range(
           new mockVscode.Position(line, 0),
-          new mockVscode.Position(line, line === 5 ? 33 : 17)
+          new mockVscode.Position(line, line === 5 ? 33 : 17),
         ),
         rangeIncludingLineBreak: new mockVscode.Range(
           new mockVscode.Position(line, 0),
-          new mockVscode.Position(line + 1, 0)
+          new mockVscode.Position(line + 1, 0),
         ),
         firstNonWhitespaceCharacterIndex: line === 5 ? 2 : 0,
         isEmptyOrWhitespace: false,
@@ -69,10 +69,10 @@ describe('ErrorMapper', () => {
         column: 10,
       };
 
-      const diagnostic = ErrorMapper.convertParseErrorToDiagnostic(error, mockDocument);
+      const diagnostic = convertParseErrorToDiagnostic(error, mockDocument);
 
       expect(diagnostic.message).toBe(
-        'Invalid document syntax: unexpected end of stream Check for missing colons, incorrect indentation, or unmatched quotes.'
+        'Invalid document syntax: unexpected end of stream Check for missing colons, incorrect indentation, or unmatched quotes.',
       );
       expect(diagnostic.severity).toBe(mockVscode.DiagnosticSeverity.Error);
       expect(diagnostic.source).toBe('proof-editor');
@@ -89,7 +89,7 @@ describe('ErrorMapper', () => {
         reference: 's3',
       };
 
-      const diagnostic = ErrorMapper.convertParseErrorToDiagnostic(error, mockDocument);
+      const diagnostic = convertParseErrorToDiagnostic(error, mockDocument);
 
       expect(diagnostic.message).toContain('referenced in statement list');
       expect(diagnostic.message).toContain('but statement not found');
@@ -105,7 +105,7 @@ describe('ErrorMapper', () => {
         column: 0,
       };
 
-      const diagnostic = ErrorMapper.convertParseErrorToDiagnostic(error, mockDocument);
+      const diagnostic = convertParseErrorToDiagnostic(error, mockDocument);
 
       expect(diagnostic.message).toContain('Statements cannot be empty and must contain text');
       expect(diagnostic.severity).toBe(mockVscode.DiagnosticSeverity.Warning);
@@ -117,7 +117,7 @@ describe('ErrorMapper', () => {
         message: 'Circular dependency detected',
       };
 
-      const diagnostic = ErrorMapper.convertParseErrorToDiagnostic(error, mockDocument);
+      const diagnostic = convertParseErrorToDiagnostic(error, mockDocument);
 
       expect(diagnostic.range.start.line).toBe(0);
       expect(diagnostic.range.start.character).toBe(0);
@@ -132,7 +132,7 @@ describe('ErrorMapper', () => {
         column: 5,
       };
 
-      const diagnostic = ErrorMapper.convertParseErrorToDiagnostic(error, mockDocument);
+      const diagnostic = convertParseErrorToDiagnostic(error, mockDocument);
 
       expect(diagnostic.range.start.line).toBe(9); // lineCount - 1
     });
@@ -155,11 +155,11 @@ describe('ErrorMapper', () => {
             lineNumber: line,
             range: new mockVscode.Range(
               new mockVscode.Position(line, 0),
-              new mockVscode.Position(line, line === 5 ? 36 : 9)
+              new mockVscode.Position(line, line === 5 ? 36 : 9),
             ),
             rangeIncludingLineBreak: new mockVscode.Range(
               new mockVscode.Position(line, 0),
-              new mockVscode.Position(line + 1, 0)
+              new mockVscode.Position(line + 1, 0),
             ),
             firstNonWhitespaceCharacterIndex: line === 5 ? 2 : 0,
             isEmptyOrWhitespace: false,
@@ -167,7 +167,7 @@ describe('ErrorMapper', () => {
         },
       };
 
-      const diagnostic = ErrorMapper.convertParseErrorToDiagnostic(error, mockDocumentWithRef);
+      const diagnostic = convertParseErrorToDiagnostic(error, mockDocumentWithRef);
 
       // Should find and highlight the reference
       expect(diagnostic.range).toBeDefined();
@@ -216,7 +216,7 @@ describe('ErrorMapper', () => {
           message: 'Test error',
         };
 
-        const diagnostic = ErrorMapper.convertParseErrorToDiagnostic(error, mockDocument);
+        const diagnostic = convertParseErrorToDiagnostic(error, mockDocument);
         expect(diagnostic.severity).toBe(expectedSeverity);
       });
     });
@@ -239,7 +239,7 @@ describe('ErrorMapper', () => {
           message: 'Test error',
         };
 
-        const diagnostic = ErrorMapper.convertParseErrorToDiagnostic(error, mockDocument);
+        const diagnostic = convertParseErrorToDiagnostic(error, mockDocument);
         expect(diagnostic.message).toContain(expectedHelp);
       });
     });
@@ -266,7 +266,7 @@ describe('ErrorMapper', () => {
           message: input,
         };
 
-        const diagnostic = ErrorMapper.convertParseErrorToDiagnostic(error, mockDocument);
+        const diagnostic = convertParseErrorToDiagnostic(error, mockDocument);
         expect(diagnostic.message).toContain(expectedOutput);
       });
     });
@@ -288,11 +288,11 @@ describe('ErrorMapper', () => {
             lineNumber: line,
             range: new mockVscode.Range(
               new mockVscode.Position(line, 0),
-              new mockVscode.Position(line, line === 0 ? 1 : 19)
+              new mockVscode.Position(line, line === 0 ? 1 : 19),
             ),
             rangeIncludingLineBreak: new mockVscode.Range(
               new mockVscode.Position(line, 0),
-              new mockVscode.Position(line + 1, 0)
+              new mockVscode.Position(line + 1, 0),
             ),
             firstNonWhitespaceCharacterIndex: 0,
             isEmptyOrWhitespace: false,
@@ -300,7 +300,7 @@ describe('ErrorMapper', () => {
         },
       } as any;
 
-      const diagnostic = ErrorMapper.convertParseErrorToDiagnostic(error, shortLineDocument);
+      const diagnostic = convertParseErrorToDiagnostic(error, shortLineDocument);
 
       expect(diagnostic.range.start.line).toBe(0);
       expect(diagnostic.range.end.character).toBeGreaterThan(diagnostic.range.start.character);
@@ -313,7 +313,7 @@ describe('ErrorMapper', () => {
         message: 'Unknown error type',
       };
 
-      const diagnostic = ErrorMapper.convertParseErrorToDiagnostic(error, mockDocument);
+      const diagnostic = convertParseErrorToDiagnostic(error, mockDocument);
 
       expect(diagnostic.severity).toBe(mockVscode.DiagnosticSeverity.Error);
       expect(diagnostic.message).toContain('Unknown error type');

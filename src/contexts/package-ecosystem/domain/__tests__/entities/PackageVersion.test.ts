@@ -99,7 +99,7 @@ describe('PackageVersion', () => {
           'Removed legacy methods',
         ]);
         expect(packageVersion.getMigrationGuide()).toBe(
-          'See docs/migration.md for upgrade instructions'
+          'See docs/migration.md for upgrade instructions',
         );
       }
     });
@@ -297,7 +297,7 @@ describe('PackageVersion', () => {
       'stable',
     ];
 
-    statusTypes.forEach(status => {
+    statusTypes.forEach((status) => {
       it(`should handle ${status} status correctly`, () => {
         const data: PackageVersionData = {
           packageId,
@@ -322,7 +322,7 @@ describe('PackageVersion', () => {
           expect(packageVersion.isPrerelease()).toBe(status === 'prerelease');
           expect(packageVersion.isStable()).toBe(status === 'stable');
           expect(packageVersion.canBeUsed()).toBe(
-            status !== 'removed' && ['available', 'stable'].includes(status)
+            status !== 'removed' && ['available', 'stable'].includes(status),
           );
         }
       });
@@ -405,11 +405,13 @@ describe('PackageVersion', () => {
         PackageVersion.createNew(packageId, '1.0.0-alpha.1', packageSource),
       ];
 
-      results.forEach(result => expect(result.isOk()).toBe(true));
+      results.forEach((result) => {
+        expect(result.isOk()).toBe(true);
+      });
 
-      if (results.every(result => result.isOk())) {
+      if (results.every((result) => result.isOk())) {
         [version1_0_0, version1_1_0, version2_0_0, version1_0_0_alpha] = results.map(
-          result => (result as any).value
+          (result) => (result as any).value,
         );
       }
     });
@@ -461,7 +463,7 @@ describe('PackageVersion', () => {
         '2.0.0',
       ];
 
-      const packageVersions = complexVersions.map(version => {
+      const packageVersions = complexVersions.map((version) => {
         const result = PackageVersion.createNew(packageId, version, packageSource);
         expect(result.isOk()).toBe(true);
         return (result as any).value;
@@ -1064,14 +1066,14 @@ describe('PackageVersion', () => {
         '1.0.0-rc.1',
       ];
 
-      const packageVersions = complexVersions.map(version => {
+      const packageVersions = complexVersions.map((version) => {
         const result = PackageVersion.createNew(packageId, version, packageSource);
         expect(result.isOk()).toBe(true);
         return (result as any).value;
       });
 
       // All should be prereleases
-      packageVersions.forEach(version => {
+      packageVersions.forEach((version) => {
         expect(version.isPrerelease()).toBe(true);
         expect(version.getStatus()).toBe('prerelease');
       });

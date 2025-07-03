@@ -1,7 +1,7 @@
-import { type Node } from '../entities/Node';
-import { type RepositoryError } from '../errors/DomainErrors';
-import { type Result } from '../shared/result.js';
-import { type NodeId, type TreeId } from '../shared/value-objects.js';
+import type { Node } from '../entities/Node';
+import type { RepositoryError } from '../errors/DomainErrors';
+import type { Result } from '../shared/result.js';
+import type { NodeId, TreeId } from '../shared/value-objects.js';
 
 export interface INodeRepository {
   save(node: Node): Promise<Result<void, RepositoryError>>;

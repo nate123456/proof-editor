@@ -51,7 +51,7 @@ describe('PerformanceTracker', () => {
 
     it('should create independent trackers', async () => {
       const tracker1 = PerformanceTracker.start();
-      await new Promise(resolve => setTimeout(resolve, 5)); // 5ms delay to ensure different timestamps
+      await new Promise((resolve) => setTimeout(resolve, 5)); // 5ms delay to ensure different timestamps
       const tracker2 = PerformanceTracker.start();
 
       expect(tracker1.getStartTime()).not.toBe(tracker2.getStartTime());
@@ -302,7 +302,7 @@ describe('PerformanceTracker', () => {
       const tracker = PerformanceTracker.start();
 
       // Wait a short time
-      await new Promise(resolve => setTimeout(resolve, 10));
+      await new Promise((resolve) => setTimeout(resolve, 10));
 
       const elapsed = tracker.getElapsedMs();
       expect(elapsed).toBeGreaterThanOrEqual(5); // Allow for timing variations
@@ -439,7 +439,7 @@ describe('PerformanceTracker', () => {
       if (result.isOk()) {
         const tracker = result.value;
         const rate = tracker.getRatePerSecond(10);
-        expect(rate).toBe(Infinity); // Should handle division by zero
+        expect(rate).toBe(Number.POSITIVE_INFINITY); // Should handle division by zero
       }
     });
 

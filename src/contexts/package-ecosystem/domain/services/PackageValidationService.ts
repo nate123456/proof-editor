@@ -1,10 +1,10 @@
 import { err, ok, type Result } from 'neverthrow';
 
-import { type Package } from '../entities/Package.js';
+import type { Package } from '../entities/Package.js';
 import type { SDKInterface, SDKValidationResult, ValidationResult } from '../types/common-types.js';
 import { PackageValidationError } from '../types/domain-errors.js';
-import { type InstallationPath } from '../value-objects/InstallationPath.js';
-import { type PackageManifest } from '../value-objects/package-manifest.js';
+import type { InstallationPath } from '../value-objects/InstallationPath.js';
+import type { PackageManifest } from '../value-objects/package-manifest.js';
 
 export interface PackageValidationOptions {
   readonly validateSDKCompliance?: boolean;
@@ -40,27 +40,27 @@ export interface IPackageFileSystem {
 export interface ISDKValidator {
   validateInterface(
     packagePath: string,
-    interfaceName: string
+    interfaceName: string,
   ): Promise<Result<SDKInterface, PackageValidationError>>;
   listImplementedInterfaces(
-    packagePath: string
+    packagePath: string,
   ): Promise<Result<readonly SDKInterface[], PackageValidationError>>;
   checkVersionCompatibility(
     requiredVersion: string,
-    actualVersion: string
+    actualVersion: string,
   ): Result<boolean, PackageValidationError>;
 }
 
 export class PackageValidationService {
   constructor(
     private readonly fileSystem: IPackageFileSystem,
-    private readonly sdkValidator: ISDKValidator
+    private readonly sdkValidator: ISDKValidator,
   ) {}
 
   async validatePackage(
     packageEntity: Package,
     installationPath?: InstallationPath,
-    options: PackageValidationOptions = {}
+    options: PackageValidationOptions = {},
   ): Promise<Result<ValidationResult, PackageValidationError>> {
     const errors: string[] = [];
     const warnings: string[] = [];
@@ -112,7 +112,7 @@ export class PackageValidationService {
 
   private async validateSDKCompliance(
     packageEntity: Package,
-    installationPath: InstallationPath
+    installationPath: InstallationPath,
   ): Promise<Result<SDKValidationResult, PackageValidationError>> {
     const packagePath = installationPath.getAbsolutePath();
     const manifest = packageEntity.getManifest();
@@ -124,7 +124,7 @@ export class PackageValidationService {
     }
 
     const implementedInterfaces = implementedResult.value;
-    const implementedInterfaceNames = new Set(implementedInterfaces.map(iface => iface.name));
+    const implementedInterfaceNames = new Set(implementedInterfaces.map((iface) => iface.name));
 
     const missingInterfaces: string[] = [];
     const errors: string[] = [];
@@ -136,12 +136,17 @@ export class PackageValidationService {
         errors.push(`Missing required SDK interface: ${expectedInterface.name}`);
       } else {
         const implementedInterface = implementedInterfaces.find(
-          iface => iface.name === expectedInterface.name
-        )!;
+          (iface) => iface.name === expectedInterface.name,
+        );
+
+        if (!implementedInterface) {
+          errors.push(`SDK interface ${expectedInterface.name} implementation error`);
+          continue;
+        }
 
         const versionCompatResult = this.sdkValidator.checkVersionCompatibility(
           expectedInterface.version,
-          implementedInterface.version
+          implementedInterface.version,
         );
 
         if (versionCompatResult.isErr()) {
@@ -150,17 +155,17 @@ export class PackageValidationService {
 
         if (!versionCompatResult.value) {
           warnings.push(
-            `SDK interface ${expectedInterface.name} version mismatch: expected ${expectedInterface.version}, found ${implementedInterface.version}`
+            `SDK interface ${expectedInterface.name} version mismatch: expected ${expectedInterface.version}, found ${implementedInterface.version}`,
           );
         }
 
         const missingMethods = expectedInterface.methods.filter(
-          method => !implementedInterface.methods.includes(method)
+          (method) => !implementedInterface.methods.includes(method),
         );
 
         if (missingMethods.length > 0) {
           errors.push(
-            `SDK interface ${expectedInterface.name} missing methods: ${missingMethods.join(', ')}`
+            `SDK interface ${expectedInterface.name} missing methods: ${missingMethods.join(', ')}`,
           );
         }
       }
@@ -188,7 +193,7 @@ export class PackageValidationService {
     if (packageEntity.hasLSPSupport()) {
       const lspValidationResult = await this.validateLSPConfiguration(
         packageEntity,
-        installationPath
+        installationPath,
       );
       if (lspValidationResult.isErr()) {
         return err(lspValidationResult.error);
@@ -211,8 +216,8 @@ export class PackageValidationService {
   }
 
   private async validateSecurity(
-    packageEntity: Package,
-    installationPath: InstallationPath
+    _packageEntity: Package,
+    installationPath: InstallationPath,
   ): Promise<Result<SecurityValidationResult, PackageValidationError>> {
     const packagePath = installationPath.getAbsolutePath();
     const potentialSecurityRisks: string[] = [];
@@ -225,7 +230,7 @@ export class PackageValidationService {
     const fileListResult = await this.fileSystem.listFiles(packagePath);
     if (fileListResult.isErr()) {
       return err(
-        new PackageValidationError(`Failed to list package files: ${fileListResult.error.message}`)
+        new PackageValidationError(`Failed to list package files: ${fileListResult.error.message}`),
       );
     }
 
@@ -234,7 +239,7 @@ export class PackageValidationService {
 
     for (const file of fileListResult.value) {
       const isExecutable =
-        executableExtensions.some(ext => file.endsWith(ext)) ||
+        executableExtensions.some((ext) => file.endsWith(ext)) ||
         (await this.fileSystem.isExecutable(file));
 
       if (isExecutable) {
@@ -242,7 +247,7 @@ export class PackageValidationService {
         potentialSecurityRisks.push(`Executable file detected: ${file}`);
       }
 
-      if (scriptExtensions.some(ext => file.endsWith(ext))) {
+      if (scriptExtensions.some((ext) => file.endsWith(ext))) {
         const contentResult = await this.fileSystem.readFile(file);
         if (contentResult.isOk()) {
           const content = contentResult.value;
@@ -282,7 +287,7 @@ export class PackageValidationService {
 
   private async validateManifest(
     packageEntity: Package,
-    installationPath: InstallationPath
+    installationPath: InstallationPath,
   ): Promise<Result<ManifestValidationResult, PackageValidationError>> {
     const manifest = packageEntity.getManifest();
     const errors: string[] = [];
@@ -375,7 +380,7 @@ export class PackageValidationService {
   }
 
   private validateManifestWithoutPath(
-    packageEntity: Package
+    packageEntity: Package,
   ): Result<ManifestValidationResult, PackageValidationError> {
     const manifest = packageEntity.getManifest();
     const errors: string[] = [];
@@ -467,7 +472,7 @@ export class PackageValidationService {
   private validatePackageEntityProperties(
     packageEntity: Package,
     errors: string[],
-    warnings: string[]
+    warnings: string[],
   ): void {
     /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/prefer-nullish-coalescing */
 
@@ -481,7 +486,12 @@ export class PackageValidationService {
     // TODO: Implement author validation using manifest data
 
     // For tests to pass, we'll access these as if they might exist
-    const pkg = packageEntity as any;
+    const pkg = packageEntity as unknown as {
+      validateDependencies?: () => { isErr: () => boolean; error?: { message?: string } };
+      hasCircularDependencies?: () => boolean;
+      getKeywords?: () => string[];
+      getAuthors?: () => string[];
+    };
 
     // Mock-compatible validation for tests
     if (typeof pkg.validateDependencies === 'function') {
@@ -492,7 +502,7 @@ export class PackageValidationService {
         dependencyResult.isErr()
       ) {
         errors.push(
-          `Dependency validation failed: ${dependencyResult.error?.message || 'Unknown error'}`
+          `Dependency validation failed: ${dependencyResult.error?.message || 'Unknown error'}`,
         );
       }
     }
@@ -521,9 +531,9 @@ export class PackageValidationService {
   }
 
   private validateProofEditorVersion(
-    requiredVersion: string
+    requiredVersion: string,
   ): Result<boolean, PackageValidationError> {
-    const currentVersion = process.env['PROOF_EDITOR_VERSION'] ?? '1.0.0';
+    const currentVersion = process.env.PROOF_EDITOR_VERSION ?? '1.0.0';
 
     try {
       const currentParts = currentVersion.split('.').map(Number);
@@ -532,8 +542,8 @@ export class PackageValidationService {
       if (
         currentParts.length !== 3 ||
         requiredParts.length !== 3 ||
-        currentParts.some(isNaN) ||
-        requiredParts.some(isNaN)
+        currentParts.some(Number.isNaN) ||
+        requiredParts.some(Number.isNaN)
       ) {
         return err(new PackageValidationError('Invalid version format'));
       }
@@ -541,13 +551,25 @@ export class PackageValidationService {
       const [currentMajor, currentMinor, currentPatch] = currentParts;
       const [requiredMajor, requiredMinor, requiredPatch] = requiredParts;
 
-      if (currentMajor! > requiredMajor!) return ok(true);
-      if (currentMajor! < requiredMajor!) return ok(false);
+      if (currentMajor === undefined || requiredMajor === undefined) {
+        return err(new PackageValidationError('Invalid version format'));
+      }
 
-      if (currentMinor! > requiredMinor!) return ok(true);
-      if (currentMinor! < requiredMinor!) return ok(false);
+      if (currentMajor > requiredMajor) return ok(true);
+      if (currentMajor < requiredMajor) return ok(false);
 
-      return ok(currentPatch! >= requiredPatch!);
+      if (currentMinor === undefined || requiredMinor === undefined) {
+        return err(new PackageValidationError('Invalid version format'));
+      }
+
+      if (currentMinor > requiredMinor) return ok(true);
+      if (currentMinor < requiredMinor) return ok(false);
+
+      if (currentPatch === undefined || requiredPatch === undefined) {
+        return err(new PackageValidationError('Invalid version format'));
+      }
+
+      return ok(currentPatch >= requiredPatch);
     } catch {
       return err(new PackageValidationError('Invalid version format'));
     }
@@ -563,8 +585,8 @@ export class PackageValidationService {
       if (
         currentParts.length !== 3 ||
         requiredParts.length !== 3 ||
-        currentParts.some(isNaN) ||
-        requiredParts.some(isNaN)
+        currentParts.some(Number.isNaN) ||
+        requiredParts.some(Number.isNaN)
       ) {
         return err(new PackageValidationError('Invalid Node version format'));
       }
@@ -572,13 +594,25 @@ export class PackageValidationService {
       const [currentMajor, currentMinor, currentPatch] = currentParts;
       const [requiredMajor, requiredMinor, requiredPatch] = requiredParts;
 
-      if (currentMajor! > requiredMajor!) return ok(true);
-      if (currentMajor! < requiredMajor!) return ok(false);
+      if (currentMajor === undefined || requiredMajor === undefined) {
+        return err(new PackageValidationError('Invalid Node version format'));
+      }
 
-      if (currentMinor! > requiredMinor!) return ok(true);
-      if (currentMinor! < requiredMinor!) return ok(false);
+      if (currentMajor > requiredMajor) return ok(true);
+      if (currentMajor < requiredMajor) return ok(false);
 
-      return ok(currentPatch! >= requiredPatch!);
+      if (currentMinor === undefined || requiredMinor === undefined) {
+        return err(new PackageValidationError('Invalid Node version format'));
+      }
+
+      if (currentMinor > requiredMinor) return ok(true);
+      if (currentMinor < requiredMinor) return ok(false);
+
+      if (currentPatch === undefined || requiredPatch === undefined) {
+        return err(new PackageValidationError('Invalid Node version format'));
+      }
+
+      return ok(currentPatch >= requiredPatch);
     } catch {
       return err(new PackageValidationError('Invalid Node version format'));
     }
@@ -586,7 +620,7 @@ export class PackageValidationService {
 
   private async validateLSPConfiguration(
     packageEntity: Package,
-    installationPath: InstallationPath
+    installationPath: InstallationPath,
   ): Promise<Result<ValidationResult, PackageValidationError>> {
     const errors: string[] = [];
     const warnings: string[] = [];
@@ -642,7 +676,7 @@ export class PackageValidationService {
       /https\.request/,
     ];
 
-    return networkPatterns.some(pattern => pattern.test(content));
+    return networkPatterns.some((pattern) => pattern.test(content));
   }
 
   private containsFileSystemAccess(content: string): boolean {
@@ -657,12 +691,12 @@ export class PackageValidationService {
       /process\.chdir/,
     ];
 
-    return fsPatterns.some(pattern => pattern.test(content));
+    return fsPatterns.some((pattern) => pattern.test(content));
   }
 
   private getManifestFieldByName(
     manifest: PackageManifest,
-    field: 'name' | 'version' | 'description' | 'author'
+    field: 'name' | 'version' | 'description' | 'author',
   ): string {
     switch (field) {
       case 'name':
@@ -682,6 +716,6 @@ export class PackageValidationService {
   private requiresElevatedPermissions(content: string): boolean {
     const elevatedPatterns = [/sudo/, /runas/, /UAC/, /administrator/i, /elevated/i, /privilege/i];
 
-    return elevatedPatterns.some(pattern => pattern.test(content));
+    return elevatedPatterns.some((pattern) => pattern.test(content));
   }
 }

@@ -15,7 +15,7 @@ export class LanguageCapabilities {
     private readonly supportedConnectives: readonly string[],
     private readonly supportedQuantifiers: readonly string[],
     private readonly supportedModalOperators: readonly string[],
-    private readonly supportedTemporalOperators: readonly string[]
+    private readonly supportedTemporalOperators: readonly string[],
   ) {}
 
   /**
@@ -30,7 +30,7 @@ export class LanguageCapabilities {
     connectives: string[],
     quantifiers: string[],
     modalOperators: string[],
-    temporalOperators: string[]
+    temporalOperators: string[],
   ): Result<LanguageCapabilities, ValidationError> {
     // Validate that at least one logic system is supported
     if (
@@ -46,7 +46,7 @@ export class LanguageCapabilities {
     // Validate operator consistency with logic systems
     if (!propositionalLogic && connectives.length > 0) {
       return err(
-        new ValidationError('Cannot have connectives without propositional logic support')
+        new ValidationError('Cannot have connectives without propositional logic support'),
       );
     }
 
@@ -60,15 +60,15 @@ export class LanguageCapabilities {
 
     if (!temporalLogic && temporalOperators.length > 0) {
       return err(
-        new ValidationError('Cannot have temporal operators without temporal logic support')
+        new ValidationError('Cannot have temporal operators without temporal logic support'),
       );
     }
 
     // Create immutable arrays with unique elements
-    const uniqueConnectives = [...new Set(connectives)];
-    const uniqueQuantifiers = [...new Set(quantifiers)];
-    const uniqueModalOperators = [...new Set(modalOperators)];
-    const uniqueTemporalOperators = [...new Set(temporalOperators)];
+    const uniqueConnectives = Array.from(new Set(connectives));
+    const uniqueQuantifiers = Array.from(new Set(quantifiers));
+    const uniqueModalOperators = Array.from(new Set(modalOperators));
+    const uniqueTemporalOperators = Array.from(new Set(temporalOperators));
 
     return ok(
       new LanguageCapabilities(
@@ -80,8 +80,8 @@ export class LanguageCapabilities {
         uniqueConnectives,
         uniqueQuantifiers,
         uniqueModalOperators,
-        uniqueTemporalOperators
-      )
+        uniqueTemporalOperators,
+      ),
     );
   }
 
@@ -98,7 +98,7 @@ export class LanguageCapabilities {
       ['∧', '∨', '→', '¬'],
       [],
       [],
-      []
+      [],
     );
     if (result.isErr()) {
       throw new Error('Failed to create propositional capabilities');
@@ -119,7 +119,7 @@ export class LanguageCapabilities {
       ['∧', '∨', '→', '¬'],
       ['∀', '∃'],
       [],
-      []
+      [],
     );
     if (result.isErr()) {
       throw new Error('Failed to create first-order capabilities');
@@ -140,7 +140,7 @@ export class LanguageCapabilities {
       ['∧', '∨', '→', '¬'],
       ['∀', '∃'],
       ['□', '◇'],
-      []
+      [],
     );
     if (result.isErr()) {
       throw new Error('Failed to create modal capabilities');
@@ -161,7 +161,7 @@ export class LanguageCapabilities {
       ['∧', '∨', '→', '¬', '↔', '⊕'],
       ['∀', '∃'],
       ['□', '◇'],
-      ['G', 'F', 'X', 'U']
+      ['G', 'F', 'X', 'U'],
     );
     if (result.isErr()) {
       throw new Error('Failed to create full-featured capabilities');
@@ -259,18 +259,18 @@ export class LanguageCapabilities {
    * Merges this capabilities with another, creating union of features
    */
   mergeWith(other: LanguageCapabilities): LanguageCapabilities {
-    const mergedConnectives = [
-      ...new Set([...this.supportedConnectives, ...other.supportedConnectives]),
-    ];
-    const mergedQuantifiers = [
-      ...new Set([...this.supportedQuantifiers, ...other.supportedQuantifiers]),
-    ];
-    const mergedModalOperators = [
-      ...new Set([...this.supportedModalOperators, ...other.supportedModalOperators]),
-    ];
-    const mergedTemporalOperators = [
-      ...new Set([...this.supportedTemporalOperators, ...other.supportedTemporalOperators]),
-    ];
+    const mergedConnectives = Array.from(
+      new Set([...this.supportedConnectives, ...other.supportedConnectives]),
+    );
+    const mergedQuantifiers = Array.from(
+      new Set([...this.supportedQuantifiers, ...other.supportedQuantifiers]),
+    );
+    const mergedModalOperators = Array.from(
+      new Set([...this.supportedModalOperators, ...other.supportedModalOperators]),
+    );
+    const mergedTemporalOperators = Array.from(
+      new Set([...this.supportedTemporalOperators, ...other.supportedTemporalOperators]),
+    );
 
     const result = LanguageCapabilities.create(
       this.propositionalLogic || other.propositionalLogic,
@@ -281,7 +281,7 @@ export class LanguageCapabilities {
       mergedConnectives,
       mergedQuantifiers,
       mergedModalOperators,
-      mergedTemporalOperators
+      mergedTemporalOperators,
     );
 
     if (result.isErr()) {
@@ -294,17 +294,17 @@ export class LanguageCapabilities {
    * Creates intersection of this capabilities with another
    */
   intersectWith(other: LanguageCapabilities): LanguageCapabilities {
-    const intersectedConnectives = this.supportedConnectives.filter(c =>
-      other.supportsConnective(c)
+    const intersectedConnectives = this.supportedConnectives.filter((c) =>
+      other.supportsConnective(c),
     );
-    const intersectedQuantifiers = this.supportedQuantifiers.filter(q =>
-      other.supportsQuantifier(q)
+    const intersectedQuantifiers = this.supportedQuantifiers.filter((q) =>
+      other.supportsQuantifier(q),
     );
-    const intersectedModalOperators = this.supportedModalOperators.filter(m =>
-      other.supportsModalOperator(m)
+    const intersectedModalOperators = this.supportedModalOperators.filter((m) =>
+      other.supportsModalOperator(m),
     );
-    const intersectedTemporalOperators = this.supportedTemporalOperators.filter(t =>
-      other.supportsTemporalOperator(t)
+    const intersectedTemporalOperators = this.supportedTemporalOperators.filter((t) =>
+      other.supportsTemporalOperator(t),
     );
 
     const result = LanguageCapabilities.create(
@@ -316,7 +316,7 @@ export class LanguageCapabilities {
       intersectedConnectives,
       intersectedQuantifiers,
       intersectedModalOperators,
-      intersectedTemporalOperators
+      intersectedTemporalOperators,
     );
 
     if (result.isErr()) {
@@ -365,7 +365,7 @@ export class LanguageCapabilities {
    */
   isExtensive(): boolean {
     const advancedSystems = [this.modalLogic, this.temporalLogic, this.higherOrderLogic].filter(
-      Boolean
+      Boolean,
     ).length;
     return advancedSystems >= 2;
   }
@@ -567,7 +567,7 @@ export class LanguageCapabilities {
       const modalOperators = validateStringArray(supportedModalOperators, 'modal operators');
       const temporalOperators = validateStringArray(
         supportedTemporalOperators,
-        'temporal operators'
+        'temporal operators',
       );
 
       return LanguageCapabilities.create(
@@ -579,13 +579,13 @@ export class LanguageCapabilities {
         connectives,
         quantifiers,
         modalOperators,
-        temporalOperators
+        temporalOperators,
       );
     } catch (error) {
       return err(
         new ValidationError(
-          `Failed to parse JSON: ${error instanceof Error ? error.message : 'Unknown error'}`
-        )
+          `Failed to parse JSON: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        ),
       );
     }
   }

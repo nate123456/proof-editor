@@ -68,7 +68,7 @@ describe('Modern TDD Stack Integration', () => {
   describe('Property-based testing with fast-check', () => {
     it('should test properties across input space', () => {
       fc.assert(
-        fc.property(fc.string(), input => {
+        fc.property(fc.string(), (input) => {
           const result =
             input.length > 0 ? ok(input.toUpperCase()) : err(new ValidationError('Empty input'));
 
@@ -80,14 +80,14 @@ describe('Modern TDD Stack Integration', () => {
           } else {
             expect(result.isErr()).toBe(true);
           }
-        })
+        }),
       );
     });
 
     it('should find edge cases automatically', () => {
       fc.assert(
-        fc.property(fc.array(fc.string()), strings => {
-          const nonEmptyStrings = strings.filter(s => s.length > 0);
+        fc.property(fc.array(fc.string()), (strings) => {
+          const nonEmptyStrings = strings.filter((s) => s.length > 0);
           const result =
             nonEmptyStrings.length > 0
               ? ok(nonEmptyStrings.join(' '))
@@ -98,7 +98,7 @@ describe('Modern TDD Stack Integration', () => {
           } else {
             expect(result.isErr()).toBe(true);
           }
-        })
+        }),
       );
     });
   });

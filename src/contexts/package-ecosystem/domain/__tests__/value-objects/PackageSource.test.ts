@@ -354,7 +354,7 @@ describe('PackageSource', () => {
         'github.com/user/repo', // Domain shorthand
       ];
 
-      it.each(validUrls)('should accept valid Git URL: %s', url => {
+      it.each(validUrls)('should accept valid Git URL: %s', (url) => {
         const gitSource: GitPackageSource = {
           url,
           ref: 'main',
@@ -382,7 +382,7 @@ describe('PackageSource', () => {
         `a${'b'.repeat(248)}`, // Max length (250 chars)
       ];
 
-      it.each(validRefs)('should accept valid Git ref: %s', ref => {
+      it.each(validRefs)('should accept valid Git ref: %s', (ref) => {
         const gitSource: GitPackageSource = {
           url: 'https://github.com/user/repo.git',
           ref,
@@ -530,7 +530,7 @@ describe('PackageSource', () => {
         `a${'b'.repeat(4094)}`, // Max length (4096 chars)
       ];
 
-      it.each(validPaths)('should accept valid local path: %s', path => {
+      it.each(validPaths)('should accept valid local path: %s', (path) => {
         const localSource: LocalPackageSource = {
           path,
         };
@@ -570,7 +570,7 @@ describe('PackageSource', () => {
       if (result.isOk()) {
         const source = result.value;
         expect(source.getIdentifier()).toBe(
-          'git:https://github.com/user/monorepo.git@main#packages/sub-package'
+          'git:https://github.com/user/monorepo.git@main#packages/sub-package',
         );
       }
     });
@@ -836,15 +836,15 @@ describe('PackageSource', () => {
         }),
       ];
 
-      expect(sources.every(result => result.isOk())).toBe(true);
+      expect(sources.every((result) => result.isOk())).toBe(true);
 
-      if (sources.every(result => result.isOk())) {
+      if (sources.every((result) => result.isOk())) {
         const validSources = sources
-          .map(result => (result.isOk() ? result.value : undefined))
+          .map((result) => (result.isOk() ? result.value : undefined))
           .filter(Boolean) as PackageSource[];
 
         // Test with Map using identifiers
-        const sourceMap = new Map(validSources.map(source => [source.getIdentifier(), source]));
+        const sourceMap = new Map(validSources.map((source) => [source.getIdentifier(), source]));
         expect(sourceMap.size).toBe(3);
 
         expect(sourceMap.has('git:https://github.com/user/repo-a.git@main')).toBe(true);

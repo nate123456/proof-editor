@@ -1,11 +1,12 @@
 import { err, ok, type Result } from 'neverthrow';
+import { injectable } from 'tsyringe';
 
 import { Operation, type TransformationComplexity } from '../entities/Operation';
 
 export interface ICRDTTransformationService {
   transformOperation(
     operation: Operation,
-    againstOperation: Operation
+    againstOperation: Operation,
   ): Promise<Result<Operation, Error>>;
 
   transformOperationSequence(operations: Operation[]): Promise<Result<Operation[], Error>>;
@@ -15,10 +16,11 @@ export interface ICRDTTransformationService {
   calculateTransformationComplexity(operations: Operation[]): TransformationComplexity;
 }
 
+@injectable()
 export class CRDTTransformationService implements ICRDTTransformationService {
-  transformOperation(
+  async transformOperation(
     operation: Operation,
-    againstOperation: Operation
+    againstOperation: Operation,
   ): Promise<Result<Operation, Error>> {
     try {
       const transformResult = operation.transformWith(againstOperation);
@@ -30,14 +32,14 @@ export class CRDTTransformationService implements ICRDTTransformationService {
       return Promise.resolve(ok(transformedOperation));
     } catch (error) {
       return Promise.resolve(
-        err(error instanceof Error ? error : new Error('Unknown transformation error'))
+        err(error instanceof Error ? error : new Error('Unknown transformation error')),
       );
     }
   }
 
-  transformOperationSequence(operations: Operation[]): Promise<Result<Operation[], Error>> {
+  async transformOperationSequence(operations: Operation[]): Promise<Result<Operation[], Error>> {
     const result = Operation.transformOperationSequence(operations);
-    return Promise.resolve(result.map(ops => ops as Operation[]));
+    return Promise.resolve(result.map((ops) => ops as Operation[]));
   }
 
   canTransformOperations(op1: Operation, op2: Operation): boolean {

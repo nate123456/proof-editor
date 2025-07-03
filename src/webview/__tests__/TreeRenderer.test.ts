@@ -611,7 +611,7 @@ describe('TreeRenderer', () => {
   describe('utility methods', () => {
     it('should truncate long text properly', () => {
       const longStatement = Statement.create(
-        'This is a very long statement that should be truncated when rendered in the tree visualization because it exceeds the maximum length'
+        'This is a very long statement that should be truncated when rendered in the tree visualization because it exceeds the maximum length',
       );
       if (longStatement.isErr()) {
         throw new Error('Failed to create long statement');

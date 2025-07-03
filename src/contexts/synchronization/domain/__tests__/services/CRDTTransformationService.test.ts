@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { Operation } from '../../entities/Operation';
+import { VectorClock } from '../../entities/VectorClock';
 import { CRDTTransformationService } from '../../services/CRDTTransformationService';
 import { OperationType } from '../../value-objects/OperationType';
 import {
@@ -9,6 +10,7 @@ import {
   deviceIdFactory,
   operationFactory,
   operationIdFactory,
+  operationPayloadFactory,
   sequentialOperationsFactory,
   syncTestScenarios,
 } from '../test-factories';
@@ -60,15 +62,42 @@ describe('CRDTTransformationService', () => {
     it('should handle structural operations correctly', async () => {
       const structuralOpType = OperationType.create('CREATE_ARGUMENT');
       expect(structuralOpType.isOk()).toBe(true);
+      if (!structuralOpType.isOk()) return;
 
-      const operation1 = operationFactory.build({
-        operationType: structuralOpType.value,
-      });
-      const operation2 = operationFactory.build({
-        operationType: structuralOpType.value,
-      });
+      const device = deviceIdFactory.build();
+      const opId1 = operationIdFactory.build();
+      const opId2 = operationIdFactory.build();
+      const payload1 = operationPayloadFactory.build();
+      const payload2 = operationPayloadFactory.build();
+      const vectorClock = VectorClock.create(device);
+      expect(vectorClock.isOk()).toBe(true);
+      if (!vectorClock.isOk()) return;
 
-      const result = await service.transformOperation(operation1, operation2);
+      const operation1Result = Operation.create(
+        opId1,
+        device,
+        structuralOpType.value,
+        '/test/path',
+        payload1,
+        vectorClock.value,
+      );
+      const operation2Result = Operation.create(
+        opId2,
+        device,
+        structuralOpType.value,
+        '/test/path',
+        payload2,
+        vectorClock.value,
+      );
+
+      expect(operation1Result.isOk()).toBe(true);
+      expect(operation2Result.isOk()).toBe(true);
+      if (!operation1Result.isOk() || !operation2Result.isOk()) return;
+
+      const result = await service.transformOperation(
+        operation1Result.value,
+        operation2Result.value,
+      );
 
       expect(result.isOk() || result.isErr()).toBe(true);
     });
@@ -76,15 +105,42 @@ describe('CRDTTransformationService', () => {
     it('should handle semantic operations correctly', async () => {
       const semanticOpType = OperationType.create('UPDATE_STATEMENT');
       expect(semanticOpType.isOk()).toBe(true);
+      if (!semanticOpType.isOk()) return;
 
-      const operation1 = operationFactory.build({
-        operationType: semanticOpType.value,
-      });
-      const operation2 = operationFactory.build({
-        operationType: semanticOpType.value,
-      });
+      const device = deviceIdFactory.build();
+      const opId1 = operationIdFactory.build();
+      const opId2 = operationIdFactory.build();
+      const payload1 = operationPayloadFactory.build();
+      const payload2 = operationPayloadFactory.build();
+      const vectorClock = VectorClock.create(device);
+      expect(vectorClock.isOk()).toBe(true);
+      if (!vectorClock.isOk()) return;
 
-      const result = await service.transformOperation(operation1, operation2);
+      const operation1Result = Operation.create(
+        opId1,
+        device,
+        semanticOpType.value,
+        '/test/path',
+        payload1,
+        vectorClock.value,
+      );
+      const operation2Result = Operation.create(
+        opId2,
+        device,
+        semanticOpType.value,
+        '/test/path',
+        payload2,
+        vectorClock.value,
+      );
+
+      expect(operation1Result.isOk()).toBe(true);
+      expect(operation2Result.isOk()).toBe(true);
+      if (!operation1Result.isOk() || !operation2Result.isOk()) return;
+
+      const result = await service.transformOperation(
+        operation1Result.value,
+        operation2Result.value,
+      );
 
       expect(result.isOk() || result.isErr()).toBe(true);
     });
@@ -93,10 +149,44 @@ describe('CRDTTransformationService', () => {
       const device1 = deviceIdFactory.build();
       const device2 = deviceIdFactory.build();
 
-      const operation1 = operationFactory.build({ deviceId: device1 });
-      const operation2 = operationFactory.build({ deviceId: device2 });
+      const opId1 = operationIdFactory.build();
+      const opId2 = operationIdFactory.build();
+      const opType = OperationType.create('UPDATE_STATEMENT');
+      expect(opType.isOk()).toBe(true);
+      if (!opType.isOk()) return;
 
-      const result = await service.transformOperation(operation1, operation2);
+      const payload1 = operationPayloadFactory.build();
+      const payload2 = operationPayloadFactory.build();
+      const vectorClock1 = VectorClock.create(device1);
+      const vectorClock2 = VectorClock.create(device2);
+      expect(vectorClock1.isOk() && vectorClock2.isOk()).toBe(true);
+      if (!vectorClock1.isOk() || !vectorClock2.isOk()) return;
+
+      const operation1Result = Operation.create(
+        opId1,
+        device1,
+        opType.value,
+        '/test/path',
+        payload1,
+        vectorClock1.value,
+      );
+      const operation2Result = Operation.create(
+        opId2,
+        device2,
+        opType.value,
+        '/test/path',
+        payload2,
+        vectorClock2.value,
+      );
+
+      expect(operation1Result.isOk()).toBe(true);
+      expect(operation2Result.isOk()).toBe(true);
+      if (!operation1Result.isOk() || !operation2Result.isOk()) return;
+
+      const result = await service.transformOperation(
+        operation1Result.value,
+        operation2Result.value,
+      );
 
       expect(result.isOk() || result.isErr()).toBe(true);
     });
@@ -107,7 +197,9 @@ describe('CRDTTransformationService', () => {
       const result = await service.transformOperationSequence([]);
 
       expect(result.isOk()).toBe(true);
-      expect(result.isOk() && result.value).toEqual([]);
+      if (result.isOk()) {
+        expect(result.value).toEqual([]);
+      }
     });
 
     it('should transform single operation sequence', async () => {
@@ -115,7 +207,9 @@ describe('CRDTTransformationService', () => {
       const result = await service.transformOperationSequence([operation]);
 
       expect(result.isOk()).toBe(true);
-      expect(result.isOk() && result.value).toHaveLength(1);
+      if (result.isOk()) {
+        expect(result.value).toHaveLength(1);
+      }
     });
 
     it('should transform multiple operations in sequence', async () => {
@@ -221,15 +315,39 @@ describe('CRDTTransformationService', () => {
 
       expect(createOpType.isOk()).toBe(true);
       expect(deleteOpType.isOk()).toBe(true);
+      if (!createOpType.isOk() || !deleteOpType.isOk()) return;
 
-      const operation1 = operationFactory.build({
-        operationType: createOpType.value,
-      });
-      const operation2 = operationFactory.build({
-        operationType: deleteOpType.value,
-      });
+      const device = deviceIdFactory.build();
+      const opId1 = operationIdFactory.build();
+      const opId2 = operationIdFactory.build();
+      const payload1 = operationPayloadFactory.build();
+      const payload2 = operationPayloadFactory.build();
+      const vectorClock = VectorClock.create(device);
+      expect(vectorClock.isOk()).toBe(true);
+      if (!vectorClock.isOk()) return;
 
-      const result = service.canTransformOperations(operation1, operation2);
+      const operation1Result = Operation.create(
+        opId1,
+        device,
+        createOpType.value,
+        '/test/path',
+        payload1,
+        vectorClock.value,
+      );
+      const operation2Result = Operation.create(
+        opId2,
+        device,
+        deleteOpType.value,
+        '/test/path',
+        payload2,
+        vectorClock.value,
+      );
+
+      expect(operation1Result.isOk()).toBe(true);
+      expect(operation2Result.isOk()).toBe(true);
+      if (!operation1Result.isOk() || !operation2Result.isOk()) return;
+
+      const result = service.canTransformOperations(operation1Result.value, operation2Result.value);
       expect(typeof result).toBe('boolean');
     });
   });
@@ -262,13 +380,33 @@ describe('CRDTTransformationService', () => {
     });
 
     it('should consider operation types in complexity calculation', () => {
-      const structuralOps = syncTestScenarios.structuralOperations.map(opType => {
-        const operationType = OperationType.create(opType);
+      const structuralOps: Operation[] = [];
+
+      for (const opTypeValue of syncTestScenarios.structuralOperations) {
+        const operationType = OperationType.create(opTypeValue);
         expect(operationType.isOk()).toBe(true);
-        return operationFactory.build({
-          operationType: operationType.value,
-        });
-      });
+        if (!operationType.isOk()) continue;
+
+        const device = deviceIdFactory.build();
+        const opId = operationIdFactory.build();
+        const payload = operationPayloadFactory.build();
+        const vectorClock = VectorClock.create(device);
+        expect(vectorClock.isOk()).toBe(true);
+        if (!vectorClock.isOk()) continue;
+
+        const operationResult = Operation.create(
+          opId,
+          device,
+          operationType.value,
+          '/test/path',
+          payload,
+          vectorClock.value,
+        );
+
+        if (operationResult.isOk()) {
+          structuralOps.push(operationResult.value);
+        }
+      }
 
       const complexity = service.calculateTransformationComplexity(structuralOps);
       expect(['SIMPLE', 'MODERATE', 'COMPLEX', 'INTRACTABLE']).toContain(complexity);
@@ -338,7 +476,7 @@ describe('CRDTTransformationService', () => {
         operation.getOperationType(),
         operation.getTargetPath(),
         operation.getPayload(),
-        operation.getVectorClock()
+        operation.getVectorClock(),
       );
 
       expect(transformedOperationResult.isOk()).toBe(true);
@@ -358,7 +496,9 @@ describe('CRDTTransformationService', () => {
         const result = service.validateTransformationResult(operation1, operation2);
 
         expect(result.isErr()).toBe(true);
-        expect(result.isErr() && result.error.message).toContain('device ID');
+        if (result.isErr()) {
+          expect(result.error.message).toContain('device ID');
+        }
       }
     });
 
@@ -369,30 +509,51 @@ describe('CRDTTransformationService', () => {
 
       expect(createOpType.isOk()).toBe(true);
       expect(deleteOpType.isOk()).toBe(true);
+      if (!createOpType.isOk() || !deleteOpType.isOk()) return;
 
-      const operation1 = operationFactory.build({
-        deviceId: device,
-        operationType: createOpType.value,
-      });
-      const operation2 = operationFactory.build({
-        deviceId: device,
-        operationType: deleteOpType.value,
-      });
+      const opId1 = operationIdFactory.build();
+      const opId2 = operationIdFactory.build();
+      const payload = operationPayloadFactory.build();
+      const vectorClock = VectorClock.create(device);
+      expect(vectorClock.isOk()).toBe(true);
+      if (!vectorClock.isOk()) return;
 
-      const result = service.validateTransformationResult(operation1, operation2);
+      const operation1Result = Operation.create(
+        opId1,
+        device,
+        createOpType.value,
+        '/test/path',
+        payload,
+        vectorClock.value,
+      );
+      const operation2Result = Operation.create(
+        opId2,
+        device,
+        deleteOpType.value,
+        '/test/path',
+        payload,
+        vectorClock.value,
+      );
+
+      expect(operation1Result.isOk()).toBe(true);
+      expect(operation2Result.isOk()).toBe(true);
+      if (!operation1Result.isOk() || !operation2Result.isOk()) return;
+
+      const result = service.validateTransformationResult(
+        operation1Result.value,
+        operation2Result.value,
+      );
 
       expect(result.isErr()).toBe(true);
-      expect(result.isErr() && result.error.message).toContain('operation type');
+      if (result.isErr()) {
+        expect(result.error.message).toContain('operation type');
+      }
     });
 
     it('should fail validation when target path changes', () => {
       const device = deviceIdFactory.build();
-      const operationType = operationFactory.build().getOperationType();
-
-      const operation1 = operationFactory.build({
-        deviceId: device,
-        operationType,
-      });
+      const operation1 = operationFactory.build();
+      const operationType = operation1.getOperationType();
 
       // Create operation with different target path
       const operation2Result = Operation.create(
@@ -401,7 +562,7 @@ describe('CRDTTransformationService', () => {
         operationType,
         '/different/path',
         operation1.getPayload(),
-        operation1.getVectorClock()
+        operation1.getVectorClock(),
       );
 
       expect(operation2Result.isOk()).toBe(true);
@@ -409,7 +570,9 @@ describe('CRDTTransformationService', () => {
         const result = service.validateTransformationResult(operation1, operation2Result.value);
 
         expect(result.isErr()).toBe(true);
-        expect(result.isErr() && result.error.message).toContain('target path');
+        if (result.isErr()) {
+          expect(result.error.message).toContain('target path');
+        }
       }
     });
   });
@@ -430,14 +593,14 @@ describe('CRDTTransformationService', () => {
       const operation1 = operationFactory.build();
       const operation2 = operationFactory.build();
 
-      const promises = Array.from({ length: 10 }, () =>
-        service.transformOperation(operation1, operation2)
+      const promises = Array.from({ length: 10 }, async () =>
+        service.transformOperation(operation1, operation2),
       );
 
       const results = await Promise.all(promises);
 
       expect(results).toHaveLength(10);
-      results.forEach(result => {
+      results.forEach((result) => {
         expect(result.isOk() || result.isErr()).toBe(true);
       });
     });
@@ -505,15 +668,42 @@ describe('CRDTTransformationService', () => {
     it('should handle CREATE operations correctly', async () => {
       const createOpType = OperationType.create('CREATE_STATEMENT');
       expect(createOpType.isOk()).toBe(true);
+      if (!createOpType.isOk()) return;
 
-      const operation1 = operationFactory.build({
-        operationType: createOpType.value,
-      });
-      const operation2 = operationFactory.build({
-        operationType: createOpType.value,
-      });
+      const device = deviceIdFactory.build();
+      const opId1 = operationIdFactory.build();
+      const opId2 = operationIdFactory.build();
+      const payload1 = operationPayloadFactory.build();
+      const payload2 = operationPayloadFactory.build();
+      const vectorClock = VectorClock.create(device);
+      expect(vectorClock.isOk()).toBe(true);
+      if (!vectorClock.isOk()) return;
 
-      const result = await service.transformOperation(operation1, operation2);
+      const operation1Result = Operation.create(
+        opId1,
+        device,
+        createOpType.value,
+        '/test/path',
+        payload1,
+        vectorClock.value,
+      );
+      const operation2Result = Operation.create(
+        opId2,
+        device,
+        createOpType.value,
+        '/test/path',
+        payload2,
+        vectorClock.value,
+      );
+
+      expect(operation1Result.isOk()).toBe(true);
+      expect(operation2Result.isOk()).toBe(true);
+      if (!operation1Result.isOk() || !operation2Result.isOk()) return;
+
+      const result = await service.transformOperation(
+        operation1Result.value,
+        operation2Result.value,
+      );
 
       expect(result.isOk() || result.isErr()).toBe(true);
     });
@@ -521,15 +711,42 @@ describe('CRDTTransformationService', () => {
     it('should handle UPDATE operations correctly', async () => {
       const updateOpType = OperationType.create('UPDATE_STATEMENT');
       expect(updateOpType.isOk()).toBe(true);
+      if (!updateOpType.isOk()) return;
 
-      const operation1 = operationFactory.build({
-        operationType: updateOpType.value,
-      });
-      const operation2 = operationFactory.build({
-        operationType: updateOpType.value,
-      });
+      const device = deviceIdFactory.build();
+      const opId1 = operationIdFactory.build();
+      const opId2 = operationIdFactory.build();
+      const payload1 = operationPayloadFactory.build();
+      const payload2 = operationPayloadFactory.build();
+      const vectorClock = VectorClock.create(device);
+      expect(vectorClock.isOk()).toBe(true);
+      if (!vectorClock.isOk()) return;
 
-      const result = await service.transformOperation(operation1, operation2);
+      const operation1Result = Operation.create(
+        opId1,
+        device,
+        updateOpType.value,
+        '/test/path',
+        payload1,
+        vectorClock.value,
+      );
+      const operation2Result = Operation.create(
+        opId2,
+        device,
+        updateOpType.value,
+        '/test/path',
+        payload2,
+        vectorClock.value,
+      );
+
+      expect(operation1Result.isOk()).toBe(true);
+      expect(operation2Result.isOk()).toBe(true);
+      if (!operation1Result.isOk() || !operation2Result.isOk()) return;
+
+      const result = await service.transformOperation(
+        operation1Result.value,
+        operation2Result.value,
+      );
 
       expect(result.isOk() || result.isErr()).toBe(true);
     });
@@ -537,15 +754,42 @@ describe('CRDTTransformationService', () => {
     it('should handle DELETE operations correctly', async () => {
       const deleteOpType = OperationType.create('DELETE_STATEMENT');
       expect(deleteOpType.isOk()).toBe(true);
+      if (!deleteOpType.isOk()) return;
 
-      const operation1 = operationFactory.build({
-        operationType: deleteOpType.value,
-      });
-      const operation2 = operationFactory.build({
-        operationType: deleteOpType.value,
-      });
+      const device = deviceIdFactory.build();
+      const opId1 = operationIdFactory.build();
+      const opId2 = operationIdFactory.build();
+      const payload1 = operationPayloadFactory.build();
+      const payload2 = operationPayloadFactory.build();
+      const vectorClock = VectorClock.create(device);
+      expect(vectorClock.isOk()).toBe(true);
+      if (!vectorClock.isOk()) return;
 
-      const result = await service.transformOperation(operation1, operation2);
+      const operation1Result = Operation.create(
+        opId1,
+        device,
+        deleteOpType.value,
+        '/test/path',
+        payload1,
+        vectorClock.value,
+      );
+      const operation2Result = Operation.create(
+        opId2,
+        device,
+        deleteOpType.value,
+        '/test/path',
+        payload2,
+        vectorClock.value,
+      );
+
+      expect(operation1Result.isOk()).toBe(true);
+      expect(operation2Result.isOk()).toBe(true);
+      if (!operation1Result.isOk() || !operation2Result.isOk()) return;
+
+      const result = await service.transformOperation(
+        operation1Result.value,
+        operation2Result.value,
+      );
 
       expect(result.isOk() || result.isErr()).toBe(true);
     });
@@ -556,15 +800,42 @@ describe('CRDTTransformationService', () => {
 
       expect(createOpType.isOk()).toBe(true);
       expect(updateOpType.isOk()).toBe(true);
+      if (!createOpType.isOk() || !updateOpType.isOk()) return;
 
-      const operation1 = operationFactory.build({
-        operationType: createOpType.value,
-      });
-      const operation2 = operationFactory.build({
-        operationType: updateOpType.value,
-      });
+      const device = deviceIdFactory.build();
+      const opId1 = operationIdFactory.build();
+      const opId2 = operationIdFactory.build();
+      const payload1 = operationPayloadFactory.build();
+      const payload2 = operationPayloadFactory.build();
+      const vectorClock = VectorClock.create(device);
+      expect(vectorClock.isOk()).toBe(true);
+      if (!vectorClock.isOk()) return;
 
-      const result = await service.transformOperation(operation1, operation2);
+      const operation1Result = Operation.create(
+        opId1,
+        device,
+        createOpType.value,
+        '/test/path',
+        payload1,
+        vectorClock.value,
+      );
+      const operation2Result = Operation.create(
+        opId2,
+        device,
+        updateOpType.value,
+        '/test/path',
+        payload2,
+        vectorClock.value,
+      );
+
+      expect(operation1Result.isOk()).toBe(true);
+      expect(operation2Result.isOk()).toBe(true);
+      if (!operation1Result.isOk() || !operation2Result.isOk()) return;
+
+      const result = await service.transformOperation(
+        operation1Result.value,
+        operation2Result.value,
+      );
 
       expect(result.isOk() || result.isErr()).toBe(true);
     });

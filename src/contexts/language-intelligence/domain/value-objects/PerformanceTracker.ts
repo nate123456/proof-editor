@@ -41,12 +41,6 @@ export class PerformanceTracker {
     this.id = id ?? `tracker-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   }
 
-  static start(): PerformanceTracker {
-    const startTime = Date.now();
-    const memoryUsage = PerformanceTracker.getCurrentMemoryUsage();
-    return new PerformanceTracker(startTime, memoryUsage);
-  }
-
   static create(): Result<PerformanceTracker, ValidationError> {
     const startTime = Date.now();
     const memoryUsage = PerformanceTracker.getCurrentMemoryUsage();
@@ -54,6 +48,12 @@ export class PerformanceTracker {
     tracker.state = 'stopped';
     tracker.endTime = startTime;
     return ok(tracker);
+  }
+
+  static start(): PerformanceTracker {
+    const startTime = Date.now();
+    const memoryUsage = PerformanceTracker.getCurrentMemoryUsage();
+    return new PerformanceTracker(startTime, memoryUsage);
   }
 
   start(): Result<void, ValidationError> {
@@ -191,7 +191,7 @@ export class PerformanceTracker {
 
   getRatePerSecond(itemCount: number): number {
     const elapsedSeconds = this.getElapsedMs() / 1000;
-    return elapsedSeconds > 0 ? itemCount / elapsedSeconds : Infinity;
+    return elapsedSeconds > 0 ? itemCount / elapsedSeconds : Number.POSITIVE_INFINITY;
   }
 
   getLaps(): readonly number[] {
@@ -217,7 +217,9 @@ export class PerformanceTracker {
     if (this.lapTimes.length === 0) return intervals;
 
     // First interval is from start to first lap
-    intervals.push(this.lapTimes[0]!);
+    if (this.lapTimes[0] !== undefined) {
+      intervals.push(this.lapTimes[0]);
+    }
 
     // Subsequent intervals are between consecutive laps
     for (let i = 1; i < this.lapTimes.length; i++) {

@@ -1,4 +1,6 @@
-import { type AtomicArgument } from '../entities/AtomicArgument.js';
+import { injectable } from 'tsyringe';
+
+import type { AtomicArgument } from '../entities/AtomicArgument.js';
 import { Node } from '../entities/Node.js';
 import { Tree } from '../entities/Tree.js';
 import { err, ok, type Result, ValidationError } from '../shared/result.js';
@@ -9,13 +11,14 @@ import {
   Position2D,
 } from '../shared/value-objects.js';
 
+@injectable()
 export class TreeStructureService {
   createTreeWithRootNode(
     documentId: string,
     rootArgument: AtomicArgument,
     position: Position2D = Position2D.origin(),
     physicalProperties: PhysicalProperties = PhysicalProperties.default(),
-    title?: string
+    title?: string,
   ): Result<{ tree: Tree; rootNode: Node }, ValidationError> {
     const treeResult = Tree.create(documentId, position, physicalProperties, title);
     if (treeResult.isErr()) {
@@ -43,7 +46,7 @@ export class TreeStructureService {
     parentNode: Node,
     childArgument: AtomicArgument,
     premisePosition: number,
-    fromPosition?: number
+    fromPosition?: number,
   ): Result<Node, ValidationError> {
     if (!tree.containsNode(parentNode.getId())) {
       return err(new ValidationError('Parent node must exist in tree'));
@@ -71,7 +74,7 @@ export class TreeStructureService {
   removeNodeFromTree(
     tree: Tree,
     nodeToRemove: Node,
-    allNodes: Map<NodeId, Node>
+    allNodes: Map<NodeId, Node>,
   ): Result<NodeId[], ValidationError> {
     if (!tree.containsNode(nodeToRemove.getId())) {
       return err(new ValidationError('Node not found in tree'));
@@ -102,7 +105,7 @@ export class TreeStructureService {
     nodeToMove: Node,
     newParentNode: Node,
     newPremisePosition: number,
-    newFromPosition?: number
+    newFromPosition?: number,
   ): Result<void, ValidationError> {
     if (!tree.containsNode(nodeToMove.getId()) || !tree.containsNode(newParentNode.getId())) {
       return err(new ValidationError('Both nodes must exist in tree'));
@@ -115,7 +118,7 @@ export class TreeStructureService {
     const newAttachmentResult = Attachment.create(
       newParentNode.getId(),
       newPremisePosition,
-      newFromPosition
+      newFromPosition,
     );
     if (newAttachmentResult.isErr()) {
       return err(newAttachmentResult.error);
@@ -140,7 +143,7 @@ export class TreeStructureService {
   findDirectChildNodes(parentNodeId: NodeId, allNodes: Map<NodeId, Node>): Node[] {
     const children: Node[] = [];
 
-    for (const node of allNodes.values()) {
+    for (const node of Array.from(allNodes.values())) {
       if (node.isChildOf(parentNodeId)) {
         children.push(node);
       }
@@ -155,7 +158,8 @@ export class TreeStructureService {
     const visited = new Set<NodeId>();
 
     while (toVisit.length > 0) {
-      const currentId = toVisit.pop()!;
+      const currentId = toVisit.pop();
+      if (!currentId) continue;
 
       if (visited.has(currentId)) {
         continue;
@@ -175,7 +179,7 @@ export class TreeStructureService {
 
   validateTreeStructuralIntegrity(
     tree: Tree,
-    allNodes: Map<NodeId, Node>
+    allNodes: Map<NodeId, Node>,
   ): Result<void, ValidationError> {
     const nodeIds = tree.getNodeIds();
 
@@ -183,15 +187,18 @@ export class TreeStructureService {
       const node = allNodes.get(nodeId);
       if (!node) {
         return err(
-          new ValidationError(`Node ${nodeId.getValue()} referenced by tree but not found`)
+          new ValidationError(`Node ${nodeId.getValue()} referenced by tree but not found`),
         );
       }
 
       if (node.isChild()) {
-        const parentId = node.getParentNodeId()!;
-        if (!nodeIds.some(id => id.equals(parentId))) {
+        const parentId = node.getParentNodeId();
+        if (!parentId) {
+          return err(new ValidationError(`Child node ${nodeId.getValue()} has no parent ID`));
+        }
+        if (!nodeIds.some((id) => id.equals(parentId))) {
           return err(
-            new ValidationError(`Node ${nodeId.getValue()} references parent not in same tree`)
+            new ValidationError(`Node ${nodeId.getValue()} references parent not in same tree`),
           );
         }
       }
@@ -211,7 +218,10 @@ export class TreeStructureService {
       return 0;
     }
 
-    const parentId = node.getParentNodeId()!;
+    const parentId = node.getParentNodeId();
+    if (!parentId) {
+      return 0; // If somehow no parent ID, treat as root
+    }
     return 1 + this.computeNodeDepth(parentId, allNodes);
   }
 
@@ -231,7 +241,10 @@ export class TreeStructureService {
         break;
       }
 
-      const parentId = current.getParentNodeId()!;
+      const parentId = current.getParentNodeId();
+      if (!parentId) {
+        return null; // Invalid path
+      }
       const parent = allNodes.get(parentId);
       if (!parent) {
         return null;
@@ -255,7 +268,7 @@ export class TreeStructureService {
           allNodes,
           visiting,
           visited,
-          cycles
+          cycles,
         );
         if (cycleDetected.length > 0) {
           return ok(cycleDetected);
@@ -271,7 +284,7 @@ export class TreeStructureService {
     allNodes: Map<NodeId, Node>,
     visiting: Set<NodeId>,
     visited: Set<NodeId>,
-    cycles: Node[]
+    cycles: Node[],
   ): Node[] {
     if (visiting.has(nodeId)) {
       const node = allNodes.get(nodeId);
@@ -294,7 +307,7 @@ export class TreeStructureService {
         allNodes,
         visiting,
         visited,
-        cycles
+        cycles,
       );
       if (childCycles.length > 0) {
         return childCycles;

@@ -184,7 +184,9 @@ class AgentSpawningService {
 
 **Node.js 22 LTS, TypeScript strict mode, ES Modules**
 
-**Tools**: pnpm, biome.js, vitest, esbuild
+**Primary Tools**: Biome (formatting/linting), Vitest (testing), TypeScript (strict mode)
+
+**Performance**: Biome provides 25x faster formatting/linting than legacy Prettier+ESLint
 
 **Structure**: Domain → Application → Infrastructure → Interface
 
@@ -504,12 +506,27 @@ const agentProcessingTime = new client.Histogram({
 
 **Feature branches, conventional commits, PR reviews, automated CI/CD**
 
+**Modern Development Commands** (2025):
+```bash
+# Primary workflow (Biome - 25x faster)
+npm run biome:check        # Format + lint (recommended)
+npm run biome:check:fix    # Auto-fix formatting and linting issues
+
+# Development
+npm run dev                # TypeScript watch mode
+npm test                   # Run tests with coverage
+
+# Legacy tools (for comparison only)
+npm run format && npm run lint  # Slower Prettier + ESLint
+```
+
 **Code Review Checklist**:
 - [ ] Tests written and passing
 - [ ] Type safety maintained  
 - [ ] Error handling implemented
 - [ ] No comments (self-documenting code)
 - [ ] Security implications reviewed
+- [ ] Code formatted with Biome (`npm run biome:check`)
 
 ```yaml
 # CI/CD Pipeline

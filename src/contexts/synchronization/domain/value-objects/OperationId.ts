@@ -1,6 +1,6 @@
 import { err, ok, type Result } from 'neverthrow';
 
-import { type DeviceId } from './DeviceId';
+import type { DeviceId } from './DeviceId';
 
 export class OperationId {
   private constructor(private readonly value: string) {}
@@ -22,8 +22,8 @@ export class OperationId {
     if (!/^[a-zA-Z0-9-_:.]+$/.test(trimmedValue)) {
       return err(
         new Error(
-          'Operation ID can only contain alphanumeric characters, hyphens, underscores, colons, and periods'
-        )
+          'Operation ID can only contain alphanumeric characters, hyphens, underscores, colons, and periods',
+        ),
       );
     }
 
@@ -43,7 +43,7 @@ export class OperationId {
   }
 
   static generateWithUUID(deviceId: DeviceId): Result<OperationId, Error> {
-    const uuid = this.generateUUID();
+    const uuid = OperationId.generateUUID();
     const deviceIdShort = deviceId.getShortId();
     const operationId = `op_${deviceIdShort}_${uuid}`;
 
@@ -51,7 +51,7 @@ export class OperationId {
   }
 
   private static generateUUID(): string {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
       const r = (Math.random() * 16) | 0;
       const v = c === 'x' ? r : (r & 0x3) | 0x8;
       return v.toString(16);
@@ -81,8 +81,8 @@ export class OperationId {
   getSequenceNumber(): number | null {
     const parts = this.value.split('_');
     if (parts.length >= 4 && parts[0] === 'op') {
-      const seqNum = parseInt(parts[2] ?? '0', 10);
-      return isNaN(seqNum) ? null : seqNum;
+      const seqNum = Number.parseInt(parts[2] ?? '0', 10);
+      return Number.isNaN(seqNum) ? null : seqNum;
     }
     return null;
   }
@@ -90,8 +90,8 @@ export class OperationId {
   getTimestamp(): number | null {
     const parts = this.value.split('_');
     if (parts.length >= 4 && parts[0] === 'op') {
-      const timestamp = parseInt(parts[3] ?? '0', 36);
-      return isNaN(timestamp) ? null : timestamp;
+      const timestamp = Number.parseInt(parts[3] ?? '0', 36);
+      return Number.isNaN(timestamp) ? null : timestamp;
     }
     return null;
   }

@@ -15,8 +15,8 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import { PackageValidationError } from '../../types/domain-errors';
 import { InstallationPath } from '../../value-objects/InstallationPath';
-import { PackageId } from '../../value-objects/package-id';
 import { PackageVersion } from '../../value-objects/PackageVersion';
+import { PackageId } from '../../value-objects/package-id';
 
 describe('InstallationPath', () => {
   let packageId: PackageId;
@@ -41,7 +41,7 @@ describe('InstallationPath', () => {
       const result = InstallationPath.createForUserInstall(
         packageId,
         packageVersion,
-        '/home/user/.proof-editor'
+        '/home/user/.proof-editor',
       );
 
       expect(result.isOk()).toBe(true);
@@ -61,14 +61,14 @@ describe('InstallationPath', () => {
       const result = InstallationPath.createForUserInstall(
         packageId,
         packageVersion,
-        'C:\\Users\\User\\AppData\\.proof-editor'
+        'C:\\Users\\User\\AppData\\.proof-editor',
       );
 
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         const path = result.value;
         expect(path.getAbsolutePath()).toBe(
-          'C:/Users/User/AppData/.proof-editor/packages/test-package/1.0.0'
+          'C:/Users/User/AppData/.proof-editor/packages/test-package/1.0.0',
         );
       }
     });
@@ -77,7 +77,7 @@ describe('InstallationPath', () => {
       const result = InstallationPath.createForUserInstall(
         packageId,
         packageVersion,
-        '  /home/user/.proof-editor  '
+        '  /home/user/.proof-editor  ',
       );
 
       expect(result.isOk()).toBe(true);
@@ -123,7 +123,7 @@ describe('InstallationPath', () => {
       const result = InstallationPath.createForGlobalInstall(
         packageId,
         packageVersion,
-        '/usr/local/proof-editor'
+        '/usr/local/proof-editor',
       );
 
       expect(result.isOk()).toBe(true);
@@ -143,14 +143,14 @@ describe('InstallationPath', () => {
       const result = InstallationPath.createForGlobalInstall(
         packageId,
         packageVersion,
-        'C:\\Program Files\\ProofEditor'
+        'C:\\Program Files\\ProofEditor',
       );
 
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         const path = result.value;
         expect(path.getAbsolutePath()).toBe(
-          'C:/Program Files/ProofEditor/packages/test-package/1.0.0'
+          'C:/Program Files/ProofEditor/packages/test-package/1.0.0',
         );
       }
     });
@@ -159,7 +159,7 @@ describe('InstallationPath', () => {
       const result = InstallationPath.createForGlobalInstall(
         packageId,
         packageVersion,
-        '  /usr/local/proof-editor  '
+        '  /usr/local/proof-editor  ',
       );
 
       expect(result.isOk()).toBe(true);
@@ -195,14 +195,14 @@ describe('InstallationPath', () => {
       const result = InstallationPath.createForLocalInstall(
         packageId,
         packageVersion,
-        '/home/user/project'
+        '/home/user/project',
       );
 
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         const path = result.value;
         expect(path.getAbsolutePath()).toBe(
-          '/home/user/project/.proof-editor/packages/test-package/1.0.0'
+          '/home/user/project/.proof-editor/packages/test-package/1.0.0',
         );
         expect(path.getPackageId()).toBe(packageId);
         expect(path.getVersion()).toBe(packageVersion);
@@ -217,14 +217,14 @@ describe('InstallationPath', () => {
       const result = InstallationPath.createForLocalInstall(
         packageId,
         packageVersion,
-        'C:\\Users\\User\\MyProject'
+        'C:\\Users\\User\\MyProject',
       );
 
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         const path = result.value;
         expect(path.getAbsolutePath()).toBe(
-          'C:/Users/User/MyProject/.proof-editor/packages/test-package/1.0.0'
+          'C:/Users/User/MyProject/.proof-editor/packages/test-package/1.0.0',
         );
       }
     });
@@ -233,14 +233,14 @@ describe('InstallationPath', () => {
       const result = InstallationPath.createForLocalInstall(
         packageId,
         packageVersion,
-        '  /home/user/project  '
+        '  /home/user/project  ',
       );
 
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         const path = result.value;
         expect(path.getAbsolutePath()).toBe(
-          '/home/user/project/.proof-editor/packages/test-package/1.0.0'
+          '/home/user/project/.proof-editor/packages/test-package/1.0.0',
         );
       }
     });
@@ -379,7 +379,7 @@ describe('InstallationPath', () => {
       const result = InstallationPath.fromAbsolutePath(
         '/custom/install/location',
         packageId,
-        packageVersion
+        packageVersion,
       );
 
       expect(result.isOk()).toBe(true);
@@ -396,7 +396,7 @@ describe('InstallationPath', () => {
       const result = InstallationPath.fromAbsolutePath(
         '/usr/global/packages/test',
         packageId,
-        packageVersion
+        packageVersion,
       );
 
       expect(result.isOk()).toBe(true);
@@ -412,7 +412,7 @@ describe('InstallationPath', () => {
       const result = InstallationPath.fromAbsolutePath(
         'C:\\Custom\\Install\\Location',
         packageId,
-        packageVersion
+        packageVersion,
       );
 
       expect(result.isOk()).toBe(true);
@@ -450,7 +450,7 @@ describe('InstallationPath', () => {
       const result = InstallationPath.createForUserInstall(
         packageId,
         packageVersion,
-        '/home/user/.proof-editor'
+        '/home/user/.proof-editor',
       );
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
@@ -460,43 +460,43 @@ describe('InstallationPath', () => {
 
     it('should return correct package directory', () => {
       expect(installationPath.getPackageDirectory()).toBe(
-        '/home/user/.proof-editor/packages/test-package/1.0.0'
+        '/home/user/.proof-editor/packages/test-package/1.0.0',
       );
     });
 
     it('should return correct binary path', () => {
       expect(installationPath.getBinaryPath('my-binary')).toBe(
-        '/home/user/.proof-editor/packages/test-package/1.0.0/bin/my-binary'
+        '/home/user/.proof-editor/packages/test-package/1.0.0/bin/my-binary',
       );
     });
 
     it('should return correct manifest path', () => {
       expect(installationPath.getManifestPath()).toBe(
-        '/home/user/.proof-editor/packages/test-package/1.0.0/package.json'
+        '/home/user/.proof-editor/packages/test-package/1.0.0/package.json',
       );
     });
 
     it('should return correct source path', () => {
       expect(installationPath.getSourcePath()).toBe(
-        '/home/user/.proof-editor/packages/test-package/1.0.0/src'
+        '/home/user/.proof-editor/packages/test-package/1.0.0/src',
       );
     });
 
     it('should return correct config path', () => {
       expect(installationPath.getConfigPath()).toBe(
-        '/home/user/.proof-editor/packages/test-package/1.0.0/config'
+        '/home/user/.proof-editor/packages/test-package/1.0.0/config',
       );
     });
 
     it('should return correct log path', () => {
       expect(installationPath.getLogPath()).toBe(
-        '/home/user/.proof-editor/packages/test-package/1.0.0/logs'
+        '/home/user/.proof-editor/packages/test-package/1.0.0/logs',
       );
     });
 
     it('should return correct cache path', () => {
       expect(installationPath.getCachePath()).toBe(
-        '/home/user/.proof-editor/packages/test-package/1.0.0/cache'
+        '/home/user/.proof-editor/packages/test-package/1.0.0/cache',
       );
     });
   });
@@ -508,7 +508,7 @@ describe('InstallationPath', () => {
       const result = InstallationPath.createForUserInstall(
         packageId,
         packageVersion,
-        '/home/user/.proof-editor'
+        '/home/user/.proof-editor',
       );
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
@@ -522,7 +522,7 @@ describe('InstallationPath', () => {
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         expect(result.value).toBe(
-          '/home/user/.proof-editor/packages/test-package/1.0.0/custom/subdir'
+          '/home/user/.proof-editor/packages/test-package/1.0.0/custom/subdir',
         );
       }
     });
@@ -533,7 +533,7 @@ describe('InstallationPath', () => {
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         expect(result.value).toBe(
-          '/home/user/.proof-editor/packages/test-package/1.0.0/custom/subdir'
+          '/home/user/.proof-editor/packages/test-package/1.0.0/custom/subdir',
         );
       }
     });
@@ -544,7 +544,7 @@ describe('InstallationPath', () => {
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         expect(result.value).toBe(
-          '/home/user/.proof-editor/packages/test-package/1.0.0/custom/subdir'
+          '/home/user/.proof-editor/packages/test-package/1.0.0/custom/subdir',
         );
       }
     });
@@ -576,7 +576,7 @@ describe('InstallationPath', () => {
       if (result.isErr()) {
         expect(result.error).toBeInstanceOf(PackageValidationError);
         expect(result.error.message).toBe(
-          'Subdirectory must be relative and cannot escape package directory'
+          'Subdirectory must be relative and cannot escape package directory',
         );
       }
     });
@@ -588,7 +588,7 @@ describe('InstallationPath', () => {
       if (result.isErr()) {
         expect(result.error).toBeInstanceOf(PackageValidationError);
         expect(result.error.message).toBe(
-          'Subdirectory must be relative and cannot escape package directory'
+          'Subdirectory must be relative and cannot escape package directory',
         );
       }
     });
@@ -600,7 +600,7 @@ describe('InstallationPath', () => {
       if (result.isErr()) {
         expect(result.error).toBeInstanceOf(PackageValidationError);
         expect(result.error.message).toBe(
-          'Subdirectory must be relative and cannot escape package directory'
+          'Subdirectory must be relative and cannot escape package directory',
         );
       }
     });
@@ -611,12 +611,12 @@ describe('InstallationPath', () => {
       const path1Result = InstallationPath.createForUserInstall(
         packageId,
         packageVersion,
-        '/home/user/.proof-editor'
+        '/home/user/.proof-editor',
       );
       const path2Result = InstallationPath.createForUserInstall(
         packageId,
         packageVersion,
-        '/home/user/.proof-editor'
+        '/home/user/.proof-editor',
       );
 
       expect(path1Result.isOk()).toBe(true);
@@ -655,12 +655,12 @@ describe('InstallationPath', () => {
       const path1Result = InstallationPath.createForUserInstall(
         packageId,
         packageVersion,
-        '/home/user/.proof-editor'
+        '/home/user/.proof-editor',
       );
       const path2Result = InstallationPath.createForUserInstall(
         packageId,
         packageVersion,
-        '/home/different/.proof-editor'
+        '/home/different/.proof-editor',
       );
 
       expect(path1Result.isOk()).toBe(true);
@@ -679,12 +679,12 @@ describe('InstallationPath', () => {
         const path1Result = InstallationPath.createForUserInstall(
           packageId,
           packageVersion,
-          '/home/user/.proof-editor'
+          '/home/user/.proof-editor',
         );
         const path2Result = InstallationPath.createForUserInstall(
           otherIdResult.value,
           packageVersion,
-          '/home/user/.proof-editor'
+          '/home/user/.proof-editor',
         );
 
         expect(path1Result.isOk()).toBe(true);
@@ -704,12 +704,12 @@ describe('InstallationPath', () => {
         const path1Result = InstallationPath.createForUserInstall(
           packageId,
           packageVersion,
-          '/home/user/.proof-editor'
+          '/home/user/.proof-editor',
         );
         const path2Result = InstallationPath.createForUserInstall(
           packageId,
           otherVersionResult.value,
-          '/home/user/.proof-editor'
+          '/home/user/.proof-editor',
         );
 
         expect(path1Result.isOk()).toBe(true);
@@ -725,12 +725,12 @@ describe('InstallationPath', () => {
       const path1Result = InstallationPath.createForUserInstall(
         packageId,
         packageVersion,
-        '/home/user/.proof-editor'
+        '/home/user/.proof-editor',
       );
       const path2Result = InstallationPath.createForLocalInstall(
         packageId,
         packageVersion,
-        '/home/user/project'
+        '/home/user/project',
       );
 
       expect(path1Result.isOk()).toBe(true);
@@ -746,7 +746,7 @@ describe('InstallationPath', () => {
       const path2Result = InstallationPath.createForUserInstall(
         packageId,
         packageVersion,
-        '/home/user/.proof-editor'
+        '/home/user/.proof-editor',
       );
 
       expect(path1Result.isOk()).toBe(true);
@@ -761,7 +761,7 @@ describe('InstallationPath', () => {
       const pathResult = InstallationPath.createForUserInstall(
         packageId,
         packageVersion,
-        '/home/user/.proof-editor'
+        '/home/user/.proof-editor',
       );
 
       expect(pathResult.isOk()).toBe(true);
@@ -777,7 +777,7 @@ describe('InstallationPath', () => {
       const pathResult = InstallationPath.createForUserInstall(
         packageId,
         packageVersion,
-        '/home/user/.proof-editor'
+        '/home/user/.proof-editor',
       );
 
       expect(pathResult.isOk()).toBe(true);
@@ -793,7 +793,7 @@ describe('InstallationPath', () => {
       const pathResult = InstallationPath.createForUserInstall(
         packageId,
         packageVersion,
-        '/home/user/.proof-editor'
+        '/home/user/.proof-editor',
       );
 
       expect(pathResult.isOk()).toBe(true);

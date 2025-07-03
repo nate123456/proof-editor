@@ -49,14 +49,14 @@ export class Dependency {
   static createFromDependencyInfo(
     sourcePackageId: PackageId,
     dependencyInfo: DependencyInfo,
-    dependencyType: DependencyType = 'runtime'
+    dependencyType: DependencyType = 'runtime',
   ): Result<Dependency, DependencyResolutionError> {
     const targetPackageIdResult = PackageId.create(dependencyInfo.targetPackageId);
     if (targetPackageIdResult.isErr()) {
       return err(
         new DependencyResolutionError(
-          `Invalid target package ID: ${targetPackageIdResult.error.message}`
-        )
+          `Invalid target package ID: ${targetPackageIdResult.error.message}`,
+        ),
       );
     }
 
@@ -64,8 +64,8 @@ export class Dependency {
     if (versionConstraintResult.isErr()) {
       return err(
         new DependencyResolutionError(
-          `Invalid version constraint: ${versionConstraintResult.error.message}`
-        )
+          `Invalid version constraint: ${versionConstraintResult.error.message}`,
+        ),
       );
     }
 
@@ -139,8 +139,8 @@ export class Dependency {
     if (satisfiesResult.isErr()) {
       return err(
         new DependencyResolutionError(
-          `Cannot check version satisfaction: ${satisfiesResult.error.message}`
-        )
+          `Cannot check version satisfaction: ${satisfiesResult.error.message}`,
+        ),
       );
     }
 
@@ -156,8 +156,8 @@ export class Dependency {
     if (!canSatisfyResult.value) {
       return err(
         new DependencyResolutionError(
-          `Version ${version} does not satisfy constraint ${this.data.versionConstraint.getConstraintString()}`
-        )
+          `Version ${version} does not satisfy constraint ${this.data.versionConstraint.getConstraintString()}`,
+        ),
       );
     }
 
@@ -167,18 +167,18 @@ export class Dependency {
       resolvedVersion: version,
     };
 
-    delete (updatedData as Record<string, unknown>)['conflictReason'];
+    delete (updatedData as Record<string, unknown>).conflictReason;
 
     return Dependency.create(updatedData);
   }
 
   withResolutionStatus(
     status: ResolutionStatus,
-    conflictReason?: string
+    conflictReason?: string,
   ): Result<Dependency, DependencyResolutionError> {
     if ((status === 'failed' || status === 'conflict') && !conflictReason) {
       return err(
-        new DependencyResolutionError('Failed or conflicted status requires conflict reason')
+        new DependencyResolutionError('Failed or conflicted status requires conflict reason'),
       );
     }
 

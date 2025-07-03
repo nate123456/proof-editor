@@ -7,14 +7,14 @@ export class ValidationMetrics {
     private readonly validationTimeMs: number,
     private readonly issueCount: number,
     private readonly inputSize: number,
-    private readonly ruleCount: number
+    private readonly ruleCount: number,
   ) {}
 
   static create(
     validationTimeMs: number,
     issueCount: number,
     inputSize: number,
-    ruleCount: number
+    ruleCount: number,
   ): Result<ValidationMetrics, ValidationError> {
     if (validationTimeMs < 0) {
       return err(new ValidationError('Validation time cannot be negative'));
@@ -57,28 +57,28 @@ export class ValidationMetrics {
 
   getValidationSpeed(): number {
     if (this.validationTimeMs === 0) {
-      return this.inputSize === 0 ? 0 : Infinity;
+      return this.inputSize === 0 ? 0 : Number.POSITIVE_INFINITY;
     }
     return this.inputSize / this.validationTimeMs;
   }
 
   getTimePerRule(): number {
     if (this.ruleCount === 0) {
-      return this.validationTimeMs === 0 ? 0 : Infinity;
+      return this.validationTimeMs === 0 ? 0 : Number.POSITIVE_INFINITY;
     }
     return this.validationTimeMs / this.ruleCount;
   }
 
   getIssueDensity(): number {
     if (this.inputSize === 0) {
-      return this.issueCount === 0 ? 0 : Infinity;
+      return this.issueCount === 0 ? 0 : Number.POSITIVE_INFINITY;
     }
     return this.issueCount / this.inputSize;
   }
 
   getRuleEfficiency(): number {
     if (this.ruleCount === 0) {
-      return this.issueCount === 0 ? 0 : Infinity;
+      return this.issueCount === 0 ? 0 : Number.POSITIVE_INFINITY;
     }
     return this.issueCount / this.ruleCount;
   }
@@ -88,7 +88,7 @@ export class ValidationMetrics {
       this.validationTimeMs + other.validationTimeMs,
       this.issueCount + other.issueCount,
       this.inputSize + other.inputSize,
-      this.ruleCount + other.ruleCount
+      this.ruleCount + other.ruleCount,
     );
   }
 
@@ -97,7 +97,7 @@ export class ValidationMetrics {
       (this.validationTimeMs + other.validationTimeMs) / 2,
       (this.issueCount + other.issueCount) / 2,
       (this.inputSize + other.inputSize) / 2,
-      (this.ruleCount + other.ruleCount) / 2
+      (this.ruleCount + other.ruleCount) / 2,
     );
   }
 
@@ -156,10 +156,10 @@ export class ValidationMetrics {
 
     // Penalize based on issue density (more issues = lower score)
     const issueDensity = this.getIssueDensity();
-    score = score * Math.max(0, 1 - issueDensity * 50); // Scale penalty
+    score *= Math.max(0, 1 - issueDensity * 50); // Scale penalty
 
     // Penalize based on validation time (slower = lower score)
-    score = score * Math.max(0.1, 1 - this.validationTimeMs / 1000); // Min 10% of base score
+    score *= Math.max(0.1, 1 - this.validationTimeMs / 1000); // Min 10% of base score
 
     return Math.max(0, Math.min(100, score));
   }

@@ -5,13 +5,13 @@
 
 import type { Result } from 'neverthrow';
 
-import { type ConflictType } from '../value-objects/ConflictType';
-import { type DeviceId } from '../value-objects/DeviceId';
-import { type LogicalTimestamp } from '../value-objects/LogicalTimestamp';
-import { type OperationId } from '../value-objects/OperationId';
-import { type OperationPayload } from '../value-objects/OperationPayload';
-import { type OperationType } from '../value-objects/OperationType';
-import { type VectorClock } from './VectorClock';
+import type { ConflictType } from '../value-objects/ConflictType';
+import type { DeviceId } from '../value-objects/DeviceId';
+import type { LogicalTimestamp } from '../value-objects/LogicalTimestamp';
+import type { OperationId } from '../value-objects/OperationId';
+import type { OperationPayload } from '../value-objects/OperationPayload';
+import type { OperationType } from '../value-objects/OperationType';
+import type { VectorClock } from './VectorClock';
 
 /**
  * Interface representing the essential properties of an Operation
@@ -41,7 +41,7 @@ export interface IConflictFactory {
     id: string,
     conflictType: ConflictType,
     targetPath: string,
-    conflictingOperations: IOperation[]
+    conflictingOperations: IOperation[],
   ): Result<IConflict, Error>;
 }
 

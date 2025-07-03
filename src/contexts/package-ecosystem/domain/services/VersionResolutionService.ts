@@ -3,7 +3,7 @@ import { err, ok, type Result } from 'neverthrow';
 import type { GitPackageSource } from '../types/common-types.js';
 import { PackageNotFoundError, PackageSourceUnavailableError } from '../types/domain-errors.js';
 import { PackageVersion } from '../value-objects/PackageVersion.js';
-import { type VersionConstraint } from '../value-objects/version-constraint.js';
+import type { VersionConstraint } from '../value-objects/version-constraint.js';
 
 export interface GitRefResolutionResult {
   readonly resolvedVersion: PackageVersion;
@@ -22,17 +22,17 @@ export interface VersionResolutionResult {
 export interface IGitRefProvider {
   resolveRefToCommit(
     _gitUrl: string,
-    ref: string
+    ref: string,
   ): Promise<Result<{ commit: string; actualRef: string }, PackageSourceUnavailableError>>;
   listAvailableTags(
-    _gitUrl: string
+    _gitUrl: string,
   ): Promise<Result<readonly string[], PackageSourceUnavailableError>>;
   listAvailableBranches(
-    _gitUrl: string
+    _gitUrl: string,
   ): Promise<Result<readonly string[], PackageSourceUnavailableError>>;
   getCommitTimestamp(
     _gitUrl: string,
-    commit: string
+    commit: string,
   ): Promise<Result<Date, PackageSourceUnavailableError>>;
 }
 
@@ -40,7 +40,7 @@ export class VersionResolutionService {
   constructor(private readonly gitRefProvider: IGitRefProvider) {}
 
   async resolveGitRefToVersion(
-    gitSource: GitPackageSource
+    gitSource: GitPackageSource,
   ): Promise<Result<GitRefResolutionResult, PackageSourceUnavailableError>> {
     const { url, ref } = gitSource;
 
@@ -59,8 +59,8 @@ export class VersionResolutionService {
     if (versionResult.isErr()) {
       return err(
         new PackageSourceUnavailableError(
-          `Failed to determine version from ref ${actualRef}: ${versionResult.error.message}`
-        )
+          `Failed to determine version from ref ${actualRef}: ${versionResult.error.message}`,
+        ),
       );
     }
 
@@ -76,7 +76,7 @@ export class VersionResolutionService {
 
   async resolveVersionConstraint(
     _gitUrl: string,
-    constraint: VersionConstraint
+    constraint: VersionConstraint,
   ): Promise<
     Result<VersionResolutionResult, PackageSourceUnavailableError | PackageNotFoundError>
   > {
@@ -91,16 +91,20 @@ export class VersionResolutionService {
       return err(new PackageNotFoundError(`No versions found for repository: ${_gitUrl}`));
     }
 
-    const satisfyingVersions = availableVersions.filter(version =>
-      version.satisfiesConstraint(constraint.getConstraintString())
+    const satisfyingVersions = availableVersions.filter((version) =>
+      version.satisfiesConstraint(constraint.getConstraintString()),
     );
 
     if (satisfyingVersions.length === 0) {
       if (availableVersions.length === 0) {
         return err(new PackageNotFoundError(`No versions available for repository: ${_gitUrl}`));
       }
+      const firstVersion = availableVersions[0];
+      if (!firstVersion) {
+        return err(new PackageNotFoundError(`No versions available for repository: ${_gitUrl}`));
+      }
       const result: VersionResolutionResult = {
-        bestVersion: availableVersions[0]!,
+        bestVersion: firstVersion,
         availableVersions,
         satisfiesConstraint: false,
         resolvedAt: new Date(),
@@ -121,7 +125,7 @@ export class VersionResolutionService {
   }
 
   async getAvailableVersions(
-    _gitUrl: string
+    _gitUrl: string,
   ): Promise<Result<readonly PackageVersion[], PackageSourceUnavailableError>> {
     const tagsResult = await this.gitRefProvider.listAvailableTags(_gitUrl);
     if (tagsResult.isErr()) {
@@ -165,25 +169,30 @@ export class VersionResolutionService {
   }
 
   async findLatestStableVersion(
-    _gitUrl: string
+    _gitUrl: string,
   ): Promise<Result<PackageVersion, PackageNotFoundError | PackageSourceUnavailableError>> {
     const availableVersionsResult = await this.getAvailableVersions(_gitUrl);
     if (availableVersionsResult.isErr()) {
       return err(availableVersionsResult.error);
     }
 
-    const stableVersions = availableVersionsResult.value.filter(version => version.isStable());
+    const stableVersions = availableVersionsResult.value.filter((version) => version.isStable());
 
     if (stableVersions.length === 0) {
       return err(new PackageNotFoundError(`No stable versions found for repository: ${_gitUrl}`));
     }
 
-    return ok(stableVersions[0]!);
+    const firstStableVersion = stableVersions[0];
+    if (!firstStableVersion) {
+      return err(new PackageNotFoundError(`No stable versions found for repository: ${_gitUrl}`));
+    }
+
+    return ok(firstStableVersion);
   }
 
   async findLatestVersion(
     _gitUrl: string,
-    includePrerelease = false
+    includePrerelease = false,
   ): Promise<Result<PackageVersion, PackageNotFoundError | PackageSourceUnavailableError>> {
     const availableVersionsResult = await this.getAvailableVersions(_gitUrl);
     if (availableVersionsResult.isErr()) {
@@ -197,34 +206,44 @@ export class VersionResolutionService {
     }
 
     if (!includePrerelease) {
-      const stableVersions = availableVersions.filter(version => !version.isPrerelease());
+      const stableVersions = availableVersions.filter((version) => !version.isPrerelease());
       if (stableVersions.length > 0) {
-        return ok(stableVersions[0]!);
+        const firstStableVersion = stableVersions[0];
+        if (!firstStableVersion) {
+          return err(
+            new PackageNotFoundError(`No stable versions found for repository: ${_gitUrl}`),
+          );
+        }
+        return ok(firstStableVersion);
       }
     }
 
-    return ok(availableVersions[0]!);
+    const firstVersion = availableVersions[0];
+    if (!firstVersion) {
+      return err(new PackageNotFoundError(`No versions found for repository: ${_gitUrl}`));
+    }
+    return ok(firstVersion);
   }
 
   private determineVersionFromRef(
     ref: string,
-    _gitUrl: string
+    _gitUrl: string,
   ): Result<PackageVersion, PackageSourceUnavailableError> {
-    if (ref.startsWith('v') && ref.match(/^v\d+\.\d+\.\d+/)) {
+    if (ref.startsWith('v') && /^v\d+\.\d+\.\d+/.exec(ref)) {
       const result = PackageVersion.create(ref.slice(1));
       if (result.isErr()) {
         return err(
-          new PackageSourceUnavailableError(`Invalid version format: ${result.error.message}`)
+          new PackageSourceUnavailableError(`Invalid version format: ${result.error.message}`),
         );
       }
       return ok(result.value);
     }
 
-    if (ref.match(/^\d+\.\d+\.\d+/)) {
+    if (/^\d+\.\d+\.\d+/.exec(ref)) {
       const result = PackageVersion.create(ref);
       if (result.isErr()) {
         return err(
-          new PackageSourceUnavailableError(`Invalid version format: ${result.error.message}`)
+          new PackageSourceUnavailableError(`Invalid version format: ${result.error.message}`),
         );
       }
       return ok(result.value);
@@ -233,7 +252,7 @@ export class VersionResolutionService {
     const result = PackageVersion.fromGitRef(ref);
     if (result.isErr()) {
       return err(
-        new PackageSourceUnavailableError(`Invalid git ref format: ${result.error.message}`)
+        new PackageSourceUnavailableError(`Invalid git ref format: ${result.error.message}`),
       );
     }
     return ok(result.value);
@@ -241,15 +260,15 @@ export class VersionResolutionService {
 
   private selectBestVersion(
     versions: readonly PackageVersion[],
-    constraint: VersionConstraint
+    constraint: VersionConstraint,
   ): PackageVersion {
     const constraintStr = constraint.getConstraintString();
 
     if (constraintStr.startsWith('^') || constraintStr.startsWith('~')) {
-      const stableVersions = versions.filter(v => !v.isPrerelease());
+      const stableVersions = versions.filter((v) => !v.isPrerelease());
       if (stableVersions.length > 0) {
         return stableVersions.reduce((best, current) =>
-          current.compareWith(best) > 0 ? current : best
+          current.compareWith(best) > 0 ? current : best,
         );
       }
     }
@@ -275,13 +294,13 @@ export class VersionResolutionService {
       /^<\d+\.\d+\.\d+/,
     ];
 
-    const isValid = validPatterns.some(pattern => pattern.test(normalizedConstraint));
+    const isValid = validPatterns.some((pattern) => pattern.test(normalizedConstraint));
 
     if (!isValid) {
       return err(
         new PackageSourceUnavailableError(
-          `Invalid version constraint format: ${normalizedConstraint}`
-        )
+          `Invalid version constraint format: ${normalizedConstraint}`,
+        ),
       );
     }
 

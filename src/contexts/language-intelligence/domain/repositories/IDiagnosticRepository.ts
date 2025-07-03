@@ -1,9 +1,9 @@
-import { type Result } from 'neverthrow';
+import type { Result } from 'neverthrow';
 
-import { type Diagnostic } from '../entities/Diagnostic';
-import { type RepositoryError } from '../errors/DomainErrors';
-import { type DiagnosticId } from '../value-objects/DiagnosticId';
-import { type DiagnosticSeverity } from '../value-objects/DiagnosticSeverity';
+import type { Diagnostic } from '../entities/Diagnostic';
+import type { RepositoryError } from '../errors/DomainErrors';
+import type { DiagnosticId } from '../value-objects/DiagnosticId';
+import type { DiagnosticSeverity } from '../value-objects/DiagnosticSeverity';
 
 export interface IDiagnosticRepository {
   save(diagnostic: Diagnostic): Promise<Result<void, RepositoryError>>;

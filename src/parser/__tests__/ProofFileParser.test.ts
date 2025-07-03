@@ -1,12 +1,13 @@
-import { readFileSync } from 'fs';
-import { join } from 'path';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { ParseErrorType } from '../ParseError.js';
 import { ProofFileParser } from '../ProofFileParser.js';
+import { YAMLValidator } from '../YAMLValidator.js';
 
 describe('ProofFileParser', () => {
-  const parser = new ProofFileParser();
+  const parser = new ProofFileParser(new YAMLValidator());
 
   const loadFixture = (filename: string): string => {
     return readFileSync(join(__dirname, 'test-fixtures', filename), 'utf-8');
@@ -35,20 +36,26 @@ describe('ProofFileParser', () => {
       // Verify atomic arguments
       expect(document.atomicArguments.size).toBe(1);
       expect(document.atomicArguments.has('arg1')).toBe(true);
-      const arg1 = document.atomicArguments.get('arg1')!;
+      const arg1 = document.atomicArguments.get('arg1');
+      expect(arg1).toBeDefined();
+      if (!arg1) return;
       expect(arg1.getSideLabels().left).toBe('Modus Ponens');
 
       // Verify trees
       expect(document.trees.size).toBe(1);
       expect(document.trees.has('tree1')).toBe(true);
-      const tree1 = document.trees.get('tree1')!;
+      const tree1 = document.trees.get('tree1');
+      expect(tree1).toBeDefined();
+      if (!tree1) return;
       expect(tree1.getPosition().getX()).toBe(100);
       expect(tree1.getPosition().getY()).toBe(200);
 
       // Verify nodes
       expect(document.nodes.size).toBe(1);
       expect(document.nodes.has('n1')).toBe(true);
-      const n1 = document.nodes.get('n1')!;
+      const n1 = document.nodes.get('n1');
+      expect(n1).toBeDefined();
+      if (!n1) return;
       expect(n1.isRoot()).toBe(true);
     });
 
@@ -69,22 +76,32 @@ describe('ProofFileParser', () => {
       expect(document.nodes.size).toBe(4); // 3 nodes in tree1 + 1 node in tree2
 
       // Verify tree structure
-      const tree1 = document.trees.get('tree1')!;
+      const tree1 = document.trees.get('tree1');
+      expect(tree1).toBeDefined();
+      if (!tree1) return;
       expect(tree1.getNodeCount()).toBe(3);
 
       // Verify node attachments
-      const n2 = document.nodes.get('n2')!;
+      const n2 = document.nodes.get('n2');
+      expect(n2).toBeDefined();
+      if (!n2) return;
       expect(n2.isChild()).toBe(true);
       expect(n2.getPremisePosition()).toBe(0);
 
-      const n3 = document.nodes.get('n3')!;
+      const n3 = document.nodes.get('n3');
+      expect(n3).toBeDefined();
+      if (!n3) return;
       expect(n3.isChild()).toBe(true);
       expect(n3.getPremisePosition()).toBe(0);
 
       // Verify independent tree
-      const tree2 = document.trees.get('tree2')!;
+      const tree2 = document.trees.get('tree2');
+      expect(tree2).toBeDefined();
+      if (!tree2) return;
       expect(tree2.getNodeCount()).toBe(1);
-      const rootNode = document.nodes.get('root')!;
+      const rootNode = document.nodes.get('root');
+      expect(rootNode).toBeDefined();
+      if (!rootNode) return;
       expect(rootNode.isRoot()).toBe(true);
     });
 
@@ -125,8 +142,8 @@ trees: {}
 
       const syntaxErrors = error.getErrorsByType(ParseErrorType.YAML_SYNTAX);
       expect(syntaxErrors.length).toBeGreaterThan(0);
-      expect(syntaxErrors[0]!.message).toContain('YAML syntax error');
-      expect(syntaxErrors[0]!.line).toBeDefined();
+      expect(syntaxErrors[0]?.message).toContain('YAML syntax error');
+      expect(syntaxErrors[0]?.line).toBeDefined();
     });
 
     it('should handle completely malformed YAML', () => {
@@ -163,8 +180,8 @@ trees: {}
 
       // Verify error messages are helpful
       const statementErrors = error.getErrorsByType(ParseErrorType.INVALID_STATEMENT);
-      expect(statementErrors.some(e => e.message.includes('must be a string'))).toBe(true);
-      expect(statementErrors.some(e => e.message.includes('cannot be empty'))).toBe(true);
+      expect(statementErrors.some((e) => e.message.includes('must be a string'))).toBe(true);
+      expect(statementErrors.some((e) => e.message.includes('cannot be empty'))).toBe(true);
     });
 
     it('should reject non-object root structure', () => {
@@ -177,7 +194,7 @@ trees: {}
       const { error } = result;
       expect(error.hasErrorType(ParseErrorType.INVALID_STRUCTURE)).toBe(true);
       const structureErrors = error.getErrorsByType(ParseErrorType.INVALID_STRUCTURE);
-      expect(structureErrors[0]!.message).toContain('Root element must be an object');
+      expect(structureErrors[0]?.message).toContain('Root element must be an object');
     });
   });
 
@@ -196,15 +213,15 @@ trees: {}
       expect(missingRefErrors.length).toBeGreaterThan(0);
 
       // Check for specific missing references
-      expect(missingRefErrors.some(e => e.message.includes("'s3'"))).toBe(true);
-      expect(missingRefErrors.some(e => e.message.includes("'s4'"))).toBe(true);
-      expect(missingRefErrors.some(e => e.message.includes("'os3'"))).toBe(true);
-      expect(missingRefErrors.some(e => e.message.includes("'arg3'"))).toBe(true);
+      expect(missingRefErrors.some((e) => e.message.includes("'s3'"))).toBe(true);
+      expect(missingRefErrors.some((e) => e.message.includes("'s4'"))).toBe(true);
+      expect(missingRefErrors.some((e) => e.message.includes("'os3'"))).toBe(true);
+      expect(missingRefErrors.some((e) => e.message.includes("'arg3'"))).toBe(true);
 
       // Verify section information is included
-      expect(missingRefErrors.some(e => e.section === 'orderedSets')).toBe(true);
-      expect(missingRefErrors.some(e => e.section === 'atomicArguments')).toBe(true);
-      expect(missingRefErrors.some(e => e.section === 'trees')).toBe(true);
+      expect(missingRefErrors.some((e) => e.section === 'orderedSets')).toBe(true);
+      expect(missingRefErrors.some((e) => e.section === 'atomicArguments')).toBe(true);
+      expect(missingRefErrors.some((e) => e.section === 'trees')).toBe(true);
     });
 
     it('should provide clear error messages for missing statement references', () => {
@@ -224,9 +241,9 @@ orderedSets:
       const missingRefErrors = error.getErrorsByType(ParseErrorType.MISSING_REFERENCE);
       expect(missingRefErrors.length).toBe(2); // s2 and s3
 
-      expect(missingRefErrors[0]!.message).toContain('referenced in ordered set');
-      expect(missingRefErrors[0]!.message).toContain('but not defined in statements section');
-      expect(missingRefErrors[0]!.reference).toBe('os1');
+      expect(missingRefErrors[0]?.message).toContain('referenced in ordered set');
+      expect(missingRefErrors[0]?.message).toContain('but not defined in statements section');
+      expect(missingRefErrors[0]?.reference).toBe('os1');
     });
   });
 
@@ -258,8 +275,8 @@ trees:
       expect(error.hasErrorType(ParseErrorType.MISSING_REFERENCE)).toBe(true);
 
       const missingRefErrors = error.getErrorsByType(ParseErrorType.MISSING_REFERENCE);
-      expect(missingRefErrors.some(e => e.message.includes("Parent node 'n99' not found"))).toBe(
-        true
+      expect(missingRefErrors.some((e) => e.message.includes("Parent node 'n99' not found"))).toBe(
+        true,
       );
     });
 
@@ -291,7 +308,7 @@ trees:
 
       const structureErrors = error.getErrorsByType(ParseErrorType.INVALID_TREE_STRUCTURE);
       expect(
-        structureErrors.some(e => e.message.includes('Child node must specify a parent node ID'))
+        structureErrors.some((e) => e.message.includes('Child node must specify a parent node ID')),
       ).toBe(true);
     });
 
@@ -322,8 +339,8 @@ trees:
       expect(error.hasErrorType(ParseErrorType.INVALID_TREE_STRUCTURE)).toBe(true);
 
       const structureErrors = error.getErrorsByType(ParseErrorType.INVALID_TREE_STRUCTURE);
-      expect(structureErrors.some(e => e.message.includes('Failed to create attachment'))).toBe(
-        true
+      expect(structureErrors.some((e) => e.message.includes('Failed to create attachment'))).toBe(
+        true,
       );
     });
   });
@@ -371,11 +388,11 @@ atomicArguments:
       const missingRefErrors = error.getErrorsByType(ParseErrorType.MISSING_REFERENCE);
       expect(
         missingRefErrors.some(
-          e =>
+          (e) =>
             e.message.includes(
-              "Statement 's999' referenced in ordered set 'os1' but not defined in statements section"
-            ) && e.section === 'orderedSets'
-        )
+              "Statement 's999' referenced in ordered set 'os1' but not defined in statements section",
+            ) && e.section === 'orderedSets',
+        ),
       ).toBe(true);
     });
   });
@@ -517,7 +534,9 @@ atomicArguments:
 
       const document = result.value;
       expect(document.atomicArguments.size).toBe(1);
-      const bootstrap = document.atomicArguments.get('bootstrap')!;
+      const bootstrap = document.atomicArguments.get('bootstrap');
+      expect(bootstrap).toBeDefined();
+      if (!bootstrap) return;
       expect(bootstrap.isBootstrapArgument()).toBe(true);
     });
   });
@@ -557,8 +576,8 @@ trees:
 
       // Look for the specific attachment creation error
       const attachmentErrors = error.getErrorsByType(ParseErrorType.INVALID_TREE_STRUCTURE);
-      const hasAttachmentError = attachmentErrors.some(e =>
-        e.message.includes('Failed to create attachment')
+      const hasAttachmentError = attachmentErrors.some((e) =>
+        e.message.includes('Failed to create attachment'),
       );
       expect(hasAttachmentError).toBe(true);
     });
@@ -585,7 +604,9 @@ arguments:
       expect(document.atomicArguments.size).toBe(1);
       expect(document.atomicArguments.has('arg1')).toBe(true);
 
-      const arg1 = document.atomicArguments.get('arg1')!;
+      const arg1 = document.atomicArguments.get('arg1');
+      expect(arg1).toBeDefined();
+      if (!arg1) return;
       expect(arg1.isBootstrapArgument()).toBe(false);
     });
 
@@ -632,10 +653,14 @@ arguments:
       const document = result.value;
       expect(document.atomicArguments.size).toBe(2);
 
-      const arg1 = document.atomicArguments.get('arg1')!;
+      const arg1 = document.atomicArguments.get('arg1');
+      expect(arg1).toBeDefined();
+      if (!arg1) return;
       expect(arg1.isBootstrapArgument()).toBe(true);
 
-      const arg2 = document.atomicArguments.get('arg2')!;
+      const arg2 = document.atomicArguments.get('arg2');
+      expect(arg2).toBeDefined();
+      if (!arg2) return;
       expect(arg2.isBootstrapArgument()).toBe(false);
     });
 
@@ -656,8 +681,8 @@ arguments:
       const { error } = result;
       expect(error.hasErrorType(ParseErrorType.INVALID_ARGUMENT)).toBe(true);
       const argumentErrors = error.getErrorsByType(ParseErrorType.INVALID_ARGUMENT);
-      expect(argumentErrors.some(e => e.message.includes('must be a valid statement ID'))).toBe(
-        true
+      expect(argumentErrors.some((e) => e.message.includes('must be a valid statement ID'))).toBe(
+        true,
       );
     });
 
@@ -681,7 +706,7 @@ arguments:
       expect(error.hasErrorType(ParseErrorType.INVALID_ARGUMENT)).toBe(true);
       const argumentErrors = error.getErrorsByType(ParseErrorType.INVALID_ARGUMENT);
       expect(
-        argumentErrors.some(e => e.message.includes('exactly one premise-conclusion mapping'))
+        argumentErrors.some((e) => e.message.includes('exactly one premise-conclusion mapping')),
       ).toBe(true);
     });
 
@@ -702,8 +727,8 @@ arguments:
       expect(error.hasErrorType(ParseErrorType.MISSING_REFERENCE)).toBe(true);
       const missingRefErrors = error.getErrorsByType(ParseErrorType.MISSING_REFERENCE);
       expect(missingRefErrors.length).toBeGreaterThan(0);
-      expect(missingRefErrors.some(e => e.message.includes('s999'))).toBe(true);
-      expect(missingRefErrors.some(e => e.message.includes('s2'))).toBe(true);
+      expect(missingRefErrors.some((e) => e.message.includes('s999'))).toBe(true);
+      expect(missingRefErrors.some((e) => e.message.includes('s2'))).toBe(true);
     });
   });
 
@@ -741,12 +766,16 @@ arguments:
 
       // Check old format argument
       expect(document.atomicArguments.has('old_arg')).toBe(true);
-      const oldArg = document.atomicArguments.get('old_arg')!;
+      const oldArg = document.atomicArguments.get('old_arg');
+      expect(oldArg).toBeDefined();
+      if (!oldArg) return;
       expect(oldArg.getSideLabels().left).toBe('Modus Ponens');
 
       // Check new format argument
       expect(document.atomicArguments.has('arg1')).toBe(true);
-      const newArg = document.atomicArguments.get('arg1')!;
+      const newArg = document.atomicArguments.get('arg1');
+      expect(newArg).toBeDefined();
+      if (!newArg) return;
       expect(newArg.getSideLabels().left).toBeUndefined();
     });
   });
@@ -798,7 +827,7 @@ atomicArguments:
       // Check for cross-reference validation error
       const crossRefErrors = error.getErrorsByType(ParseErrorType.MISSING_REFERENCE);
       const hasOrderedSetError = crossRefErrors.some(
-        e => e.message.includes('Statement') && e.message.includes('referenced in ordered set')
+        (e) => e.message.includes('Statement') && e.message.includes('referenced in ordered set'),
       );
       expect(hasOrderedSetError).toBe(true);
     });
@@ -829,7 +858,7 @@ atomicArguments:
       // Should have error about s999 not being found
       const missingRefErrors = error.getErrorsByType(ParseErrorType.MISSING_REFERENCE);
       const hasS999Error = missingRefErrors.some(
-        e => e.message.includes('s999') && e.message.includes('not defined in statements')
+        (e) => e.message.includes('s999') && e.message.includes('not defined in statements'),
       );
       expect(hasS999Error).toBe(true);
     });
@@ -872,7 +901,9 @@ trees:
       expect(document.trees.get('tree1')?.getNodeCount()).toBe(5);
 
       // Verify all nodes were properly added to the tree
-      const tree = document.trees.get('tree1')!;
+      const tree = document.trees.get('tree1');
+      expect(tree).toBeDefined();
+      if (!tree) return;
       expect(tree.getNodeCount()).toBe(5);
     });
 
@@ -908,9 +939,9 @@ trees:
       // Should have error about invalid parent node ID
       const structureErrors = error.getErrorsByType(ParseErrorType.INVALID_TREE_STRUCTURE);
       const hasParentIdError = structureErrors.some(
-        e =>
+        (e) =>
           e.message.includes('Invalid parent node ID') ||
-          e.message.includes('Child node must specify a parent node ID')
+          e.message.includes('Child node must specify a parent node ID'),
       );
       expect(hasParentIdError).toBe(true);
     });
@@ -965,12 +996,16 @@ trees:
       // Verify trees
       expect(document.trees.size).toBe(2);
 
-      const tree1 = document.trees.get('tree1')!;
+      const tree1 = document.trees.get('tree1');
+      expect(tree1).toBeDefined();
+      if (!tree1) return;
       expect(tree1.getPosition().getX()).toBe(100);
       expect(tree1.getPosition().getY()).toBe(200);
       expect(tree1.getNodeCount()).toBe(4);
 
-      const tree2 = document.trees.get('tree2')!;
+      const tree2 = document.trees.get('tree2');
+      expect(tree2).toBeDefined();
+      if (!tree2) return;
       expect(tree2.getPosition().getX()).toBe(0);
       expect(tree2.getPosition().getY()).toBe(0);
       expect(tree2.getNodeCount()).toBe(1);
@@ -979,24 +1014,34 @@ trees:
       expect(document.nodes.size).toBe(5);
 
       // Check root node
-      const rootNode = document.nodes.get('root')!;
+      const rootNode = document.nodes.get('root');
+      expect(rootNode).toBeDefined();
+      if (!rootNode) return;
       expect(rootNode.isRoot()).toBe(true);
 
       // Check child nodes
-      const child1 = document.nodes.get('child1')!;
+      const child1 = document.nodes.get('child1');
+      expect(child1).toBeDefined();
+      if (!child1) return;
       expect(child1.isChild()).toBe(true);
       expect(child1.getPremisePosition()).toBe(0);
 
-      const child2 = document.nodes.get('child2')!;
+      const child2 = document.nodes.get('child2');
+      expect(child2).toBeDefined();
+      if (!child2) return;
       expect(child2.isChild()).toBe(true);
       expect(child2.getPremisePosition()).toBe(1); // "from:to" format uses "to" position
 
       // Check nested child
-      const grandchild = document.nodes.get('grandchild')!;
+      const grandchild = document.nodes.get('grandchild');
+      expect(grandchild).toBeDefined();
+      if (!grandchild) return;
       expect(grandchild.isChild()).toBe(true);
 
       // Check standalone node
-      const standalone = document.nodes.get('standalone')!;
+      const standalone = document.nodes.get('standalone');
+      expect(standalone).toBeDefined();
+      if (!standalone) return;
       expect(standalone.isRoot()).toBe(true);
     });
 
@@ -1034,15 +1079,21 @@ trees:
       expect(document.nodes.size).toBe(4);
 
       // Verify position parsing
-      const child1 = document.nodes.get('child1')!;
+      const child1 = document.nodes.get('child1');
+      expect(child1).toBeDefined();
+      if (!child1) return;
       expect(child1.isChild()).toBe(true);
       expect(child1.getPremisePosition()).toBe(1); // "to" position from "0:1"
 
-      const child2 = document.nodes.get('child2')!;
+      const child2 = document.nodes.get('child2');
+      expect(child2).toBeDefined();
+      if (!child2) return;
       expect(child2.isChild()).toBe(true);
       expect(child2.getPremisePosition()).toBe(0); // "to" position from "1:0"
 
-      const child3 = document.nodes.get('child3')!;
+      const child3 = document.nodes.get('child3');
+      expect(child3).toBeDefined();
+      if (!child3) return;
       expect(child3.isChild()).toBe(true);
       expect(child3.getPremisePosition()).toBe(2); // regular number format
     });
@@ -1075,10 +1126,14 @@ trees:
 
       const document = result.value;
 
-      const child1 = document.nodes.get('child1')!;
+      const child1 = document.nodes.get('child1');
+      expect(child1).toBeDefined();
+      if (!child1) return;
       expect(child1.getPremisePosition()).toBe(5);
 
-      const child2 = document.nodes.get('child2')!;
+      const child2 = document.nodes.get('child2');
+      expect(child2).toBeDefined();
+      if (!child2) return;
       expect(child2.getPremisePosition()).toBe(0);
     });
 
@@ -1111,7 +1166,7 @@ trees:
       expect(error.hasErrorType(ParseErrorType.INVALID_TREE_STRUCTURE)).toBe(true);
 
       const structureErrors = error.getErrorsByType(ParseErrorType.INVALID_TREE_STRUCTURE);
-      const hasPositionError = structureErrors.some(e => e.message.includes('valid position'));
+      const hasPositionError = structureErrors.some((e) => e.message.includes('valid position'));
       expect(hasPositionError).toBe(true);
     });
 
@@ -1144,7 +1199,9 @@ trees:
       if (result.isErr()) return;
 
       const document = result.value;
-      const child = document.nodes.get('child')!;
+      const child = document.nodes.get('child');
+      expect(child).toBeDefined();
+      if (!child) return;
       expect(child.isChild()).toBe(true);
       expect(child.getPremisePosition()).toBe(1);
     });
@@ -1178,7 +1235,9 @@ trees:
       if (result.isErr()) return;
 
       const document = result.value;
-      const child = document.nodes.get('child')!;
+      const child = document.nodes.get('child');
+      expect(child).toBeDefined();
+      if (!child) return;
       expect(child.isChild()).toBe(true);
       expect(child.getPremisePosition()).toBe(2);
     });

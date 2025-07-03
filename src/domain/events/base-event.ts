@@ -9,7 +9,7 @@ export abstract class DomainEvent {
   constructor(
     public readonly aggregateId: string,
     public readonly aggregateType: string,
-    eventVersion = 1
+    eventVersion = 1,
   ) {
     this.eventId = crypto.randomUUID();
     this.occurredAt = Timestamp.now();

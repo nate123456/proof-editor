@@ -10,14 +10,14 @@ export class RulePattern {
     private readonly patternId: string,
     private readonly variables: Map<string, PatternVariable>,
     private readonly constraints: PatternConstraint[],
-    private readonly confidence: number
+    private readonly confidence: number,
   ) {}
 
   static createLogicalPattern(
     premisePatterns: string[],
     conclusionPatterns: string[],
     patternId: string,
-    confidence = 1.0
+    confidence = 1.0,
   ): Result<RulePattern, ValidationError> {
     if (premisePatterns.length === 0) {
       return _err(new ValidationError('At least one premise pattern is required'));
@@ -41,13 +41,13 @@ export class RulePattern {
     return _ok(
       new RulePattern(
         'logical',
-        premisePatterns.map(p => p.trim()),
-        conclusionPatterns.map(c => c.trim()),
+        premisePatterns.map((p) => p.trim()),
+        conclusionPatterns.map((c) => c.trim()),
         patternId.trim(),
         variables,
         constraints,
-        confidence
-      )
+        confidence,
+      ),
     );
   }
 
@@ -55,12 +55,12 @@ export class RulePattern {
     premisePatterns: string[],
     conclusionPatterns: string[],
     patternId: string,
-    modalOperators: string[] = ['□', '◇']
+    modalOperators: string[] = ['□', '◇'],
   ): Result<RulePattern, ValidationError> {
     const logicalPatternResult = RulePattern.createLogicalPattern(
       premisePatterns,
       conclusionPatterns,
-      patternId
+      patternId,
     );
 
     if (logicalPatternResult.isErr()) return logicalPatternResult;
@@ -68,7 +68,7 @@ export class RulePattern {
     const pattern = logicalPatternResult.value;
 
     // Add modal operator constraints
-    const modalConstraints: PatternConstraint[] = modalOperators.map(op => ({
+    const modalConstraints: PatternConstraint[] = modalOperators.map((op) => ({
       type: 'modal-operator',
       operator: op,
       description: `Modal operator ${op} validation`,
@@ -82,14 +82,14 @@ export class RulePattern {
         pattern.patternId,
         pattern.variables,
         [...pattern.constraints, ...modalConstraints],
-        pattern.confidence
-      )
+        pattern.confidence,
+      ),
     );
   }
 
   static createTemplatePattern(
     template: string,
-    patternId: string
+    patternId: string,
   ): Result<RulePattern, ValidationError> {
     if (!template || template.trim().length === 0) {
       return _err(new ValidationError('Template cannot be empty'));
@@ -103,20 +103,20 @@ export class RulePattern {
     const premisePatterns =
       parts[0]
         ?.split(',')
-        .map(p => p.trim())
-        .filter(p => p.length > 0) ?? [];
+        .map((p) => p.trim())
+        .filter((p) => p.length > 0) ?? [];
     const conclusionPatterns =
       parts[1]
         ?.split(',')
-        .map(c => c.trim())
-        .filter(c => c.length > 0) ?? [];
+        .map((c) => c.trim())
+        .filter((c) => c.length > 0) ?? [];
 
     return RulePattern.createLogicalPattern(premisePatterns, conclusionPatterns, patternId);
   }
 
   private static extractVariables(
     premisePatterns: string[],
-    conclusionPatterns: string[]
+    conclusionPatterns: string[],
   ): Map<string, PatternVariable> {
     const variables = new Map<string, PatternVariable>();
     const allPatterns = [...premisePatterns, ...conclusionPatterns];
@@ -159,7 +159,7 @@ export class RulePattern {
     const constraints: PatternConstraint[] = [];
 
     // Add consistency constraints for each variable
-    for (const [name, variable] of variables) {
+    for (const [name, variable] of Array.from(variables)) {
       constraints.push({
         type: 'consistency',
         variable: name,
@@ -241,7 +241,7 @@ export class RulePattern {
 
   private findSubstitution(
     premises: string[],
-    conclusions: string[]
+    conclusions: string[],
   ): Record<string, string> | null {
     const substitution: Record<string, string> = {};
 
@@ -271,7 +271,7 @@ export class RulePattern {
   private matchPattern(
     pattern: string,
     statement: string,
-    existingSubstitution: Record<string, string>
+    existingSubstitution: Record<string, string>,
   ): Record<string, string> | null {
     const newSubstitution: Record<string, string> = {};
 
@@ -281,7 +281,7 @@ export class RulePattern {
     }
 
     // Simple variable matching (this is a simplified implementation)
-    for (const [varName] of this.variables) {
+    for (const [varName] of Array.from(this.variables)) {
       if (pattern.includes(varName)) {
         // Find what this variable should be substituted with
         const patternParts = pattern.split(varName);
@@ -297,7 +297,7 @@ export class RulePattern {
           ) {
             const substitutionValue = statement.substring(
               before.length,
-              statement.length - after.length
+              statement.length - after.length,
             );
 
             // Check consistency with existing substitution
@@ -317,7 +317,7 @@ export class RulePattern {
     }
 
     // Ensure all variables in pattern have been substituted
-    for (const [varName] of this.variables) {
+    for (const [varName] of Array.from(this.variables)) {
       if (
         pattern.includes(varName) &&
         !newSubstitution[varName] &&
@@ -331,7 +331,7 @@ export class RulePattern {
   }
 
   applySubstitution(substitution: Record<string, string>): RulePattern {
-    const substitutedPremises = this.premisePatterns.map(pattern => {
+    const substitutedPremises = this.premisePatterns.map((pattern) => {
       let result = pattern;
       for (const [variable, value] of Object.entries(substitution)) {
         result = result.replace(new RegExp(`\\b${variable}\\b`, 'g'), value);
@@ -339,7 +339,7 @@ export class RulePattern {
       return result;
     });
 
-    const substitutedConclusions = this.conclusionPatterns.map(pattern => {
+    const substitutedConclusions = this.conclusionPatterns.map((pattern) => {
       let result = pattern;
       for (const [variable, value] of Object.entries(substitution)) {
         result = result.replace(new RegExp(`\\b${variable}\\b`, 'g'), value);
@@ -351,7 +351,7 @@ export class RulePattern {
       substitutedPremises,
       substitutedConclusions,
       `${this.patternId}-instantiated`,
-      this.confidence * 0.9 // Slightly reduce confidence for instantiated patterns
+      this.confidence * 0.9, // Slightly reduce confidence for instantiated patterns
     );
 
     return result.isOk() ? result.value : this;

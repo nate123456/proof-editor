@@ -1,10 +1,10 @@
-import { type Result } from 'neverthrow';
+import type { Result } from 'neverthrow';
 
-import { type LanguagePackage } from '../entities/LanguagePackage';
-import { type RepositoryError } from '../errors/DomainErrors';
-import { type LanguagePackageId } from '../value-objects/LanguagePackageId';
-import { type PackageName } from '../value-objects/PackageName';
-import { type PackageVersion } from '../value-objects/PackageVersion';
+import type { LanguagePackage } from '../entities/LanguagePackage';
+import type { RepositoryError } from '../errors/DomainErrors';
+import type { LanguagePackageId } from '../value-objects/LanguagePackageId';
+import type { PackageName } from '../value-objects/PackageName';
+import type { PackageVersion } from '../value-objects/PackageVersion';
 
 export interface ILanguagePackageRepository {
   save(languagePackage: LanguagePackage): Promise<Result<void, RepositoryError>>;

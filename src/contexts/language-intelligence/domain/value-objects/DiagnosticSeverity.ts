@@ -9,7 +9,7 @@ export class DiagnosticSeverity {
 
   private constructor(
     private readonly severity: DiagnosticSeverityType,
-    private readonly level: number
+    private readonly level: number,
   ) {}
 
   static error(): DiagnosticSeverity {

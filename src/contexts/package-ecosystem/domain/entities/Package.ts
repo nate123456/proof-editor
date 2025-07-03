@@ -2,9 +2,9 @@ import { err, ok, type Result } from 'neverthrow';
 
 import type { SDKInterface, ValidationResult } from '../types/common-types.js';
 import { PackageValidationError } from '../types/domain-errors.js';
-import { type PackageId } from '../value-objects/package-id.js';
-import { type PackageManifest } from '../value-objects/package-manifest.js';
-import { type PackageSource } from '../value-objects/package-source.js';
+import type { PackageId } from '../value-objects/package-id.js';
+import type { PackageManifest } from '../value-objects/package-manifest.js';
+import type { PackageSource } from '../value-objects/package-source.js';
 
 export interface PackageData {
   readonly id: PackageId;
@@ -20,7 +20,7 @@ export class Package {
   private constructor(private readonly data: PackageData) {}
 
   static create(
-    data: Omit<PackageData, 'lastUpdated'> & { lastUpdated?: Date }
+    data: Omit<PackageData, 'lastUpdated'> & { lastUpdated?: Date },
   ): Result<Package, PackageValidationError> {
     if (!data.manifest.getPackageId().equals(data.id)) {
       return err(new PackageValidationError('Package ID must match manifest name'));
@@ -28,7 +28,7 @@ export class Package {
 
     if (!data.validationResult.isValid && data.validationResult.errors.length === 0) {
       return err(
-        new PackageValidationError('Invalid validation result: must have errors if not valid')
+        new PackageValidationError('Invalid validation result: must have errors if not valid'),
       );
     }
 
@@ -101,7 +101,7 @@ export class Package {
   }
 
   implementsSDKInterface(interfaceName: string): boolean {
-    return this.data.sdkInterfaces.some(iface => iface.name === interfaceName);
+    return this.data.sdkInterfaces.some((iface) => iface.name === interfaceName);
   }
 
   hasLSPSupport(): boolean {
@@ -117,7 +117,7 @@ export class Package {
   }
 
   withUpdatedValidation(
-    validationResult: ValidationResult
+    validationResult: ValidationResult,
   ): Result<Package, PackageValidationError> {
     const updatedData = {
       ...this.data,

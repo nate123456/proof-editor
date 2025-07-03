@@ -25,7 +25,6 @@ import { ValidationLevel } from '../../contexts/language-intelligence/domain/val
 import { ValidationMetrics } from '../../contexts/language-intelligence/domain/value-objects/ValidationMetrics.js';
 // Package Ecosystem Context
 import { Package } from '../../contexts/package-ecosystem/domain/entities/Package.js';
-import { PackageVersion } from '../../contexts/package-ecosystem/domain/entities/PackageVersion.js';
 import { PackageId } from '../../contexts/package-ecosystem/domain/value-objects/package-id.js';
 import { PackageManifest } from '../../contexts/package-ecosystem/domain/value-objects/package-manifest.js';
 import { PackageSource } from '../../contexts/package-ecosystem/domain/value-objects/package-source.js';
@@ -37,7 +36,10 @@ import { DeviceId } from '../../contexts/synchronization/domain/value-objects/De
 import { LogicalTimestamp } from '../../contexts/synchronization/domain/value-objects/LogicalTimestamp.js';
 import { OperationId } from '../../contexts/synchronization/domain/value-objects/OperationId.js';
 import { OperationPayload } from '../../contexts/synchronization/domain/value-objects/OperationPayload.js';
-import { OperationType } from '../../contexts/synchronization/domain/value-objects/OperationType.js';
+import {
+  OperationType,
+  type OperationTypeValue,
+} from '../../contexts/synchronization/domain/value-objects/OperationType.js';
 // Core Domain
 import { AtomicArgument } from '../../domain/entities/AtomicArgument.js';
 import { OrderedSet } from '../../domain/entities/OrderedSet.js';
@@ -119,664 +121,715 @@ export const TestScenarios = {
 } as const;
 
 /**
- * Factory for creating realistic core domain entities
+ * Factory functions for creating realistic core domain entities
  */
-export class CoreDomainFactory {
-  private static statementCounter = 0;
-  private static argumentCounter = 0;
 
-  /**
-   * Creates a statement with realistic content
-   */
-  static createStatement(content?: string): Statement {
-    this.statementCounter++;
-    const defaultContent = content ?? `Test statement ${this.statementCounter}`;
-    const result = Statement.create(defaultContent);
-    if (result.isErr()) {
-      throw new Error(`Failed to create statement: ${result.error.message}`);
-    }
-    return result.value;
+// Module-level counters for unique IDs
+let statementCounter = 0;
+let _argumentCounter = 0;
+
+/**
+ * Creates a statement with realistic content
+ */
+export function createStatement(content?: string): Statement {
+  statementCounter++;
+  const defaultContent = content ?? `Test statement ${statementCounter}`;
+  const result = Statement.create(defaultContent);
+  if (result.isErr()) {
+    throw new Error(`Failed to create statement: ${result.error.message}`);
   }
-
-  /**
-   * Creates an ordered set from statements or statement contents
-   */
-  static createOrderedSet(items: (Statement | string)[]): OrderedSet {
-    const statements = items.map(item =>
-      typeof item === 'string' ? this.createStatement(item) : item
-    );
-    const statementIds = statements.map(stmt => stmt.getId());
-    const result = OrderedSet.create(statementIds);
-    if (result.isErr()) {
-      throw new Error(`Failed to create ordered set: ${result.error.message}`);
-    }
-    return result.value;
-  }
-
-  /**
-   * Creates an atomic argument with premise and conclusion sets
-   */
-  static createAtomicArgument(
-    premises: (Statement | string)[],
-    conclusions: (Statement | string)[]
-  ): AtomicArgument {
-    this.argumentCounter++;
-    const premiseSet = this.createOrderedSet(premises);
-    const conclusionSet = this.createOrderedSet(conclusions);
-
-    const result = AtomicArgument.create(premiseSet.getId(), conclusionSet.getId());
-    if (result.isErr()) {
-      throw new Error(`Failed to create atomic argument: ${result.error.message}`);
-    }
-
-    const argument = result.value;
-    premiseSet.addAtomicArgumentReference(argument.getId(), 'premise');
-    conclusionSet.addAtomicArgumentReference(argument.getId(), 'conclusion');
-
-    return argument;
-  }
-
-  /**
-   * Creates a complete proof scenario based on test scenario
-   */
-  static createProofScenario(scenario: (typeof TestScenarios)[keyof typeof TestScenarios]): {
-    statements: Statement[];
-    arguments: AtomicArgument[];
-    isValid: boolean;
-  } {
-    const statements = scenario.statements.map(content => this.createStatement(content));
-    const argumentsList: AtomicArgument[] = [];
-
-    // Create arguments based on scenario structure
-    if (scenario.statements.length >= 3) {
-      // Create simple two-premise argument
-      const premises = statements.slice(0, -1);
-      const conclusion = statements[statements.length - 1]!;
-      argumentsList.push(this.createAtomicArgument(premises, [conclusion]));
-    }
-
-    return {
-      statements,
-      arguments: argumentsList,
-      isValid: scenario.expectedValid,
-    };
-  }
+  return result.value;
 }
 
 /**
- * Factory for creating language intelligence test data
+ * Creates an ordered set from statements or statement contents
  */
-export class LanguageIntelligenceFactory {
-  private static packageCounter = 0;
-  private static ruleCounter = 0;
+export function createOrderedSet(items: (Statement | string)[]): OrderedSet {
+  const statements = items.map((item) => (typeof item === 'string' ? createStatement(item) : item));
+  const statementIds = statements.map((stmt) => stmt.getId());
+  const result = OrderedSet.create(statementIds);
+  if (result.isErr()) {
+    throw new Error(`Failed to create ordered set: ${result.error.message}`);
+  }
+  return result.value;
+}
 
-  /**
-   * Creates a realistic language package with inference rules
-   */
-  static createLanguagePackage(
-    name?: string,
-    rules?: { name: string; premises: string[]; conclusions: string[] }[]
-  ): LanguagePackage {
-    this.packageCounter++;
-    const defaultName = name ?? `Test Language Package ${this.packageCounter}`;
+/**
+ * Creates an atomic argument with premise and conclusion sets
+ */
+export function createAtomicArgument(
+  premises: (Statement | string)[],
+  conclusions: (Statement | string)[],
+): AtomicArgument {
+  _argumentCounter++;
+  const premiseSet = createOrderedSet(premises);
+  const conclusionSet = createOrderedSet(conclusions);
 
-    const packageId = LanguagePackageId.create(`test-package-${this.packageCounter}`);
-    const packageName = PackageName.create(defaultName);
-
-    if (packageId.isErr() || packageName.isErr()) {
-      throw new Error('Failed to create language package identifiers');
-    }
-
-    const packageResult = LanguagePackage.create(
-      packageId.value,
-      packageName.value,
-      `Test package for ${defaultName}`
-    );
-
-    if (packageResult.isErr()) {
-      throw new Error(`Failed to create language package: ${packageResult.error.message}`);
-    }
-
-    const languagePackage = packageResult.value;
-
-    // Add default rules if none provided
-    const defaultRules = rules ?? [
-      { name: 'modus-ponens', premises: ['P', 'P → Q'], conclusions: ['Q'] },
-      { name: 'modus-tollens', premises: ['P → Q', '¬Q'], conclusions: ['¬P'] },
-      { name: 'hypothetical-syllogism', premises: ['P → Q', 'Q → R'], conclusions: ['P → R'] },
-    ];
-
-    for (const rule of defaultRules) {
-      const inferenceRule = this.createInferenceRule(rule.name, rule.premises, rule.conclusions);
-      languagePackage.addInferenceRule(inferenceRule);
-    }
-
-    return languagePackage;
+  const result = AtomicArgument.create(premiseSet.getId(), conclusionSet.getId());
+  if (result.isErr()) {
+    throw new Error(`Failed to create atomic argument: ${result.error.message}`);
   }
 
-  /**
-   * Creates an inference rule with realistic patterns
-   */
-  static createInferenceRule(
-    name: string,
-    premises: string[],
-    conclusions: string[]
-  ): InferenceRule {
-    this.ruleCounter++;
+  const argument = result.value;
+  premiseSet.addAtomicArgumentReference(argument.getId(), 'premise');
+  conclusionSet.addAtomicArgumentReference(argument.getId(), 'conclusion');
 
-    const ruleName = RuleName.create(name);
-    const ruleDescription = RuleDescription.create(`Test rule: ${name}`);
-    const rulePattern = RulePattern.create(premises, conclusions);
+  return argument;
+}
 
-    if (ruleName.isErr() || ruleDescription.isErr() || rulePattern.isErr()) {
-      throw new Error('Failed to create inference rule components');
+/**
+ * Creates a complete proof scenario based on test scenario
+ */
+export function createProofScenario(scenario: (typeof TestScenarios)[keyof typeof TestScenarios]): {
+  statements: Statement[];
+  arguments: AtomicArgument[];
+  isValid: boolean;
+} {
+  const statements = scenario.statements.map((content) => createStatement(content));
+  const argumentsList: AtomicArgument[] = [];
+
+  // Create arguments based on scenario structure
+  if (scenario.statements.length >= 3) {
+    // Create simple two-premise argument
+    const premises = statements.slice(0, -1);
+    const lastStatement = statements[statements.length - 1];
+    if (lastStatement) {
+      argumentsList.push(createAtomicArgument(premises, [lastStatement]));
     }
-
-    const result = InferenceRule.create(ruleName.value, ruleDescription.value, rulePattern.value);
-
-    if (result.isErr()) {
-      throw new Error(`Failed to create inference rule: ${result.error.message}`);
-    }
-
-    return result.value;
   }
 
-  /**
-   * Creates a realistic validation result
-   */
-  static createValidationResult(
-    isSuccessful: boolean,
-    level: 'syntax' | 'semantic' | 'style' = 'semantic'
-  ): ValidationResult {
-    const validationLevel = ValidationLevel.create(level);
-    if (validationLevel.isErr()) {
-      throw new Error('Failed to create validation level');
-    }
+  return {
+    statements,
+    arguments: argumentsList,
+    isValid: scenario.expectedValid,
+  };
+}
 
-    const metrics = ValidationMetrics.empty();
-    const documentId = `test-doc-${Date.now()}`;
-    const packageId = 'test-package';
+/**
+ * Factory functions for creating language intelligence test data
+ */
 
-    const result = isSuccessful
-      ? ValidationResult.createSuccessfulValidation(
-          validationLevel.value,
-          documentId,
-          packageId,
-          metrics
-        )
-      : ValidationResult.createFailedValidation(
-          validationLevel.value,
-          [],
-          documentId,
-          packageId,
-          metrics
-        );
+// Module-level counters for unique IDs
+let languagePackageCounter = 0;
+let _languageRuleCounter = 0;
 
-    if (result.isErr()) {
-      throw new Error(`Failed to create validation result: ${result.error.message}`);
-    }
+/**
+ * Creates a realistic language package with inference rules
+ */
+export function createLanguagePackage(
+  name?: string,
+  rules?: { name: string; premises: string[]; conclusions: string[] }[],
+): LanguagePackage {
+  languagePackageCounter++;
+  const defaultName = name ?? `Test Language Package ${languagePackageCounter}`;
 
-    return result.value;
+  const packageId = LanguagePackageId.create(`test-package-${languagePackageCounter}`);
+  const packageName = PackageName.create(defaultName);
+
+  if (packageId.isErr() || packageName.isErr()) {
+    throw new Error('Failed to create language package identifiers');
   }
+
+  const packageResult = LanguagePackage.create(
+    packageId.value,
+    packageName.value,
+    `Test package for ${defaultName}`,
+  );
+
+  if (packageResult.isErr()) {
+    throw new Error(`Failed to create language package: ${packageResult.error.message}`);
+  }
+
+  const languagePackage = packageResult.value;
+
+  // Add default rules if none provided
+  const defaultRules = rules ?? [
+    { name: 'modus-ponens', premises: ['P', 'P → Q'], conclusions: ['Q'] },
+    { name: 'modus-tollens', premises: ['P → Q', '¬Q'], conclusions: ['¬P'] },
+    { name: 'hypothetical-syllogism', premises: ['P → Q', 'Q → R'], conclusions: ['P → R'] },
+  ];
+
+  for (const rule of defaultRules) {
+    const inferenceRule = createInferenceRule(rule.name, rule.premises, rule.conclusions);
+    languagePackage.addInferenceRule(inferenceRule);
+  }
+
+  return languagePackage;
+}
+
+/**
+ * Creates an inference rule with realistic patterns
+ */
+export function createInferenceRule(
+  name: string,
+  premises: string[],
+  conclusions: string[],
+): InferenceRule {
+  _languageRuleCounter++;
+
+  const ruleName = RuleName.create(name);
+  const ruleDescription = RuleDescription.create(`Test rule: ${name}`);
+  const rulePattern = RulePattern.createLogicalPattern(
+    premises,
+    conclusions,
+    `pattern-${_languageRuleCounter}`,
+    1.0,
+  );
+
+  if (ruleName.isErr() || ruleDescription.isErr() || rulePattern.isErr()) {
+    throw new Error('Failed to create inference rule components');
+  }
+
+  const result = InferenceRule.create(
+    ruleName.value.getValue(),
+    ruleDescription.value.getValue(),
+    rulePattern.value,
+    `test-package-${languagePackageCounter}`, // languagePackageId
+  );
+
+  if (result.isErr()) {
+    throw new Error(`Failed to create inference rule: ${result.error.message}`);
+  }
+
+  return result.value;
+}
+
+/**
+ * Creates a realistic validation result
+ */
+export function createValidationResult(
+  isSuccessful: boolean,
+  level: 'syntax' | 'semantic' | 'style' = 'semantic',
+): ValidationResult {
+  const validationLevel = ValidationLevel.fromString(level);
+  if (validationLevel.isErr()) {
+    throw new Error('Failed to create validation level');
+  }
+
+  const metrics = ValidationMetrics.empty();
+  const documentId = `test-doc-${Date.now()}`;
+  const packageId = 'test-package';
+
+  const result = isSuccessful
+    ? ValidationResult.createSuccessfulValidation(
+        validationLevel.value,
+        documentId,
+        packageId,
+        metrics,
+      )
+    : ValidationResult.createFailedValidation(
+        validationLevel.value,
+        [],
+        documentId,
+        packageId,
+        metrics,
+      );
+
+  if (result.isErr()) {
+    throw new Error(`Failed to create validation result: ${result.error.message}`);
+  }
+
+  return result.value;
 }
 
 /**
  * Factory for creating package ecosystem test data
  */
-export class PackageEcosystemFactory {
-  private static packageCounter = 0;
+let packageEcosystemCounter = 0;
 
-  /**
-   * Creates a realistic package with proper manifest and source
-   */
-  static createPackage(name?: string, version?: string, dependencies?: string[]): Package {
-    this.packageCounter++;
-    const defaultName = name ?? `Test Package ${this.packageCounter}`;
-    const defaultVersion = version ?? '1.0.0';
+/**
+ * Creates a realistic package with proper manifest and source
+ */
+export function createPackage(name?: string, version?: string, dependencies?: string[]): Package {
+  packageEcosystemCounter++;
+  const defaultName = name ?? `Test Package ${packageEcosystemCounter}`;
+  const defaultVersion = version ?? '1.0.0';
 
-    const packageId = PackageId.create(`test-package-${this.packageCounter}`);
-    const packageVersion = PackageVersion.create(defaultVersion);
-    const packageManifest = PackageManifest.create({
-      name: defaultName,
-      version: defaultVersion,
-      description: `Test package: ${defaultName}`,
-      dependencies: dependencies ?? [],
-    });
-    const packageSource = PackageSource.createFromGit({
-      url: `https://github.com/test/${defaultName.toLowerCase().replace(/\s+/g, '-')}`,
-      ref: 'main',
-    });
+  const packageId = PackageId.create(`test-package-${packageEcosystemCounter}`);
+  // We don't need PackageVersion here since manifest contains version
+  const packageManifest = PackageManifest.create({
+    name: defaultName,
+    version: defaultVersion,
+    description: `Test package: ${defaultName}`,
+    author: 'Test Author',
+    dependencies: dependencies ? Object.fromEntries(dependencies.map((dep) => [dep, '*'])) : {},
+    license: 'MIT',
+    homepage: `https://github.com/test/${defaultName.toLowerCase().replace(/\s+/g, '-')}`,
+    requirements: {
+      node: '>=14.0.0',
+    },
+    lsp: {
+      desktop: {
+        command: ['proof-lsp'],
+        transport: 'stdio' as const,
+      },
+    },
+  });
+  const packageSource = PackageSource.createFromGit({
+    url: `https://github.com/test/${defaultName.toLowerCase().replace(/\s+/g, '-')}`,
+    ref: 'main',
+  });
 
-    if (
-      packageId.isErr() ||
-      packageVersion.isErr() ||
-      packageManifest.isErr() ||
-      packageSource.isErr()
-    ) {
-      throw new Error('Failed to create package components');
-    }
-
-    const result = Package.create(
-      packageId.value,
-      packageVersion.value.getValue(),
-      packageManifest.value,
-      packageSource.value
-    );
-
-    if (result.isErr()) {
-      throw new Error(`Failed to create package: ${result.error.message}`);
-    }
-
-    return result.value;
+  if (packageId.isErr() || packageManifest.isErr() || packageSource.isErr()) {
+    throw new Error('Failed to create package components');
   }
 
-  /**
-   * Creates a package ecosystem with interdependent packages
-   */
-  static createPackageEcosystem(packageCount = 5): {
-    packages: Package[];
-    dependencies: { from: string; to: string }[];
-  } {
-    const packages: Package[] = [];
-    const dependencies: { from: string; to: string }[] = [];
+  const validationResult: ValidationResult = {
+    isValid: true,
+    errors: [],
+    warnings: [],
+    timestamp: new Date(),
+  };
 
-    // Create base packages
-    for (let i = 0; i < packageCount; i++) {
-      const pkg = this.createPackage(`Ecosystem Package ${i + 1}`, `1.${i}.0`);
-      packages.push(pkg);
-    }
+  const result = Package.create({
+    id: packageId.value,
+    source: packageSource.value,
+    manifest: packageManifest.value,
+    sdkInterfaces: [],
+    validationResult,
+  });
 
-    // Create realistic dependency relationships
-    for (let i = 1; i < packages.length; i++) {
-      const dependentPackage = packages[i]!;
-      const dependencyPackage = packages[i - 1]!;
-
-      dependencies.push({
-        from: dependentPackage.getId().toString(),
-        to: dependencyPackage.getId().toString(),
-      });
-    }
-
-    return { packages, dependencies };
+  if (result.isErr()) {
+    throw new Error(`Failed to create package: ${result.error.message}`);
   }
+
+  return result.value;
+}
+
+/**
+ * Creates a package ecosystem with interdependent packages
+ */
+export function createPackageEcosystem(packageCount = 5): {
+  packages: Package[];
+  dependencies: { from: string; to: string }[];
+} {
+  const packages: Package[] = [];
+  const dependencies: { from: string; to: string }[] = [];
+
+  // Create base packages
+  for (let i = 0; i < packageCount; i++) {
+    const pkg = createPackage(`Ecosystem Package ${i + 1}`, `1.${i}.0`);
+    packages.push(pkg);
+  }
+
+  // Create realistic dependency relationships
+  for (let i = 1; i < packages.length; i++) {
+    const dependentPackage = packages[i];
+    if (!dependentPackage) continue;
+    const dependencyPackage = packages[i - 1];
+    if (!dependencyPackage) continue;
+
+    dependencies.push({
+      from: dependentPackage.getId().toString(),
+      to: dependencyPackage.getId().toString(),
+    });
+  }
+
+  return { packages, dependencies };
 }
 
 /**
  * Factory for creating synchronization test scenarios
  */
-export class SynchronizationFactory {
-  private static deviceCounter = 0;
-  private static operationCounter = 0;
+let deviceCounter = 0;
+let operationCounter = 0;
 
-  /**
-   * Creates a realistic device ID
-   */
-  static createDevice(name?: string): DeviceId {
-    this.deviceCounter++;
-    const deviceName = name ?? `test-device-${this.deviceCounter}`;
-    const result = DeviceId.create(deviceName);
-    if (result.isErr()) {
-      throw new Error(`Failed to create device: ${result.error.message}`);
+/**
+ * Creates a realistic device ID
+ */
+export function createDevice(name?: string): DeviceId {
+  deviceCounter++;
+  const deviceName = name ?? `test-device-${deviceCounter}`;
+  const result = DeviceId.create(deviceName);
+  if (result.isErr()) {
+    throw new Error(`Failed to create device: ${result.error.message}`);
+  }
+  return result.value;
+}
+
+/**
+ * Creates a multi-device collaboration scenario
+ */
+export function createMultiDeviceScenario(deviceCount = 3): {
+  devices: DeviceId[];
+  operations: Operation[];
+  syncStates: SyncState[];
+} {
+  const devices: DeviceId[] = [];
+  const operations: Operation[] = [];
+  const syncStates: SyncState[] = [];
+
+  // Create devices
+  for (let i = 0; i < deviceCount; i++) {
+    const device = createDevice(`collaborative-device-${i + 1}`);
+    devices.push(device);
+
+    // Create sync state for device
+    const syncState = SyncState.create(device);
+    if (syncState.isOk()) {
+      syncStates.push(syncState.value);
     }
-    return result.value;
   }
 
-  /**
-   * Creates a multi-device collaboration scenario
-   */
-  static createMultiDeviceScenario(deviceCount = 3): {
-    devices: DeviceId[];
-    operations: Operation[];
-    syncStates: SyncState[];
-  } {
-    const devices: DeviceId[] = [];
-    const operations: Operation[] = [];
-    const syncStates: SyncState[] = [];
-
-    // Create devices
-    for (let i = 0; i < deviceCount; i++) {
-      const device = this.createDevice(`collaborative-device-${i + 1}`);
-      devices.push(device);
-
-      // Create sync state for device
-      const syncState = SyncState.create(device);
-      if (syncState.isOk()) {
-        syncStates.push(syncState.value);
-      }
-    }
-
-    // Create operations from each device
-    devices.forEach((device, index) => {
-      const operation = this.createOperation(device, devices, `edit-from-device-${index + 1}`, {
-        text: `Edit from device ${index + 1}`,
-        position: index * 10,
-      });
-      operations.push(operation);
+  // Create operations from each device
+  devices.forEach((device, index) => {
+    const operation = createOperation(device, devices, `edit-from-device-${index + 1}`, {
+      text: `Edit from device ${index + 1}`,
+      position: index * 10,
     });
+    operations.push(operation);
+  });
 
-    return { devices, operations, syncStates };
+  return { devices, operations, syncStates };
+}
+
+/**
+ * Creates a realistic operation
+ */
+export function createOperation(
+  device: DeviceId,
+  _allDevices: DeviceId[],
+  operationType: OperationTypeValue = 'UPDATE_STATEMENT',
+  payload: Record<string, unknown> = {},
+): Operation {
+  operationCounter++;
+
+  const operationId = OperationId.create(`test-operation-${operationCounter}`);
+  const vectorClock = VectorClock.create(device);
+  if (vectorClock.isErr()) {
+    throw new Error(`Failed to create vector clock: ${vectorClock.error.message}`);
   }
 
-  /**
-   * Creates a realistic operation
-   */
-  static createOperation(
-    device: DeviceId,
-    allDevices: DeviceId[],
-    operationType = 'EDIT',
-    payload: Record<string, unknown> = {}
-  ): Operation {
-    this.operationCounter++;
-
-    const operationId = OperationId.create(`test-operation-${this.operationCounter}`);
-    const timestamp = LogicalTimestamp.create(Date.now() + this.operationCounter);
-    const opType = OperationType.create(operationType);
-    const opPayload = OperationPayload.create(payload);
-    const vectorClock = VectorClock.create(allDevices);
-
-    if (
-      operationId.isErr() ||
-      timestamp.isErr() ||
-      opType.isErr() ||
-      opPayload.isErr() ||
-      vectorClock.isErr()
-    ) {
-      throw new Error('Failed to create operation components');
-    }
-
-    vectorClock.value.increment(device);
-
-    const result = Operation.create(
-      operationId.value,
-      opType.value,
-      opPayload.value,
-      device,
-      timestamp.value,
-      vectorClock.value
-    );
-
-    if (result.isErr()) {
-      throw new Error(`Failed to create operation: ${result.error.message}`);
-    }
-
-    return result.value;
+  const timestamp = LogicalTimestamp.create(
+    device,
+    Date.now() + operationCounter,
+    vectorClock.value,
+  );
+  const opType = OperationType.create(operationType);
+  if (opType.isErr()) {
+    throw new Error(`Failed to create operation type: ${opType.error.message}`);
   }
 
-  /**
-   * Creates a conflict scenario with concurrent operations
-   */
-  static createConflictScenario(): {
-    device1: DeviceId;
-    device2: DeviceId;
-    conflictingOperations: [Operation, Operation];
-  } {
-    const device1 = this.createDevice('conflict-device-1');
-    const device2 = this.createDevice('conflict-device-2');
-    const devices = [device1, device2];
+  const opPayload = OperationPayload.create(payload, opType.value);
 
-    const operation1 = this.createOperation(device1, devices, 'CONCURRENT_EDIT', {
-      text: 'Edit from device 1',
-      position: 5,
-    });
-
-    const operation2 = this.createOperation(device2, devices, 'CONCURRENT_EDIT', {
-      text: 'Edit from device 2',
-      position: 7,
-    });
-
-    return {
-      device1,
-      device2,
-      conflictingOperations: [operation1, operation2],
-    };
+  if (
+    operationId.isErr() ||
+    timestamp.isErr() ||
+    opType.isErr() ||
+    opPayload.isErr() ||
+    vectorClock.isErr()
+  ) {
+    throw new Error('Failed to create operation components');
   }
+
+  const incrementedClock = vectorClock.value.incrementForDevice(device);
+  if (incrementedClock.isErr()) {
+    throw new Error('Failed to increment vector clock');
+  }
+
+  const result = Operation.create(
+    operationId.value,
+    opType.value,
+    opPayload.value,
+    device,
+    timestamp.value,
+    incrementedClock.value,
+  );
+
+  if (result.isErr()) {
+    throw new Error(`Failed to create operation: ${result.error.message}`);
+  }
+
+  return result.value;
+}
+
+/**
+ * Creates a conflict scenario with concurrent operations
+ */
+export function createConflictScenario(): {
+  device1: DeviceId;
+  device2: DeviceId;
+  conflictingOperations: [Operation, Operation];
+} {
+  const device1 = createDevice('conflict-device-1');
+  const device2 = createDevice('conflict-device-2');
+  const devices = [device1, device2];
+
+  const operation1 = createOperation(device1, devices, 'UPDATE_STATEMENT', {
+    text: 'Edit from device 1',
+    position: 5,
+  });
+
+  const operation2 = createOperation(device2, devices, 'UPDATE_STATEMENT', {
+    text: 'Edit from device 2',
+    position: 7,
+  });
+
+  return {
+    device1,
+    device2,
+    conflictingOperations: [operation1, operation2],
+  };
 }
 
 /**
  * Performance testing utilities
  */
-export class PerformanceTestUtils {
-  /**
-   * Creates a large-scale test scenario for performance testing
-   */
-  static createLargeScaleScenario(config: {
-    statementCount: number;
-    argumentCount: number;
-    packageCount: number;
-    deviceCount: number;
-  }): {
-    statements: Statement[];
-    arguments: AtomicArgument[];
-    packages: Package[];
-    devices: DeviceId[];
-    operations: Operation[];
-  } {
-    const statements: Statement[] = [];
-    const argumentsList: AtomicArgument[] = [];
-    const packages: Package[] = [];
-    const devices: DeviceId[] = [];
-    const operations: Operation[] = [];
+export function createLargeScaleScenario(config: {
+  statementCount: number;
+  argumentCount: number;
+  packageCount: number;
+  deviceCount: number;
+}): {
+  statements: Statement[];
+  arguments: AtomicArgument[];
+  packages: Package[];
+  devices: DeviceId[];
+  operations: Operation[];
+} {
+  const statements: Statement[] = [];
+  const argumentsList: AtomicArgument[] = [];
+  const packages: Package[] = [];
+  const devices: DeviceId[] = [];
+  const operations: Operation[] = [];
 
-    // Create statements
-    for (let i = 0; i < config.statementCount; i++) {
-      statements.push(CoreDomainFactory.createStatement(`Performance test statement ${i + 1}`));
-    }
+  // Create statements
+  for (let i = 0; i < config.statementCount; i++) {
+    statements.push(createStatement(`Performance test statement ${i + 1}`));
+  }
 
-    // Create arguments
-    for (let i = 0; i < config.argumentCount; i++) {
-      const premiseCount = Math.min(3, statements.length - 1);
-      const premises = statements.slice(i, i + premiseCount);
-      const conclusion = statements[(i + premiseCount) % statements.length]!;
-      argumentsList.push(CoreDomainFactory.createAtomicArgument(premises, [conclusion]));
-    }
+  // Create arguments
+  for (let i = 0; i < config.argumentCount; i++) {
+    const premiseCount = Math.min(3, statements.length - 1);
+    const premises = statements.slice(i, i + premiseCount);
+    const conclusion = statements[(i + premiseCount) % statements.length];
+    if (!conclusion) continue;
+    argumentsList.push(createAtomicArgument(premises, [conclusion]));
+  }
 
-    // Create packages
-    for (let i = 0; i < config.packageCount; i++) {
-      packages.push(PackageEcosystemFactory.createPackage(`Perf Package ${i + 1}`));
-    }
+  // Create packages
+  for (let i = 0; i < config.packageCount; i++) {
+    packages.push(createPackage(`Perf Package ${i + 1}`));
+  }
 
-    // Create devices and operations
-    for (let i = 0; i < config.deviceCount; i++) {
-      const device = SynchronizationFactory.createDevice(`perf-device-${i + 1}`);
-      devices.push(device);
-    }
+  // Create devices and operations
+  for (let i = 0; i < config.deviceCount; i++) {
+    const device = createDevice(`perf-device-${i + 1}`);
+    devices.push(device);
+  }
 
-    devices.forEach((device, index) => {
-      const operation = SynchronizationFactory.createOperation(
-        device,
-        devices,
-        'PERFORMANCE_TEST',
-        { deviceIndex: index, testData: `performance-test-${index}` }
-      );
-      operations.push(operation);
+  devices.forEach((device, index) => {
+    const operation = createOperation(device, devices, 'PERFORMANCE_TEST', {
+      deviceIndex: index,
+      testData: `performance-test-${index}`,
     });
+    operations.push(operation);
+  });
 
-    return {
-      statements,
-      arguments: argumentsList,
-      packages,
-      devices,
-      operations,
-    };
+  return {
+    statements,
+    arguments: argumentsList,
+    packages,
+    devices,
+    operations,
+  };
+}
+
+/**
+ * Measures execution time of a function
+ */
+export async function measureExecutionTime<T>(
+  operation: () => Promise<T> | T,
+  iterations = 1,
+): Promise<{ result: T; averageTime: number; totalTime: number }> {
+  const times: number[] = [];
+  let result: T | undefined;
+
+  for (let i = 0; i < iterations; i++) {
+    const start = performance.now();
+    result = await operation();
+    const end = performance.now();
+    times.push(end - start);
   }
 
-  /**
-   * Measures execution time of a function
-   */
-  static async measureExecutionTime<T>(
-    operation: () => Promise<T> | T,
-    iterations = 1
-  ): Promise<{ result: T; averageTime: number; totalTime: number }> {
-    const times: number[] = [];
-    let result: T;
-
-    for (let i = 0; i < iterations; i++) {
-      const start = performance.now();
-      result = await operation();
-      const end = performance.now();
-      times.push(end - start);
-    }
-
-    const totalTime = times.reduce((sum, time) => sum + time, 0);
-    const averageTime = totalTime / iterations;
-
-    return {
-      result: result!,
-      averageTime,
-      totalTime,
-    };
+  if (result === undefined) {
+    throw new Error('No iterations were performed');
   }
 
-  /**
-   * Creates a benchmark suite for cross-context operations
-   */
-  static createBenchmarkSuite() {
-    return {
-      smallScale: () =>
-        this.createLargeScaleScenario({
-          statementCount: 10,
-          argumentCount: 5,
-          packageCount: 3,
-          deviceCount: 2,
-        }),
-      mediumScale: () =>
-        this.createLargeScaleScenario({
-          statementCount: 50,
-          argumentCount: 25,
-          packageCount: 10,
-          deviceCount: 5,
-        }),
-      largeScale: () =>
-        this.createLargeScaleScenario({
-          statementCount: 200,
-          argumentCount: 100,
-          packageCount: 20,
-          deviceCount: 10,
-        }),
-    };
-  }
+  const totalTime = times.reduce((sum, time) => sum + time, 0);
+  const averageTime = totalTime / iterations;
+
+  return {
+    result: result as T,
+    averageTime,
+    totalTime,
+  };
+}
+
+/**
+ * Creates a benchmark suite for cross-context operations
+ */
+export function createBenchmarkSuite() {
+  return {
+    smallScale: () =>
+      createLargeScaleScenario({
+        statementCount: 10,
+        argumentCount: 5,
+        packageCount: 3,
+        deviceCount: 2,
+      }),
+    mediumScale: () =>
+      createLargeScaleScenario({
+        statementCount: 50,
+        argumentCount: 25,
+        packageCount: 10,
+        deviceCount: 5,
+      }),
+    largeScale: () =>
+      createLargeScaleScenario({
+        statementCount: 200,
+        argumentCount: 100,
+        packageCount: 20,
+        deviceCount: 10,
+      }),
+  };
 }
 
 /**
  * Utility for creating realistic error scenarios
  */
-export class ErrorScenarioFactory {
-  /**
-   * Creates scenarios that should trigger specific error conditions
-   */
-  static createErrorScenarios() {
-    return {
-      invalidStatement: () => {
-        // Attempt to create statement with invalid content
-        return Statement.create('');
-      },
+export function createErrorScenarios() {
+  return {
+    invalidStatement: () => {
+      // Attempt to create statement with invalid content
+      return Statement.create('');
+    },
 
-      circularDependency: () => {
-        // Create statements that would form a circular dependency
-        const stmt1 = CoreDomainFactory.createStatement('P implies Q');
-        const stmt2 = CoreDomainFactory.createStatement('Q implies R');
-        const stmt3 = CoreDomainFactory.createStatement('R implies P');
-        return { stmt1, stmt2, stmt3 };
-      },
+    circularDependency: () => {
+      // Create statements that would form a circular dependency
+      const stmt1 = createStatement('P implies Q');
+      const stmt2 = createStatement('Q implies R');
+      const stmt3 = createStatement('R implies P');
+      return { stmt1, stmt2, stmt3 };
+    },
 
-      invalidPackageManifest: () => {
-        // Create package with invalid manifest
-        return PackageManifest.create({
-          name: '', // Invalid empty name
-          version: 'not-a-version', // Invalid version format
-          description: '',
-        });
-      },
+    invalidPackageManifest: () => {
+      // Create package with invalid manifest
+      return PackageManifest.create({
+        name: '', // Invalid empty name
+        version: 'not-a-version', // Invalid version format
+        description: '',
+        author: '', // Also invalid empty author
+      });
+    },
 
-      conflictingOperations: () => {
-        // Create operations that would conflict
-        const scenario = SynchronizationFactory.createConflictScenario();
-        return scenario.conflictingOperations;
-      },
-    };
-  }
+    conflictingOperations: () => {
+      // Create operations that would conflict
+      const scenario = createConflictScenario();
+      return scenario.conflictingOperations;
+    },
+  };
 }
 
 /**
  * Mock data generators for external dependencies
  */
-export class MockDataFactory {
-  /**
-   * Creates mock repository responses
-   */
-  static createMockRepositoryResponses() {
-    return {
-      packageRepository: {
-        findById: () => ok(PackageEcosystemFactory.createPackage()),
-        findByName: () => ok([PackageEcosystemFactory.createPackage()]),
-        save: () => ok(undefined),
-        delete: () => ok(undefined),
-        findAll: () =>
-          ok([
-            PackageEcosystemFactory.createPackage('Mock Package 1'),
-            PackageEcosystemFactory.createPackage('Mock Package 2'),
-          ]),
-        exists: () => ok(true),
-        findBySource: () => ok([PackageEcosystemFactory.createPackage()]),
-        findByVersion: () => ok([PackageEcosystemFactory.createPackage()]),
-        findInstalled: () => ok([PackageEcosystemFactory.createPackage()]),
-      },
+export function createMockRepositoryResponses() {
+  return {
+    packageRepository: {
+      findById: async () => createPackage(),
+      findBySource: async () => ok(createPackage()),
+      findByGitRepository: async () => ok([createPackage()]),
+      searchByKeywords: async () => ok([createPackage()]),
+      findAll: async () => [createPackage('Mock Package 1'), createPackage('Mock Package 2')],
+      save: async () => ok(undefined),
+      delete: async () => ok(undefined),
+    },
 
-      dependencyRepository: {
-        findDependenciesForPackage: () => ok([]),
-        findPackagesThatDependOn: () => ok([]),
-        save: () => ok(undefined),
-        findByPackageId: () => ok([]),
-        findDependentsOf: () => ok([]),
-        findTransitiveDependencies: () => ok([]),
-        delete: () => ok(undefined),
-        deleteByPackageId: () => ok(undefined),
-        exists: () => ok(false),
-        hasCycle: () => ok(false),
-      },
-    };
-  }
-
-  /**
-   * Creates mock service responses
-   */
-  static createMockServiceResponses() {
-    return {
-      validationService: {
-        validateStatement: () => LanguageIntelligenceFactory.createValidationResult(true),
-        validateInference: () => LanguageIntelligenceFactory.createValidationResult(true),
-        validateProofStructure: () => LanguageIntelligenceFactory.createValidationResult(true),
-      },
-
-      patternRecognitionService: {
-        recognizeLogicalPatterns: () => ok([]),
-        analyzeInferencePatterns: () => ok([]),
-        recognizeProofPatterns: () =>
-          ok({
-            recognizedPatterns: [],
-            structuralFeatures: {
-              statementCount: 1,
-              connectionCount: 0,
-              maxDepth: 1,
-              branchingFactor: 0,
-              isLinear: true,
-              isTree: true,
-              hasCycles: false,
-            },
-            logicalFeatures: {
-              hasQuantifiers: false,
-              hasModalOperators: false,
-              hasNegations: false,
-              hasImplications: false,
-              hasConjunctions: false,
-              hasDisjunctions: false,
-              logicalComplexity: 0.1,
-            },
-            patternInsights: [],
-            confidence: 0.5,
-            performance: {},
-          }),
-      },
-    };
-  }
+    dependencyRepository: {
+      findDependenciesForPackage: async () => ok([]),
+      findPackagesThatDependOn: async () => ok([]),
+    },
+  };
 }
+
+export function createMockServiceResponses() {
+  return {
+    validationService: {
+      validateStatement: () => createValidationResult(true),
+      validateInference: () => createValidationResult(true),
+      validateProofStructure: () => createValidationResult(true),
+    },
+
+    patternRecognitionService: {
+      recognizeLogicalPatterns: () => ok([]),
+      analyzeInferencePatterns: () => ok([]),
+      recognizeProofPatterns: () =>
+        ok({
+          recognizedPatterns: [],
+          structuralFeatures: {
+            statementCount: 1,
+            connectionCount: 0,
+            maxDepth: 1,
+            branchingFactor: 0,
+            isLinear: true,
+            isTree: true,
+            hasCycles: false,
+          },
+          logicalFeatures: {
+            hasQuantifiers: false,
+            hasModalOperators: false,
+            hasNegations: false,
+            hasImplications: false,
+            hasConjunctions: false,
+            hasDisjunctions: false,
+            logicalComplexity: 0.1,
+          },
+          patternInsights: [],
+          confidence: 0.5,
+          performance: {},
+        }),
+    },
+  };
+}
+
+// Export factory objects to maintain backward compatibility
+export const CoreDomainFactory = {
+  createStatement,
+  createOrderedSet,
+  createAtomicArgument,
+  createProofScenario,
+};
+
+export const LanguageIntelligenceFactory = {
+  createLanguagePackage,
+  createInferenceRule,
+  createValidationResult,
+};
+
+export const PackageEcosystemFactory = {
+  createPackage,
+  createPackageEcosystem,
+};
+
+export const SynchronizationFactory = {
+  createDevice,
+  createMultiDeviceScenario,
+  createOperation,
+  createConflictScenario,
+};
+
+export const PerformanceTestUtils = {
+  createLargeScaleScenario,
+  measureExecutionTime,
+  createBenchmarkSuite,
+};
+
+export const ErrorScenarioFactory = {
+  createErrorScenarios,
+};
+
+export const MockDataFactory = {
+  createMockRepositoryResponses,
+  createMockServiceResponses,
+};

@@ -1,8 +1,9 @@
 import { err, ok, type Result } from 'neverthrow';
+import { injectable } from 'tsyringe';
 
-import { type Conflict, type ConflictResolutionStrategy } from '../entities/Conflict';
+import type { Conflict, ConflictResolutionStrategy } from '../entities/Conflict';
 import { Operation } from '../entities/Operation';
-import { type IOperation } from '../entities/shared-types';
+import type { IOperation } from '../entities/shared-types';
 import type { OperationPayloadData } from '../value-objects/OperationPayload';
 
 export interface IConflictResolutionService {
@@ -10,12 +11,13 @@ export interface IConflictResolutionService {
   resolveConflictWithUserInput(
     conflict: Conflict,
     userChoice: ConflictResolutionStrategy,
-    userInput?: unknown
+    userInput?: unknown,
   ): Promise<Result<unknown, Error>>;
   canResolveAutomatically(conflict: Conflict): boolean;
   getRecommendedResolution(conflict: Conflict): ConflictResolutionStrategy;
 }
 
+@injectable()
 export class ConflictResolutionService implements IConflictResolutionService {
   async resolveConflictAutomatically(conflict: Conflict): Promise<Result<unknown, Error>> {
     // Check if conflict has enough operations
@@ -52,7 +54,7 @@ export class ConflictResolutionService implements IConflictResolutionService {
   async resolveConflictWithUserInput(
     conflict: Conflict,
     userChoice: ConflictResolutionStrategy,
-    userInput?: unknown
+    userInput?: unknown,
   ): Promise<Result<unknown, Error>> {
     switch (userChoice) {
       case 'USER_DECISION_REQUIRED':
@@ -84,9 +86,9 @@ export class ConflictResolutionService implements IConflictResolutionService {
   getRecommendedResolution(conflict: Conflict): ConflictResolutionStrategy {
     const automaticOptions = conflict.getAutomaticResolutionOptions();
 
-    if (automaticOptions.length > 0) {
+    if (automaticOptions.length > 0 && automaticOptions[0]) {
       // Return the first automatic option as the recommendation
-      return automaticOptions[0]!.strategy;
+      return automaticOptions[0].strategy;
     }
 
     // If no automatic options, recommend user decision
@@ -94,7 +96,7 @@ export class ConflictResolutionService implements IConflictResolutionService {
   }
 
   private async mergeOperations(
-    operations: readonly IOperation[]
+    operations: readonly IOperation[],
   ): Promise<Result<unknown, Error>> {
     if (operations.length < 2) {
       return Promise.resolve(err(new Error('Cannot merge less than 2 operations')));
@@ -125,7 +127,7 @@ export class ConflictResolutionService implements IConflictResolutionService {
             const [transformedOp] = transformResult.value;
             currentResult = this.combinePayloads(
               currentResult,
-              transformedOp.getPayload().getData()
+              transformedOp.getPayload().getData(),
             );
           }
         } else {
@@ -137,13 +139,13 @@ export class ConflictResolutionService implements IConflictResolutionService {
       return Promise.resolve(ok(currentResult));
     } catch (error) {
       return Promise.resolve(
-        err(error instanceof Error ? error : new Error('Unknown merge error'))
+        err(error instanceof Error ? error : new Error('Unknown merge error')),
       );
     }
   }
 
   private async applyLastWriterWins(
-    operations: readonly IOperation[]
+    operations: readonly IOperation[],
   ): Promise<Result<unknown, Error>> {
     if (operations.length === 0) {
       return Promise.resolve(err(new Error('No operations to resolve')));
@@ -157,7 +159,7 @@ export class ConflictResolutionService implements IConflictResolutionService {
   }
 
   private async applyFirstWriterWins(
-    operations: readonly IOperation[]
+    operations: readonly IOperation[],
   ): Promise<Result<unknown, Error>> {
     if (operations.length === 0) {
       return Promise.resolve(err(new Error('No operations to resolve')));
@@ -170,9 +172,9 @@ export class ConflictResolutionService implements IConflictResolutionService {
     return Promise.resolve(ok(earliestOperation.getPayload().getData()));
   }
 
-  private applyUserDecision(
+  private async applyUserDecision(
     _conflict: Conflict,
-    userInput: unknown
+    userInput: unknown,
   ): Promise<Result<unknown, Error>> {
     if (!this.isValidUserInput(userInput)) {
       return Promise.resolve(err(new Error('Invalid user input for conflict resolution')));
@@ -191,7 +193,7 @@ export class ConflictResolutionService implements IConflictResolutionService {
 
   private combinePayloads(
     payload1: OperationPayloadData,
-    payload2: OperationPayloadData
+    payload2: OperationPayloadData,
   ): OperationPayloadData {
     if (
       typeof payload1 === 'object' &&
@@ -229,7 +231,7 @@ export class ConflictResolutionService implements IConflictResolutionService {
           .reduce(
             (latest, current) =>
               current.getVectorClock().happensAfter(latest.getVectorClock()) ? current : latest,
-            firstOp
+            firstOp,
           );
         return `Keep changes from ${latest.getDeviceId().getShortId()}`;
       }
@@ -249,7 +251,7 @@ export class ConflictResolutionService implements IConflictResolutionService {
               current.getVectorClock().happensBefore(earliest.getVectorClock())
                 ? current
                 : earliest,
-            firstOp
+            firstOp,
           );
         return `Keep changes from ${earliest.getDeviceId().getShortId()}`;
       }

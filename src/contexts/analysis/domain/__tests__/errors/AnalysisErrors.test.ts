@@ -65,7 +65,7 @@ describe('Analysis Domain Errors', () => {
 
         expect(Object.getPrototypeOf(error)).toBe(TestDomainError.prototype);
         expect(Object.getPrototypeOf(Object.getPrototypeOf(error))).toBe(
-          AnalysisDomainError.prototype
+          AnalysisDomainError.prototype,
         );
       });
     });
@@ -179,7 +179,7 @@ describe('Analysis Domain Errors', () => {
           'Constraint violation detected',
         ];
 
-        testCases.forEach(message => {
+        testCases.forEach((message) => {
           const error = new ValidationError(message);
           expect(error.message).toBe(message);
           expect(error.name).toBe('ValidationError');
@@ -228,7 +228,7 @@ describe('Analysis Domain Errors', () => {
           'Pattern compilation failed',
         ];
 
-        testCases.forEach(message => {
+        testCases.forEach((message) => {
           const error = new PatternMatchError(message);
           expect(error.message).toBe(message);
           expect(error.name).toBe('PatternMatchError');
@@ -267,7 +267,7 @@ describe('Analysis Domain Errors', () => {
           'Position out of document bounds',
         ];
 
-        testCases.forEach(message => {
+        testCases.forEach((message) => {
           const error = new SourceLocationError(message);
           expect(error.message).toBe(message);
           expect(error.name).toBe('SourceLocationError');
@@ -306,7 +306,7 @@ describe('Analysis Domain Errors', () => {
           'Recommendation generation failed',
         ];
 
-        testCases.forEach(message => {
+        testCases.forEach((message) => {
           const error = new InsightGenerationError(message);
           expect(error.message).toBe(message);
           expect(error.name).toBe('InsightGenerationError');
@@ -349,10 +349,10 @@ describe('Analysis Domain Errors', () => {
         new InsightGenerationError('Insight error'),
       ];
 
-      const validationErrors = errors.filter(e => e instanceof ValidationError);
-      const patternErrors = errors.filter(e => e instanceof PatternMatchError);
-      const locationErrors = errors.filter(e => e instanceof SourceLocationError);
-      const insightErrors = errors.filter(e => e instanceof InsightGenerationError);
+      const validationErrors = errors.filter((e) => e instanceof ValidationError);
+      const patternErrors = errors.filter((e) => e instanceof PatternMatchError);
+      const locationErrors = errors.filter((e) => e instanceof SourceLocationError);
+      const insightErrors = errors.filter((e) => e instanceof InsightGenerationError);
 
       expect(validationErrors).toHaveLength(1);
       expect(patternErrors).toHaveLength(1);
@@ -410,7 +410,7 @@ describe('Analysis Domain Errors', () => {
         new InsightGenerationError(''),
       ];
 
-      errors.forEach(error => {
+      errors.forEach((error) => {
         expect(error).toBeInstanceOf(AnalysisDomainError);
         expect(error.message).toBe('');
         expect(error.cause).toBeUndefined();
@@ -459,7 +459,9 @@ describe('Analysis Domain Errors', () => {
         }
       }
 
-      expect(() => wrapAndRethrow()).toThrow(PatternMatchError);
+      expect(() => {
+        wrapAndRethrow();
+      }).toThrow(PatternMatchError);
 
       try {
         wrapAndRethrow();
@@ -477,8 +479,8 @@ describe('Analysis Domain Errors', () => {
         new SourceLocationError('Location error'),
       ];
 
-      const domainErrors = errors.filter(e => e instanceof AnalysisDomainError);
-      const validationErrors = errors.filter(e => e instanceof ValidationError);
+      const domainErrors = errors.filter((e) => e instanceof AnalysisDomainError);
+      const validationErrors = errors.filter((e) => e instanceof ValidationError);
 
       expect(domainErrors).toHaveLength(3);
       expect(validationErrors).toHaveLength(1);

@@ -1,9 +1,10 @@
 import { err, ok, type Result } from 'neverthrow';
+import { injectable } from 'tsyringe';
 
 import { SourceLocation } from '../../../../domain/shared/index.js';
 import { Diagnostic } from '../entities/Diagnostic';
-import { type InferenceRule } from '../entities/InferenceRule';
-import { type LanguagePackage } from '../entities/LanguagePackage';
+import type { InferenceRule } from '../entities/InferenceRule';
+import type { LanguagePackage } from '../entities/LanguagePackage';
 import { ValidationResult } from '../entities/ValidationResult';
 import { type DomainError, ValidationError } from '../errors/DomainErrors';
 import { DiagnosticSeverity } from '../value-objects/DiagnosticSeverity';
@@ -11,6 +12,7 @@ import { PerformanceTracker } from '../value-objects/PerformanceTracker';
 import { ValidationLevel } from '../value-objects/ValidationLevel';
 import { ValidationMetrics } from '../value-objects/ValidationMetrics';
 
+@injectable()
 export class LogicValidationService {
   private readonly performanceTarget = 10; // 10ms target
 
@@ -18,7 +20,7 @@ export class LogicValidationService {
     statement: string,
     location: SourceLocation,
     languagePackage: LanguagePackage,
-    level: ValidationLevel
+    level: ValidationLevel,
   ): Result<ValidationResult, DomainError> {
     const tracker = PerformanceTracker.start();
     const documentId = `temp-${Date.now()}`;
@@ -54,7 +56,7 @@ export class LogicValidationService {
         tracker.getElapsedMs(),
         diagnostics.length,
         statement.length,
-        1
+        1,
       );
 
       if (metrics.isErr()) {
@@ -62,7 +64,7 @@ export class LogicValidationService {
       }
 
       // Create result based on validation outcome
-      const hasErrors = diagnostics.some(d => d.getSeverity().isError());
+      const hasErrors = diagnostics.some((d) => d.getSeverity().isError());
 
       if (hasErrors) {
         const failedValidationResult = ValidationResult.createFailedValidation(
@@ -70,7 +72,7 @@ export class LogicValidationService {
           diagnostics,
           documentId,
           languagePackage.getId().getValue(),
-          metrics.value
+          metrics.value,
         );
         if (failedValidationResult.isErr()) {
           return err(failedValidationResult.error);
@@ -83,7 +85,7 @@ export class LogicValidationService {
           diagnostics,
           documentId,
           languagePackage.getId().getValue(),
-          metrics.value
+          metrics.value,
         );
         if (validationWithWarnings.isErr()) {
           return err(validationWithWarnings.error);
@@ -94,7 +96,7 @@ export class LogicValidationService {
           level,
           documentId,
           languagePackage.getId().getValue(),
-          metrics.value
+          metrics.value,
         );
         if (successfulValidationResult.isErr()) {
           return err(successfulValidationResult.error);
@@ -105,8 +107,8 @@ export class LogicValidationService {
       return err(
         new ValidationError(
           'Validation failed with unexpected error',
-          error instanceof Error ? error : undefined
-        )
+          error instanceof Error ? error : undefined,
+        ),
       );
     } finally {
       tracker.stop();
@@ -117,7 +119,7 @@ export class LogicValidationService {
     premises: string[],
     conclusions: string[],
     languagePackage: LanguagePackage,
-    level: ValidationLevel
+    level: ValidationLevel,
   ): Result<ValidationResult, DomainError> {
     const tracker = PerformanceTracker.start();
     const documentId = `inference-${Date.now()}`;
@@ -133,7 +135,7 @@ export class LogicValidationService {
           'No valid inference rule found for this argument structure',
           SourceLocation.createDefault(),
           languagePackage.getId().getValue(),
-          ['Try breaking down the argument into simpler steps']
+          ['Try breaking down the argument into simpler steps'],
         );
 
         if (errorResult.isErr()) {
@@ -149,7 +151,7 @@ export class LogicValidationService {
           conclusions,
           bestRule,
           languagePackage,
-          level
+          level,
         );
 
         if (ruleValidation.isErr()) {
@@ -163,14 +165,14 @@ export class LogicValidationService {
         tracker.getElapsedMs(),
         diagnostics.length,
         premises.join(' ').length + conclusions.join(' ').length,
-        1
+        1,
       );
 
       if (metrics.isErr()) {
         return err(new ValidationError('Failed to create validation metrics'));
       }
 
-      const hasErrors = diagnostics.some(d => d.getSeverity().isError());
+      const hasErrors = diagnostics.some((d) => d.getSeverity().isError());
 
       if (hasErrors) {
         const failedValidationResult = ValidationResult.createFailedValidation(
@@ -178,7 +180,7 @@ export class LogicValidationService {
           diagnostics,
           documentId,
           languagePackage.getId().getValue(),
-          metrics.value
+          metrics.value,
         );
         if (failedValidationResult.isErr()) {
           return err(failedValidationResult.error);
@@ -191,7 +193,7 @@ export class LogicValidationService {
           diagnostics,
           documentId,
           languagePackage.getId().getValue(),
-          metrics.value
+          metrics.value,
         );
         if (validationWithWarnings.isErr()) {
           return err(validationWithWarnings.error);
@@ -202,7 +204,7 @@ export class LogicValidationService {
           level,
           documentId,
           languagePackage.getId().getValue(),
-          metrics.value
+          metrics.value,
         );
         if (successfulValidationResult.isErr()) {
           return err(successfulValidationResult.error);
@@ -213,8 +215,8 @@ export class LogicValidationService {
       return err(
         new ValidationError(
           'Inference validation failed with unexpected error',
-          error instanceof Error ? error : undefined
-        )
+          error instanceof Error ? error : undefined,
+        ),
       );
     } finally {
       tracker.stop();
@@ -225,7 +227,7 @@ export class LogicValidationService {
     _statements: string[],
     _connections: { from: number; to: number }[],
     _languagePackage: LanguagePackage,
-    _level: ValidationLevel
+    _level: ValidationLevel,
   ): Result<ValidationResult, DomainError> {
     // Simplified implementation
     const documentId = `proof-${Date.now()}`;
@@ -236,7 +238,7 @@ export class LogicValidationService {
       ValidationLevel.syntax(),
       documentId,
       'default-package',
-      metrics
+      metrics,
     );
 
     if (validationResult.isErr()) {
@@ -249,7 +251,7 @@ export class LogicValidationService {
   private validateSyntax(
     statement: string,
     location: SourceLocation,
-    languagePackage: LanguagePackage
+    languagePackage: LanguagePackage,
   ): Diagnostic[] {
     const diagnostics: Diagnostic[] = [];
 
@@ -258,7 +260,7 @@ export class LogicValidationService {
       const errorResult = Diagnostic.createSyntaxError(
         'Statement cannot be empty',
         location,
-        languagePackage.getId().getValue()
+        languagePackage.getId().getValue(),
       );
       if (errorResult.isOk()) {
         diagnostics.push(errorResult.value);
@@ -272,7 +274,7 @@ export class LogicValidationService {
         'Unbalanced parentheses in statement',
         location,
         languagePackage.getId().getValue(),
-        ['Add missing closing parenthesis', 'Remove extra opening parenthesis']
+        ['Add missing closing parenthesis', 'Remove extra opening parenthesis'],
       );
       if (errorResult.isOk()) {
         diagnostics.push(errorResult.value);
@@ -286,7 +288,7 @@ export class LogicValidationService {
         `Invalid symbols found: ${invalidSymbols.join(', ')}`,
         location,
         languagePackage.getId().getValue(),
-        [`Use valid symbols from ${languagePackage.getName().getValue()}`]
+        [`Use valid symbols from ${languagePackage.getName().getValue()}`],
       );
       if (errorResult.isOk()) {
         diagnostics.push(errorResult.value);
@@ -299,7 +301,7 @@ export class LogicValidationService {
   private validateSemantics(
     statement: string,
     location: SourceLocation,
-    _languagePackage: LanguagePackage
+    _languagePackage: LanguagePackage,
   ): Diagnostic[] {
     const diagnostics: Diagnostic[] = [];
 
@@ -309,7 +311,7 @@ export class LogicValidationService {
         'Statement contains logical contradiction',
         location,
         'default-package',
-        ['Remove contradictory terms', 'Clarify intended meaning']
+        ['Remove contradictory terms', 'Clarify intended meaning'],
       );
       if (errorResult.isOk()) {
         diagnostics.push(errorResult.value);
@@ -322,7 +324,7 @@ export class LogicValidationService {
   private validateFlow(
     statement: string,
     _location: SourceLocation,
-    _languagePackage: LanguagePackage
+    _languagePackage: LanguagePackage,
   ): Diagnostic[] {
     const diagnostics: Diagnostic[] = [];
 
@@ -337,7 +339,7 @@ export class LogicValidationService {
   private validateStyle(
     statement: string,
     location: SourceLocation,
-    _languagePackage: LanguagePackage
+    _languagePackage: LanguagePackage,
   ): Diagnostic[] {
     const diagnostics: Diagnostic[] = [];
 
@@ -350,7 +352,7 @@ export class LogicValidationService {
         location,
         'default-package',
         ['Break into smaller statements', 'Use shorter sentences'],
-        ['style']
+        ['style'],
       );
       if (warningResult.isOk()) {
         diagnostics.push(warningResult.value);
@@ -363,13 +365,17 @@ export class LogicValidationService {
   private selectBestRule(
     rules: InferenceRule[],
     premises: string[],
-    conclusions: string[]
+    conclusions: string[],
   ): InferenceRule {
     if (rules.length === 0) {
       throw new Error('No rules provided to selectBestRule');
     }
 
-    let bestRule = rules[0]!;
+    const firstRule = rules[0];
+    if (!firstRule) {
+      throw new Error('No rules provided to selectBestRule');
+    }
+    let bestRule: InferenceRule = firstRule;
     let bestScore = 0;
 
     for (const rule of rules) {
@@ -388,7 +394,7 @@ export class LogicValidationService {
     conclusions: string[],
     rule: InferenceRule,
     languagePackage: LanguagePackage,
-    _level: ValidationLevel
+    _level: ValidationLevel,
   ): Result<Diagnostic[], DomainError> {
     const diagnostics: Diagnostic[] = [];
 
@@ -404,7 +410,7 @@ export class LogicValidationService {
         SourceLocation.createDefault(),
         languagePackage.getId().getValue(),
         ['Review the inference steps', 'Check premise-conclusion relationship'],
-        ['semantic']
+        ['semantic'],
       );
       if (warningResult.isOk()) {
         diagnostics.push(warningResult.value);
@@ -417,7 +423,7 @@ export class LogicValidationService {
   private validateStructuralIntegrity(
     _statements: string[],
     _connections: { from: number; to: number }[],
-    _languagePackage: LanguagePackage
+    _languagePackage: LanguagePackage,
   ): Diagnostic[] {
     return [];
   }
@@ -425,7 +431,7 @@ export class LogicValidationService {
   private validateLogicalFlow(
     _statements: string[],
     _connections: { from: number; to: number }[],
-    _languagePackage: LanguagePackage
+    _languagePackage: LanguagePackage,
   ): Diagnostic[] {
     return [];
   }
@@ -445,7 +451,7 @@ export class LogicValidationService {
     const allSymbols = statement.match(/[^\w\s(),.]/g) ?? [];
     // Basic validation - assume common logical symbols are valid
     const validSymbols = ['∀', '∃', '∧', '∨', '¬', '→', '↔'];
-    return allSymbols.filter(symbol => !validSymbols.includes(symbol));
+    return allSymbols.filter((symbol) => !validSymbols.includes(symbol));
   }
 
   private parseLogicalStructure(statement: string): {

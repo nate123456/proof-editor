@@ -11,7 +11,7 @@ export class AnalysisInsight {
     private readonly confidence: number,
     private readonly evidence: string[],
     private readonly recommendations: string[],
-    private readonly relatedPatterns: string[]
+    private readonly relatedPatterns: string[],
   ) {}
 
   static create(
@@ -22,7 +22,7 @@ export class AnalysisInsight {
     confidence = 1.0,
     evidence: string[] = [],
     recommendations: string[] = [],
-    relatedPatterns: string[] = []
+    relatedPatterns: string[] = [],
   ): Result<AnalysisInsight, ValidationError> {
     if (!title || title.trim().length === 0) {
       return err(new ValidationError('Insight title cannot be empty'));
@@ -45,8 +45,8 @@ export class AnalysisInsight {
         confidence,
         evidence,
         recommendations,
-        relatedPatterns
-      )
+        relatedPatterns,
+      ),
     );
   }
 
@@ -54,7 +54,7 @@ export class AnalysisInsight {
     title: string,
     description: string,
     priority: InsightPriority = 'high',
-    recommendations: string[] = []
+    recommendations: string[] = [],
   ): Result<AnalysisInsight, ValidationError> {
     return AnalysisInsight.create('syntax', title, description, priority, 0.9, [], recommendations);
   }
@@ -63,7 +63,7 @@ export class AnalysisInsight {
     title: string,
     description: string,
     evidence: string[] = [],
-    recommendations: string[] = []
+    recommendations: string[] = [],
   ): Result<AnalysisInsight, ValidationError> {
     return AnalysisInsight.create(
       'semantics',
@@ -72,14 +72,14 @@ export class AnalysisInsight {
       'medium',
       0.8,
       evidence,
-      recommendations
+      recommendations,
     );
   }
 
   static createPerformanceInsight(
     title: string,
     description: string,
-    confidence = 0.95
+    confidence = 0.95,
   ): Result<AnalysisInsight, ValidationError> {
     return AnalysisInsight.create('performance', title, description, 'low', confidence);
   }
@@ -87,7 +87,7 @@ export class AnalysisInsight {
   static createEducationalInsight(
     title: string,
     description: string,
-    recommendations: string[] = []
+    recommendations: string[] = [],
   ): Result<AnalysisInsight, ValidationError> {
     return AnalysisInsight.create(
       'educational',
@@ -96,7 +96,7 @@ export class AnalysisInsight {
       'medium',
       0.7,
       [],
-      recommendations
+      recommendations,
     );
   }
 
@@ -104,7 +104,7 @@ export class AnalysisInsight {
     title: string,
     description: string,
     evidence: string[] = [],
-    recommendations: string[] = []
+    recommendations: string[] = [],
   ): Result<AnalysisInsight, ValidationError> {
     return AnalysisInsight.create(
       'validation',
@@ -113,7 +113,7 @@ export class AnalysisInsight {
       'high',
       0.85,
       evidence,
-      recommendations
+      recommendations,
     );
   }
 
@@ -198,7 +198,7 @@ export class AnalysisInsight {
       this.confidence,
       this.evidence,
       this.recommendations,
-      this.relatedPatterns
+      this.relatedPatterns,
     );
   }
 
@@ -211,7 +211,7 @@ export class AnalysisInsight {
       this.confidence,
       [...this.evidence, ...evidence],
       this.recommendations,
-      this.relatedPatterns
+      this.relatedPatterns,
     );
   }
 
@@ -224,7 +224,7 @@ export class AnalysisInsight {
       this.confidence,
       this.evidence,
       [...this.recommendations, ...recommendations],
-      this.relatedPatterns
+      this.relatedPatterns,
     );
   }
 

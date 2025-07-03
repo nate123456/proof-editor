@@ -7,7 +7,7 @@ export class Node {
     private readonly argumentId: AtomicArgumentId,
     private attachment: Attachment | null,
     private readonly createdAt: number,
-    private modifiedAt: number
+    private modifiedAt: number,
   ) {}
 
   static createRoot(argumentId: AtomicArgumentId): Result<Node, ValidationError> {
@@ -18,7 +18,7 @@ export class Node {
 
   static createChild(
     argumentId: AtomicArgumentId,
-    attachment: Attachment
+    attachment: Attachment,
   ): Result<Node, ValidationError> {
     const now = Date.now();
 
@@ -30,7 +30,7 @@ export class Node {
     argumentId: AtomicArgumentId,
     attachment: Attachment | null,
     createdAt: number,
-    modifiedAt: number
+    modifiedAt: number,
   ): Result<Node, ValidationError> {
     return ok(new Node(id, argumentId, attachment, createdAt, modifiedAt));
   }
@@ -138,9 +138,9 @@ export class Node {
       return `Root[${this.argumentId.getValue()}]`;
     }
 
-    const parentId = this.attachment!.getParentNodeId().getValue();
-    const position = this.attachment!.getPremisePosition();
-    const fromPos = this.attachment!.getFromPosition();
+    const parentId = this.attachment?.getParentNodeId().getValue();
+    const position = this.attachment?.getPremisePosition();
+    const fromPos = this.attachment?.getFromPosition();
 
     return fromPos !== undefined
       ? `Child[${this.argumentId.getValue()}→${parentId}:${position}:${fromPos}]`

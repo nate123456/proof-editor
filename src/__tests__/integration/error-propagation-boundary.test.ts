@@ -20,12 +20,11 @@ import { PatternRecognitionService } from '../../contexts/language-intelligence/
 import { ValidationLevel } from '../../contexts/language-intelligence/domain/value-objects/ValidationLevel.js';
 // Package Ecosystem Context
 import { DependencyResolutionService } from '../../contexts/package-ecosystem/domain/services/DependencyResolutionService.js';
-import { PackageDiscoveryService } from '../../contexts/package-ecosystem/domain/services/package-discovery-service.js';
 import { PackageValidationService } from '../../contexts/package-ecosystem/domain/services/PackageValidationService.js';
+import { PackageDiscoveryService } from '../../contexts/package-ecosystem/domain/services/package-discovery-service.js';
 import { VersionResolutionService } from '../../contexts/package-ecosystem/domain/services/VersionResolutionService.js';
 import {
   PackageNotFoundError,
-  PackageSourceUnavailableError,
   PackageValidationError,
 } from '../../contexts/package-ecosystem/domain/types/domain-errors.js';
 // Synchronization Context
@@ -38,9 +37,10 @@ import { TreeStructureService } from '../../domain/services/TreeStructureService
 import { SourceLocation } from '../../domain/shared/index.js';
 // Test utilities
 import {
-  CoreDomainFactory,
+  createLanguagePackage,
+  createStatement,
+  createValidationResult,
   ErrorScenarioFactory,
-  LanguageIntelligenceFactory,
   MockDataFactory,
   PackageEcosystemFactory,
   SynchronizationFactory,
@@ -49,56 +49,61 @@ import {
 /**
  * Anti-corruption layer simulator for testing boundary enforcement
  */
-class AntiCorruptionLayer {
-  /**
-   * Translates external errors to domain-specific errors
-   */
-  static translateError(externalError: unknown, context: string): Error {
-    if (externalError instanceof Error) {
-      switch (context) {
-        case 'language-intelligence':
-          return new ValidationError(`Language Intelligence: ${externalError.message}`);
-        case 'package-ecosystem':
-          return new PackageValidationError(`Package Ecosystem: ${externalError.message}`);
-        case 'synchronization':
-          return new Error(`Synchronization: ${externalError.message}`);
-        default:
-          return new Error(`Unknown context: ${externalError.message}`);
-      }
-    }
-    return new Error(`Unknown error in ${context}`);
-  }
 
-  /**
-   * Validates cross-context data transfer
-   */
-  static validateDataTransfer(data: unknown, expectedType: string): boolean {
-    switch (expectedType) {
-      case 'validation-result':
-        return typeof data === 'object' && data !== null && 'isSuccessful' in data;
-      case 'package':
-        return typeof data === 'object' && data !== null && 'getId' in data && 'getVersion' in data;
-      case 'operation':
-        return typeof data === 'object' && data !== null && 'getDeviceId' in data;
+/**
+ * Translates external errors to domain-specific errors
+ */
+function _translateError(externalError: unknown, context: string): Error {
+  if (externalError instanceof Error) {
+    switch (context) {
+      case 'language-intelligence':
+        return new ValidationError(`Language Intelligence: ${externalError.message}`);
+      case 'package-ecosystem':
+        return new PackageValidationError(`Package Ecosystem: ${externalError.message}`);
+      case 'synchronization':
+        return new Error(`Synchronization: ${externalError.message}`);
       default:
-        return false;
+        return new Error(`Unknown context: ${externalError.message}`);
     }
   }
+  return new Error(`Unknown error in ${context}`);
+}
 
-  /**
-   * Enforces rate limiting and resource constraints
-   */
-  static enforceResourceLimits(operationType: string, currentLoad: number): boolean {
-    const limits = {
-      validation: 100,
-      'package-resolution': 50,
-      'conflict-resolution': 25,
-    };
-
-    const limit = limits[operationType as keyof typeof limits] ?? 10;
-    return currentLoad <= limit;
+/**
+ * Validates cross-context data transfer
+ */
+function validateDataTransfer(data: unknown, expectedType: string): boolean {
+  switch (expectedType) {
+    case 'validation-result':
+      return typeof data === 'object' && data !== null && 'isSuccessful' in data;
+    case 'package':
+      return typeof data === 'object' && data !== null && 'getId' in data && 'getVersion' in data;
+    case 'operation':
+      return typeof data === 'object' && data !== null && 'getDeviceId' in data;
+    default:
+      return false;
   }
 }
+
+/**
+ * Enforces rate limiting and resource constraints
+ */
+function enforceResourceLimits(operationType: string, currentLoad: number): boolean {
+  const limits = {
+    validation: 100,
+    'package-resolution': 50,
+    'conflict-resolution': 25,
+  };
+
+  const limit = limits[operationType as keyof typeof limits] ?? 10;
+  return currentLoad <= limit;
+}
+
+const AntiCorruptionLayer = {
+  translateError: _translateError,
+  validateDataTransfer,
+  enforceResourceLimits,
+};
 
 describe('Error Propagation and Domain Boundary Tests', () => {
   let coreServices: {
@@ -132,7 +137,7 @@ describe('Error Propagation and Domain Boundary Tests', () => {
     };
 
     // Initialize language intelligence services
-    const testPackage = LanguageIntelligenceFactory.createLanguagePackage();
+    const testPackage = createLanguagePackage();
     languageIntelligenceServices = {
       validation: new LogicValidationService(),
       patternRecognition: new PatternRecognitionService(),
@@ -144,40 +149,43 @@ describe('Error Propagation and Domain Boundary Tests', () => {
 
     // Create mock providers for PackageDiscoveryService
     const mockGitProvider = {
-      searchPackages: () => Promise.resolve(ok({ packages: [], totalFound: 0, searchTime: 0 })),
-      getPackageDetails: () => Promise.resolve(err(new Error('Mock not found'))),
+      discoverFromGitHub: async () => Promise.resolve(ok([])),
+      validateGitSource: async () => Promise.resolve(ok(true)),
+      clonePackageToTemporary: async () => Promise.resolve(ok('/tmp/mock')),
     };
 
     const mockLocalProvider = {
-      scanDirectory: () => Promise.resolve(ok({ packages: [], totalFound: 0, searchTime: 0 })),
-      validateLocalPackage: () => Promise.resolve(ok(true)),
+      discoverInDirectory: async () => Promise.resolve(ok([])),
+      validateLocalSource: async () => Promise.resolve(ok(true)),
     };
 
     // Create mock GitRefProvider for VersionResolutionService
     const mockGitRefProvider = {
-      resolveGitRef: () => Promise.resolve(ok({ version: '1.0.0', sha: 'abc123', tag: 'v1.0.0' })),
-      listAvailableRefs: () => Promise.resolve(ok(['main', 'v1.0.0'])),
+      resolveRefToCommit: async () => Promise.resolve(ok({ commit: 'abc123', actualRef: 'main' })),
+      listAvailableTags: async () => Promise.resolve(ok(['v1.0.0', 'v2.0.0'])),
+      listAvailableBranches: async () => Promise.resolve(ok(['main', 'develop'])),
+      getCommitTimestamp: async () => Promise.resolve(ok(new Date())),
     };
 
     const packageDiscovery = new PackageDiscoveryService(
       mockRepositories.packageRepository,
       mockGitProvider,
-      mockLocalProvider
+      mockLocalProvider,
     );
     const versionResolution = new VersionResolutionService(mockGitRefProvider);
 
     // Create mock file system and SDK validator for PackageValidationService
     const mockFileSystem = {
-      fileExists: () => true,
-      readFile: () => ok('mock content'),
-      listFiles: () => ok(['file1.ts', 'file2.ts']),
-      isExecutable: () => false,
+      fileExists: async () => true,
+      readFile: async () => ok('mock content'),
+      listFiles: async () => ok(['file1.ts', 'file2.ts']),
+      isExecutable: async () => false,
     };
 
     const mockSDKValidator = {
-      validateInterface: () => ok({ name: 'test', version: '1.0.0' }),
-      listImplementedInterfaces: () => ok([]),
-      checkVersionCompatibility: () => ok({ compatible: true }),
+      validateInterface: async () => ok({ name: 'test', version: '1.0.0', methods: [] }),
+      listImplementedInterfaces: async () => ok([]),
+      checkVersionCompatibility: () => ok(true),
     };
 
     packageEcosystemServices = {
@@ -186,7 +194,7 @@ describe('Error Propagation and Domain Boundary Tests', () => {
       dependencyResolution: new DependencyResolutionService(
         mockRepositories.dependencyRepository,
         packageDiscovery,
-        versionResolution
+        versionResolution,
       ),
       versionResolution,
     };
@@ -214,20 +222,20 @@ describe('Error Propagation and Domain Boundary Tests', () => {
           invalidContent,
           SourceLocation.createDefault(),
           languageIntelligenceServices.testPackage,
-          ValidationLevel.syntax()
+          ValidationLevel.syntax(),
         );
 
         // Assert - Error should be properly contained and typed
         expect(validationResult.isOk()).toBe(true); // Service call succeeds
         if (validationResult.isOk()) {
-          expect(validationResult.value.isSuccessful()).toBe(false); // But validation fails
+          expect(validationResult.value.isValidationSuccessful()).toBe(false); // But validation fails
           expect(validationResult.value.getDiagnostics().length).toBeGreaterThan(0);
         }
 
         // Anti-corruption layer should translate the error
         const translatedError = AntiCorruptionLayer.translateError(
           new Error('Validation failed'),
-          'language-intelligence'
+          'language-intelligence',
         );
         expect(translatedError).toBeInstanceOf(ValidationError);
         expect(translatedError.message).toContain('Language Intelligence:');
@@ -247,7 +255,7 @@ describe('Error Propagation and Domain Boundary Tests', () => {
       // Act - Try to resolve dependencies
       const resolutionResult =
         await packageEcosystemServices.dependencyResolution.resolveDependenciesForPackage(
-          testPackage
+          testPackage,
         );
 
       // Assert - Error should be properly typed and contained
@@ -258,7 +266,7 @@ describe('Error Propagation and Domain Boundary Tests', () => {
         // Anti-corruption layer should handle the error
         const translatedError = AntiCorruptionLayer.translateError(
           resolutionResult.error,
-          'package-ecosystem'
+          'package-ecosystem',
         );
         expect(translatedError).toBeInstanceOf(PackageValidationError);
         expect(translatedError.message).toContain('Package Ecosystem:');
@@ -279,7 +287,7 @@ describe('Error Propagation and Domain Boundary Tests', () => {
       const dummyConflict = {} as any; // Simplified for error testing
       const resolutionResult =
         await synchronizationServices.conflictResolution.resolveConflictAutomatically(
-          dummyConflict
+          dummyConflict,
         );
 
       // Assert - Error should be contained within synchronization context
@@ -289,7 +297,7 @@ describe('Error Propagation and Domain Boundary Tests', () => {
 
         // Other contexts should remain unaffected
         const coreStatementResult = coreServices.statementFlow.createStatementFromContent(
-          'Unaffected by sync error'
+          'Unaffected by sync error',
         );
         expect(coreStatementResult.isOk()).toBe(true);
 
@@ -297,7 +305,7 @@ describe('Error Propagation and Domain Boundary Tests', () => {
           'Unaffected statement',
           SourceLocation.createDefault(),
           languageIntelligenceServices.testPackage,
-          ValidationLevel.syntax()
+          ValidationLevel.syntax(),
         );
         expect(validationResult.isOk()).toBe(true);
       }
@@ -309,17 +317,17 @@ describe('Error Propagation and Domain Boundary Tests', () => {
   describe('Domain Boundary Enforcement', () => {
     it('should enforce data type boundaries between contexts', () => {
       // Arrange - Create data from different contexts
-      const statement = CoreDomainFactory.createStatement('Test statement');
-      const validationResult = LanguageIntelligenceFactory.createValidationResult(true);
+      const statement = createStatement('Test statement');
+      const validationResult = createValidationResult(true);
       const package_ = PackageEcosystemFactory.createPackage();
       const operation = SynchronizationFactory.createOperation(
         SynchronizationFactory.createDevice(),
-        [SynchronizationFactory.createDevice()]
+        [SynchronizationFactory.createDevice()],
       );
 
       // Act & Assert - Validate cross-context data transfer
       expect(AntiCorruptionLayer.validateDataTransfer(validationResult, 'validation-result')).toBe(
-        true
+        true,
       );
       expect(AntiCorruptionLayer.validateDataTransfer(package_, 'package')).toBe(true);
       expect(AntiCorruptionLayer.validateDataTransfer(operation, 'operation')).toBe(true);
@@ -355,7 +363,7 @@ describe('Error Propagation and Domain Boundary Tests', () => {
           validStatement.value.getContent(),
           SourceLocation.createDefault(),
           languageIntelligenceServices.testPackage,
-          ValidationLevel.syntax()
+          ValidationLevel.syntax(),
         );
         expect(validation.isOk()).toBe(true);
       }
@@ -366,7 +374,7 @@ describe('Error Propagation and Domain Boundary Tests', () => {
       const operationTypes = ['validation', 'package-resolution', 'conflict-resolution'];
 
       // Act & Assert - Test resource limits
-      operationTypes.forEach(opType => {
+      operationTypes.forEach((opType) => {
         // Within limits should pass
         expect(AntiCorruptionLayer.enforceResourceLimits(opType, 10)).toBe(true);
 
@@ -396,7 +404,7 @@ describe('Error Propagation and Domain Boundary Tests', () => {
 
       // Act - Core domain should still function
       const statement = coreServices.statementFlow.createStatementFromContent(
-        'Statement without validation'
+        'Statement without validation',
       );
 
       // Assert - Core functionality preserved
@@ -414,7 +422,7 @@ describe('Error Propagation and Domain Boundary Tests', () => {
             statement.value.getContent(),
             SourceLocation.createDefault(),
             languageIntelligenceServices.testPackage,
-            ValidationLevel.syntax()
+            ValidationLevel.syntax(),
           );
           expect.fail('Should have thrown an error');
         } catch (error) {
@@ -430,7 +438,7 @@ describe('Error Propagation and Domain Boundary Tests', () => {
       // Arrange - Mock all package services to fail
       const mockPackageDiscovery = vi
         .spyOn(packageEcosystemServices.packageDiscovery, 'findPackageById')
-        .mockResolvedValue(err(new PackageSourceUnavailableError('Package service unavailable')));
+        .mockResolvedValue(err(new PackageNotFoundError('Package service unavailable')));
 
       // Act - Other contexts should continue functioning
       const statement =
@@ -442,7 +450,7 @@ describe('Error Propagation and Domain Boundary Tests', () => {
           statement.value.getContent(),
           SourceLocation.createDefault(),
           languageIntelligenceServices.testPackage,
-          ValidationLevel.syntax()
+          ValidationLevel.syntax(),
         );
         expect(validation.isOk()).toBe(true);
       }
@@ -455,7 +463,7 @@ describe('Error Propagation and Domain Boundary Tests', () => {
         await packageEcosystemServices.packageDiscovery.findPackageById(packageId);
       expect(discoveryResult.isErr()).toBe(true);
       if (discoveryResult.isErr()) {
-        expect(discoveryResult.error).toBeInstanceOf(PackageSourceUnavailableError);
+        expect(discoveryResult.error).toBeInstanceOf(PackageNotFoundError);
       }
 
       mockPackageDiscovery.mockRestore();
@@ -464,7 +472,7 @@ describe('Error Propagation and Domain Boundary Tests', () => {
     it('should maintain system stability during synchronization failures', async () => {
       // Arrange - Mock operation coordination to fail
       const mockCoordination = vi
-        .spyOn(synchronizationServices.operationCoordination, 'coordinateOperation')
+        .spyOn(synchronizationServices.operationCoordination, 'applyOperation')
         .mockResolvedValue(err(new Error('Coordination service down')));
 
       // Act - Other services should remain operational
@@ -477,14 +485,14 @@ describe('Error Propagation and Domain Boundary Tests', () => {
           statement.value.getContent(),
           SourceLocation.createDefault(),
           languageIntelligenceServices.testPackage,
-          ValidationLevel.syntax()
+          ValidationLevel.syntax(),
         );
         expect(validation.isOk()).toBe(true);
 
         // Package validation should work
         const testPackage = PackageEcosystemFactory.createPackage();
         const packageValidation =
-          packageEcosystemServices.packageValidation.validatePackageStructure(testPackage);
+          await packageEcosystemServices.packageValidation.validatePackage(testPackage);
         expect(packageValidation.isOk()).toBe(true);
       }
 
@@ -493,11 +501,10 @@ describe('Error Propagation and Domain Boundary Tests', () => {
       const operation = SynchronizationFactory.createOperation(device, [device]);
       const syncState = { value: {} } as any; // Simplified for testing
 
-      const coordinationResult =
-        await synchronizationServices.operationCoordination.coordinateOperation(
-          operation,
-          syncState.value
-        );
+      const coordinationResult = await synchronizationServices.operationCoordination.applyOperation(
+        operation,
+        syncState.value,
+      );
       expect(coordinationResult.isErr()).toBe(true);
 
       mockCoordination.mockRestore();
@@ -526,7 +533,7 @@ describe('Error Propagation and Domain Boundary Tests', () => {
 
       if (statement.isOk()) {
         // Simulate retry logic
-        let validationResult;
+        let validationResult: any;
         let attempts = 0;
         const maxAttempts = 3;
 
@@ -537,7 +544,7 @@ describe('Error Propagation and Domain Boundary Tests', () => {
               statement.value.getContent(),
               SourceLocation.createDefault(),
               languageIntelligenceServices.testPackage,
-              ValidationLevel.syntax()
+              ValidationLevel.syntax(),
             );
             break; // Success
           } catch (error) {
@@ -564,7 +571,7 @@ describe('Error Propagation and Domain Boundary Tests', () => {
 
       const mockDiscovery = vi
         .spyOn(packageEcosystemServices.packageDiscovery, 'findPackageById')
-        .mockImplementation(() => {
+        .mockImplementation(async () => {
           failureCount++;
           if (failureCount <= 1) {
             return Promise.resolve(err(new PackageNotFoundError('Primary package not found')));
@@ -576,13 +583,13 @@ describe('Error Propagation and Domain Boundary Tests', () => {
       // Act - Implement compensation logic
       const primaryPackage = PackageEcosystemFactory.createPackage('primary-package');
       let discoveryResult = await packageEcosystemServices.packageDiscovery.findPackageById(
-        primaryPackage.getId()
+        primaryPackage.getId(),
       );
 
       if (discoveryResult.isErr()) {
         // Compensation: try fallback package
         discoveryResult = await packageEcosystemServices.packageDiscovery.findPackageById(
-          fallbackPackage.getId()
+          fallbackPackage.getId(),
         );
       }
 
@@ -602,7 +609,7 @@ describe('Error Propagation and Domain Boundary Tests', () => {
         packageDiscovery: vi.spyOn(packageEcosystemServices.packageDiscovery, 'findPackageById'),
         conflictResolution: vi.spyOn(
           synchronizationServices.conflictResolution,
-          'resolveConflictAutomatically'
+          'resolveConflictAutomatically',
         ),
       };
 
@@ -611,7 +618,7 @@ describe('Error Propagation and Domain Boundary Tests', () => {
         throw new Error('Validation service down');
       });
       mockServices.packageDiscovery.mockResolvedValue(
-        err(new PackageSourceUnavailableError('Package service down'))
+        err(new PackageNotFoundError('Package service down')),
       );
       mockServices.conflictResolution.mockResolvedValue(err(new Error('Conflict service down')));
 
@@ -626,7 +633,7 @@ describe('Error Propagation and Domain Boundary Tests', () => {
       expect(statement.isOk()).toBe(true);
 
       // After recovery delay
-      await new Promise(resolve => setTimeout(resolve, 20));
+      await new Promise((resolve) => setTimeout(resolve, 20));
 
       if (statement.isOk()) {
         // Validation should work after recovery
@@ -634,14 +641,14 @@ describe('Error Propagation and Domain Boundary Tests', () => {
           statement.value.getContent(),
           SourceLocation.createDefault(),
           languageIntelligenceServices.testPackage,
-          ValidationLevel.syntax()
+          ValidationLevel.syntax(),
         );
         expect(validation.isOk()).toBe(true);
 
         // Package service should still be down
         const testPackage = PackageEcosystemFactory.createPackage();
         const packageResult = await packageEcosystemServices.packageDiscovery.findPackageById(
-          testPackage.getId()
+          testPackage.getId(),
         );
         expect(packageResult.isErr()).toBe(true);
 
@@ -649,13 +656,15 @@ describe('Error Propagation and Domain Boundary Tests', () => {
         const dummyConflict = {} as any;
         const conflictResult =
           await synchronizationServices.conflictResolution.resolveConflictAutomatically(
-            dummyConflict
+            dummyConflict,
           );
         expect(conflictResult.isErr()).toBe(true);
       }
 
       // Cleanup
-      Object.values(mockServices).forEach(mock => mock.mockRestore());
+      Object.values(mockServices).forEach((mock) => {
+        mock.mockRestore();
+      });
     });
   });
 
@@ -670,7 +679,7 @@ describe('Error Propagation and Domain Boundary Tests', () => {
 
       const mockPackageDiscovery = vi
         .spyOn(packageEcosystemServices.packageDiscovery, 'findPackageById')
-        .mockResolvedValue(err(new Error('All external services down')));
+        .mockResolvedValue(err(new PackageNotFoundError('All external services down')));
 
       const mockConflictResolution = vi
         .spyOn(synchronizationServices.conflictResolution, 'resolveConflictAutomatically')
@@ -699,7 +708,7 @@ describe('Error Propagation and Domain Boundary Tests', () => {
           if (conclusionSet.isOk()) {
             const atomicArgument = coreServices.statementFlow.createAtomicArgumentWithSets(
               orderedSet.value,
-              conclusionSet.value
+              conclusionSet.value,
             );
             expect(atomicArgument.isOk()).toBe(true);
           }
@@ -712,10 +721,10 @@ describe('Error Propagation and Domain Boundary Tests', () => {
       mockConflictResolution.mockRestore();
     });
 
-    it('should isolate context-specific data during failures', () => {
+    it('should isolate context-specific data during failures', async () => {
       // Arrange - Create data in each context
-      const coreStatement = CoreDomainFactory.createStatement('Core context data');
-      const languagePackage = LanguageIntelligenceFactory.createLanguagePackage('Test Package');
+      const coreStatement = createStatement('Core context data');
+      const languagePackage = createLanguagePackage('Test Package');
       const ecosystemPackage = PackageEcosystemFactory.createPackage('Ecosystem Package');
       const syncDevice = SynchronizationFactory.createDevice('Sync Device');
 
@@ -738,7 +747,7 @@ describe('Error Propagation and Domain Boundary Tests', () => {
           'test',
           SourceLocation.createDefault(),
           languagePackage,
-          ValidationLevel.syntax()
+          ValidationLevel.syntax(),
         );
         expect.fail('Should have thrown an error');
       } catch (error) {
@@ -750,7 +759,7 @@ describe('Error Propagation and Domain Boundary Tests', () => {
       expect(newStatement.isOk()).toBe(true);
 
       const packageValidation =
-        packageEcosystemServices.packageValidation.validatePackageStructure(ecosystemPackage);
+        await packageEcosystemServices.packageValidation.validatePackage(ecosystemPackage);
       expect(packageValidation.isOk()).toBe(true);
 
       mockValidation.mockRestore();

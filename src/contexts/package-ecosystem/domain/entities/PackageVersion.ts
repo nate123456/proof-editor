@@ -1,8 +1,8 @@
 import { err, ok, type Result } from 'neverthrow';
 
 import { InvalidPackageVersionError } from '../types/domain-errors.js';
-import { type PackageId } from '../value-objects/package-id.js';
-import { type PackageSource } from '../value-objects/package-source.js';
+import type { PackageId } from '../value-objects/package-id.js';
+import type { PackageSource } from '../value-objects/package-source.js';
 import { VersionConstraint } from '../value-objects/version-constraint.js';
 
 export type VersionStatus = 'available' | 'deprecated' | 'removed' | 'prerelease' | 'stable';
@@ -31,8 +31,8 @@ export class PackageVersion {
     if (versionConstraintResult.isErr()) {
       return err(
         new InvalidPackageVersionError(
-          `Invalid version format: ${versionConstraintResult.error.message}`
-        )
+          `Invalid version format: ${versionConstraintResult.error.message}`,
+        ),
       );
     }
 
@@ -51,9 +51,9 @@ export class PackageVersion {
     packageId: PackageId,
     version: string,
     source: PackageSource,
-    publishedAt?: Date
+    publishedAt?: Date,
   ): Result<PackageVersion, InvalidPackageVersionError> {
-    const status = this.determineVersionStatus(version);
+    const status = PackageVersion.determineVersionStatus(version);
 
     const data: PackageVersionData = {
       packageId,
@@ -148,7 +148,7 @@ export class PackageVersion {
 
   withStatus(
     status: VersionStatus,
-    deprecationReason?: string
+    deprecationReason?: string,
   ): Result<PackageVersion, InvalidPackageVersionError> {
     if (status === 'deprecated' && !deprecationReason) {
       return err(new InvalidPackageVersionError('Deprecated status requires deprecation reason'));
@@ -176,7 +176,7 @@ export class PackageVersion {
   withBreakingChanges(changes: string[]): Result<PackageVersion, InvalidPackageVersionError> {
     const updatedData = {
       ...this.data,
-      breakingChanges: changes.filter(change => change.trim()),
+      breakingChanges: changes.filter((change) => change.trim()),
     };
 
     return PackageVersion.create(updatedData);
@@ -213,14 +213,14 @@ export class PackageVersion {
 
   private compareVersionStrings(a: string, b: string): number {
     const parseVersion = (version: string) => {
-      const match = version.match(/^(\d+)\.(\d+)\.(\d+)(?:-(.+))?/);
+      const match = /^(\d+)\.(\d+)\.(\d+)(?:-([a-zA-Z0-9.-]+))?/.exec(version);
       if (!match?.[1] || !match[2] || !match[3]) {
         throw new Error(`Invalid version format: ${version}`);
       }
       return {
-        major: parseInt(match[1], 10),
-        minor: parseInt(match[2], 10),
-        patch: parseInt(match[3], 10),
+        major: Number.parseInt(match[1], 10),
+        minor: Number.parseInt(match[2], 10),
+        patch: Number.parseInt(match[3], 10),
         prerelease: match[4],
       };
     };

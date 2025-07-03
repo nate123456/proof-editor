@@ -7,7 +7,7 @@ import { RuleMetadata } from '../value-objects/RuleMetadata';
 import { RuleName } from '../value-objects/RuleName';
 import { RulePattern } from '../value-objects/RulePattern';
 import { Timestamp } from '../value-objects/Timestamp';
-import { type PatternInstance } from './AnalysisReport';
+import type { PatternInstance } from './AnalysisReport';
 
 export class InferenceRule {
   private constructor(
@@ -22,7 +22,7 @@ export class InferenceRule {
     private usageCount: number,
     private readonly examples: RuleExample[],
     private readonly prerequisites: InferenceRuleId[],
-    private readonly conflicts: InferenceRuleId[]
+    private readonly conflicts: InferenceRuleId[],
   ) {}
 
   static create(
@@ -32,7 +32,7 @@ export class InferenceRule {
     languagePackageId: string,
     examples: RuleExample[] = [],
     prerequisites: InferenceRuleId[] = [],
-    metadata?: RuleMetadata
+    metadata?: RuleMetadata,
   ): Result<InferenceRule, ValidationError> {
     const nameResult = RuleName.create(name);
     if (nameResult.isErr()) return err(nameResult.error);
@@ -57,8 +57,8 @@ export class InferenceRule {
         0,
         examples,
         prerequisites,
-        []
-      )
+        [],
+      ),
     );
   }
 
@@ -85,7 +85,7 @@ export class InferenceRule {
       'If P implies Q and P is true, then Q is true',
       pattern.value,
       languagePackageId,
-      examples
+      examples,
     );
   }
 
@@ -107,7 +107,7 @@ export class InferenceRule {
       'If P implies Q and Q is false, then P is false',
       pattern.value,
       languagePackageId,
-      examples
+      examples,
     );
   }
 
@@ -176,7 +176,7 @@ export class InferenceRule {
       return err(new ValidationError('Rule cannot conflict with itself'));
     }
 
-    if (this.conflicts.some(id => id.equals(ruleId))) {
+    if (this.conflicts.some((id) => id.equals(ruleId))) {
       return err(new ValidationError('Conflict already exists'));
     }
 
@@ -185,7 +185,7 @@ export class InferenceRule {
   }
 
   removeConflict(ruleId: InferenceRuleId): Result<void, ValidationError> {
-    const index = this.conflicts.findIndex(id => id.equals(ruleId));
+    const index = this.conflicts.findIndex((id) => id.equals(ruleId));
     if (index === -1) {
       return err(new ValidationError('Conflict not found'));
     }
@@ -195,28 +195,28 @@ export class InferenceRule {
   }
 
   hasPrerequisite(ruleId: InferenceRuleId): boolean {
-    return this.prerequisites.some(id => id.equals(ruleId));
+    return this.prerequisites.some((id) => id.equals(ruleId));
   }
 
   conflictsWith(ruleId: InferenceRuleId): boolean {
-    return this.conflicts.some(id => id.equals(ruleId));
+    return this.conflicts.some((id) => id.equals(ruleId));
   }
 
   canBeAppliedWith(rules: InferenceRule[]): boolean {
     if (!this.isActive) return false;
 
-    const activeRuleIds = rules.filter(r => r.isActive).map(r => r.getId());
+    const activeRuleIds = rules.filter((r) => r.isActive).map((r) => r.getId());
 
     // Check if any conflicts are active
-    const hasActiveConflicts = this.conflicts.some(conflictId =>
-      activeRuleIds.some(activeId => activeId.equals(conflictId))
+    const hasActiveConflicts = this.conflicts.some((conflictId) =>
+      activeRuleIds.some((activeId) => activeId.equals(conflictId)),
     );
 
     if (hasActiveConflicts) return false;
 
     // Check if all prerequisites are met
-    const prerequisitesMet = this.prerequisites.every(prereqId =>
-      activeRuleIds.some(activeId => activeId.equals(prereqId))
+    const prerequisitesMet = this.prerequisites.every((prereqId) =>
+      activeRuleIds.some((activeId) => activeId.equals(prereqId)),
     );
 
     return prerequisitesMet;
@@ -267,7 +267,11 @@ export class InferenceRule {
     return patterns;
   }
 
-  detectModalPatterns(statement: string, allStatements: string[], index: number): LogicalPattern[] {
+  detectModalPatterns(
+    statement: string,
+    _allStatements: string[],
+    index: number,
+  ): LogicalPattern[] {
     const patterns: LogicalPattern[] = [];
 
     // Necessity distribution: □(P ∧ Q) ↔ (□P ∧ □Q)
@@ -311,10 +315,10 @@ export class InferenceRule {
     for (const statement of statements) {
       if (/[∀∃]/.test(statement)) features.hasQuantifiers = true;
       if (/[□◇]/.test(statement)) features.hasModalOperators = true;
-      if (/¬/.test(statement)) features.hasNegations = true;
-      if (/→/.test(statement)) features.hasImplications = true;
-      if (/∧/.test(statement)) features.hasConjunctions = true;
-      if (/∨/.test(statement)) features.hasDisjunctions = true;
+      if (statement.includes('¬')) features.hasNegations = true;
+      if (statement.includes('→')) features.hasImplications = true;
+      if (statement.includes('∧')) features.hasConjunctions = true;
+      if (statement.includes('∨')) features.hasDisjunctions = true;
 
       features.logicalComplexity += this.calculateStatementComplexity(statement);
     }
@@ -327,10 +331,10 @@ export class InferenceRule {
   private detectModusPonens(
     statement: string,
     allStatements: string[],
-    index: number
+    index: number,
   ): LogicalPattern | null {
     const implicationPattern = /(.+)\s*→\s*(.+)/;
-    const match = statement.match(implicationPattern);
+    const match = implicationPattern.exec(statement);
 
     if (match?.[1] && match[2]) {
       const antecedent = match[1]?.trim() ?? '';
@@ -356,10 +360,10 @@ export class InferenceRule {
   private detectModusTollens(
     statement: string,
     allStatements: string[],
-    index: number
+    index: number,
   ): LogicalPattern | null {
     const negationPattern = /¬(.+)/;
-    const match = statement.match(negationPattern);
+    const match = negationPattern.exec(statement);
 
     if (match?.[1]) {
       const negatedFormula = match[1]?.trim() ?? '';
@@ -388,10 +392,10 @@ export class InferenceRule {
   private detectHypotheticalSyllogism(
     statement: string,
     allStatements: string[],
-    index: number
+    index: number,
   ): LogicalPattern | null {
     const implicationPattern = /(.+)\s*→\s*(.+)/;
-    const match = statement.match(implicationPattern);
+    const match = implicationPattern.exec(statement);
 
     if (match?.[1] && match[2]) {
       const finalAntecedent = match[1]?.trim() ?? '';

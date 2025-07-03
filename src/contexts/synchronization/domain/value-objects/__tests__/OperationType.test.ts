@@ -349,8 +349,11 @@ describe('OperationType', () => {
 
       for (let i = 0; i < semanticTypes.length; i++) {
         for (let j = i + 1; j < semanticTypes.length; j++) {
-          const type1Result = OperationType.create(semanticTypes[i]!);
-          const type2Result = OperationType.create(semanticTypes[j]!);
+          const type1 = semanticTypes[i];
+          const type2 = semanticTypes[j];
+          if (!type1 || !type2) continue;
+          const type1Result = OperationType.create(type1);
+          const type2Result = OperationType.create(type2);
 
           expect(type1Result.isOk()).toBe(true);
           expect(type2Result.isOk()).toBe(true);

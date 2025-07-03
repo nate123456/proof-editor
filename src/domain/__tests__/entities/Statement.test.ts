@@ -21,13 +21,13 @@ import { StatementId } from '../../shared/value-objects.js';
 // Property-based test generators for Statement domain
 const validContentArbitrary = fc
   .string({ minLength: 1, maxLength: 1000 })
-  .filter(s => s.trim().length > 0);
+  .filter((s) => s.trim().length > 0);
 
 const invalidContentArbitrary = fc.oneof(
   fc.constant(''),
   fc.constant('   '),
   fc.constant('\t\n\r'),
-  fc.string({ minLength: 10001, maxLength: 15000 }) // Add reasonable upper bound
+  fc.string({ minLength: 10001, maxLength: 15000 }), // Add reasonable upper bound
 );
 
 const usageCountArbitrary = fc.nat({ max: 1000 });
@@ -37,7 +37,9 @@ describe('Statement Entity', () => {
   const FIXED_TIMESTAMP = 1640995200000; // 2022-01-01T00:00:00.000Z
 
   beforeEach(() => {
-    mockDateNow = vi.spyOn(Date, 'now').mockReturnValue(FIXED_TIMESTAMP);
+    mockDateNow = vi.spyOn(Date, 'now').mockReturnValue(FIXED_TIMESTAMP) as ReturnType<
+      typeof vi.fn
+    >;
   });
 
   afterEach(() => {
@@ -48,7 +50,7 @@ describe('Statement Entity', () => {
     describe('valid creation cases', () => {
       it('should create valid statements from non-empty content', () => {
         fc.assert(
-          fc.property(validContentArbitrary, content => {
+          fc.property(validContentArbitrary, (content) => {
             const result = Statement.create(content);
             expect(result.isOk()).toBe(true);
 
@@ -61,7 +63,7 @@ describe('Statement Entity', () => {
               expect(statement.getUsageCount()).toBe(0);
               expect(statement.getId()).toBeInstanceOf(StatementId);
             }
-          })
+          }),
         );
       });
 
@@ -112,7 +114,7 @@ describe('Statement Entity', () => {
     describe('invalid creation cases', () => {
       it('should reject empty and whitespace-only content', () => {
         fc.assert(
-          fc.property(invalidContentArbitrary, invalidContent => {
+          fc.property(invalidContentArbitrary, (invalidContent) => {
             const result = Statement.create(invalidContent);
             expect(result.isErr()).toBe(true);
 
@@ -120,7 +122,7 @@ describe('Statement Entity', () => {
               expect(result.error).toBeInstanceOf(ValidationError);
               expect(result.error.message).toMatch(/cannot be empty|cannot exceed/i);
             }
-          })
+          }),
         );
       });
 
@@ -201,8 +203,8 @@ describe('Statement Entity', () => {
                 expect(statement.getModifiedAt()).toBe(modifiedAt);
                 expect(statement.getUsageCount()).toBe(usageCount);
               }
-            }
-          )
+            },
+          ),
         );
       });
     });
@@ -400,7 +402,7 @@ describe('Statement Entity', () => {
 
       it('should maintain word count consistency', () => {
         fc.assert(
-          fc.property(validContentArbitrary, content => {
+          fc.property(validContentArbitrary, (content) => {
             const result = Statement.create(content);
             expect(result.isOk()).toBe(true);
 
@@ -412,7 +414,7 @@ describe('Statement Entity', () => {
               expect(wordCount).toBe(contentObj.wordCount);
               expect(wordCount).toBeGreaterThanOrEqual(1);
             }
-          })
+          }),
         );
       });
     });
@@ -488,7 +490,7 @@ describe('Statement Entity', () => {
           if (decrementResult.isErr()) {
             expect(decrementResult.error).toBeInstanceOf(ValidationError);
             expect(decrementResult.error.message).toContain(
-              'Cannot decrement usage count below zero'
+              'Cannot decrement usage count below zero',
             );
           }
 
@@ -540,7 +542,7 @@ describe('Statement Entity', () => {
 
       it('should maintain reference consistency', () => {
         fc.assert(
-          fc.property(usageCountArbitrary, initialCount => {
+          fc.property(usageCountArbitrary, (initialCount) => {
             const result = Statement.create('Test statement');
             expect(result.isOk()).toBe(true);
 
@@ -556,7 +558,7 @@ describe('Statement Entity', () => {
               expect(statement.isReferencedInOrderedSets()).toBe(expectedReferenced);
               expect(statement.getUsageCount()).toBe(initialCount);
             }
-          })
+          }),
         );
       });
     });
@@ -679,7 +681,7 @@ describe('Statement Entity', () => {
           'Unicode content: 🌟 αβγ',
         ];
 
-        testCases.forEach(content => {
+        testCases.forEach((content) => {
           const result = Statement.create(content);
           expect(result.isOk()).toBe(true);
 
@@ -691,7 +693,7 @@ describe('Statement Entity', () => {
 
       it('should maintain consistency between toString and getContent', () => {
         fc.assert(
-          fc.property(validContentArbitrary, content => {
+          fc.property(validContentArbitrary, (content) => {
             const result = Statement.create(content);
             expect(result.isOk()).toBe(true);
 
@@ -699,7 +701,7 @@ describe('Statement Entity', () => {
               const statement = result.value;
               expect(statement.toString()).toBe(statement.getContent());
             }
-          })
+          }),
         );
       });
     });
@@ -806,7 +808,7 @@ describe('Statement Entity', () => {
           content,
           FIXED_TIMESTAMP,
           FIXED_TIMESTAMP,
-          maxCount
+          maxCount,
         );
 
         expect(result.isOk()).toBe(true);
@@ -826,7 +828,7 @@ describe('Statement Entity', () => {
           validContentArbitrary,
           fc.array(
             fc.oneof(fc.constant('increment'), fc.constant('update'), fc.constant('decrement')),
-            { maxLength: 10 }
+            { maxLength: 10 },
           ),
           (initialContent, operations) => {
             const result = Statement.create(initialContent);
@@ -865,8 +867,8 @@ describe('Statement Entity', () => {
               expect(statement.hasContent()).toBe(true);
               expect(statement.getWordCount()).toBeGreaterThan(0);
             }
-          }
-        )
+          },
+        ),
       );
     });
 
@@ -893,8 +895,8 @@ describe('Statement Entity', () => {
               expect(statement.toString()).toBe(expectedContent);
               expect(statement.hasContent()).toBe(true);
             }
-          }
-        )
+          },
+        ),
       );
     });
   });

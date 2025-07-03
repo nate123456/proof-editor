@@ -3,7 +3,19 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { SourceLocation } from '../../../../../domain/shared/index.js';
 import { ValidationError } from '../../errors/DomainErrors.js';
 import { ValidationLevel } from '../ValidationLevel.js';
-import { ValidationRequest, ValidationRequestMetadataFactory } from '../ValidationRequest.js';
+import {
+  createAPIValidationRequestMetadata,
+  createDefaultValidationRequestMetadata,
+  createLSPValidationRequestMetadata,
+  ValidationRequest,
+} from '../ValidationRequest.js';
+
+// Test factory object to wrap existing factory functions
+const ValidationRequestMetadataFactory = {
+  createDefault: createDefaultValidationRequestMetadata,
+  createForLSP: createLSPValidationRequestMetadata,
+  createForAPI: createAPIValidationRequestMetadata,
+};
 
 describe('ValidationRequest', () => {
   const validStatementText = 'P → Q';
@@ -19,7 +31,7 @@ describe('ValidationRequest', () => {
         validLocation,
         validLevel,
         validDocumentId,
-        validLanguagePackageId
+        validLanguagePackageId,
       );
 
       expect(result.isOk()).toBe(true);
@@ -39,7 +51,7 @@ describe('ValidationRequest', () => {
         validLocation,
         validLevel,
         validDocumentId,
-        validLanguagePackageId
+        validLanguagePackageId,
       );
 
       expect(result.isOk()).toBe(true);
@@ -54,7 +66,7 @@ describe('ValidationRequest', () => {
         validLocation,
         validLevel,
         '  doc-123  ',
-        validLanguagePackageId
+        validLanguagePackageId,
       );
 
       expect(result.isOk()).toBe(true);
@@ -69,7 +81,7 @@ describe('ValidationRequest', () => {
         validLocation,
         validLevel,
         validDocumentId,
-        '  lang-123  '
+        '  lang-123  ',
       );
 
       expect(result.isOk()).toBe(true);
@@ -84,7 +96,7 @@ describe('ValidationRequest', () => {
         validLocation,
         validLevel,
         validDocumentId,
-        validLanguagePackageId
+        validLanguagePackageId,
       );
 
       expect(result.isErr()).toBe(true);
@@ -100,7 +112,7 @@ describe('ValidationRequest', () => {
         validLocation,
         validLevel,
         validDocumentId,
-        validLanguagePackageId
+        validLanguagePackageId,
       );
 
       expect(result.isErr()).toBe(true);
@@ -115,7 +127,7 @@ describe('ValidationRequest', () => {
         validLocation,
         validLevel,
         '',
-        validLanguagePackageId
+        validLanguagePackageId,
       );
 
       expect(result.isErr()).toBe(true);
@@ -130,7 +142,7 @@ describe('ValidationRequest', () => {
         validLocation,
         validLevel,
         '   ',
-        validLanguagePackageId
+        validLanguagePackageId,
       );
 
       expect(result.isErr()).toBe(true);
@@ -145,7 +157,7 @@ describe('ValidationRequest', () => {
         validLocation,
         validLevel,
         validDocumentId,
-        ''
+        '',
       );
 
       expect(result.isErr()).toBe(true);
@@ -160,7 +172,7 @@ describe('ValidationRequest', () => {
         validLocation,
         validLevel,
         validDocumentId,
-        '   '
+        '   ',
       );
 
       expect(result.isErr()).toBe(true);
@@ -182,7 +194,7 @@ describe('ValidationRequest', () => {
         validLevel,
         validDocumentId,
         validLanguagePackageId,
-        customMetadata
+        customMetadata,
       );
 
       expect(result.isOk()).toBe(true);
@@ -204,7 +216,7 @@ describe('ValidationRequest', () => {
         validConclusions,
         validLevel,
         validDocumentId,
-        validLanguagePackageId
+        validLanguagePackageId,
       );
 
       expect(result.isOk()).toBe(true);
@@ -223,7 +235,7 @@ describe('ValidationRequest', () => {
         validConclusions,
         validLevel,
         validDocumentId,
-        validLanguagePackageId
+        validLanguagePackageId,
       );
 
       expect(result.isErr()).toBe(true);
@@ -238,7 +250,7 @@ describe('ValidationRequest', () => {
         [],
         validLevel,
         validDocumentId,
-        validLanguagePackageId
+        validLanguagePackageId,
       );
 
       expect(result.isErr()).toBe(true);
@@ -256,7 +268,7 @@ describe('ValidationRequest', () => {
         conclusions,
         validLevel,
         validDocumentId,
-        validLanguagePackageId
+        validLanguagePackageId,
       );
 
       expect(result.isOk()).toBe(true);
@@ -278,7 +290,7 @@ describe('ValidationRequest', () => {
         validLocation,
         validLevel,
         validDocumentId,
-        validLanguagePackageId
+        validLanguagePackageId,
       );
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
@@ -324,7 +336,7 @@ describe('ValidationRequest', () => {
         validLocation,
         validLevel,
         validDocumentId,
-        validLanguagePackageId
+        validLanguagePackageId,
       );
 
       expect(result.isOk()).toBe(true);
@@ -342,7 +354,7 @@ describe('ValidationRequest', () => {
         ['Q'],
         validLevel,
         validDocumentId,
-        validLanguagePackageId
+        validLanguagePackageId,
       );
 
       expect(result.isOk()).toBe(true);
@@ -362,7 +374,7 @@ describe('ValidationRequest', () => {
         validLocation,
         validLevel,
         validDocumentId,
-        validLanguagePackageId
+        validLanguagePackageId,
       );
 
       expect(result.isOk()).toBe(true);
@@ -387,7 +399,7 @@ describe('ValidationRequest', () => {
         validLevel,
         validDocumentId,
         validLanguagePackageId,
-        customMetadata
+        customMetadata,
       );
 
       expect(result.isOk()).toBe(true);
@@ -406,7 +418,7 @@ describe('ValidationRequest', () => {
         validLocation,
         validLevel,
         validDocumentId,
-        validLanguagePackageId
+        validLanguagePackageId,
       );
 
       expect(result.isOk()).toBe(true);
@@ -421,7 +433,7 @@ describe('ValidationRequest', () => {
         validLocation,
         validLevel,
         validDocumentId,
-        validLanguagePackageId
+        validLanguagePackageId,
       );
 
       expect(result.isOk()).toBe(true);
@@ -437,7 +449,7 @@ describe('ValidationRequest', () => {
         validLocation,
         validLevel,
         validDocumentId,
-        validLanguagePackageId
+        validLanguagePackageId,
       );
 
       expect(result.isOk()).toBe(true);
@@ -455,7 +467,7 @@ describe('ValidationRequest', () => {
         validLocation,
         validLevel,
         validDocumentId,
-        validLanguagePackageId
+        validLanguagePackageId,
       );
 
       expect(originalResult.isOk()).toBe(true);
@@ -478,7 +490,7 @@ describe('ValidationRequest', () => {
         validLocation,
         validLevel,
         validDocumentId,
-        validLanguagePackageId
+        validLanguagePackageId,
       );
 
       expect(originalResult.isOk()).toBe(true);
@@ -504,14 +516,14 @@ describe('ValidationRequest', () => {
         validLocation,
         validLevel,
         validDocumentId,
-        validLanguagePackageId
+        validLanguagePackageId,
       );
       const result2 = ValidationRequest.create(
         validStatementText,
         validLocation,
         validLevel,
         validDocumentId,
-        validLanguagePackageId
+        validLanguagePackageId,
       );
 
       expect(result1.isOk()).toBe(true);
@@ -527,14 +539,14 @@ describe('ValidationRequest', () => {
         validLocation,
         validLevel,
         validDocumentId,
-        validLanguagePackageId
+        validLanguagePackageId,
       );
       const result2 = ValidationRequest.create(
         'Q',
         validLocation,
         validLevel,
         validDocumentId,
-        validLanguagePackageId
+        validLanguagePackageId,
       );
 
       expect(result1.isOk()).toBe(true);
@@ -550,14 +562,14 @@ describe('ValidationRequest', () => {
         validLocation,
         validLevel,
         'doc-1',
-        validLanguagePackageId
+        validLanguagePackageId,
       );
       const result2 = ValidationRequest.create(
         validStatementText,
         validLocation,
         validLevel,
         'doc-2',
-        validLanguagePackageId
+        validLanguagePackageId,
       );
 
       expect(result1.isOk()).toBe(true);

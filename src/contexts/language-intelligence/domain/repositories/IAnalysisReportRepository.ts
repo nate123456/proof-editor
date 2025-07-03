@@ -1,8 +1,8 @@
-import { type Result } from 'neverthrow';
+import type { Result } from 'neverthrow';
 
-import { type AnalysisReport } from '../entities/AnalysisReport';
-import { type RepositoryError } from '../errors/DomainErrors';
-import { type AnalysisReportId } from '../value-objects/AnalysisReportId';
+import type { AnalysisReport } from '../entities/AnalysisReport';
+import type { RepositoryError } from '../errors/DomainErrors';
+import type { AnalysisReportId } from '../value-objects/AnalysisReportId';
 
 export interface IAnalysisReportRepository {
   save(report: AnalysisReport): Promise<Result<void, RepositoryError>>;

@@ -1,21 +1,21 @@
 import { err, ok, type Result } from 'neverthrow';
 
 import { PackageValidationError } from '../types/domain-errors.js';
-import { type PackageId } from './package-id.js';
-import { type PackageVersion } from './PackageVersion.js';
+import type { PackageVersion } from './PackageVersion.js';
+import type { PackageId } from './package-id.js';
 
 export class InstallationPath {
   private constructor(
     private readonly absolutePath: string,
     private readonly packageId: PackageId | null,
     private readonly version: PackageVersion | null,
-    private readonly installationType: 'user' | 'global' | 'local'
+    private readonly installationType: 'user' | 'global' | 'local',
   ) {}
 
   static createForUserInstall(
     packageId: PackageId,
     version: PackageVersion,
-    baseUserPath: string
+    baseUserPath: string,
   ): Result<InstallationPath, PackageValidationError> {
     if (!baseUserPath?.trim()) {
       return err(new PackageValidationError('Base user path cannot be empty'));
@@ -30,7 +30,7 @@ export class InstallationPath {
   static createForGlobalInstall(
     packageId: PackageId,
     version: PackageVersion,
-    baseGlobalPath: string
+    baseGlobalPath: string,
   ): Result<InstallationPath, PackageValidationError> {
     if (!baseGlobalPath?.trim()) {
       return err(new PackageValidationError('Base global path cannot be empty'));
@@ -45,7 +45,7 @@ export class InstallationPath {
   static createForLocalInstall(
     packageId: PackageId,
     version: PackageVersion,
-    projectPath: string
+    projectPath: string,
   ): Result<InstallationPath, PackageValidationError> {
     if (!projectPath?.trim()) {
       return err(new PackageValidationError('Project path cannot be empty'));
@@ -64,11 +64,11 @@ export class InstallationPath {
 
     const normalizedPath = absolutePath.trim().replace(/\\/g, '/');
 
-    if (!this.isAbsolutePath(normalizedPath)) {
+    if (!InstallationPath.isAbsolutePath(normalizedPath)) {
       return err(new PackageValidationError('Path must be absolute'));
     }
 
-    const installationType = this.determineInstallationType(normalizedPath);
+    const installationType = InstallationPath.determineInstallationType(normalizedPath);
 
     // For simple create method, we'll create a minimal InstallationPath
     // This is mainly for testing purposes - we'll use null as placeholders
@@ -78,7 +78,7 @@ export class InstallationPath {
   static fromAbsolutePath(
     absolutePath: string,
     packageId: PackageId,
-    version: PackageVersion
+    version: PackageVersion,
   ): Result<InstallationPath, PackageValidationError> {
     if (!absolutePath?.trim()) {
       return err(new PackageValidationError('Absolute path cannot be empty'));
@@ -86,11 +86,11 @@ export class InstallationPath {
 
     const normalizedPath = absolutePath.trim().replace(/\\/g, '/');
 
-    if (!this.isAbsolutePath(normalizedPath)) {
+    if (!InstallationPath.isAbsolutePath(normalizedPath)) {
       return err(new PackageValidationError('Path must be absolute'));
     }
 
-    const installationType = this.determineInstallationType(normalizedPath);
+    const installationType = InstallationPath.determineInstallationType(normalizedPath);
 
     return ok(new InstallationPath(normalizedPath, packageId, version, installationType));
   }
@@ -187,8 +187,8 @@ export class InstallationPath {
     if (normalizedSubdir.startsWith('/') || normalizedSubdir.startsWith('../')) {
       return err(
         new PackageValidationError(
-          'Subdirectory must be relative and cannot escape package directory'
-        )
+          'Subdirectory must be relative and cannot escape package directory',
+        ),
       );
     }
 
@@ -196,8 +196,8 @@ export class InstallationPath {
     if (normalizedSubdir.includes('../')) {
       return err(
         new PackageValidationError(
-          'Subdirectory must be relative and cannot escape package directory'
-        )
+          'Subdirectory must be relative and cannot escape package directory',
+        ),
       );
     }
 

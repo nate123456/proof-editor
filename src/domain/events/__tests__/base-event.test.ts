@@ -5,14 +5,10 @@ import { AggregateRoot, DomainEvent } from '../base-event.js';
 class TestEvent extends DomainEvent {
   readonly eventType = 'test-event';
   readonly eventData = { testProperty: 'test-value' };
-
-  constructor(aggregateId: string, aggregateType: string, eventVersion?: number) {
-    super(aggregateId, aggregateType, eventVersion);
-  }
 }
 
 class TestAggregateRoot extends AggregateRoot {
-  private id: string;
+  private readonly id: string;
 
   constructor(id: string) {
     super();

@@ -39,16 +39,16 @@ export class ParseFailureError extends Error {
   }
 
   getErrorsByType(type: ParseErrorType): ParseError[] {
-    return this._errors.filter(error => error.type === type);
+    return this._errors.filter((error) => error.type === type);
   }
 
   hasErrorType(type: ParseErrorType): boolean {
-    return this._errors.some(error => error.type === type);
+    return this._errors.some((error) => error.type === type);
   }
 
   toFormattedString(): string {
     return this._errors
-      .map(error => {
+      .map((error) => {
         const location =
           error.line !== undefined
             ? ` (line ${error.line}${error.column !== undefined ? `, col ${error.column}` : ''})`

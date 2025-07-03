@@ -22,18 +22,18 @@ import { nodeIdFactory, statementContentFactory, treeIdFactory } from '../factor
 
 // Mock implementation of INodeRepository for testing
 class MockNodeRepository implements INodeRepository {
-  private nodes = new Map<string, Node>();
-  private treeIndex = new Map<string, Set<Node>>();
-  private nodeTreeMap = new Map<string, TreeId>();
+  private readonly nodes = new Map<string, Node>();
+  private readonly treeIndex = new Map<string, Set<Node>>();
+  private readonly nodeTreeMap = new Map<string, TreeId>();
 
-  save(node: Node): Promise<Result<void, RepositoryError>> {
+  async save(node: Node): Promise<Result<void, RepositoryError>> {
     try {
       // Simulate validation
       if (!node?.getId()) {
         return Promise.resolve(err(new RepositoryError('Invalid node provided')));
       }
 
-      const id = node.getId().value;
+      const id = node.getId().getValue();
       const treeId = this.getTreeIdForNode(node);
 
       if (!treeId) {
@@ -56,19 +56,19 @@ class MockNodeRepository implements INodeRepository {
     }
   }
 
-  findById(id: NodeId): Promise<Node | null> {
-    const node = this.nodes.get(id.value);
+  async findById(id: NodeId): Promise<Node | null> {
+    const node = this.nodes.get(id.getValue());
     return Promise.resolve(node ?? null);
   }
 
-  findByTree(treeId: TreeId): Promise<Node[]> {
-    const nodesSet = this.treeIndex.get(treeId.value);
+  async findByTree(treeId: TreeId): Promise<Node[]> {
+    const nodesSet = this.treeIndex.get(treeId.getValue());
     return Promise.resolve(nodesSet ? Array.from(nodesSet) : []);
   }
 
-  delete(id: NodeId): Promise<Result<void, RepositoryError>> {
+  async delete(id: NodeId): Promise<Result<void, RepositoryError>> {
     try {
-      const node = this.nodes.get(id.value);
+      const node = this.nodes.get(id.getValue());
       if (!node) {
         return Promise.resolve(err(new RepositoryError('Node not found')));
       }
@@ -83,9 +83,9 @@ class MockNodeRepository implements INodeRepository {
       if (treeId) {
         this.removeFromTreeIndex(treeId, node);
       }
-      this.nodeTreeMap.delete(id.value);
+      this.nodeTreeMap.delete(id.getValue());
 
-      this.nodes.delete(id.value);
+      this.nodes.delete(id.getValue());
 
       return Promise.resolve(ok(undefined));
     } catch (error) {
@@ -104,15 +104,15 @@ class MockNodeRepository implements INodeRepository {
   }
 
   private updateTreeIndex(treeId: TreeId, node: Node): void {
-    const key = treeId.value;
+    const key = treeId.getValue();
     if (!this.treeIndex.has(key)) {
       this.treeIndex.set(key, new Set());
     }
-    this.treeIndex.get(key)!.add(node);
+    this.treeIndex.get(key)?.add(node);
   }
 
   private removeFromTreeIndex(treeId: TreeId, node: Node): void {
-    const key = treeId.value;
+    const key = treeId.getValue();
     const nodesSet = this.treeIndex.get(key);
     if (nodesSet) {
       nodesSet.delete(node);
@@ -124,12 +124,12 @@ class MockNodeRepository implements INodeRepository {
 
   private wouldCreateCycle(node: Node): boolean {
     // Simplified cycle detection - in real implementation would check parent chain
-    return node.getId().value.includes('cycle');
+    return node.getId().getValue().includes('cycle');
   }
 
   private hasChildren(node: Node): boolean {
     // Check if any other nodes have this node as parent
-    for (const otherNode of this.nodes.values()) {
+    for (const otherNode of Array.from(this.nodes.values())) {
       if (otherNode.getParentNodeId()?.equals(node.getId())) {
         return true;
       }
@@ -139,11 +139,11 @@ class MockNodeRepository implements INodeRepository {
 
   // Helper to associate nodes with trees in this mock
   private getTreeIdForNode(node: Node): TreeId | null {
-    return this.nodeTreeMap.get(node.getId().value) ?? null;
+    return this.nodeTreeMap.get(node.getId().getValue()) ?? null;
   }
 
   setNodeTree(node: Node, treeId: TreeId): void {
-    this.nodeTreeMap.set(node.getId().value, treeId);
+    this.nodeTreeMap.set(node.getId().getValue(), treeId);
   }
 }
 
@@ -160,19 +160,28 @@ describe('INodeRepository', () => {
 
   // Helper function to create test atomic argument
   const createTestArgument = () => {
-    const premiseStatements = Array.from(
-      { length: 2 },
-      () => Statement.create(statementContentFactory.build()).value
-    );
-    const conclusionStatements = Array.from(
-      { length: 1 },
-      () => Statement.create(statementContentFactory.build()).value
-    );
+    const premiseStatements = Array.from({ length: 2 }, () => {
+      const result = Statement.create(statementContentFactory.build());
+      if (!result.isOk()) throw new Error('Statement creation failed');
+      return result.value;
+    });
+    const conclusionStatements = Array.from({ length: 1 }, () => {
+      const result = Statement.create(statementContentFactory.build());
+      if (!result.isOk()) throw new Error('Statement creation failed');
+      return result.value;
+    });
 
-    const premiseSet = OrderedSet.create(premiseStatements.map(s => s.getId())).value;
-    const conclusionSet = OrderedSet.create(conclusionStatements.map(s => s.getId())).value;
+    const premiseSetResult = OrderedSet.create(premiseStatements.map((s) => s.getId()));
+    if (!premiseSetResult.isOk()) throw new Error('OrderedSet creation failed');
+    const premiseSet = premiseSetResult.value;
 
-    return AtomicArgument.create(premiseSet, conclusionSet).value;
+    const conclusionSetResult = OrderedSet.create(conclusionStatements.map((s) => s.getId()));
+    if (!conclusionSetResult.isOk()) throw new Error('OrderedSet creation failed');
+    const conclusionSet = conclusionSetResult.value;
+
+    const atomicArgResult = AtomicArgument.create(premiseSet.getId(), conclusionSet.getId());
+    if (!atomicArgResult.isOk()) throw new Error('AtomicArgument creation failed');
+    return atomicArgResult.value;
   };
 
   // Helper function to create test node
@@ -181,10 +190,16 @@ describe('INodeRepository', () => {
 
     let node: Node;
     if (parentId) {
-      const attachment = Attachment.create(parentId, position).value;
-      node = Node.createChild(argument.getId(), attachment).value;
+      const attachmentResult = Attachment.create(parentId, position);
+      if (!attachmentResult.isOk()) throw new Error('Attachment creation failed');
+      const attachment = attachmentResult.value;
+      const nodeResult = Node.createChild(argument.getId(), attachment);
+      if (!nodeResult.isOk()) throw new Error('Node creation failed');
+      node = nodeResult.value;
     } else {
-      node = Node.createRoot(argument.getId()).value;
+      const nodeResult = Node.createRoot(argument.getId());
+      if (!nodeResult.isOk()) throw new Error('Node creation failed');
+      node = nodeResult.value;
     }
 
     // Associate node with tree in the mock repository
@@ -246,7 +261,9 @@ describe('INodeRepository', () => {
         const result = await repository.save(nodeResult.value);
 
         expect(result.isErr()).toBe(true);
-        expect(result.error.message).toContain('circular reference');
+        if (result.isErr()) {
+          expect(result.error.message).toContain('circular reference');
+        }
       }
     });
 
@@ -254,8 +271,10 @@ describe('INodeRepository', () => {
       const result = await repository.save(null as any);
 
       expect(result.isErr()).toBe(true);
-      expect(result.error).toBeInstanceOf(RepositoryError);
-      expect(result.error.message).toContain('Invalid node');
+      if (result.isErr()) {
+        expect(result.error).toBeInstanceOf(RepositoryError);
+        expect(result.error.message).toContain('Invalid node');
+      }
     });
 
     it('should reject node without tree ID', async () => {
@@ -269,7 +288,9 @@ describe('INodeRepository', () => {
       const result = await repository.save(nodeWithoutTree);
 
       expect(result.isErr()).toBe(true);
-      expect(result.error.message).toContain('must belong to a tree');
+      if (result.isErr()) {
+        expect(result.error.message).toContain('must belong to a tree');
+      }
     });
 
     it('should handle save failures with proper error', async () => {
@@ -287,9 +308,11 @@ describe('INodeRepository', () => {
       const result = await failingRepo.save(node);
 
       expect(result.isErr()).toBe(true);
-      expect(result.error).toBeInstanceOf(RepositoryError);
-      expect(result.error.message).toContain('Failed to save');
-      expect(result.error.cause?.message).toContain('Storage failure');
+      if (result.isErr()) {
+        expect(result.error).toBeInstanceOf(RepositoryError);
+        expect(result.error.message).toContain('Failed to save');
+        expect(result.error.cause?.message).toContain('Storage failure');
+      }
     });
 
     it('should save nodes at different positions', async () => {
@@ -299,7 +322,7 @@ describe('INodeRepository', () => {
 
       // Create multiple children at different positions
       const children = await Promise.all(
-        Array.from({ length: 3 }, (_, i) => createTestNode(treeId, rootNode.getId(), i))
+        Array.from({ length: 3 }, (_, i) => createTestNode(treeId, rootNode.getId(), i)),
       );
 
       for (const child of children) {
@@ -383,8 +406,8 @@ describe('INodeRepository', () => {
 
       expect(found.length).toBe(count);
 
-      const foundIds = found.map(n => n.getId().value).sort();
-      const expectedIds = nodes.map(n => n.getId().value).sort();
+      const foundIds = found.map((n) => n.getId().getValue()).sort();
+      const expectedIds = nodes.map((n) => n.getId().getValue()).sort();
       expect(foundIds).toEqual(expectedIds);
     });
 
@@ -407,9 +430,9 @@ describe('INodeRepository', () => {
       expect(foundTree2.length).toBe(2);
 
       // Ensure no cross-contamination
-      const tree1Ids = foundTree1.map(n => n.getId().value);
-      const tree2Ids = foundTree2.map(n => n.getId().value);
-      expect(tree1Ids.some(id => tree2Ids.includes(id))).toBe(false);
+      const tree1Ids = foundTree1.map((n) => n.getId().getValue());
+      const tree2Ids = foundTree2.map((n) => n.getId().getValue());
+      expect(tree1Ids.some((id) => tree2Ids.includes(id))).toBe(false);
     });
 
     it('should include all nodes in tree hierarchy', async () => {
@@ -437,8 +460,8 @@ describe('INodeRepository', () => {
       expect(allNodes.length).toBe(4);
 
       // Verify all nodes are present
-      const nodeIds = [root, child1, child2, grandchild].map(n => n.getId().value);
-      const foundIds = allNodes.map(n => n.getId().value);
+      const nodeIds = [root, child1, child2, grandchild].map((n) => n.getId().getValue());
+      const foundIds = allNodes.map((n) => n.getId().getValue());
 
       for (const id of nodeIds) {
         expect(foundIds).toContain(id);
@@ -472,7 +495,9 @@ describe('INodeRepository', () => {
       const result = await repository.delete(parentNode.getId());
 
       expect(result.isErr()).toBe(true);
-      expect(result.error.message).toContain('children');
+      if (result.isErr()) {
+        expect(result.error.message).toContain('children');
+      }
       expect(repository.size()).toBe(2);
     });
 
@@ -492,7 +517,9 @@ describe('INodeRepository', () => {
       const result = await repository.delete(randomId);
 
       expect(result.isErr()).toBe(true);
-      expect(result.error.message).toContain('not found');
+      if (result.isErr()) {
+        expect(result.error.message).toContain('not found');
+      }
     });
 
     it('should handle delete failures with proper error', async () => {
@@ -510,8 +537,10 @@ describe('INodeRepository', () => {
       const result = await failingRepo.delete(node.getId());
 
       expect(result.isErr()).toBe(true);
-      expect(result.error).toBeInstanceOf(RepositoryError);
-      expect(result.error.cause?.message).toContain('Delete operation failed');
+      if (result.isErr()) {
+        expect(result.error).toBeInstanceOf(RepositoryError);
+        expect(result.error.cause?.message).toContain('Delete operation failed');
+      }
     });
 
     it('should allow deleting nodes in bottom-up order', async () => {
@@ -552,19 +581,19 @@ describe('INodeRepository', () => {
       const treeId = treeIdFactory.build();
       const node = createTestNode(treeId);
 
-      vi.mocked(mockRepository.save).mockImplementation(n => {
+      vi.mocked(mockRepository.save).mockImplementation(async (n) => {
         if (n === node) return Promise.resolve(ok(undefined));
         return Promise.resolve(err(new RepositoryError('Unknown node')));
       });
-      vi.mocked(mockRepository.findById).mockImplementation(id => {
+      vi.mocked(mockRepository.findById).mockImplementation(async (id) => {
         if (id.equals(node.getId())) return Promise.resolve(node);
         return Promise.resolve(null);
       });
-      vi.mocked(mockRepository.findByTree).mockImplementation(id => {
+      vi.mocked(mockRepository.findByTree).mockImplementation(async (id) => {
         if (id.equals(treeId)) return Promise.resolve([node]);
         return Promise.resolve([]);
       });
-      vi.mocked(mockRepository.delete).mockImplementation(id => {
+      vi.mocked(mockRepository.delete).mockImplementation(async (id) => {
         if (id.equals(node.getId()))
           return Promise.resolve(err(new RepositoryError('Has children')));
         return Promise.resolve(ok(undefined));
@@ -581,20 +610,22 @@ describe('INodeRepository', () => {
 
       const deleteResult = await mockRepository.delete(node.getId());
       expect(deleteResult.isErr()).toBe(true);
-      expect(deleteResult.error.message).toBe('Has children');
+      if (deleteResult.isErr()) {
+        expect(deleteResult.error.message).toBe('Has children');
+      }
     });
 
     it('should mock complex tree scenarios', async () => {
       const treeId = treeIdFactory.build();
       const nodes = Array.from({ length: 5 }, () => createTestNode(treeId));
 
-      vi.mocked(mockRepository.findByTree).mockImplementation(id => {
+      vi.mocked(mockRepository.findByTree).mockImplementation(async (id) => {
         if (id.equals(treeId)) return Promise.resolve(nodes);
         return Promise.resolve([]);
       });
 
-      vi.mocked(mockRepository.findById).mockImplementation(id => {
-        return Promise.resolve(nodes.find(node => node.getId().equals(id)) ?? null);
+      vi.mocked(mockRepository.findById).mockImplementation(async (id) => {
+        return Promise.resolve(nodes.find((node) => node.getId().equals(id)) ?? null);
       });
 
       const byTree = await mockRepository.findByTree(treeId);
@@ -617,7 +648,7 @@ describe('INodeRepository', () => {
 
       // Create a deep chain
       for (let i = 0; i < maxDepth; i++) {
-        const node = currentParent
+        const node: Node = currentParent
           ? createTestNode(treeId, currentParent.getId(), 0)
           : createTestNode(treeId);
 
@@ -637,7 +668,7 @@ describe('INodeRepository', () => {
 
       const siblingCount = 20;
       const siblings = Array.from({ length: siblingCount }, (_, i) =>
-        createTestNode(treeId, root.getId(), i)
+        createTestNode(treeId, root.getId(), i),
       );
 
       for (const sibling of siblings) {
@@ -655,13 +686,16 @@ describe('INodeRepository', () => {
 
       // Simulate interleaved saves and deletes
       for (let i = 0; i < nodes.length; i++) {
-        await repository.save(nodes[i]);
+        const currentNode = nodes[i];
+        if (!currentNode) continue;
+        await repository.save(currentNode);
 
         if (i > 0 && i % 3 === 0) {
           // Delete some previous nodes (only if they have no children)
           const toDelete = nodes[i - 1];
-          const hasChildren = (await repository.findByTree(treeId)).some(n =>
-            n.getParentNodeId()?.equals(toDelete.getId())
+          if (!toDelete) continue;
+          const hasChildren = (await repository.findByTree(treeId)).some((n) =>
+            n.getParentNodeId()?.equals(toDelete.getId()),
           );
 
           if (!hasChildren) {
@@ -701,8 +735,12 @@ describe('INodeRepository', () => {
         expect(tree2Nodes.length).toBe(1);
 
         // Same argument ID but different nodes
-        expect(tree1Nodes[0].getArgumentId().equals(tree2Nodes[0].getArgumentId())).toBe(true);
-        expect(tree1Nodes[0].getId().equals(tree2Nodes[0].getId())).toBe(false);
+        const tree1Node = tree1Nodes[0];
+        const tree2Node = tree2Nodes[0];
+        if (tree1Node && tree2Node) {
+          expect(tree1Node.getArgumentId().equals(tree2Node.getArgumentId())).toBe(true);
+          expect(tree1Node.getId().equals(tree2Node.getId())).toBe(false);
+        }
       }
     });
   });

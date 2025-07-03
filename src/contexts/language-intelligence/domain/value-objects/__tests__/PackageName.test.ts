@@ -95,7 +95,7 @@ describe('PackageName', () => {
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
         expect(result.error.message).toBe(
-          'Package name can only contain letters, numbers, spaces, hyphens, underscores, and periods'
+          'Package name can only contain letters, numbers, spaces, hyphens, underscores, and periods',
         );
       }
     });
@@ -106,7 +106,7 @@ describe('PackageName', () => {
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
         expect(result.error.message).toBe(
-          'Package name can only contain letters, numbers, spaces, hyphens, underscores, and periods'
+          'Package name can only contain letters, numbers, spaces, hyphens, underscores, and periods',
         );
       }
     });

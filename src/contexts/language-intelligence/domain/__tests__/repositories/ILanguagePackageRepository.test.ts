@@ -35,18 +35,18 @@ describe('ILanguagePackageRepository', () => {
 
       // Create a mock implementation to verify interface structure
       const mockRepository: ILanguagePackageRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByName: () => Promise.resolve(null),
-        findByNameAndVersion: () => Promise.resolve(null),
-        findActivePackages: () => Promise.resolve([]),
-        findByCapability: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByName: async () => Promise.resolve(null),
+        findByNameAndVersion: async () => Promise.resolve(null),
+        findActivePackages: async () => Promise.resolve([]),
+        findByCapability: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       // Verify all methods exist
-      repositoryMethods.forEach(method => {
+      repositoryMethods.forEach((method) => {
         expect(mockRepository).toHaveProperty(method);
         expect(typeof mockRepository[method as keyof ILanguagePackageRepository]).toBe('function');
       });
@@ -54,14 +54,14 @@ describe('ILanguagePackageRepository', () => {
 
     it('should have async methods that return correct types', () => {
       const mockRepository: ILanguagePackageRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByName: () => Promise.resolve(null),
-        findByNameAndVersion: () => Promise.resolve(null),
-        findActivePackages: () => Promise.resolve([]),
-        findByCapability: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByName: async () => Promise.resolve(null),
+        findByNameAndVersion: async () => Promise.resolve(null),
+        findActivePackages: async () => Promise.resolve([]),
+        findByCapability: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       // All methods should be functions
@@ -79,17 +79,17 @@ describe('ILanguagePackageRepository', () => {
   describe('method signatures', () => {
     it('should accept correct parameter types for save', async () => {
       const mockRepository: ILanguagePackageRepository = {
-        save: (languagePackage: LanguagePackage) => {
+        save: async (languagePackage: LanguagePackage) => {
           expect(languagePackage).toBeDefined();
           return Promise.resolve(ok(undefined));
         },
-        findById: () => Promise.resolve(null),
-        findByName: () => Promise.resolve(null),
-        findByNameAndVersion: () => Promise.resolve(null),
-        findActivePackages: () => Promise.resolve([]),
-        findByCapability: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByName: async () => Promise.resolve(null),
+        findByNameAndVersion: async () => Promise.resolve(null),
+        findActivePackages: async () => Promise.resolve([]),
+        findByCapability: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       const mockPackage = {} as LanguagePackage;
@@ -98,17 +98,17 @@ describe('ILanguagePackageRepository', () => {
 
     it('should accept correct parameter types for findById', async () => {
       const mockRepository: ILanguagePackageRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: (id: LanguagePackageId) => {
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async (id: LanguagePackageId) => {
           expect(id).toBeDefined();
           return Promise.resolve(null);
         },
-        findByName: () => Promise.resolve(null),
-        findByNameAndVersion: () => Promise.resolve(null),
-        findActivePackages: () => Promise.resolve([]),
-        findByCapability: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        findByName: async () => Promise.resolve(null),
+        findByNameAndVersion: async () => Promise.resolve(null),
+        findActivePackages: async () => Promise.resolve([]),
+        findByCapability: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       const mockId = { getValue: () => 'test-id' } as unknown as LanguagePackageId;
@@ -117,17 +117,17 @@ describe('ILanguagePackageRepository', () => {
 
     it('should accept correct parameter types for findByName', async () => {
       const mockRepository: ILanguagePackageRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByName: (name: PackageName) => {
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByName: async (name: PackageName) => {
           expect(name).toBeDefined();
           return Promise.resolve(null);
         },
-        findByNameAndVersion: () => Promise.resolve(null),
-        findActivePackages: () => Promise.resolve([]),
-        findByCapability: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        findByNameAndVersion: async () => Promise.resolve(null),
+        findActivePackages: async () => Promise.resolve([]),
+        findByCapability: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       const mockName = { getValue: () => 'predicate-logic' } as unknown as PackageName;
@@ -136,18 +136,18 @@ describe('ILanguagePackageRepository', () => {
 
     it('should accept correct parameter types for findByNameAndVersion', async () => {
       const mockRepository: ILanguagePackageRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByName: () => Promise.resolve(null),
-        findByNameAndVersion: (name: PackageName, version: PackageVersion) => {
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByName: async () => Promise.resolve(null),
+        findByNameAndVersion: async (name: PackageName, version: PackageVersion) => {
           expect(name).toBeDefined();
           expect(version).toBeDefined();
           return Promise.resolve(null);
         },
-        findActivePackages: () => Promise.resolve([]),
-        findByCapability: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        findActivePackages: async () => Promise.resolve([]),
+        findByCapability: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       const mockName = { getValue: () => 'predicate-logic' } as unknown as PackageName;
@@ -157,18 +157,18 @@ describe('ILanguagePackageRepository', () => {
 
     it('should accept correct parameter types for findByCapability', async () => {
       const mockRepository: ILanguagePackageRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByName: () => Promise.resolve(null),
-        findByNameAndVersion: () => Promise.resolve(null),
-        findActivePackages: () => Promise.resolve([]),
-        findByCapability: (capability: string) => {
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByName: async () => Promise.resolve(null),
+        findByNameAndVersion: async () => Promise.resolve(null),
+        findActivePackages: async () => Promise.resolve([]),
+        findByCapability: async (capability: string) => {
           expect(capability).toBeDefined();
           expect(typeof capability).toBe('string');
           return Promise.resolve([]);
         },
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       await mockRepository.findByCapability('logic-validation');
@@ -176,14 +176,14 @@ describe('ILanguagePackageRepository', () => {
 
     it('should accept correct parameter types for delete', async () => {
       const mockRepository: ILanguagePackageRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByName: () => Promise.resolve(null),
-        findByNameAndVersion: () => Promise.resolve(null),
-        findActivePackages: () => Promise.resolve([]),
-        findByCapability: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: (id: LanguagePackageId) => {
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByName: async () => Promise.resolve(null),
+        findByNameAndVersion: async () => Promise.resolve(null),
+        findActivePackages: async () => Promise.resolve([]),
+        findByCapability: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async (id: LanguagePackageId) => {
           expect(id).toBeDefined();
           return Promise.resolve(ok(undefined));
         },
@@ -197,14 +197,14 @@ describe('ILanguagePackageRepository', () => {
   describe('return types', () => {
     it('should return Promise types for all methods', () => {
       const mockRepository: ILanguagePackageRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByName: () => Promise.resolve(null),
-        findByNameAndVersion: () => Promise.resolve(null),
-        findActivePackages: () => Promise.resolve([]),
-        findByCapability: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByName: async () => Promise.resolve(null),
+        findByNameAndVersion: async () => Promise.resolve(null),
+        findActivePackages: async () => Promise.resolve([]),
+        findByCapability: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       // Test that methods return Promises
@@ -214,8 +214,8 @@ describe('ILanguagePackageRepository', () => {
       expect(
         mockRepository.findByNameAndVersion(
           {} as unknown as PackageName,
-          {} as unknown as PackageVersion
-        )
+          {} as unknown as PackageVersion,
+        ),
       ).toBeInstanceOf(Promise);
       expect(mockRepository.findActivePackages()).toBeInstanceOf(Promise);
       expect(mockRepository.findByCapability('test')).toBeInstanceOf(Promise);
@@ -225,14 +225,14 @@ describe('ILanguagePackageRepository', () => {
 
     it('should return Result types for save and delete operations', async () => {
       const mockRepository: ILanguagePackageRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByName: () => Promise.resolve(null),
-        findByNameAndVersion: () => Promise.resolve(null),
-        findActivePackages: () => Promise.resolve([]),
-        findByCapability: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByName: async () => Promise.resolve(null),
+        findByNameAndVersion: async () => Promise.resolve(null),
+        findActivePackages: async () => Promise.resolve([]),
+        findByCapability: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       const saveResult = await mockRepository.save({} as LanguagePackage);
@@ -252,21 +252,21 @@ describe('ILanguagePackageRepository', () => {
 
     it('should return nullable LanguagePackage for single entity queries', async () => {
       const mockRepository: ILanguagePackageRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByName: () => Promise.resolve(null),
-        findByNameAndVersion: () => Promise.resolve(null),
-        findActivePackages: () => Promise.resolve([]),
-        findByCapability: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByName: async () => Promise.resolve(null),
+        findByNameAndVersion: async () => Promise.resolve(null),
+        findActivePackages: async () => Promise.resolve([]),
+        findByCapability: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       const byIdResult = await mockRepository.findById({} as unknown as LanguagePackageId);
       const byNameResult = await mockRepository.findByName({} as unknown as PackageName);
       const byNameAndVersionResult = await mockRepository.findByNameAndVersion(
         {} as unknown as PackageName,
-        {} as unknown as PackageVersion
+        {} as unknown as PackageVersion,
       );
 
       expect(byIdResult).toBeNull();
@@ -278,21 +278,21 @@ describe('ILanguagePackageRepository', () => {
   describe('repository behavior patterns', () => {
     it('should handle null returns for single entity queries when not found', async () => {
       const mockRepository: ILanguagePackageRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByName: () => Promise.resolve(null),
-        findByNameAndVersion: () => Promise.resolve(null),
-        findActivePackages: () => Promise.resolve([]),
-        findByCapability: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByName: async () => Promise.resolve(null),
+        findByNameAndVersion: async () => Promise.resolve(null),
+        findActivePackages: async () => Promise.resolve([]),
+        findByCapability: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       const byIdResult = await mockRepository.findById({} as unknown as LanguagePackageId);
       const byNameResult = await mockRepository.findByName({} as unknown as PackageName);
       const byNameAndVersionResult = await mockRepository.findByNameAndVersion(
         {} as unknown as PackageName,
-        {} as unknown as PackageVersion
+        {} as unknown as PackageVersion,
       );
 
       expect(byIdResult).toBeNull();
@@ -302,14 +302,14 @@ describe('ILanguagePackageRepository', () => {
 
     it('should handle empty arrays for collection queries when no matches found', async () => {
       const mockRepository: ILanguagePackageRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByName: () => Promise.resolve(null),
-        findByNameAndVersion: () => Promise.resolve(null),
-        findActivePackages: () => Promise.resolve([]),
-        findByCapability: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByName: async () => Promise.resolve(null),
+        findByNameAndVersion: async () => Promise.resolve(null),
+        findActivePackages: async () => Promise.resolve([]),
+        findByCapability: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       const activeResult = await mockRepository.findActivePackages();
@@ -350,35 +350,37 @@ describe('ILanguagePackageRepository', () => {
       ];
 
       const mockRepository: ILanguagePackageRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: (id: LanguagePackageId) => {
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async (id: LanguagePackageId) => {
           const idValue = (id as any).getValue?.() ?? (id as any).id ?? 'test-id';
-          const found = mockPackages.find(p => (p as any).id === idValue);
+          const found = mockPackages.find((p) => (p as any).id === idValue);
           return Promise.resolve(found ?? null);
         },
-        findByName: (name: PackageName) => {
+        findByName: async (name: PackageName) => {
           const nameValue = (name as any).getValue?.() ?? (name as any).name ?? 'test-name';
-          const found = mockPackages.find(p => (p as any).name === nameValue);
+          const found = mockPackages.find((p) => (p as any).name === nameValue);
           return Promise.resolve(found ?? null);
         },
-        findByNameAndVersion: (name: PackageName, version: PackageVersion) => {
+        findByNameAndVersion: async (name: PackageName, version: PackageVersion) => {
           const nameValue = (name as any).getValue?.() ?? (name as any).name ?? 'test-name';
           const versionValue = (version as any).toString?.() ?? (version as any).version ?? '1.0.0';
           const found = mockPackages.find(
-            p => (p as any).name === nameValue && (p as any).version === versionValue
+            (p) => (p as any).name === nameValue && (p as any).version === versionValue,
           );
           return Promise.resolve(found ?? null);
         },
-        findActivePackages: () => {
-          const filtered = mockPackages.filter(p => (p as any).isActive === true);
+        findActivePackages: async () => {
+          const filtered = mockPackages.filter((p) => (p as any).isActive === true);
           return Promise.resolve(filtered);
         },
-        findByCapability: (capability: string) => {
-          const filtered = mockPackages.filter(p => (p as any).capabilities?.includes(capability));
+        findByCapability: async (capability: string) => {
+          const filtered = mockPackages.filter((p) =>
+            (p as any).capabilities?.includes(capability),
+          );
           return Promise.resolve(filtered);
         },
-        findAll: () => Promise.resolve(mockPackages),
-        delete: () => Promise.resolve(ok(undefined)),
+        findAll: async () => Promise.resolve(mockPackages),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       const activeResults = await mockRepository.findActivePackages();
@@ -388,7 +390,7 @@ describe('ILanguagePackageRepository', () => {
       } as unknown as PackageName);
       const specificVersionResult = await mockRepository.findByNameAndVersion(
         { getValue: () => 'predicate-logic' } as unknown as PackageName,
-        { toString: () => '1.0.0' } as unknown as PackageVersion
+        { toString: () => '1.0.0' } as unknown as PackageVersion,
       );
 
       expect(activeResults).toHaveLength(2);
@@ -416,25 +418,25 @@ describe('ILanguagePackageRepository', () => {
       ];
 
       const mockRepository: ILanguagePackageRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByName: (name: PackageName) => {
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByName: async (name: PackageName) => {
           const nameValue = (name as any).getValue?.() ?? (name as any).name ?? 'test-name';
-          const found = mockPackages.find(p => (p as any).name === nameValue);
+          const found = mockPackages.find((p) => (p as any).name === nameValue);
           return Promise.resolve(found ?? null);
         },
-        findByNameAndVersion: (name: PackageName, version: PackageVersion) => {
+        findByNameAndVersion: async (name: PackageName, version: PackageVersion) => {
           const nameValue = (name as any).getValue?.() ?? (name as any).name ?? 'test-name';
           const versionValue = (version as any).toString?.() ?? (version as any).version ?? '1.0.0';
           const found = mockPackages.find(
-            p => (p as any).name === nameValue && (p as any).version === versionValue
+            (p) => (p as any).name === nameValue && (p as any).version === versionValue,
           );
           return Promise.resolve(found ?? null);
         },
-        findActivePackages: () => Promise.resolve([]),
-        findByCapability: () => Promise.resolve([]),
-        findAll: () => Promise.resolve(mockPackages),
-        delete: () => Promise.resolve(ok(undefined)),
+        findActivePackages: async () => Promise.resolve([]),
+        findByCapability: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve(mockPackages),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       const anyVersionResult = await mockRepository.findByName({
@@ -442,11 +444,11 @@ describe('ILanguagePackageRepository', () => {
       } as unknown as PackageName);
       const specificVersionResult = await mockRepository.findByNameAndVersion(
         { getValue: () => 'predicate-logic' } as unknown as PackageName,
-        { toString: () => '2.0.0' } as unknown as PackageVersion
+        { toString: () => '2.0.0' } as unknown as PackageVersion,
       );
       const nonExistentVersionResult = await mockRepository.findByNameAndVersion(
         { getValue: () => 'predicate-logic' } as unknown as PackageName,
-        { toString: () => '3.0.0' } as unknown as PackageVersion
+        { toString: () => '3.0.0' } as unknown as PackageVersion,
       );
 
       expect(anyVersionResult).not.toBeNull();
@@ -472,17 +474,19 @@ describe('ILanguagePackageRepository', () => {
       ];
 
       const mockRepository: ILanguagePackageRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByName: () => Promise.resolve(null),
-        findByNameAndVersion: () => Promise.resolve(null),
-        findActivePackages: () => Promise.resolve([]),
-        findByCapability: (capability: string) => {
-          const filtered = mockPackages.filter(p => (p as any).capabilities?.includes(capability));
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByName: async () => Promise.resolve(null),
+        findByNameAndVersion: async () => Promise.resolve(null),
+        findActivePackages: async () => Promise.resolve([]),
+        findByCapability: async (capability: string) => {
+          const filtered = mockPackages.filter((p) =>
+            (p as any).capabilities?.includes(capability),
+          );
           return Promise.resolve(filtered);
         },
-        findAll: () => Promise.resolve(mockPackages),
-        delete: () => Promise.resolve(ok(undefined)),
+        findAll: async () => Promise.resolve(mockPackages),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       const logicValidationResults = await mockRepository.findByCapability('logic-validation');
@@ -499,14 +503,14 @@ describe('ILanguagePackageRepository', () => {
     it('should enforce correct interface implementation', () => {
       // This test verifies that the interface can be properly implemented
       const implementRepository = (): ILanguagePackageRepository => ({
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByName: () => Promise.resolve(null),
-        findByNameAndVersion: () => Promise.resolve(null),
-        findActivePackages: () => Promise.resolve([]),
-        findByCapability: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByName: async () => Promise.resolve(null),
+        findByNameAndVersion: async () => Promise.resolve(null),
+        findActivePackages: async () => Promise.resolve([]),
+        findByCapability: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       });
 
       const repository = implementRepository();
@@ -525,14 +529,14 @@ describe('ILanguagePackageRepository', () => {
   describe('error handling patterns', () => {
     it('should handle repository errors in save operations', async () => {
       const mockRepository: ILanguagePackageRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByName: () => Promise.resolve(null),
-        findByNameAndVersion: () => Promise.resolve(null),
-        findActivePackages: () => Promise.resolve([]),
-        findByCapability: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByName: async () => Promise.resolve(null),
+        findByNameAndVersion: async () => Promise.resolve(null),
+        findActivePackages: async () => Promise.resolve([]),
+        findByCapability: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       const result = await mockRepository.save({} as LanguagePackage);
@@ -541,14 +545,14 @@ describe('ILanguagePackageRepository', () => {
 
     it('should handle repository errors in delete operations', async () => {
       const mockRepository: ILanguagePackageRepository = {
-        save: () => Promise.resolve(ok(undefined)),
-        findById: () => Promise.resolve(null),
-        findByName: () => Promise.resolve(null),
-        findByNameAndVersion: () => Promise.resolve(null),
-        findActivePackages: () => Promise.resolve([]),
-        findByCapability: () => Promise.resolve([]),
-        findAll: () => Promise.resolve([]),
-        delete: () => Promise.resolve(ok(undefined)),
+        save: async () => Promise.resolve(ok(undefined)),
+        findById: async () => Promise.resolve(null),
+        findByName: async () => Promise.resolve(null),
+        findByNameAndVersion: async () => Promise.resolve(null),
+        findActivePackages: async () => Promise.resolve([]),
+        findByCapability: async () => Promise.resolve([]),
+        findAll: async () => Promise.resolve([]),
+        delete: async () => Promise.resolve(ok(undefined)),
       };
 
       const result = await mockRepository.delete({} as unknown as LanguagePackageId);

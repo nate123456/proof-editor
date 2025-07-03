@@ -1,16 +1,34 @@
+import { injectable } from 'tsyringe';
+
 import { AtomicArgument } from '../entities/AtomicArgument.js';
 import { OrderedSet } from '../entities/OrderedSet.js';
 import { Statement } from '../entities/Statement.js';
+import type {
+  IProofTransactionService,
+  TransactionError,
+} from '../interfaces/IProofTransaction.js';
+import {
+  type ConnectionRequest,
+  CreateConnectionOperation,
+} from '../operations/ConnectionOperations.js';
+import {
+  CreateStatementOperation,
+  type CreateStatementRequest,
+  DeleteStatementOperation,
+  type DeleteStatementRequest,
+} from '../operations/StatementOperations.js';
 import { err, ok, type Result, ValidationError } from '../shared/result.js';
-import { type AtomicArgumentId, type OrderedSetId } from '../shared/value-objects.js';
+import type { AtomicArgumentId, OrderedSetId } from '../shared/value-objects.js';
 
+@injectable()
 export class StatementFlowService {
+  constructor(private readonly transactionService?: IProofTransactionService) {}
   createStatementFromContent(content: string): Result<Statement, ValidationError> {
     return Statement.create(content);
   }
 
   createOrderedSetFromStatements(statements: Statement[]): Result<OrderedSet, ValidationError> {
-    const statementIds = statements.map(statement => statement.getId());
+    const statementIds = statements.map((statement) => statement.getId());
     return OrderedSet.create(statementIds);
   }
 
@@ -20,7 +38,7 @@ export class StatementFlowService {
 
   addStatementToOrderedSet(
     orderedSet: OrderedSet,
-    statement: Statement
+    statement: Statement,
   ): Result<void, ValidationError> {
     const addResult = orderedSet.addStatement(statement.getId());
     if (addResult.isOk()) {
@@ -31,7 +49,7 @@ export class StatementFlowService {
 
   removeStatementFromOrderedSet(
     orderedSet: OrderedSet,
-    statement: Statement
+    statement: Statement,
   ): Result<void, ValidationError> {
     const removeResult = orderedSet.removeStatement(statement.getId());
     if (removeResult.isOk()) {
@@ -42,7 +60,7 @@ export class StatementFlowService {
 
   createAtomicArgumentWithSets(
     premiseSet?: OrderedSet,
-    conclusionSet?: OrderedSet
+    conclusionSet?: OrderedSet,
   ): Result<AtomicArgument, ValidationError> {
     const argument = AtomicArgument.create(premiseSet?.getId(), conclusionSet?.getId());
 
@@ -64,7 +82,7 @@ export class StatementFlowService {
   connectAtomicArgumentsBySharedSet(
     parentArg: AtomicArgument,
     childArg: AtomicArgument,
-    sharedSet: OrderedSet
+    sharedSet: OrderedSet,
   ): Result<void, ValidationError> {
     const parentConclusionRef = parentArg.getConclusionSetRef();
     const childPremiseRef = childArg.getPremiseSetRef();
@@ -85,7 +103,7 @@ export class StatementFlowService {
 
   createBranchFromArgumentConclusion(
     parentArg: AtomicArgument,
-    conclusionSet: OrderedSet
+    conclusionSet: OrderedSet,
   ): Result<AtomicArgument, ValidationError> {
     if (!parentArg.getConclusionSetRef()?.equals(conclusionSet.getId())) {
       return err(new ValidationError('Conclusion set must match parent argument'));
@@ -104,11 +122,11 @@ export class StatementFlowService {
 
   findDirectlyConnectedArguments(
     argument: AtomicArgument,
-    allArguments: Map<AtomicArgumentId, AtomicArgument>
+    allArguments: Map<AtomicArgumentId, AtomicArgument>,
   ): AtomicArgument[] {
     const connected: AtomicArgument[] = [];
 
-    for (const [id, otherArg] of allArguments) {
+    for (const [id, otherArg] of Array.from(allArguments.entries())) {
       if (id.equals(argument.getId())) {
         continue;
       }
@@ -123,14 +141,15 @@ export class StatementFlowService {
 
   findAllConnectedArguments(
     startingArgument: AtomicArgument,
-    allArguments: Map<AtomicArgumentId, AtomicArgument>
+    allArguments: Map<AtomicArgumentId, AtomicArgument>,
   ): Set<AtomicArgument> {
     const connected = new Set<AtomicArgument>();
     const toVisit = [startingArgument];
     const visited = new Set<AtomicArgumentId>();
 
     while (toVisit.length > 0) {
-      const current = toVisit.pop()!;
+      const current = toVisit.pop();
+      if (!current) continue;
 
       if (visited.has(current.getId())) {
         continue;
@@ -153,7 +172,7 @@ export class StatementFlowService {
   validateStatementFlow(
     fromArgument: AtomicArgument,
     toArgument: AtomicArgument,
-    orderedSets: Map<OrderedSetId, OrderedSet>
+    orderedSets: Map<OrderedSetId, OrderedSet>,
   ): Result<void, ValidationError> {
     const fromConclusionRef = fromArgument.getConclusionSetRef();
     const toPremiseRef = toArgument.getPremiseSetRef();
@@ -190,7 +209,7 @@ export class StatementFlowService {
   findStatementFlowPath(
     startArgument: AtomicArgument,
     endArgument: AtomicArgument,
-    allArguments: Map<AtomicArgumentId, AtomicArgument>
+    allArguments: Map<AtomicArgumentId, AtomicArgument>,
   ): AtomicArgument[] | null {
     if (startArgument.equals(endArgument)) {
       return [startArgument];
@@ -202,7 +221,9 @@ export class StatementFlowService {
     ];
 
     while (queue.length > 0) {
-      const { argument: current, path } = queue.shift()!;
+      const item = queue.shift();
+      if (!item) continue;
+      const { argument: current, path } = item;
 
       if (visited.has(current.getId())) {
         continue;
@@ -226,5 +247,122 @@ export class StatementFlowService {
     }
 
     return null;
+  }
+
+  async createAtomicConnectionWithTransaction(
+    request: ConnectionRequest,
+  ): Promise<Result<void, TransactionError | ValidationError>> {
+    if (!this.transactionService) {
+      return err(new ValidationError('Transaction service not available'));
+    }
+
+    return this.transactionService.executeInTransaction(async (transaction) => {
+      const validationResult = this.connectAtomicArgumentsBySharedSet(
+        request.parentArgument,
+        request.childArgument,
+        request.sharedSet,
+      );
+
+      if (validationResult.isErr()) {
+        return err(validationResult.error);
+      }
+
+      const createOp = new CreateConnectionOperation(request);
+      transaction.addOperation(createOp);
+
+      return ok(undefined);
+    });
+  }
+
+  async createStatementWithTransaction(
+    request: CreateStatementRequest,
+  ): Promise<Result<Statement, TransactionError | ValidationError>> {
+    if (!this.transactionService) {
+      return err(new ValidationError('Transaction service not available'));
+    }
+
+    return this.transactionService.executeInTransaction(async (transaction) => {
+      const createOp = new CreateStatementOperation(request);
+      transaction.addOperation(createOp);
+
+      const createdStatement = createOp.getCreatedStatement();
+      if (!createdStatement) {
+        return err(new ValidationError('Statement creation failed'));
+      }
+
+      return ok(createdStatement);
+    });
+  }
+
+  async deleteStatementWithTransaction(
+    request: DeleteStatementRequest,
+  ): Promise<Result<void, TransactionError | ValidationError>> {
+    if (!this.transactionService) {
+      return err(new ValidationError('Transaction service not available'));
+    }
+
+    return this.transactionService.executeInTransaction(async (transaction) => {
+      const deleteOp = new DeleteStatementOperation(request);
+      transaction.addOperation(deleteOp);
+
+      return ok(undefined);
+    });
+  }
+
+  async createComplexArgumentWithTransaction(
+    premiseContents: string[],
+    conclusionContents: string[],
+  ): Promise<Result<AtomicArgument, TransactionError | ValidationError>> {
+    if (!this.transactionService) {
+      return err(new ValidationError('Transaction service not available'));
+    }
+
+    return this.transactionService.executeInTransaction(async (transaction) => {
+      const premiseStatements: Statement[] = [];
+      const conclusionStatements: Statement[] = [];
+
+      for (const content of premiseContents) {
+        const createOp = new CreateStatementOperation({ content });
+        transaction.addOperation(createOp);
+
+        const statement = createOp.getCreatedStatement();
+        if (!statement) {
+          return err(new ValidationError(`Failed to create premise statement: ${content}`));
+        }
+        premiseStatements.push(statement);
+      }
+
+      for (const content of conclusionContents) {
+        const createOp = new CreateStatementOperation({ content });
+        transaction.addOperation(createOp);
+
+        const statement = createOp.getCreatedStatement();
+        if (!statement) {
+          return err(new ValidationError(`Failed to create conclusion statement: ${content}`));
+        }
+        conclusionStatements.push(statement);
+      }
+
+      const premiseSetResult = this.createOrderedSetFromStatements(premiseStatements);
+      if (premiseSetResult.isErr()) {
+        return err(premiseSetResult.error);
+      }
+
+      const conclusionSetResult = this.createOrderedSetFromStatements(conclusionStatements);
+      if (conclusionSetResult.isErr()) {
+        return err(conclusionSetResult.error);
+      }
+
+      const argumentResult = this.createAtomicArgumentWithSets(
+        premiseSetResult.value,
+        conclusionSetResult.value,
+      );
+
+      if (argumentResult.isErr()) {
+        return err(argumentResult.error);
+      }
+
+      return ok(argumentResult.value);
+    });
   }
 }

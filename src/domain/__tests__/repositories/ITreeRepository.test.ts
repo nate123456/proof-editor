@@ -19,17 +19,17 @@ import { treeIdFactory } from '../factories';
 
 // Mock implementation of ITreeRepository for testing
 class MockTreeRepository implements ITreeRepository {
-  private trees = new Map<string, Tree>();
-  private documentIndex = new Map<string, Set<Tree>>();
+  private readonly trees = new Map<string, Tree>();
+  private readonly documentIndex = new Map<string, Set<Tree>>();
 
-  save(tree: Tree): Promise<Result<void, RepositoryError>> {
+  async save(tree: Tree): Promise<Result<void, RepositoryError>> {
     try {
       // Simulate validation
       if (!tree?.getId()) {
         return Promise.resolve(err(new RepositoryError('Invalid tree provided')));
       }
 
-      const id = tree.getId().value;
+      const id = tree.getId().getValue();
       const documentIdString = tree.getDocumentId();
       if (!documentIdString) {
         return Promise.resolve(err(new RepositoryError('Tree must belong to a document')));
@@ -42,11 +42,11 @@ class MockTreeRepository implements ITreeRepository {
       }
 
       // Check for tree name uniqueness within document
-      const documentTrees = this.documentIndex.get(documentId.value) ?? new Set();
-      for (const existingTree of documentTrees) {
-        if (existingTree.getTitle() === tree.getTitle() && existingTree.getId().value !== id) {
+      const documentTrees = this.documentIndex.get(documentId.getValue()) ?? new Set();
+      for (const existingTree of Array.from(documentTrees)) {
+        if (existingTree.getTitle() === tree.getTitle() && existingTree.getId().getValue() !== id) {
           return Promise.resolve(
-            err(new RepositoryError('Tree name must be unique within document'))
+            err(new RepositoryError('Tree name must be unique within document')),
           );
         }
       }
@@ -62,19 +62,19 @@ class MockTreeRepository implements ITreeRepository {
     }
   }
 
-  findById(id: TreeId): Promise<Tree | null> {
-    const tree = this.trees.get(id.value);
+  async findById(id: TreeId): Promise<Tree | null> {
+    const tree = this.trees.get(id.getValue());
     return Promise.resolve(tree ?? null);
   }
 
-  findByDocument(documentId: DocumentId): Promise<Tree[]> {
-    const treesSet = this.documentIndex.get(documentId.value);
+  async findByDocument(documentId: DocumentId): Promise<Tree[]> {
+    const treesSet = this.documentIndex.get(documentId.getValue());
     return Promise.resolve(treesSet ? Array.from(treesSet) : []);
   }
 
-  delete(id: TreeId): Promise<Result<void, RepositoryError>> {
+  async delete(id: TreeId): Promise<Result<void, RepositoryError>> {
     try {
-      const tree = this.trees.get(id.value);
+      const tree = this.trees.get(id.getValue());
       if (!tree) {
         return Promise.resolve(err(new RepositoryError('Tree not found')));
       }
@@ -91,7 +91,7 @@ class MockTreeRepository implements ITreeRepository {
         this.removeFromDocumentIndex(documentId, tree);
       }
 
-      this.trees.delete(id.value);
+      this.trees.delete(id.getValue());
 
       return Promise.resolve(ok(undefined));
     } catch (error) {
@@ -110,15 +110,15 @@ class MockTreeRepository implements ITreeRepository {
   }
 
   private updateDocumentIndex(documentId: DocumentId, tree: Tree): void {
-    const key = documentId.value;
+    const key = documentId.getValue();
     if (!this.documentIndex.has(key)) {
       this.documentIndex.set(key, new Set());
     }
-    this.documentIndex.get(key)!.add(tree);
+    this.documentIndex.get(key)?.add(tree);
   }
 
   private removeFromDocumentIndex(documentId: DocumentId, tree: Tree): void {
-    const key = documentId.value;
+    const key = documentId.getValue();
     const treesSet = this.documentIndex.get(key);
     if (treesSet) {
       treesSet.delete(tree);
@@ -130,7 +130,7 @@ class MockTreeRepository implements ITreeRepository {
 
   private hasNodes(tree: Tree): boolean {
     // Simulate checking if tree has nodes
-    return tree.getId().value.includes('with-nodes');
+    return tree.getId().getValue().includes('with-nodes');
   }
 }
 
@@ -150,11 +150,17 @@ describe('ITreeRepository', () => {
 
   // Helper function to create test tree
   const createTestTree = (documentId: DocumentId, name = 'Test Tree', offset = { x: 0, y: 0 }) => {
-    const position = Position2D.create(offset.x, offset.y).value;
-    const treeResult = Tree.create(documentId.value, position);
+    const positionResult = Position2D.create(offset.x, offset.y);
+
+    if (!positionResult.isOk()) throw new Error('Position2D creation failed');
+
+    const position = positionResult.value;
+    const treeResult = Tree.create(documentId.getValue(), position);
     if (treeResult.isOk() && name !== 'Test Tree') {
       treeResult.value.setTitle(name);
     }
+    if (!treeResult.isOk()) throw new Error('Creation failed');
+
     return treeResult.value;
   };
 
@@ -177,7 +183,11 @@ describe('ITreeRepository', () => {
       await repository.save(tree);
 
       // Update position
-      const newPosition = Position2D.create(100, 200).value;
+      const newPositionResult = Position2D.create(100, 200);
+
+      if (!newPositionResult.isOk()) throw new Error('Position2D creation failed');
+
+      const newPosition = newPositionResult.value;
       tree.moveTo(newPosition);
 
       // Save again
@@ -194,7 +204,7 @@ describe('ITreeRepository', () => {
     it('should index trees by document', async () => {
       const documentId = createDocumentId();
       const trees = Array.from({ length: 3 }, (_, i) =>
-        createTestTree(documentId, `Tree ${i}`, { x: i * 100, y: 0 })
+        createTestTree(documentId, `Tree ${i}`, { x: i * 100, y: 0 }),
       );
 
       for (const tree of trees) {
@@ -214,7 +224,9 @@ describe('ITreeRepository', () => {
       const result = await repository.save(tree2);
 
       expect(result.isErr()).toBe(true);
-      expect(result.error.message).toContain('unique within document');
+      if (result.isErr()) {
+        expect(result.error.message).toContain('unique within document');
+      }
     });
 
     it('should allow same tree name in different documents', async () => {
@@ -236,8 +248,10 @@ describe('ITreeRepository', () => {
       const result = await repository.save(null as any);
 
       expect(result.isErr()).toBe(true);
-      expect(result.error).toBeInstanceOf(RepositoryError);
-      expect(result.error.message).toContain('Invalid tree');
+      if (result.isErr()) {
+        expect(result.error).toBeInstanceOf(RepositoryError);
+        expect(result.error.message).toContain('Invalid tree');
+      }
     });
 
     it('should reject tree without document ID', async () => {
@@ -250,7 +264,9 @@ describe('ITreeRepository', () => {
       const result = await repository.save(treeWithoutDoc);
 
       expect(result.isErr()).toBe(true);
-      expect(result.error.message).toContain('must belong to a document');
+      if (result.isErr()) {
+        expect(result.error.message).toContain('must belong to a document');
+      }
     });
 
     it('should handle save failures with proper error', async () => {
@@ -264,9 +280,11 @@ describe('ITreeRepository', () => {
       const result = await failingRepo.save(tree);
 
       expect(result.isErr()).toBe(true);
-      expect(result.error).toBeInstanceOf(RepositoryError);
-      expect(result.error.message).toContain('Failed to save');
-      expect(result.error.cause?.message).toContain('Storage failure');
+      if (result.isErr()) {
+        expect(result.error).toBeInstanceOf(RepositoryError);
+        expect(result.error.message).toContain('Failed to save');
+        expect(result.error.cause?.message).toContain('Storage failure');
+      }
     });
 
     it('should save trees with different spatial positions', async () => {
@@ -278,7 +296,7 @@ describe('ITreeRepository', () => {
         { x: 500, y: -100 },
       ];
 
-      for (const [index, pos] of positions.entries()) {
+      for (const [index, pos] of Array.from(positions.entries())) {
         const tree = createTestTree(documentId, `Tree ${index}`, pos);
         const result = await repository.save(tree);
         expect(result.isOk()).toBe(true);
@@ -288,7 +306,7 @@ describe('ITreeRepository', () => {
       expect(allTrees.length).toBe(positions.length);
 
       // Verify positions are preserved
-      const savedPositions = allTrees.map(t => ({
+      const savedPositions = allTrees.map((t) => ({
         x: t.getPosition().getX(),
         y: t.getPosition().getY(),
       }));
@@ -307,7 +325,7 @@ describe('ITreeRepository', () => {
       expect(found).not.toBeNull();
       expect(found?.getId().equals(tree.getId())).toBe(true);
       expect(found?.getTitle()).toBe(tree.getTitle());
-      expect(found?.getDocumentId()).toBe(documentId.value);
+      expect(found?.getDocumentId()).toBe(documentId.getValue());
     });
 
     it('should return null for non-existent ID', async () => {
@@ -361,7 +379,7 @@ describe('ITreeRepository', () => {
       const documentId = createDocumentId();
       const count = 5;
       const trees = Array.from({ length: count }, (_, i) =>
-        createTestTree(documentId, `Tree ${i}`)
+        createTestTree(documentId, `Tree ${i}`),
       );
 
       for (const tree of trees) {
@@ -372,8 +390,8 @@ describe('ITreeRepository', () => {
 
       expect(found.length).toBe(count);
 
-      const foundIds = found.map(t => t.getId().value).sort();
-      const expectedIds = trees.map(t => t.getId().value).sort();
+      const foundIds = found.map((t) => t.getId().getValue()).sort();
+      const expectedIds = trees.map((t) => t.getId().getValue()).sort();
       expect(foundIds).toEqual(expectedIds);
     });
 
@@ -396,11 +414,11 @@ describe('ITreeRepository', () => {
       expect(foundDoc2.length).toBe(2);
 
       // Ensure no cross-contamination
-      const doc1Names = foundDoc1.map(t => t.getTitle() ?? '');
-      const doc2Names = foundDoc2.map(t => t.getTitle() ?? '');
+      const doc1Names = foundDoc1.map((t) => t.getTitle() ?? '');
+      const doc2Names = foundDoc2.map((t) => t.getTitle() ?? '');
 
-      expect(doc1Names.every(name => name.startsWith('Doc1'))).toBe(true);
-      expect(doc2Names.every(name => name.startsWith('Doc2'))).toBe(true);
+      expect(doc1Names.every((name) => name.startsWith('Doc1'))).toBe(true);
+      expect(doc2Names.every((name) => name.startsWith('Doc2'))).toBe(true);
     });
 
     it('should return trees in consistent order', async () => {
@@ -414,8 +432,8 @@ describe('ITreeRepository', () => {
       const found1 = await repository.findByDocument(documentId);
       const found2 = await repository.findByDocument(documentId);
 
-      const ids1 = found1.map(t => t.getId().value);
-      const ids2 = found2.map(t => t.getId().value);
+      const ids1 = found1.map((t) => t.getId().getValue());
+      const ids2 = found2.map((t) => t.getId().getValue());
 
       expect(ids1).toEqual(ids2);
     });
@@ -442,13 +460,13 @@ describe('ITreeRepository', () => {
       const treeId = TreeId.fromString('with-nodes-tree-123');
       const treeResult = Tree.reconstruct(
         treeId,
-        documentId.value,
+        documentId.getValue(),
         Position2D.origin(),
         PhysicalProperties.default(),
         [],
         Date.now(),
         Date.now(),
-        'Tree with nodes'
+        'Tree with nodes',
       );
 
       if (treeResult.isOk()) {
@@ -457,7 +475,9 @@ describe('ITreeRepository', () => {
         const result = await repository.delete(treeId);
 
         expect(result.isErr()).toBe(true);
-        expect(result.error.message).toContain('nodes');
+        if (result.isErr()) {
+          expect(result.error.message).toContain('nodes');
+        }
         expect(repository.size()).toBe(1);
       }
     });
@@ -478,7 +498,9 @@ describe('ITreeRepository', () => {
       const result = await repository.delete(randomId);
 
       expect(result.isErr()).toBe(true);
-      expect(result.error.message).toContain('not found');
+      if (result.isErr()) {
+        expect(result.error.message).toContain('not found');
+      }
     });
 
     it('should handle delete failures with proper error', async () => {
@@ -496,8 +518,10 @@ describe('ITreeRepository', () => {
       const result = await failingRepo.delete(tree.getId());
 
       expect(result.isErr()).toBe(true);
-      expect(result.error).toBeInstanceOf(RepositoryError);
-      expect(result.error.cause?.message).toContain('Delete operation failed');
+      if (result.isErr()) {
+        expect(result.error).toBeInstanceOf(RepositoryError);
+        expect(result.error.cause?.message).toContain('Delete operation failed');
+      }
     });
 
     it('should delete specific tree while preserving others in document', async () => {
@@ -509,18 +533,25 @@ describe('ITreeRepository', () => {
       }
 
       // Delete specific trees
-      await repository.delete(trees[1].getId());
-      await repository.delete(trees[3].getId());
+      const tree1 = trees[1];
+      const tree3 = trees[3];
+      if (tree1 && tree3) {
+        await repository.delete(tree1.getId());
+        await repository.delete(tree3.getId());
+      }
 
       const remaining = await repository.findByDocument(documentId);
       expect(remaining.length).toBe(3);
 
-      const remainingIds = remaining.map(t => t.getId().value);
-      expect(remainingIds).toContain(trees[0].getId().value);
-      expect(remainingIds).toContain(trees[2].getId().value);
-      expect(remainingIds).toContain(trees[4].getId().value);
-      expect(remainingIds).not.toContain(trees[1].getId().value);
-      expect(remainingIds).not.toContain(trees[3].getId().value);
+      const remainingIds = remaining.map((t) => t.getId().getValue());
+      const tree0 = trees[0];
+      const tree2 = trees[2];
+      const tree4 = trees[4];
+      if (tree0) expect(remainingIds).toContain(tree0.getId().getValue());
+      if (tree2) expect(remainingIds).toContain(tree2.getId().getValue());
+      if (tree4) expect(remainingIds).toContain(tree4.getId().getValue());
+      if (tree1) expect(remainingIds).not.toContain(tree1.getId().getValue());
+      if (tree3) expect(remainingIds).not.toContain(tree3.getId().getValue());
     });
   });
 
@@ -540,19 +571,19 @@ describe('ITreeRepository', () => {
       const documentId = createDocumentId();
       const tree = createTestTree(documentId);
 
-      vi.mocked(mockRepository.save).mockImplementation(t => {
+      vi.mocked(mockRepository.save).mockImplementation(async (t) => {
         if (t === tree) return Promise.resolve(ok(undefined));
         return Promise.resolve(err(new RepositoryError('Unknown tree')));
       });
-      vi.mocked(mockRepository.findById).mockImplementation(id => {
+      vi.mocked(mockRepository.findById).mockImplementation(async (id) => {
         if (id.equals(tree.getId())) return Promise.resolve(tree);
         return Promise.resolve(null);
       });
-      vi.mocked(mockRepository.findByDocument).mockImplementation(id => {
+      vi.mocked(mockRepository.findByDocument).mockImplementation(async (id) => {
         if (id.equals(documentId)) return Promise.resolve([tree]);
         return Promise.resolve([]);
       });
-      vi.mocked(mockRepository.delete).mockImplementation(id => {
+      vi.mocked(mockRepository.delete).mockImplementation(async (id) => {
         if (id.equals(tree.getId())) return Promise.resolve(err(new RepositoryError('Has nodes')));
         return Promise.resolve(ok(undefined));
       });
@@ -568,20 +599,22 @@ describe('ITreeRepository', () => {
 
       const deleteResult = await mockRepository.delete(tree.getId());
       expect(deleteResult.isErr()).toBe(true);
-      expect(deleteResult.error.message).toBe('Has nodes');
+      if (deleteResult.isErr()) {
+        expect(deleteResult.error.message).toBe('Has nodes');
+      }
     });
 
     it('should mock complex document scenarios', async () => {
       const documentId = createDocumentId();
       const trees = Array.from({ length: 3 }, (_, i) => createTestTree(documentId, `Tree ${i}`));
 
-      vi.mocked(mockRepository.findByDocument).mockImplementation(id => {
+      vi.mocked(mockRepository.findByDocument).mockImplementation(async (id) => {
         if (id.equals(documentId)) return Promise.resolve(trees);
         return Promise.resolve([]);
       });
 
-      vi.mocked(mockRepository.findById).mockImplementation(id => {
-        return Promise.resolve(trees.find(tree => tree.getId().equals(id)) ?? null);
+      vi.mocked(mockRepository.findById).mockImplementation(async (id) => {
+        return Promise.resolve(trees.find((tree) => tree.getId().equals(id)) ?? null);
       });
 
       const byDocument = await mockRepository.findByDocument(documentId);
@@ -617,7 +650,7 @@ describe('ITreeRepository', () => {
         { x: Number.MIN_SAFE_INTEGER, y: 0 },
       ];
 
-      for (const [index, pos] of extremePositions.entries()) {
+      for (const [index, pos] of Array.from(extremePositions.entries())) {
         const tree = createTestTree(documentId, `Extreme Tree ${index}`, pos);
         const result = await repository.save(tree);
         expect(result.isOk()).toBe(true);
@@ -633,12 +666,14 @@ describe('ITreeRepository', () => {
 
       // Simulate interleaved saves and deletes
       for (let i = 0; i < trees.length; i++) {
-        await repository.save(trees[i]);
+        const currentTree = trees[i];
+        if (!currentTree) continue;
+        await repository.save(currentTree);
 
         if (i > 0 && i % 3 === 0) {
           // Delete some previous trees (only those without nodes)
           const toDelete = trees[i - 1];
-          if (!toDelete.getId().value.includes('with-nodes')) {
+          if (toDelete && !toDelete.getId().getValue().includes('with-nodes')) {
             await repository.delete(toDelete.getId());
           }
         }
@@ -654,7 +689,7 @@ describe('ITreeRepository', () => {
       const treeCount = 100;
 
       const trees = Array.from({ length: treeCount }, (_, i) =>
-        createTestTree(documentId, `Tree ${i}`, { x: i * 10, y: i * 10 })
+        createTestTree(documentId, `Tree ${i}`, { x: i * 10, y: i * 10 }),
       );
 
       for (const tree of trees) {

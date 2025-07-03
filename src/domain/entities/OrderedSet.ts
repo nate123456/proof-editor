@@ -3,7 +3,7 @@ import { type AtomicArgumentId, OrderedSetId, type StatementId } from '../shared
 
 // Compatibility polyfills
 class SimpleSet<T> {
-  private items: T[] = [];
+  private readonly items: T[] = [];
 
   add(item: T): void {
     if (!this.has(item)) {
@@ -21,7 +21,7 @@ class SimpleSet<T> {
   }
 
   has(item: T): boolean {
-    return this.items.indexOf(item) !== -1;
+    return this.items.includes(item);
   }
 
   get size(): number {
@@ -56,23 +56,23 @@ export class OrderedSet {
     private readonly referencedBy: {
       asPremise: SimpleSet<AtomicArgumentId>;
       asConclusion: SimpleSet<AtomicArgumentId>;
-    }
+    },
   ) {}
 
   static create(statementIds: StatementId[] = []): Result<OrderedSet, ValidationError> {
-    const uniqueStatementIds = this.ensureUniqueness(statementIds);
+    const uniqueStatementIds = OrderedSet.ensureUniqueness(statementIds);
     const now = Date.now();
 
     return ok(
       new OrderedSet(OrderedSetId.generate(), uniqueStatementIds, now, now, {
         asPremise: new SimpleSet(),
         asConclusion: new SimpleSet(),
-      })
+      }),
     );
   }
 
   static createFromStatements(statementIds: StatementId[]): Result<OrderedSet, ValidationError> {
-    return this.create(statementIds);
+    return OrderedSet.create(statementIds);
   }
 
   static reconstruct(
@@ -83,23 +83,27 @@ export class OrderedSet {
     referencedBy: {
       asPremise: AtomicArgumentId[];
       asConclusion: AtomicArgumentId[];
-    }
+    },
   ): Result<OrderedSet, ValidationError> {
-    const uniqueStatementIds = this.ensureUniqueness(statementIds);
+    const uniqueStatementIds = OrderedSet.ensureUniqueness(statementIds);
 
     return ok(
       new OrderedSet(id, uniqueStatementIds, createdAt, modifiedAt, {
         asPremise: (() => {
           const set = new SimpleSet<AtomicArgumentId>();
-          referencedBy.asPremise.forEach(id => set.add(id));
+          referencedBy.asPremise.forEach((id) => {
+            set.add(id);
+          });
           return set;
         })(),
         asConclusion: (() => {
           const set = new SimpleSet<AtomicArgumentId>();
-          referencedBy.asConclusion.forEach(id => set.add(id));
+          referencedBy.asConclusion.forEach((id) => {
+            set.add(id);
+          });
           return set;
         })(),
-      })
+      }),
     );
   }
 
@@ -138,7 +142,7 @@ export class OrderedSet {
   }
 
   removeStatement(statementId: StatementId): Result<void, ValidationError> {
-    const index = findIndex(this.statementIds, id => id.equals(statementId));
+    const index = findIndex(this.statementIds, (id) => id.equals(statementId));
     if (index === -1) {
       return err(new ValidationError('Statement not found in ordered set'));
     }
@@ -163,7 +167,7 @@ export class OrderedSet {
   }
 
   moveStatement(statementId: StatementId, newPosition: number): Result<void, ValidationError> {
-    const currentIndex = findIndex(this.statementIds, id => id.equals(statementId));
+    const currentIndex = findIndex(this.statementIds, (id) => id.equals(statementId));
     if (currentIndex === -1) {
       return err(new ValidationError('Statement not found in ordered set'));
     }
@@ -194,7 +198,7 @@ export class OrderedSet {
   }
 
   containsStatement(statementId: StatementId): boolean {
-    return this.statementIds.some(id => id.equals(statementId));
+    return this.statementIds.some((id) => id.equals(statementId));
   }
 
   isEmpty(): boolean {
@@ -215,7 +219,7 @@ export class OrderedSet {
 
   removeAtomicArgumentReference(
     argumentId: AtomicArgumentId,
-    asType: 'premise' | 'conclusion'
+    asType: 'premise' | 'conclusion',
   ): void {
     if (asType === 'premise') {
       this.referencedBy.asPremise.delete(argumentId);
@@ -250,16 +254,16 @@ export class OrderedSet {
     }
 
     // Check if all statements in this set exist in the other set
-    return this.statementIds.every(statementId =>
-      other.statementIds.some(otherStatementId => statementId.equals(otherStatementId))
+    return this.statementIds.every((statementId) =>
+      other.statementIds.some((otherStatementId) => statementId.equals(otherStatementId)),
     );
   }
 
   private static ensureUniqueness(statementIds: StatementId[]): StatementId[] {
     const seen: string[] = [];
-    return statementIds.filter(id => {
+    return statementIds.filter((id) => {
       const value = id.getValue();
-      if (seen.indexOf(value) !== -1) {
+      if (seen.includes(value)) {
         return false;
       }
       seen.push(value);

@@ -248,7 +248,7 @@ describe('Domain Errors', () => {
         new StructureError('Structure failed'),
       ];
 
-      domainErrors.forEach(error => {
+      domainErrors.forEach((error) => {
         expect(error).toBeInstanceOf(DomainError);
         expect(error).toBeInstanceOf(Error);
         expect(error.name).toBeTruthy();
@@ -272,7 +272,7 @@ describe('Domain Errors', () => {
       expect(structureError.cause).toBeInstanceOf(ProcessingError);
       expect((structureError.cause as ProcessingError).cause).toBeInstanceOf(RepositoryError);
       expect(
-        ((structureError.cause as ProcessingError).cause as RepositoryError).cause
+        ((structureError.cause as ProcessingError).cause as RepositoryError).cause,
       ).toBeInstanceOf(Error);
     });
   });
@@ -373,7 +373,7 @@ describe('Domain Errors', () => {
 
       expect(structureError.message).toBe('Argument tree contains cycle');
       expect((structureError.cause as Error)?.message).toBe(
-        'Node A references Node B which references Node A'
+        'Node A references Node B which references Node A',
       );
     });
 
@@ -381,7 +381,7 @@ describe('Domain Errors', () => {
       const parseError = new Error('Invalid statement format');
       const processingError = new ProcessingError(
         'Failed to process statement content',
-        parseError
+        parseError,
       );
 
       expect(processingError.message).toBe('Failed to process statement content');

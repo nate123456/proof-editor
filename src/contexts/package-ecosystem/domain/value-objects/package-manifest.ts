@@ -9,7 +9,7 @@ export class PackageManifest {
   private constructor(
     private readonly data: PackageManifestData,
     private readonly packageId: PackageId,
-    private readonly dependencies: Map<string, VersionConstraint>
+    private readonly dependencies: Map<string, VersionConstraint>,
   ) {}
 
   static create(data: PackageManifestData): Result<PackageManifest, PackageValidationError> {
@@ -25,7 +25,7 @@ export class PackageManifest {
     const packageIdResult = PackageId.create(trimmedData.name);
     if (packageIdResult.isErr()) {
       return err(
-        new PackageValidationError(`Invalid package name: ${packageIdResult.error.message}`)
+        new PackageValidationError(`Invalid package name: ${packageIdResult.error.message}`),
       );
     }
 
@@ -37,8 +37,8 @@ export class PackageManifest {
     if (versionConstraintResult.isErr()) {
       return err(
         new PackageValidationError(
-          `Invalid package version: ${versionConstraintResult.error.message}`
-        )
+          `Invalid package version: ${versionConstraintResult.error.message}`,
+        ),
       );
     }
 
@@ -57,15 +57,15 @@ export class PackageManifest {
         if (depConstraintResult.isErr()) {
           return err(
             new PackageValidationError(
-              `Invalid dependency version for ${depName}: ${depConstraintResult.error.message}`
-            )
+              `Invalid dependency version for ${depName}: ${depConstraintResult.error.message}`,
+            ),
           );
         }
         dependencies.set(depName, depConstraintResult.value);
       }
     }
 
-    const validationResult = this.validateManifestStructure(trimmedData);
+    const validationResult = PackageManifest.validateManifestStructure(trimmedData);
     if (validationResult.isErr()) {
       return err(validationResult.error);
     }
@@ -160,7 +160,7 @@ export class PackageManifest {
   }
 
   private static validateManifestStructure(
-    data: PackageManifestData
+    data: PackageManifestData,
   ): Result<void, PackageValidationError> {
     if (data.homepage && !PackageManifest.isValidUrl(data.homepage)) {
       return err(new PackageValidationError('Invalid homepage URL'));
@@ -183,7 +183,7 @@ export class PackageManifest {
 
       if (data.lsp.mobile.transport === 'websocket' && !data.lsp.mobile.service) {
         return err(
-          new PackageValidationError('LSP mobile websocket transport requires service URL')
+          new PackageValidationError('LSP mobile websocket transport requires service URL'),
         );
       }
 
@@ -197,8 +197,8 @@ export class PackageManifest {
         if (!capability.startsWith('proof/')) {
           return err(
             new PackageValidationError(
-              `Invalid proof capability: ${capability}. Must start with 'proof/'`
-            )
+              `Invalid proof capability: ${capability}. Must start with 'proof/'`,
+            ),
           );
         }
       }
@@ -208,7 +208,7 @@ export class PackageManifest {
       for (const category of data.validation.categories) {
         if (!category.id || !category.name || !category.rules || category.rules.length === 0) {
           return err(
-            new PackageValidationError('Validation category must have id, name, and rules')
+            new PackageValidationError('Validation category must have id, name, and rules'),
           );
         }
       }

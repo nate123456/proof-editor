@@ -147,7 +147,7 @@ describe('ValidationMetrics', () => {
       if (result.isOk()) {
         const metrics = result.value;
         const speed = metrics.getValidationSpeed();
-        expect(speed).toBe(Infinity);
+        expect(speed).toBe(Number.POSITIVE_INFINITY);
       }
     });
 
@@ -169,7 +169,7 @@ describe('ValidationMetrics', () => {
       if (result.isOk()) {
         const metrics = result.value;
         const timePerRule = metrics.getTimePerRule();
-        expect(timePerRule).toBe(Infinity);
+        expect(timePerRule).toBe(Number.POSITIVE_INFINITY);
       }
     });
 
@@ -191,7 +191,7 @@ describe('ValidationMetrics', () => {
       if (result.isOk()) {
         const metrics = result.value;
         const density = metrics.getIssueDensity();
-        expect(density).toBe(Infinity);
+        expect(density).toBe(Number.POSITIVE_INFINITY);
       }
     });
 
@@ -213,7 +213,7 @@ describe('ValidationMetrics', () => {
       if (result.isOk()) {
         const metrics = result.value;
         const efficiency = metrics.getRuleEfficiency();
-        expect(efficiency).toBe(Infinity);
+        expect(efficiency).toBe(Number.POSITIVE_INFINITY);
       }
     });
   });
@@ -544,7 +544,7 @@ describe('ValidationMetrics', () => {
         const metrics = result.value;
         const json = metrics.toJSON();
 
-        expect(json['validationTimeMs']).toBe(150.75);
+        expect(json.validationTimeMs).toBe(150.75);
       }
     });
   });

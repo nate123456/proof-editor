@@ -6,13 +6,13 @@ export class DiagnosticMessage {
   private constructor(
     private readonly text: string,
     private readonly context: string,
-    private readonly severity: 'error' | 'warning' | 'info'
+    private readonly severity: 'error' | 'warning' | 'info',
   ) {}
 
   static create(
     text: string,
     context = '',
-    severity: 'error' | 'warning' | 'info' = 'error'
+    severity: 'error' | 'warning' | 'info' = 'error',
   ): Result<DiagnosticMessage, ValidationError> {
     if (!text || text.trim().length === 0) {
       return err(new ValidationError('Diagnostic message text cannot be empty'));
@@ -81,7 +81,7 @@ export class DiagnosticMessage {
   }
 
   getWordCount(): number {
-    return this.text.split(/\s+/).filter(word => word.length > 0).length;
+    return this.text.split(/\s+/).filter((word) => word.length > 0).length;
   }
 
   isLongMessage(): boolean {

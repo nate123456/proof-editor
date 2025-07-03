@@ -43,7 +43,7 @@ describe('ConflictResolution', () => {
         'HIGH',
         mockDeviceId,
         mockContext,
-        { winner: 'operation-1' }
+        { winner: 'operation-1' },
       );
 
       expect(result.isOk()).toBe(true);
@@ -65,7 +65,7 @@ describe('ConflictResolution', () => {
         'HIGH',
         mockDeviceId,
         mockContext,
-        {}
+        {},
       );
 
       expect(result.isErr()).toBe(true);
@@ -89,7 +89,7 @@ describe('ConflictResolution', () => {
           'HIGH',
           mockDeviceId,
           mockContext,
-          {}
+          {},
         );
 
         expect(result.isOk()).toBe(true);
@@ -113,7 +113,7 @@ describe('ConflictResolution', () => {
         mockDeviceId,
         mockContext,
         { selected: 'operation-1' },
-        userSelection
+        userSelection,
       );
 
       expect(result.isOk()).toBe(true);
@@ -133,7 +133,7 @@ describe('ConflictResolution', () => {
         mockDeviceId,
         mockContext,
         {},
-        userSelection
+        userSelection,
       );
 
       expect(result.isErr()).toBe(true);
@@ -154,7 +154,7 @@ describe('ConflictResolution', () => {
           mockDeviceId,
           mockContext,
           {},
-          userSelection
+          userSelection,
         );
 
         expect(result.isOk()).toBe(true);
@@ -184,7 +184,7 @@ describe('ConflictResolution', () => {
         mockDeviceId,
         mockContext,
         {},
-        'THREE_WAY_MERGE'
+        'THREE_WAY_MERGE',
       );
 
       expect(result.isOk()).toBe(true);
@@ -238,14 +238,14 @@ describe('ConflictResolution', () => {
         'HIGH',
         mockDeviceId,
         mockContext,
-        {}
+        {},
       );
       const manualResult = ConflictResolution.createManual(
         'MANUAL_SELECTION',
         mockDeviceId,
         mockContext,
         {},
-        { selectedOperationId: 'op-1' }
+        { selectedOperationId: 'op-1' },
       );
 
       expect(autoResult.isOk()).toBe(true);
@@ -268,7 +268,7 @@ describe('ConflictResolution', () => {
           'LOW',
           mockDeviceId,
           mockContext,
-          {}
+          {},
         );
 
         expect(lowConfResult.isOk()).toBe(true);
@@ -292,7 +292,7 @@ describe('ConflictResolution', () => {
             'HIGH',
             mockDeviceId,
             mockContext,
-            {}
+            {},
           );
 
           expect(result.isOk()).toBe(true);
@@ -315,7 +315,7 @@ describe('ConflictResolution', () => {
           'LOW',
           mockDeviceId,
           mockContext,
-          {}
+          {},
         );
 
         expect(lowConfResult.isOk()).toBe(true);
@@ -330,7 +330,7 @@ describe('ConflictResolution', () => {
           mockDeviceId,
           mockContext,
           {},
-          { selectedOperationId: 'op-1' }
+          { selectedOperationId: 'op-1' },
         );
 
         expect(userDecisionResult.isOk()).toBe(true);
@@ -365,7 +365,7 @@ describe('ConflictResolution', () => {
           'LOW',
           mockDeviceId,
           mockContext,
-          {}
+          {},
         );
 
         expect(lowConfResult.isOk()).toBe(true);
@@ -387,7 +387,7 @@ describe('ConflictResolution', () => {
         'HIGH',
         mockDeviceId,
         mockContext,
-        {}
+        {},
       );
 
       expect(result.isOk()).toBe(true);
@@ -405,7 +405,7 @@ describe('ConflictResolution', () => {
         mockDeviceId,
         mockContext,
         {},
-        { selectedOperationId: 'op-1' }
+        { selectedOperationId: 'op-1' },
       );
 
       expect(result.isOk()).toBe(true);
@@ -428,14 +428,14 @@ describe('ConflictResolution', () => {
       ];
 
       for (const strategy of strategies) {
-        let result;
+        let result: any;
         if (['USER_DECISION_REQUIRED', 'MANUAL_SELECTION'].includes(strategy)) {
           result = ConflictResolution.createManual(
             strategy,
             mockDeviceId,
             mockContext,
             {},
-            { selectedOperationId: 'op-1' }
+            { selectedOperationId: 'op-1' },
           );
         } else {
           result = ConflictResolution.createAutomatic(
@@ -443,7 +443,7 @@ describe('ConflictResolution', () => {
             'HIGH',
             mockDeviceId,
             mockContext,
-            {}
+            {},
           );
         }
 
@@ -466,7 +466,7 @@ describe('ConflictResolution', () => {
         'HIGH',
         mockDeviceId,
         mockContext,
-        {}
+        {},
       );
 
       expect(result.isOk()).toBe(true);
@@ -486,7 +486,7 @@ describe('ConflictResolution', () => {
         'HIGH',
         mockDeviceId,
         mockContext,
-        {}
+        {},
       );
 
       expect(result.isOk()).toBe(true);
@@ -513,7 +513,7 @@ describe('ConflictResolution', () => {
         'HIGH',
         mockDeviceId,
         mockContext,
-        { data: 'valid' }
+        { data: 'valid' },
       );
 
       expect(result.isOk()).toBe(true);
@@ -529,7 +529,7 @@ describe('ConflictResolution', () => {
         'HIGH',
         mockDeviceId,
         mockContext,
-        null
+        null,
       );
 
       expect(result.isOk()).toBe(true);
@@ -552,7 +552,7 @@ describe('ConflictResolution', () => {
         mockContext,
         { data: 'valid' },
         undefined, // No user selection
-        false // Manual
+        false, // Manual
       );
 
       const validation = resolution.validateResolution();
@@ -572,7 +572,7 @@ describe('ConflictResolution', () => {
         mockDeviceId,
         mockContext,
         { data: 'valid' },
-        invalidSelection
+        invalidSelection,
       );
 
       expect(result.isOk()).toBe(true);
@@ -593,7 +593,7 @@ describe('ConflictResolution', () => {
         'HIGH',
         mockDeviceId,
         mockContext,
-        { test: 'data' }
+        { test: 'data' },
       );
 
       expect(result.isOk()).toBe(true);
@@ -614,7 +614,7 @@ describe('ConflictResolution', () => {
         'HIGH',
         mockDeviceId,
         mockContext,
-        {}
+        {},
       );
 
       expect(result.isOk()).toBe(true);
@@ -634,7 +634,7 @@ describe('ConflictResolution', () => {
         'HIGH',
         mockDeviceId,
         mockContext,
-        { test: 'data' }
+        { test: 'data' },
       );
 
       expect(original.isOk()).toBe(true);
@@ -664,7 +664,7 @@ describe('ConflictResolution', () => {
         'HIGH',
         mockDeviceId,
         mockContext,
-        circularRef
+        circularRef,
       );
 
       expect(original.isOk()).toBe(true);
@@ -683,14 +683,14 @@ describe('ConflictResolution', () => {
         'HIGH',
         mockDeviceId,
         mockContext,
-        data
+        data,
       );
       const result2 = ConflictResolution.createAutomatic(
         'LAST_WRITER_WINS',
         'HIGH',
         mockDeviceId,
         mockContext,
-        data
+        data,
       );
 
       expect(result1.isOk()).toBe(true);
@@ -706,14 +706,14 @@ describe('ConflictResolution', () => {
         'HIGH',
         mockDeviceId,
         mockContext,
-        {}
+        {},
       );
       const result2 = ConflictResolution.createAutomatic(
         'FIRST_WRITER_WINS',
         'HIGH',
         mockDeviceId,
         mockContext,
-        {}
+        {},
       );
 
       expect(result1.isOk()).toBe(true);
@@ -730,14 +730,14 @@ describe('ConflictResolution', () => {
         'HIGH',
         mockDeviceId,
         mockContext,
-        {}
+        {},
       );
       const result2 = ConflictResolution.createAutomatic(
         'LAST_WRITER_WINS',
         'HIGH',
         mockDeviceId,
         context2,
-        {}
+        {},
       );
 
       expect(result1.isOk()).toBe(true);

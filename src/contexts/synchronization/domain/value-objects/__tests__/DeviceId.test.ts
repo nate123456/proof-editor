@@ -16,7 +16,7 @@ describe('DeviceId', () => {
         'test-device_2024',
       ];
 
-      validInputs.forEach(input => {
+      validInputs.forEach((input) => {
         const result = DeviceId.create(input);
         expect(result.isOk()).toBe(true);
         if (result.isOk()) {
@@ -37,7 +37,7 @@ describe('DeviceId', () => {
         [] as any,
       ];
 
-      invalidInputs.forEach(input => {
+      invalidInputs.forEach((input) => {
         const result = DeviceId.create(input);
         expect(result.isErr()).toBe(true);
         if (result.isErr()) {
@@ -101,12 +101,12 @@ describe('DeviceId', () => {
         'device+plus',
       ];
 
-      invalidCharInputs.forEach(input => {
+      invalidCharInputs.forEach((input) => {
         const result = DeviceId.create(input);
         expect(result.isErr()).toBe(true);
         if (result.isErr()) {
           expect(result.error.message).toContain(
-            'can only contain alphanumeric characters, hyphens, and underscores'
+            'can only contain alphanumeric characters, hyphens, and underscores',
           );
         }
       });
@@ -127,7 +127,7 @@ describe('DeviceId', () => {
         'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
       ];
 
-      validPatterns.forEach(pattern => {
+      validPatterns.forEach((pattern) => {
         const result = DeviceId.create(pattern);
         expect(result.isOk()).toBe(true);
       });
@@ -202,14 +202,14 @@ describe('DeviceId', () => {
     it('should be reflexive', () => {
       fc.assert(
         fc.property(
-          fc.string({ minLength: 1, maxLength: 64 }).filter(s => /^[a-zA-Z0-9-_]+$/.test(s)),
-          value => {
+          fc.string({ minLength: 1, maxLength: 64 }).filter((s) => /^[a-zA-Z0-9-_]+$/.test(s)),
+          (value) => {
             const result = DeviceId.create(value);
             if (result.isOk()) {
               expect(result.value.equals(result.value)).toBe(true);
             }
-          }
-        )
+          },
+        ),
       );
     });
 
@@ -232,7 +232,7 @@ describe('DeviceId', () => {
     it('should return the device ID value', () => {
       const testIds = ['device-123', 'local-device', 'server_node_01'];
 
-      testIds.forEach(id => {
+      testIds.forEach((id) => {
         const result = DeviceId.create(id);
         expect(result.isOk()).toBe(true);
         if (result.isOk()) {
@@ -246,7 +246,7 @@ describe('DeviceId', () => {
     it('should identify local devices starting with "local-"', () => {
       const localDevices = ['local-device', 'local-123', 'local-test-machine'];
 
-      localDevices.forEach(id => {
+      localDevices.forEach((id) => {
         const result = DeviceId.create(id);
         expect(result.isOk()).toBe(true);
         if (result.isOk()) {
@@ -263,7 +263,7 @@ describe('DeviceId', () => {
         'test-localhost-test',
       ];
 
-      localhostDevices.forEach(id => {
+      localhostDevices.forEach((id) => {
         const result = DeviceId.create(id);
         expect(result.isOk()).toBe(true);
         if (result.isOk()) {
@@ -282,7 +282,7 @@ describe('DeviceId', () => {
         'staging-env',
       ];
 
-      nonLocalDevices.forEach(id => {
+      nonLocalDevices.forEach((id) => {
         const result = DeviceId.create(id);
         expect(result.isOk()).toBe(true);
         if (result.isOk()) {
@@ -296,7 +296,7 @@ describe('DeviceId', () => {
     it('should return full ID for short device IDs', () => {
       const shortIds = ['a', 'ab', 'abc', 'abcd', 'abcde', 'abcdef', 'abcdefg', 'abcdefgh'];
 
-      shortIds.forEach(id => {
+      shortIds.forEach((id) => {
         const result = DeviceId.create(id);
         expect(result.isOk()).toBe(true);
         if (result.isOk()) {
@@ -348,24 +348,24 @@ describe('DeviceId', () => {
   describe('property-based testing', () => {
     const validDeviceIdArbitrary = fc
       .string({ minLength: 1, maxLength: 64 })
-      .filter(s => /^[a-zA-Z0-9-_]+$/.test(s.trim()) && s.trim().length > 0);
+      .filter((s) => /^[a-zA-Z0-9-_]+$/.test(s.trim()) && s.trim().length > 0);
 
     describe('valid device ID properties', () => {
       it('should accept all valid alphanumeric strings with hyphens and underscores', () => {
         fc.assert(
-          fc.property(validDeviceIdArbitrary, value => {
+          fc.property(validDeviceIdArbitrary, (value) => {
             const result = DeviceId.create(value);
             expect(result.isOk()).toBe(true);
             if (result.isOk()) {
               expect(result.value.getValue()).toBe(value.trim());
             }
-          })
+          }),
         );
       });
 
       it('should maintain immutability', () => {
         fc.assert(
-          fc.property(validDeviceIdArbitrary, value => {
+          fc.property(validDeviceIdArbitrary, (value) => {
             const result = DeviceId.create(value);
             if (result.isOk()) {
               const deviceId = result.value;
@@ -374,13 +374,13 @@ describe('DeviceId', () => {
               expect(value1).toBe(value2);
               expect(value1).toBe(value.trim());
             }
-          })
+          }),
         );
       });
 
       it('should have consistent equality behavior', () => {
         fc.assert(
-          fc.property(validDeviceIdArbitrary, value => {
+          fc.property(validDeviceIdArbitrary, (value) => {
             const result1 = DeviceId.create(value);
             const result2 = DeviceId.create(value);
 
@@ -388,7 +388,7 @@ describe('DeviceId', () => {
               expect(result1.value.equals(result2.value)).toBe(true);
               expect(result1.value.toString()).toBe(result2.value.toString());
             }
-          })
+          }),
         );
       });
     });
@@ -397,20 +397,20 @@ describe('DeviceId', () => {
       it('should reject strings with invalid characters', () => {
         fc.assert(
           fc.property(
-            fc.string({ minLength: 1, maxLength: 64 }).filter(s => {
+            fc.string({ minLength: 1, maxLength: 64 }).filter((s) => {
               const trimmed = s.trim();
               return trimmed.length > 0 && !/^[a-zA-Z0-9-_]+$/.test(trimmed);
             }),
-            value => {
+            (value) => {
               const result = DeviceId.create(value);
               expect(result.isErr()).toBe(true);
               if (result.isErr()) {
                 expect(result.error.message).toContain(
-                  'can only contain alphanumeric characters, hyphens, and underscores'
+                  'can only contain alphanumeric characters, hyphens, and underscores',
                 );
               }
-            }
-          )
+            },
+          ),
         );
       });
 
@@ -419,15 +419,15 @@ describe('DeviceId', () => {
           fc.property(
             fc
               .string({ minLength: 65, maxLength: 200 })
-              .map(s => s.replace(/[^a-zA-Z0-9-_]/g, 'a')),
-            value => {
+              .map((s) => s.replace(/[^a-zA-Z0-9-_]/g, 'a')),
+            (value) => {
               const result = DeviceId.create(value);
               expect(result.isErr()).toBe(true);
               if (result.isErr()) {
                 expect(result.error.message).toContain('cannot exceed 64 characters');
               }
-            }
-          )
+            },
+          ),
         );
       });
     });
@@ -435,7 +435,7 @@ describe('DeviceId', () => {
     describe('shortId properties', () => {
       it('should produce appropriate short IDs', () => {
         fc.assert(
-          fc.property(validDeviceIdArbitrary, value => {
+          fc.property(validDeviceIdArbitrary, (value) => {
             const result = DeviceId.create(value);
             if (result.isOk()) {
               const deviceId = result.value;
@@ -454,15 +454,15 @@ describe('DeviceId', () => {
                 expect(shortId.endsWith(fullId.substring(fullId.length - 4))).toBe(true);
               }
             }
-          })
+          }),
         );
       });
 
       it('should preserve beginning and end of long IDs', () => {
         fc.assert(
           fc.property(
-            fc.string({ minLength: 9, maxLength: 64 }).filter(s => /^[a-zA-Z0-9-_]+$/.test(s)),
-            value => {
+            fc.string({ minLength: 9, maxLength: 64 }).filter((s) => /^[a-zA-Z0-9-_]+$/.test(s)),
+            (value) => {
               const result = DeviceId.create(value);
               if (result.isOk()) {
                 const shortId = result.value.getShortId();
@@ -470,8 +470,8 @@ describe('DeviceId', () => {
                 expect(shortId.endsWith(value.substring(value.length - 4))).toBe(true);
                 expect(shortId).toContain('...');
               }
-            }
-          )
+            },
+          ),
         );
       });
     });
@@ -481,7 +481,7 @@ describe('DeviceId', () => {
     it('should handle single character device IDs', () => {
       const singleChars = ['a', 'Z', '0', '9', '-', '_'];
 
-      singleChars.forEach(char => {
+      singleChars.forEach((char) => {
         const result = DeviceId.create(char);
         expect(result.isOk()).toBe(true);
         if (result.isOk()) {
@@ -505,7 +505,7 @@ describe('DeviceId', () => {
     it('should handle device IDs with only special allowed characters', () => {
       const specialIds = ['---', '___', '-_-', '_-_', '----____'];
 
-      specialIds.forEach(id => {
+      specialIds.forEach((id) => {
         const result = DeviceId.create(id);
         expect(result.isOk()).toBe(true);
         if (result.isOk()) {
@@ -517,7 +517,7 @@ describe('DeviceId', () => {
     it('should handle numeric-only device IDs', () => {
       const numericIds = ['123', '000', '999', '123456789'];
 
-      numericIds.forEach(id => {
+      numericIds.forEach((id) => {
         const result = DeviceId.create(id);
         expect(result.isOk()).toBe(true);
         if (result.isOk()) {
@@ -542,7 +542,7 @@ describe('DeviceId', () => {
         'workstation-dev-team',
       ];
 
-      realWorldIds.forEach(id => {
+      realWorldIds.forEach((id) => {
         const result = DeviceId.create(id);
         expect(result.isOk()).toBe(true);
         if (result.isOk()) {
@@ -559,7 +559,7 @@ describe('DeviceId', () => {
         'device_550e8400_e29b_41d4_a716_446655440000',
       ];
 
-      uuidStyle.forEach(id => {
+      uuidStyle.forEach((id) => {
         const result = DeviceId.create(id);
         expect(result.isOk()).toBe(true);
       });
@@ -573,7 +573,7 @@ describe('DeviceId', () => {
         'temp-1705331452000',
       ];
 
-      timestampIds.forEach(id => {
+      timestampIds.forEach((id) => {
         const result = DeviceId.create(id);
         expect(result.isOk()).toBe(true);
       });
@@ -592,7 +592,7 @@ describe('DeviceId', () => {
 
       const endTime = performance.now();
 
-      expect(results.every(r => r === true)).toBe(true);
+      expect(results.every((r) => r)).toBe(true);
       expect(endTime - startTime).toBeLessThan(100); // Should be very fast
     });
 
@@ -607,7 +607,7 @@ describe('DeviceId', () => {
 
       const endTime = performance.now();
 
-      expect(results.every(r => r === true)).toBe(true);
+      expect(results.every((r) => r)).toBe(true);
       expect(endTime - startTime).toBeLessThan(100); // Should be fast
     });
   });

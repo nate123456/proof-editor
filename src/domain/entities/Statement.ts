@@ -9,7 +9,7 @@ export class Statement {
     private content: StatementContent,
     private readonly createdAt: number,
     private modifiedAt: number,
-    private usageCount = 0
+    private usageCount = 0,
   ) {}
 
   static create(content: string): Result<Statement, ValidationError> {
@@ -28,7 +28,7 @@ export class Statement {
     content: string,
     createdAt: number,
     modifiedAt: number,
-    usageCount = 0
+    usageCount = 0,
   ): Result<Statement, ValidationError> {
     const contentResult = StatementContent.create(content);
     if (contentResult.isErr()) {

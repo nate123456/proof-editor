@@ -20,14 +20,14 @@ export const DiagnosticSeverity = {
 export class Position {
   constructor(
     public line: number,
-    public character: number
+    public character: number,
   ) {}
 }
 
 export class Range {
   constructor(
     public start: Position,
-    public end: Position
+    public end: Position,
   ) {}
 }
 
@@ -38,7 +38,7 @@ export class Diagnostic {
   constructor(
     public range: Range,
     public message: string,
-    public severity?: number
+    public severity?: number,
   ) {}
 }
 
@@ -94,7 +94,7 @@ export class Uri {
     public authority: string,
     public path: string,
     public query: string,
-    public fragment: string
+    public fragment: string,
   ) {}
 
   toString(): string {
@@ -115,7 +115,7 @@ export class Uri {
       base.authority,
       `${base.path}/${pathSegments.join('/')}`,
       base.query,
-      base.fragment
+      base.fragment,
     );
   }
 
@@ -126,14 +126,14 @@ export class Uri {
       path: string;
       query: string;
       fragment: string;
-    }>
+    }>,
   ): Uri {
     return new Uri(
       change.scheme ?? this.scheme,
       change.authority ?? this.authority,
       change.path ?? this.path,
       change.query ?? this.query,
-      change.fragment ?? this.fragment
+      change.fragment ?? this.fragment,
     );
   }
 
@@ -183,7 +183,7 @@ export interface TextDocumentChangeEvent {
 export class Selection extends Range {
   constructor(
     public anchor: Position,
-    public active: Position
+    public active: Position,
   ) {
     super(anchor, active);
   }

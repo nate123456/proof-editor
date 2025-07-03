@@ -15,14 +15,14 @@ export class PackageMetadata {
     private readonly createdAt: Timestamp,
     private readonly updatedAt: Timestamp,
     private readonly documentation: PackageDocumentation,
-    private readonly configuration: PackageConfiguration
+    private readonly configuration: PackageConfiguration,
   ) {}
 
   static create(
     description: string,
     author: string,
     license = 'MIT',
-    options: Partial<PackageMetadataOptions> = {}
+    options: Partial<PackageMetadataOptions> = {},
   ): Result<PackageMetadata, ValidationError> {
     if (!description || description.trim().length === 0) {
       return err(new ValidationError('Package description cannot be empty'));
@@ -50,8 +50,8 @@ export class PackageMetadata {
         options.createdAt ?? now,
         options.updatedAt ?? now,
         options.documentation ?? PackageDocumentation.createDefault(),
-        options.configuration ?? PackageConfiguration.createDefault()
-      )
+        options.configuration ?? PackageConfiguration.createDefault(),
+      ),
     );
   }
 
@@ -69,7 +69,7 @@ export class PackageMetadata {
       now,
       now,
       PackageDocumentation.createDefault(),
-      PackageConfiguration.createDefault()
+      PackageConfiguration.createDefault(),
     );
   }
 
@@ -83,9 +83,9 @@ export class PackageMetadata {
         documentation: PackageDocumentation.create(
           'Modal Logic Package',
           'Provides comprehensive support for modal logic constructs including □ (necessity) and ◇ (possibility) operators.',
-          ['Modal operators (□, ◇)', 'Possible worlds semantics', 'Axiom systems (K, T, S4, S5)']
+          ['Modal operators (□, ◇)', 'Possible worlds semantics', 'Axiom systems (K, T, S4, S5)'],
         ),
-      }
+      },
     );
   }
 
@@ -99,9 +99,9 @@ export class PackageMetadata {
         documentation: PackageDocumentation.create(
           'Propositional Logic Package',
           'Provides comprehensive support for propositional logic including truth tables and satisfiability checking.',
-          ['Logical operators (∧, ∨, →, ↔, ¬)', 'Truth table generation', 'SAT solving']
+          ['Logical operators (∧, ∨, →, ↔, ¬)', 'Truth table generation', 'SAT solving'],
         ),
-      }
+      },
     );
   }
 
@@ -183,7 +183,7 @@ export class PackageMetadata {
       this.createdAt,
       Timestamp.now(),
       this.documentation,
-      this.configuration
+      this.configuration,
     );
   }
 
@@ -208,8 +208,8 @@ export class PackageMetadata {
         this.createdAt,
         Timestamp.now(),
         this.documentation,
-        this.configuration
-      )
+        this.configuration,
+      ),
     );
   }
 
@@ -227,7 +227,7 @@ export class PackageMetadata {
       this.createdAt,
       Timestamp.now(),
       this.documentation,
-      this.configuration
+      this.configuration,
     );
   }
 
@@ -238,12 +238,12 @@ export class PackageMetadata {
       this.license,
       this.homepage,
       this.repository,
-      this.tags.filter(t => t !== tag.toLowerCase()),
+      this.tags.filter((t) => t !== tag.toLowerCase()),
       this.dependencies,
       this.createdAt,
       Timestamp.now(),
       this.documentation,
-      this.configuration
+      this.configuration,
     );
   }
 
@@ -275,7 +275,7 @@ export class PackageDocumentation {
     private readonly overview: string,
     private readonly features: readonly string[],
     private readonly examples: readonly string[],
-    private readonly apiReference: readonly string[]
+    private readonly apiReference: readonly string[],
   ) {}
 
   static create(
@@ -283,7 +283,7 @@ export class PackageDocumentation {
     overview: string,
     features: string[] = [],
     examples: string[] = [],
-    apiReference: string[] = []
+    apiReference: string[] = [],
   ): PackageDocumentation {
     return new PackageDocumentation(title, overview, features, examples, apiReference);
   }
@@ -318,15 +318,15 @@ export class PackageConfiguration {
     private readonly defaultValidationLevel: string,
     private readonly performanceSettings: PerformanceSettings,
     private readonly educationalSettings: EducationalSettings,
-    private readonly customSettings: Record<string, unknown>
+    private readonly customSettings: Record<string, unknown>,
   ) {}
 
   static createDefault(): PackageConfiguration {
     return new PackageConfiguration(
       'semantic',
-      PerformanceSettingsFactory.createDefault(),
-      EducationalSettingsFactory.createDefault(),
-      {}
+      createDefaultPerformanceSettings(),
+      createDefaultEducationalSettings(),
+      {},
     );
   }
 
@@ -359,22 +359,18 @@ export interface EducationalSettings {
   difficultyLevel: 'beginner' | 'intermediate' | 'advanced';
 }
 
-export class PerformanceSettingsFactory {
-  static createDefault(): PerformanceSettings {
-    return {
-      maxValidationTimeMs: 10,
-      enableCaching: true,
-      enableParallelValidation: false,
-    };
-  }
+export function createDefaultPerformanceSettings(): PerformanceSettings {
+  return {
+    maxValidationTimeMs: 10,
+    enableCaching: true,
+    enableParallelValidation: false,
+  };
 }
 
-export class EducationalSettingsFactory {
-  static createDefault(): EducationalSettings {
-    return {
-      enableHints: true,
-      enableStepByStep: true,
-      difficultyLevel: 'intermediate',
-    };
-  }
+export function createDefaultEducationalSettings(): EducationalSettings {
+  return {
+    enableHints: true,
+    enableStepByStep: true,
+    difficultyLevel: 'intermediate',
+  };
 }

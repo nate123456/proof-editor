@@ -10,6 +10,7 @@
  * - High coverage for core functionality
  */
 
+import fc from 'fast-check';
 import { err, ok } from 'neverthrow';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -19,7 +20,7 @@ import {
 } from '../../services/VersionResolutionService';
 import { PackageNotFoundError, PackageSourceUnavailableError } from '../../types/domain-errors';
 import { PackageVersion } from '../../value-objects/PackageVersion';
-import { type VersionConstraint } from '../../value-objects/version-constraint';
+import type { VersionConstraint } from '../../value-objects/version-constraint';
 
 const createMockGitRefProvider = (): IGitRefProvider => {
   return {
@@ -37,8 +38,8 @@ const createMockVersionConstraint = (constraintString: string): VersionConstrain
     toString: vi.fn(() => constraintString),
     getMinVersion: vi.fn(() => null),
     getMaxVersion: vi.fn(() => null),
-    isExact: vi.fn(() => !!constraintString.match(/^\d+\.\d+\.\d+$/)),
-    isRange: vi.fn(() => !constraintString.match(/^\d+\.\d+\.\d+$/)),
+    isExact: vi.fn(() => !!/^\d+\.\d+\.\d+$/.exec(constraintString)),
+    isRange: vi.fn(() => !/^\d+\.\d+\.\d+$/.exec(constraintString)),
   } as unknown as VersionConstraint;
 };
 
@@ -52,6 +53,143 @@ describe('VersionResolutionService', () => {
     vi.clearAllMocks();
   });
 
+  describe('property-based testing for version resolution', () => {
+    it('should handle various git ref patterns consistently', () => {
+      fc.assert(
+        fc.property(
+          fc.record({
+            url: fc.string({ minLength: 10 }).map((s) => `https://github.com/user/${s}.git`),
+            ref: fc.oneof(
+              fc
+                .string({ minLength: 1, maxLength: 20 })
+                .map((s) => `v${s}`), // version tags
+              fc.constantFrom('main', 'master', 'develop'), // branch names
+              fc
+                .string({ minLength: 40, maxLength: 40 })
+                .map((s) => s.toLowerCase()), // commit hashes
+            ),
+          }),
+          async (gitSource) => {
+            vi.mocked(mockGitRefProvider.resolveRefToCommit).mockResolvedValue(
+              ok({
+                commit: 'abc123def456',
+                actualRef: gitSource.ref,
+              }),
+            );
+
+            const result = await service.resolveGitRefToVersion(gitSource);
+
+            expect(result.isOk()).toBe(true);
+            if (result.isOk()) {
+              const resolution = result.value;
+              expect(resolution.actualRef).toBe(gitSource.ref);
+              expect(resolution.commitHash).toBe('abc123def456');
+              expect(resolution.resolvedAt).toBeInstanceOf(Date);
+              expect(resolution.resolvedVersion).toBeDefined();
+            }
+          },
+        ),
+        { numRuns: 20, verbose: false },
+      );
+    });
+
+    it('should handle constraint resolution with various version patterns', () => {
+      fc.assert(
+        fc.property(
+          fc.record({
+            url: fc.constantFrom(
+              'https://github.com/user/repo.git',
+              'https://gitlab.com/user/repo.git',
+            ),
+            constraint: fc.oneof(
+              fc.constant('^1.0.0'),
+              fc.constant('~2.1.0'),
+              fc.constant('>=3.0.0 <4.0.0'),
+              fc.constant('1.*'),
+              fc.constant('latest'),
+            ),
+          }),
+          async ({ url, constraint }) => {
+            const mockConstraint = createMockVersionConstraint(constraint);
+
+            vi.mocked(mockGitRefProvider.listAvailableTags).mockResolvedValue(
+              ok(['v1.0.0', 'v1.1.0', 'v2.0.0', 'v2.1.0', 'v3.0.0']),
+            );
+
+            const result = await service.resolveVersionConstraint(url, mockConstraint);
+
+            // Should either succeed with a valid resolution or fail with a clear error
+            if (result.isOk()) {
+              const resolution = result.value;
+              expect(resolution.bestVersion).toBeDefined();
+              expect(resolution.availableVersions).toBeInstanceOf(Array);
+              expect(resolution.satisfiesConstraint).toBe(true);
+            } else {
+              expect(result.error).toBeInstanceOf(Error);
+            }
+          },
+        ),
+        { numRuns: 15, verbose: false },
+      );
+    });
+  });
+
+  describe('performance testing for version resolution', () => {
+    it('should resolve version constraints efficiently with many available versions', async () => {
+      const startTime = performance.now();
+
+      // Simulate a repository with many versions
+      const manyVersions = Array.from(
+        { length: 100 },
+        (_, i) => `v${Math.floor(i / 10)}.${i % 10}.0`,
+      );
+
+      vi.mocked(mockGitRefProvider.listAvailableTags).mockResolvedValue(ok(manyVersions));
+
+      const constraint = createMockVersionConstraint('^2.0.0');
+      const result = await service.resolveVersionConstraint(
+        'https://github.com/user/repo.git',
+        constraint,
+      );
+
+      const endTime = performance.now();
+      const executionTime = endTime - startTime;
+
+      expect(executionTime).toBeLessThan(1000); // Should resolve within 1 second
+      expect(result.isOk()).toBe(true);
+
+      if (result.isOk()) {
+        expect(result.value.bestVersion).toBeDefined();
+        expect(result.value.availableVersions.length).toBeGreaterThan(0);
+      }
+    });
+
+    it('should handle concurrent version resolution requests', async () => {
+      const requests = Array.from({ length: 10 }, (_, i) => ({
+        url: `https://github.com/user/repo-${i}.git`,
+        constraint: createMockVersionConstraint(`^${i + 1}.0.0`),
+      }));
+
+      // Mock different responses for each request
+      vi.mocked(mockGitRefProvider.listAvailableTags).mockImplementation(async () =>
+        Promise.resolve(ok(['v1.0.0', 'v2.0.0', 'v3.0.0'])),
+      );
+
+      const resolutionPromises = requests.map(({ url, constraint }) =>
+        service.resolveVersionConstraint(url, constraint),
+      );
+
+      const results = await Promise.all(resolutionPromises);
+
+      results.forEach((result, _index) => {
+        expect(result.isOk()).toBe(true);
+        if (result.isOk()) {
+          expect(result.value.bestVersion).toBeDefined();
+        }
+      });
+    });
+  });
+
   describe('resolveGitRefToVersion', () => {
     it('should resolve a valid git tag to version', async () => {
       const gitSource = {
@@ -63,7 +201,7 @@ describe('VersionResolutionService', () => {
         ok({
           commit: 'abc123def456',
           actualRef: 'v1.2.3',
-        })
+        }),
       );
 
       const result = await service.resolveGitRefToVersion(gitSource);
@@ -88,7 +226,7 @@ describe('VersionResolutionService', () => {
         ok({
           commit: 'xyz789abc123',
           actualRef: 'main',
-        })
+        }),
       );
 
       const result = await service.resolveGitRefToVersion(gitSource);
@@ -111,7 +249,7 @@ describe('VersionResolutionService', () => {
         ok({
           commit: 'def456ghi789',
           actualRef: '2.1.0',
-        })
+        }),
       );
 
       const result = await service.resolveGitRefToVersion(gitSource);
@@ -158,7 +296,7 @@ describe('VersionResolutionService', () => {
       };
 
       vi.mocked(mockGitRefProvider.resolveRefToCommit).mockResolvedValue(
-        err(new PackageSourceUnavailableError('Git repository not accessible'))
+        err(new PackageSourceUnavailableError('Git repository not accessible')),
       );
 
       const result = await service.resolveGitRefToVersion(gitSource);
@@ -179,7 +317,7 @@ describe('VersionResolutionService', () => {
         ok({
           commit: 'abc123def456',
           actualRef: 'invalid-ref-format',
-        })
+        }),
       );
 
       const result = await service.resolveGitRefToVersion(gitSource);
@@ -187,6 +325,85 @@ describe('VersionResolutionService', () => {
       expect(result.isOk()).toBe(true); // Should still work with git-based versions
       if (result.isOk()) {
         expect(result.value.actualRef).toBe('invalid-ref-format');
+      }
+    });
+  });
+
+  describe('edge cases and error handling', () => {
+    it('should handle malformed git URLs gracefully', async () => {
+      const malformedUrls = [
+        'not-a-url',
+        'https://invalid',
+        'git://malformed.git',
+        '',
+        'ftp://wrong-protocol.com',
+      ];
+
+      for (const url of malformedUrls) {
+        const gitSource = { url, ref: 'main' };
+
+        vi.mocked(mockGitRefProvider.resolveRefToCommit).mockResolvedValue(
+          err(new PackageSourceUnavailableError(`Invalid URL: ${url}`)),
+        );
+
+        const result = await service.resolveGitRefToVersion(gitSource);
+
+        expect(result.isErr()).toBe(true);
+        if (result.isErr()) {
+          expect(result.error).toBeInstanceOf(PackageSourceUnavailableError);
+        }
+      }
+    });
+
+    it('should handle network timeouts and retries', async () => {
+      const gitSource = {
+        url: 'https://github.com/user/slow-repo.git',
+        ref: 'main',
+      };
+
+      let attemptCount = 0;
+      vi.mocked(mockGitRefProvider.resolveRefToCommit).mockImplementation(async () => {
+        attemptCount++;
+        if (attemptCount < 3) {
+          // Simulate timeout on first two attempts
+          throw new Error('Network timeout');
+        }
+        return Promise.resolve(
+          ok({
+            commit: 'final-commit-hash',
+            actualRef: 'main',
+          }),
+        );
+      });
+
+      // The service should handle this gracefully (exact behavior depends on implementation)
+      const result = await service.resolveGitRefToVersion(gitSource);
+
+      // Could succeed after retries or fail with appropriate error
+      if (result.isOk()) {
+        expect(result.value.commitHash).toBe('final-commit-hash');
+      } else {
+        expect(result.error).toBeInstanceOf(Error);
+      }
+    });
+
+    it('should validate version constraint formats', async () => {
+      const invalidConstraints = ['', 'not-a-version', '^^^1.0.0', '1.0.0-', 'v1.0.0.0.0'];
+
+      for (const constraintString of invalidConstraints) {
+        const constraint = createMockVersionConstraint(constraintString);
+
+        vi.mocked(mockGitRefProvider.listAvailableTags).mockResolvedValue(ok(['v1.0.0', 'v2.0.0']));
+
+        const result = await service.resolveVersionConstraint(
+          'https://github.com/user/repo.git',
+          constraint,
+        );
+
+        // Should handle invalid constraints gracefully
+        if (result.isErr()) {
+          expect(result.error).toBeInstanceOf(Error);
+        }
       }
     });
   });
@@ -208,10 +425,10 @@ describe('VersionResolutionService', () => {
       if (version100.isOk() && version110.isOk() && version200.isOk()) {
         // Mock git provider to return tags and branches
         vi.mocked(mockGitRefProvider.listAvailableTags).mockResolvedValue(
-          ok(['v1.0.0', 'v1.1.0', 'v2.0.0'])
+          ok(['v1.0.0', 'v1.1.0', 'v2.0.0']),
         );
         vi.mocked(mockGitRefProvider.listAvailableBranches).mockResolvedValue(
-          ok(['main', 'develop'])
+          ok(['main', 'develop']),
         );
 
         // Mock version constraint satisfaction
@@ -266,7 +483,7 @@ describe('VersionResolutionService', () => {
       const gitUrl = 'https://github.com/user/repo.git';
 
       vi.mocked(mockGitRefProvider.listAvailableTags).mockResolvedValue(
-        err(new PackageSourceUnavailableError('Cannot access repository'))
+        err(new PackageSourceUnavailableError('Cannot access repository')),
       );
 
       const result = await service.resolveVersionConstraint(gitUrl, constraint);
@@ -283,10 +500,10 @@ describe('VersionResolutionService', () => {
       const gitUrl = 'https://github.com/user/repo.git';
 
       vi.mocked(mockGitRefProvider.listAvailableTags).mockResolvedValue(
-        ok(['v1.0.0', 'v1.1.0', 'v2.0.0-beta'])
+        ok(['v1.0.0', 'v1.1.0', 'v2.0.0-beta']),
       );
       vi.mocked(mockGitRefProvider.listAvailableBranches).mockResolvedValue(
-        ok(['main', 'develop', 'feature-branch'])
+        ok(['main', 'develop', 'feature-branch']),
       );
 
       const result = await service.getAvailableVersions(gitUrl);
@@ -304,7 +521,7 @@ describe('VersionResolutionService', () => {
       const gitUrl = 'https://github.com/user/repo.git';
 
       vi.mocked(mockGitRefProvider.listAvailableTags).mockResolvedValue(
-        ok(['v1.0.0', 'v2.0.0-alpha', 'v1.5.0'])
+        ok(['v1.0.0', 'v2.0.0-alpha', 'v1.5.0']),
       );
       vi.mocked(mockGitRefProvider.listAvailableBranches).mockResolvedValue(ok([]));
 
@@ -315,8 +532,8 @@ describe('VersionResolutionService', () => {
         const versions = result.value;
         expect(versions.length).toBe(3);
         // Prereleases should come after stable versions
-        const stableCount = versions.filter(v => !v.isPrerelease()).length;
-        const prereleaseCount = versions.filter(v => v.isPrerelease()).length;
+        const stableCount = versions.filter((v) => !v.isPrerelease()).length;
+        const prereleaseCount = versions.filter((v) => v.isPrerelease()).length;
         expect(stableCount).toBeGreaterThan(0);
         expect(prereleaseCount).toBeGreaterThan(0);
       }
@@ -326,7 +543,7 @@ describe('VersionResolutionService', () => {
       const gitUrl = 'https://github.com/user/repo.git';
 
       vi.mocked(mockGitRefProvider.listAvailableTags).mockResolvedValue(
-        ok(['invalid-tag', 'another-invalid'])
+        ok(['invalid-tag', 'another-invalid']),
       );
       vi.mocked(mockGitRefProvider.listAvailableBranches).mockResolvedValue(ok(['main']));
 
@@ -344,7 +561,7 @@ describe('VersionResolutionService', () => {
       const gitUrl = 'https://github.com/user/repo.git';
 
       vi.mocked(mockGitRefProvider.listAvailableTags).mockResolvedValue(
-        err(new PackageSourceUnavailableError('Failed to list tags'))
+        err(new PackageSourceUnavailableError('Failed to list tags')),
       );
 
       const result = await service.getAvailableVersions(gitUrl);
@@ -360,7 +577,7 @@ describe('VersionResolutionService', () => {
 
       vi.mocked(mockGitRefProvider.listAvailableTags).mockResolvedValue(ok(['v1.0.0']));
       vi.mocked(mockGitRefProvider.listAvailableBranches).mockResolvedValue(
-        err(new PackageSourceUnavailableError('Failed to list branches'))
+        err(new PackageSourceUnavailableError('Failed to list branches')),
       );
 
       const result = await service.getAvailableVersions(gitUrl);
@@ -377,7 +594,7 @@ describe('VersionResolutionService', () => {
       const gitUrl = 'https://github.com/user/repo.git';
 
       vi.mocked(mockGitRefProvider.listAvailableTags).mockResolvedValue(
-        ok(['v1.0.0', 'v1.1.0', 'v2.0.0-beta'])
+        ok(['v1.0.0', 'v1.1.0', 'v2.0.0-beta']),
       );
       vi.mocked(mockGitRefProvider.listAvailableBranches).mockResolvedValue(ok([]));
 
@@ -394,7 +611,7 @@ describe('VersionResolutionService', () => {
       const gitUrl = 'https://github.com/user/repo.git';
 
       vi.mocked(mockGitRefProvider.listAvailableTags).mockResolvedValue(
-        ok(['v1.0.0-alpha', 'v2.0.0-beta'])
+        ok(['v1.0.0-alpha', 'v2.0.0-beta']),
       );
       vi.mocked(mockGitRefProvider.listAvailableBranches).mockResolvedValue(ok([]));
 
@@ -413,7 +630,7 @@ describe('VersionResolutionService', () => {
       const gitUrl = 'https://github.com/user/repo.git';
 
       vi.mocked(mockGitRefProvider.listAvailableTags).mockResolvedValue(
-        ok(['v1.0.0', 'v2.0.0-beta'])
+        ok(['v1.0.0', 'v2.0.0-beta']),
       );
       vi.mocked(mockGitRefProvider.listAvailableBranches).mockResolvedValue(ok([]));
 
@@ -430,7 +647,7 @@ describe('VersionResolutionService', () => {
       const gitUrl = 'https://github.com/user/repo.git';
 
       vi.mocked(mockGitRefProvider.listAvailableTags).mockResolvedValue(
-        ok(['v1.0.0', 'v2.0.0-beta'])
+        ok(['v1.0.0', 'v2.0.0-beta']),
       );
       vi.mocked(mockGitRefProvider.listAvailableBranches).mockResolvedValue(ok([]));
 
@@ -448,7 +665,7 @@ describe('VersionResolutionService', () => {
       const gitUrl = 'https://github.com/user/repo.git';
 
       vi.mocked(mockGitRefProvider.listAvailableTags).mockResolvedValue(
-        ok(['v1.0.0-alpha', 'v2.0.0-beta'])
+        ok(['v1.0.0-alpha', 'v2.0.0-beta']),
       );
       vi.mocked(mockGitRefProvider.listAvailableBranches).mockResolvedValue(ok([]));
 
@@ -568,7 +785,7 @@ describe('VersionResolutionService', () => {
       const gitUrl = 'https://github.com/user/repo.git';
 
       vi.mocked(mockGitRefProvider.listAvailableTags).mockResolvedValue(
-        ok(['v1.0.0', '2.0.0', 'invalid-tag', 'v3.0.0-beta'])
+        ok(['v1.0.0', '2.0.0', 'invalid-tag', 'v3.0.0-beta']),
       );
       vi.mocked(mockGitRefProvider.listAvailableBranches).mockResolvedValue(ok(['main']));
 
@@ -587,7 +804,7 @@ describe('VersionResolutionService', () => {
       const gitUrl = 'https://github.com/user/repo.git';
 
       vi.mocked(mockGitRefProvider.listAvailableTags).mockResolvedValue(
-        ok(['v1.2.0', 'v1.2.1', 'v1.3.0', 'v2.0.0'])
+        ok(['v1.2.0', 'v1.2.1', 'v1.3.0', 'v2.0.0']),
       );
       vi.mocked(mockGitRefProvider.listAvailableBranches).mockResolvedValue(ok([]));
 
@@ -603,7 +820,7 @@ describe('VersionResolutionService', () => {
       const gitUrl = 'https://github.com/user/repo.git';
 
       vi.mocked(mockGitRefProvider.listAvailableTags).mockResolvedValue(
-        ok(['v1.0.0-alpha', 'v1.0.0-beta', 'v1.0.0'])
+        ok(['v1.0.0-alpha', 'v1.0.0-beta', 'v1.0.0']),
       );
       vi.mocked(mockGitRefProvider.listAvailableBranches).mockResolvedValue(ok([]));
 

@@ -19,8 +19,8 @@ export class PackageId {
     if (!/^[a-z0-9-]+$/.test(trimmed)) {
       return err(
         new PackageValidationError(
-          'Package ID must contain only lowercase letters, numbers, and hyphens'
-        )
+          'Package ID must contain only lowercase letters, numbers, and hyphens',
+        ),
       );
     }
 

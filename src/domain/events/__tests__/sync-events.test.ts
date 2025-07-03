@@ -24,16 +24,16 @@ const mockDocumentId = { getValue: () => 'doc-123' } as DocumentId;
 const mockTreeId = { getValue: () => 'tree-123' } as TreeId;
 const mockNodeId = { getValue: () => 'node-123' } as NodeId;
 const mockLocalVersion = Version.create(120).match(
-  value => value,
+  (value) => value,
   () => {
     throw new Error('Failed to create version');
-  }
+  },
 );
 const mockRemoteVersion = Version.create(130).match(
-  value => value,
+  (value) => value,
   () => {
     throw new Error('Failed to create version');
-  }
+  },
 );
 
 describe('SyncConflictDetected', () => {
@@ -58,7 +58,7 @@ describe('SyncConflictDetected', () => {
       mockConflictDetails,
       mockLocalVersion,
       mockRemoteVersion,
-      'sync-service'
+      'sync-service',
     );
 
     expect(event.eventType).toBe('SyncConflictDetected');
@@ -79,7 +79,7 @@ describe('SyncConflictDetected', () => {
       mockConflictDetails,
       mockLocalVersion,
       mockRemoteVersion,
-      'conflict-detector'
+      'conflict-detector',
     );
 
     const data = event.eventData;
@@ -104,14 +104,14 @@ describe('SyncConflictDetected', () => {
       'ordering_conflict',
     ];
 
-    conflictTypes.forEach(conflictType => {
+    conflictTypes.forEach((conflictType) => {
       const event = new SyncConflictDetected(
         mockDocumentId,
         conflictType as any,
         mockConflictDetails,
         mockLocalVersion,
         mockRemoteVersion,
-        'sync-service'
+        'sync-service',
       );
 
       expect(event.conflictType).toBe(conflictType);
@@ -133,7 +133,7 @@ describe('SyncConflictResolved', () => {
       'conflict-456',
       'manual_merge',
       mockResolutionDetails,
-      'user-123'
+      'user-123',
     );
 
     expect(event.eventType).toBe('SyncConflictResolved');
@@ -152,7 +152,7 @@ describe('SyncConflictResolved', () => {
       'conflict-789',
       'automatic_merge',
       mockResolutionDetails,
-      'auto-resolver'
+      'auto-resolver',
     );
 
     const data = event.eventData;
@@ -176,13 +176,13 @@ describe('SyncConflictResolved', () => {
       'create_alternatives',
     ];
 
-    strategies.forEach(strategy => {
+    strategies.forEach((strategy) => {
       const event = new SyncConflictResolved(
         mockDocumentId,
         'conflict-123',
         strategy as any,
         mockResolutionDetails,
-        'resolver'
+        'resolver',
       );
 
       expect(event.resolutionStrategy).toBe(strategy);
@@ -211,7 +211,7 @@ describe('OperationApplied', () => {
       mockOperation,
       'device-789',
       'sync-coordinator',
-      false
+      false,
     );
 
     expect(event.eventType).toBe('OperationApplied');
@@ -230,7 +230,7 @@ describe('OperationApplied', () => {
       mockOperation,
       'device-abc',
       'operation-applier',
-      true
+      true,
     );
 
     const data = event.eventData;
@@ -254,7 +254,7 @@ describe('OperationApplied', () => {
       'reorder',
     ];
 
-    operationTypes.forEach(type => {
+    operationTypes.forEach((type) => {
       const operation = { ...mockOperation, type: type as any };
       const event = new OperationApplied(
         'agg-123',
@@ -262,7 +262,7 @@ describe('OperationApplied', () => {
         operation,
         'device-123',
         'applier',
-        false
+        false,
       );
 
       expect(event.operation.type).toBe(type);
@@ -290,7 +290,7 @@ describe('OperationRejected', () => {
       'Node',
       mockOperation,
       'stale_version',
-      'validation-service'
+      'validation-service',
     );
 
     expect(event.eventType).toBe('OperationRejected');
@@ -307,7 +307,7 @@ describe('OperationRejected', () => {
       'Tree',
       mockOperation,
       'causality_violation',
-      'causal-validator'
+      'causal-validator',
     );
 
     const data = event.eventData;
@@ -329,13 +329,13 @@ describe('OperationRejected', () => {
       'resource_locked',
     ];
 
-    reasons.forEach(reason => {
+    reasons.forEach((reason) => {
       const event = new OperationRejected(
         'agg-123',
         'Node',
         mockOperation,
         reason as any,
-        'validator'
+        'validator',
       );
 
       expect(event.rejectionReason).toBe(reason);
@@ -350,7 +350,7 @@ describe('SyncStateChanged', () => {
       'synced',
       'conflicted',
       'Conflict detected during merge',
-      'sync-manager'
+      'sync-manager',
     );
 
     expect(event.eventType).toBe('SyncStateChanged');
@@ -369,7 +369,7 @@ describe('SyncStateChanged', () => {
       'local_changes',
       'merging',
       'Starting merge process',
-      'merge-coordinator'
+      'merge-coordinator',
     );
 
     const data = event.eventData;
@@ -386,13 +386,13 @@ describe('SyncStateChanged', () => {
   it('should handle all sync states', () => {
     const states = ['synced', 'local_changes', 'remote_changes', 'conflicted', 'merging', 'error'];
 
-    states.forEach(state => {
+    states.forEach((state) => {
       const event = new SyncStateChanged(
         mockDocumentId,
         'synced',
         state as any,
         `Transition to ${state}`,
-        'state-manager'
+        'state-manager',
       );
 
       expect(event.newState).toBe(state);
@@ -441,7 +441,7 @@ describe('MergeCompleted', () => {
       mockDocumentId,
       'operational_transform',
       mockMergeResult,
-      'ot-merger'
+      'ot-merger',
     );
 
     const data = event.eventData;
@@ -464,7 +464,7 @@ describe('MergeCompleted', () => {
       'vector_clock_based',
     ];
 
-    strategies.forEach(strategy => {
+    strategies.forEach((strategy) => {
       const event = new MergeCompleted(mockDocumentId, strategy as any, mockMergeResult, 'merger');
 
       expect(event.mergeStrategy).toBe(strategy);
@@ -518,7 +518,7 @@ describe('ConcurrentModificationDetected', () => {
       'Node',
       mockConcurrentModification,
       ['user-1', 'user-2'],
-      'concurrent-detector'
+      'concurrent-detector',
     );
 
     expect(event.eventType).toBe('ConcurrentModificationDetected');
@@ -535,7 +535,7 @@ describe('ConcurrentModificationDetected', () => {
       'Tree',
       mockConcurrentModification,
       ['device-1', 'device-2'],
-      'modification-detector'
+      'modification-detector',
     );
 
     const data = event.eventData;
@@ -558,7 +558,7 @@ describe('VectorClockUpdated', () => {
       'VectorClock',
       mockPreviousClock,
       mockNewClock,
-      'clock-manager'
+      'clock-manager',
     );
 
     expect(event.eventType).toBe('VectorClockUpdated');
@@ -575,7 +575,7 @@ describe('VectorClockUpdated', () => {
       'Document',
       mockPreviousClock,
       mockNewClock,
-      'sync-service'
+      'sync-service',
     );
 
     const data = event.eventData;
@@ -603,7 +603,7 @@ describe('CausalityViolationDetected', () => {
       'OperationSequence',
       mockViolation,
       ['op-456', 'op-234'],
-      'causality-checker'
+      'causality-checker',
     );
 
     expect(event.eventType).toBe('CausalityViolationDetected');
@@ -620,7 +620,7 @@ describe('CausalityViolationDetected', () => {
       'Document',
       mockViolation,
       ['op-789'],
-      'causal-validator'
+      'causal-validator',
     );
 
     const data = event.eventData;
@@ -635,14 +635,14 @@ describe('CausalityViolationDetected', () => {
   it('should handle different violation types', () => {
     const violationTypes = ['out_of_order', 'missing_dependency', 'circular_dependency'];
 
-    violationTypes.forEach(type => {
+    violationTypes.forEach((type) => {
       const violation = { ...mockViolation, type: type as any };
       const event = new CausalityViolationDetected(
         'causality-agg-123',
         'OperationSequence',
         violation,
         ['op-123'],
-        'detector'
+        'detector',
       );
 
       expect(event.violationDetails.type).toBe(type);

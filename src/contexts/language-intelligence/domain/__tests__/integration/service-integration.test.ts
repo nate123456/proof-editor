@@ -46,7 +46,7 @@ describe('Language Intelligence Context - Service Integration', () => {
       undefined, // validationSettings
       undefined, // performanceTargets
       undefined, // parentPackageId
-      undefined // metadata
+      undefined, // metadata
     );
     expect(languagePackageResult.isOk()).toBe(true);
     if (languagePackageResult.isOk()) {
@@ -58,7 +58,7 @@ describe('Language Intelligence Context - Service Integration', () => {
       ['P', 'P -> Q'],
       ['Q'],
       'modus-ponens',
-      1.0
+      1.0,
     );
     expect(rulePattern.isOk()).toBe(true);
 
@@ -67,7 +67,7 @@ describe('Language Intelligence Context - Service Integration', () => {
         'modus-ponens',
         'Modus ponens inference rule',
         rulePattern.value,
-        testLanguagePackage.getId().getValue()
+        testLanguagePackage.getId().getValue(),
       );
       expect(inferenceRuleResult.isOk()).toBe(true);
       if (inferenceRuleResult.isOk()) {
@@ -135,14 +135,14 @@ describe('Language Intelligence Context - Service Integration', () => {
         statement,
         location,
         testLanguagePackage,
-        validationLevel
+        validationLevel,
       );
 
       // Additional pattern analysis
       const patternResult = patternRecognitionService.recognizeProofPatterns(
         [statement],
         [],
-        testLanguagePackage
+        testLanguagePackage,
       );
 
       // Assert
@@ -152,8 +152,8 @@ describe('Language Intelligence Context - Service Integration', () => {
       if (validationResult.isOk() && patternResult.isOk()) {
         expect(validationResult.value.isValidationSuccessful()).toBe(true);
         expect(patternResult.value.recognizedPatterns).toHaveLength(1);
-        expect(patternResult.value.recognizedPatterns[0].name).toBe('universal-quantification');
-        expect(patternResult.value.recognizedPatterns[0].confidence).toBe(0.95);
+        expect(patternResult.value.recognizedPatterns[0]?.name).toBe('universal-quantification');
+        expect(patternResult.value.recognizedPatterns[0]?.confidence).toBe(0.95);
       }
 
       expect(recognizePatternsSpy).toHaveBeenCalledWith([statement], [], testLanguagePackage);
@@ -222,13 +222,13 @@ describe('Language Intelligence Context - Service Integration', () => {
         invalidStatement,
         location,
         testLanguagePackage,
-        validationLevel
+        validationLevel,
       );
 
       const patternResult = patternRecognitionService.recognizeProofPatterns(
         [invalidStatement],
         [],
-        testLanguagePackage
+        testLanguagePackage,
       );
 
       // Assert
@@ -242,14 +242,14 @@ describe('Language Intelligence Context - Service Integration', () => {
       }
 
       if (patternResult.isOk()) {
-        expect(patternResult.value.recognizedPatterns[0].name).toBe('contradiction');
-        expect(patternResult.value.recognizedPatterns[0].confidence).toBeGreaterThan(0.9);
+        expect(patternResult.value.recognizedPatterns[0]?.name).toBe('contradiction');
+        expect(patternResult.value.recognizedPatterns[0]?.confidence).toBeGreaterThan(0.9);
       }
 
       expect(recognizePatternsSpy).toHaveBeenCalledWith(
         [invalidStatement],
         [],
-        testLanguagePackage
+        testLanguagePackage,
       );
     });
 
@@ -265,26 +265,25 @@ describe('Language Intelligence Context - Service Integration', () => {
         .mockImplementation(() => {
           return ok({
             argumentType: 'deductive',
-            inferenceRules: [
-              {
-                ruleName: 'modus-ponens',
-                confidence: 0.95,
-                matchedPremises: premises,
-                predictedConclusions: conclusions,
-                suggestions: [],
+            inferenceRules: ['modus-ponens'],
+            complexity: {
+              score: 10,
+              level: 'low' as const,
+              factors: {
+                statementCount: 3,
+                averageLength: 15,
+                logicalSymbolCount: 1,
               },
-            ],
-            complexity: 'simple',
+            },
             validity: true,
             soundness: true,
             logicalFeatures: {
+              hasConditionals: true,
+              hasNegations: false,
               hasQuantifiers: false,
               hasModalOperators: false,
-              hasNegations: false,
-              hasImplications: true,
-              hasConjunctions: false,
-              hasDisjunctions: false,
-              logicalComplexity: 0.3,
+              averageStatementLength: 15,
+              logicalDepth: 1,
             },
             suggestions: [],
           });
@@ -295,13 +294,13 @@ describe('Language Intelligence Context - Service Integration', () => {
         premises,
         conclusions,
         testLanguagePackage,
-        validationLevel
+        validationLevel,
       );
 
       const inferenceAnalysis = patternRecognitionService.recognizeArgumentStructure(
         premises,
         conclusions,
-        testLanguagePackage
+        testLanguagePackage,
       );
 
       // Assert
@@ -313,9 +312,7 @@ describe('Language Intelligence Context - Service Integration', () => {
       }
 
       if (inferenceAnalysis.isOk()) {
-        expect(inferenceAnalysis.value.inferenceRules[0].ruleName).toBe('modus-ponens');
-        expect(inferenceAnalysis.value.inferenceRules[0].confidence).toBe(0.95);
-        expect(inferenceAnalysis.value.inferenceRules[0].matchedPremises).toEqual(premises);
+        expect(inferenceAnalysis.value.inferenceRules[0]).toBe('modus-ponens');
       }
 
       expect(analyzeInferenceSpy).toHaveBeenCalledWith(premises, conclusions, testLanguagePackage);
@@ -333,7 +330,7 @@ describe('Language Intelligence Context - Service Integration', () => {
         statement,
         location,
         testLanguagePackage,
-        validationLevel
+        validationLevel,
       );
 
       // Act
@@ -348,7 +345,7 @@ describe('Language Intelligence Context - Service Integration', () => {
         const feedbackResult = educationalFeedbackService.generateLearningHints(
           mockDiagnostic,
           testLanguagePackage,
-          'beginner'
+          'beginner',
         );
 
         // Assert
@@ -374,7 +371,7 @@ describe('Language Intelligence Context - Service Integration', () => {
         premises,
         conclusions,
         testLanguagePackage,
-        validationLevel
+        validationLevel,
       );
 
       // Act
@@ -383,16 +380,17 @@ describe('Language Intelligence Context - Service Integration', () => {
           premises,
           conclusions,
           testLanguagePackage,
-          'intermediate'
+          'intermediate',
         );
 
         // Assert
         expect(feedbackResult.isOk()).toBe(true);
         if (feedbackResult.isOk()) {
           const feedback = feedbackResult.value;
-          expect(feedback.difficultyLevel).toBe('intermediate');
           expect(feedback.strategies.length).toBeGreaterThan(0);
-          expect(feedback.stepByStepApproach.length).toBeGreaterThan(0);
+          expect(feedback.insights.length).toBeGreaterThan(0);
+          expect(feedback.commonMistakes).toBeDefined();
+          expect(feedback.practiceProblems).toBeDefined();
         }
       }
     });
@@ -459,13 +457,13 @@ describe('Language Intelligence Context - Service Integration', () => {
         invalidArgument,
         location,
         testLanguagePackage,
-        ValidationLevel.semantic()
+        ValidationLevel.semantic(),
       );
 
       const patternResult = patternRecognitionService.recognizeProofPatterns(
         [invalidArgument],
         [],
-        testLanguagePackage
+        testLanguagePackage,
       );
 
       if (validationResult.isOk() && patternResult.isOk()) {
@@ -473,7 +471,7 @@ describe('Language Intelligence Context - Service Integration', () => {
           invalidArgument,
           ['logical-fallacies', 'affirming-consequent'],
           testLanguagePackage,
-          'advanced'
+          'advanced',
         );
 
         // Assert
@@ -501,7 +499,7 @@ describe('Language Intelligence Context - Service Integration', () => {
         malformedStatement,
         location,
         testLanguagePackage,
-        ValidationLevel.syntax()
+        ValidationLevel.syntax(),
       );
 
       // Try to generate feedback for the failed validation
@@ -516,7 +514,7 @@ describe('Language Intelligence Context - Service Integration', () => {
         const feedbackResult = educationalFeedbackService.generateLearningHints(
           mockDiagnostic,
           testLanguagePackage,
-          'beginner'
+          'beginner',
         );
 
         // Assert
@@ -543,7 +541,7 @@ describe('Language Intelligence Context - Service Integration', () => {
         statement,
         location,
         testLanguagePackage,
-        ValidationLevel.semantic()
+        ValidationLevel.semantic(),
       );
 
       // Assert - Verify that services maintain their responsibilities
@@ -551,7 +549,7 @@ describe('Language Intelligence Context - Service Integration', () => {
         statement,
         location,
         testLanguagePackage,
-        ValidationLevel.semantic()
+        ValidationLevel.semantic(),
       );
 
       // Validation service should only validate, not generate feedback
@@ -576,7 +574,7 @@ describe('Language Intelligence Context - Service Integration', () => {
         undefined, // validationSettings
         undefined, // performanceTargets
         undefined, // parentPackageId
-        undefined // metadata
+        undefined, // metadata
       );
       expect(package2Result.isOk()).toBe(true);
 
@@ -588,7 +586,7 @@ describe('Language Intelligence Context - Service Integration', () => {
           ['P <-> Q', 'P'],
           ['Q'],
           'biconditional-elimination',
-          1.0
+          1.0,
         );
 
         if (biconditionalPattern.isOk()) {
@@ -596,7 +594,7 @@ describe('Language Intelligence Context - Service Integration', () => {
             'biconditional-elimination',
             'Biconditional elimination rule',
             biconditionalPattern.value,
-            package2.getId().getValue()
+            package2.getId().getValue(),
           );
           if (ruleResult.isOk()) {
             package2.addInferenceRule(ruleResult.value);
@@ -611,14 +609,14 @@ describe('Language Intelligence Context - Service Integration', () => {
           statement,
           location,
           testLanguagePackage,
-          ValidationLevel.semantic()
+          ValidationLevel.semantic(),
         );
 
         const validation2 = logicValidationService.validateStatement(
           statement,
           location,
           package2,
-          ValidationLevel.semantic()
+          ValidationLevel.semantic(),
         );
 
         // Assert - Different packages may produce different validation results
@@ -628,7 +626,7 @@ describe('Language Intelligence Context - Service Integration', () => {
         if (validation1.isOk() && validation2.isOk()) {
           // The package with biconditional elimination should validate better
           expect(validation1.value.getLanguagePackageId()).toBe(
-            testLanguagePackage.getId().getValue()
+            testLanguagePackage.getId().getValue(),
           );
           expect(validation2.value.getLanguagePackageId()).toBe(package2.getId().getValue());
         }
@@ -647,20 +645,20 @@ describe('Language Intelligence Context - Service Integration', () => {
         statement,
         location,
         testLanguagePackage,
-        ValidationLevel.semantic()
+        ValidationLevel.semantic(),
       );
 
       const inferenceValidation = logicValidationService.validateInference(
         premises,
         conclusions,
         testLanguagePackage,
-        ValidationLevel.semantic()
+        ValidationLevel.semantic(),
       );
 
       const patternAnalysis = patternRecognitionService.recognizeProofPatterns(
         [statement],
         [],
-        testLanguagePackage
+        testLanguagePackage,
       );
 
       // Assert - All services should work with the same package
@@ -670,10 +668,10 @@ describe('Language Intelligence Context - Service Integration', () => {
 
       if (statementValidation.isOk() && inferenceValidation.isOk()) {
         expect(statementValidation.value.getLanguagePackageId()).toBe(
-          testLanguagePackage.getId().getValue()
+          testLanguagePackage.getId().getValue(),
         );
         expect(inferenceValidation.value.getLanguagePackageId()).toBe(
-          testLanguagePackage.getId().getValue()
+          testLanguagePackage.getId().getValue(),
         );
       }
     });
@@ -692,21 +690,21 @@ describe('Language Intelligence Context - Service Integration', () => {
       const location = SourceLocation.createDefault();
 
       // Act - Process multiple statements concurrently
-      const validationPromises = statements.map(statement =>
+      const validationPromises = statements.map(async (statement) =>
         Promise.resolve(
           logicValidationService.validateStatement(
             statement,
             location,
             testLanguagePackage,
-            ValidationLevel.syntax()
-          )
-        )
+            ValidationLevel.syntax(),
+          ),
+        ),
       );
 
-      const patternPromises = statements.map(statement =>
+      const patternPromises = statements.map(async (statement) =>
         Promise.resolve(
-          patternRecognitionService.recognizeLogicalPatterns(statement, testLanguagePackage)
-        )
+          patternRecognitionService.recognizeProofPatterns([statement], [], testLanguagePackage),
+        ),
       );
 
       const validationResults = await Promise.all(validationPromises);
@@ -716,11 +714,11 @@ describe('Language Intelligence Context - Service Integration', () => {
       expect(validationResults).toHaveLength(5);
       expect(patternResults).toHaveLength(5);
 
-      validationResults.forEach(result => {
+      validationResults.forEach((result) => {
         expect(result.isOk()).toBe(true);
       });
 
-      patternResults.forEach(result => {
+      patternResults.forEach((result) => {
         expect(result.isOk()).toBe(true);
       });
     });
@@ -737,23 +735,23 @@ describe('Language Intelligence Context - Service Integration', () => {
       for (let i = 0; i < largeProofStatements.length; i += batchSize) {
         const batch = largeProofStatements.slice(i, i + batchSize);
         const batchResults = await Promise.all(
-          batch.map(statement =>
+          batch.map(async (statement) =>
             Promise.resolve(
               logicValidationService.validateStatement(
                 statement,
                 location,
                 testLanguagePackage,
-                ValidationLevel.syntax()
-              )
-            )
-          )
+                ValidationLevel.syntax(),
+              ),
+            ),
+          ),
         );
         results.push(...batchResults);
       }
 
       // Assert
       expect(results).toHaveLength(100);
-      results.forEach(result => {
+      results.forEach((result) => {
         expect(result.isOk()).toBe(true);
       });
     });

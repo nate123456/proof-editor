@@ -1,10 +1,10 @@
-import {
-  type AtomicArgumentId,
-  type DocumentId,
-  type NodeId,
-  type OrderedSetId,
+import type {
+  AtomicArgumentId,
+  DocumentId,
+  NodeId,
+  OrderedSetId,
   // StatementId,
-  type TreeId,
+  TreeId,
 } from '../shared/value-objects.js';
 import { DomainEvent } from './base-event.js';
 
@@ -16,7 +16,7 @@ export class AtomicArgumentCreated extends DomainEvent {
     public readonly premiseSetId: OrderedSetId | null,
     public readonly conclusionSetId: OrderedSetId | null,
     public readonly sideLabels: SideLabels | null,
-    public readonly createdBy: string
+    public readonly createdBy: string,
   ) {
     super(argumentId.getValue(), 'AtomicArgument');
   }
@@ -38,7 +38,7 @@ export class AtomicArgumentModified extends DomainEvent {
   constructor(
     public readonly argumentId: AtomicArgumentId,
     public readonly changes: ArgumentModification,
-    public readonly modifiedBy: string
+    public readonly modifiedBy: string,
   ) {
     super(argumentId.getValue(), 'AtomicArgument');
   }
@@ -58,7 +58,7 @@ export class AtomicArgumentDeleted extends DomainEvent {
   constructor(
     public readonly argumentId: AtomicArgumentId,
     public readonly deletedBy: string,
-    public readonly cascadeEffects: CascadeEffect[]
+    public readonly cascadeEffects: CascadeEffect[],
   ) {
     super(argumentId.getValue(), 'AtomicArgument');
   }
@@ -80,7 +80,7 @@ export class ProofTreeCreated extends DomainEvent {
     public readonly documentId: DocumentId,
     public readonly position: TreePosition,
     public readonly physicalProperties: TreePhysicalProperties,
-    public readonly createdBy: string
+    public readonly createdBy: string,
   ) {
     super(treeId.getValue(), 'ProofTree');
   }
@@ -106,7 +106,7 @@ export class NodeAddedToTree extends DomainEvent {
     public readonly parentNodeId: NodeId | null,
     public readonly premisePosition: number,
     public readonly fromPosition: number | undefined,
-    public readonly addedBy: string
+    public readonly addedBy: string,
   ) {
     super(treeId.getValue(), 'ProofTree');
   }
@@ -131,7 +131,7 @@ export class NodeRemovedFromTree extends DomainEvent {
     public readonly treeId: TreeId,
     public readonly nodeId: NodeId,
     public readonly removedBy: string,
-    public readonly cascadeEffects: NodeCascadeEffect[]
+    public readonly cascadeEffects: NodeCascadeEffect[],
   ) {
     super(treeId.getValue(), 'ProofTree');
   }
@@ -152,7 +152,7 @@ export class TreeStructureModified extends DomainEvent {
   constructor(
     public readonly treeId: TreeId,
     public readonly modification: TreeModification,
-    public readonly modifiedBy: string
+    public readonly modifiedBy: string,
   ) {
     super(treeId.getValue(), 'ProofTree');
   }
@@ -173,7 +173,7 @@ export class TreePositionChanged extends DomainEvent {
     public readonly treeId: TreeId,
     public readonly previousPosition: TreePosition,
     public readonly newPosition: TreePosition,
-    public readonly movedBy: string
+    public readonly movedBy: string,
   ) {
     super(treeId.getValue(), 'ProofTree');
   }
@@ -195,7 +195,7 @@ export class TreePhysicalPropertiesChanged extends DomainEvent {
     public readonly treeId: TreeId,
     public readonly previousProperties: TreePhysicalProperties,
     public readonly newProperties: TreePhysicalProperties,
-    public readonly changedBy: string
+    public readonly changedBy: string,
   ) {
     super(treeId.getValue(), 'ProofTree');
   }
@@ -218,7 +218,7 @@ export class BranchCreated extends DomainEvent {
     public readonly parentNodeId: NodeId,
     public readonly newNodeId: NodeId,
     public readonly branchType: BranchType,
-    public readonly createdBy: string
+    public readonly createdBy: string,
   ) {
     super(treeId.getValue(), 'ProofTree');
   }

@@ -1,7 +1,8 @@
 import { err, ok, type Result } from 'neverthrow';
+import { injectable } from 'tsyringe';
 
 import { Conflict } from '../entities/Conflict';
-import { type Operation } from '../entities/Operation';
+import type { Operation } from '../entities/Operation';
 
 export interface IOperationCoordinationService {
   applyOperation(operation: Operation, currentState: unknown): Promise<Result<unknown, Error>>;
@@ -9,12 +10,16 @@ export interface IOperationCoordinationService {
   orderOperations(operations: Operation[]): Result<Operation[], Error>;
   transformOperation(
     operation: Operation,
-    againstOperations: Operation[]
+    againstOperations: Operation[],
   ): Promise<Result<Operation, Error>>;
 }
 
+@injectable()
 export class OperationCoordinationService implements IOperationCoordinationService {
-  applyOperation(operation: Operation, currentState: unknown): Promise<Result<unknown, Error>> {
+  async applyOperation(
+    operation: Operation,
+    currentState: unknown,
+  ): Promise<Result<unknown, Error>> {
     return Promise.resolve(operation.applyTo(currentState));
   }
 
@@ -34,7 +39,7 @@ export class OperationCoordinationService implements IOperationCoordinationServi
 
         const conflictResult = await this.analyzeOperationsForConflictsUsingEntities(
           targetPath,
-          targetOperations
+          targetOperations,
         );
         if (conflictResult.isOk() && conflictResult.value.length > 0) {
           conflicts.push(...conflictResult.value);
@@ -73,9 +78,9 @@ export class OperationCoordinationService implements IOperationCoordinationServi
     }
   }
 
-  transformOperation(
+  async transformOperation(
     operation: Operation,
-    againstOperations: Operation[]
+    againstOperations: Operation[],
   ): Promise<Result<Operation, Error>> {
     return Promise.resolve(operation.transformAgainstOperations(againstOperations));
   }
@@ -88,15 +93,15 @@ export class OperationCoordinationService implements IOperationCoordinationServi
       if (!groups.has(targetPath)) {
         groups.set(targetPath, []);
       }
-      groups.get(targetPath)!.push(operation);
+      groups.get(targetPath)?.push(operation);
     }
 
     return groups;
   }
 
-  private analyzeOperationsForConflictsUsingEntities(
-    targetPath: string,
-    operations: Operation[]
+  private async analyzeOperationsForConflictsUsingEntities(
+    _targetPath: string,
+    operations: Operation[],
   ): Promise<Result<Conflict[], Error>> {
     const conflicts: Conflict[] = [];
 
@@ -128,7 +133,7 @@ export class OperationCoordinationService implements IOperationCoordinationServi
           conflictData.id,
           conflictData.conflictType,
           conflictData.targetPath,
-          conflictData.operations
+          conflictData.operations,
         );
 
         if (conflictInstance.isOk()) {
@@ -192,7 +197,7 @@ export class OperationCoordinationService implements IOperationCoordinationServi
     for (let i = 0; i < input.length; i++) {
       const char = input.charCodeAt(i);
       hash = (hash << 5) - hash + char;
-      hash = hash & hash;
+      hash &= hash;
     }
     return Math.abs(hash).toString(36);
   }

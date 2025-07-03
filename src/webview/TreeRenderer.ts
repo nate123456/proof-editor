@@ -1,3 +1,5 @@
+import { injectable } from 'tsyringe';
+
 import type { AtomicArgument } from '../domain/entities/AtomicArgument.js';
 import type { Node } from '../domain/entities/Node.js';
 import type { Statement } from '../domain/entities/Statement.js';
@@ -42,6 +44,7 @@ interface TreeLayout {
   height: number;
 }
 
+@injectable()
 export class TreeRenderer {
   private readonly config: TreeRenderConfig = {
     nodeWidth: 220,
@@ -64,7 +67,7 @@ export class TreeRenderer {
     }
 
     const layouts = this.calculateTreeLayouts(proofDoc);
-    const totalWidth = Math.max(...layouts.map(layout => layout.width + 50)) || 400;
+    const totalWidth = Math.max(...layouts.map((layout) => layout.width + 50)) || 400;
     const totalHeight = layouts.reduce((sum, layout) => sum + layout.height + 100, 50);
 
     const svgContent = this.renderAllTrees(layouts);
@@ -102,7 +105,7 @@ export class TreeRenderer {
     const layouts: TreeLayout[] = [];
     let currentY = 50;
 
-    for (const [treeId, tree] of proofDoc.trees) {
+    for (const [treeId, tree] of Array.from(proofDoc.trees.entries())) {
       const layout = this.calculateSingleTreeLayout(treeId, tree, proofDoc, currentY);
       layouts.push(layout);
       currentY += layout.height + 100;
@@ -112,10 +115,10 @@ export class TreeRenderer {
   }
 
   private calculateSingleTreeLayout(
-    treeId: string,
+    _treeId: string,
     tree: Tree,
     proofDoc: ProofDocument,
-    startY: number
+    startY: number,
   ): TreeLayout {
     const treeNodes = this.getTreeNodes(tree, proofDoc);
     const renderedNodes: RenderedNode[] = [];
@@ -132,7 +135,7 @@ export class TreeRenderer {
     let maxX = 0;
     let maxY = startY;
 
-    for (const [nodeId, node] of treeNodes) {
+    for (const [nodeId, node] of Array.from(treeNodes.entries())) {
       const position = nodePositions.get(nodeId) ?? { x: 50, y: startY };
       const argument = proofDoc.atomicArguments.get(node.getArgumentId().getValue());
 
@@ -193,7 +196,7 @@ export class TreeRenderer {
 
   private calculateNodePositions(
     nodes: Map<string, Node>,
-    treeOffset: { x: number; y: number }
+    treeOffset: { x: number; y: number },
   ): Map<string, { x: number; y: number }> {
     const positions = new Map<string, { x: number; y: number }>();
     const levels = new Map<string, number>();
@@ -208,9 +211,11 @@ export class TreeRenderer {
     });
 
     while (queue.length > 0) {
-      const { nodeId, level } = queue.shift()!;
+      const item = queue.shift();
+      if (!item) break;
+      const { nodeId, level } = item;
 
-      for (const [childId, childNode] of nodes) {
+      for (const [childId, childNode] of Array.from(nodes.entries())) {
         const attachment = childNode.getAttachment();
         if (attachment && attachment.getParentNodeId().getValue() === nodeId) {
           levels.set(childId, level + 1);
@@ -222,11 +227,11 @@ export class TreeRenderer {
     const levelCounts = new Map<number, number>();
     const levelPositions = new Map<number, number>();
 
-    for (const level of levels.values()) {
+    for (const level of Array.from(levels.values())) {
       levelCounts.set(level, (levelCounts.get(level) ?? 0) + 1);
     }
 
-    for (const [nodeId, level] of levels) {
+    for (const [nodeId, level] of Array.from(levels.entries())) {
       const positionInLevel = levelPositions.get(level) ?? 0;
       levelPositions.set(level, positionInLevel + 1);
 
@@ -241,12 +246,12 @@ export class TreeRenderer {
 
   private getStatementsFromOrderedSet(
     orderedSetId: OrderedSetId | null | undefined,
-    proofDoc: ProofDocument
+    proofDoc: ProofDocument,
   ): Statement[] {
     if (!orderedSetId) return [];
 
     // Find the ordered set by looking through arguments that use it
-    for (const argument of proofDoc.atomicArguments.values()) {
+    for (const argument of Array.from(proofDoc.atomicArguments.values())) {
       const premiseSetId = argument.getPremiseSetRef();
       const conclusionSetId = argument.getConclusionSetRef();
 
@@ -265,7 +270,7 @@ export class TreeRenderer {
   private getStatementsFromArgumentSet(
     proofDoc: ProofDocument,
     argument: AtomicArgument,
-    type: 'premises' | 'conclusions'
+    type: 'premises' | 'conclusions',
   ): Statement[] {
     // Get the ordered set from the argument
     const orderedSetId =
@@ -289,11 +294,11 @@ export class TreeRenderer {
   }
 
   private renderAllTrees(layouts: TreeLayout[]): string {
-    return layouts.map(layout => this.renderSingleTree(layout)).join('\n');
+    return layouts.map((layout) => this.renderSingleTree(layout)).join('\n');
   }
 
   private renderSingleTree(layout: TreeLayout): string {
-    const nodesSvg = layout.nodes.map(node => this.renderAtomicArgument(node)).join('\n');
+    const nodesSvg = layout.nodes.map((node) => this.renderAtomicArgument(node)).join('\n');
 
     const connectionsSvg = this.renderConnections(layout);
 
@@ -318,7 +323,7 @@ export class TreeRenderer {
       x + 10,
       y + 15,
       nodeWidth - 20,
-      premisesHeight - 10
+      premisesHeight - 10,
     );
 
     const conclusionsSvg = this.renderStatements(
@@ -326,7 +331,7 @@ export class TreeRenderer {
       x + 10,
       y + premisesHeight + 15,
       nodeWidth - 20,
-      conclusionsHeight - 10
+      conclusionsHeight - 10,
     );
 
     const sideLabelSvg = node.sideLabel
@@ -361,7 +366,7 @@ export class TreeRenderer {
     x: number,
     y: number,
     width: number,
-    height: number
+    height: number,
   ): string {
     if (statements.length === 0) {
       return `<text x="${x + width / 2}" y="${y + height / 2}" 
@@ -385,15 +390,15 @@ export class TreeRenderer {
   }
 
   private renderConnections(layout: TreeLayout): string {
-    return layout.connections.map(conn => this.renderConnection(conn, layout.nodes)).join('\n');
+    return layout.connections.map((conn) => this.renderConnection(conn, layout.nodes)).join('\n');
   }
 
   private renderConnection(
     connection: TreeLayout['connections'][0],
-    nodes: RenderedNode[]
+    nodes: RenderedNode[],
   ): string {
-    const fromNode = nodes.find(n => n.id === connection.fromNode);
-    const toNode = nodes.find(n => n.id === connection.toNode);
+    const fromNode = nodes.find((n) => n.id === connection.fromNode);
+    const toNode = nodes.find((n) => n.id === connection.toNode);
 
     if (!fromNode || !toNode) return '';
 

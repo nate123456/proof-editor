@@ -2,7 +2,7 @@ import { err, ok, type Result } from 'neverthrow';
 
 import { SourceLocation } from '../../../../domain/shared/index.js';
 import { ValidationError } from '../errors/DomainErrors';
-import { type ValidationLevel } from './ValidationLevel';
+import type { ValidationLevel } from './ValidationLevel';
 
 export class ValidationRequest {
   private constructor(
@@ -11,7 +11,7 @@ export class ValidationRequest {
     private readonly level: ValidationLevel,
     private readonly documentId: string,
     private readonly languagePackageId: string,
-    private readonly metadata: ValidationRequestMetadata
+    private readonly metadata: ValidationRequestMetadata,
   ) {}
 
   static create(
@@ -20,7 +20,7 @@ export class ValidationRequest {
     level: ValidationLevel,
     documentId: string,
     languagePackageId: string,
-    metadata: ValidationRequestMetadata = ValidationRequestMetadataFactory.createDefault()
+    metadata: ValidationRequestMetadata = createDefaultValidationRequestMetadata(),
   ): Result<ValidationRequest, ValidationError> {
     if (!statementText || statementText.trim().length === 0) {
       return err(new ValidationError('Statement text cannot be empty'));
@@ -41,8 +41,8 @@ export class ValidationRequest {
         level,
         documentId.trim(),
         languagePackageId.trim(),
-        metadata
-      )
+        metadata,
+      ),
     );
   }
 
@@ -52,7 +52,7 @@ export class ValidationRequest {
     level: ValidationLevel,
     documentId: string,
     languagePackageId: string,
-    metadata: ValidationRequestMetadata = ValidationRequestMetadataFactory.createDefault()
+    metadata: ValidationRequestMetadata = createDefaultValidationRequestMetadata(),
   ): Result<ValidationRequest, ValidationError> {
     if (!premises || premises.length === 0) {
       return err(new ValidationError('At least one premise is required'));
@@ -72,7 +72,7 @@ export class ValidationRequest {
       level,
       documentId,
       languagePackageId,
-      { ...metadata, isInferenceValidation: true, premises, conclusions }
+      { ...metadata, isInferenceValidation: true, premises, conclusions },
     );
   }
 
@@ -135,7 +135,7 @@ export class ValidationRequest {
       newLevel,
       this.documentId,
       this.languagePackageId,
-      this.metadata
+      this.metadata,
     );
   }
 
@@ -146,7 +146,7 @@ export class ValidationRequest {
       this.level,
       this.documentId,
       this.languagePackageId,
-      { ...this.metadata, ...newMetadata }
+      { ...this.metadata, ...newMetadata },
     );
   }
 
@@ -187,32 +187,30 @@ export interface ValidationRequestMetadata {
 export type ValidationRequestSource = 'editor' | 'lsp' | 'api' | 'test';
 export type ValidationPriority = 'low' | 'normal' | 'high' | 'urgent';
 
-export class ValidationRequestMetadataFactory {
-  static createDefault(): ValidationRequestMetadata {
-    return {
-      isInferenceValidation: false,
-      trackPerformance: true,
-      educationalFeedback: true,
-      requestSource: 'editor',
-      priority: 'normal',
-      timeout: 10000,
-    };
-  }
+export function createDefaultValidationRequestMetadata(): ValidationRequestMetadata {
+  return {
+    isInferenceValidation: false,
+    trackPerformance: true,
+    educationalFeedback: true,
+    requestSource: 'editor',
+    priority: 'normal',
+    timeout: 10000,
+  };
+}
 
-  static createForLSP(): ValidationRequestMetadata {
-    return {
-      ...ValidationRequestMetadataFactory.createDefault(),
-      requestSource: 'lsp',
-      timeout: 5000,
-    };
-  }
+export function createLSPValidationRequestMetadata(): ValidationRequestMetadata {
+  return {
+    ...createDefaultValidationRequestMetadata(),
+    requestSource: 'lsp',
+    timeout: 5000,
+  };
+}
 
-  static createForAPI(): ValidationRequestMetadata {
-    return {
-      ...ValidationRequestMetadataFactory.createDefault(),
-      requestSource: 'api',
-      priority: 'high',
-      timeout: 15000,
-    };
-  }
+export function createAPIValidationRequestMetadata(): ValidationRequestMetadata {
+  return {
+    ...createDefaultValidationRequestMetadata(),
+    requestSource: 'api',
+    priority: 'high',
+    timeout: 15000,
+  };
 }

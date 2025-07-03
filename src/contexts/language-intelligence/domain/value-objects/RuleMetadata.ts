@@ -13,7 +13,7 @@ export class RuleMetadata {
     private readonly sourceReference: string | null,
     private readonly educationalLevel: EducationalLevel,
     private readonly prerequisiteKnowledge: readonly string[],
-    private readonly relatedConcepts: readonly string[]
+    private readonly relatedConcepts: readonly string[],
   ) {}
 
   static create(options: RuleMetadataOptions): Result<RuleMetadata, ValidationError> {
@@ -30,15 +30,15 @@ export class RuleMetadata {
       relatedConcepts = [],
     } = options;
 
-    if (tags.some(tag => tag.trim().length === 0)) {
+    if (tags.some((tag) => tag.trim().length === 0)) {
       return _err(new ValidationError('Tags cannot be empty'));
     }
 
-    if (prerequisiteKnowledge.some(prereq => prereq.trim().length === 0)) {
+    if (prerequisiteKnowledge.some((prereq) => prereq.trim().length === 0)) {
       return _err(new ValidationError('Prerequisite knowledge items cannot be empty'));
     }
 
-    if (relatedConcepts.some(concept => concept.trim().length === 0)) {
+    if (relatedConcepts.some((concept) => concept.trim().length === 0)) {
       return _err(new ValidationError('Related concepts cannot be empty'));
     }
 
@@ -49,12 +49,12 @@ export class RuleMetadata {
         logicType,
         isBuiltIn,
         isStandard,
-        tags.map(tag => tag.trim()),
+        tags.map((tag) => tag.trim()),
         sourceReference?.trim() ?? null,
         educationalLevel,
-        prerequisiteKnowledge.map(prereq => prereq.trim()),
-        relatedConcepts.map(concept => concept.trim())
-      )
+        prerequisiteKnowledge.map((prereq) => prereq.trim()),
+        relatedConcepts.map((concept) => concept.trim()),
+      ),
     );
   }
 
@@ -69,7 +69,7 @@ export class RuleMetadata {
       null,
       'undergraduate',
       [],
-      []
+      [],
     );
   }
 
@@ -249,7 +249,7 @@ export class RuleMetadata {
   }
 
   withAdditionalTags(newTags: string[]): Result<RuleMetadata, ValidationError> {
-    const allTags = [...this.tags, ...newTags.map(tag => tag.trim())];
+    const allTags = [...this.tags, ...newTags.map((tag) => tag.trim())];
 
     return RuleMetadata.create({
       complexityLevel: this.complexityLevel,
@@ -276,7 +276,7 @@ export class RuleMetadata {
       this.sourceReference,
       this.educationalLevel,
       this.prerequisiteKnowledge,
-      this.relatedConcepts
+      this.relatedConcepts,
     );
   }
 

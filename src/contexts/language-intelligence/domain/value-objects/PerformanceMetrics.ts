@@ -11,7 +11,7 @@ export class PerformanceMetrics {
     private readonly totalTimeMs: number,
     private readonly cpuTimeMs: number,
     private readonly memoryUsedBytes: number,
-    private readonly peakMemoryBytes: number
+    private readonly peakMemoryBytes: number,
   ) {}
 
   /**
@@ -21,7 +21,7 @@ export class PerformanceMetrics {
     totalTimeMs: number,
     cpuTimeMs: number,
     memoryUsedBytes: number,
-    peakMemoryBytes: number
+    peakMemoryBytes: number,
   ): Result<PerformanceMetrics, ValidationError> {
     // Validate that times are not negative
     if (totalTimeMs < 0) {
@@ -137,7 +137,7 @@ export class PerformanceMetrics {
       this.totalTimeMs + other.totalTimeMs,
       this.cpuTimeMs + other.cpuTimeMs,
       this.memoryUsedBytes + other.memoryUsedBytes,
-      Math.max(this.peakMemoryBytes, other.peakMemoryBytes) // Use higher peak
+      Math.max(this.peakMemoryBytes, other.peakMemoryBytes), // Use higher peak
     );
   }
 
@@ -146,7 +146,7 @@ export class PerformanceMetrics {
       (this.totalTimeMs + other.totalTimeMs) / 2,
       (this.cpuTimeMs + other.cpuTimeMs) / 2,
       (this.memoryUsedBytes + other.memoryUsedBytes) / 2,
-      (this.peakMemoryBytes + other.peakMemoryBytes) / 2
+      (this.peakMemoryBytes + other.peakMemoryBytes) / 2,
     );
   }
 

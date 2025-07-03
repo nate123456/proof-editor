@@ -17,11 +17,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SourceLocation } from '../../../../../domain/shared/index.js';
 import { Diagnostic } from '../../entities/Diagnostic';
-import { type InferenceRule } from '../../entities/InferenceRule';
-import { type LanguagePackage } from '../../entities/LanguagePackage';
-import { type ValidationResult } from '../../entities/ValidationResult';
+import type { InferenceRule } from '../../entities/InferenceRule';
+import type { LanguagePackage } from '../../entities/LanguagePackage';
+import type { ValidationResult } from '../../entities/ValidationResult';
 import { PatternRecognitionService } from '../../services/PatternRecognitionService';
 import { DiagnosticSeverity } from '../../value-objects/DiagnosticSeverity';
+
 // Mock factories
 const createMockLanguagePackage = (
   options: {
@@ -29,7 +30,7 @@ const createMockLanguagePackage = (
     supportsModalLogic?: boolean;
     supportsPropositionalLogic?: boolean;
     rules?: InferenceRule[];
-  } = {}
+  } = {},
 ): LanguagePackage => {
   return {
     getId: vi.fn(() => ({ getValue: () => 'lang-package-1' })),
@@ -54,20 +55,20 @@ const createMockValidationResult = (diagnostics: Diagnostic[] = []): ValidationR
     getId: vi.fn(() => ({ getValue: () => 'validation-1' })),
     getDiagnostics: vi.fn(() => diagnostics),
     getErrorCount: vi.fn(
-      () => diagnostics.filter(d => d.getSeverity().getSeverity() === 'error').length
+      () => diagnostics.filter((d) => d.getSeverity().getSeverity() === 'error').length,
     ),
     getWarningCount: vi.fn(
-      () => diagnostics.filter(d => d.getSeverity().getSeverity() === 'warning').length
+      () => diagnostics.filter((d) => d.getSeverity().getSeverity() === 'warning').length,
     ),
-    hasErrors: vi.fn(() => diagnostics.some(d => d.getSeverity().getSeverity() === 'error')),
-    hasWarnings: vi.fn(() => diagnostics.some(d => d.getSeverity().getSeverity() === 'warning')),
+    hasErrors: vi.fn(() => diagnostics.some((d) => d.getSeverity().getSeverity() === 'error')),
+    hasWarnings: vi.fn(() => diagnostics.some((d) => d.getSeverity().getSeverity() === 'warning')),
   } as unknown as ValidationResult;
 };
 
 const createMockDiagnostic = (
   severity: 'error' | 'warning' | 'info' = 'error',
   code = 'test-code',
-  message = 'Test diagnostic message'
+  message = 'Test diagnostic message',
 ): Diagnostic => {
   const range = SourceLocation.create(1, 1, 1, 10);
   if (range.isErr()) throw new Error('Failed to create range');
@@ -86,7 +87,7 @@ const createMockDiagnostic = (
     range.value,
     'test-source',
     [],
-    []
+    [],
   );
 
   if (result.isErr()) throw new Error('Failed to create diagnostic');
@@ -154,7 +155,7 @@ describe('PatternRecognitionService', () => {
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         const patterns = result.value.recognizedPatterns;
-        expect(patterns.some(p => p.name === 'modus-ponens')).toBe(true);
+        expect(patterns.some((p) => p.name === 'modus-ponens')).toBe(true);
       }
     });
 
@@ -167,7 +168,7 @@ describe('PatternRecognitionService', () => {
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         const patterns = result.value.recognizedPatterns;
-        patterns.forEach(pattern => {
+        patterns.forEach((pattern) => {
           expect(pattern.confidence).toBeGreaterThanOrEqual(0.7);
         });
       }
@@ -304,7 +305,7 @@ describe('PatternRecognitionService', () => {
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         const mistakes = result.value.commonMistakes;
-        expect(mistakes.some(m => m.type === 'missing-premise')).toBe(true);
+        expect(mistakes.some((m) => m.type === 'missing-premise')).toBe(true);
       }
     });
 
@@ -313,7 +314,7 @@ describe('PatternRecognitionService', () => {
       const modalDiagnostic = createMockDiagnostic(
         'error',
         'modal-error',
-        'Invalid modal operator'
+        'Invalid modal operator',
       );
       const validationResults = [createMockValidationResult([modalDiagnostic])];
 
@@ -322,7 +323,7 @@ describe('PatternRecognitionService', () => {
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         const mistakes = result.value.commonMistakes;
-        expect(mistakes.some(m => m.type === 'modal-logic-error')).toBe(true);
+        expect(mistakes.some((m) => m.type === 'modal-logic-error')).toBe(true);
       }
     });
 
@@ -363,7 +364,7 @@ describe('PatternRecognitionService', () => {
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         const { logicalPatterns } = result.value;
-        expect(logicalPatterns.some(p => p.name === 'modus-ponens')).toBe(true);
+        expect(logicalPatterns.some((p) => p.name === 'modus-ponens')).toBe(true);
       }
     });
 
@@ -475,7 +476,7 @@ describe('PatternRecognitionService', () => {
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         const suggestions = result.value;
-        expect(suggestions.some(s => s.suggestedStatement === 'P ∧ Q')).toBe(true);
+        expect(suggestions.some((s) => s.suggestedStatement === 'P ∧ Q')).toBe(true);
       }
     });
 

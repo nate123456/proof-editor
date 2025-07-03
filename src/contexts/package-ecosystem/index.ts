@@ -4,6 +4,6 @@ export * from './domain/entities/PackageInstallation';
 export * from './domain/entities/PackageVersion';
 export * from './domain/repositories';
 export * from './domain/services/DependencyResolutionService';
-export * from './domain/services/package-discovery-service';
 export * from './domain/services/PackageValidationService';
+export * from './domain/services/package-discovery-service';
 export * from './domain/services/VersionResolutionService';

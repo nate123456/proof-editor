@@ -148,7 +148,7 @@ describe('AnalysisMetrics', () => {
       if (result.isOk()) {
         const metrics = result.value;
         const ratio = metrics.getIssuesPerPatternRatio();
-        expect(ratio).toBe(Infinity);
+        expect(ratio).toBe(Number.POSITIVE_INFINITY);
       }
     });
 
@@ -170,7 +170,7 @@ describe('AnalysisMetrics', () => {
       if (result.isOk()) {
         const metrics = result.value;
         const timePerIssue = metrics.getTimePerIssue();
-        expect(timePerIssue).toBe(Infinity);
+        expect(timePerIssue).toBe(Number.POSITIVE_INFINITY);
       }
     });
 
@@ -319,7 +319,7 @@ describe('AnalysisMetrics', () => {
       if (result.isOk()) {
         const metrics = result.value;
         const efficiency = metrics.getAnalysisEfficiency();
-        expect(efficiency).toBe(Infinity);
+        expect(efficiency).toBe(Number.POSITIVE_INFINITY);
       }
     });
 

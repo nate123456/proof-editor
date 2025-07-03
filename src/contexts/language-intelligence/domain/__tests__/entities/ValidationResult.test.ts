@@ -46,7 +46,7 @@ describe('ValidationResult', () => {
         mockLevel,
         documentId,
         languagePackageId,
-        mockMetrics
+        mockMetrics,
       );
 
       expect(result.isOk()).toBe(true);
@@ -69,7 +69,7 @@ describe('ValidationResult', () => {
         mockLevel,
         documentId,
         languagePackageId,
-        mockMetrics
+        mockMetrics,
       );
 
       expect(result.isOk()).toBe(true);
@@ -92,12 +92,12 @@ describe('ValidationResult', () => {
       const errorResult = Diagnostic.createSyntaxError(
         'Syntax error',
         mockLocation,
-        languagePackageId
+        languagePackageId,
       );
       const warningResult = Diagnostic.createStyleWarning(
         'Style warning',
         mockLocation,
-        languagePackageId
+        languagePackageId,
       );
 
       if (errorResult.isOk() && warningResult.isOk()) {
@@ -111,7 +111,7 @@ describe('ValidationResult', () => {
         mockDiagnostics,
         documentId,
         languagePackageId,
-        mockMetrics
+        mockMetrics,
       );
 
       expect(result.isOk()).toBe(true);
@@ -130,7 +130,7 @@ describe('ValidationResult', () => {
         [],
         documentId,
         languagePackageId,
-        mockMetrics
+        mockMetrics,
       );
 
       expect(result.isErr()).toBe(true);
@@ -150,7 +150,7 @@ describe('ValidationResult', () => {
         mockLevel,
         documentId,
         languagePackageId,
-        mockMetrics
+        mockMetrics,
       );
 
       if (successResult.isOk()) {
@@ -160,7 +160,7 @@ describe('ValidationResult', () => {
       const errorDiagResult = Diagnostic.createSyntaxError(
         'Initial error',
         mockLocation,
-        languagePackageId
+        languagePackageId,
       );
       if (errorDiagResult.isOk()) {
         errorDiagnostic = errorDiagResult.value;
@@ -169,7 +169,7 @@ describe('ValidationResult', () => {
           [errorDiagnostic],
           documentId,
           languagePackageId,
-          mockMetrics
+          mockMetrics,
         );
         if (failedResultResult.isOk()) {
           failedResult = failedResultResult.value;
@@ -181,7 +181,7 @@ describe('ValidationResult', () => {
       const newDiagnosticResult = Diagnostic.createSemanticError(
         'New error',
         mockLocation,
-        languagePackageId
+        languagePackageId,
       );
 
       expect(newDiagnosticResult.isOk()).toBe(true);
@@ -191,7 +191,7 @@ describe('ValidationResult', () => {
         expect(result.isErr()).toBe(true);
         if (result.isErr()) {
           expect(result.error.message).toBe(
-            'Cannot add diagnostic to successful validation result'
+            'Cannot add diagnostic to successful validation result',
           );
         }
       }
@@ -201,7 +201,7 @@ describe('ValidationResult', () => {
       const newDiagnosticResult = Diagnostic.createSemanticError(
         'New error',
         mockLocation,
-        languagePackageId
+        languagePackageId,
       );
 
       expect(newDiagnosticResult.isOk()).toBe(true);
@@ -240,17 +240,17 @@ describe('ValidationResult', () => {
       const errorDiag = Diagnostic.createSyntaxError(
         'Syntax error',
         mockLocation,
-        languagePackageId
+        languagePackageId,
       );
       const warningDiag = Diagnostic.createStyleWarning(
         'Style warning',
         mockLocation,
-        languagePackageId
+        languagePackageId,
       );
       const infoDiag = Diagnostic.createEducationalInfo(
         'Educational info',
         mockLocation,
-        languagePackageId
+        languagePackageId,
       );
 
       if (errorDiag.isOk() && warningDiag.isOk() && infoDiag.isOk()) {
@@ -260,7 +260,7 @@ describe('ValidationResult', () => {
           diagnostics,
           documentId,
           languagePackageId,
-          mockMetrics
+          mockMetrics,
         );
         if (result.isOk()) {
           validationResult = result.value;
@@ -279,9 +279,9 @@ describe('ValidationResult', () => {
     it('should analyze severity distribution', () => {
       const distribution = validationResult.analyzeSeverityDistribution();
 
-      expect(distribution['error']).toBe(1);
-      expect(distribution['warning']).toBe(1);
-      expect(distribution['info']).toBe(1);
+      expect(distribution.error).toBe(1);
+      expect(distribution.warning).toBe(1);
+      expect(distribution.info).toBe(1);
     });
   });
 
@@ -296,7 +296,7 @@ describe('ValidationResult', () => {
           mockLevel,
           documentId,
           languagePackageId,
-          fastMetricsResult.value
+          fastMetricsResult.value,
         );
 
         expect(result.isOk()).toBe(true);
@@ -316,7 +316,7 @@ describe('ValidationResult', () => {
           mockLevel,
           documentId,
           languagePackageId,
-          slowMetricsResult.value
+          slowMetricsResult.value,
         );
 
         expect(result.isOk()).toBe(true);
@@ -336,13 +336,13 @@ describe('ValidationResult', () => {
         mockLevel,
         documentId,
         languagePackageId,
-        mockMetrics
+        mockMetrics,
       );
       const res2 = ValidationResult.createSuccessfulValidation(
         mockLevel,
         documentId,
         languagePackageId,
-        mockMetrics
+        mockMetrics,
       );
 
       if (res1.isOk() && res2.isOk()) {
@@ -368,7 +368,7 @@ describe('ValidationResult', () => {
         mockLevel,
         'different-doc',
         languagePackageId,
-        mockMetrics
+        mockMetrics,
       );
 
       expect(differentDocResult.isOk()).toBe(true);
@@ -378,7 +378,7 @@ describe('ValidationResult', () => {
         expect(combinedResult.isErr()).toBe(true);
         if (combinedResult.isErr()) {
           expect(combinedResult.error.message).toBe(
-            'Cannot combine validation results from different documents'
+            'Cannot combine validation results from different documents',
           );
         }
       }
@@ -390,7 +390,7 @@ describe('ValidationResult', () => {
         incompatibleLevel,
         documentId,
         languagePackageId,
-        mockMetrics
+        mockMetrics,
       );
 
       expect(incompatibleResult.isOk()).toBe(true);
@@ -404,7 +404,7 @@ describe('ValidationResult', () => {
         expect(combinedResult.isErr()).toBe(true);
         if (combinedResult.isErr()) {
           expect(combinedResult.error.message).toBe(
-            'Cannot combine validation results from incompatible levels'
+            'Cannot combine validation results from incompatible levels',
           );
         }
       }
@@ -414,7 +414,7 @@ describe('ValidationResult', () => {
       const errorDiagResult = Diagnostic.createSyntaxError(
         'Error',
         mockLocation,
-        languagePackageId
+        languagePackageId,
       );
 
       expect(errorDiagResult.isOk()).toBe(true);
@@ -424,7 +424,7 @@ describe('ValidationResult', () => {
           [errorDiagResult.value],
           documentId,
           languagePackageId,
-          mockMetrics
+          mockMetrics,
         );
 
         expect(failedResultResult.isOk()).toBe(true);
@@ -449,17 +449,17 @@ describe('ValidationResult', () => {
       const syntaxError1 = Diagnostic.createSyntaxError(
         'Syntax error 1',
         mockLocation,
-        languagePackageId
+        languagePackageId,
       );
       const syntaxError2 = Diagnostic.createSyntaxError(
         'Syntax error 2',
         mockLocation,
-        languagePackageId
+        languagePackageId,
       );
       const semanticError = Diagnostic.createSemanticError(
         'Semantic error',
         mockLocation,
-        languagePackageId
+        languagePackageId,
       );
 
       if (syntaxError1.isOk() && syntaxError2.isOk() && semanticError.isOk()) {
@@ -469,7 +469,7 @@ describe('ValidationResult', () => {
           diagnostics,
           documentId,
           languagePackageId,
-          mockMetrics
+          mockMetrics,
         );
         if (result.isOk()) {
           validationResult = result.value;
@@ -499,7 +499,7 @@ describe('ValidationResult', () => {
       const errorDiag = Diagnostic.createSyntaxError(
         'Syntax error',
         mockLocation,
-        languagePackageId
+        languagePackageId,
       );
 
       if (errorDiag.isOk()) {
@@ -508,7 +508,7 @@ describe('ValidationResult', () => {
           [errorDiag.value],
           documentId,
           languagePackageId,
-          mockMetrics
+          mockMetrics,
         );
         if (result.isOk()) {
           validationResult = result.value;
@@ -528,7 +528,7 @@ describe('ValidationResult', () => {
       const inferenceErrorDiag = Diagnostic.createSemanticError(
         'Invalid inference detected',
         mockLocation,
-        languagePackageId
+        languagePackageId,
       );
 
       if (inferenceErrorDiag.isOk()) {
@@ -537,7 +537,7 @@ describe('ValidationResult', () => {
           [inferenceErrorDiag.value],
           documentId,
           languagePackageId,
-          mockMetrics
+          mockMetrics,
         );
 
         if (result.isOk()) {
@@ -560,7 +560,7 @@ describe('ValidationResult', () => {
       const modalErrorDiag = Diagnostic.createSemanticError(
         'Modal logic error detected',
         mockLocation,
-        languagePackageId
+        languagePackageId,
       );
 
       if (modalErrorDiag.isOk()) {
@@ -569,7 +569,7 @@ describe('ValidationResult', () => {
           [modalErrorDiag.value],
           documentId,
           languagePackageId,
-          mockMetrics
+          mockMetrics,
         );
 
         if (result.isOk()) {
@@ -620,7 +620,7 @@ describe('ValidationResult', () => {
       const recommendations = validationResult.generateLearningRecommendations(mistakes);
 
       expect(recommendations).toContain(
-        'Study basic inference rules (modus ponens, modus tollens, etc.)'
+        'Study basic inference rules (modus ponens, modus tollens, etc.)',
       );
     });
   });
@@ -631,13 +631,13 @@ describe('ValidationResult', () => {
         mockLevel,
         documentId,
         languagePackageId,
-        mockMetrics
+        mockMetrics,
       );
       const result2Result = ValidationResult.createSuccessfulValidation(
         mockLevel,
         documentId,
         languagePackageId,
-        mockMetrics
+        mockMetrics,
       );
 
       expect(result1Result.isOk()).toBe(true);
@@ -659,7 +659,7 @@ describe('ValidationResult', () => {
         mockLevel,
         documentId,
         languagePackageId,
-        mockMetrics
+        mockMetrics,
       );
 
       expect(result.isOk()).toBe(true);
@@ -681,7 +681,7 @@ describe('ValidationResult', () => {
       const errorDiagResult = Diagnostic.createSyntaxError(
         'Test error',
         mockLocation,
-        languagePackageId
+        languagePackageId,
       );
 
       expect(errorDiagResult.isOk()).toBe(true);
@@ -692,7 +692,7 @@ describe('ValidationResult', () => {
           diagnostics,
           documentId,
           languagePackageId,
-          mockMetrics
+          mockMetrics,
         );
 
         expect(result.isOk()).toBe(true);

@@ -1,21 +1,33 @@
 import * as vscode from 'vscode';
 
-import { ProofFileParser } from '../parser/index.js';
-import { TreeRenderer } from './TreeRenderer.js';
+import { getContainer } from '../infrastructure/di/container.js';
+import { TOKENS } from '../infrastructure/di/tokens.js';
+import type { ProofFileParser } from '../parser/index.js';
+import type { TreeRenderer } from './TreeRenderer.js';
 
+// Note: ProofTreePanel cannot use @injectable due to private constructor
+// It resolves dependencies manually through the DI container
 export class ProofTreePanel {
   private static currentPanel: ProofTreePanel | undefined;
   private readonly panel: vscode.WebviewPanel;
   private readonly parser: ProofFileParser;
   private readonly renderer: TreeRenderer;
-  private disposables: vscode.Disposable[] = [];
+  private readonly disposables: vscode.Disposable[] = [];
 
   private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri) {
     this.panel = panel;
-    this.parser = new ProofFileParser();
-    this.renderer = new TreeRenderer();
+    // Resolve dependencies through DI container
+    const container = getContainer();
+    this.parser = container.resolve<ProofFileParser>(TOKENS.ProofFileParser);
+    this.renderer = container.resolve<TreeRenderer>(TOKENS.TreeRenderer);
 
-    this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
+    this.panel.onDidDispose(
+      () => {
+        this.dispose();
+      },
+      null,
+      this.disposables,
+    );
     this.panel.webview.html = this.getWebviewContent(extensionUri);
   }
 
@@ -38,7 +50,7 @@ export class ProofTreePanel {
         enableScripts: true,
         retainContextWhenHidden: true,
         localResourceRoots: [extensionUri],
-      }
+      },
     );
 
     ProofTreePanel.currentPanel = new ProofTreePanel(panel, extensionUri);
@@ -67,10 +79,10 @@ export class ProofTreePanel {
   }
 
   private showParseErrors(
-    errors: readonly { message: string; line?: number; section?: string }[]
+    errors: readonly { message: string; line?: number; section?: string }[],
   ): void {
     const errorMessages = errors
-      .map(error => `${error.section ? `[${error.section}] ` : ''}${error.message}`)
+      .map((error) => `${error.section ? `[${error.section}] ` : ''}${error.message}`)
       .join('\n');
 
     const errorContent = `

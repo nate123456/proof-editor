@@ -200,14 +200,14 @@ describe('ProofDocument', () => {
       expect(structure.statements).toBeDefined();
       if (structure.statements) {
         expect(Object.keys(structure.statements)).toEqual(['s1', 's2', 's3']);
-        expect(structure.statements['s1']).toBe('All men are mortal');
+        expect(structure.statements.s1).toBe('All men are mortal');
       }
 
       // Test orderedSets section
       expect(structure.orderedSets).toBeDefined();
       if (structure.orderedSets) {
         expect(Object.keys(structure.orderedSets)).toEqual(['os1', 'os2']);
-        expect(structure.orderedSets['os1']).toEqual(['s1', 's2']);
+        expect(structure.orderedSets.os1).toEqual(['s1', 's2']);
       }
 
       // Test atomicArguments section
@@ -366,7 +366,7 @@ describe('ProofDocument', () => {
       };
 
       expect(nodeSpec.arg).toBeUndefined();
-      expect(nodeSpec['n1']).toBe('arg2');
+      expect(nodeSpec.n1).toBe('arg2');
       expect(nodeSpec.on).toBe(0);
     });
 
@@ -376,7 +376,7 @@ describe('ProofDocument', () => {
         on: '1:0', // from:to format
       };
 
-      expect(nodeSpec['parent']).toBe('arg3');
+      expect(nodeSpec.parent).toBe('arg3');
       expect(nodeSpec.on).toBe('1:0');
     });
 
@@ -390,10 +390,10 @@ describe('ProofDocument', () => {
       };
 
       expect(nodeSpec.arg).toBe('arg1');
-      expect(nodeSpec['someParent']).toBe('arg2');
-      expect(nodeSpec['anotherParent']).toBe(5);
+      expect(nodeSpec.someParent).toBe('arg2');
+      expect(nodeSpec.anotherParent).toBe(5);
       expect(nodeSpec.on).toBe(2);
-      expect(nodeSpec['extraProp']).toBe('value');
+      expect(nodeSpec.extraProp).toBe('value');
     });
 
     it('should handle node specification with only position', () => {
@@ -401,7 +401,7 @@ describe('ProofDocument', () => {
         parentNode: 3, // Old format: parent ID as key, position as value
       };
 
-      expect(nodeSpec['parentNode']).toBe(3);
+      expect(nodeSpec.parentNode).toBe(3);
       expect(nodeSpec.on).toBeUndefined();
     });
 
@@ -411,7 +411,7 @@ describe('ProofDocument', () => {
         on: '0', // String position
       };
 
-      expect(nodeSpec['parentId']).toBe('arg4');
+      expect(nodeSpec.parentId).toBe('arg4');
       expect(nodeSpec.on).toBe('0');
     });
 
@@ -421,7 +421,7 @@ describe('ProofDocument', () => {
       };
 
       expect(nodeSpec.arg).toBeUndefined();
-      expect(nodeSpec['parent']).toBeUndefined();
+      expect(nodeSpec.parent).toBeUndefined();
       expect(nodeSpec.on).toBeUndefined();
     });
   });

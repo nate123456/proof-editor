@@ -13,17 +13,18 @@
 import { err, ok } from 'neverthrow';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { Dependency } from '../../entities/Dependency.js';
 import { Package } from '../../entities/Package.js';
 import { PackageInstallation } from '../../entities/PackageInstallation.js';
-import { PackageVersion } from '../../entities/PackageVersion.js';
 import type { IDependencyRepository } from '../../repositories/IDependencyRepository.js';
 import type { IPackageRepository } from '../../repositories/IPackageRepository.js';
 import { DependencyResolutionService } from '../../services/DependencyResolutionService.js';
-import { PackageDiscoveryService } from '../../services/package-discovery-service.js';
 import { PackageValidationService } from '../../services/PackageValidationService.js';
+import { PackageDiscoveryService } from '../../services/package-discovery-service.js';
 import { VersionResolutionService } from '../../services/VersionResolutionService.js';
 import { PackageNotFoundError, PackageValidationError } from '../../types/domain-errors.js';
 import { InstallationPath } from '../../value-objects/InstallationPath.js';
+import { PackageVersion as PackageVersionValue } from '../../value-objects/PackageVersion.js';
 import { PackageId } from '../../value-objects/package-id.js';
 import { PackageManifest } from '../../value-objects/package-manifest.js';
 import { PackageSource } from '../../value-objects/package-source.js';
@@ -36,6 +37,9 @@ describe('Package Ecosystem Context - Service Integration', () => {
   let packageDiscoveryService: PackageDiscoveryService;
   let mockDependencyRepository: IDependencyRepository;
   let mockPackageRepository: IPackageRepository;
+  let mockGitRefProvider: any;
+  let mockFileSystem: any;
+  let _mockSDKValidator: any;
   let testPackage: Package;
   let testDependency: Package;
 
@@ -44,48 +48,65 @@ describe('Package Ecosystem Context - Service Integration', () => {
     mockDependencyRepository = {
       findDependenciesForPackage: vi.fn(),
       findPackagesThatDependOn: vi.fn(),
-      save: vi.fn(),
-      findByPackageId: vi.fn(),
-      findDependentsOf: vi.fn(),
-      findTransitiveDependencies: vi.fn(),
-      delete: vi.fn(),
-      deleteByPackageId: vi.fn(),
-      exists: vi.fn(),
-      hasCycle: vi.fn(),
     };
 
     mockPackageRepository = {
       findById: vi.fn(),
-      findByName: vi.fn(),
       save: vi.fn(),
       delete: vi.fn(),
       findAll: vi.fn(),
-      exists: vi.fn(),
       findBySource: vi.fn(),
-      findByVersion: vi.fn(),
-      findInstalled: vi.fn(),
+      findByGitRepository: vi.fn(),
+      searchByKeywords: vi.fn(),
+    };
+
+    // Create mock for GitRefProvider
+    mockGitRefProvider = {
+      resolveRefToCommit: vi.fn().mockResolvedValue(ok({ commit: 'abc123', actualRef: 'main' })),
+      listAvailableTags: vi.fn().mockResolvedValue(ok(['v1.0.0', 'v2.0.0'])),
+    };
+
+    // Create mock for file system
+    mockFileSystem = {
+      fileExists: vi.fn().mockResolvedValue(true),
+      readFile: vi.fn().mockResolvedValue(ok('file content')),
+      listFiles: vi.fn().mockResolvedValue(ok(['file1.js', 'file2.js'])),
+      isExecutable: vi.fn().mockResolvedValue(false),
+    };
+
+    // Create mock for SDK validator
+    _mockSDKValidator = {
+      validateInterface: vi
+        .fn()
+        .mockResolvedValue(ok({ name: 'TestInterface', version: '1.0.0', methods: [] })),
+      listImplementedInterfaces: vi.fn().mockResolvedValue(ok([])),
+      checkVersionCompatibility: vi.fn().mockReturnValue(ok(true)),
     };
 
     // Initialize services with mocked dependencies
-    versionResolutionService = new VersionResolutionService();
+    versionResolutionService = new VersionResolutionService(mockGitRefProvider);
     packageDiscoveryService = new PackageDiscoveryService(mockPackageRepository);
     dependencyResolutionService = new DependencyResolutionService(
       mockDependencyRepository,
       packageDiscoveryService,
-      versionResolutionService
+      versionResolutionService,
     );
-    packageValidationService = new PackageValidationService();
+    packageValidationService = new PackageValidationService(mockFileSystem);
 
     // Create test packages
     const packageIdResult = PackageId.create('test-package');
     const dependencyIdResult = PackageId.create('test-dependency');
-    const versionResult = PackageVersion.create('1.0.0');
+    const versionResult = PackageVersionValue.create('1.0.0');
     const manifestResult = PackageManifest.create({
       name: 'Test Package',
       version: '1.0.0',
       description: 'Test package for integration tests',
+      author: 'Test Author',
     });
-    const sourceResult = PackageSource.createGitSource('https://github.com/test/test-package');
+    const sourceResult = PackageSource.createFromGit({
+      url: 'https://github.com/test/test-package',
+      ref: 'main',
+    });
 
     expect(packageIdResult.isOk()).toBe(true);
     expect(dependencyIdResult.isOk()).toBe(true);
@@ -100,12 +121,17 @@ describe('Package Ecosystem Context - Service Integration', () => {
       manifestResult.isOk() &&
       sourceResult.isOk()
     ) {
-      const packageResult = Package.create(
-        packageIdResult.value,
-        versionResult.value.getValue(),
-        manifestResult.value,
-        sourceResult.value
-      );
+      const packageResult = Package.create({
+        id: packageIdResult.value,
+        source: sourceResult.value,
+        manifest: manifestResult.value,
+        sdkInterfaces: [],
+        validationResult: {
+          isValid: true,
+          errors: [],
+          warnings: [],
+        },
+      });
       expect(packageResult.isOk()).toBe(true);
       if (packageResult.isOk()) {
         testPackage = packageResult.value;
@@ -115,16 +141,22 @@ describe('Package Ecosystem Context - Service Integration', () => {
         name: 'Test Dependency',
         version: '2.0.0',
         description: 'Test dependency package',
+        author: 'Test Author',
       });
       expect(dependencyManifest.isOk()).toBe(true);
 
       if (dependencyManifest.isOk()) {
-        const dependencyResult = Package.create(
-          dependencyIdResult.value,
-          '2.0.0',
-          dependencyManifest.value,
-          sourceResult.value
-        );
+        const dependencyResult = Package.create({
+          id: dependencyIdResult.value,
+          source: sourceResult.value,
+          manifest: dependencyManifest.value,
+          sdkInterfaces: [],
+          validationResult: {
+            isValid: true,
+            errors: [],
+            warnings: [],
+          },
+        });
         expect(dependencyResult.isOk()).toBe(true);
         if (dependencyResult.isOk()) {
           testDependency = dependencyResult.value;
@@ -136,7 +168,7 @@ describe('Package Ecosystem Context - Service Integration', () => {
   describe('DependencyResolutionService + PackageDiscoveryService Integration', () => {
     it('should resolve dependencies with package discovery', async () => {
       // Arrange
-      const mockDependencies = [];
+      const mockDependencies: Dependency[] = [];
       mockDependencyRepository.findDependenciesForPackage = vi
         .fn()
         .mockResolvedValue(ok(mockDependencies));
@@ -157,7 +189,7 @@ describe('Package Ecosystem Context - Service Integration', () => {
       }
 
       expect(mockDependencyRepository.findDependenciesForPackage).toHaveBeenCalledWith(
-        testPackage.getId()
+        testPackage.getId(),
       );
     });
 
@@ -173,21 +205,27 @@ describe('Package Ecosystem Context - Service Integration', () => {
         // Mock dependency repository to return dependencies
         const mockDep1 = {
           getTargetPackageId: () => dependency1Id.value,
-          getVersionConstraint: () =>
-            VersionConstraint.create('^1.0.0').unwrapOr({} as VersionConstraint),
+          getVersionConstraint: () => {
+            const result = VersionConstraint.create('^1.0.0');
+            if (result.isErr()) throw new Error('Invalid constraint');
+            return result.value;
+          },
           isRequired: () => true,
         };
 
         const mockDep2 = {
           getTargetPackageId: () => dependency2Id.value,
-          getVersionConstraint: () =>
-            VersionConstraint.create('^2.0.0').unwrapOr({} as VersionConstraint),
+          getVersionConstraint: () => {
+            const result = VersionConstraint.create('^2.0.0');
+            if (result.isErr()) throw new Error('Invalid constraint');
+            return result.value;
+          },
           isRequired: () => true,
         };
 
         mockDependencyRepository.findDependenciesForPackage = vi
           .fn()
-          .mockImplementation(packageId => {
+          .mockImplementation(async (packageId) => {
             if (packageId.equals(testPackage.getId())) {
               return Promise.resolve(ok([mockDep1, mockDep2]));
             }
@@ -195,7 +233,7 @@ describe('Package Ecosystem Context - Service Integration', () => {
           });
 
         // Mock package discovery to find dependencies
-        mockPackageRepository.findById = vi.fn().mockImplementation(id => {
+        mockPackageRepository.findById = vi.fn().mockImplementation(async (id) => {
           if (id.equals(dependency1Id.value)) {
             return Promise.resolve(ok(testDependency));
           }
@@ -208,7 +246,7 @@ describe('Package Ecosystem Context - Service Integration', () => {
         // Act
         const resolutionResult = await dependencyResolutionService.resolveDependenciesForPackage(
           testPackage,
-          { maxDepth: 2 }
+          { maxDepth: 2 },
         );
 
         // Assert
@@ -230,22 +268,28 @@ describe('Package Ecosystem Context - Service Integration', () => {
       if (circularDepId.isOk()) {
         const mockCircularDep = {
           getTargetPackageId: () => circularDepId.value,
-          getVersionConstraint: () =>
-            VersionConstraint.create('^1.0.0').unwrapOr({} as VersionConstraint),
+          getVersionConstraint: () => {
+            const result = VersionConstraint.create('^1.0.0');
+            if (result.isErr()) throw new Error('Invalid constraint');
+            return result.value;
+          },
           isRequired: () => true,
         };
 
         const mockBackDep = {
           getTargetPackageId: () => testPackage.getId(),
-          getVersionConstraint: () =>
-            VersionConstraint.create('^1.0.0').unwrapOr({} as VersionConstraint),
+          getVersionConstraint: () => {
+            const result = VersionConstraint.create('^1.0.0');
+            if (result.isErr()) throw new Error('Invalid constraint');
+            return result.value;
+          },
           isRequired: () => true,
         };
 
         // Set up circular dependency
         mockDependencyRepository.findDependenciesForPackage = vi
           .fn()
-          .mockImplementation(packageId => {
+          .mockImplementation(async (packageId) => {
             if (packageId.equals(testPackage.getId())) {
               return Promise.resolve(ok([mockCircularDep]));
             }
@@ -255,7 +299,7 @@ describe('Package Ecosystem Context - Service Integration', () => {
             return Promise.resolve(ok([]));
           });
 
-        mockPackageRepository.findById = vi.fn().mockImplementation(id => {
+        mockPackageRepository.findById = vi.fn().mockImplementation(async (id) => {
           if (id.equals(circularDepId.value)) {
             return Promise.resolve(ok(testDependency));
           }
@@ -292,7 +336,7 @@ describe('Package Ecosystem Context - Service Integration', () => {
         // Act
         const validationResult = packageValidationService.validatePackageStructure(testPackage);
         const manifestValidationResult = packageValidationService.validateManifest(
-          testPackage.getManifest()
+          testPackage.getManifest(),
         );
 
         // Assert
@@ -317,7 +361,7 @@ describe('Package Ecosystem Context - Service Integration', () => {
 
       if (validConstraint.isOk()) {
         const constraintValidation = packageValidationService.validateVersionConstraint(
-          validConstraint.value
+          validConstraint.value,
         );
         expect(constraintValidation.isOk()).toBe(true);
         if (constraintValidation.isOk()) {
@@ -334,7 +378,7 @@ describe('Package Ecosystem Context - Service Integration', () => {
       // Act
       const compatibilityResult = dependencyResolutionService.validateDependencyCompatibility(
         packageA,
-        packageB
+        packageB,
       );
 
       // Assert
@@ -355,14 +399,19 @@ describe('Package Ecosystem Context - Service Integration', () => {
         const gitUrl = 'https://github.com/test/package';
 
         // Mock version resolution
+        const v1 = PackageVersionValue.create('1.0.0');
+        const v2 = PackageVersionValue.create('1.1.0');
+        const v3 = PackageVersionValue.create('1.2.3');
+
+        if (v1.isErr() || v2.isErr() || v3.isErr()) {
+          throw new Error('Failed to create versions');
+        }
+
         const mockVersionResolution = {
-          bestVersion: PackageVersion.create('1.2.3').unwrapOr({} as PackageVersion),
-          availableVersions: [
-            PackageVersion.create('1.0.0').unwrapOr({} as PackageVersion),
-            PackageVersion.create('1.1.0').unwrapOr({} as PackageVersion),
-            PackageVersion.create('1.2.3').unwrapOr({} as PackageVersion),
-          ],
-          constraintSatisfied: true,
+          bestVersion: v3.value,
+          availableVersions: [v1.value, v2.value, v3.value],
+          satisfiesConstraint: true,
+          resolvedAt: new Date(),
         };
 
         const resolveVersionSpy = vi
@@ -372,7 +421,7 @@ describe('Package Ecosystem Context - Service Integration', () => {
         // Act
         const resolutionResult = await versionResolutionService.resolveVersionConstraint(
           gitUrl,
-          constraint.value
+          constraint.value,
         );
 
         // Assert
@@ -380,7 +429,7 @@ describe('Package Ecosystem Context - Service Integration', () => {
         if (resolutionResult.isOk()) {
           const resolution = resolutionResult.value;
           expect(resolution.bestVersion.toString()).toBe('1.2.3');
-          expect(resolution.constraintSatisfied).toBe(true);
+          expect(resolution.satisfiesConstraint).toBe(true);
           expect(resolution.availableVersions).toHaveLength(3);
         }
 
@@ -402,21 +451,27 @@ describe('Package Ecosystem Context - Service Integration', () => {
         // Mock dependencies with conflicting version constraints
         const depFromA = {
           getTargetPackageId: () => sharedDepId.value,
-          getVersionConstraint: () =>
-            VersionConstraint.create('^1.0.0').unwrapOr({} as VersionConstraint),
+          getVersionConstraint: () => {
+            const result = VersionConstraint.create('^1.0.0');
+            if (result.isErr()) throw new Error('Invalid constraint');
+            return result.value;
+          },
           isRequired: () => true,
         };
 
         const depFromB = {
           getTargetPackageId: () => sharedDepId.value,
-          getVersionConstraint: () =>
-            VersionConstraint.create('^2.0.0').unwrapOr({} as VersionConstraint),
+          getVersionConstraint: () => {
+            const result = VersionConstraint.create('^2.0.0');
+            if (result.isErr()) throw new Error('Invalid constraint');
+            return result.value;
+          },
           isRequired: () => true,
         };
 
         mockDependencyRepository.findDependenciesForPackage = vi
           .fn()
-          .mockImplementation(packageId => {
+          .mockImplementation(async (packageId) => {
             if (packageId.equals(testPackage.getId())) {
               return Promise.resolve(ok([depFromA, depFromB]));
             }
@@ -465,6 +520,7 @@ describe('Package Ecosystem Context - Service Integration', () => {
         name: '',
         version: 'invalid',
         description: '',
+        author: '',
       } as const;
 
       // Act
@@ -511,7 +567,7 @@ describe('Package Ecosystem Context - Service Integration', () => {
         const installationResult = PackageInstallation.create(
           testPackage.getId(),
           testPackage.getVersion(),
-          installationPathResult.value
+          installationPathResult.value,
         );
 
         // Act & Assert
@@ -529,7 +585,7 @@ describe('Package Ecosystem Context - Service Integration', () => {
       // Arrange
       const structureValidation = packageValidationService.validatePackageStructure(testPackage);
       const manifestValidation = packageValidationService.validateManifest(
-        testPackage.getManifest()
+        testPackage.getManifest(),
       );
 
       // Act & Assert
@@ -551,7 +607,11 @@ describe('Package Ecosystem Context - Service Integration', () => {
     it('should handle large dependency trees efficiently', async () => {
       // Arrange - Simulate large dependency tree
       const largeDependencyList = Array.from({ length: 50 }, (_, i) => ({
-        getTargetPackageId: () => PackageId.create(`dep-${i}`).unwrapOr({} as PackageId),
+        getTargetPackageId: () => {
+          const result = PackageId.create(`dep-${i}`);
+          if (result.isErr()) throw new Error('Invalid package id');
+          return result.value;
+        },
         getVersionConstraint: () =>
           VersionConstraint.create('^1.0.0').unwrapOr({} as VersionConstraint),
         isRequired: () => true,
@@ -567,7 +627,7 @@ describe('Package Ecosystem Context - Service Integration', () => {
       const startTime = Date.now();
       const resolutionResult = await dependencyResolutionService.resolveDependenciesForPackage(
         testPackage,
-        { maxDepth: 3 }
+        { maxDepth: 3 },
       );
       const endTime = Date.now();
 
@@ -586,15 +646,15 @@ describe('Package Ecosystem Context - Service Integration', () => {
       mockDependencyRepository.findDependenciesForPackage = vi.fn().mockResolvedValue(ok([]));
 
       // Act - Process packages concurrently
-      const resolutionPromises = packages.map(pkg =>
-        dependencyResolutionService.resolveDependenciesForPackage(pkg)
+      const resolutionPromises = packages.map(async (pkg) =>
+        dependencyResolutionService.resolveDependenciesForPackage(pkg),
       );
 
       const results = await Promise.all(resolutionPromises);
 
       // Assert
       expect(results).toHaveLength(2);
-      results.forEach(result => {
+      results.forEach((result) => {
         expect(result.isOk()).toBe(true);
       });
     });

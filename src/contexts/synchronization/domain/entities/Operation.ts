@@ -6,7 +6,7 @@ import { LogicalTimestamp } from '../value-objects/LogicalTimestamp';
 import { OperationId } from '../value-objects/OperationId';
 import { OperationPayload } from '../value-objects/OperationPayload';
 import { OperationType, type OperationTypeValue } from '../value-objects/OperationType';
-import { type IOperation } from './shared-types';
+import type { IOperation } from './shared-types';
 import { VectorClock } from './VectorClock';
 
 export type TransformationType =
@@ -36,7 +36,7 @@ export class Operation implements IOperation {
     private readonly payload: OperationPayload,
     private readonly vectorClock: VectorClock,
     private readonly timestamp: LogicalTimestamp,
-    private readonly parentOperationId?: OperationId
+    private readonly parentOperationId?: OperationId,
   ) {}
 
   static create(
@@ -46,7 +46,7 @@ export class Operation implements IOperation {
     targetPath: string,
     payload: OperationPayload,
     vectorClock: VectorClock,
-    parentOperationId?: OperationId
+    parentOperationId?: OperationId,
   ): Result<Operation, Error> {
     // Operation ID is already validated by OperationId value object
 
@@ -68,8 +68,8 @@ export class Operation implements IOperation {
         payload,
         vectorClock,
         timestampResult.value,
-        parentOperationId
-      )
+        parentOperationId,
+      ),
     );
   }
 
@@ -151,7 +151,7 @@ export class Operation implements IOperation {
   transformWith(otherOperation: IOperation): Result<[Operation, Operation], Error> {
     if (!this.canTransformWith(otherOperation)) {
       return err(
-        new Error('Operations cannot be transformed due to incompatible types or conflicts')
+        new Error('Operations cannot be transformed due to incompatible types or conflicts'),
       );
     }
 
@@ -307,8 +307,8 @@ export class Operation implements IOperation {
       return 'INTRACTABLE';
     }
 
-    const structuralOps = operations.filter(op => op.isStructuralOperation());
-    const semanticOps = operations.filter(op => op.isSemanticOperation());
+    const structuralOps = operations.filter((op) => op.isStructuralOperation());
+    const semanticOps = operations.filter((op) => op.isSemanticOperation());
     const concurrentGroups = Operation.findConcurrentGroups(operations);
 
     if (semanticOps.length > 5) {
@@ -425,7 +425,7 @@ export class Operation implements IOperation {
     }
 
     const stateObj = state as Record<string, unknown>;
-    return Object.prototype.hasOwnProperty.call(stateObj, this.targetPath);
+    return Object.hasOwn(stateObj, this.targetPath);
   }
 
   private createTargetIn(currentState: unknown): unknown {
@@ -467,7 +467,7 @@ export class Operation implements IOperation {
 
       default:
         return err(
-          new Error(`Unknown transformation type: ${context.transformationType as string}`)
+          new Error(`Unknown transformation type: ${context.transformationType as string}`),
         );
     }
   }
@@ -481,7 +481,7 @@ export class Operation implements IOperation {
 
     const transformedPayloadResult = this.payload.transform(
       targetOperation.payload,
-      'OPERATIONAL_TRANSFORM'
+      'OPERATIONAL_TRANSFORM',
     );
     if (transformedPayloadResult.isErr()) {
       return err(transformedPayloadResult.error);
@@ -489,7 +489,7 @@ export class Operation implements IOperation {
 
     return this.createTransformedOperation(
       transformedPayloadResult.value,
-      'Operationally transformed'
+      'Operationally transformed',
     );
   }
 
@@ -509,12 +509,12 @@ export class Operation implements IOperation {
 
     const adjustedPosition = this.calculatePositionAdjustment(
       sourcePayload as { x: number; y: number },
-      targetPayload as { x: number; y: number }
+      targetPayload as { x: number; y: number },
     );
 
     const adjustedPayloadResult = OperationPayload.create(
       adjustedPosition as Record<string, unknown>,
-      this.operationType
+      this.operationType,
     );
     if (adjustedPayloadResult.isErr()) {
       return err(adjustedPayloadResult.error);
@@ -522,7 +522,7 @@ export class Operation implements IOperation {
 
     return this.createTransformedOperation(
       adjustedPayloadResult.value,
-      'Position adjusted to avoid overlap'
+      'Position adjusted to avoid overlap',
     );
   }
 
@@ -535,12 +535,12 @@ export class Operation implements IOperation {
 
     const mergedContent = this.mergeSemanticContent(
       this.payload.getData(),
-      targetOperation.payload.getData()
+      targetOperation.payload.getData(),
     );
 
     const mergedPayloadResult = OperationPayload.create(
       mergedContent as Record<string, unknown>,
-      this.operationType
+      this.operationType,
     );
     if (mergedPayloadResult.isErr()) {
       return err(mergedPayloadResult.error);
@@ -548,7 +548,7 @@ export class Operation implements IOperation {
 
     return this.createTransformedOperation(
       mergedPayloadResult.value,
-      'Content merged from concurrent operations'
+      'Content merged from concurrent operations',
     );
   }
 
@@ -559,12 +559,12 @@ export class Operation implements IOperation {
     if (this.requiresReferenceAdjustment(targetOperation)) {
       const adjustedPayload = this.adjustStructuralReferences(
         this.payload.getData(),
-        targetOperation
+        targetOperation,
       );
 
       const adjustedPayloadResult = OperationPayload.create(
         adjustedPayload as Record<string, unknown>,
-        this.operationType
+        this.operationType,
       );
       if (adjustedPayloadResult.isErr()) {
         return err(adjustedPayloadResult.error);
@@ -572,7 +572,7 @@ export class Operation implements IOperation {
 
       return this.createTransformedOperation(
         adjustedPayloadResult.value,
-        'Structural references adjusted'
+        'Structural references adjusted',
       );
     }
 
@@ -673,14 +673,14 @@ export class Operation implements IOperation {
       payload !== null &&
       'x' in payload &&
       'y' in payload &&
-      typeof (payload as Record<string, unknown>)['x'] === 'number' &&
-      typeof (payload as Record<string, unknown>)['y'] === 'number'
+      typeof (payload as Record<string, unknown>).x === 'number' &&
+      typeof (payload as Record<string, unknown>).y === 'number'
     );
   }
 
   private calculatePositionAdjustment(
     sourcePos: { x: number; y: number },
-    targetPos: { x: number; y: number }
+    targetPos: { x: number; y: number },
   ): { x: number; y: number } {
     // Offset source position to avoid overlap
     const offset = 50; // pixels
@@ -730,7 +730,7 @@ export class Operation implements IOperation {
 
   private createTransformedOperation(
     newPayload: OperationPayload,
-    transformationNote: string
+    transformationNote: string,
   ): Result<Operation, Error> {
     const newOpIdResult = OperationId.generateWithUUID(this.deviceId);
     if (newOpIdResult.isErr()) {
@@ -745,7 +745,7 @@ export class Operation implements IOperation {
         transformationNote,
         originalOperationId: this.id.getValue(),
       } as Record<string, unknown>,
-      this.operationType
+      this.operationType,
     );
 
     if (payloadWithMetadata.isErr()) {
@@ -759,7 +759,7 @@ export class Operation implements IOperation {
       this.targetPath,
       payloadWithMetadata.value,
       this.vectorClock,
-      this.parentOperationId
+      this.parentOperationId,
     );
   }
 
@@ -772,7 +772,7 @@ export class Operation implements IOperation {
         originalPayload:
           typeof originalData === 'object' && originalData !== null ? originalData : {},
       } as Record<string, unknown>,
-      this.operationType
+      this.operationType,
     );
 
     if (noOpPayload.isErr()) {
@@ -781,7 +781,7 @@ export class Operation implements IOperation {
 
     return this.createTransformedOperation(
       noOpPayload.value,
-      'Converted to no-op due to conflict resolution'
+      'Converted to no-op due to conflict resolution',
     );
   }
 
@@ -831,12 +831,12 @@ export class Operation implements IOperation {
     // Create a new composed operation
     const composedData = this.composePayloads(
       this.payload.getData(),
-      otherOperation.payload.getData()
+      otherOperation.payload.getData(),
     );
 
     const composedPayloadResult = OperationPayload.create(
       composedData as Record<string, unknown>,
-      this.operationType
+      this.operationType,
     );
 
     if (composedPayloadResult.isErr()) {
@@ -855,7 +855,7 @@ export class Operation implements IOperation {
       this.targetPath,
       composedPayloadResult.value,
       this.vectorClock,
-      this.parentOperationId
+      this.parentOperationId,
     );
   }
 
@@ -891,7 +891,7 @@ export class Operation implements IOperation {
       ) {
         return {
           ...obj1,
-          content: (obj1['content'] as string) + (obj2['content'] as string),
+          content: (obj1.content as string) + (obj2.content as string),
         };
       }
 
@@ -917,13 +917,13 @@ export class Operation implements IOperation {
   static fromJSON(json: Record<string, unknown>): Result<Operation, Error> {
     try {
       // Extract and validate required fields
-      const id = json['id'] as string;
-      const deviceId = json['deviceId'] as string;
-      const operationType = json['operationType'] as string;
-      const targetPath = json['targetPath'] as string;
-      const payload = json['payload'] as Record<string, unknown>;
-      const vectorClockData = json['vectorClock'] as Map<string, number> | Record<string, number>;
-      const parentOperationId = json['parentOperationId'] as string | undefined;
+      const id = json.id as string;
+      const deviceId = json.deviceId as string;
+      const operationType = json.operationType as string;
+      const targetPath = json.targetPath as string;
+      const payload = json.payload as Record<string, unknown>;
+      const vectorClockData = json.vectorClock as Map<string, number> | Record<string, number>;
+      const parentOperationId = json.parentOperationId as string | undefined;
 
       if (!id || !deviceId || !operationType || !targetPath || !payload || !vectorClockData) {
         return err(new Error('Missing required fields in JSON'));
@@ -979,7 +979,7 @@ export class Operation implements IOperation {
         targetPath,
         payloadResult.value,
         vectorClockResult.value,
-        parentOpId
+        parentOpId,
       );
     } catch (error) {
       return err(error instanceof Error ? error : new Error('Failed to deserialize operation'));

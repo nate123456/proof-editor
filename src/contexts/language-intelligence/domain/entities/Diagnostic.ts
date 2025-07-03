@@ -1,6 +1,6 @@
 import { err, ok, type Result } from 'neverthrow';
 
-import { type SourceLocation } from '../../../../domain/shared/index.js';
+import type { SourceLocation } from '../../../../domain/shared/index.js';
 import { ValidationError } from '../errors/DomainErrors';
 import { DiagnosticCode } from '../value-objects/DiagnosticCode';
 import { DiagnosticId } from '../value-objects/DiagnosticId';
@@ -17,9 +17,9 @@ export class Diagnostic {
     private readonly location: SourceLocation,
     private readonly timestamp: Timestamp,
     private readonly languagePackageId: string,
-    private relatedDiagnostics: DiagnosticId[],
+    private readonly relatedDiagnostics: DiagnosticId[],
     private readonly quickFixes: string[],
-    private readonly tags: string[]
+    private readonly tags: string[],
   ) {}
 
   static create(
@@ -29,7 +29,7 @@ export class Diagnostic {
     location: SourceLocation,
     languagePackageId: string,
     quickFixes: string[] = [],
-    tags: string[] = []
+    tags: string[] = [],
   ): Result<Diagnostic, ValidationError> {
     const messageResult = DiagnosticMessage.create(message);
     if (messageResult.isErr()) return err(messageResult.error);
@@ -48,8 +48,8 @@ export class Diagnostic {
         languagePackageId,
         [],
         quickFixes,
-        tags
-      )
+        tags,
+      ),
     );
   }
 
@@ -57,7 +57,7 @@ export class Diagnostic {
     message: string,
     location: SourceLocation,
     languagePackageId: string,
-    quickFixes: string[] = []
+    quickFixes: string[] = [],
   ): Result<Diagnostic, ValidationError> {
     return Diagnostic.create(
       DiagnosticSeverity.error(),
@@ -66,7 +66,7 @@ export class Diagnostic {
       location,
       languagePackageId,
       quickFixes,
-      ['syntax']
+      ['syntax'],
     );
   }
 
@@ -74,7 +74,7 @@ export class Diagnostic {
     message: string,
     location: SourceLocation,
     languagePackageId: string,
-    quickFixes: string[] = []
+    quickFixes: string[] = [],
   ): Result<Diagnostic, ValidationError> {
     return Diagnostic.create(
       DiagnosticSeverity.error(),
@@ -83,7 +83,7 @@ export class Diagnostic {
       location,
       languagePackageId,
       quickFixes,
-      ['semantic']
+      ['semantic'],
     );
   }
 
@@ -91,7 +91,7 @@ export class Diagnostic {
     message: string,
     location: SourceLocation,
     languagePackageId: string,
-    quickFixes: string[] = []
+    quickFixes: string[] = [],
   ): Result<Diagnostic, ValidationError> {
     return Diagnostic.create(
       DiagnosticSeverity.warning(),
@@ -100,7 +100,7 @@ export class Diagnostic {
       location,
       languagePackageId,
       quickFixes,
-      ['style']
+      ['style'],
     );
   }
 
@@ -108,7 +108,7 @@ export class Diagnostic {
     message: string,
     location: SourceLocation,
     languagePackageId: string,
-    learningHints: string[] = []
+    learningHints: string[] = [],
   ): Result<Diagnostic, ValidationError> {
     return Diagnostic.create(
       DiagnosticSeverity.info(),
@@ -117,7 +117,7 @@ export class Diagnostic {
       location,
       languagePackageId,
       learningHints,
-      ['educational']
+      ['educational'],
     );
   }
 
@@ -166,7 +166,7 @@ export class Diagnostic {
       return err(new ValidationError('Cannot relate diagnostic to itself'));
     }
 
-    if (this.relatedDiagnostics.some(id => id.equals(diagnosticId))) {
+    if (this.relatedDiagnostics.some((id) => id.equals(diagnosticId))) {
       return err(new ValidationError('Diagnostic already related'));
     }
 
@@ -175,7 +175,7 @@ export class Diagnostic {
   }
 
   removeRelatedDiagnostic(diagnosticId: DiagnosticId): Result<void, ValidationError> {
-    const index = this.relatedDiagnostics.findIndex(id => id.equals(diagnosticId));
+    const index = this.relatedDiagnostics.findIndex((id) => id.equals(diagnosticId));
     if (index === -1) {
       return err(new ValidationError('Related diagnostic not found'));
     }

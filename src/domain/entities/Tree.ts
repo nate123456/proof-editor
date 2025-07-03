@@ -14,7 +14,7 @@ import {
 import type { AtomicArgument } from './AtomicArgument';
 
 export class Tree {
-  private nodeParentMap = new Map<string, NodeId | null>();
+  private readonly nodeParentMap = new Map<string, NodeId | null>();
 
   private constructor(
     private readonly id: TreeId,
@@ -24,14 +24,14 @@ export class Tree {
     private readonly nodeIds: Set<NodeId>,
     private readonly createdAt: number,
     private modifiedAt: number,
-    private title?: string
+    private title?: string,
   ) {}
 
   static create(
     documentId: string,
     position: Position2D = Position2D.origin(),
     physicalProperties: PhysicalProperties = PhysicalProperties.default(),
-    title?: string
+    title?: string,
   ): Result<Tree, ValidationError> {
     if (!documentId || documentId.trim().length === 0) {
       return err(new ValidationError('Document ID cannot be empty'));
@@ -48,8 +48,8 @@ export class Tree {
         new Set(),
         now,
         now,
-        title?.trim()
-      )
+        title?.trim(),
+      ),
     );
   }
 
@@ -61,7 +61,7 @@ export class Tree {
     nodeIds: NodeId[],
     createdAt: number,
     modifiedAt: number,
-    title?: string
+    title?: string,
   ): Result<Tree, ValidationError> {
     if (!documentId || documentId.trim().length === 0) {
       return err(new ValidationError('Document ID cannot be empty'));
@@ -76,8 +76,8 @@ export class Tree {
         new Set(nodeIds),
         createdAt,
         modifiedAt,
-        title?.trim()
-      )
+        title?.trim(),
+      ),
     );
   }
 
@@ -312,7 +312,7 @@ export class Tree {
    */
   async findDirectConnections(
     argumentId: AtomicArgumentId,
-    atomicArgumentRepo: IAtomicArgumentRepository
+    atomicArgumentRepo: IAtomicArgumentRepository,
   ): Promise<Result<TreeConnectionMap, ProcessingError>> {
     const argument = await atomicArgumentRepo.findById(argumentId);
     if (!argument) {
@@ -332,7 +332,7 @@ export class Tree {
    */
   async findArgumentTree(
     startArgumentId: AtomicArgumentId,
-    atomicArgumentRepo: IAtomicArgumentRepository
+    atomicArgumentRepo: IAtomicArgumentRepository,
   ): Promise<Result<TreeArgumentStructure, ProcessingError>> {
     const visited = new Set<string>();
     const treeArguments = new Set<AtomicArgumentId>();
@@ -341,7 +341,7 @@ export class Tree {
       startArgumentId,
       visited,
       treeArguments,
-      atomicArgumentRepo
+      atomicArgumentRepo,
     );
 
     const structure = new TreeArgumentStructure(Array.from(treeArguments));
@@ -355,7 +355,7 @@ export class Tree {
   async findPathCompleteArgument(
     startId: AtomicArgumentId,
     endId: AtomicArgumentId,
-    atomicArgumentRepo: IAtomicArgumentRepository
+    atomicArgumentRepo: IAtomicArgumentRepository,
   ): Promise<Result<TreePathCompleteArgument, ProcessingError>> {
     const paths = await this.findAllPaths(startId, endId, atomicArgumentRepo);
     if (paths.length === 0) {
@@ -364,12 +364,12 @@ export class Tree {
 
     const allArgumentsInPaths = new Set<AtomicArgumentId>();
     for (const path of paths) {
-      path.forEach(argId => allArgumentsInPaths.add(argId));
+      path.forEach((argId) => allArgumentsInPaths.add(argId));
     }
 
     const pathCompleteArgument = new TreePathCompleteArgument(
       Array.from(allArgumentsInPaths),
-      paths
+      paths,
     );
     return ok(pathCompleteArgument);
   }
@@ -380,7 +380,7 @@ export class Tree {
    */
   async discoverSharedReferences(
     orderedSetId: OrderedSetId,
-    atomicArgumentRepo: IAtomicArgumentRepository
+    atomicArgumentRepo: IAtomicArgumentRepository,
   ): Promise<Result<TreeOrderedSetReference[], ProcessingError>> {
     const argumentsUsingSet = await atomicArgumentRepo.findByOrderedSetReference(orderedSetId);
     const references: TreeOrderedSetReference[] = [];
@@ -412,7 +412,7 @@ export class Tree {
   async validateConnectionIntegrity(
     argumentId: AtomicArgumentId,
     atomicArgumentRepo: IAtomicArgumentRepository,
-    orderedSetRepo: IOrderedSetRepository
+    orderedSetRepo: IOrderedSetRepository,
   ): Promise<Result<TreeConnectionIntegrityReport, ProcessingError>> {
     const argument = await atomicArgumentRepo.findById(argumentId);
     if (!argument) {
@@ -434,8 +434,8 @@ export class Tree {
         issues.push(
           new TreeConnectionIntegrityIssue(
             'missing_premise_set',
-            `Premise set ${premiseSetRef.getValue()} not found`
-          )
+            `Premise set ${premiseSetRef.getValue()} not found`,
+          ),
         );
       }
     }
@@ -447,8 +447,8 @@ export class Tree {
         issues.push(
           new TreeConnectionIntegrityIssue(
             'missing_conclusion_set',
-            `Conclusion set ${conclusionSetRef.getValue()} not found`
-          )
+            `Conclusion set ${conclusionSetRef.getValue()} not found`,
+          ),
         );
       }
     }
@@ -469,29 +469,29 @@ export class Tree {
 
   private async findParentArguments(
     argument: AtomicArgument,
-    atomicArgumentRepo: IAtomicArgumentRepository
+    atomicArgumentRepo: IAtomicArgumentRepository,
   ): Promise<AtomicArgument[]> {
     const premiseSetRef = argument.getPremiseSetRef();
     if (!premiseSetRef) return [];
 
     const allArguments = await atomicArgumentRepo.findAll();
     return allArguments.filter(
-      arg =>
-        arg.getConclusionSetRef()?.equals(premiseSetRef) && !arg.getId().equals(argument.getId())
+      (arg) =>
+        arg.getConclusionSetRef()?.equals(premiseSetRef) && !arg.getId().equals(argument.getId()),
     );
   }
 
   private async findChildArguments(
     argument: AtomicArgument,
-    atomicArgumentRepo: IAtomicArgumentRepository
+    atomicArgumentRepo: IAtomicArgumentRepository,
   ): Promise<AtomicArgument[]> {
     const conclusionSetRef = argument.getConclusionSetRef();
     if (!conclusionSetRef) return [];
 
     const allArguments = await atomicArgumentRepo.findAll();
     return allArguments.filter(
-      arg =>
-        arg.getPremiseSetRef()?.equals(conclusionSetRef) && !arg.getId().equals(argument.getId())
+      (arg) =>
+        arg.getPremiseSetRef()?.equals(conclusionSetRef) && !arg.getId().equals(argument.getId()),
     );
   }
 
@@ -499,7 +499,7 @@ export class Tree {
     currentId: AtomicArgumentId,
     visited: Set<string>,
     result: Set<AtomicArgumentId>,
-    atomicArgumentRepo: IAtomicArgumentRepository
+    atomicArgumentRepo: IAtomicArgumentRepository,
   ): Promise<void> {
     const idString = currentId.getValue();
     if (visited.has(idString)) return;
@@ -524,7 +524,7 @@ export class Tree {
   private async findAllPaths(
     startId: AtomicArgumentId,
     endId: AtomicArgumentId,
-    atomicArgumentRepo: IAtomicArgumentRepository
+    atomicArgumentRepo: IAtomicArgumentRepository,
   ): Promise<AtomicArgumentId[][]> {
     const paths: AtomicArgumentId[][] = [];
     const currentPath: AtomicArgumentId[] = [];
@@ -540,7 +540,7 @@ export class Tree {
     currentPath: AtomicArgumentId[],
     visited: Set<string>,
     allPaths: AtomicArgumentId[][],
-    atomicArgumentRepo: IAtomicArgumentRepository
+    atomicArgumentRepo: IAtomicArgumentRepository,
   ): Promise<void> {
     const idString = currentId.getValue();
     if (visited.has(idString)) return;
@@ -561,7 +561,7 @@ export class Tree {
             currentPath,
             visited,
             allPaths,
-            atomicArgumentRepo
+            atomicArgumentRepo,
           );
         }
       }
@@ -573,7 +573,7 @@ export class Tree {
 
   private isArgumentInTree(
     _argumentId: AtomicArgumentId,
-    _atomicArgumentRepo: IAtomicArgumentRepository
+    _atomicArgumentRepo: IAtomicArgumentRepository,
   ): boolean {
     // Check if any node in this tree uses this argument
     for (const _nodeId of Array.from(this.nodeIds)) {
@@ -597,7 +597,7 @@ export class TreeConnectionMap {
   constructor(
     private readonly centralArgumentId: AtomicArgumentId,
     private readonly parents: AtomicArgument[],
-    private readonly children: AtomicArgument[]
+    private readonly children: AtomicArgument[],
   ) {}
 
   getCentralArgumentId(): AtomicArgumentId {
@@ -625,7 +625,7 @@ export class TreeArgumentStructure {
 export class TreePathCompleteArgument {
   constructor(
     private readonly argumentIds: AtomicArgumentId[],
-    private readonly paths: AtomicArgumentId[][]
+    private readonly paths: AtomicArgumentId[][],
   ) {}
 
   getAllArguments(): readonly AtomicArgumentId[] {
@@ -640,14 +640,14 @@ export class TreeOrderedSetReference {
   constructor(
     public readonly argumentId: AtomicArgumentId,
     public readonly referenceType: 'premise' | 'conclusion',
-    public readonly orderedSetId: OrderedSetId
+    public readonly orderedSetId: OrderedSetId,
   ) {}
 }
 
 export class TreeConnectionIntegrityReport {
   constructor(
     public readonly argumentId: AtomicArgumentId,
-    public readonly issues: TreeConnectionIntegrityIssue[]
+    public readonly issues: TreeConnectionIntegrityIssue[],
   ) {}
 
   hasIssues(): boolean {
@@ -658,6 +658,6 @@ export class TreeConnectionIntegrityReport {
 export class TreeConnectionIntegrityIssue {
   constructor(
     public readonly type: string,
-    public readonly description: string
+    public readonly description: string,
   ) {}
 }

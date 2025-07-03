@@ -288,7 +288,7 @@ describe('PackageInstallation', () => {
         packageId,
         '1.0.0',
         packageSource,
-        '/packages/test-package'
+        '/packages/test-package',
       );
 
       expect(result.isOk()).toBe(true);
@@ -323,7 +323,7 @@ describe('PackageInstallation', () => {
           packageId,
           '1.0.0',
           localSource,
-          '/packages/test-package'
+          '/packages/test-package',
         );
 
         expect(result.isOk()).toBe(true);
@@ -342,7 +342,7 @@ describe('PackageInstallation', () => {
         packageId,
         '  1.0.0  ',
         packageSource,
-        '  /packages/test-package  '
+        '  /packages/test-package  ',
       );
 
       expect(result.isOk()).toBe(true);
@@ -358,7 +358,7 @@ describe('PackageInstallation', () => {
         packageId,
         '   ',
         packageSource,
-        '/packages/test-package'
+        '/packages/test-package',
       );
 
       expect(result.isErr()).toBe(true);
@@ -373,7 +373,7 @@ describe('PackageInstallation', () => {
         packageId,
         '1.0.0',
         packageSource,
-        '   '
+        '   ',
       );
 
       expect(result.isErr()).toBe(true);
@@ -393,7 +393,7 @@ describe('PackageInstallation', () => {
       'uninstalling',
     ];
 
-    statusTypes.forEach(status => {
+    statusTypes.forEach((status) => {
       it(`should handle ${status} status correctly`, () => {
         const data: PackageInstallationData = {
           packageId,
@@ -415,7 +415,7 @@ describe('PackageInstallation', () => {
           expect(installation.isInstalled()).toBe(status === 'installed');
           expect(installation.isFailed()).toBe(status === 'failed');
           expect(installation.isInProgress()).toBe(
-            ['installing', 'updating', 'uninstalling'].includes(status)
+            ['installing', 'updating', 'uninstalling'].includes(status),
           );
         }
       });

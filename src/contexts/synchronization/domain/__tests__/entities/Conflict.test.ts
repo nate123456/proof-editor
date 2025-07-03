@@ -14,7 +14,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Conflict } from '../../entities/Conflict';
 import { Operation } from '../../entities/Operation';
-import { type VectorClock } from '../../entities/VectorClock';
+import type { VectorClock } from '../../entities/VectorClock';
 import { ConflictType } from '../../value-objects/ConflictType';
 import { DeviceId } from '../../value-objects/DeviceId';
 import { OperationId } from '../../value-objects/OperationId';
@@ -23,7 +23,7 @@ import { OperationType } from '../../value-objects/OperationType';
 
 // Helper function to get ConflictType instances
 const getConflictType = (type: string): ConflictType => {
-  let result;
+  let result: ConflictType;
   switch (type) {
     case 'CONCURRENT_UPDATE':
       result = ConflictType.concurrentModification();
@@ -64,20 +64,20 @@ const createMockVectorClock = (clocks: Record<string, number> = {}): VectorClock
     getTimestampForDevice: vi.fn((deviceId: DeviceId) => clocks[deviceId.getValue()] ?? 0),
     getAllClocks: vi.fn(() => clocks),
     getAllDeviceIds: vi.fn(() =>
-      Object.keys(clocks).map(id => {
+      Object.keys(clocks).map((id) => {
         const deviceIdResult = DeviceId.create(id);
         if (deviceIdResult.isErr()) {
           throw new Error(`Failed to create DeviceId: ${id}`);
         }
         return deviceIdResult.value;
-      })
+      }),
     ),
     getClockState: vi.fn(() => new Map(Object.entries(clocks))),
     toCompactString: vi.fn(
       () =>
         `{${Object.entries(clocks)
           .map(([k, v]) => `${k}:${v}`)
-          .join(',')}}`
+          .join(',')}}`,
     ),
     toJSON: vi.fn(() => ({ clocks })),
   } as unknown as VectorClock;
@@ -86,7 +86,7 @@ const createMockVectorClock = (clocks: Record<string, number> = {}): VectorClock
 const createTestOperation = (
   deviceId: string,
   operationType: string,
-  targetPath = '/document/content'
+  targetPath = '/document/content',
 ): Operation => {
   const deviceIdResult = DeviceId.create(deviceId);
   const opTypeResult = OperationType.create(operationType as any);
@@ -162,7 +162,7 @@ const createTestOperation = (
     opTypeResult.value,
     targetPath,
     payload.value,
-    vectorClock
+    vectorClock,
   );
 
   if (operation.isErr()) {
@@ -208,7 +208,7 @@ describe('Conflict', () => {
         const conflict = result.value;
         const options = conflict.getResolutionOptions();
         expect(options.length).toBeGreaterThan(0);
-        expect(options.some(opt => opt.strategy === 'LAST_WRITER_WINS')).toBe(true);
+        expect(options.some((opt) => opt.strategy === 'LAST_WRITER_WINS')).toBe(true);
       }
     });
 
@@ -425,7 +425,7 @@ describe('Conflict', () => {
         'structural-conflict',
         structuralType.value,
         '/tree/node',
-        operations
+        operations,
       );
 
       expect(result.isOk()).toBe(true);
@@ -435,7 +435,7 @@ describe('Conflict', () => {
 
         const automaticOptions = conflict.getAutomaticResolutionOptions();
         expect(automaticOptions.length).toBeGreaterThan(0);
-        expect(automaticOptions.every(opt => opt.automaticResolution)).toBe(true);
+        expect(automaticOptions.every((opt) => opt.automaticResolution)).toBe(true);
       }
     });
 
@@ -452,7 +452,7 @@ describe('Conflict', () => {
         'semantic-conflict',
         semanticType.value,
         '/document/content',
-        operations
+        operations,
       );
 
       expect(result.isOk()).toBe(true);
@@ -478,7 +478,7 @@ describe('Conflict', () => {
         'complex-conflict',
         semanticType.value,
         '/document/content',
-        operations
+        operations,
       );
 
       expect(result.isOk()).toBe(true);
@@ -502,7 +502,7 @@ describe('Conflict', () => {
         'device-tracking',
         getConflictType('CONCURRENT_UPDATE'),
         '/document/content',
-        operations
+        operations,
       );
 
       expect(result.isOk()).toBe(true);
@@ -511,7 +511,7 @@ describe('Conflict', () => {
         const involvedDevices = conflict.getInvolvedDevices();
 
         expect(involvedDevices).toHaveLength(3);
-        const deviceValues = involvedDevices.map(d => d.getValue());
+        const deviceValues = involvedDevices.map((d) => d.getValue());
         expect(deviceValues).toContain('device-alpha');
         expect(deviceValues).toContain('device-beta');
         expect(deviceValues).toContain('device-gamma');
@@ -529,7 +529,7 @@ describe('Conflict', () => {
         'duplicate-devices',
         getConflictType('CONCURRENT_UPDATE'),
         '/document/content',
-        operations
+        operations,
       );
 
       expect(result.isOk()).toBe(true);
@@ -538,7 +538,7 @@ describe('Conflict', () => {
         const involvedDevices = conflict.getInvolvedDevices();
 
         expect(involvedDevices).toHaveLength(2); // Should deduplicate
-        const deviceValues = involvedDevices.map(d => d.getValue());
+        const deviceValues = involvedDevices.map((d) => d.getValue());
         expect(deviceValues).toContain('device-1');
         expect(deviceValues).toContain('device-2');
       }
@@ -555,7 +555,7 @@ describe('Conflict', () => {
         'normal-conflict',
         getConflictType('CONCURRENT_UPDATE'),
         '/document/content',
-        operations
+        operations,
       );
 
       expect(result.isOk()).toBe(true);
@@ -582,7 +582,7 @@ describe('Conflict', () => {
         'semantic-severity',
         semanticType.value,
         '/document/content',
-        operations
+        operations,
       );
 
       expect(result.isOk()).toBe(true);
@@ -604,7 +604,7 @@ describe('Conflict', () => {
         'many-ops-severity',
         getConflictType('STRUCTURAL'),
         '/document/content',
-        operations
+        operations,
       );
 
       expect(result.isOk()).toBe(true);
@@ -627,7 +627,7 @@ describe('Conflict', () => {
         'simple-structural',
         structuralType.value,
         '/tree/node',
-        operations
+        operations,
       );
 
       expect(result.isOk()).toBe(true);
@@ -652,7 +652,7 @@ describe('Conflict', () => {
         'structural-options',
         structuralType.value,
         '/tree/node',
-        operations
+        operations,
       );
 
       expect(result.isOk()).toBe(true);
@@ -660,8 +660,8 @@ describe('Conflict', () => {
         const conflict = result.value;
         const options = conflict.getResolutionOptions();
 
-        expect(options.some(opt => opt.strategy === 'MERGE_OPERATIONS')).toBe(true);
-        expect(options.some(opt => opt.strategy === 'LAST_WRITER_WINS')).toBe(true);
+        expect(options.some((opt) => opt.strategy === 'MERGE_OPERATIONS')).toBe(true);
+        expect(options.some((opt) => opt.strategy === 'LAST_WRITER_WINS')).toBe(true);
       }
     });
 
@@ -678,7 +678,7 @@ describe('Conflict', () => {
         'semantic-options',
         semanticType.value,
         '/document/content',
-        operations
+        operations,
       );
 
       expect(result.isOk()).toBe(true);
@@ -686,9 +686,9 @@ describe('Conflict', () => {
         const conflict = result.value;
         const options = conflict.getResolutionOptions();
 
-        expect(options.some(opt => opt.strategy === 'USER_DECISION_REQUIRED')).toBe(true);
-        expect(options.some(opt => opt.strategy === 'LAST_WRITER_WINS')).toBe(true);
-        expect(options.some(opt => !opt.automaticResolution)).toBe(true);
+        expect(options.some((opt) => opt.strategy === 'USER_DECISION_REQUIRED')).toBe(true);
+        expect(options.some((opt) => opt.strategy === 'LAST_WRITER_WINS')).toBe(true);
+        expect(options.some((opt) => !opt.automaticResolution)).toBe(true);
       }
     });
 
@@ -702,7 +702,7 @@ describe('Conflict', () => {
         'preview-test',
         getConflictType('CONCURRENT_UPDATE'),
         '/document/content',
-        operations
+        operations,
       );
 
       expect(result.isOk()).toBe(true);
@@ -710,7 +710,7 @@ describe('Conflict', () => {
         const conflict = result.value;
         const options = conflict.getResolutionOptions();
 
-        options.forEach(option => {
+        options.forEach((option) => {
           expect(option.description).toBeTruthy();
           expect(option.resultPreview).toBeTruthy();
           expect(typeof option.automaticResolution).toBe('boolean');
@@ -722,14 +722,14 @@ describe('Conflict', () => {
   describe('edge cases and error handling', () => {
     it('should handle conflicts with maximum number of operations', () => {
       const operations = Array.from({ length: 10 }, (_, i) =>
-        createTestOperation(`device-${i}`, 'UPDATE_STATEMENT')
+        createTestOperation(`device-${i}`, 'UPDATE_STATEMENT'),
       );
 
       const result = Conflict.create(
         'max-ops',
         getConflictType('CONCURRENT_UPDATE'),
         '/document/content',
-        operations
+        operations,
       );
 
       expect(result.isOk()).toBe(true);
@@ -751,7 +751,7 @@ describe('Conflict', () => {
         longId,
         getConflictType('CONCURRENT_UPDATE'),
         '/document/content',
-        operations
+        operations,
       );
 
       expect(result.isOk()).toBe(true);
@@ -772,7 +772,7 @@ describe('Conflict', () => {
         'long-path',
         getConflictType('CONCURRENT_UPDATE'),
         longPath,
-        operations
+        operations,
       );
 
       expect(result.isOk()).toBe(true);
@@ -792,7 +792,7 @@ describe('Conflict', () => {
         'immutable-test',
         getConflictType('CONCURRENT_UPDATE'),
         '/document/content',
-        operations
+        operations,
       );
 
       expect(result.isOk()).toBe(true);
@@ -825,7 +825,7 @@ describe('Conflict', () => {
         'timestamp-test',
         getConflictType('CONCURRENT_UPDATE'),
         '/document/content',
-        operations
+        operations,
       );
       const afterCreate = Date.now();
 
@@ -848,7 +848,7 @@ describe('Conflict', () => {
         'resolution-time',
         getConflictType('CONCURRENT_UPDATE'),
         '/document/content',
-        operations
+        operations,
       );
 
       expect(result.isOk()).toBe(true);
@@ -862,8 +862,10 @@ describe('Conflict', () => {
           const resolvedConflict = resolveResult.value;
           const resolvedTime = resolvedConflict.getResolvedAt()?.getTime();
           expect(resolvedTime).toBeDefined();
-          expect(resolvedTime!).toBeGreaterThanOrEqual(beforeResolve);
-          expect(resolvedTime!).toBeLessThanOrEqual(afterResolve);
+          if (resolvedTime !== undefined) {
+            expect(resolvedTime).toBeGreaterThanOrEqual(beforeResolve);
+            expect(resolvedTime).toBeLessThanOrEqual(afterResolve);
+          }
         }
       }
     });

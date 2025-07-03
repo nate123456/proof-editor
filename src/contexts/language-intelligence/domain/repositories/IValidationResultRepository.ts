@@ -1,8 +1,8 @@
-import { type Result } from 'neverthrow';
+import type { Result } from 'neverthrow';
 
-import { type ValidationResult } from '../entities/ValidationResult';
-import { type RepositoryError } from '../errors/DomainErrors';
-import { type ValidationResultId } from '../value-objects/ValidationResultId';
+import type { ValidationResult } from '../entities/ValidationResult';
+import type { RepositoryError } from '../errors/DomainErrors';
+import type { ValidationResultId } from '../value-objects/ValidationResultId';
 
 export interface IValidationResultRepository {
   save(result: ValidationResult): Promise<Result<void, RepositoryError>>;

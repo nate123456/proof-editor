@@ -1,9 +1,9 @@
-import { type Result } from 'neverthrow';
+import type { Result } from 'neverthrow';
 
-import { type InferenceRule } from '../entities/InferenceRule';
-import { type RepositoryError } from '../errors/DomainErrors';
-import { type InferenceRuleId } from '../value-objects/InferenceRuleId';
-import { type RuleName } from '../value-objects/RuleName';
+import type { InferenceRule } from '../entities/InferenceRule';
+import type { RepositoryError } from '../errors/DomainErrors';
+import type { InferenceRuleId } from '../value-objects/InferenceRuleId';
+import type { RuleName } from '../value-objects/RuleName';
 
 export interface IInferenceRuleRepository {
   save(rule: InferenceRule): Promise<Result<void, RepositoryError>>;

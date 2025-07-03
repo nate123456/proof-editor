@@ -182,7 +182,7 @@ export class ConflictType {
     return this.value
       .toLowerCase()
       .replace(/_/g, ' ')
-      .replace(/\b\w/g, l => l.toUpperCase());
+      .replace(/\b\w/g, (l) => l.toUpperCase());
   }
 
   getIcon(): string {

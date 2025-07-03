@@ -8,7 +8,7 @@ export type PackageSourceType = 'git' | 'local';
 export class PackageSource {
   private constructor(
     private readonly type: PackageSourceType,
-    private readonly source: GitPackageSource | LocalPackageSource
+    private readonly source: GitPackageSource | LocalPackageSource,
   ) {}
 
   static createFromGit(gitSource: GitPackageSource): Result<PackageSource, PackageValidationError> {
@@ -23,11 +23,11 @@ export class PackageSource {
     const normalizedUrl = gitSource.url.trim();
     const normalizedRef = gitSource.ref.trim();
 
-    if (!this.isValidGitUrl(normalizedUrl)) {
+    if (!PackageSource.isValidGitUrl(normalizedUrl)) {
       return err(new PackageValidationError('Invalid Git URL format'));
     }
 
-    if (!this.isValidGitRef(normalizedRef)) {
+    if (!PackageSource.isValidGitRef(normalizedRef)) {
       return err(new PackageValidationError('Invalid Git ref format'));
     }
 
@@ -42,7 +42,7 @@ export class PackageSource {
   }
 
   static createFromLocal(
-    localSource: LocalPackageSource
+    localSource: LocalPackageSource,
   ): Result<PackageSource, PackageValidationError> {
     if (!localSource.path.trim()) {
       return err(new PackageValidationError('Local path cannot be empty'));
@@ -50,7 +50,7 @@ export class PackageSource {
 
     const normalizedPath = localSource.path.trim();
 
-    if (!this.isValidLocalPath(normalizedPath)) {
+    if (!PackageSource.isValidLocalPath(normalizedPath)) {
       return err(new PackageValidationError('Invalid local path'));
     }
 
@@ -115,9 +115,14 @@ export class PackageSource {
   private static isValidGitRef(ref: string): boolean {
     if (ref.length > 250) return false;
 
-    // eslint-disable-next-line no-control-regex
-    const invalidChars = /[\x00-\x1f\x7f~^:?*[\\ ]/;
-    if (invalidChars.test(ref)) return false;
+    // Check for control characters (ASCII 0-31 and 127) and git-invalid characters
+    // Using string methods instead of regex to avoid Biome control character warning
+    const hasControlChars = ref.split('').some((char) => {
+      const code = char.charCodeAt(0);
+      return (code >= 0 && code <= 31) || code === 127;
+    });
+    const hasInvalidChars = /[~^:?*[\\ ]/.test(ref);
+    if (hasControlChars || hasInvalidChars) return false;
 
     if (ref.startsWith('.') || ref.endsWith('.')) return false;
     if (ref.includes('..')) return false;
@@ -129,9 +134,14 @@ export class PackageSource {
   private static isValidLocalPath(path: string): boolean {
     if (path.length > 4096) return false;
 
-    // eslint-disable-next-line no-control-regex
-    const invalidChars = /[\x00-\x1f\x7f]/;
-    return !invalidChars.test(path);
+    // Check for control characters (ASCII 0-31 and 127)
+    // Using string methods instead of regex to avoid Biome control character warning
+    const hasControlChars = path.split('').some((char) => {
+      const code = char.charCodeAt(0);
+      return (code >= 0 && code <= 31) || code === 127;
+    });
+
+    return !hasControlChars;
   }
 
   toJSON(): object {

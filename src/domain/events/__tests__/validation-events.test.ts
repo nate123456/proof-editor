@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { type DocumentId, type TreeId } from '../../shared/value-objects.js';
+import type { DocumentId, TreeId } from '../../shared/value-objects.js';
 import {
   type ConsistencyResult,
   CustomRuleApplied,
@@ -60,7 +60,7 @@ describe('ValidationCompleted', () => {
       mockValidationScope,
       mockValidationResult,
       'validation-engine',
-      'logical-reasoning-v2'
+      'logical-reasoning-v2',
     );
 
     expect(event.eventType).toBe('ValidationCompleted');
@@ -79,7 +79,7 @@ describe('ValidationCompleted', () => {
       mockValidationScope,
       mockValidationResult,
       'validator-service',
-      'mathematics-logic-v1'
+      'mathematics-logic-v1',
     );
 
     const data = event.eventData;
@@ -95,7 +95,7 @@ describe('ValidationCompleted', () => {
   it('should handle different validation scopes', () => {
     const scopes = ['statement', 'atomic_argument', 'tree', 'document', 'flow_path'];
 
-    scopes.forEach(scopeType => {
+    scopes.forEach((scopeType) => {
       const scope = { ...mockValidationScope, type: scopeType as any };
       const event = new ValidationCompleted(
         'validation-agg-123',
@@ -103,7 +103,7 @@ describe('ValidationCompleted', () => {
         scope,
         mockValidationResult,
         'validator',
-        'package-v1'
+        'package-v1',
       );
 
       expect(event.validationScope.type).toBe(scopeType);
@@ -117,7 +117,7 @@ describe('ValidationCompleted', () => {
       mockValidationScope,
       mockValidationResult,
       'validation-engine',
-      'logical-reasoning-v2'
+      'logical-reasoning-v2',
     );
 
     const record = event.toEventRecord();
@@ -169,7 +169,7 @@ describe('ValidationFailed', () => {
       mockValidationScope,
       mockValidationFailures,
       'validation-engine',
-      'formal-logic-v1'
+      'formal-logic-v1',
     );
 
     expect(event.eventType).toBe('ValidationFailed');
@@ -188,7 +188,7 @@ describe('ValidationFailed', () => {
       mockValidationScope,
       mockValidationFailures,
       'syntax-validator',
-      'natural-language-v2'
+      'natural-language-v2',
     );
 
     const data = event.eventData;
@@ -210,15 +210,18 @@ describe('ValidationFailed', () => {
       'constraint_violation',
     ];
 
-    failureTypes.forEach(type => {
+    failureTypes.forEach((type) => {
+      const baseFailure = mockValidationFailures[0];
+      if (!baseFailure) return;
+
       const failure: ValidationFailure = {
-        ...mockValidationFailures[0],
+        ...baseFailure,
         type: type as any,
         message: 'Test failure message',
-        location: mockValidationFailures[0]!.location,
-        severity: mockValidationFailures[0]!.severity,
-        ...(mockValidationFailures[0]!.suggestedFix !== undefined && {
-          suggestedFix: mockValidationFailures[0]!.suggestedFix,
+        location: baseFailure.location,
+        severity: baseFailure.severity,
+        ...(baseFailure.suggestedFix !== undefined && {
+          suggestedFix: baseFailure.suggestedFix,
         }),
       };
       const event = new ValidationFailed(
@@ -227,7 +230,7 @@ describe('ValidationFailed', () => {
         mockValidationScope,
         [failure],
         'validator',
-        'package-v1'
+        'package-v1',
       );
 
       expect(event.failures[0]?.type).toBe(type);
@@ -277,7 +280,7 @@ describe('ValidationPatternDetected', () => {
       mockValidationPattern,
       0.92,
       'pattern-recognizer',
-      mockSuggestions
+      mockSuggestions,
     );
 
     expect(event.eventType).toBe('ValidationPatternDetected');
@@ -296,7 +299,7 @@ describe('ValidationPatternDetected', () => {
       mockValidationPattern,
       0.78,
       'ml-pattern-detector',
-      mockSuggestions
+      mockSuggestions,
     );
 
     const data = event.eventData;
@@ -312,14 +315,14 @@ describe('ValidationPatternDetected', () => {
   it('should handle high and low confidence values', () => {
     const confidenceValues = [0.1, 0.5, 0.95, 1.0];
 
-    confidenceValues.forEach(confidence => {
+    confidenceValues.forEach((confidence) => {
       const event = new ValidationPatternDetected(
         'pattern-agg-123',
         'Tree',
         mockValidationPattern,
         confidence,
         'detector',
-        []
+        [],
       );
 
       expect(event.confidence).toBe(confidence);
@@ -358,7 +361,7 @@ describe('CustomRuleApplied', () => {
       'inclusive-language-rule',
       '2.1.0',
       mockApplicationResult,
-      'rule-engine'
+      'rule-engine',
     );
 
     expect(event.eventType).toBe('CustomRuleApplied');
@@ -377,7 +380,7 @@ describe('CustomRuleApplied', () => {
       'consistency-checker',
       '1.0.5',
       mockApplicationResult,
-      'custom-rule-processor'
+      'custom-rule-processor',
     );
 
     const data = event.eventData;
@@ -404,7 +407,7 @@ describe('CustomRuleApplied', () => {
       'broken-rule',
       '0.1.0',
       failedResult,
-      'rule-engine'
+      'rule-engine',
     );
 
     expect(event.applicationResult.isValid).toBe(false);
@@ -444,7 +447,7 @@ describe('SemanticAnalysisCompleted', () => {
       'logical_structure',
       mockSemanticFindings,
       'semantic-analyzer',
-      'nlp-logic-v3'
+      'nlp-logic-v3',
     );
 
     expect(event.eventType).toBe('SemanticAnalysisCompleted');
@@ -463,7 +466,7 @@ describe('SemanticAnalysisCompleted', () => {
       'domain_concepts',
       mockSemanticFindings,
       'domain-analyzer',
-      'domain-specific-v1'
+      'domain-specific-v1',
     );
 
     const data = event.eventData;
@@ -485,14 +488,14 @@ describe('SemanticAnalysisCompleted', () => {
       'statement_relationships',
     ];
 
-    analysisTypes.forEach(type => {
+    analysisTypes.forEach((type) => {
       const event = new SemanticAnalysisCompleted(
         'semantic-agg-123',
         'Document',
         type as any,
         [],
         'analyzer',
-        'package-v1'
+        'package-v1',
       );
 
       expect(event.analysisType).toBe(type);
@@ -544,7 +547,7 @@ describe('LogicalConsistencyChecked', () => {
       mockDocumentId,
       mockCheckedTrees,
       mockConsistencyResult,
-      'consistency-checker'
+      'consistency-checker',
     );
 
     expect(event.eventType).toBe('LogicalConsistencyChecked');
@@ -561,7 +564,7 @@ describe('LogicalConsistencyChecked', () => {
       mockDocumentId,
       mockCheckedTrees,
       mockConsistencyResult,
-      'logic-validator'
+      'logic-validator',
     );
 
     const data = event.eventData;
@@ -588,7 +591,7 @@ describe('LogicalConsistencyChecked', () => {
       mockDocumentId,
       mockCheckedTrees,
       consistentResult,
-      'consistency-checker'
+      'consistency-checker',
     );
 
     expect(event.consistencyResult.isConsistent).toBe(true);
@@ -616,7 +619,7 @@ describe('ValidationCacheInvalidated', () => {
       'ValidationCache',
       'statement_modified',
       mockAffectedScopes,
-      'cache-manager'
+      'cache-manager',
     );
 
     expect(event.eventType).toBe('ValidationCacheInvalidated');
@@ -633,7 +636,7 @@ describe('ValidationCacheInvalidated', () => {
       'Document',
       'language_package_changed',
       mockAffectedScopes,
-      'package-updater'
+      'package-updater',
     );
 
     const data = event.eventData;
@@ -655,13 +658,13 @@ describe('ValidationCacheInvalidated', () => {
       'manual_invalidation',
     ];
 
-    reasons.forEach(reason => {
+    reasons.forEach((reason) => {
       const event = new ValidationCacheInvalidated(
         'cache-agg-123',
         'ValidationCache',
         reason as any,
         [],
-        'invalidator'
+        'invalidator',
       );
 
       expect(event.invalidationReason).toBe(reason);
@@ -674,10 +677,10 @@ describe('ValidationCacheInvalidated', () => {
       'ValidationCache',
       'manual_invalidation',
       [],
-      'admin'
+      'admin',
     );
 
     expect(event.affectedScopes).toEqual([]);
-    expect(event.eventData['affectedScopes']).toEqual([]);
+    expect(event.eventData.affectedScopes).toEqual([]);
   });
 });

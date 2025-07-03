@@ -25,8 +25,8 @@ export class YAMLValidator {
     const result: ParsedYAMLStructure = {};
 
     // Validate statements section
-    if (data['statements'] !== undefined) {
-      const statementsValidation = this.validateStatements(data['statements']);
+    if (data.statements !== undefined) {
+      const statementsValidation = this.validateStatements(data.statements);
       if (statementsValidation.isErr()) {
         errors.push(...statementsValidation.error);
       } else {
@@ -35,8 +35,8 @@ export class YAMLValidator {
     }
 
     // Validate orderedSets section
-    if (data['orderedSets'] !== undefined) {
-      const orderedSetsValidation = this.validateOrderedSets(data['orderedSets']);
+    if (data.orderedSets !== undefined) {
+      const orderedSetsValidation = this.validateOrderedSets(data.orderedSets);
       if (orderedSetsValidation.isErr()) {
         errors.push(...orderedSetsValidation.error);
       } else {
@@ -45,8 +45,8 @@ export class YAMLValidator {
     }
 
     // Validate atomicArguments section
-    if (data['atomicArguments'] !== undefined) {
-      const atomicArgumentsValidation = this.validateAtomicArguments(data['atomicArguments']);
+    if (data.atomicArguments !== undefined) {
+      const atomicArgumentsValidation = this.validateAtomicArguments(data.atomicArguments);
       if (atomicArgumentsValidation.isErr()) {
         errors.push(...atomicArgumentsValidation.error);
       } else {
@@ -55,8 +55,8 @@ export class YAMLValidator {
     }
 
     // Validate arguments section (new format)
-    if (data['arguments'] !== undefined) {
-      const argumentsValidation = this.validateArguments(data['arguments']);
+    if (data.arguments !== undefined) {
+      const argumentsValidation = this.validateArguments(data.arguments);
       if (argumentsValidation.isErr()) {
         errors.push(...argumentsValidation.error);
       } else {
@@ -65,8 +65,8 @@ export class YAMLValidator {
     }
 
     // Validate trees section
-    if (data['trees'] !== undefined) {
-      const treesValidation = this.validateTrees(data['trees']);
+    if (data.trees !== undefined) {
+      const treesValidation = this.validateTrees(data.trees);
       if (treesValidation.isErr()) {
         errors.push(...treesValidation.error);
       } else {
@@ -129,7 +129,7 @@ export class YAMLValidator {
   }
 
   private validateArguments(
-    argumentsData: unknown
+    argumentsData: unknown,
   ): Result<
     Record<string, { premises?: string[]; conclusions?: string[]; sideLabel?: string }>,
     ParseError[]
@@ -183,17 +183,17 @@ export class YAMLValidator {
       const resultSpec: { premises?: string[]; conclusions?: string[]; sideLabel?: string } = {};
 
       // Validate premises array
-      if (spec['premises'] !== undefined) {
-        if (!Array.isArray(spec['premises'])) {
+      if (spec.premises !== undefined) {
+        if (!Array.isArray(spec.premises)) {
           errors.push({
             type: ParseErrorType.INVALID_ARGUMENT,
-            message: `Premises must be an array, got ${typeof spec['premises']}`,
+            message: `Premises must be an array, got ${typeof spec.premises}`,
             section: 'arguments',
             reference: id,
           });
         } else {
           const validPremises: string[] = [];
-          for (const [index, premise] of spec['premises'].entries()) {
+          for (const [index, premise] of spec.premises.entries()) {
             if (typeof premise !== 'string') {
               errors.push({
                 type: ParseErrorType.INVALID_ARGUMENT,
@@ -219,17 +219,17 @@ export class YAMLValidator {
       }
 
       // Validate conclusions array
-      if (spec['conclusions'] !== undefined) {
-        if (!Array.isArray(spec['conclusions'])) {
+      if (spec.conclusions !== undefined) {
+        if (!Array.isArray(spec.conclusions)) {
           errors.push({
             type: ParseErrorType.INVALID_ARGUMENT,
-            message: `Conclusions must be an array, got ${typeof spec['conclusions']}`,
+            message: `Conclusions must be an array, got ${typeof spec.conclusions}`,
             section: 'arguments',
             reference: id,
           });
         } else {
           const validConclusions: string[] = [];
-          for (const [index, conclusion] of spec['conclusions'].entries()) {
+          for (const [index, conclusion] of spec.conclusions.entries()) {
             if (typeof conclusion !== 'string') {
               errors.push({
                 type: ParseErrorType.INVALID_ARGUMENT,
@@ -255,16 +255,16 @@ export class YAMLValidator {
       }
 
       // Validate sideLabel
-      if (spec['sideLabel'] !== undefined) {
-        if (typeof spec['sideLabel'] !== 'string') {
+      if (spec.sideLabel !== undefined) {
+        if (typeof spec.sideLabel !== 'string') {
           errors.push({
             type: ParseErrorType.INVALID_ARGUMENT,
-            message: `Side label must be a string, got ${typeof spec['sideLabel']}`,
+            message: `Side label must be a string, got ${typeof spec.sideLabel}`,
             section: 'arguments',
             reference: id,
           });
         } else {
-          resultSpec.sideLabel = spec['sideLabel'];
+          resultSpec.sideLabel = spec.sideLabel;
         }
       }
 
@@ -275,7 +275,7 @@ export class YAMLValidator {
   }
 
   private validateOrderedSets(
-    orderedSets: unknown
+    orderedSets: unknown,
   ): Result<Record<string, string[]>, ParseError[]> {
     const errors: ParseError[] = [];
 
@@ -336,7 +336,7 @@ export class YAMLValidator {
   }
 
   private validateAtomicArguments(
-    atomicArguments: unknown
+    atomicArguments: unknown,
   ): Result<
     Record<string, { premises?: string; conclusions?: string; sideLabel?: string }>,
     ParseError[]
@@ -382,44 +382,44 @@ export class YAMLValidator {
       const resultSpec: { premises?: string; conclusions?: string; sideLabel?: string } = {};
 
       // Validate premises reference
-      if (spec['premises'] !== undefined) {
-        if (typeof spec['premises'] !== 'string') {
+      if (spec.premises !== undefined) {
+        if (typeof spec.premises !== 'string') {
           errors.push({
             type: ParseErrorType.INVALID_ATOMIC_ARGUMENT,
-            message: `Premises must be a string reference, got ${typeof spec['premises']}`,
+            message: `Premises must be a string reference, got ${typeof spec.premises}`,
             section: 'atomicArguments',
             reference: id,
           });
         } else {
-          resultSpec.premises = spec['premises'].trim();
+          resultSpec.premises = spec.premises.trim();
         }
       }
 
       // Validate conclusions reference
-      if (spec['conclusions'] !== undefined) {
-        if (typeof spec['conclusions'] !== 'string') {
+      if (spec.conclusions !== undefined) {
+        if (typeof spec.conclusions !== 'string') {
           errors.push({
             type: ParseErrorType.INVALID_ATOMIC_ARGUMENT,
-            message: `Conclusions must be a string reference, got ${typeof spec['conclusions']}`,
+            message: `Conclusions must be a string reference, got ${typeof spec.conclusions}`,
             section: 'atomicArguments',
             reference: id,
           });
         } else {
-          resultSpec.conclusions = spec['conclusions'].trim();
+          resultSpec.conclusions = spec.conclusions.trim();
         }
       }
 
       // Validate sideLabel
-      if (spec['sideLabel'] !== undefined) {
-        if (typeof spec['sideLabel'] !== 'string') {
+      if (spec.sideLabel !== undefined) {
+        if (typeof spec.sideLabel !== 'string') {
           errors.push({
             type: ParseErrorType.INVALID_ATOMIC_ARGUMENT,
-            message: `Side label must be a string, got ${typeof spec['sideLabel']}`,
+            message: `Side label must be a string, got ${typeof spec.sideLabel}`,
             section: 'atomicArguments',
             reference: id,
           });
         } else {
-          resultSpec.sideLabel = spec['sideLabel'];
+          resultSpec.sideLabel = spec.sideLabel;
         }
       }
 
@@ -430,7 +430,7 @@ export class YAMLValidator {
   }
 
   private validateConciseArguments(
-    argumentsArray: unknown[]
+    argumentsArray: unknown[],
   ): Result<
     Record<string, { premises?: string[]; conclusions?: string[]; sideLabel?: string }>,
     ParseError[]
@@ -466,7 +466,16 @@ export class YAMLValidator {
         continue;
       }
 
-      const premisesKey = keys[0]!;
+      const premisesKey = keys[0];
+      if (!premisesKey) {
+        errors.push({
+          type: ParseErrorType.INVALID_ARGUMENT,
+          message: `Concise argument at index ${index} has no premise key`,
+          section: 'arguments',
+          reference: `argument-${index}`,
+        });
+        continue;
+      }
       const conclusionsValue = argumentObj[premisesKey];
 
       // Parse premises from key (YAML converts ['s1', 's2'] to "s1,s2")
@@ -475,8 +484,8 @@ export class YAMLValidator {
         // Handle comma-separated format from YAML
         premises = premisesKey
           .split(',')
-          .map(s => s.trim())
-          .filter(s => s.length > 0);
+          .map((s) => s.trim())
+          .filter((s) => s.length > 0);
       } else if (premisesKey.length > 0) {
         // Handle single premise
         premises = [premisesKey.trim()];
@@ -580,7 +589,7 @@ export class YAMLValidator {
   }
 
   private validateTrees(
-    trees: unknown
+    trees: unknown,
   ): Result<
     Record<string, { offset?: { x: number; y: number }; nodes?: Record<string, NodeSpec> }>,
     ParseError[]
@@ -623,8 +632,8 @@ export class YAMLValidator {
         {};
 
       // Validate offset
-      if (spec['offset'] !== undefined) {
-        const offsetValidation = this.validateOffset(spec['offset'], id);
+      if (spec.offset !== undefined) {
+        const offsetValidation = this.validateOffset(spec.offset, id);
         if (offsetValidation.isErr()) {
           errors.push(...offsetValidation.error);
         } else {
@@ -633,8 +642,8 @@ export class YAMLValidator {
       }
 
       // Validate nodes
-      if (spec['nodes'] !== undefined) {
-        const nodesValidation = this.validateTreeNodes(spec['nodes'], id);
+      if (spec.nodes !== undefined) {
+        const nodesValidation = this.validateTreeNodes(spec.nodes, id);
         if (nodesValidation.isErr()) {
           errors.push(...nodesValidation.error);
         } else {
@@ -650,7 +659,7 @@ export class YAMLValidator {
 
   private validateOffset(
     offset: unknown,
-    treeId: string
+    treeId: string,
   ): Result<{ x: number; y: number }, ParseError[]> {
     const errors: ParseError[] = [];
 
@@ -666,19 +675,19 @@ export class YAMLValidator {
 
     const offsetObj = offset as Record<string, unknown>;
 
-    if (typeof offsetObj['x'] !== 'number') {
+    if (typeof offsetObj.x !== 'number') {
       errors.push({
         type: ParseErrorType.INVALID_TREE_STRUCTURE,
-        message: `Tree offset.x must be a number, got ${typeof offsetObj['x']}`,
+        message: `Tree offset.x must be a number, got ${typeof offsetObj.x}`,
         section: 'trees',
         reference: treeId,
       });
     }
 
-    if (typeof offsetObj['y'] !== 'number') {
+    if (typeof offsetObj.y !== 'number') {
       errors.push({
         type: ParseErrorType.INVALID_TREE_STRUCTURE,
-        message: `Tree offset.y must be a number, got ${typeof offsetObj['y']}`,
+        message: `Tree offset.y must be a number, got ${typeof offsetObj.y}`,
         section: 'trees',
         reference: treeId,
       });
@@ -688,12 +697,12 @@ export class YAMLValidator {
       return err(errors);
     }
 
-    return ok({ x: offsetObj['x'] as number, y: offsetObj['y'] as number });
+    return ok({ x: offsetObj.x as number, y: offsetObj.y as number });
   }
 
   private validateTreeNodes(
     nodes: unknown,
-    treeId: string
+    treeId: string,
   ): Result<Record<string, NodeSpec>, ParseError[]> {
     const errors: ParseError[] = [];
 
@@ -745,6 +754,6 @@ export class YAMLValidator {
     // Reject obviously invalid formats that suggest user confusion
     const invalidPatterns = [/^invalid/i, /^format/i, /^example/i, /^test/i, /^placeholder/i];
 
-    return !invalidPatterns.some(pattern => pattern.test(id));
+    return !invalidPatterns.some((pattern) => pattern.test(id));
   }
 }

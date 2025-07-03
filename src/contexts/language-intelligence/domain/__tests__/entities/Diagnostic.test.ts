@@ -37,7 +37,7 @@ describe('Diagnostic', () => {
         'Test error message',
         'test-error',
         mockLocation,
-        validLanguagePackageId
+        validLanguagePackageId,
       );
 
       expect(result.isOk()).toBe(true);
@@ -65,7 +65,7 @@ describe('Diagnostic', () => {
         mockLocation,
         validLanguagePackageId,
         quickFixes,
-        tags
+        tags,
       );
 
       expect(result.isOk()).toBe(true);
@@ -86,7 +86,7 @@ describe('Diagnostic', () => {
         '',
         'test-error',
         mockLocation,
-        validLanguagePackageId
+        validLanguagePackageId,
       );
 
       expect(result.isErr()).toBe(true);
@@ -101,7 +101,7 @@ describe('Diagnostic', () => {
         '   ',
         'test-error',
         mockLocation,
-        validLanguagePackageId
+        validLanguagePackageId,
       );
 
       expect(result.isErr()).toBe(true);
@@ -116,7 +116,7 @@ describe('Diagnostic', () => {
         'Test message',
         '',
         mockLocation,
-        validLanguagePackageId
+        validLanguagePackageId,
       );
 
       expect(result.isErr()).toBe(true);
@@ -131,7 +131,7 @@ describe('Diagnostic', () => {
         'Test message',
         '   ',
         mockLocation,
-        validLanguagePackageId
+        validLanguagePackageId,
       );
 
       expect(result.isErr()).toBe(true);
@@ -148,7 +148,7 @@ describe('Diagnostic', () => {
         'Invalid syntax detected',
         mockLocation,
         validLanguagePackageId,
-        quickFixes
+        quickFixes,
       );
 
       expect(result.isOk()).toBe(true);
@@ -167,7 +167,7 @@ describe('Diagnostic', () => {
       const result = Diagnostic.createSyntaxError(
         'Syntax error',
         mockLocation,
-        validLanguagePackageId
+        validLanguagePackageId,
       );
 
       expect(result.isOk()).toBe(true);
@@ -186,7 +186,7 @@ describe('Diagnostic', () => {
         'Type mismatch',
         mockLocation,
         validLanguagePackageId,
-        quickFixes
+        quickFixes,
       );
 
       expect(result.isOk()).toBe(true);
@@ -208,7 +208,7 @@ describe('Diagnostic', () => {
         'Inconsistent indentation',
         mockLocation,
         validLanguagePackageId,
-        quickFixes
+        quickFixes,
       );
 
       expect(result.isOk()).toBe(true);
@@ -230,7 +230,7 @@ describe('Diagnostic', () => {
         'Consider using modus ponens here',
         mockLocation,
         validLanguagePackageId,
-        learningHints
+        learningHints,
       );
 
       expect(result.isOk()).toBe(true);
@@ -256,7 +256,7 @@ describe('Diagnostic', () => {
         'Main error',
         'main-error',
         mockLocation,
-        validLanguagePackageId
+        validLanguagePackageId,
       );
       if (result.isOk()) {
         diagnostic = result.value;
@@ -317,7 +317,7 @@ describe('Diagnostic', () => {
       const result = Diagnostic.createSyntaxError(
         'Syntax error',
         mockLocation,
-        validLanguagePackageId
+        validLanguagePackageId,
       );
       if (result.isOk()) {
         expect(result.value.isSyntaxRelated()).toBe(true);
@@ -331,7 +331,7 @@ describe('Diagnostic', () => {
       const result = Diagnostic.createSemanticError(
         'Semantic error',
         mockLocation,
-        validLanguagePackageId
+        validLanguagePackageId,
       );
       if (result.isOk()) {
         expect(result.value.isSemanticRelated()).toBe(true);
@@ -345,7 +345,7 @@ describe('Diagnostic', () => {
       const result = Diagnostic.createStyleWarning(
         'Style warning',
         mockLocation,
-        validLanguagePackageId
+        validLanguagePackageId,
       );
       if (result.isOk()) {
         expect(result.value.isStyleRelated()).toBe(true);
@@ -359,7 +359,7 @@ describe('Diagnostic', () => {
       const result = Diagnostic.createEducationalInfo(
         'Educational info',
         mockLocation,
-        validLanguagePackageId
+        validLanguagePackageId,
       );
       if (result.isOk()) {
         expect(result.value.isEducational()).toBe(true);
@@ -379,12 +379,12 @@ describe('Diagnostic', () => {
         const diagnostic1 = Diagnostic.createSyntaxError(
           'Error 1',
           location1Result.value,
-          validLanguagePackageId
+          validLanguagePackageId,
         );
         const diagnostic2 = Diagnostic.createStyleWarning(
           'Warning 1',
           location2Result.value,
-          validLanguagePackageId
+          validLanguagePackageId,
         );
 
         if (diagnostic1.isOk() && diagnostic2.isOk()) {
@@ -401,12 +401,12 @@ describe('Diagnostic', () => {
         const diagnostic1 = Diagnostic.createSyntaxError(
           'Error 1',
           location1Result.value,
-          validLanguagePackageId
+          validLanguagePackageId,
         );
         const diagnostic2 = Diagnostic.createStyleWarning(
           'Warning 1',
           location2Result.value,
-          validLanguagePackageId
+          validLanguagePackageId,
         );
 
         if (diagnostic1.isOk() && diagnostic2.isOk()) {
@@ -423,21 +423,21 @@ describe('Diagnostic', () => {
         'Error',
         'error-code',
         mockLocation,
-        validLanguagePackageId
+        validLanguagePackageId,
       );
       const warningResult = Diagnostic.create(
         DiagnosticSeverity.warning(),
         'Warning',
         'warning-code',
         mockLocation,
-        validLanguagePackageId
+        validLanguagePackageId,
       );
       const infoResult = Diagnostic.create(
         DiagnosticSeverity.info(),
         'Info',
         'info-code',
         mockLocation,
-        validLanguagePackageId
+        validLanguagePackageId,
       );
 
       expect(errorResult.isOk()).toBe(true);
@@ -470,14 +470,14 @@ describe('Diagnostic', () => {
           'Severe error',
           'same-code',
           location.value,
-          validLanguagePackageId
+          validLanguagePackageId,
         );
         const warningResult = Diagnostic.create(
           DiagnosticSeverity.warning(),
           'Minor warning',
           'same-code',
           location.value,
-          validLanguagePackageId
+          validLanguagePackageId,
         );
 
         expect(errorResult.isOk()).toBe(true);
@@ -494,12 +494,12 @@ describe('Diagnostic', () => {
       const errorResult = Diagnostic.createSyntaxError(
         'Syntax Error',
         mockLocation,
-        validLanguagePackageId
+        validLanguagePackageId,
       );
       const warningResult = Diagnostic.createStyleWarning(
         'Style Warning',
         mockLocation,
-        validLanguagePackageId
+        validLanguagePackageId,
       );
 
       if (errorResult.isOk() && warningResult.isOk()) {
@@ -515,14 +515,14 @@ describe('Diagnostic', () => {
         'Error',
         'error-code',
         mockLocation,
-        validLanguagePackageId
+        validLanguagePackageId,
       );
       const diagnostic2Result = Diagnostic.create(
         DiagnosticSeverity.error(),
         'Error',
         'error-code',
         mockLocation,
-        validLanguagePackageId
+        validLanguagePackageId,
       );
 
       expect(diagnostic1Result.isOk()).toBe(true);
@@ -552,7 +552,7 @@ describe('Diagnostic', () => {
         mockLocation,
         validLanguagePackageId,
         quickFixes,
-        tags
+        tags,
       );
 
       expect(result.isOk()).toBe(true);

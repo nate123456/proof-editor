@@ -23,8 +23,8 @@ export class LanguagePackageId {
     if (!/^[a-zA-Z0-9._-]+$/.test(trimmedValue)) {
       return err(
         new ValidationError(
-          'Language package ID can only contain letters, numbers, dots, hyphens, and underscores'
-        )
+          'Language package ID can only contain letters, numbers, dots, hyphens, and underscores',
+        ),
       );
     }
 
@@ -39,7 +39,7 @@ export class LanguagePackageId {
 
   static fromNameAndVersion(
     name: string,
-    version: string
+    version: string,
   ): Result<LanguagePackageId, ValidationError> {
     if (!name || name.trim().length === 0) {
       return err(new ValidationError('Package name cannot be empty'));
@@ -85,12 +85,12 @@ export class LanguagePackageId {
   }
 
   extractVersion(): string | null {
-    const versionMatch = this.value.match(/-([0-9]+\.[0-9]+\.[0-9]+.*?)$/);
+    const versionMatch = /-([0-9]+\.[0-9]+\.[0-9]+.*?)$/.exec(this.value);
     return versionMatch ? (versionMatch[1] ?? null) : null;
   }
 
   extractBaseName(): string {
-    const versionMatch = this.value.match(/^(.+?)-[0-9]+\.[0-9]+\.[0-9]+/);
+    const versionMatch = /^(.+?)-[0-9]+\.[0-9]+\.[0-9]+/.exec(this.value);
     return versionMatch ? (versionMatch[1] ?? this.value) : this.value;
   }
 

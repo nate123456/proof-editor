@@ -1,14 +1,18 @@
+import { inject, injectable } from 'tsyringe';
 import type * as vscode from 'vscode';
 
-import { ProofDiagnosticProvider } from './DiagnosticProvider.js';
+import { TOKENS } from '../infrastructure/di/tokens.js';
+import type { ProofDiagnosticProvider } from './DiagnosticProvider.js';
 
+@injectable()
 export class ValidationController {
-  private readonly diagnosticProvider: ProofDiagnosticProvider;
   private readonly validationTimeouts = new Map<string, NodeJS.Timeout>();
   private readonly validationDelay: number;
 
-  constructor(validationDelay = 500) {
-    this.diagnosticProvider = new ProofDiagnosticProvider();
+  constructor(
+    @inject(TOKENS.DiagnosticProvider) private readonly diagnosticProvider: ProofDiagnosticProvider,
+    validationDelay = 500,
+  ) {
     this.validationDelay = validationDelay;
   }
 
@@ -54,9 +58,9 @@ export class ValidationController {
 
   public clearAllValidation(): void {
     // Clear all pending validations
-    for (const timeout of this.validationTimeouts.values()) {
+    this.validationTimeouts.forEach((timeout) => {
       clearTimeout(timeout);
-    }
+    });
     this.validationTimeouts.clear();
 
     // Clear all diagnostics

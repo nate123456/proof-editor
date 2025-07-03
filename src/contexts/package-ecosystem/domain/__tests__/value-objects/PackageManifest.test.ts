@@ -585,7 +585,7 @@ describe('PackageManifest', () => {
         if (result.isErr()) {
           expect(result.error).toBeInstanceOf(PackageValidationError);
           expect(result.error.message).toContain(
-            "Invalid proof capability: syntax-validation. Must start with 'proof/'"
+            "Invalid proof capability: syntax-validation. Must start with 'proof/'",
           );
         }
       });
