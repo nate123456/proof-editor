@@ -118,8 +118,10 @@ export class OperationPayload {
       case 'DELETE_CONNECTION':
         return ok(undefined);
 
-      default:
-        return err(new Error(`Unknown operation type: ${opType}`));
+      default: {
+        const never: never = opType;
+        return err(new Error(`Unknown operation type: ${String(never)}`));
+      }
     }
   }
 
@@ -275,7 +277,7 @@ export class OperationPayload {
 
   clone(): Result<OperationPayload, Error> {
     try {
-      const clonedData = JSON.parse(JSON.stringify(this.data));
+      const clonedData = JSON.parse(JSON.stringify(this.data)) as OperationPayloadData;
       return ok(new OperationPayload(clonedData, this.payloadType, this.size));
     } catch (error) {
       return err(error instanceof Error ? error : new Error('Failed to clone payload'));

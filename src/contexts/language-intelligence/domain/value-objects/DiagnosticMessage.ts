@@ -43,6 +43,11 @@ export class DiagnosticMessage {
     return this.text;
   }
 
+  getValue(): string {
+    // Alias for getText() for backward compatibility
+    return this.text;
+  }
+
   getContext(): string {
     return this.context;
   }

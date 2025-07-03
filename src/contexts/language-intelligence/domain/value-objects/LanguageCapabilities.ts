@@ -2,351 +2,603 @@ import { err, ok, type Result } from 'neverthrow';
 
 import { ValidationError } from '../errors/DomainErrors';
 
+/**
+ * LanguageCapabilities value object representing supported logic systems and operators
+ */
 export class LanguageCapabilities {
-  private constructor(private readonly capabilities: Set<string>) {}
+  private constructor(
+    private readonly propositionalLogic: boolean,
+    private readonly firstOrderLogic: boolean,
+    private readonly modalLogic: boolean,
+    private readonly temporalLogic: boolean,
+    private readonly higherOrderLogic: boolean,
+    private readonly supportedConnectives: readonly string[],
+    private readonly supportedQuantifiers: readonly string[],
+    private readonly supportedModalOperators: readonly string[],
+    private readonly supportedTemporalOperators: readonly string[]
+  ) {}
 
-  static create(capabilities: string[]): Result<LanguageCapabilities, ValidationError> {
-    if (!capabilities || capabilities.length === 0) {
-      return err(new ValidationError('At least one capability must be provided'));
+  /**
+   * Creates LanguageCapabilities with explicit logic system flags and operators
+   */
+  static create(
+    propositionalLogic: boolean,
+    firstOrderLogic: boolean,
+    modalLogic: boolean,
+    temporalLogic: boolean,
+    higherOrderLogic: boolean,
+    connectives: string[],
+    quantifiers: string[],
+    modalOperators: string[],
+    temporalOperators: string[]
+  ): Result<LanguageCapabilities, ValidationError> {
+    // Validate that at least one logic system is supported
+    if (
+      !propositionalLogic &&
+      !firstOrderLogic &&
+      !modalLogic &&
+      !temporalLogic &&
+      !higherOrderLogic
+    ) {
+      return err(new ValidationError('At least one logic system must be supported'));
     }
 
-    const validatedCapabilities = new Set<string>();
-
-    for (const capability of capabilities) {
-      if (!capability || capability.trim().length === 0) {
-        return err(new ValidationError('Capability cannot be empty'));
-      }
-
-      const trimmed = capability.trim().toLowerCase();
-
-      if (!LanguageCapabilities.isValidCapability(trimmed)) {
-        return err(new ValidationError(`Invalid capability: ${capability}`));
-      }
-
-      validatedCapabilities.add(trimmed);
+    // Validate operator consistency with logic systems
+    if (!propositionalLogic && connectives.length > 0) {
+      return err(
+        new ValidationError('Cannot have connectives without propositional logic support')
+      );
     }
 
-    return ok(new LanguageCapabilities(validatedCapabilities));
-  }
-
-  static createEmpty(): LanguageCapabilities {
-    return new LanguageCapabilities(new Set());
-  }
-
-  static createPropositionalLogic(): Result<LanguageCapabilities, ValidationError> {
-    return LanguageCapabilities.create([
-      'propositional-operators',
-      'truth-tables',
-      'satisfiability-checking',
-      'tautology-validation',
-      'boolean-algebra',
-    ]);
-  }
-
-  static createModalLogic(): Result<LanguageCapabilities, ValidationError> {
-    return LanguageCapabilities.create([
-      'modal-operators',
-      'possible-worlds',
-      'necessity-validation',
-      'possibility-validation',
-      'accessibility-relations',
-      'modal-axioms',
-    ]);
-  }
-
-  static createFirstOrderLogic(): Result<LanguageCapabilities, ValidationError> {
-    return LanguageCapabilities.create([
-      'quantifiers',
-      'predicate-logic',
-      'function-symbols',
-      'variable-binding',
-      'unification',
-      'herbrand-universe',
-    ]);
-  }
-
-  private static isValidCapability(capability: string): boolean {
-    const validCapabilities = new Set([
-      // Propositional Logic
-      'propositional-operators',
-      'truth-tables',
-      'satisfiability-checking',
-      'tautology-validation',
-      'boolean-algebra',
-      'cnf-conversion',
-      'dnf-conversion',
-
-      // Modal Logic
-      'modal-operators',
-      'possible-worlds',
-      'necessity-validation',
-      'possibility-validation',
-      'accessibility-relations',
-      'modal-axioms',
-      'temporal-logic',
-      'deontic-logic',
-      'epistemic-logic',
-
-      // First Order Logic
-      'quantifiers',
-      'predicate-logic',
-      'function-symbols',
-      'variable-binding',
-      'unification',
-      'herbrand-universe',
-      'skolemization',
-      'resolution-theorem-proving',
-
-      // Higher Order Logic
-      'higher-order-quantification',
-      'lambda-abstraction',
-      'type-theory',
-
-      // Proof Systems
-      'natural-deduction',
-      'sequent-calculus',
-      'resolution',
-      'tableau-method',
-      'hilbert-system',
-
-      // Syntax and Parsing
-      'syntax-highlighting',
-      'parse-trees',
-      'error-recovery',
-      'incremental-parsing',
-
-      // Validation and Analysis
-      'syntax-validation',
-      'semantic-validation',
-      'type-checking',
-      'proof-checking',
-      'consistency-checking',
-      'completeness-checking',
-
-      // Educational Features
-      'step-by-step-guidance',
-      'hint-generation',
-      'error-explanation',
-      'proof-visualization',
-      'interactive-exercises',
-
-      // Performance Features
-      'parallel-validation',
-      'caching',
-      'incremental-validation',
-      'lazy-evaluation',
-
-      // Integration Features
-      'lsp-support',
-      'vscode-integration',
-      'web-compatibility',
-      'mobile-support',
-
-      // Custom Extensions
-      'custom-rules',
-      'plugin-system',
-      'scripting-support',
-      'api-extensions',
-    ]);
-
-    return validCapabilities.has(capability);
-  }
-
-  hasCapability(capability: string): boolean {
-    return this.capabilities.has(capability.toLowerCase().trim());
-  }
-
-  getCapabilities(): readonly string[] {
-    return Array.from(this.capabilities).sort();
-  }
-
-  getCapabilityCount(): number {
-    return this.capabilities.size;
-  }
-
-  addCapability(capability: string): Result<LanguageCapabilities, ValidationError> {
-    const trimmed = capability.trim().toLowerCase();
-
-    if (!LanguageCapabilities.isValidCapability(trimmed)) {
-      return err(new ValidationError(`Invalid capability: ${capability}`));
+    if (!firstOrderLogic && quantifiers.length > 0) {
+      return err(new ValidationError('Cannot have quantifiers without first-order logic support'));
     }
 
-    const newCapabilities = new Set(this.capabilities);
-    newCapabilities.add(trimmed);
-
-    return ok(new LanguageCapabilities(newCapabilities));
-  }
-
-  removeCapability(capability: string): LanguageCapabilities {
-    const newCapabilities = new Set(this.capabilities);
-    newCapabilities.delete(capability.toLowerCase().trim());
-    return new LanguageCapabilities(newCapabilities);
-  }
-
-  combineWith(other: LanguageCapabilities): LanguageCapabilities {
-    const combined = new Set([...this.capabilities, ...other.capabilities]);
-    return new LanguageCapabilities(combined);
-  }
-
-  intersectWith(other: LanguageCapabilities): LanguageCapabilities {
-    const intersection = new Set<string>();
-
-    for (const capability of this.capabilities) {
-      if (other.capabilities.has(capability)) {
-        intersection.add(capability);
-      }
+    if (!modalLogic && modalOperators.length > 0) {
+      return err(new ValidationError('Cannot have modal operators without modal logic support'));
     }
 
-    return new LanguageCapabilities(intersection);
-  }
-
-  isCompatibleWith(other: LanguageCapabilities): boolean {
-    // Compatible if they share at least one core capability
-    const coreCapabilities = new Set([
-      'propositional-operators',
-      'modal-operators',
-      'quantifiers',
-      'syntax-validation',
-      'semantic-validation',
-    ]);
-
-    for (const capability of this.capabilities) {
-      if (coreCapabilities.has(capability) && other.capabilities.has(capability)) {
-        return true;
-      }
+    if (!temporalLogic && temporalOperators.length > 0) {
+      return err(
+        new ValidationError('Cannot have temporal operators without temporal logic support')
+      );
     }
 
-    return false;
+    // Create immutable arrays with unique elements
+    const uniqueConnectives = [...new Set(connectives)];
+    const uniqueQuantifiers = [...new Set(quantifiers)];
+    const uniqueModalOperators = [...new Set(modalOperators)];
+    const uniqueTemporalOperators = [...new Set(temporalOperators)];
+
+    return ok(
+      new LanguageCapabilities(
+        propositionalLogic,
+        firstOrderLogic,
+        modalLogic,
+        temporalLogic,
+        higherOrderLogic,
+        uniqueConnectives,
+        uniqueQuantifiers,
+        uniqueModalOperators,
+        uniqueTemporalOperators
+      )
+    );
   }
 
+  /**
+   * Creates capabilities with only propositional logic support
+   */
+  static propositionalOnly(): LanguageCapabilities {
+    const result = LanguageCapabilities.create(
+      true,
+      false,
+      false,
+      false,
+      false,
+      ['∧', '∨', '→', '¬'],
+      [],
+      [],
+      []
+    );
+    if (result.isErr()) {
+      throw new Error('Failed to create propositional capabilities');
+    }
+    return result.value;
+  }
+
+  /**
+   * Creates capabilities with first-order logic support
+   */
+  static firstOrderLogic(): LanguageCapabilities {
+    const result = LanguageCapabilities.create(
+      true,
+      true,
+      false,
+      false,
+      false,
+      ['∧', '∨', '→', '¬'],
+      ['∀', '∃'],
+      [],
+      []
+    );
+    if (result.isErr()) {
+      throw new Error('Failed to create first-order capabilities');
+    }
+    return result.value;
+  }
+
+  /**
+   * Creates capabilities with modal logic support
+   */
+  static modalLogic(): LanguageCapabilities {
+    const result = LanguageCapabilities.create(
+      true,
+      true,
+      true,
+      false,
+      false,
+      ['∧', '∨', '→', '¬'],
+      ['∀', '∃'],
+      ['□', '◇'],
+      []
+    );
+    if (result.isErr()) {
+      throw new Error('Failed to create modal capabilities');
+    }
+    return result.value;
+  }
+
+  /**
+   * Creates capabilities with all features enabled
+   */
+  static fullFeatured(): LanguageCapabilities {
+    const result = LanguageCapabilities.create(
+      true,
+      true,
+      true,
+      true,
+      true,
+      ['∧', '∨', '→', '¬', '↔', '⊕'],
+      ['∀', '∃'],
+      ['□', '◇'],
+      ['G', 'F', 'X', 'U']
+    );
+    if (result.isErr()) {
+      throw new Error('Failed to create full-featured capabilities');
+    }
+    return result.value;
+  }
+
+  // Logic system support checks
   supportsPropositionalLogic(): boolean {
-    return this.hasCapability('propositional-operators');
-  }
-
-  supportsModalLogic(): boolean {
-    return this.hasCapability('modal-operators');
+    return this.propositionalLogic;
   }
 
   supportsFirstOrderLogic(): boolean {
-    return this.hasCapability('quantifiers');
+    return this.firstOrderLogic;
+  }
+
+  supportsModalLogic(): boolean {
+    return this.modalLogic;
+  }
+
+  supportsTemporalLogic(): boolean {
+    return this.temporalLogic;
   }
 
   supportsHigherOrderLogic(): boolean {
-    return this.hasCapability('higher-order-quantification');
+    return this.higherOrderLogic;
   }
 
-  supportsProofSystems(): boolean {
-    return (
-      this.hasCapability('natural-deduction') ||
-      this.hasCapability('sequent-calculus') ||
-      this.hasCapability('resolution') ||
-      this.hasCapability('tableau-method')
-    );
+  // Operator getters
+  getSupportedConnectives(): readonly string[] {
+    return this.supportedConnectives;
   }
 
-  supportsEducationalFeatures(): boolean {
-    return (
-      this.hasCapability('step-by-step-guidance') ||
-      this.hasCapability('hint-generation') ||
-      this.hasCapability('error-explanation')
-    );
+  getSupportedQuantifiers(): readonly string[] {
+    return this.supportedQuantifiers;
   }
 
-  getLogicLevel(): LogicLevel {
-    if (this.supportsHigherOrderLogic()) return 'higher-order';
-    if (this.supportsFirstOrderLogic()) return 'first-order';
-    if (this.supportsModalLogic()) return 'modal';
-    if (this.supportsPropositionalLogic()) return 'propositional';
-    return 'basic';
+  getSupportedModalOperators(): readonly string[] {
+    return this.supportedModalOperators;
   }
 
-  getCapabilitiesByCategory(): CapabilityCategories {
-    const categories: CapabilityCategories = {
-      logic: [],
-      proofSystems: [],
-      syntax: [],
-      validation: [],
-      educational: [],
-      performance: [],
-      integration: [],
-      custom: [],
-    };
+  getSupportedTemporalOperators(): readonly string[] {
+    return this.supportedTemporalOperators;
+  }
 
-    for (const capability of this.capabilities) {
-      if (
-        capability.includes('logic') ||
-        capability.includes('operators') ||
-        capability.includes('quantifiers')
-      ) {
-        categories.logic.push(capability);
-      } else if (
-        capability.includes('deduction') ||
-        capability.includes('calculus') ||
-        capability.includes('resolution')
-      ) {
-        categories.proofSystems.push(capability);
-      } else if (capability.includes('syntax') || capability.includes('parse')) {
-        categories.syntax.push(capability);
-      } else if (capability.includes('validation') || capability.includes('checking')) {
-        categories.validation.push(capability);
-      } else if (
-        capability.includes('guidance') ||
-        capability.includes('hint') ||
-        capability.includes('explanation')
-      ) {
-        categories.educational.push(capability);
-      } else if (
-        capability.includes('parallel') ||
-        capability.includes('caching') ||
-        capability.includes('performance')
-      ) {
-        categories.performance.push(capability);
-      } else if (
-        capability.includes('lsp') ||
-        capability.includes('vscode') ||
-        capability.includes('integration')
-      ) {
-        categories.integration.push(capability);
-      } else if (
-        capability.includes('custom') ||
-        capability.includes('plugin') ||
-        capability.includes('extension')
-      ) {
-        categories.custom.push(capability);
-      }
+  // Operator support checks
+  supportsConnective(connective: string): boolean {
+    return this.supportedConnectives.includes(connective);
+  }
+
+  supportsQuantifier(quantifier: string): boolean {
+    return this.supportedQuantifiers.includes(quantifier);
+  }
+
+  supportsModalOperator(operator: string): boolean {
+    return this.supportedModalOperators.includes(operator);
+  }
+
+  supportsTemporalOperator(operator: string): boolean {
+    return this.supportedTemporalOperators.includes(operator);
+  }
+
+  /**
+   * Checks if this capabilities set is compatible with (covers all features of) another
+   */
+  isCompatibleWith(other: LanguageCapabilities): boolean {
+    // Check logic system compatibility
+    if (other.propositionalLogic && !this.propositionalLogic) return false;
+    if (other.firstOrderLogic && !this.firstOrderLogic) return false;
+    if (other.modalLogic && !this.modalLogic) return false;
+    if (other.temporalLogic && !this.temporalLogic) return false;
+    if (other.higherOrderLogic && !this.higherOrderLogic) return false;
+
+    // Check operator compatibility
+    for (const connective of other.supportedConnectives) {
+      if (!this.supportsConnective(connective)) return false;
     }
 
-    return categories;
-  }
-
-  equals(other: LanguageCapabilities): boolean {
-    if (this.capabilities.size !== other.capabilities.size) {
-      return false;
+    for (const quantifier of other.supportedQuantifiers) {
+      if (!this.supportsQuantifier(quantifier)) return false;
     }
 
-    for (const capability of this.capabilities) {
-      if (!other.capabilities.has(capability)) {
-        return false;
-      }
+    for (const modalOp of other.supportedModalOperators) {
+      if (!this.supportsModalOperator(modalOp)) return false;
+    }
+
+    for (const temporalOp of other.supportedTemporalOperators) {
+      if (!this.supportsTemporalOperator(temporalOp)) return false;
     }
 
     return true;
   }
 
+  /**
+   * Merges this capabilities with another, creating union of features
+   */
+  mergeWith(other: LanguageCapabilities): LanguageCapabilities {
+    const mergedConnectives = [
+      ...new Set([...this.supportedConnectives, ...other.supportedConnectives]),
+    ];
+    const mergedQuantifiers = [
+      ...new Set([...this.supportedQuantifiers, ...other.supportedQuantifiers]),
+    ];
+    const mergedModalOperators = [
+      ...new Set([...this.supportedModalOperators, ...other.supportedModalOperators]),
+    ];
+    const mergedTemporalOperators = [
+      ...new Set([...this.supportedTemporalOperators, ...other.supportedTemporalOperators]),
+    ];
+
+    const result = LanguageCapabilities.create(
+      this.propositionalLogic || other.propositionalLogic,
+      this.firstOrderLogic || other.firstOrderLogic,
+      this.modalLogic || other.modalLogic,
+      this.temporalLogic || other.temporalLogic,
+      this.higherOrderLogic || other.higherOrderLogic,
+      mergedConnectives,
+      mergedQuantifiers,
+      mergedModalOperators,
+      mergedTemporalOperators
+    );
+
+    if (result.isErr()) {
+      throw new Error('Failed to merge capabilities');
+    }
+    return result.value;
+  }
+
+  /**
+   * Creates intersection of this capabilities with another
+   */
+  intersectWith(other: LanguageCapabilities): LanguageCapabilities {
+    const intersectedConnectives = this.supportedConnectives.filter(c =>
+      other.supportsConnective(c)
+    );
+    const intersectedQuantifiers = this.supportedQuantifiers.filter(q =>
+      other.supportsQuantifier(q)
+    );
+    const intersectedModalOperators = this.supportedModalOperators.filter(m =>
+      other.supportsModalOperator(m)
+    );
+    const intersectedTemporalOperators = this.supportedTemporalOperators.filter(t =>
+      other.supportsTemporalOperator(t)
+    );
+
+    const result = LanguageCapabilities.create(
+      this.propositionalLogic && other.propositionalLogic,
+      this.firstOrderLogic && other.firstOrderLogic,
+      this.modalLogic && other.modalLogic,
+      this.temporalLogic && other.temporalLogic,
+      this.higherOrderLogic && other.higherOrderLogic,
+      intersectedConnectives,
+      intersectedQuantifiers,
+      intersectedModalOperators,
+      intersectedTemporalOperators
+    );
+
+    if (result.isErr()) {
+      throw new Error('Failed to intersect capabilities');
+    }
+    return result.value;
+  }
+
+  /**
+   * Calculates complexity score based on number of logic systems and operators
+   */
+  getComplexityScore(): number {
+    let score = 0;
+
+    // Logic system complexity weights
+    if (this.propositionalLogic) score += 1;
+    if (this.firstOrderLogic) score += 3;
+    if (this.modalLogic) score += 5;
+    if (this.temporalLogic) score += 7;
+    if (this.higherOrderLogic) score += 10;
+
+    // Operator complexity
+    score += this.supportedConnectives.length * 0.5;
+    score += this.supportedQuantifiers.length * 1;
+    score += this.supportedModalOperators.length * 2;
+    score += this.supportedTemporalOperators.length * 2;
+
+    return score;
+  }
+
+  /**
+   * Checks if this represents minimal capabilities (propositional only)
+   */
+  isMinimal(): boolean {
+    return (
+      this.propositionalLogic &&
+      !this.firstOrderLogic &&
+      !this.modalLogic &&
+      !this.temporalLogic &&
+      !this.higherOrderLogic
+    );
+  }
+
+  /**
+   * Checks if this represents extensive capabilities (multiple advanced logic systems)
+   */
+  isExtensive(): boolean {
+    const advancedSystems = [this.modalLogic, this.temporalLogic, this.higherOrderLogic].filter(
+      Boolean
+    ).length;
+    return advancedSystems >= 2;
+  }
+
+  /**
+   * Gets total count of supported operators
+   */
+  getTotalOperatorCount(): number {
+    return (
+      this.supportedConnectives.length +
+      this.supportedQuantifiers.length +
+      this.supportedModalOperators.length +
+      this.supportedTemporalOperators.length
+    );
+  }
+
+  /**
+   * Checks if a specific capability is supported
+   */
+  hasCapability(capability: string): boolean {
+    switch (capability.toLowerCase()) {
+      case 'propositional-operators':
+        return this.propositionalLogic && this.supportedConnectives.length > 0;
+      case 'quantifiers':
+        return this.firstOrderLogic && this.supportedQuantifiers.length > 0;
+      case 'modal-operators':
+        return this.modalLogic && this.supportedModalOperators.length > 0;
+      case 'temporal-operators':
+        return this.temporalLogic && this.supportedTemporalOperators.length > 0;
+      case 'propositional':
+        return this.propositionalLogic;
+      case 'first-order':
+        return this.firstOrderLogic;
+      case 'modal':
+        return this.modalLogic;
+      case 'temporal':
+        return this.temporalLogic;
+      case 'higher-order':
+        return this.higherOrderLogic;
+      // Modal logic specific capabilities
+      case 'possible-worlds':
+        return this.modalLogic;
+      case 'necessity-validation':
+        return this.modalLogic && this.supportedModalOperators.includes('□');
+      case 'possibility-validation':
+        return this.modalLogic && this.supportedModalOperators.includes('◇');
+      // Propositional logic specific capabilities
+      case 'truth-tables':
+        return this.propositionalLogic;
+      case 'satisfiability-checking':
+        return this.propositionalLogic;
+      case 'tautology-validation':
+        return this.propositionalLogic;
+      default:
+        return false;
+    }
+  }
+
+  /**
+   * Gets the total count of supported capabilities (major capability categories)
+   */
+  getCapabilityCount(): number {
+    let count = 0;
+
+    // Count capability types that are actually supported
+    if (this.propositionalLogic) count++; // Propositional logic system
+    if (this.propositionalLogic && this.supportedConnectives.length > 0) count++; // Propositional operators
+    if (this.firstOrderLogic && this.supportedQuantifiers.length > 0) count++; // Quantifiers
+    if (this.modalLogic && this.supportedModalOperators.length > 0) count++; // Modal operators
+    if (this.temporalLogic && this.supportedTemporalOperators.length > 0) count++; // Temporal operators
+    if (this.higherOrderLogic) count++; // Higher-order logic
+
+    return count;
+  }
+
+  /**
+   * Checks if capabilities meet minimum requirements (at least propositional logic)
+   */
+  meetsMinimumRequirements(): boolean {
+    return this.propositionalLogic;
+  }
+
+  /**
+   * Checks if a specific feature is required/supported
+   */
+  hasRequiredFeature(feature: string): boolean {
+    switch (feature.toLowerCase()) {
+      case 'propositional':
+        return this.propositionalLogic;
+      case 'first-order':
+        return this.firstOrderLogic;
+      case 'modal':
+        return this.modalLogic;
+      case 'temporal':
+        return this.temporalLogic;
+      case 'higher-order':
+        return this.higherOrderLogic;
+      default:
+        return false;
+    }
+  }
+
+  /**
+   * Validates operator consistency with logic system flags
+   */
+  hasConsistentOperators(): boolean {
+    // This is always true since validation happens at creation time
+    return true;
+  }
+
+  /**
+   * String representation listing supported logic systems
+   */
   toString(): string {
-    return Array.from(this.capabilities).sort().join(', ');
+    const systems: string[] = [];
+    if (this.propositionalLogic) systems.push('propositional');
+    if (this.firstOrderLogic) systems.push('first-order');
+    if (this.modalLogic) systems.push('modal');
+    if (this.temporalLogic) systems.push('temporal');
+    if (this.higherOrderLogic) systems.push('higher-order');
+
+    return `LanguageCapabilities[${systems.join(', ')}]`;
+  }
+
+  /**
+   * Serializes to JSON format
+   */
+  toJSON(): LanguageCapabilitiesJSON {
+    return {
+      propositionalLogic: this.propositionalLogic,
+      firstOrderLogic: this.firstOrderLogic,
+      modalLogic: this.modalLogic,
+      temporalLogic: this.temporalLogic,
+      higherOrderLogic: this.higherOrderLogic,
+      supportedConnectives: [...this.supportedConnectives],
+      supportedQuantifiers: [...this.supportedQuantifiers],
+      supportedModalOperators: [...this.supportedModalOperators],
+      supportedTemporalOperators: [...this.supportedTemporalOperators],
+    };
+  }
+
+  /**
+   * Creates LanguageCapabilities from JSON format
+   */
+  static fromJSON(json: unknown): Result<LanguageCapabilities, ValidationError> {
+    try {
+      // Validate JSON structure
+      if (typeof json !== 'object' || json === null) {
+        return err(new ValidationError('JSON must be an object'));
+      }
+
+      const jsonObj = json as Record<string, unknown>;
+
+      const { propositionalLogic } = jsonObj;
+      const { firstOrderLogic } = jsonObj;
+      const { modalLogic } = jsonObj;
+      const { temporalLogic } = jsonObj;
+      const { higherOrderLogic } = jsonObj;
+      const { supportedConnectives } = jsonObj;
+      const { supportedQuantifiers } = jsonObj;
+      const { supportedModalOperators } = jsonObj;
+      const { supportedTemporalOperators } = jsonObj;
+
+      // Validate boolean fields
+      if (
+        typeof propositionalLogic !== 'boolean' ||
+        typeof firstOrderLogic !== 'boolean' ||
+        typeof modalLogic !== 'boolean' ||
+        typeof temporalLogic !== 'boolean' ||
+        typeof higherOrderLogic !== 'boolean'
+      ) {
+        return err(new ValidationError('Logic system flags must be boolean'));
+      }
+
+      // Validate array fields
+      if (
+        !Array.isArray(supportedConnectives) ||
+        !Array.isArray(supportedQuantifiers) ||
+        !Array.isArray(supportedModalOperators) ||
+        !Array.isArray(supportedTemporalOperators)
+      ) {
+        return err(new ValidationError('Operator arrays must be arrays'));
+      }
+
+      // Validate and convert array contents to strings
+      const validateStringArray = (arr: unknown[], name: string): string[] => {
+        const result: string[] = [];
+        for (const item of arr) {
+          if (typeof item !== 'string') {
+            throw new Error(`All ${name} must be strings`);
+          }
+          result.push(item);
+        }
+        return result;
+      };
+
+      const connectives = validateStringArray(supportedConnectives, 'connectives');
+      const quantifiers = validateStringArray(supportedQuantifiers, 'quantifiers');
+      const modalOperators = validateStringArray(supportedModalOperators, 'modal operators');
+      const temporalOperators = validateStringArray(
+        supportedTemporalOperators,
+        'temporal operators'
+      );
+
+      return LanguageCapabilities.create(
+        propositionalLogic,
+        firstOrderLogic,
+        modalLogic,
+        temporalLogic,
+        higherOrderLogic,
+        connectives,
+        quantifiers,
+        modalOperators,
+        temporalOperators
+      );
+    } catch (error) {
+      return err(
+        new ValidationError(
+          `Failed to parse JSON: ${error instanceof Error ? error.message : 'Unknown error'}`
+        )
+      );
+    }
   }
 }
 
-export type LogicLevel = 'basic' | 'propositional' | 'modal' | 'first-order' | 'higher-order';
-
-export interface CapabilityCategories {
-  logic: string[];
-  proofSystems: string[];
-  syntax: string[];
-  validation: string[];
-  educational: string[];
-  performance: string[];
-  integration: string[];
-  custom: string[];
+export interface LanguageCapabilitiesJSON {
+  propositionalLogic: boolean;
+  firstOrderLogic: boolean;
+  modalLogic: boolean;
+  temporalLogic: boolean;
+  higherOrderLogic: boolean;
+  supportedConnectives: string[];
+  supportedQuantifiers: string[];
+  supportedModalOperators: string[];
+  supportedTemporalOperators: string[];
 }

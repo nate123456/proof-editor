@@ -21,17 +21,17 @@ export interface VersionResolutionResult {
 
 export interface IGitRefProvider {
   resolveRefToCommit(
-    gitUrl: string,
+    _gitUrl: string,
     ref: string
   ): Promise<Result<{ commit: string; actualRef: string }, PackageSourceUnavailableError>>;
   listAvailableTags(
-    gitUrl: string
+    _gitUrl: string
   ): Promise<Result<readonly string[], PackageSourceUnavailableError>>;
   listAvailableBranches(
-    gitUrl: string
+    _gitUrl: string
   ): Promise<Result<readonly string[], PackageSourceUnavailableError>>;
   getCommitTimestamp(
-    gitUrl: string,
+    _gitUrl: string,
     commit: string
   ): Promise<Result<Date, PackageSourceUnavailableError>>;
 }
@@ -55,7 +55,7 @@ export class VersionResolutionService {
 
     const { commit, actualRef } = refResolutionResult.value;
 
-    const versionResult = await this.determineVersionFromRef(actualRef, url);
+    const versionResult = this.determineVersionFromRef(actualRef, url);
     if (versionResult.isErr()) {
       return err(
         new PackageSourceUnavailableError(
@@ -75,12 +75,12 @@ export class VersionResolutionService {
   }
 
   async resolveVersionConstraint(
-    gitUrl: string,
+    _gitUrl: string,
     constraint: VersionConstraint
   ): Promise<
     Result<VersionResolutionResult, PackageSourceUnavailableError | PackageNotFoundError>
   > {
-    const availableVersionsResult = await this.getAvailableVersions(gitUrl);
+    const availableVersionsResult = await this.getAvailableVersions(_gitUrl);
     if (availableVersionsResult.isErr()) {
       return err(availableVersionsResult.error);
     }
@@ -88,16 +88,16 @@ export class VersionResolutionService {
     const availableVersions = availableVersionsResult.value;
 
     if (availableVersions.length === 0) {
-      return err(new PackageNotFoundError(`No versions found for repository: ${gitUrl}`));
+      return err(new PackageNotFoundError(`No versions found for repository: ${_gitUrl}`));
     }
 
     const satisfyingVersions = availableVersions.filter(version =>
-      version.satisfiesConstraint(constraint.toString())
+      version.satisfiesConstraint(constraint.getConstraintString())
     );
 
     if (satisfyingVersions.length === 0) {
       if (availableVersions.length === 0) {
-        return err(new PackageNotFoundError(`No versions available for repository: ${gitUrl}`));
+        return err(new PackageNotFoundError(`No versions available for repository: ${_gitUrl}`));
       }
       const result: VersionResolutionResult = {
         bestVersion: availableVersions[0]!,
@@ -121,14 +121,14 @@ export class VersionResolutionService {
   }
 
   async getAvailableVersions(
-    gitUrl: string
+    _gitUrl: string
   ): Promise<Result<readonly PackageVersion[], PackageSourceUnavailableError>> {
-    const tagsResult = await this.gitRefProvider.listAvailableTags(gitUrl);
+    const tagsResult = await this.gitRefProvider.listAvailableTags(_gitUrl);
     if (tagsResult.isErr()) {
       return err(tagsResult.error);
     }
 
-    const branchesResult = await this.gitRefProvider.listAvailableBranches(gitUrl);
+    const branchesResult = await this.gitRefProvider.listAvailableBranches(_gitUrl);
     if (branchesResult.isErr()) {
       return err(branchesResult.error);
     }
@@ -136,7 +136,7 @@ export class VersionResolutionService {
     const versions: PackageVersion[] = [];
 
     for (const tag of tagsResult.value) {
-      const versionResult = await this.determineVersionFromRef(tag, gitUrl);
+      const versionResult = this.determineVersionFromRef(tag, _gitUrl);
       if (versionResult.isOk()) {
         versions.push(versionResult.value);
       }
@@ -144,7 +144,7 @@ export class VersionResolutionService {
 
     for (const branch of branchesResult.value) {
       if (branch === 'main' || branch === 'master' || branch === 'develop') {
-        const versionResult = await this.determineVersionFromRef(branch, gitUrl);
+        const versionResult = this.determineVersionFromRef(branch, _gitUrl);
         if (versionResult.isOk()) {
           versions.push(versionResult.value);
         }
@@ -165,9 +165,9 @@ export class VersionResolutionService {
   }
 
   async findLatestStableVersion(
-    gitUrl: string
+    _gitUrl: string
   ): Promise<Result<PackageVersion, PackageNotFoundError | PackageSourceUnavailableError>> {
-    const availableVersionsResult = await this.getAvailableVersions(gitUrl);
+    const availableVersionsResult = await this.getAvailableVersions(_gitUrl);
     if (availableVersionsResult.isErr()) {
       return err(availableVersionsResult.error);
     }
@@ -175,17 +175,17 @@ export class VersionResolutionService {
     const stableVersions = availableVersionsResult.value.filter(version => version.isStable());
 
     if (stableVersions.length === 0) {
-      return err(new PackageNotFoundError(`No stable versions found for repository: ${gitUrl}`));
+      return err(new PackageNotFoundError(`No stable versions found for repository: ${_gitUrl}`));
     }
 
     return ok(stableVersions[0]!);
   }
 
   async findLatestVersion(
-    gitUrl: string,
+    _gitUrl: string,
     includePrerelease = false
   ): Promise<Result<PackageVersion, PackageNotFoundError | PackageSourceUnavailableError>> {
-    const availableVersionsResult = await this.getAvailableVersions(gitUrl);
+    const availableVersionsResult = await this.getAvailableVersions(_gitUrl);
     if (availableVersionsResult.isErr()) {
       return err(availableVersionsResult.error);
     }
@@ -193,7 +193,7 @@ export class VersionResolutionService {
     const availableVersions = availableVersionsResult.value;
 
     if (availableVersions.length === 0) {
-      return err(new PackageNotFoundError(`No versions found for repository: ${gitUrl}`));
+      return err(new PackageNotFoundError(`No versions found for repository: ${_gitUrl}`));
     }
 
     if (!includePrerelease) {
@@ -206,10 +206,10 @@ export class VersionResolutionService {
     return ok(availableVersions[0]!);
   }
 
-  private async determineVersionFromRef(
+  private determineVersionFromRef(
     ref: string,
-    gitUrl: string
-  ): Promise<Result<PackageVersion, PackageSourceUnavailableError>> {
+    _gitUrl: string
+  ): Result<PackageVersion, PackageSourceUnavailableError> {
     if (ref.startsWith('v') && ref.match(/^v\d+\.\d+\.\d+/)) {
       const result = PackageVersion.create(ref.slice(1));
       if (result.isErr()) {
@@ -243,7 +243,7 @@ export class VersionResolutionService {
     versions: readonly PackageVersion[],
     constraint: VersionConstraint
   ): PackageVersion {
-    const constraintStr = constraint.toString();
+    const constraintStr = constraint.getConstraintString();
 
     if (constraintStr.startsWith('^') || constraintStr.startsWith('~')) {
       const stableVersions = versions.filter(v => !v.isPrerelease());

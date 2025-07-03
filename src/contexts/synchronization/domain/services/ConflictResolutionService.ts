@@ -1,11 +1,9 @@
 import { err, ok, type Result } from 'neverthrow';
 
-import type { ConflictResolutionStrategy } from '../entities/Conflict';
-import { type Conflict } from '../entities/Conflict';
-import { type Operation } from '../entities/Operation';
-import { ConflictType } from '../value-objects/ConflictType';
-import type { OperationPayload, OperationPayloadData } from '../value-objects/OperationPayload';
-import { OperationType } from '../value-objects/OperationType';
+import { type Conflict, type ConflictResolutionStrategy } from '../entities/Conflict';
+import { Operation } from '../entities/Operation';
+import { type IOperation } from '../entities/shared-types';
+import type { OperationPayloadData } from '../value-objects/OperationPayload';
 
 export interface IConflictResolutionService {
   resolveConflictAutomatically(conflict: Conflict): Promise<Result<unknown, Error>>;
@@ -20,6 +18,11 @@ export interface IConflictResolutionService {
 
 export class ConflictResolutionService implements IConflictResolutionService {
   async resolveConflictAutomatically(conflict: Conflict): Promise<Result<unknown, Error>> {
+    // Check if conflict has enough operations
+    if (conflict.getConflictingOperations().length < 2) {
+      return err(new Error('Cannot resolve conflict with less than 2 operations'));
+    }
+
     if (!this.canResolveAutomatically(conflict)) {
       return err(new Error('Conflict requires manual resolution'));
     }
@@ -36,8 +39,13 @@ export class ConflictResolutionService implements IConflictResolutionService {
       case 'FIRST_WRITER_WINS':
         return this.applyFirstWriterWins(conflict.getConflictingOperations());
 
-      default:
-        return err(new Error(`Unsupported automatic resolution strategy: ${strategy}`));
+      case 'USER_DECISION_REQUIRED':
+        return err(new Error('Conflict requires manual resolution'));
+
+      default: {
+        const never: never = strategy;
+        return err(new Error(`Unsupported automatic resolution strategy: ${String(never)}`));
+      }
     }
   }
 
@@ -62,56 +70,41 @@ export class ConflictResolutionService implements IConflictResolutionService {
       case 'FIRST_WRITER_WINS':
         return this.applyFirstWriterWins(conflict.getConflictingOperations());
 
-      default:
-        return err(new Error(`Unsupported resolution strategy: ${userChoice}`));
+      default: {
+        const never: never = userChoice;
+        return err(new Error(`Unsupported resolution strategy: ${String(never)}`));
+      }
     }
   }
 
   canResolveAutomatically(conflict: Conflict): boolean {
-    return (
-      conflict.canBeAutomaticallyResolved() &&
-      conflict.getConflictType().canBeAutomaticallyResolved()
-    );
+    return conflict.canBeAutomaticallyResolved();
   }
 
   getRecommendedResolution(conflict: Conflict): ConflictResolutionStrategy {
-    const conflictType = conflict.getConflictType();
-    const operations = conflict.getConflictingOperations();
+    const automaticOptions = conflict.getAutomaticResolutionOptions();
 
-    if (conflictType.isSemantic()) {
-      return 'USER_DECISION_REQUIRED';
+    if (automaticOptions.length > 0) {
+      // Return the first automatic option as the recommendation
+      return automaticOptions[0]!.strategy;
     }
 
-    if (conflictType.isStructural()) {
-      if (this.canMergeStructuralOperations(operations)) {
-        return 'MERGE_OPERATIONS';
-      }
-      return 'LAST_WRITER_WINS';
-    }
-
-    return 'LAST_WRITER_WINS';
+    // If no automatic options, recommend user decision
+    return 'USER_DECISION_REQUIRED';
   }
 
-  private canMergeStructuralOperations(operations: readonly Operation[]): boolean {
-    return (
-      operations.every(op => op.isStructuralOperation()) &&
-      operations.every(op => {
-        const firstOp = operations[0];
-        return firstOp && op.getOperationType().canCommuteWith(firstOp.getOperationType());
-      })
-    );
-  }
-
-  private async mergeOperations(operations: readonly Operation[]): Promise<Result<unknown, Error>> {
+  private async mergeOperations(
+    operations: readonly IOperation[]
+  ): Promise<Result<unknown, Error>> {
     if (operations.length < 2) {
-      return err(new Error('Cannot merge less than 2 operations'));
+      return Promise.resolve(err(new Error('Cannot merge less than 2 operations')));
     }
 
     try {
       const sortedOperations = this.sortOperationsByTimestamp(operations);
       const firstOp = sortedOperations[0];
       if (!firstOp) {
-        return err(new Error('No operations to apply'));
+        return Promise.resolve(err(new Error('No operations to apply')));
       }
       let currentResult: OperationPayloadData = firstOp.getPayload().getData();
 
@@ -119,66 +112,76 @@ export class ConflictResolutionService implements IConflictResolutionService {
         const currentOp = sortedOperations[i];
         const previousOp = sortedOperations[i - 1];
         if (!currentOp || !previousOp) {
-          return err(new Error('Invalid operation sequence'));
-        }
-        const transformResult = currentOp.transformWith(previousOp);
-
-        if (transformResult.isErr()) {
-          return err(transformResult.error);
+          return Promise.resolve(err(new Error('Invalid operation sequence')));
         }
 
-        currentResult = this.combinePayloads(
-          currentResult,
-          transformResult.value.getPayload().getData()
-        );
+        // Check if both operations are Operation instances for transformation
+        if (currentOp instanceof Operation && previousOp instanceof Operation) {
+          const transformResult = currentOp.transformWith(previousOp);
+          if (transformResult.isErr()) {
+            // If transformation fails, fall back to combining payloads directly
+            currentResult = this.combinePayloads(currentResult, currentOp.getPayload().getData());
+          } else {
+            const [transformedOp] = transformResult.value;
+            currentResult = this.combinePayloads(
+              currentResult,
+              transformedOp.getPayload().getData()
+            );
+          }
+        } else {
+          // If not Operation instances, just combine payloads
+          currentResult = this.combinePayloads(currentResult, currentOp.getPayload().getData());
+        }
       }
 
-      return ok(currentResult);
+      return Promise.resolve(ok(currentResult));
     } catch (error) {
-      return err(error instanceof Error ? error : new Error('Unknown merge error'));
+      return Promise.resolve(
+        err(error instanceof Error ? error : new Error('Unknown merge error'))
+      );
     }
   }
 
   private async applyLastWriterWins(
-    operations: readonly Operation[]
+    operations: readonly IOperation[]
   ): Promise<Result<unknown, Error>> {
     if (operations.length === 0) {
-      return err(new Error('No operations to resolve'));
+      return Promise.resolve(err(new Error('No operations to resolve')));
     }
 
     const latestOperation = operations.reduce((latest, current) => {
       return current.getVectorClock().happensAfter(latest.getVectorClock()) ? current : latest;
     });
 
-    return ok(latestOperation.getPayload().getData());
+    return Promise.resolve(ok(latestOperation.getPayload().getData()));
   }
 
   private async applyFirstWriterWins(
-    operations: readonly Operation[]
+    operations: readonly IOperation[]
   ): Promise<Result<unknown, Error>> {
     if (operations.length === 0) {
-      return err(new Error('No operations to resolve'));
+      return Promise.resolve(err(new Error('No operations to resolve')));
     }
 
     const earliestOperation = operations.reduce((earliest, current) => {
       return current.getVectorClock().happensBefore(earliest.getVectorClock()) ? current : earliest;
     });
 
-    return ok(earliestOperation.getPayload().getData());
+    return Promise.resolve(ok(earliestOperation.getPayload().getData()));
   }
 
-  private async applyUserDecision(
-    conflict: Conflict,
+  private applyUserDecision(
+    _conflict: Conflict,
     userInput: unknown
   ): Promise<Result<unknown, Error>> {
     if (!this.isValidUserInput(userInput)) {
-      return err(new Error('Invalid user input for conflict resolution'));
+      return Promise.resolve(err(new Error('Invalid user input for conflict resolution')));
     }
 
-    return ok(userInput);
+    return Promise.resolve(ok(userInput));
   }
 
-  private sortOperationsByTimestamp(operations: readonly Operation[]): Operation[] {
+  private sortOperationsByTimestamp(operations: readonly IOperation[]): IOperation[] {
     return Array.from(operations).sort((a, b) => {
       const aTimestamp = a.getTimestamp();
       const bTimestamp = b.getTimestamp();
@@ -213,17 +216,43 @@ export class ConflictResolutionService implements IConflictResolutionService {
       case 'MERGE_OPERATIONS':
         return `Merge ${operations.length} operations using operational transformation`;
 
-      case 'LAST_WRITER_WINS':
-        const latest = operations.reduce((latest, current) =>
-          current.getVectorClock().happensAfter(latest.getVectorClock()) ? current : latest
-        );
+      case 'LAST_WRITER_WINS': {
+        if (operations.length === 0) {
+          return 'No operations to resolve';
+        }
+        const firstOp = operations[0];
+        if (!firstOp) {
+          return 'No operations to resolve';
+        }
+        const latest = operations
+          .slice(1)
+          .reduce(
+            (latest, current) =>
+              current.getVectorClock().happensAfter(latest.getVectorClock()) ? current : latest,
+            firstOp
+          );
         return `Keep changes from ${latest.getDeviceId().getShortId()}`;
+      }
 
-      case 'FIRST_WRITER_WINS':
-        const earliest = operations.reduce((earliest, current) =>
-          current.getVectorClock().happensBefore(earliest.getVectorClock()) ? current : earliest
-        );
+      case 'FIRST_WRITER_WINS': {
+        if (operations.length === 0) {
+          return 'No operations to resolve';
+        }
+        const firstOp = operations[0];
+        if (!firstOp) {
+          return 'No operations to resolve';
+        }
+        const earliest = operations
+          .slice(1)
+          .reduce(
+            (earliest, current) =>
+              current.getVectorClock().happensBefore(earliest.getVectorClock())
+                ? current
+                : earliest,
+            firstOp
+          );
         return `Keep changes from ${earliest.getDeviceId().getShortId()}`;
+      }
 
       case 'USER_DECISION_REQUIRED':
         return 'Manual resolution required - user must choose how to resolve';
@@ -237,16 +266,22 @@ export class ConflictResolutionService implements IConflictResolutionService {
     const operationCount = conflict.getConflictingOperations().length;
     const conflictType = conflict.getConflictType();
 
-    if (conflictType.isSemantic()) {
-      return 'HIGH';
-    }
-
+    // Primary factor: operation count
     if (operationCount > 5) {
       return 'HIGH';
     }
 
-    if (operationCount > 2 || conflictType.getResolutionComplexity() === 'COMPLEX') {
+    if (operationCount >= 3) {
+      // For 3-5 operations, generally MEDIUM unless special cases
+      if (conflictType.getValue() === 'SEMANTIC_CONFLICT') {
+        return 'HIGH'; // Semantic conflicts are more complex even with moderate operation count
+      }
       return 'MEDIUM';
+    }
+
+    // For 1-2 operations, generally LOW unless semantic
+    if (conflictType.getValue() === 'SEMANTIC_CONFLICT') {
+      return 'HIGH'; // Semantic conflicts are always high complexity
     }
 
     return 'LOW';

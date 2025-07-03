@@ -1,4 +1,6 @@
-import { err, ok, type Result, ValidationError } from '../shared/result.js';
+import { err, ok, type Result } from 'neverthrow';
+
+import { ValidationError } from '../shared/result.js';
 import { AtomicArgumentId, type OrderedSetId } from '../shared/value-objects.js';
 
 // Strategy analysis types
@@ -132,7 +134,10 @@ export class AtomicArgument {
   }
 
   setPremiseSetRef(orderedSetRef: OrderedSetId | null): void {
-    if (this.premiseSetRef?.equals(orderedSetRef ?? null)) {
+    if (
+      this.premiseSetRef === orderedSetRef ||
+      (this.premiseSetRef && orderedSetRef && this.premiseSetRef.equals(orderedSetRef))
+    ) {
       return;
     }
 
@@ -141,7 +146,10 @@ export class AtomicArgument {
   }
 
   setConclusionSetRef(orderedSetRef: OrderedSetId | null): void {
-    if (this.conclusionSetRef?.equals(orderedSetRef ?? null)) {
+    if (
+      this.conclusionSetRef === orderedSetRef ||
+      (this.conclusionSetRef && orderedSetRef && this.conclusionSetRef.equals(orderedSetRef))
+    ) {
       return;
     }
 
@@ -192,11 +200,19 @@ export class AtomicArgument {
   }
 
   canConnectToPremiseOf(other: AtomicArgument): boolean {
-    return this.conclusionSetRef?.equals(other.premiseSetRef) ?? false;
+    return (
+      this.conclusionSetRef !== null &&
+      other.premiseSetRef !== null &&
+      this.conclusionSetRef.equals(other.premiseSetRef)
+    );
   }
 
   canConnectToConclusionOf(other: AtomicArgument): boolean {
-    return this.premiseSetRef?.equals(other.conclusionSetRef) ?? false;
+    return (
+      this.premiseSetRef !== null &&
+      other.conclusionSetRef !== null &&
+      this.premiseSetRef.equals(other.conclusionSetRef)
+    );
   }
 
   isDirectlyConnectedTo(other: AtomicArgument): boolean {
@@ -256,11 +272,19 @@ export class AtomicArgument {
   }
 
   hasLeftSideLabel(): boolean {
-    return this.sideLabels.left !== undefined && this.sideLabels.left.trim().length > 0;
+    return (
+      this.sideLabels.left !== undefined &&
+      this.sideLabels.left !== null &&
+      this.sideLabels.left.trim().length > 0
+    );
   }
 
   hasRightSideLabel(): boolean {
-    return this.sideLabels.right !== undefined && this.sideLabels.right.trim().length > 0;
+    return (
+      this.sideLabels.right !== undefined &&
+      this.sideLabels.right !== null &&
+      this.sideLabels.right.trim().length > 0
+    );
   }
 
   hasSideLabels(): boolean {
@@ -419,7 +443,7 @@ export class AtomicArgument {
   private calculateLogicalComplexity(premises: string[], conclusion: string): number {
     const allStatements = [...premises, conclusion];
     const totalLength = allStatements.join('').length;
-    const symbols = allStatements.join('').match(/[∀∃∧∨→↔¬□◇]/g) || [];
+    const symbols = allStatements.join('').match(/[∀∃∧∨→↔¬□◇]/g) ?? [];
     return Math.round(totalLength * 0.1 + symbols.length * 2);
   }
 

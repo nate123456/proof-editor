@@ -1,0 +1,784 @@
+/**
+ * Synchronization Context Integration Tests
+ *
+ * Tests service interactions within the synchronization bounded context:
+ * - ConflictResolutionService + CRDTTransformationService workflows
+ * - OperationCoordinationService integration with conflict resolution
+ * - Multi-device synchronization scenarios
+ * - CRDT operation transformation and conflict resolution
+ * - Error propagation and domain boundary validation
+ * - Realistic collaborative editing workflows
+ */
+
+import { beforeEach, describe, expect, it } from 'vitest';
+
+import { Conflict } from '../../entities/Conflict.js';
+import { Operation } from '../../entities/Operation.js';
+import { SyncState } from '../../entities/SyncState.js';
+import { VectorClock } from '../../entities/VectorClock.js';
+import { ConflictResolutionService } from '../../services/ConflictResolutionService.js';
+import { CRDTTransformationService } from '../../services/CRDTTransformationService.js';
+import { OperationCoordinationService } from '../../services/OperationCoordinationService.js';
+import { ConflictType } from '../../value-objects/ConflictType.js';
+import { DeviceId } from '../../value-objects/DeviceId.js';
+import { LogicalTimestamp } from '../../value-objects/LogicalTimestamp.js';
+import { OperationId } from '../../value-objects/OperationId.js';
+import { OperationPayload } from '../../value-objects/OperationPayload.js';
+import { OperationType } from '../../value-objects/OperationType.js';
+
+describe('Synchronization Context - Service Integration', () => {
+  let conflictResolutionService: ConflictResolutionService;
+  let _crdtTransformationService: CRDTTransformationService;
+  let operationCoordinationService: OperationCoordinationService;
+  let deviceA: DeviceId;
+  let deviceB: DeviceId;
+  let deviceC: DeviceId;
+
+  beforeEach(() => {
+    // Initialize services
+    conflictResolutionService = new ConflictResolutionService();
+    _crdtTransformationService = new CRDTTransformationService();
+    operationCoordinationService = new OperationCoordinationService();
+
+    // Create test devices
+    const deviceAResult = DeviceId.create('device-a');
+    const deviceBResult = DeviceId.create('device-b');
+    const deviceCResult = DeviceId.create('device-c');
+
+    expect(deviceAResult.isOk()).toBe(true);
+    expect(deviceBResult.isOk()).toBe(true);
+    expect(deviceCResult.isOk()).toBe(true);
+
+    if (deviceAResult.isOk() && deviceBResult.isOk() && deviceCResult.isOk()) {
+      deviceA = deviceAResult.value;
+      deviceB = deviceBResult.value;
+      deviceC = deviceCResult.value;
+    }
+  });
+
+  describe('ConflictResolutionService + CRDTTransformationService Integration', () => {
+    it('should resolve conflicts using CRDT transformation', async () => {
+      // Arrange - Create concurrent operations that conflict
+      const vectorClockA = VectorClock.create([deviceA]);
+      const vectorClockB = VectorClock.create([deviceB]);
+
+      expect(vectorClockA.isOk()).toBe(true);
+      expect(vectorClockB.isOk()).toBe(true);
+
+      if (vectorClockA.isOk() && vectorClockB.isOk()) {
+        vectorClockA.value.increment(deviceA);
+        vectorClockB.value.increment(deviceB);
+
+        const operationIdA = OperationId.create('op-a-1');
+        const operationIdB = OperationId.create('op-b-1');
+        const timestampA = LogicalTimestamp.create(1);
+        const timestampB = LogicalTimestamp.create(1);
+        const opTypeInsert = OperationType.create('INSERT');
+        const payloadA = OperationPayload.create({ text: 'Hello ', position: 0 });
+        const payloadB = OperationPayload.create({ text: 'World', position: 0 });
+
+        expect(operationIdA.isOk()).toBe(true);
+        expect(operationIdB.isOk()).toBe(true);
+        expect(timestampA.isOk()).toBe(true);
+        expect(timestampB.isOk()).toBe(true);
+        expect(opTypeInsert.isOk()).toBe(true);
+        expect(payloadA.isOk()).toBe(true);
+        expect(payloadB.isOk()).toBe(true);
+
+        if (
+          operationIdA.isOk() &&
+          operationIdB.isOk() &&
+          timestampA.isOk() &&
+          timestampB.isOk() &&
+          opTypeInsert.isOk() &&
+          payloadA.isOk() &&
+          payloadB.isOk()
+        ) {
+          const operationA = Operation.create(
+            operationIdA.value,
+            opTypeInsert.value,
+            payloadA.value,
+            deviceA,
+            timestampA.value,
+            vectorClockA.value
+          );
+
+          const operationB = Operation.create(
+            operationIdB.value,
+            opTypeInsert.value,
+            payloadB.value,
+            deviceB,
+            timestampB.value,
+            vectorClockB.value
+          );
+
+          expect(operationA.isOk()).toBe(true);
+          expect(operationB.isOk()).toBe(true);
+
+          if (operationA.isOk() && operationB.isOk()) {
+            // Create conflict between the operations
+            const conflictType = ConflictType.create('CONCURRENT_EDIT');
+            expect(conflictType.isOk()).toBe(true);
+
+            if (conflictType.isOk()) {
+              const conflict = Conflict.create(
+                conflictType.value,
+                [operationA.value, operationB.value],
+                timestampA.value
+              );
+
+              expect(conflict.isOk()).toBe(true);
+
+              if (conflict.isOk()) {
+                // Act - Use CRDT transformation within conflict resolution
+                const transformationResult = operationA.value.transformWith(operationB.value);
+                expect(transformationResult.isOk()).toBe(true);
+
+                if (transformationResult.isOk()) {
+                  const [transformedA, transformedB] = transformationResult.value;
+
+                  // Resolve conflict using merge strategy
+                  const resolutionResult =
+                    await conflictResolutionService.resolveConflictAutomatically(conflict.value);
+
+                  // Assert
+                  expect(resolutionResult.isOk()).toBe(true);
+                  if (resolutionResult.isOk()) {
+                    // Should have merged the operations successfully
+                    expect(resolutionResult.value).toBeDefined();
+                  }
+
+                  // Verify transformation preserved operation semantics
+                  expect(transformedA.getDeviceId()).toBe(deviceA);
+                  expect(transformedB.getDeviceId()).toBe(deviceB);
+                  expect(transformedA.getOperationType()).toBe(opTypeInsert.value);
+                  expect(transformedB.getOperationType()).toBe(opTypeInsert.value);
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+
+    it('should handle complex multi-device conflicts with CRDT operations', async () => {
+      // Arrange - Create a three-way conflict scenario
+      const vectorClockA = VectorClock.create([deviceA, deviceB, deviceC]);
+      const vectorClockB = VectorClock.create([deviceA, deviceB, deviceC]);
+      const vectorClockC = VectorClock.create([deviceA, deviceB, deviceC]);
+
+      expect(vectorClockA.isOk()).toBe(true);
+      expect(vectorClockB.isOk()).toBe(true);
+      expect(vectorClockC.isOk()).toBe(true);
+
+      if (vectorClockA.isOk() && vectorClockB.isOk() && vectorClockC.isOk()) {
+        // Simulate concurrent operations from three devices
+        vectorClockA.value.increment(deviceA);
+        vectorClockB.value.increment(deviceB);
+        vectorClockC.value.increment(deviceC);
+
+        const operations = [];
+
+        // Create operations from each device
+        for (const [device, clock] of [
+          [deviceA, vectorClockA.value],
+          [deviceB, vectorClockB.value],
+          [deviceC, vectorClockC.value],
+        ]) {
+          const operationId = OperationId.create(`op-${device.getShortId()}-1`);
+          const timestamp = LogicalTimestamp.create(1);
+          const opType = OperationType.create('EDIT');
+          const payload = OperationPayload.create({
+            text: `Edit from ${device.getShortId()}`,
+            position: 0,
+          });
+
+          expect(operationId.isOk()).toBe(true);
+          expect(timestamp.isOk()).toBe(true);
+          expect(opType.isOk()).toBe(true);
+          expect(payload.isOk()).toBe(true);
+
+          if (operationId.isOk() && timestamp.isOk() && opType.isOk() && payload.isOk()) {
+            const operation = Operation.create(
+              operationId.value,
+              opType.value,
+              payload.value,
+              device,
+              timestamp.value,
+              clock
+            );
+
+            expect(operation.isOk()).toBe(true);
+            if (operation.isOk()) {
+              operations.push(operation.value);
+            }
+          }
+        }
+
+        if (operations.length === 3) {
+          const conflictType = ConflictType.create('MULTI_DEVICE_CONFLICT');
+          expect(conflictType.isOk()).toBe(true);
+
+          if (conflictType.isOk()) {
+            const conflict = Conflict.create(
+              conflictType.value,
+              operations,
+              LogicalTimestamp.create(1).unwrapOr({} as LogicalTimestamp)
+            );
+
+            expect(conflict.isOk()).toBe(true);
+
+            if (conflict.isOk()) {
+              // Act - Resolve multi-device conflict
+              const resolutionResult = await conflictResolutionService.resolveConflictAutomatically(
+                conflict.value
+              );
+
+              // Assert
+              expect(resolutionResult.isOk()).toBe(true);
+              if (resolutionResult.isOk()) {
+                // Should handle complex conflict resolution
+                expect(resolutionResult.value).toBeDefined();
+              }
+
+              // Test resolution complexity estimation
+              const complexity = conflictResolutionService.estimateResolutionComplexity(
+                conflict.value
+              );
+              expect(['LOW', 'MEDIUM', 'HIGH']).toContain(complexity);
+            }
+          }
+        }
+      }
+    });
+
+    it('should coordinate CRDT transformations across operation types', () => {
+      // Arrange - Create operations of different types
+      const vectorClock = VectorClock.create([deviceA]);
+      expect(vectorClock.isOk()).toBe(true);
+
+      if (vectorClock.isOk()) {
+        vectorClock.value.increment(deviceA);
+
+        const insertOpId = OperationId.create('insert-op');
+        const deleteOpId = OperationId.create('delete-op');
+        const timestamp = LogicalTimestamp.create(1);
+        const insertType = OperationType.create('INSERT');
+        const deleteType = OperationType.create('DELETE');
+        const insertPayload = OperationPayload.create({ text: 'New text', position: 5 });
+        const deletePayload = OperationPayload.create({ position: 3, length: 2 });
+
+        expect(insertOpId.isOk()).toBe(true);
+        expect(deleteOpId.isOk()).toBe(true);
+        expect(timestamp.isOk()).toBe(true);
+        expect(insertType.isOk()).toBe(true);
+        expect(deleteType.isOk()).toBe(true);
+        expect(insertPayload.isOk()).toBe(true);
+        expect(deletePayload.isOk()).toBe(true);
+
+        if (
+          insertOpId.isOk() &&
+          deleteOpId.isOk() &&
+          timestamp.isOk() &&
+          insertType.isOk() &&
+          deleteType.isOk() &&
+          insertPayload.isOk() &&
+          deletePayload.isOk()
+        ) {
+          const insertOp = Operation.create(
+            insertOpId.value,
+            insertType.value,
+            insertPayload.value,
+            deviceA,
+            timestamp.value,
+            vectorClock.value
+          );
+
+          const deleteOp = Operation.create(
+            deleteOpId.value,
+            deleteType.value,
+            deletePayload.value,
+            deviceA,
+            timestamp.value,
+            vectorClock.value
+          );
+
+          expect(insertOp.isOk()).toBe(true);
+          expect(deleteOp.isOk()).toBe(true);
+
+          if (insertOp.isOk() && deleteOp.isOk()) {
+            // Act - Transform operations of different types
+            const transformResult = insertOp.value.transformWith(deleteOp.value);
+
+            // Assert
+            expect(transformResult.isOk()).toBe(true);
+            if (transformResult.isOk()) {
+              const [transformedInsert, transformedDelete] = transformResult.value;
+
+              // Transformed operations should maintain their identity but adjust positions
+              expect(transformedInsert.getOperationType()).toBe(insertType.value);
+              expect(transformedDelete.getOperationType()).toBe(deleteType.value);
+              expect(transformedInsert.getDeviceId()).toBe(deviceA);
+              expect(transformedDelete.getDeviceId()).toBe(deviceA);
+            }
+          }
+        }
+      }
+    });
+  });
+
+  describe('OperationCoordinationService Integration', () => {
+    it('should coordinate operations and resolve conflicts automatically', async () => {
+      // Arrange
+      const syncState = SyncState.create(deviceA);
+      expect(syncState.isOk()).toBe(true);
+
+      if (syncState.isOk()) {
+        const operations = [];
+
+        // Create multiple operations that might conflict
+        for (let i = 0; i < 3; i++) {
+          const operationId = OperationId.create(`coord-op-${i}`);
+          const timestamp = LogicalTimestamp.create(i + 1);
+          const opType = OperationType.create('EDIT');
+          const payload = OperationPayload.create({
+            text: `Coordinated edit ${i}`,
+            position: i * 2,
+          });
+          const vectorClock = VectorClock.create([deviceA]);
+
+          expect(operationId.isOk()).toBe(true);
+          expect(timestamp.isOk()).toBe(true);
+          expect(opType.isOk()).toBe(true);
+          expect(payload.isOk()).toBe(true);
+          expect(vectorClock.isOk()).toBe(true);
+
+          if (
+            operationId.isOk() &&
+            timestamp.isOk() &&
+            opType.isOk() &&
+            payload.isOk() &&
+            vectorClock.isOk()
+          ) {
+            vectorClock.value.increment(deviceA);
+            const operation = Operation.create(
+              operationId.value,
+              opType.value,
+              payload.value,
+              deviceA,
+              timestamp.value,
+              vectorClock.value
+            );
+
+            expect(operation.isOk()).toBe(true);
+            if (operation.isOk()) {
+              operations.push(operation.value);
+            }
+          }
+        }
+
+        // Act - Coordinate the operations
+        const coordinationResults = await Promise.all(
+          operations.map(op =>
+            operationCoordinationService.coordinateOperation(op, syncState.value)
+          )
+        );
+
+        // Assert
+        expect(coordinationResults).toHaveLength(3);
+        coordinationResults.forEach(result => {
+          expect(result.isOk()).toBe(true);
+        });
+      }
+    });
+
+    it('should manage operation ordering across devices', () => {
+      // Arrange - Create operations from different devices with vector clocks
+      const syncStateA = SyncState.create(deviceA);
+      const syncStateB = SyncState.create(deviceB);
+
+      expect(syncStateA.isOk()).toBe(true);
+      expect(syncStateB.isOk()).toBe(true);
+
+      if (syncStateA.isOk() && syncStateB.isOk()) {
+        const vectorClockA = VectorClock.create([deviceA, deviceB]);
+        const vectorClockB = VectorClock.create([deviceA, deviceB]);
+
+        expect(vectorClockA.isOk()).toBe(true);
+        expect(vectorClockB.isOk()).toBe(true);
+
+        if (vectorClockA.isOk() && vectorClockB.isOk()) {
+          // Simulate operations happening in different orders on different devices
+          vectorClockA.value.increment(deviceA);
+          vectorClockB.value.increment(deviceB);
+
+          const _operationA = {
+            deviceId: deviceA,
+            timestamp: LogicalTimestamp.create(1).unwrapOr({} as LogicalTimestamp),
+            vectorClock: vectorClockA.value,
+          };
+
+          const _operationB = {
+            deviceId: deviceB,
+            timestamp: LogicalTimestamp.create(2).unwrapOr({} as LogicalTimestamp),
+            vectorClock: vectorClockB.value,
+          };
+
+          // Act - Test vector clock ordering
+          const aHappensBeforeB = vectorClockA.value.happensBefore(vectorClockB.value);
+          const bHappensAfterA = vectorClockB.value.happensAfter(vectorClockA.value);
+          const areConcurrent = vectorClockA.value.isConcurrentWith(vectorClockB.value);
+
+          // Assert - Vector clocks should properly order operations
+          expect(typeof aHappensBeforeB).toBe('boolean');
+          expect(typeof bHappensAfterA).toBe('boolean');
+          expect(typeof areConcurrent).toBe('boolean');
+
+          // Operations from different devices should be concurrent initially
+          expect(areConcurrent).toBe(true);
+        }
+      }
+    });
+  });
+
+  describe('Real-time Synchronization Scenarios', () => {
+    it('should handle rapid concurrent edits from multiple devices', async () => {
+      // Arrange - Simulate rapid editing scenario
+      const devices = [deviceA, deviceB, deviceC];
+      const operations = [];
+
+      for (let deviceIndex = 0; deviceIndex < devices.length; deviceIndex++) {
+        const device = devices[deviceIndex]!;
+        for (let opIndex = 0; opIndex < 5; opIndex++) {
+          const operationId = OperationId.create(`rapid-${device.getShortId()}-${opIndex}`);
+          const timestamp = LogicalTimestamp.create(opIndex + 1);
+          const opType = OperationType.create('INSERT');
+          const payload = OperationPayload.create({
+            text: `${device.getShortId()}-${opIndex}`,
+            position: deviceIndex * 10 + opIndex,
+          });
+          const vectorClock = VectorClock.create(devices);
+
+          expect(operationId.isOk()).toBe(true);
+          expect(timestamp.isOk()).toBe(true);
+          expect(opType.isOk()).toBe(true);
+          expect(payload.isOk()).toBe(true);
+          expect(vectorClock.isOk()).toBe(true);
+
+          if (
+            operationId.isOk() &&
+            timestamp.isOk() &&
+            opType.isOk() &&
+            payload.isOk() &&
+            vectorClock.isOk()
+          ) {
+            vectorClock.value.increment(device);
+            const operation = Operation.create(
+              operationId.value,
+              opType.value,
+              payload.value,
+              device,
+              timestamp.value,
+              vectorClock.value
+            );
+
+            expect(operation.isOk()).toBe(true);
+            if (operation.isOk()) {
+              operations.push(operation.value);
+            }
+          }
+        }
+      }
+
+      // Act - Process all operations and detect conflicts
+      const conflicts = [];
+      for (let i = 0; i < operations.length; i++) {
+        for (let j = i + 1; j < operations.length; j++) {
+          const opA = operations[i]!;
+          const opB = operations[j]!;
+
+          // Check if operations conflict based on position overlap
+          const payloadA = opA.getPayload().getData() as { position: number; text: string };
+          const payloadB = opB.getPayload().getData() as { position: number; text: string };
+
+          if (Math.abs(payloadA.position - payloadB.position) < 5) {
+            const conflictType = ConflictType.create('POSITION_CONFLICT');
+            expect(conflictType.isOk()).toBe(true);
+
+            if (conflictType.isOk()) {
+              const conflict = Conflict.create(
+                conflictType.value,
+                [opA, opB],
+                LogicalTimestamp.create(1).unwrapOr({} as LogicalTimestamp)
+              );
+
+              expect(conflict.isOk()).toBe(true);
+              if (conflict.isOk()) {
+                conflicts.push(conflict.value);
+              }
+            }
+          }
+        }
+      }
+
+      // Resolve all detected conflicts
+      const resolutionResults = await Promise.all(
+        conflicts.map(conflict => conflictResolutionService.resolveConflictAutomatically(conflict))
+      );
+
+      // Assert
+      expect(operations.length).toBe(15); // 3 devices * 5 operations each
+      resolutionResults.forEach(result => {
+        expect(result.isOk()).toBe(true);
+      });
+    });
+
+    it('should maintain consistency across device synchronization states', () => {
+      // Arrange
+      const syncStates = [];
+      const devices = [deviceA, deviceB, deviceC];
+
+      for (const device of devices) {
+        const syncState = SyncState.create(device);
+        expect(syncState.isOk()).toBe(true);
+        if (syncState.isOk()) {
+          syncStates.push(syncState.value);
+        }
+      }
+
+      expect(syncStates).toHaveLength(3);
+
+      // Act - Simulate state synchronization
+      for (let i = 0; i < syncStates.length; i++) {
+        const state = syncStates[i]!;
+
+        // Each device processes some operations
+        for (let j = 0; j < 3; j++) {
+          const operationId = OperationId.create(`sync-${i}-${j}`);
+          const timestamp = LogicalTimestamp.create(j + 1);
+          const opType = OperationType.create('STATE_UPDATE');
+          const payload = OperationPayload.create({ stateChange: `update-${i}-${j}` });
+          const vectorClock = VectorClock.create(devices);
+
+          expect(operationId.isOk()).toBe(true);
+          expect(timestamp.isOk()).toBe(true);
+          expect(opType.isOk()).toBe(true);
+          expect(payload.isOk()).toBe(true);
+          expect(vectorClock.isOk()).toBe(true);
+
+          if (
+            operationId.isOk() &&
+            timestamp.isOk() &&
+            opType.isOk() &&
+            payload.isOk() &&
+            vectorClock.isOk()
+          ) {
+            vectorClock.value.increment(devices[i]!);
+            const operation = Operation.create(
+              operationId.value,
+              opType.value,
+              payload.value,
+              devices[i]!,
+              timestamp.value,
+              vectorClock.value
+            );
+
+            expect(operation.isOk()).toBe(true);
+            if (operation.isOk()) {
+              state.recordOperation(operation.value);
+            }
+          }
+        }
+      }
+
+      // Assert - All sync states should have recorded operations
+      syncStates.forEach(state => {
+        expect(state.getLastSyncTimestamp()).toBeDefined();
+      });
+    });
+  });
+
+  describe('Error Handling and Recovery', () => {
+    it('should handle transformation errors gracefully', () => {
+      // Arrange - Create operations that might fail transformation
+      const vectorClock = VectorClock.create([deviceA]);
+      expect(vectorClock.isOk()).toBe(true);
+
+      if (vectorClock.isOk()) {
+        vectorClock.value.increment(deviceA);
+
+        const validOpId = OperationId.create('valid-op');
+        const timestamp = LogicalTimestamp.create(1);
+        const opType = OperationType.create('EDIT');
+        const validPayload = OperationPayload.create({ text: 'Valid edit', position: 0 });
+
+        expect(validOpId.isOk()).toBe(true);
+        expect(timestamp.isOk()).toBe(true);
+        expect(opType.isOk()).toBe(true);
+        expect(validPayload.isOk()).toBe(true);
+
+        if (validOpId.isOk() && timestamp.isOk() && opType.isOk() && validPayload.isOk()) {
+          const validOperation = Operation.create(
+            validOpId.value,
+            opType.value,
+            validPayload.value,
+            deviceA,
+            timestamp.value,
+            vectorClock.value
+          );
+
+          expect(validOperation.isOk()).toBe(true);
+
+          if (validOperation.isOk()) {
+            // Act - Try to transform with itself (should work)
+            const selfTransformResult = validOperation.value.transformWith(validOperation.value);
+
+            // Assert
+            expect(selfTransformResult.isOk()).toBe(true);
+            if (selfTransformResult.isOk()) {
+              const [transformed1, transformed2] = selfTransformResult.value;
+              expect(transformed1).toBeDefined();
+              expect(transformed2).toBeDefined();
+            }
+          }
+        }
+      }
+    });
+
+    it('should recover from conflict resolution failures', async () => {
+      // Arrange - Create a conflict that cannot be automatically resolved
+      const vectorClock = VectorClock.create([deviceA]);
+      expect(vectorClock.isOk()).toBe(true);
+
+      if (vectorClock.isOk()) {
+        vectorClock.value.increment(deviceA);
+
+        const operationId = OperationId.create('problematic-op');
+        const timestamp = LogicalTimestamp.create(1);
+        const opType = OperationType.create('COMPLEX_EDIT');
+        const payload = OperationPayload.create({ complexData: 'unresolvable conflict' });
+
+        expect(operationId.isOk()).toBe(true);
+        expect(timestamp.isOk()).toBe(true);
+        expect(opType.isOk()).toBe(true);
+        expect(payload.isOk()).toBe(true);
+
+        if (operationId.isOk() && timestamp.isOk() && opType.isOk() && payload.isOk()) {
+          const operation = Operation.create(
+            operationId.value,
+            opType.value,
+            payload.value,
+            deviceA,
+            timestamp.value,
+            vectorClock.value
+          );
+
+          expect(operation.isOk()).toBe(true);
+
+          if (operation.isOk()) {
+            const conflictType = ConflictType.create('SEMANTIC_CONFLICT');
+            expect(conflictType.isOk()).toBe(true);
+
+            if (conflictType.isOk()) {
+              const conflict = Conflict.create(
+                conflictType.value,
+                [operation.value], // Single operation conflict (unusual case)
+                timestamp.value
+              );
+
+              expect(conflict.isOk()).toBe(true);
+
+              if (conflict.isOk()) {
+                // Act - Try automatic resolution (should fail for semantic conflicts)
+                const automaticResult =
+                  await conflictResolutionService.resolveConflictAutomatically(conflict.value);
+
+                // Manual resolution should work
+                const manualResult = await conflictResolutionService.resolveConflictWithUserInput(
+                  conflict.value,
+                  'USER_DECISION_REQUIRED',
+                  { userChoice: 'keep_operation' }
+                );
+
+                // Assert
+                expect(automaticResult.isErr()).toBe(true); // Should fail automatic resolution
+                expect(manualResult.isOk()).toBe(true); // Manual resolution should work
+              }
+            }
+          }
+        }
+      }
+    });
+  });
+
+  describe('Performance and Scalability', () => {
+    it('should handle high-frequency operations efficiently', async () => {
+      // Arrange - Create many rapid operations
+      const operationCount = 100;
+      const operations = [];
+
+      for (let i = 0; i < operationCount; i++) {
+        const operationId = OperationId.create(`perf-op-${i}`);
+        const timestamp = LogicalTimestamp.create(i + 1);
+        const opType = OperationType.create('RAPID_EDIT');
+        const payload = OperationPayload.create({ text: `Edit ${i}`, position: i });
+        const vectorClock = VectorClock.create([deviceA]);
+
+        expect(operationId.isOk()).toBe(true);
+        expect(timestamp.isOk()).toBe(true);
+        expect(opType.isOk()).toBe(true);
+        expect(payload.isOk()).toBe(true);
+        expect(vectorClock.isOk()).toBe(true);
+
+        if (
+          operationId.isOk() &&
+          timestamp.isOk() &&
+          opType.isOk() &&
+          payload.isOk() &&
+          vectorClock.isOk()
+        ) {
+          vectorClock.value.increment(deviceA);
+          const operation = Operation.create(
+            operationId.value,
+            opType.value,
+            payload.value,
+            deviceA,
+            timestamp.value,
+            vectorClock.value
+          );
+
+          expect(operation.isOk()).toBe(true);
+          if (operation.isOk()) {
+            operations.push(operation.value);
+          }
+        }
+      }
+
+      // Act - Process operations for performance measurement
+      const startTime = Date.now();
+
+      const syncState = SyncState.create(deviceA);
+      expect(syncState.isOk()).toBe(true);
+
+      if (syncState.isOk()) {
+        const coordinationResults = await Promise.all(
+          operations.map(op =>
+            operationCoordinationService.coordinateOperation(op, syncState.value)
+          )
+        );
+
+        const endTime = Date.now();
+        const processingTime = endTime - startTime;
+
+        // Assert
+        expect(operations).toHaveLength(operationCount);
+        expect(coordinationResults).toHaveLength(operationCount);
+        expect(processingTime).toBeLessThan(5000); // Should complete within 5 seconds
+
+        coordinationResults.forEach(result => {
+          expect(result.isOk()).toBe(true);
+        });
+      }
+    });
+  });
+});

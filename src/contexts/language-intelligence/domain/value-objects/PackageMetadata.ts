@@ -126,11 +126,11 @@ export class PackageMetadata {
   }
 
   getTags(): readonly string[] {
-    return this.tags;
+    return Object.freeze([...this.tags]);
   }
 
   getDependencies(): readonly string[] {
-    return this.dependencies;
+    return Object.freeze([...this.dependencies]);
   }
 
   getCreatedAt(): Timestamp {
@@ -324,8 +324,8 @@ export class PackageConfiguration {
   static createDefault(): PackageConfiguration {
     return new PackageConfiguration(
       'semantic',
-      PerformanceSettings.createDefault(),
-      EducationalSettings.createDefault(),
+      PerformanceSettingsFactory.createDefault(),
+      EducationalSettingsFactory.createDefault(),
       {}
     );
   }
@@ -359,7 +359,7 @@ export interface EducationalSettings {
   difficultyLevel: 'beginner' | 'intermediate' | 'advanced';
 }
 
-export class PerformanceSettings {
+export class PerformanceSettingsFactory {
   static createDefault(): PerformanceSettings {
     return {
       maxValidationTimeMs: 10,
@@ -369,7 +369,7 @@ export class PerformanceSettings {
   }
 }
 
-export class EducationalSettings {
+export class EducationalSettingsFactory {
   static createDefault(): EducationalSettings {
     return {
       enableHints: true,

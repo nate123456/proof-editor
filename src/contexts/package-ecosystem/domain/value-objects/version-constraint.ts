@@ -31,7 +31,7 @@ export class VersionConstraint {
       return err(new InvalidPackageVersionError('Version constraint cannot be empty'));
     }
 
-    const parseResult = this.parseConstraint(trimmed);
+    const parseResult = this.parseConstraint(constraint); // Pass original, not trimmed
     if (parseResult.isErr()) {
       return err(parseResult.error);
     }
@@ -74,51 +74,58 @@ export class VersionConstraint {
 
     if (constraint.includes(' - ')) {
       const [lower, upper] = constraint.split(' - ');
-      if (!lower || !upper || !this.isValidVersion(lower) || !this.isValidVersion(upper)) {
+      if (!lower?.trim() || !upper?.trim()) {
         return err(new InvalidPackageVersionError(`Invalid range format: ${constraint}`));
       }
-      ranges.push({ operator: 'range', version: lower, upperBound: upper });
-    } else if (constraint.startsWith('^')) {
-      const version = constraint.slice(1);
-      if (!this.isValidVersion(version)) {
-        return err(new InvalidPackageVersionError(`Invalid caret constraint: ${constraint}`));
+      if (!this.isValidVersion(lower.trim()) || !this.isValidVersion(upper.trim())) {
+        return err(new InvalidPackageVersionError(`Invalid range format: ${constraint}`));
       }
-      ranges.push({ operator: 'caret', version });
-    } else if (constraint.startsWith('~')) {
-      const version = constraint.slice(1);
-      if (!this.isValidVersion(version)) {
-        return err(new InvalidPackageVersionError(`Invalid tilde constraint: ${constraint}`));
-      }
-      ranges.push({ operator: 'tilde', version });
-    } else if (constraint.startsWith('>=')) {
-      const version = constraint.slice(2).trim();
-      if (!this.isValidVersion(version)) {
-        return err(new InvalidPackageVersionError(`Invalid gte constraint: ${constraint}`));
-      }
-      ranges.push({ operator: 'gte', version });
-    } else if (constraint.startsWith('<=')) {
-      const version = constraint.slice(2).trim();
-      if (!this.isValidVersion(version)) {
-        return err(new InvalidPackageVersionError(`Invalid lte constraint: ${constraint}`));
-      }
-      ranges.push({ operator: 'lte', version });
-    } else if (constraint.startsWith('>')) {
-      const version = constraint.slice(1).trim();
-      if (!this.isValidVersion(version)) {
-        return err(new InvalidPackageVersionError(`Invalid gt constraint: ${constraint}`));
-      }
-      ranges.push({ operator: 'gt', version });
-    } else if (constraint.startsWith('<')) {
-      const version = constraint.slice(1).trim();
-      if (!this.isValidVersion(version)) {
-        return err(new InvalidPackageVersionError(`Invalid lt constraint: ${constraint}`));
-      }
-      ranges.push({ operator: 'lt', version });
+      ranges.push({ operator: 'range', version: lower.trim(), upperBound: upper.trim() });
     } else {
-      if (!this.isValidVersion(constraint)) {
-        return err(new InvalidPackageVersionError(`Invalid version format: ${constraint}`));
+      // Trim for all other constraint types
+      const trimmed = constraint.trim();
+      if (trimmed.startsWith('^')) {
+        const version = trimmed.slice(1);
+        if (!this.isValidVersion(version)) {
+          return err(new InvalidPackageVersionError(`Invalid caret constraint: ${constraint}`));
+        }
+        ranges.push({ operator: 'caret', version });
+      } else if (trimmed.startsWith('~')) {
+        const version = trimmed.slice(1);
+        if (!this.isValidVersion(version)) {
+          return err(new InvalidPackageVersionError(`Invalid tilde constraint: ${constraint}`));
+        }
+        ranges.push({ operator: 'tilde', version });
+      } else if (trimmed.startsWith('>=')) {
+        const version = trimmed.slice(2).trim();
+        if (!this.isValidVersion(version)) {
+          return err(new InvalidPackageVersionError(`Invalid gte constraint: ${constraint}`));
+        }
+        ranges.push({ operator: 'gte', version });
+      } else if (trimmed.startsWith('<=')) {
+        const version = trimmed.slice(2).trim();
+        if (!this.isValidVersion(version)) {
+          return err(new InvalidPackageVersionError(`Invalid lte constraint: ${constraint}`));
+        }
+        ranges.push({ operator: 'lte', version });
+      } else if (trimmed.startsWith('>')) {
+        const version = trimmed.slice(1).trim();
+        if (!this.isValidVersion(version)) {
+          return err(new InvalidPackageVersionError(`Invalid gt constraint: ${constraint}`));
+        }
+        ranges.push({ operator: 'gt', version });
+      } else if (trimmed.startsWith('<')) {
+        const version = trimmed.slice(1).trim();
+        if (!this.isValidVersion(version)) {
+          return err(new InvalidPackageVersionError(`Invalid lt constraint: ${constraint}`));
+        }
+        ranges.push({ operator: 'lt', version });
+      } else {
+        if (!this.isValidVersion(trimmed)) {
+          return err(new InvalidPackageVersionError(`Invalid version format: ${constraint}`));
+        }
+        ranges.push({ operator: 'exact', version: trimmed });
       }
-      ranges.push({ operator: 'exact', version: constraint });
     }
 
     return ok(ranges);
@@ -156,13 +163,14 @@ export class VersionConstraint {
       case 'lt':
         return this.compareVersions(versionParts, rangeParts) < 0;
 
-      case 'range':
+      case 'range': {
         if (!range.upperBound) return false;
         const upperParts = this.parseVersionParts(range.upperBound);
         return (
           this.compareVersions(versionParts, rangeParts) >= 0 &&
           this.compareVersions(versionParts, upperParts) <= 0
         );
+      }
 
       default:
         return false;
@@ -209,7 +217,22 @@ export class VersionConstraint {
     version: { major: number; minor: number; patch: number },
     range: { major: number; minor: number; patch: number }
   ): boolean {
+    // Major version must always match
     if (version.major !== range.major) return false;
+
+    // Special handling for 0.x.x versions - caret only allows patch changes when major = 0
+    if (range.major === 0) {
+      // For 0.0.x - only patch changes allowed
+      if (range.minor === 0) {
+        if (version.minor !== range.minor) return false;
+        return version.patch >= range.patch;
+      }
+      // For 0.x.y where x > 0 - only patch changes allowed within same minor
+      if (version.minor !== range.minor) return false;
+      return version.patch >= range.patch;
+    }
+
+    // For major > 0 - minor and patch can change
     if (version.minor < range.minor) return false;
     if (version.minor === range.minor && version.patch < range.patch) return false;
     return true;

@@ -62,7 +62,7 @@ export class DependencyResolutionService {
     >
   > {
     const startTime = Date.now();
-    const maxDepth = options.maxDepth || 10;
+    const maxDepth = options.maxDepth ?? 10;
 
     const resolvedDependencies: ResolvedDependency[] = [];
     const visited = new Set<string>();
@@ -76,7 +76,8 @@ export class DependencyResolutionService {
       resolvedDependencies,
       visited,
       versionMap,
-      options.includeDevDependencies || false
+      options.includeDevDependencies ?? false,
+      new Set()
     );
 
     if (resolutionResult.isErr()) {
@@ -135,10 +136,10 @@ export class DependencyResolutionService {
     return ok(cycles);
   }
 
-  async validateDependencyCompatibility(
+  validateDependencyCompatibility(
     packageA: Package,
     packageB: Package
-  ): Promise<Result<boolean, PackageValidationError>> {
+  ): Result<boolean, PackageValidationError> {
     const aRequiresProofEditor = packageA.getManifest().getRequiredProofEditorVersion();
     const aRequiresNode = packageA.getManifest().getRequiredNodeVersion();
 
@@ -169,7 +170,6 @@ export class DependencyResolutionService {
         );
       }
     }
-
     return ok(true);
   }
 
@@ -180,20 +180,28 @@ export class DependencyResolutionService {
     resolvedDependencies: ResolvedDependency[],
     visited: Set<string>,
     versionMap: Map<string, PackageVersion[]>,
-    includeDevDependencies: boolean
+    includeDevDependencies: boolean,
+    recursionStack = new Set<string>()
   ): Promise<
     Result<void, PackageNotFoundError | PackageValidationError | PackageSourceUnavailableError>
   > {
-    if (depth > maxDepth) {
-      return err(new PackageValidationError(`Maximum dependency depth ${maxDepth} exceeded`));
+    if (depth >= maxDepth) {
+      return ok(undefined); // Stop recursion but don't error
     }
 
     const packageKey = currentPackage.getId().toString();
+
+    // Check for cycles in current recursion path
+    if (recursionStack.has(packageKey)) {
+      return ok(undefined); // Cycle detected, stop recursion
+    }
+
     if (visited.has(packageKey)) {
       return ok(undefined);
     }
 
     visited.add(packageKey);
+    recursionStack.add(packageKey);
 
     const dependenciesResult = await this.dependencyRepository.findDependenciesForPackage(
       currentPackage.getId()
@@ -215,6 +223,12 @@ export class DependencyResolutionService {
       }
 
       const resolvedPackage = packageResult.value;
+
+      // Check if this package is already in the current recursion path (cycle detection)
+      const packageKey = resolvedPackage.getId().toString();
+      if (recursionStack.has(packageKey)) {
+        continue; // Skip this dependency as it would create a cycle
+      }
 
       const versionResolutionResult = await this.resolveVersionFromConstraint(
         resolvedPackage,
@@ -250,14 +264,17 @@ export class DependencyResolutionService {
         resolvedDependencies,
         visited,
         versionMap,
-        includeDevDependencies
+        includeDevDependencies,
+        recursionStack
       );
 
       if (recursionResult.isErr()) {
+        recursionStack.delete(packageKey);
         return err(recursionResult.error);
       }
     }
 
+    recursionStack.delete(packageKey);
     return ok(undefined);
   }
 
@@ -451,54 +468,21 @@ export class DependencyResolutionService {
   private calculateInstallationOrder(
     resolvedDependencies: readonly ResolvedDependency[]
   ): readonly PackageId[] {
-    const dependencyMap = new Map<string, Set<string>>();
-    const allPackages = new Set<string>();
-
-    for (const resolved of resolvedDependencies) {
-      const packageId = resolved.resolvedPackage.getId().toString();
-      allPackages.add(packageId);
-
-      if (!dependencyMap.has(packageId)) {
-        dependencyMap.set(packageId, new Set());
+    // Simple approach: sort by depth, deepest dependencies first
+    // Packages at higher depth should be installed before packages at lower depth
+    const sortedDeps = [...resolvedDependencies].sort((a, b) => {
+      // Sort by depth descending (deepest first)
+      if (a.depth !== b.depth) {
+        return b.depth - a.depth;
       }
-    }
-
-    const ordered: string[] = [];
-    const visited = new Set<string>();
-    const visiting = new Set<string>();
-
-    const visit = (packageId: string): void => {
-      if (visited.has(packageId)) {
-        return;
-      }
-
-      if (visiting.has(packageId)) {
-        return;
-      }
-
-      visiting.add(packageId);
-
-      const dependencies = dependencyMap.get(packageId) || new Set();
-      for (const dep of Array.from(dependencies)) {
-        visit(dep);
-      }
-
-      visiting.delete(packageId);
-      visited.add(packageId);
-      ordered.push(packageId);
-    };
-
-    for (const packageId of Array.from(allPackages)) {
-      visit(packageId);
-    }
-
-    return ordered.map(id => {
-      const idResult = PackageId.create(id);
-      if (idResult.isErr()) {
-        throw new Error(`Invalid package ID: ${id}`);
-      }
-      return idResult.value;
+      // For same depth, sort alphabetically for deterministic order
+      return a.resolvedPackage
+        .getId()
+        .toString()
+        .localeCompare(b.resolvedPackage.getId().toString());
     });
+
+    return sortedDeps.map(dep => dep.resolvedPackage.getId());
   }
 
   private checkVersionCompatibility(
@@ -512,10 +496,24 @@ export class DependencyResolutionService {
       return err(new PackageValidationError('Invalid version format'));
     }
 
-    const compatible =
-      versionAResult.value.isCompatibleWith(versionBResult.value) ||
-      versionBResult.value.isCompatibleWith(versionAResult.value);
+    // For exact version compatibility checking, versions must be equal or one must be compatible with the other
+    const versionAValue = versionAResult.value;
+    const versionBValue = versionBResult.value;
 
-    return ok(compatible);
+    // Check if versions are exactly equal
+    if (versionAValue.equals(versionBValue)) {
+      return ok(true);
+    }
+
+    // Check for semantic version compatibility (within same major version)
+    const compatible =
+      versionAValue.isCompatibleWith(versionBValue) ||
+      versionBValue.isCompatibleWith(versionAValue);
+
+    if (!compatible) {
+      return err(new PackageValidationError('Incompatible versions'));
+    }
+
+    return ok(true);
   }
 }

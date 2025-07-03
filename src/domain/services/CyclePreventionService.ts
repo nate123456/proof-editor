@@ -85,6 +85,12 @@ export class CyclePreventionService {
       return ok(result);
     }
 
+    // Validate that all elements in the chain are valid
+    const hasInvalidElements = argumentChain.some(id => id === null || id === undefined);
+    if (hasInvalidElements) {
+      return err(new StructureError('Invalid argument chain: contains null or undefined values'));
+    }
+
     const uniqueArguments = new Set(argumentChain.map(id => id.getValue()));
     if (uniqueArguments.size !== argumentChain.length) {
       const duplicateId = this.findFirstDuplicate(argumentChain);

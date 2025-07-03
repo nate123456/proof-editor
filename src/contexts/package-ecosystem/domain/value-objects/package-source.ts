@@ -88,17 +88,34 @@ export class PackageSource {
   }
 
   private static isValidGitUrl(url: string): boolean {
+    // Standard URL protocols
     try {
       const parsed = new URL(url);
       return ['http:', 'https:', 'git:', 'ssh:'].includes(parsed.protocol);
     } catch {
-      return /^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/.test(url);
+      // SSH shorthand format: git@host:user/repo.git
+      if (/^[a-zA-Z0-9_.-]+@[a-zA-Z0-9_.-]+:[a-zA-Z0-9_./+-]+$/.test(url)) {
+        return true;
+      }
+
+      // GitHub shorthand: user/repo
+      if (/^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/.test(url)) {
+        return true;
+      }
+
+      // Domain shorthand: domain.com/user/repo
+      if (/^[a-zA-Z0-9_.-]+\.[a-zA-Z]{2,}\/[a-zA-Z0-9_./+-]+$/.test(url)) {
+        return true;
+      }
+
+      return false;
     }
   }
 
   private static isValidGitRef(ref: string): boolean {
     if (ref.length > 250) return false;
 
+    // eslint-disable-next-line no-control-regex
     const invalidChars = /[\x00-\x1f\x7f~^:?*[\\ ]/;
     if (invalidChars.test(ref)) return false;
 
@@ -112,6 +129,7 @@ export class PackageSource {
   private static isValidLocalPath(path: string): boolean {
     if (path.length > 4096) return false;
 
+    // eslint-disable-next-line no-control-regex
     const invalidChars = /[\x00-\x1f\x7f]/;
     return !invalidChars.test(path);
   }

@@ -1,5 +1,6 @@
 import { err, ok, type Result } from 'neverthrow';
 
+import { type SourceLocation } from '../../../../domain/shared/index.js';
 import { type Diagnostic } from '../entities/Diagnostic';
 import { type LanguagePackage } from '../entities/LanguagePackage';
 import { type ValidationResult } from '../entities/ValidationResult';
@@ -123,7 +124,9 @@ export class EducationalFeedbackService {
 
       return ok({
         steps,
-        estimatedTime: this.estimateGuidanceTime(steps, userLevel),
+        targetConcepts,
+        difficultyLevel: userLevel,
+        estimatedTimeMinutes: this.estimateGuidanceTime(steps, userLevel),
         prerequisites: this.identifyPrerequisites(targetConcepts, languagePackage),
         nextSteps: this.suggestNextSteps(targetConcepts, userLevel),
         practiceExercises: this.generatePracticeExercises(targetConcepts, userLevel),
@@ -644,13 +647,624 @@ export class EducationalFeedbackService {
     const indicators: Record<string, number> = {};
 
     const totalResults = results.length;
-    const successfulResults = results.filter(r => r.isValidationSuccessful()).length;
+    const successfulResults = results.filter(r => r.isValid()).length;
 
     indicators['successRate'] = totalResults > 0 ? successfulResults / totalResults : 0;
     indicators['averageErrors'] =
       totalResults > 0 ? results.reduce((sum, r) => sum + r.getErrorCount(), 0) / totalResults : 0;
 
     return indicators;
+  }
+
+  generateInteractiveFeedback(
+    validationResult: ValidationResult,
+    languagePackage: LanguagePackage,
+    userLevel: LearningLevel = 'intermediate'
+  ): Result<InteractiveFeedback, ValidationError> {
+    try {
+      const diagnostics = validationResult.getDiagnostics();
+      const feedbackItems: FeedbackItem[] = [];
+
+      // Generate feedback for each diagnostic
+      for (const diagnostic of diagnostics) {
+        const hintsResult = this.generateLearningHints(diagnostic, languagePackage, userLevel);
+        if (hintsResult.isOk()) {
+          feedbackItems.push({
+            type: diagnostic.getSeverity().isError()
+              ? 'error'
+              : diagnostic.getSeverity().isWarning()
+                ? 'warning'
+                : 'info',
+            message: diagnostic.getMessage().getText(),
+            location: diagnostic.getLocation(),
+            hints: hintsResult.value.hints,
+            examples: hintsResult.value.examples,
+            concepts: hintsResult.value.concepts,
+          });
+        }
+      }
+
+      // Calculate overall score
+      const totalIssues = diagnostics.length;
+      const errorCount = diagnostics.filter(d => d.getSeverity().isError()).length;
+      const warningCount = diagnostics.filter(d => d.getSeverity().isWarning()).length;
+
+      const overallScore =
+        totalIssues === 0 ? 100 : Math.max(0, 100 - (errorCount * 20 + warningCount * 10));
+
+      // Identify strengths and areas for improvement
+      const categoryFrequency = new Map<string, number>();
+      for (const diagnostic of diagnostics) {
+        for (const tag of diagnostic.getTags()) {
+          categoryFrequency.set(tag, (categoryFrequency.get(tag) ?? 0) + 1);
+        }
+      }
+
+      const strengths: string[] = [];
+      const areasForImprovement: string[] = [];
+
+      if (totalIssues === 0) {
+        strengths.push('All validation checks passed');
+        strengths.push('Proper logical structure maintained');
+        strengths.push('Correct use of symbols and syntax');
+      } else {
+        // Find most problematic areas
+        const sortedCategories = Array.from(categoryFrequency.entries()).sort(
+          ([, a], [, b]) => b - a
+        );
+
+        for (const [category, count] of sortedCategories) {
+          if (count >= 2) {
+            areasForImprovement.push(`${category} (${count} issues)`);
+          }
+        }
+
+        // Add potential strengths for areas with fewer issues
+        const allCategories = ['syntax', 'semantic', 'style'];
+        for (const category of allCategories) {
+          if (!categoryFrequency.has(category)) {
+            strengths.push(`Good ${category} usage`);
+          }
+        }
+      }
+
+      // Generate suggested next steps
+      const suggestedNextSteps: string[] = [];
+      if (errorCount > 0) {
+        suggestedNextSteps.push('Focus on fixing logical errors first');
+      }
+      if (warningCount > 0) {
+        suggestedNextSteps.push('Review style and best practices');
+      }
+      if (totalIssues === 0) {
+        suggestedNextSteps.push('Try more complex logical constructs');
+        suggestedNextSteps.push('Explore advanced proof techniques');
+      }
+
+      return ok({
+        feedbackItems,
+        overallScore,
+        strengths,
+        areasForImprovement,
+        suggestedNextSteps,
+      });
+    } catch (error) {
+      return err(
+        new ValidationError(
+          'Failed to generate interactive feedback',
+          error instanceof Error ? error : undefined
+        )
+      );
+    }
+  }
+
+  analyzeConceptDifficulty(
+    concepts: string[],
+    languagePackage: LanguagePackage
+  ): Result<ConceptDifficultyAnalysis, ValidationError> {
+    try {
+      const conceptAnalyses: ConceptAnalysis[] = [];
+      let maxDifficulty: LearningLevel = 'beginner';
+
+      // Analyze each concept
+      for (const concept of concepts) {
+        let difficulty: LearningLevel = 'beginner';
+        const prerequisites: string[] = [];
+
+        // Determine difficulty based on concept
+        switch (concept) {
+          case 'conjunction':
+          case 'disjunction':
+          case 'negation':
+            difficulty = 'beginner';
+            break;
+          case 'implication':
+          case 'equivalence':
+            difficulty = 'beginner';
+            prerequisites.push('conjunction', 'disjunction');
+            break;
+          case 'modus-ponens':
+          case 'modus-tollens':
+            difficulty = 'intermediate';
+            prerequisites.push('implication');
+            break;
+          case 'modal-logic':
+          case 'temporal-logic':
+          case 'higher-order-logic':
+            difficulty = 'advanced';
+            prerequisites.push('propositional-logic');
+            break;
+          case 'quantifiers':
+          case 'first-order-logic':
+            difficulty = 'intermediate';
+            prerequisites.push('propositional-logic');
+            break;
+        }
+
+        // Check if language package supports the concept
+        let isSupported = true;
+        if (
+          (concept.includes('modal') || concept.includes('necessity')) &&
+          !languagePackage.supportsModalLogic()
+        ) {
+          isSupported = false;
+        }
+        if (
+          (concept.includes('quantifier') || concept.includes('first-order')) &&
+          !languagePackage.supportsFirstOrderLogic()
+        ) {
+          isSupported = false;
+        }
+
+        conceptAnalyses.push({
+          name: concept,
+          difficulty,
+          prerequisites,
+          isSupported,
+          estimatedLearningTimeMinutes:
+            difficulty === 'beginner' ? 30 : difficulty === 'intermediate' ? 60 : 120,
+        });
+
+        // Update maximum difficulty
+        if (
+          difficulty === 'advanced' ||
+          (difficulty === 'intermediate' && maxDifficulty === 'beginner')
+        ) {
+          maxDifficulty = difficulty;
+        }
+      }
+
+      // Generate learning path
+      const sortedConcepts = [...concepts].sort((a, b) => {
+        const difficultyOrder = { beginner: 0, intermediate: 1, advanced: 2 };
+        const aDifficulty = conceptAnalyses.find(c => c.name === a)?.difficulty ?? 'beginner';
+        const bDifficulty = conceptAnalyses.find(c => c.name === b)?.difficulty ?? 'beginner';
+        return difficultyOrder[aDifficulty] - difficultyOrder[bDifficulty];
+      });
+
+      // Collect all prerequisites
+      const allPrerequisites = Array.from(new Set(conceptAnalyses.flatMap(c => c.prerequisites)));
+
+      return ok({
+        concepts: conceptAnalyses,
+        overallDifficulty: maxDifficulty,
+        prerequisiteConcepts: allPrerequisites,
+        suggestedLearningPath: sortedConcepts,
+      });
+    } catch (error) {
+      return err(
+        new ValidationError(
+          'Failed to analyze concept difficulty',
+          error instanceof Error ? error : undefined
+        )
+      );
+    }
+  }
+
+  suggestPracticeProblems(
+    concepts: string[],
+    userLevel: LearningLevel,
+    languagePackage: LanguagePackage,
+    maxProblems = 10
+  ): Result<PracticeProblems, ValidationError> {
+    try {
+      const problems: PracticeProblem[] = [];
+
+      // Generate problems based on concepts and difficulty
+      for (const concept of concepts) {
+        const conceptProblems = this.generateProblemsForConcept(
+          concept,
+          userLevel,
+          languagePackage
+        );
+        problems.push(...conceptProblems);
+      }
+
+      // Limit to maxProblems
+      const selectedProblems = problems.slice(0, maxProblems);
+
+      return ok({
+        problems: selectedProblems,
+        targetConcepts: concepts,
+        difficultyLevel: userLevel,
+        estimatedTimeMinutes:
+          selectedProblems.length *
+          (userLevel === 'beginner' ? 5 : userLevel === 'intermediate' ? 8 : 12),
+      });
+    } catch (error) {
+      return err(
+        new ValidationError(
+          'Failed to suggest practice problems',
+          error instanceof Error ? error : undefined
+        )
+      );
+    }
+  }
+
+  adaptContentToUserLevel(
+    content: string,
+    userLevel: LearningLevel
+  ): Result<ContentAdaptation, ValidationError> {
+    try {
+      let adaptedContent = content;
+      const simplifications: string[] = [];
+      const addedExplanations: string[] = [];
+      const technicalTermsAdded: string[] = [];
+
+      switch (userLevel) {
+        case 'beginner':
+          // Simplify language, add more explanations
+          adaptedContent = this.simplifyForBeginner(content);
+          simplifications.push('Replaced technical terms with simpler language');
+          addedExplanations.push('Added basic explanations for logical concepts');
+          break;
+        case 'intermediate':
+          // Standard explanations with moderate detail
+          adaptedContent = this.adaptForIntermediate(content);
+          break;
+        case 'advanced':
+          // More concise, technical language
+          adaptedContent = this.adaptForAdvanced(content);
+          technicalTermsAdded.push('Used precise technical terminology');
+          break;
+      }
+
+      return ok({
+        originalContent: content,
+        adaptedContent,
+        targetLevel: userLevel,
+        simplifications,
+        addedExplanations,
+        technicalTermsAdded,
+      });
+    } catch (error) {
+      return err(
+        new ValidationError(
+          'Failed to adapt content to user level',
+          error instanceof Error ? error : undefined
+        )
+      );
+    }
+  }
+
+  generateContentForConcept(
+    concept: string,
+    _userLevel: LearningLevel = 'intermediate',
+    languagePackage?: LanguagePackage
+  ): Result<ConceptContent, ValidationError> {
+    try {
+      const conceptMap: Record<string, ConceptContent> = {
+        'logical-operators': {
+          title: 'Logical Operators',
+          description: 'Basic building blocks of logical expressions',
+          examples: [
+            'P ∧ Q (conjunction)',
+            'P ∨ Q (disjunction)',
+            'P → Q (implication)',
+            '¬P (negation)',
+          ],
+          keyPoints: [
+            'Conjunction (∧) means "and" - both must be true',
+            'Disjunction (∨) means "or" - at least one must be true',
+            'Implication (→) means "if...then"',
+            'Negation (¬) means "not"',
+          ],
+          prerequisites: [],
+          nextSteps: ['truth-tables', 'compound-statements'],
+        },
+        'inference-rules': {
+          title: 'Inference Rules',
+          description: 'Valid patterns of logical reasoning',
+          examples: [
+            'Modus Ponens: P, P → Q ∴ Q',
+            'Modus Tollens: ¬Q, P → Q ∴ ¬P',
+            'Hypothetical Syllogism: P → Q, Q → R ∴ P → R',
+          ],
+          keyPoints: [
+            'Inference rules preserve truth',
+            'If premises are true, conclusion must be true',
+            'Each rule has a specific pattern',
+          ],
+          prerequisites: ['logical-operators'],
+          nextSteps: ['proof-strategies', 'formal-proofs'],
+        },
+        'modal-logic': {
+          title: 'Modal Logic',
+          description: 'Logic of necessity and possibility',
+          examples: [
+            '□P means "P is necessarily true"',
+            '◇P means "P is possibly true"',
+            '□P → ◇P (necessity implies possibility)',
+          ],
+          keyPoints: [
+            'Modal operators express modes of truth',
+            'Necessity is stronger than possibility',
+            'Different modal systems have different axioms',
+          ],
+          prerequisites: ['propositional-logic'],
+          nextSteps: ['temporal-logic', 'epistemic-logic'],
+        },
+      };
+
+      const baseContent = conceptMap[concept] ?? {
+        title: concept,
+        description: `Information about ${concept}`,
+        examples: [],
+        keyPoints: [],
+        prerequisites: [],
+        nextSteps: [],
+      };
+
+      // Add language package specific information
+      if (languagePackage) {
+        this.enrichWithLanguagePackageInfo(baseContent, concept, languagePackage);
+      }
+
+      return ok(baseContent);
+    } catch (error) {
+      return err(
+        new ValidationError(
+          'Failed to generate content for concept',
+          error instanceof Error ? error : undefined
+        )
+      );
+    }
+  }
+
+  suggestRelatedTopics(
+    currentTopic: string,
+    userLevel: LearningLevel = 'intermediate',
+    languagePackage?: LanguagePackage
+  ): Result<RelatedTopics, ValidationError> {
+    try {
+      const topicRelations: Record<
+        string,
+        { prerequisites: string[]; related: string[]; advanced: string[] }
+      > = {
+        'logical-operators': {
+          prerequisites: [],
+          related: ['truth-tables', 'boolean-algebra'],
+          advanced: ['propositional-logic', 'logical-equivalences'],
+        },
+        'inference-rules': {
+          prerequisites: ['logical-operators'],
+          related: ['natural-deduction', 'formal-proofs'],
+          advanced: ['soundness-completeness', 'proof-theory'],
+        },
+        'modal-logic': {
+          prerequisites: ['propositional-logic', 'inference-rules'],
+          related: ['possible-worlds', 'modal-operators'],
+          advanced: ['temporal-logic', 'dynamic-logic'],
+        },
+        quantifiers: {
+          prerequisites: ['propositional-logic'],
+          related: ['predicate-logic', 'variable-binding'],
+          advanced: ['first-order-logic', 'higher-order-logic'],
+        },
+      };
+
+      const relations = topicRelations[currentTopic] ?? {
+        prerequisites: [],
+        related: [],
+        advanced: [],
+      };
+
+      let suggestions: string[] = [];
+
+      // Include suggestions based on user level
+      switch (userLevel) {
+        case 'beginner':
+          suggestions = [...relations.prerequisites, ...relations.related.slice(0, 2)];
+          break;
+        case 'intermediate':
+          suggestions = [...relations.related, ...relations.advanced.slice(0, 2)];
+          break;
+        case 'advanced':
+          suggestions = [...relations.related, ...relations.advanced];
+          break;
+      }
+
+      // Filter based on language package capabilities
+      if (languagePackage) {
+        suggestions = this.filterTopicsByLanguagePackage(suggestions, languagePackage);
+      }
+
+      return ok({
+        prerequisites: relations.prerequisites,
+        related: relations.related,
+        advanced: relations.advanced,
+        suggestions: Array.from(new Set(suggestions)),
+        userLevelAppropriate: suggestions,
+      });
+    } catch (error) {
+      return err(
+        new ValidationError(
+          'Failed to suggest related topics',
+          error instanceof Error ? error : undefined
+        )
+      );
+    }
+  }
+
+  private simplifyForBeginner(content: string): string {
+    // Replace technical terms with simpler explanations
+    return content
+      .replace(/logical operator/g, 'logical word like "and", "or", "not"')
+      .replace(/inference rule/g, 'reasoning pattern')
+      .replace(/proposition/g, 'statement')
+      .replace(/tautology/g, 'statement that is always true')
+      .replace(/contradiction/g, 'statement that is always false');
+  }
+
+  private adaptForIntermediate(content: string): string {
+    // Keep standard technical language with brief clarifications
+    return content
+      .replace(/\b(modus ponens)\b/g, '$1 (if P and P→Q, then Q)')
+      .replace(/\b(modus tollens)\b/g, '$1 (if ¬Q and P→Q, then ¬P)');
+  }
+
+  private adaptForAdvanced(content: string): string {
+    // Use precise technical language, assume familiarity
+    return content
+      .replace(/reasoning pattern/g, 'inference rule')
+      .replace(/logical word/g, 'logical operator')
+      .replace(/statement/g, 'proposition');
+  }
+
+  private enrichWithLanguagePackageInfo(
+    content: ConceptContent,
+    concept: string,
+    languagePackage: LanguagePackage
+  ): void {
+    if (concept === 'modal-logic' && languagePackage.supportsModalLogic()) {
+      if (
+        'getSupportedModalOperators' in languagePackage &&
+        typeof languagePackage.getSupportedModalOperators === 'function'
+      ) {
+        const modalOps = (languagePackage.getSupportedModalOperators as () => unknown[])();
+        if (Array.isArray(modalOps) && modalOps.length > 0) {
+          content.examples.push(
+            ...modalOps.map(op => `${String(op)} - modal operator supported by this package`)
+          );
+        }
+      }
+    }
+
+    if (concept === 'quantifiers' && languagePackage.supportsFirstOrderLogic()) {
+      if (
+        'getSupportedQuantifiers' in languagePackage &&
+        typeof languagePackage.getSupportedQuantifiers === 'function'
+      ) {
+        const quantifiers = (languagePackage.getSupportedQuantifiers as () => unknown[])();
+        if (Array.isArray(quantifiers) && quantifiers.length > 0) {
+          content.examples.push(
+            ...quantifiers.map(q => `${String(q)} - quantifier supported by this package`)
+          );
+        }
+      }
+    }
+  }
+
+  private filterTopicsByLanguagePackage(
+    topics: string[],
+    languagePackage: LanguagePackage
+  ): string[] {
+    return topics.filter(topic => {
+      switch (topic) {
+        case 'modal-logic':
+        case 'temporal-logic':
+        case 'dynamic-logic':
+          return languagePackage.supportsModalLogic();
+        case 'quantifiers':
+        case 'predicate-logic':
+        case 'first-order-logic':
+          return languagePackage.supportsFirstOrderLogic();
+        default:
+          return true; // Include general topics
+      }
+    });
+  }
+
+  private generateProblemsForConcept(
+    concept: string,
+    difficultyLevel: LearningLevel,
+    languagePackage: LanguagePackage
+  ): PracticeProblem[] {
+    const problems: PracticeProblem[] = [];
+
+    switch (concept) {
+      case 'conjunction':
+        if (difficultyLevel === 'beginner') {
+          problems.push({
+            statement: 'Show that (P ∧ Q) ∧ R is equivalent to P ∧ (Q ∧ R)',
+            solution: 'Use associativity of conjunction',
+            hints: ['Consider truth tables', 'Conjunction is associative'],
+            concepts: ['conjunction', 'associativity'],
+            difficulty: difficultyLevel,
+          });
+        } else {
+          problems.push({
+            statement: 'Prove: (P ∧ Q) → (P ∨ Q)',
+            solution: 'If both P and Q are true, then at least one is true',
+            hints: ['Consider what conjunction means', 'Disjunction requires only one to be true'],
+            concepts: ['conjunction', 'disjunction', 'implication'],
+            difficulty: difficultyLevel,
+          });
+        }
+        break;
+
+      case 'disjunction':
+        problems.push({
+          statement: 'Show that P ∨ ¬P is always true',
+          solution: 'This is the law of excluded middle - P is either true or false',
+          hints: ['Consider all possible truth values for P', 'This is a tautology'],
+          concepts: ['disjunction', 'negation', 'tautology'],
+          difficulty: difficultyLevel,
+        });
+        break;
+
+      case 'modal-logic':
+        if (languagePackage.supportsModalLogic()) {
+          problems.push({
+            statement: 'Prove: □P → ◇P (necessity implies possibility)',
+            solution: 'If P is necessarily true, it must be possible',
+            hints: ['Necessity is stronger than possibility', 'All necessary truths are possible'],
+            concepts: ['modal-logic', 'necessity', 'possibility'],
+            difficulty: difficultyLevel,
+          });
+        }
+        break;
+
+      default:
+        // Generic problem
+        problems.push({
+          statement: `Practice problem for ${concept}`,
+          solution: `Solution involves understanding ${concept}`,
+          hints: [`Review the definition of ${concept}`],
+          concepts: [concept],
+          difficulty: difficultyLevel,
+        });
+        break;
+    }
+
+    return problems;
+  }
+
+  private estimateConceptLearningTime(concept: string, difficulty: LearningLevel): number {
+    const baseTime = {
+      beginner: 30,
+      intermediate: 45,
+      advanced: 60,
+    };
+
+    const complexityMultiplier: Record<string, number> = {
+      'modal-logic': 1.5,
+      'temporal-logic': 2.0,
+      'higher-order-logic': 2.5,
+      quantifiers: 1.3,
+    };
+
+    return Math.round(baseTime[difficulty] * (complexityMultiplier[concept] ?? 1.0));
   }
 }
 
@@ -667,7 +1281,9 @@ export interface LearningHints {
 
 export interface StepByStepGuidance {
   steps: GuidanceStep[];
-  estimatedTime: number;
+  targetConcepts: string[];
+  difficultyLevel: LearningLevel;
+  estimatedTimeMinutes: number;
   prerequisites: string[];
   nextSteps: string[];
   practiceExercises: string[];
@@ -724,4 +1340,86 @@ interface ProofAnalysis {
   isCaseAnalysisNeeded: boolean;
   complexity: number;
   requiredRules: string[];
+}
+
+export interface ConceptContent {
+  title: string;
+  description: string;
+  examples: string[];
+  keyPoints: string[];
+  prerequisites: string[];
+  nextSteps: string[];
+}
+
+export interface RelatedTopics {
+  prerequisites: string[];
+  related: string[];
+  advanced: string[];
+  suggestions: string[];
+  userLevelAppropriate: string[];
+}
+
+export interface InteractiveFeedback {
+  feedbackItems: FeedbackItem[];
+  overallScore: number;
+  strengths: string[];
+  areasForImprovement: string[];
+  suggestedNextSteps: string[];
+}
+
+export interface FeedbackItem {
+  type: 'error' | 'warning' | 'info';
+  message: string;
+  location: SourceLocation;
+  hints: string[];
+  examples: string[];
+  concepts: string[];
+}
+
+export interface ConceptDifficultyAnalysis {
+  concepts: ConceptAnalysis[];
+  overallDifficulty: LearningLevel;
+  prerequisiteConcepts: string[];
+  suggestedLearningPath: string[];
+}
+
+export interface ConceptAnalysis {
+  name: string;
+  difficulty: LearningLevel;
+  prerequisites: string[];
+  isSupported: boolean;
+  estimatedLearningTimeMinutes: number;
+}
+
+export interface PracticeProblems {
+  problems: PracticeProblem[];
+  targetConcepts: string[];
+  difficultyLevel: LearningLevel;
+  estimatedTimeMinutes: number;
+}
+
+export interface PracticeProblem {
+  statement: string;
+  solution: string;
+  hints: string[];
+  concepts: string[];
+  difficulty: LearningLevel;
+}
+
+export interface ContentAdaptation {
+  adaptedContent: string;
+  originalContent: string;
+  targetLevel: LearningLevel;
+  simplifications: string[];
+  addedExplanations: string[];
+  technicalTermsAdded: string[];
+}
+
+export interface AdaptedContent {
+  adaptedContent: string;
+  originalContent: string;
+  targetLevel: LearningLevel;
+  simplifications: string[];
+  addedExplanations: string[];
+  technicalTermsAdded: string[];
 }

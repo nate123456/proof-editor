@@ -1,6 +1,11 @@
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      vscode: new URL('./src/__mocks__/vscode.ts', import.meta.url).pathname,
+    },
+  },
   test: {
     globals: true,
     environment: 'node',
@@ -11,10 +16,12 @@ export default defineConfig({
       exclude: [
         'node_modules/**',
         'dist/**',
+        'scripts/**',
         '**/*.config.*',
         '**/*.d.ts',
         'coverage/**',
         'src/**/__tests__/**',
+        'src/**/coverage/**',
       ],
       thresholds: {
         global: {

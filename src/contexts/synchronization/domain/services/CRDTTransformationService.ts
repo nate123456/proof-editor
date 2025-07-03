@@ -1,12 +1,6 @@
 import { err, ok, type Result } from 'neverthrow';
 
-import {
-  Operation,
-  type TransformationComplexity,
-  type TransformationContext,
-  type TransformationPriority,
-  type TransformationType,
-} from '../entities/Operation';
+import { Operation, type TransformationComplexity } from '../entities/Operation';
 
 export interface ICRDTTransformationService {
   transformOperation(
@@ -22,19 +16,28 @@ export interface ICRDTTransformationService {
 }
 
 export class CRDTTransformationService implements ICRDTTransformationService {
-  async transformOperation(
+  transformOperation(
     operation: Operation,
     againstOperation: Operation
   ): Promise<Result<Operation, Error>> {
     try {
-      return operation.transformWith(againstOperation);
+      const transformResult = operation.transformWith(againstOperation);
+      if (transformResult.isErr()) {
+        return Promise.resolve(err(transformResult.error));
+      }
+      // transformWith returns [Operation, Operation], we want the first one (transformed version of 'operation')
+      const [transformedOperation, _] = transformResult.value;
+      return Promise.resolve(ok(transformedOperation));
     } catch (error) {
-      return err(error instanceof Error ? error : new Error('Unknown transformation error'));
+      return Promise.resolve(
+        err(error instanceof Error ? error : new Error('Unknown transformation error'))
+      );
     }
   }
 
-  async transformOperationSequence(operations: Operation[]): Promise<Result<Operation[], Error>> {
-    return Operation.transformOperationSequence(operations);
+  transformOperationSequence(operations: Operation[]): Promise<Result<Operation[], Error>> {
+    const result = Operation.transformOperationSequence(operations);
+    return Promise.resolve(result.map(ops => ops as Operation[]));
   }
 
   canTransformOperations(op1: Operation, op2: Operation): boolean {
@@ -64,7 +67,7 @@ export class CRDTTransformationService implements ICRDTTransformationService {
     };
 
     for (const group of concurrentGroups) {
-      const complexity = this.calculateTransformationComplexity(group);
+      const complexity = this.calculateTransformationComplexity(group as Operation[]);
       complexityDistribution[complexity]++;
 
       if (complexity !== 'INTRACTABLE') {
@@ -81,11 +84,11 @@ export class CRDTTransformationService implements ICRDTTransformationService {
   }
 
   validateTransformationResult(original: Operation, transformed: Operation): Result<void, Error> {
-    if (original.getDeviceId() !== transformed.getDeviceId()) {
+    if (!original.getDeviceId().equals(transformed.getDeviceId())) {
       return err(new Error('Transformation must preserve device ID'));
     }
 
-    if (original.getOperationType() !== transformed.getOperationType()) {
+    if (!original.getOperationType().equals(transformed.getOperationType())) {
       return err(new Error('Transformation must preserve operation type'));
     }
 

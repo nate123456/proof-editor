@@ -1,0 +1,33 @@
+statements:
+  s1: "If knowledge requires certainty, then we have very little knowledge"
+  s2: "We have substantial knowledge about the external world"
+  s3: "Knowledge does not require certainty"
+  s4: "If knowledge does not require certainty, then justified true belief may be sufficient"
+  s5: "Justified true belief may be sufficient for knowledge"
+  s6: "The Gettier problem shows justified true belief is not sufficient"
+  s7: "Knowledge requires something more than justified true belief"
+
+arguments:
+  arg1:
+    premises: [s1, s2]
+    conclusions: [s3]
+    sideLabel: "Modus Tollens"
+  arg2:
+    premises: [s4, s3]
+    conclusions: [s5]
+    sideLabel: "Modus Ponens"
+  arg3:
+    premises: [s6, s5]
+    conclusions: [s7]
+    sideLabel: "Gettier Objection"
+
+trees:
+  tree1:
+    offset: {x: 50, y: 50}
+    nodes:
+      n1: {arg: arg1}
+      n2: {n1: arg2, on: 0}
+  tree2:
+    offset: {x: 400, y: 150}
+    nodes:
+      n3: {arg: arg3}

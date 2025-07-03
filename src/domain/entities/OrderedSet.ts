@@ -244,7 +244,15 @@ export class OrderedSet {
   }
 
   equals(other: OrderedSet): boolean {
-    return this.id.equals(other.id);
+    // Content equality (unordered) - same statements regardless of order
+    if (this.statementIds.length !== other.statementIds.length) {
+      return false;
+    }
+
+    // Check if all statements in this set exist in the other set
+    return this.statementIds.every(statementId =>
+      other.statementIds.some(otherStatementId => statementId.equals(otherStatementId))
+    );
   }
 
   private static ensureUniqueness(statementIds: StatementId[]): StatementId[] {

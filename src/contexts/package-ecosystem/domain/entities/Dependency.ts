@@ -167,7 +167,7 @@ export class Dependency {
       resolvedVersion: version,
     };
 
-    delete (updatedData as Record<string, unknown>).conflictReason;
+    delete (updatedData as Record<string, unknown>)['conflictReason'];
 
     return Dependency.create(updatedData);
   }

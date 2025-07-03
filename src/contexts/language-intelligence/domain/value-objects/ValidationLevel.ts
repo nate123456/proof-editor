@@ -30,6 +30,11 @@ export class ValidationLevel {
     return new ValidationLevel('style', 4, ValidationLevel.STYLE_TARGET_MS);
   }
 
+  static full(): ValidationLevel {
+    // Full validation includes all levels, uses style as the most comprehensive
+    return ValidationLevel.style();
+  }
+
   static fromString(level: string): Result<ValidationLevel, ValidationError> {
     switch (level.toLowerCase()) {
       case 'syntax':
@@ -81,7 +86,7 @@ export class ValidationLevel {
     return this.priority > other.priority;
   }
 
-  canCombineWith(other: ValidationLevel): boolean {
+  canCombineWith(_other: ValidationLevel): boolean {
     // Can always combine validation levels
     return true;
   }

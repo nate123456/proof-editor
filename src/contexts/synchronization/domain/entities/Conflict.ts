@@ -2,27 +2,22 @@ import { err, ok, type Result } from 'neverthrow';
 
 import { type ConflictType } from '../value-objects/ConflictType';
 import { DeviceId } from '../value-objects/DeviceId';
-import { type Operation } from './Operation';
+import {
+  type ConflictResolutionOption,
+  type ConflictResolutionStrategy,
+  type IConflict,
+  type IOperation,
+} from './shared-types';
 
-export type ConflictResolutionStrategy =
-  | 'LAST_WRITER_WINS'
-  | 'FIRST_WRITER_WINS'
-  | 'MERGE_OPERATIONS'
-  | 'USER_DECISION_REQUIRED';
+// Re-export types for backward compatibility
+export type { ConflictResolutionOption, ConflictResolutionStrategy };
 
-export interface ConflictResolutionOption {
-  readonly strategy: ConflictResolutionStrategy;
-  readonly description: string;
-  readonly resultPreview: string;
-  readonly automaticResolution: boolean;
-}
-
-export class Conflict {
+export class Conflict implements IConflict {
   private constructor(
     private readonly id: string,
     private readonly conflictType: ConflictType,
     private readonly targetPath: string,
-    private readonly conflictingOperations: readonly Operation[],
+    private readonly conflictingOperations: readonly IOperation[],
     private readonly detectedAt: Date,
     private readonly resolutionOptions: readonly ConflictResolutionOption[],
     private resolvedAt?: Date,
@@ -34,7 +29,7 @@ export class Conflict {
     id: string,
     conflictType: ConflictType,
     targetPath: string,
-    conflictingOperations: Operation[]
+    conflictingOperations: IOperation[]
   ): Result<Conflict, Error> {
     if (!id.trim()) {
       return err(new Error('Conflict ID cannot be empty'));
@@ -67,7 +62,7 @@ export class Conflict {
 
   private static generateResolutionOptions(
     conflictType: ConflictType,
-    operations: Operation[]
+    operations: IOperation[]
   ): ConflictResolutionOption[] {
     const options: ConflictResolutionOption[] = [];
 
@@ -88,25 +83,43 @@ export class Conflict {
     }
 
     if (conflictType.isSemantic()) {
-      options.push({
-        strategy: 'USER_DECISION_REQUIRED',
-        description: 'Manual resolution required due to semantic conflict',
-        resultPreview: 'User must choose how to resolve semantic differences',
-        automaticResolution: false,
-      });
+      // Pure semantic conflicts require manual resolution
+      if (conflictType.getValue() === 'SEMANTIC_CONFLICT') {
+        options.push({
+          strategy: 'USER_DECISION_REQUIRED',
+          description: 'Manual resolution required due to semantic conflict',
+          resultPreview: 'User must choose how to resolve semantic differences',
+          automaticResolution: false,
+        });
 
-      options.push({
-        strategy: 'LAST_WRITER_WINS',
-        description: 'Accept the most recent semantic change',
-        resultPreview: `Use content from ${Conflict.getLatestOperation(operations).getDeviceId().getValue()}`,
-        automaticResolution: true,
-      });
+        options.push({
+          strategy: 'LAST_WRITER_WINS',
+          description: 'Accept the most recent semantic change',
+          resultPreview: `Use content from ${Conflict.getLatestOperation(operations).getDeviceId().getValue()}`,
+          automaticResolution: false,
+        });
+      } else if (conflictType.getValue() === 'CONCURRENT_MODIFICATION') {
+        // Concurrent modifications can be automatically resolved, prefer LAST_WRITER_WINS
+        options.push({
+          strategy: 'LAST_WRITER_WINS',
+          description: 'Accept the most recent concurrent modification',
+          resultPreview: `Use content from ${Conflict.getLatestOperation(operations).getDeviceId().getValue()}`,
+          automaticResolution: true,
+        });
+
+        options.push({
+          strategy: 'USER_DECISION_REQUIRED',
+          description: 'Manual resolution for careful review',
+          resultPreview: 'User can manually choose the preferred resolution',
+          automaticResolution: false,
+        });
+      }
     }
 
     return options;
   }
 
-  private static getLatestOperation(operations: Operation[]): Operation {
+  private static getLatestOperation(operations: IOperation[]): IOperation {
     return operations.reduce((latest, current) => {
       return current.getVectorClock().happensAfter(latest.getVectorClock()) ? current : latest;
     });
@@ -120,12 +133,22 @@ export class Conflict {
     return this.conflictType;
   }
 
+  // Alias for test compatibility
+  getType(): ConflictType {
+    return this.conflictType;
+  }
+
   getTargetPath(): string {
     return this.targetPath;
   }
 
-  getConflictingOperations(): readonly Operation[] {
-    return this.conflictingOperations;
+  getConflictingOperations(): readonly IOperation[] {
+    return [...this.conflictingOperations];
+  }
+
+  // Alias for test compatibility
+  getOperations(): readonly IOperation[] {
+    return [...this.conflictingOperations];
   }
 
   getDetectedAt(): Date {

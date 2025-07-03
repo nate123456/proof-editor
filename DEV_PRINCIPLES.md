@@ -29,6 +29,8 @@ class AgentOrchestrator {
 **KISS**: Simple solutions over complex ones
 **YAGNI**: Build only what's needed now
 **DRY**: Extract common patterns, avoid duplication
+**Early Exit**: Use guard clauses, return early, avoid else blocks
+**Domain-Driven Testing**: Organize tests by business domains, not technical convenience
 
 ## Clean Architecture
 
@@ -77,6 +79,12 @@ class FileTopicRepository implements ITopicRepository {
 - Only when domain complexity cannot be expressed in code
 - Never explain WHAT the code does - the code should show that
 - Never leave LLM commentary or version comparisons
+
+**Early Exit & Flat Structure**:
+- Use guard clauses to exit early on invalid conditions
+- Keep happy path at lowest indentation level
+- Avoid else blocks and deep nesting
+- Return immediately when conditions aren't met
 
 ```typescript
 // ✅ Reads like a story - natural flow
@@ -196,16 +204,25 @@ src/
 
 ### **Modern TDD Stack (2025)**
 
-#### **Test Organization: Co-located Structure**
+#### **Test Organization: Domain-Driven Structure**
 ```
-src/domain/
-├── __tests__/
+src/
+├── domain/
+│   ├── __tests__/           # Domain-wide tests
+│   │   ├── entities/
+│   │   ├── services/
+│   │   └── shared/
 │   ├── entities/
-│   ├── services/
-│   └── shared/
-├── entities/
-└── services/
+│   └── services/
+├── contexts/
+│   └── [context-name]/
+│       └── domain/
+│           ├── __tests__/   # Context-specific tests
+│           ├── entities/
+│           └── services/
 ```
+
+Tests follow business domains and bounded contexts, not technical convenience.
 
 #### **Assertion Library: Vitest + Custom Domain Matchers**
 ```typescript

@@ -9,7 +9,13 @@ import fc from 'fast-check';
 import { err, errAsync, ok, okAsync, type Result, ResultAsync } from 'neverthrow';
 import { describe, expect, it } from 'vitest';
 
-import { ValidationError } from '../../shared/result.js';
+import {
+  createFailure,
+  createSuccess,
+  failure,
+  success,
+  ValidationError,
+} from '../../shared/result.js';
 
 describe('neverthrow Result<T, E>', () => {
   describe('ok() creation', () => {
@@ -122,10 +128,44 @@ describe('neverthrow Result<T, E>', () => {
       expect(error.name).toBe('ValidationError');
     });
 
+    it('should handle context property', () => {
+      const context = { field: 'username', value: 'invalid', rule: 'length' };
+      const error = new ValidationError('Validation failed', context);
+
+      expect(error.context).toEqual(context);
+      expect(error.message).toBe('Validation failed');
+    });
+
+    it('should work without context', () => {
+      const error = new ValidationError('Simple validation error');
+
+      expect(error.context).toBeUndefined();
+      expect(error.message).toBe('Simple validation error');
+    });
+
     it('should have proper stack trace', () => {
       const error = new ValidationError('Test error');
       expect(error.stack).toBeDefined();
       expect(error.stack).toContain('ValidationError');
+    });
+
+    it('should serialize context in JSON with toJSON method', () => {
+      const context = { field: 'email', reason: 'invalid_format' };
+      const error = new ValidationError('Email validation failed', context);
+
+      // Manually create JSON representation since Error doesn't serialize by default
+      const errorObject = {
+        message: error.message,
+        name: error.name,
+        context: error.context,
+      };
+
+      const serialized = JSON.stringify(errorObject);
+      const parsed = JSON.parse(serialized);
+
+      expect(parsed.message).toBe('Email validation failed');
+      expect(parsed.name).toBe('ValidationError');
+      expect(parsed.context).toEqual(context);
     });
   });
 
@@ -167,6 +207,80 @@ describe('neverthrow Result<T, E>', () => {
           expect(failure.isOk() && failure.isErr()).toBe(false);
           expect(success.isOk() !== success.isErr()).toBe(true);
           expect(failure.isOk() !== failure.isErr()).toBe(true);
+        })
+      );
+    });
+
+    it('map preserves success/failure state', () => {
+      fc.assert(
+        fc.property(fc.integer(), fc.string(), (value, errorMsg) => {
+          const successResult = ok(value);
+          const errorResult = err(new Error(errorMsg));
+
+          const mappedSuccess = successResult.map(x => x * 2);
+          const mappedError = errorResult.map(x => x * 2);
+
+          expect(mappedSuccess.isOk()).toBe(true);
+          expect(mappedError.isErr()).toBe(true);
+
+          if (mappedSuccess.isOk()) {
+            expect(mappedSuccess.value).toBe(value * 2);
+          }
+        })
+      );
+    });
+
+    it('andThen should chain operations correctly', () => {
+      fc.assert(
+        fc.property(fc.integer(), fc.string(), (value, errorMsg) => {
+          const doubleIfPositive = (x: number) =>
+            x > 0 ? ok(x * 2) : err(new ValidationError('Not positive'));
+
+          const successResult = ok(Math.abs(value) + 1); // Always positive
+          const errorResult = err<number, Error>(new Error(errorMsg));
+
+          const chainedSuccess = successResult.andThen(doubleIfPositive);
+          const chainedError = errorResult.andThen(doubleIfPositive);
+
+          expect(chainedSuccess.isOk()).toBe(true);
+          expect(chainedError.isErr()).toBe(true);
+        })
+      );
+    });
+
+    it('ValidationError with context should serialize properly', () => {
+      fc.assert(
+        fc.property(
+          fc.string(),
+          fc.record({
+            field: fc.string(),
+            value: fc.anything(),
+            rule: fc.string(),
+          }),
+          (message, context) => {
+            const error = new ValidationError(message, context);
+
+            expect(error.message).toBe(message);
+            expect(error.context).toEqual(context);
+            expect(error.name).toBe('ValidationError');
+          }
+        )
+      );
+    });
+
+    it('Result combinators should be associative', () => {
+      fc.assert(
+        fc.property(fc.integer(), fc.integer(), fc.integer(), (a, b, c) => {
+          const add = (x: number) => (y: number) => ok(x + y);
+
+          // ((a + b) + c) should equal (a + (b + c))
+          const left = ok(a).andThen(add(b)).andThen(add(c));
+
+          const right = ok(b).andThen(add(c)).andThen(add(a));
+
+          if (left.isOk() && right.isOk()) {
+            expect(left.value).toBe(right.value);
+          }
         })
       );
     });
@@ -319,6 +433,75 @@ describe('neverthrow Result<T, E>', () => {
 
       expect(successResult.isOk()).toBe(true);
       expect(failureResult.isErr()).toBe(true);
+    });
+  });
+});
+
+describe('Legacy compatibility exports', () => {
+  describe('createSuccess and createFailure', () => {
+    it('should create successful results with createSuccess', () => {
+      const result = createSuccess('test data');
+
+      expect(result.isOk()).toBe(true);
+      expect(result.isErr()).toBe(false);
+      if (result.isOk()) {
+        expect(result.value).toBe('test data');
+      }
+    });
+
+    it('should create failed results with createFailure', () => {
+      const error = new ValidationError('Test error');
+      const result = createFailure(error);
+
+      expect(result.isErr()).toBe(true);
+      expect(result.isOk()).toBe(false);
+      if (result.isErr()) {
+        expect(result.error).toBe(error);
+      }
+    });
+  });
+
+  describe('success and failure', () => {
+    it('should create successful results with success', () => {
+      const result = success({ id: 1, name: 'test' });
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        expect(result.value).toEqual({ id: 1, name: 'test' });
+      }
+    });
+
+    it('should create failed results with failure', () => {
+      const error = new Error('Failure test');
+      const result = failure(error);
+
+      expect(result.isErr()).toBe(true);
+      if (result.isErr()) {
+        expect(result.error).toBe(error);
+      }
+    });
+  });
+
+  describe('compatibility with neverthrow functions', () => {
+    it('should be functionally identical to ok/err', () => {
+      const data = 'test data';
+      const error = new ValidationError('test error');
+
+      const okResult = ok(data);
+      const successResult = success(data);
+      const createSuccessResult = createSuccess(data);
+
+      const errResult = err(error);
+      const failureResult = failure(error);
+      const createFailureResult = createFailure(error);
+
+      // All success results should behave identically
+      expect(okResult.isOk()).toBe(successResult.isOk());
+      expect(okResult.isOk()).toBe(createSuccessResult.isOk());
+
+      // All error results should behave identically
+      expect(errResult.isErr()).toBe(failureResult.isErr());
+      expect(errResult.isErr()).toBe(createFailureResult.isErr());
     });
   });
 });

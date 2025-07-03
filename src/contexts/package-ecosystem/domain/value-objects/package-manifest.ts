@@ -13,18 +13,27 @@ export class PackageManifest {
   ) {}
 
   static create(data: PackageManifestData): Result<PackageManifest, PackageValidationError> {
-    const packageIdResult = PackageId.create(data.name);
+    // Trim whitespace from required fields
+    const trimmedData: PackageManifestData = {
+      ...data,
+      name: data.name.trim(),
+      version: data.version.trim(),
+      description: data.description.trim(),
+      author: data.author?.trim() || '',
+    };
+
+    const packageIdResult = PackageId.create(trimmedData.name);
     if (packageIdResult.isErr()) {
       return err(
         new PackageValidationError(`Invalid package name: ${packageIdResult.error.message}`)
       );
     }
 
-    if (!data.version.trim()) {
+    if (!trimmedData.version) {
       return err(new PackageValidationError('Package version cannot be empty'));
     }
 
-    const versionConstraintResult = VersionConstraint.create(data.version);
+    const versionConstraintResult = VersionConstraint.create(trimmedData.version);
     if (versionConstraintResult.isErr()) {
       return err(
         new PackageValidationError(
@@ -33,17 +42,17 @@ export class PackageManifest {
       );
     }
 
-    if (!data.description.trim()) {
+    if (!trimmedData.description) {
       return err(new PackageValidationError('Package description cannot be empty'));
     }
 
-    if (!data.author.trim()) {
+    if (!trimmedData.author) {
       return err(new PackageValidationError('Package author cannot be empty'));
     }
 
     const dependencies = new Map<string, VersionConstraint>();
-    if (data.dependencies) {
-      for (const [depName, depVersion] of Object.entries(data.dependencies)) {
+    if (trimmedData.dependencies) {
+      for (const [depName, depVersion] of Object.entries(trimmedData.dependencies)) {
         const depConstraintResult = VersionConstraint.create(depVersion);
         if (depConstraintResult.isErr()) {
           return err(
@@ -56,12 +65,12 @@ export class PackageManifest {
       }
     }
 
-    const validationResult = this.validateManifestStructure(data);
+    const validationResult = this.validateManifestStructure(trimmedData);
     if (validationResult.isErr()) {
       return err(validationResult.error);
     }
 
-    return ok(new PackageManifest(data, packageIdResult.value, dependencies));
+    return ok(new PackageManifest(trimmedData, packageIdResult.value, dependencies));
   }
 
   getName(): string {
@@ -121,7 +130,7 @@ export class PackageManifest {
   }
 
   getProofCapabilities(): readonly string[] {
-    return this.data.capabilities?.proofCapabilities || [];
+    return this.data.capabilities?.proofCapabilities ?? [];
   }
 
   getValidationCategories():
@@ -131,11 +140,11 @@ export class PackageManifest {
   }
 
   getCustomValidators(): readonly string[] {
-    return this.data.validation?.customValidators || [];
+    return this.data.validation?.customValidators ?? [];
   }
 
   getKeywords(): readonly string[] {
-    return this.data.keywords || [];
+    return this.data.keywords ?? [];
   }
 
   getCategory(): string | undefined {
@@ -143,7 +152,7 @@ export class PackageManifest {
   }
 
   getTags(): readonly string[] {
-    return this.data.tags || [];
+    return this.data.tags ?? [];
   }
 
   isLanguagePackage(): boolean {
@@ -153,7 +162,7 @@ export class PackageManifest {
   private static validateManifestStructure(
     data: PackageManifestData
   ): Result<void, PackageValidationError> {
-    if (data.homepage && !this.isValidUrl(data.homepage)) {
+    if (data.homepage && !PackageManifest.isValidUrl(data.homepage)) {
       return err(new PackageValidationError('Invalid homepage URL'));
     }
 
@@ -197,7 +206,7 @@ export class PackageManifest {
 
     if (data.validation?.categories) {
       for (const category of data.validation.categories) {
-        if (!category.id || !category.name || !category.rules) {
+        if (!category.id || !category.name || !category.rules || category.rules.length === 0) {
           return err(
             new PackageValidationError('Validation category must have id, name, and rules')
           );

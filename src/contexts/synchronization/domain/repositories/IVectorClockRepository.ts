@@ -1,4 +1,4 @@
-import { err, ok, type Result } from 'neverthrow';
+import { type Result } from 'neverthrow';
 
 import { type RepositoryError } from '../../../../domain/errors/DomainErrors.js';
 import { type VectorClock } from '../entities/VectorClock';

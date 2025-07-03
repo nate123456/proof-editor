@@ -24,9 +24,16 @@ madge-deps.json
 dist/
 build/
 *.tsbuildinfo
+out/
+
+# VS Code Extension artifacts
+*.vsix
 
 # IDE artifacts
 .vscode/
+!.vscode/launch.json
+!.vscode/tasks.json
+!.vscode/settings.json
 .idea/
 *.swp
 *.swo

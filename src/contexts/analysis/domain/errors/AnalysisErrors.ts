@@ -1,10 +1,12 @@
 export abstract class AnalysisDomainError extends Error {
-  constructor(
-    message: string,
-    public override readonly cause?: Error
-  ) {
+  public override readonly cause?: Error;
+
+  constructor(message: string, cause?: Error) {
     super(message);
     this.name = this.constructor.name;
+    if (cause !== undefined) {
+      this.cause = cause;
+    }
   }
 }
 

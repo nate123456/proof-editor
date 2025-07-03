@@ -39,10 +39,10 @@ export class AnalysisReport {
         AnalysisReportId.generate(),
         documentId,
         languagePackageId,
-        AnalysisMetrics.createEmpty(),
+        AnalysisMetrics.empty(),
         [],
         [],
-        PerformanceMetrics.createEmpty(),
+        PerformanceMetrics.empty(),
         Timestamp.now(),
         analysisScope,
         []
@@ -176,7 +176,11 @@ export class AnalysisReport {
   }
 
   meetsPerformanceTargets(): boolean {
-    return this.performanceMetrics.meetsTargets();
+    // Simple performance check - could be made more sophisticated
+    return (
+      this.performanceMetrics.getTotalTimeMs() < 1000 &&
+      this.performanceMetrics.getMemoryUsedBytes() < 1000000
+    );
   }
 
   isAnalysisComplete(): boolean {
@@ -265,17 +269,30 @@ export class AnalysisReport {
   }
 
   private isTreeProof(connections: { from: number; to: number }[]): boolean {
+    if (connections.length === 0) return true;
+
     const inDegree = new Map<number, number>();
     const outDegree = new Map<number, number>();
+    const allNodes = new Set<number>();
 
     for (const { from, to } of connections) {
       outDegree.set(from, (outDegree.get(from) ?? 0) + 1);
       inDegree.set(to, (inDegree.get(to) ?? 0) + 1);
+      allNodes.add(from);
+      allNodes.add(to);
+    }
+
+    // Initialize all nodes in inDegree to ensure we count nodes with 0 in-degree
+    for (const node of allNodes) {
+      if (!inDegree.has(node)) {
+        inDegree.set(node, 0);
+      }
     }
 
     const roots = Array.from(inDegree.entries()).filter(([_, degree]) => degree === 0);
     const nonRoots = Array.from(inDegree.entries()).filter(([_, degree]) => degree > 0);
 
+    // Tree must have exactly one root and all non-root nodes have exactly one incoming edge
     return roots.length === 1 && nonRoots.every(([_, degree]) => degree === 1);
   }
 
@@ -329,11 +346,21 @@ export class AnalysisReport {
 
     const graph = new Map<number, number[]>();
     const inDegree = new Map<number, number>();
+    const allNodes = new Set<number>();
 
     for (const { from, to } of connections) {
       if (!graph.has(from)) graph.set(from, []);
       graph.get(from)!.push(to);
       inDegree.set(to, (inDegree.get(to) ?? 0) + 1);
+      allNodes.add(from);
+      allNodes.add(to);
+    }
+
+    // Initialize all nodes in inDegree to ensure we find all roots
+    for (const node of allNodes) {
+      if (!inDegree.has(node)) {
+        inDegree.set(node, 0);
+      }
     }
 
     const roots = Array.from(inDegree.entries())

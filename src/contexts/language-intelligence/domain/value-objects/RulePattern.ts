@@ -1,4 +1,4 @@
-import { err, ok, type Result } from 'neverthrow';
+import { err as _err, ok as _ok, type Result } from 'neverthrow';
 
 import { ValidationError } from '../errors/DomainErrors';
 
@@ -20,39 +20,26 @@ export class RulePattern {
     confidence = 1.0
   ): Result<RulePattern, ValidationError> {
     if (premisePatterns.length === 0) {
-      return {
-        success: false,
-        error: new ValidationError('At least one premise pattern is required'),
-      };
+      return _err(new ValidationError('At least one premise pattern is required'));
     }
 
     if (conclusionPatterns.length === 0) {
-      return {
-        success: false,
-        error: new ValidationError('At least one conclusion pattern is required'),
-      };
+      return _err(new ValidationError('At least one conclusion pattern is required'));
     }
 
     if (!patternId || patternId.trim().length === 0) {
-      return {
-        success: false,
-        error: new ValidationError('Pattern ID is required'),
-      };
+      return _err(new ValidationError('Pattern ID is required'));
     }
 
     if (confidence < 0 || confidence > 1) {
-      return {
-        success: false,
-        error: new ValidationError('Confidence must be between 0 and 1'),
-      };
+      return _err(new ValidationError('Confidence must be between 0 and 1'));
     }
 
     const variables = RulePattern.extractVariables(premisePatterns, conclusionPatterns);
     const constraints = RulePattern.generateConstraints(variables);
 
-    return {
-      success: true,
-      data: new RulePattern(
+    return _ok(
+      new RulePattern(
         'logical',
         premisePatterns.map(p => p.trim()),
         conclusionPatterns.map(c => c.trim()),
@@ -60,8 +47,8 @@ export class RulePattern {
         variables,
         constraints,
         confidence
-      ),
-    };
+      )
+    );
   }
 
   static createModalPattern(
@@ -87,9 +74,8 @@ export class RulePattern {
       description: `Modal operator ${op} validation`,
     }));
 
-    return {
-      success: true,
-      data: new RulePattern(
+    return _ok(
+      new RulePattern(
         'modal',
         pattern.premisePatterns,
         pattern.conclusionPatterns,
@@ -97,8 +83,8 @@ export class RulePattern {
         pattern.variables,
         [...pattern.constraints, ...modalConstraints],
         pattern.confidence
-      ),
-    };
+      )
+    );
   }
 
   static createTemplatePattern(
@@ -106,18 +92,12 @@ export class RulePattern {
     patternId: string
   ): Result<RulePattern, ValidationError> {
     if (!template || template.trim().length === 0) {
-      return {
-        success: false,
-        error: new ValidationError('Template cannot be empty'),
-      };
+      return _err(new ValidationError('Template cannot be empty'));
     }
 
     const parts = template.split('⊢'); // Use turnstile to separate premises from conclusions
     if (parts.length !== 2) {
-      return {
-        success: false,
-        error: new ValidationError('Template must have format: premises ⊢ conclusions'),
-      };
+      return _err(new ValidationError('Template must have format: premises ⊢ conclusions'));
     }
 
     const premisePatterns =
@@ -295,10 +275,13 @@ export class RulePattern {
   ): Record<string, string> | null {
     const newSubstitution: Record<string, string> = {};
 
+    // If no variables in pattern, must be exact match
+    if (this.variables.size === 0) {
+      return pattern === statement ? {} : null;
+    }
+
     // Simple variable matching (this is a simplified implementation)
     for (const [varName] of this.variables) {
-      const varRegex = new RegExp(`\\b${varName}\\b`, 'g');
-
       if (pattern.includes(varName)) {
         // Find what this variable should be substituted with
         const patternParts = pattern.split(varName);
@@ -326,8 +309,21 @@ export class RulePattern {
             }
 
             newSubstitution[varName] = substitutionValue;
+          } else {
+            return null; // Pattern doesn't match
           }
         }
+      }
+    }
+
+    // Ensure all variables in pattern have been substituted
+    for (const [varName] of this.variables) {
+      if (
+        pattern.includes(varName) &&
+        !newSubstitution[varName] &&
+        !existingSubstitution[varName]
+      ) {
+        return null;
       }
     }
 

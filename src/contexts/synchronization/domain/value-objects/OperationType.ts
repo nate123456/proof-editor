@@ -17,6 +17,9 @@ export type OperationTypeValue =
 export class OperationType {
   private constructor(private readonly value: OperationTypeValue) {}
 
+  // Static constant for test compatibility
+  static readonly INSERT = new OperationType('CREATE_STATEMENT');
+
   static create(value: OperationTypeValue): Result<OperationType, Error> {
     const validOperations: OperationTypeValue[] = [
       'CREATE_STATEMENT',

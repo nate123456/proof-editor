@@ -20,10 +20,10 @@ export class LanguagePackageId {
       return err(new ValidationError('Language package ID cannot exceed 100 characters'));
     }
 
-    if (!/^[a-zA-Z0-9_-]+$/.test(trimmedValue)) {
+    if (!/^[a-zA-Z0-9._-]+$/.test(trimmedValue)) {
       return err(
         new ValidationError(
-          'Language package ID can only contain letters, numbers, hyphens, and underscores'
+          'Language package ID can only contain letters, numbers, dots, hyphens, and underscores'
         )
       );
     }
@@ -49,11 +49,20 @@ export class LanguagePackageId {
       return err(new ValidationError('Package version cannot be empty'));
     }
 
+    // Sanitize name: replace non-alphanumeric with hyphens, remove consecutive hyphens, trim hyphens
     const sanitizedName = name
       .trim()
       .toLowerCase()
-      .replace(/[^a-z0-9]/g, '-');
-    const sanitizedVersion = version.trim().replace(/[^a-zA-Z0-9.-]/g, '');
+      .replace(/[^a-z0-9]/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-+|-+$/g, '');
+
+    // Sanitize version: keep only alphanumeric, dots, and hyphens, stop at build metadata (+)
+    const sanitizedVersion =
+      version
+        .trim()
+        .split('+')[0]
+        ?.replace(/[^a-zA-Z0-9.-]/g, '') ?? '';
     const packageId = `${sanitizedName}-${sanitizedVersion}`;
 
     return LanguagePackageId.create(packageId);

@@ -8,7 +8,21 @@
 import { faker } from '@faker-js/faker';
 import { Factory } from 'fishery';
 
-import { AtomicArgumentId, OrderedSetId, StatementId } from '../../shared/value-objects.js';
+import { AtomicArgument, type SideLabels } from '../../entities/AtomicArgument.js';
+import { Node } from '../../entities/Node.js';
+import { OrderedSet } from '../../entities/OrderedSet.js';
+import { Statement } from '../../entities/Statement.js';
+import { Tree } from '../../entities/Tree.js';
+import {
+  AtomicArgumentId,
+  Attachment,
+  NodeId,
+  OrderedSetId,
+  PhysicalProperties,
+  Position2D,
+  StatementId,
+  TreeId,
+} from '../../shared/value-objects.js';
 
 // Factory for creating StatementId value objects
 export const statementIdFactory = Factory.define<StatementId>(() => {
@@ -23,6 +37,16 @@ export const atomicArgumentIdFactory = Factory.define<AtomicArgumentId>(() => {
 // Factory for creating OrderedSetId value objects
 export const orderedSetIdFactory = Factory.define<OrderedSetId>(() => {
   return OrderedSetId.fromString(faker.string.uuid());
+});
+
+// Factory for creating NodeId value objects
+export const nodeIdFactory = Factory.define<NodeId>(() => {
+  return NodeId.fromString(faker.string.uuid());
+});
+
+// Factory for creating TreeId value objects
+export const treeIdFactory = Factory.define<TreeId>(() => {
+  return TreeId.fromString(faker.string.uuid());
 });
 
 // Factory for creating realistic statement content
@@ -86,8 +110,162 @@ export const proofTestData = {
   logicalFallacies: [
     'ad hominem',
     'straw man',
-    'false dichotomy',
+    'false dichotionary',
     'circular reasoning',
     'appeal to authority',
   ],
 };
+
+// Factory for creating Statement entities
+export const statementFactory = Factory.define<Statement>(({ sequence }) => {
+  const content = statementContentFactory.build({ sequence });
+  const result = Statement.create(content);
+  if (result.isErr()) {
+    throw result.error;
+  }
+  return result.value;
+});
+
+// Factory for creating OrderedSet entities
+export const orderedSetFactory = Factory.define<OrderedSet>(({ transientParams }) => {
+  const { statementIds = [] } = transientParams as { statementIds?: StatementId[] };
+  const result = OrderedSet.create(statementIds);
+  if (result.isErr()) {
+    throw result.error;
+  }
+  return result.value;
+});
+
+// Factory for creating SideLabels
+export const sideLabelsFactory = Factory.define<SideLabels>(() => ({
+  left: faker.helpers.maybe(() => faker.word.noun(), { probability: 0.3 }),
+  right: faker.helpers.maybe(() => faker.word.adjective(), { probability: 0.3 }),
+}));
+
+// Factory for creating AtomicArgument entities
+export const atomicArgumentFactory = Factory.define<AtomicArgument>(({ transientParams }) => {
+  const {
+    premiseSetRef,
+    conclusionSetRef,
+    sideLabels = sideLabelsFactory.build(),
+  } = transientParams as {
+    premiseSetRef?: OrderedSetId;
+    conclusionSetRef?: OrderedSetId;
+    sideLabels?: SideLabels;
+  };
+
+  const result = AtomicArgument.create(premiseSetRef, conclusionSetRef, sideLabels);
+  if (result.isErr()) {
+    throw result.error;
+  }
+  return result.value;
+});
+
+// Factory for creating Position2D value objects
+export const position2DFactory = Factory.define<Position2D>(() => {
+  const x = faker.number.float({ min: -1000, max: 1000 });
+  const y = faker.number.float({ min: -1000, max: 1000 });
+  const result = Position2D.create(x, y);
+  if (result.isErr()) {
+    throw result.error;
+  }
+  return result.value;
+});
+
+// Factory for creating PhysicalProperties value objects
+export const physicalPropertiesFactory = Factory.define<PhysicalProperties>(() => {
+  const layoutStyle = faker.helpers.arrayElement([
+    'bottom-up',
+    'top-down',
+    'left-right',
+    'right-left',
+  ]);
+  const spacingX = faker.number.int({ min: 20, max: 100 });
+  const spacingY = faker.number.int({ min: 20, max: 100 });
+  const minWidth = faker.number.int({ min: 50, max: 200 });
+  const minHeight = faker.number.int({ min: 30, max: 150 });
+  const expansionDirection = faker.helpers.arrayElement(['horizontal', 'vertical', 'radial']);
+  const alignmentMode = faker.helpers.arrayElement(['left', 'center', 'right', 'justify']);
+
+  const result = PhysicalProperties.create(
+    layoutStyle,
+    spacingX,
+    spacingY,
+    minWidth,
+    minHeight,
+    expansionDirection,
+    alignmentMode
+  );
+  if (result.isErr()) {
+    throw result.error;
+  }
+  return result.value;
+});
+
+// Factory for creating Tree entities
+export const treeFactory = Factory.define<Tree>(({ transientParams }) => {
+  const {
+    documentId = faker.string.uuid(),
+    position = position2DFactory.build(),
+    physicalProperties = physicalPropertiesFactory.build(),
+    title,
+  } = transientParams as {
+    documentId?: string;
+    position?: Position2D;
+    physicalProperties?: PhysicalProperties;
+    title?: string;
+  };
+
+  const result = Tree.create(documentId, position, physicalProperties, title);
+  if (result.isErr()) {
+    throw result.error;
+  }
+  return result.value;
+});
+
+// Factory for creating Attachment value objects
+export const attachmentFactory = Factory.define<Attachment>(({ transientParams }) => {
+  const {
+    parentNodeId = nodeIdFactory.build(),
+    premisePosition = faker.number.int({ min: 0, max: 5 }),
+    fromPosition,
+  } = transientParams as {
+    parentNodeId?: NodeId;
+    premisePosition?: number;
+    fromPosition?: number;
+  };
+
+  const result = Attachment.create(parentNodeId, premisePosition, fromPosition);
+  if (result.isErr()) {
+    throw result.error;
+  }
+  return result.value;
+});
+
+// Factory for creating Node entities
+export const nodeFactory = Factory.define<Node>(({ transientParams }) => {
+  const {
+    argumentId = atomicArgumentIdFactory.build(),
+    attachment,
+    isRoot = false,
+  } = transientParams as {
+    argumentId?: AtomicArgumentId;
+    attachment?: Attachment;
+    isRoot?: boolean;
+  };
+
+  if (isRoot) {
+    const result = Node.createRoot(argumentId);
+    if (result.isErr()) {
+      throw result.error;
+    }
+    return result.value;
+  } else {
+    const nodeAttachment = attachment ?? attachmentFactory.build();
+    const result = Node.createChild(argumentId, nodeAttachment);
+    if (result.isErr()) {
+      throw result.error;
+    }
+    return result.value;
+  }
+});

@@ -97,7 +97,7 @@ export class PackageVersion {
 
   toString(): string {
     return (
-      this.original ||
+      this.original ??
       `${this.major}.${this.minor}.${this.patch}${this.prerelease ? `-${this.prerelease}` : ''}${this.build ? `+${this.build}` : ''}`
     );
   }

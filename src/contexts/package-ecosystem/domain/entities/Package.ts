@@ -38,7 +38,7 @@ export class Package {
 
     const entityData: PackageData = {
       ...data,
-      lastUpdated: data.lastUpdated || new Date(),
+      lastUpdated: data.lastUpdated ?? new Date(),
     };
 
     return ok(new Package(entityData));

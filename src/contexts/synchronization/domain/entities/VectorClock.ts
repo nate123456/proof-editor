@@ -28,7 +28,7 @@ export class VectorClock {
   incrementForDevice(deviceId: DeviceId): Result<VectorClock, Error> {
     const newClockMap = new Map(this.clockMap);
     const deviceIdValue = deviceId.getValue();
-    const currentTimestamp = newClockMap.get(deviceIdValue) || 0;
+    const currentTimestamp = newClockMap.get(deviceIdValue) ?? 0;
     newClockMap.set(deviceIdValue, currentTimestamp + 1);
 
     return VectorClock.fromMap(newClockMap);
@@ -38,7 +38,7 @@ export class VectorClock {
     const newClockMap = new Map(this.clockMap);
 
     for (const [deviceId, timestamp] of Array.from(otherClock.clockMap.entries())) {
-      const currentTimestamp = newClockMap.get(deviceId) || 0;
+      const currentTimestamp = newClockMap.get(deviceId) ?? 0;
       newClockMap.set(deviceId, Math.max(currentTimestamp, timestamp));
     }
 
@@ -49,7 +49,7 @@ export class VectorClock {
     let hasGreaterTimestamp = false;
 
     for (const [deviceId, timestamp] of Array.from(this.clockMap.entries())) {
-      const otherTimestamp = otherClock.clockMap.get(deviceId) || 0;
+      const otherTimestamp = otherClock.clockMap.get(deviceId) ?? 0;
 
       if (timestamp < otherTimestamp) {
         return false;
@@ -74,7 +74,16 @@ export class VectorClock {
   }
 
   isConcurrentWith(otherClock: VectorClock): boolean {
+    // Equal clocks are not concurrent with each other
+    if (this.equals(otherClock)) {
+      return false;
+    }
     return !this.happensAfter(otherClock) && !this.happensBefore(otherClock);
+  }
+
+  // Alias for test compatibility
+  isConcurrent(otherClock: VectorClock): boolean {
+    return this.isConcurrentWith(otherClock);
   }
 
   equals(otherClock: VectorClock): boolean {
@@ -92,7 +101,7 @@ export class VectorClock {
   }
 
   getTimestampForDevice(deviceId: DeviceId): number {
-    return this.clockMap.get(deviceId.getValue()) || 0;
+    return this.clockMap.get(deviceId.getValue()) ?? 0;
   }
 
   getAllDeviceIds(): DeviceId[] {

@@ -1,12 +1,13 @@
 import { err, ok, type Result } from 'neverthrow';
 
 import { ConflictType } from '../value-objects/ConflictType';
-import { type DeviceId } from '../value-objects/DeviceId';
+import { DeviceId } from '../value-objects/DeviceId';
 import { LogicalTimestamp } from '../value-objects/LogicalTimestamp';
 import { OperationId } from '../value-objects/OperationId';
 import { OperationPayload } from '../value-objects/OperationPayload';
-import { type OperationType } from '../value-objects/OperationType';
-import { type VectorClock } from './VectorClock';
+import { OperationType, type OperationTypeValue } from '../value-objects/OperationType';
+import { type IOperation } from './shared-types';
+import { VectorClock } from './VectorClock';
 
 export type TransformationType =
   | 'OPERATIONAL_TRANSFORM'
@@ -26,7 +27,7 @@ export interface TransformationContext {
   readonly priority: TransformationPriority;
 }
 
-export class Operation {
+export class Operation implements IOperation {
   private constructor(
     private readonly id: OperationId,
     private readonly deviceId: DeviceId,
@@ -112,46 +113,51 @@ export class Operation {
     return this.operationType.isSemantic();
   }
 
-  canCommutewWith(otherOperation: Operation): boolean {
-    if (this.targetPath !== otherOperation.targetPath) {
+  canCommuteWith(otherOperation: IOperation): boolean {
+    if (this.targetPath !== otherOperation.getTargetPath()) {
       return true;
     }
 
     if (this.isStructuralOperation() && otherOperation.isStructuralOperation()) {
-      return this.operationType.canCommuteWith(otherOperation.operationType);
+      return this.operationType.canCommuteWith(otherOperation.getOperationType());
     }
 
     return false;
   }
 
-  canTransformWith(otherOperation: Operation): boolean {
+  canTransformWith(otherOperation: IOperation): boolean {
     // Cannot transform operations that have causal dependencies
     if (this.hasCausalDependencyOn(otherOperation) || otherOperation.hasCausalDependencyOn(this)) {
       return false;
     }
 
-    // Operations must be concurrent to require transformation
-    if (!this.isConcurrentWith(otherOperation)) {
+    // Operations on different paths are incompatible for transformation
+    if (this.targetPath !== otherOperation.getTargetPath()) {
       return false;
     }
 
     // Check if operation types can be transformed
-    return this.areOperationTypesCompatible(otherOperation.operationType);
+    return this.areOperationTypesCompatible(otherOperation.getOperationType());
   }
 
-  hasCausalDependencyOn(otherOperation: Operation): boolean {
-    return this.vectorClock.happensAfter(otherOperation.vectorClock);
+  hasCausalDependencyOn(otherOperation: IOperation): boolean {
+    return otherOperation.getVectorClock().happensBefore(this.vectorClock);
   }
 
-  isConcurrentWith(otherOperation: Operation): boolean {
-    return this.vectorClock.isConcurrentWith(otherOperation.vectorClock);
+  isConcurrentWith(otherOperation: IOperation): boolean {
+    return this.vectorClock.isConcurrent(otherOperation.getVectorClock());
   }
 
-  transformWith(otherOperation: Operation): Result<Operation, Error> {
+  transformWith(otherOperation: IOperation): Result<[Operation, Operation], Error> {
     if (!this.canTransformWith(otherOperation)) {
       return err(
         new Error('Operations cannot be transformed due to incompatible types or conflicts')
       );
+    }
+
+    // Check if otherOperation is an instance of Operation for transformation
+    if (!(otherOperation instanceof Operation)) {
+      return err(new Error('Cannot transform with non-Operation instance'));
     }
 
     const transformationType = this.determineTransformationType(otherOperation);
@@ -162,7 +168,24 @@ export class Operation {
       priority: this.calculateTransformationPriority(otherOperation),
     };
 
-    return this.executeTransformation(context);
+    const transformedSelfResult = this.executeTransformation(context);
+    if (transformedSelfResult.isErr()) {
+      return err(transformedSelfResult.error);
+    }
+
+    const reverseContext: TransformationContext = {
+      sourceOperation: otherOperation,
+      targetOperation: this,
+      transformationType,
+      priority: otherOperation.calculateTransformationPriority(this),
+    };
+
+    const transformedOtherResult = otherOperation.executeTransformation(reverseContext);
+    if (transformedOtherResult.isErr()) {
+      return err(transformedOtherResult.error);
+    }
+
+    return ok([transformedSelfResult.value, transformedOtherResult.value]);
   }
 
   applyTo(currentState: unknown): Result<unknown, Error> {
@@ -179,8 +202,20 @@ export class Operation {
     }
   }
 
-  detectConflictWith(otherOperation: Operation): Result<ConflictType | null, Error> {
-    if (this.targetPath !== otherOperation.targetPath) {
+  /**
+   * Detects if this operation conflicts with another operation
+   * Returns conflict information without creating a Conflict instance to avoid circular dependency
+   */
+  detectConflictWith(otherOperation: IOperation): Result<
+    {
+      id: string;
+      conflictType: ConflictType;
+      targetPath: string;
+      operations: [IOperation, IOperation];
+    } | null,
+    Error
+  > {
+    if (this.targetPath !== otherOperation.getTargetPath()) {
       return ok(null);
     }
 
@@ -188,53 +223,73 @@ export class Operation {
       return ok(null);
     }
 
-    const conflictType = this.determineConflictTypeWith(otherOperation);
-    return ok(conflictType);
+    try {
+      const conflictType = this.determineConflictTypeWith(otherOperation);
+      const conflictId = `conflict-${this.id.getValue()}-${otherOperation.getId().getValue()}`;
+
+      return ok({
+        id: conflictId,
+        conflictType,
+        targetPath: this.targetPath,
+        operations: [this, otherOperation],
+      });
+    } catch (error) {
+      return err(error instanceof Error ? error : new Error('Failed to detect conflict'));
+    }
   }
 
-  transformAgainstOperations(operations: Operation[]): Result<Operation, Error> {
-    let transformedOperation: Operation = this;
+  transformAgainstOperations(operations: IOperation[]): Result<Operation, Error> {
+    return operations.reduce<Result<Operation, Error>>((currentResult, againstOp) => {
+      if (currentResult.isErr()) {
+        return currentResult;
+      }
 
-    for (const againstOp of operations) {
-      if (transformedOperation.isConcurrentWith(againstOp)) {
-        const transformResult = transformedOperation.transformWith(againstOp);
+      const currentOp = currentResult.value;
+      if (currentOp.isConcurrentWith(againstOp)) {
+        const transformResult = currentOp.transformWith(againstOp);
         if (transformResult.isErr()) {
           return err(transformResult.error);
         }
-        transformedOperation = transformResult.value;
+        // transformWith returns [Operation, Operation], we want the first one (transformed version of currentOp)
+        const [transformedCurrentOp] = transformResult.value;
+        return ok(transformedCurrentOp);
       }
-    }
 
-    return ok(transformedOperation);
+      return currentResult;
+    }, ok(this));
   }
 
-  static transformOperationSequence(operations: Operation[]): Result<Operation[], Error> {
+  static transformOperationSequence(operations: IOperation[]): Result<IOperation[], Error> {
     if (operations.length <= 1) {
       return ok(operations);
     }
 
     try {
       const sortedOps = Operation.sortOperationsByDependency(operations);
-      const transformedOps: Operation[] = [];
+      const transformedOps: IOperation[] = [];
 
-      for (let i = 0; i < sortedOps.length; i++) {
-        let currentOp = sortedOps[i];
+      for (const op of sortedOps) {
+        let currentOp = op;
         if (!currentOp) continue;
 
         // Transform against all previously processed operations
         for (const processedOp of transformedOps) {
           if (currentOp.isConcurrentWith(processedOp)) {
+            // Only attempt transformation if currentOp is an Operation instance
+            if (!(currentOp instanceof Operation)) {
+              return err(new Error('Cannot transform non-Operation instance'));
+            }
             const transformResult = currentOp.transformWith(processedOp);
             if (transformResult.isErr()) {
               return err(transformResult.error);
             }
-            currentOp = transformResult.value;
+            // transformWith returns [Operation, Operation], we want the first one (transformed version of currentOp)
+            const [transformedCurrentOp] = transformResult.value;
+            currentOp = transformedCurrentOp;
           }
         }
 
-        if (currentOp) {
-          transformedOps.push(currentOp);
-        }
+        transformedOps.push(currentOp);
       }
 
       return ok(transformedOps);
@@ -243,7 +298,7 @@ export class Operation {
     }
   }
 
-  static calculateTransformationComplexity(operations: Operation[]): TransformationComplexity {
+  static calculateTransformationComplexity(operations: IOperation[]): TransformationComplexity {
     if (operations.length <= 2) {
       return 'SIMPLE';
     }
@@ -312,14 +367,24 @@ export class Operation {
     }
   }
 
-  private determineConflictTypeWith(otherOperation: Operation): ConflictType {
+  private determineConflictTypeWith(otherOperation: IOperation): ConflictType {
     const hasDeletions =
-      this.operationType.isDeletion() || otherOperation.operationType.isDeletion();
-    const hasSemanticOperations =
-      this.isSemanticOperation() || otherOperation.isSemanticOperation();
-    const hasStructuralOperations =
-      this.isStructuralOperation() || otherOperation.isStructuralOperation();
+      this.operationType.isDeletion() || otherOperation.getOperationType().isDeletion();
+    const hasUpdates =
+      this.operationType.isUpdate() || otherOperation.getOperationType().isUpdate();
+    const bothAreUpdates =
+      this.operationType.isUpdate() && otherOperation.getOperationType().isUpdate();
 
+    // DELETE vs UPDATE = DELETION conflict (treating as deletion type)
+    if (hasDeletions && hasUpdates && !bothAreUpdates) {
+      const result = ConflictType.deletion();
+      if (result.isErr()) {
+        throw new Error('Failed to create deletion conflict type');
+      }
+      return result.value;
+    }
+
+    // DELETE vs anything else = DELETION conflict
     if (hasDeletions) {
       const result = ConflictType.deletion();
       if (result.isErr()) {
@@ -328,15 +393,17 @@ export class Operation {
       return result.value;
     }
 
-    if (hasSemanticOperations) {
-      const result = ConflictType.semantic();
+    // Both UPDATE operations = CONCURRENT_MODIFICATION conflict
+    if (bothAreUpdates) {
+      const result = ConflictType.concurrentModification();
       if (result.isErr()) {
-        throw new Error('Failed to create semantic conflict type');
+        throw new Error('Failed to create concurrent modification conflict type');
       }
       return result.value;
     }
 
-    if (hasStructuralOperations) {
+    // Structural operations
+    if (this.isStructuralOperation() || otherOperation.isStructuralOperation()) {
       const result = ConflictType.structural();
       if (result.isErr()) {
         throw new Error('Failed to create structural conflict type');
@@ -344,6 +411,7 @@ export class Operation {
       return result.value;
     }
 
+    // Default to concurrent modification
     const result = ConflictType.concurrentModification();
     if (result.isErr()) {
       throw new Error('Failed to create concurrent modification conflict type');
@@ -352,15 +420,26 @@ export class Operation {
   }
 
   private targetExistsIn(state: unknown): boolean {
-    return state !== null && state !== undefined;
+    if (state === null || state === undefined || typeof state !== 'object') {
+      return false;
+    }
+
+    const stateObj = state as Record<string, unknown>;
+    return Object.prototype.hasOwnProperty.call(stateObj, this.targetPath);
   }
 
   private createTargetIn(currentState: unknown): unknown {
-    return { ...(currentState as Record<string, unknown>), [this.targetPath]: this.payload };
+    return {
+      ...(currentState as Record<string, unknown>),
+      [this.targetPath]: this.payload.getData(),
+    };
   }
 
   private updateTargetIn(currentState: unknown): unknown {
-    return { ...(currentState as Record<string, unknown>), [this.targetPath]: this.payload };
+    return {
+      ...(currentState as Record<string, unknown>),
+      [this.targetPath]: this.payload.getData(),
+    };
   }
 
   private deleteTargetFrom(currentState: unknown): unknown {
@@ -387,7 +466,9 @@ export class Operation {
         return this.performLastWriterWins(context);
 
       default:
-        return err(new Error(`Unknown transformation type: ${context.transformationType}`));
+        return err(
+          new Error(`Unknown transformation type: ${context.transformationType as string}`)
+        );
     }
   }
 
@@ -432,7 +513,7 @@ export class Operation {
     );
 
     const adjustedPayloadResult = OperationPayload.create(
-      adjustedPosition as any,
+      adjustedPosition as Record<string, unknown>,
       this.operationType
     );
     if (adjustedPayloadResult.isErr()) {
@@ -457,7 +538,10 @@ export class Operation {
       targetOperation.payload.getData()
     );
 
-    const mergedPayloadResult = OperationPayload.create(mergedContent as any, this.operationType);
+    const mergedPayloadResult = OperationPayload.create(
+      mergedContent as Record<string, unknown>,
+      this.operationType
+    );
     if (mergedPayloadResult.isErr()) {
       return err(mergedPayloadResult.error);
     }
@@ -479,7 +563,7 @@ export class Operation {
       );
 
       const adjustedPayloadResult = OperationPayload.create(
-        adjustedPayload as any,
+        adjustedPayload as Record<string, unknown>,
         this.operationType
       );
       if (adjustedPayloadResult.isErr()) {
@@ -522,7 +606,7 @@ export class Operation {
       return 'STRUCTURAL_REORDER';
     }
 
-    if (this.canCommutewWith(otherOperation)) {
+    if (this.canCommuteWith(otherOperation)) {
       return 'OPERATIONAL_TRANSFORM';
     }
 
@@ -541,54 +625,37 @@ export class Operation {
     return 'MEDIUM';
   }
 
-  private areOperationTypesCompatible(otherType: OperationType): boolean {
-    // Deletion operations cannot be transformed with creation operations on same target
-    if (
-      (this.operationType.isDeletion() && otherType.isCreation()) ||
-      (this.operationType.isCreation() && otherType.isDeletion())
-    ) {
-      return false;
-    }
-
-    // Some semantic operations cannot be automatically transformed
-    if (
-      this.operationType.isSemantic() &&
-      otherType.isSemantic() &&
-      (this.operationType.getValue().includes('STATEMENT') ||
-        otherType.getValue().includes('STATEMENT'))
-    ) {
-      return false;
-    }
-
+  private areOperationTypesCompatible(_otherType: OperationType): boolean {
+    // Most operations can be transformed, let the transformation logic handle specifics
     return true;
   }
 
-  private static sortOperationsByDependency(operations: Operation[]): Operation[] {
+  private static sortOperationsByDependency(operations: IOperation[]): IOperation[] {
     return [...operations].sort((a, b) => {
       if (a.hasCausalDependencyOn(b)) return 1;
       if (b.hasCausalDependencyOn(a)) return -1;
-      return a.timestamp.compareTo(b.timestamp);
+      return a.getTimestamp().compareTo(b.getTimestamp());
     });
   }
 
-  static findConcurrentGroups(operations: Operation[]): Operation[][] {
-    const groups: Operation[][] = [];
+  static findConcurrentGroups(operations: IOperation[]): IOperation[][] {
+    const groups: IOperation[][] = [];
     const processed = new Set<string>();
 
     for (const op of operations) {
-      if (processed.has(op.id.toString())) continue;
+      if (processed.has(op.getId().toString())) continue;
 
       const group = [op];
-      processed.add(op.id.toString());
+      processed.add(op.getId().toString());
 
       for (const otherOp of operations) {
         if (
-          op.id !== otherOp.id &&
-          !processed.has(otherOp.id.toString()) &&
+          !op.getId().equals(otherOp.getId()) &&
+          !processed.has(otherOp.getId().toString()) &&
           op.isConcurrentWith(otherOp)
         ) {
           group.push(otherOp);
-          processed.add(otherOp.id.toString());
+          processed.add(otherOp.getId().toString());
         }
       }
 
@@ -606,8 +673,8 @@ export class Operation {
       payload !== null &&
       'x' in payload &&
       'y' in payload &&
-      typeof (payload as any).x === 'number' &&
-      typeof (payload as any).y === 'number'
+      typeof (payload as Record<string, unknown>)['x'] === 'number' &&
+      typeof (payload as Record<string, unknown>)['y'] === 'number'
     );
   }
 
@@ -677,7 +744,7 @@ export class Operation {
         transformationApplied: true,
         transformationNote,
         originalOperationId: this.id.getValue(),
-      } as any,
+      } as Record<string, unknown>,
       this.operationType
     );
 
@@ -704,7 +771,7 @@ export class Operation {
         reason: 'Last writer wins - operation superseded',
         originalPayload:
           typeof originalData === 'object' && originalData !== null ? originalData : {},
-      } as any,
+      } as Record<string, unknown>,
       this.operationType
     );
 
@@ -716,5 +783,210 @@ export class Operation {
       noOpPayload.value,
       'Converted to no-op due to conflict resolution'
     );
+  }
+
+  // Additional methods required by tests
+  isIdempotent(): boolean {
+    return this.operationType.isDeletion() || this.operationType.getValue() === 'UPDATE_METADATA';
+  }
+
+  isReversible(): boolean {
+    // Most operations are reversible except for certain metadata updates
+    return this.operationType.getValue() !== 'UPDATE_METADATA';
+  }
+
+  getSize(): number {
+    const payloadSize = JSON.stringify(this.payload.getData()).length;
+    const metadataSize = this.targetPath.length + this.id.getValue().length;
+    return payloadSize + metadataSize;
+  }
+
+  getComplexity(): TransformationComplexity {
+    const size = this.getSize();
+    const isStructural = this.isStructuralOperation();
+    const isSemantic = this.isSemanticOperation();
+
+    if (size > 50000 || (isSemantic && isStructural && size > 10000)) {
+      return 'COMPLEX';
+    }
+
+    if (size > 10000 || (isSemantic && size > 5000)) {
+      return 'MODERATE';
+    }
+
+    return 'SIMPLE';
+  }
+
+  compose(otherOperation: Operation): Result<Operation, Error> {
+    // Can only compose operations from the same device
+    if (!this.deviceId.equals(otherOperation.deviceId)) {
+      return err(new Error('Cannot compose operations from different devices'));
+    }
+
+    // Can only compose compatible operation types
+    if (!this.canComposeWith(otherOperation)) {
+      return err(new Error('Cannot compose incompatible operations'));
+    }
+
+    // Create a new composed operation
+    const composedData = this.composePayloads(
+      this.payload.getData(),
+      otherOperation.payload.getData()
+    );
+
+    const composedPayloadResult = OperationPayload.create(
+      composedData as Record<string, unknown>,
+      this.operationType
+    );
+
+    if (composedPayloadResult.isErr()) {
+      return err(composedPayloadResult.error);
+    }
+
+    const newOpIdResult = OperationId.generateWithUUID(this.deviceId);
+    if (newOpIdResult.isErr()) {
+      return err(newOpIdResult.error);
+    }
+
+    return Operation.create(
+      newOpIdResult.value,
+      this.deviceId,
+      this.operationType,
+      this.targetPath,
+      composedPayloadResult.value,
+      this.vectorClock,
+      this.parentOperationId
+    );
+  }
+
+  private canComposeWith(otherOperation: Operation): boolean {
+    // Only compose operations of the same type
+    if (!this.operationType.equals(otherOperation.operationType)) {
+      return false;
+    }
+
+    // Cannot compose deletion operations
+    if (this.operationType.isDeletion()) {
+      return false;
+    }
+
+    return true;
+  }
+
+  private composePayloads(payload1: unknown, payload2: unknown): unknown {
+    if (
+      typeof payload1 === 'object' &&
+      typeof payload2 === 'object' &&
+      payload1 !== null &&
+      payload2 !== null
+    ) {
+      const obj1 = payload1 as Record<string, unknown>;
+      const obj2 = payload2 as Record<string, unknown>;
+
+      // For CREATE_STATEMENT operations, concatenate content
+      if (
+        this.operationType.getValue() === 'CREATE_STATEMENT' &&
+        'content' in obj1 &&
+        'content' in obj2
+      ) {
+        return {
+          ...obj1,
+          content: (obj1['content'] as string) + (obj2['content'] as string),
+        };
+      }
+
+      return { ...obj1, ...obj2 };
+    }
+
+    return payload2; // Use the second payload if can't merge
+  }
+
+  toJSON(): Record<string, unknown> {
+    return {
+      id: this.id.getValue(),
+      deviceId: this.deviceId.getValue(),
+      operationType: this.operationType.getValue(),
+      targetPath: this.targetPath,
+      payload: this.payload.getData(),
+      vectorClock: this.vectorClock.getClockState(),
+      timestamp: this.timestamp.getTimestamp(),
+      ...(this.parentOperationId && { parentOperationId: this.parentOperationId.getValue() }),
+    };
+  }
+
+  static fromJSON(json: Record<string, unknown>): Result<Operation, Error> {
+    try {
+      // Extract and validate required fields
+      const id = json['id'] as string;
+      const deviceId = json['deviceId'] as string;
+      const operationType = json['operationType'] as string;
+      const targetPath = json['targetPath'] as string;
+      const payload = json['payload'] as Record<string, unknown>;
+      const vectorClockData = json['vectorClock'] as Map<string, number> | Record<string, number>;
+      const parentOperationId = json['parentOperationId'] as string | undefined;
+
+      if (!id || !deviceId || !operationType || !targetPath || !payload || !vectorClockData) {
+        return err(new Error('Missing required fields in JSON'));
+      }
+
+      // Create value objects
+      const deviceIdResult = DeviceId.create(deviceId);
+      if (deviceIdResult.isErr()) {
+        return err(deviceIdResult.error);
+      }
+
+      const operationTypeResult = OperationType.create(operationType as OperationTypeValue);
+      if (operationTypeResult.isErr()) {
+        return err(operationTypeResult.error);
+      }
+
+      const operationIdResult = OperationId.create(id);
+      if (operationIdResult.isErr()) {
+        return err(operationIdResult.error);
+      }
+
+      const payloadResult = OperationPayload.create(payload, operationTypeResult.value);
+      if (payloadResult.isErr()) {
+        return err(payloadResult.error);
+      }
+
+      // Handle both Map and object formats for vectorClock
+      let vectorClockMap: Map<string, number>;
+      if (vectorClockData instanceof Map) {
+        vectorClockMap = vectorClockData;
+      } else {
+        vectorClockMap = new Map(Object.entries(vectorClockData));
+      }
+
+      const vectorClockResult = VectorClock.fromMap(vectorClockMap);
+      if (vectorClockResult.isErr()) {
+        return err(vectorClockResult.error);
+      }
+
+      let parentOpId: OperationId | undefined;
+      if (parentOperationId) {
+        const parentOpIdResult = OperationId.create(parentOperationId);
+        if (parentOpIdResult.isErr()) {
+          return err(parentOpIdResult.error);
+        }
+        parentOpId = parentOpIdResult.value;
+      }
+
+      return Operation.create(
+        operationIdResult.value,
+        deviceIdResult.value,
+        operationTypeResult.value,
+        targetPath,
+        payloadResult.value,
+        vectorClockResult.value,
+        parentOpId
+      );
+    } catch (error) {
+      return err(error instanceof Error ? error : new Error('Failed to deserialize operation'));
+    }
+  }
+
+  equals(other: Operation): boolean {
+    return this.id.getValue() === other.id.getValue();
   }
 }

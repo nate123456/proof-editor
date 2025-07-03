@@ -1,4 +1,4 @@
-import { err, ok, type Result } from 'neverthrow';
+import { type Result } from 'neverthrow';
 
 import { type Dependency } from '../entities/Dependency.js';
 import { type PackageNotFoundError } from '../types/domain-errors.js';

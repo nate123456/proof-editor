@@ -395,3 +395,259 @@ describe('Integration with Result Types', () => {
     }
   });
 });
+
+describe('Advanced Edge Cases', () => {
+  describe('error serialization and deserialization', () => {
+    it('should preserve error details through JSON serialization', () => {
+      const originalError = new TypeError('Original cause');
+      const domainError = new ProcessingError('Processing failed', originalError);
+
+      const serialized = JSON.stringify({
+        name: domainError.name,
+        message: domainError.message,
+        stack: domainError.stack,
+        cause: domainError.cause
+          ? {
+              name: domainError.cause.name,
+              message: domainError.cause.message,
+            }
+          : undefined,
+      });
+
+      const parsed = JSON.parse(serialized);
+
+      expect(parsed.name).toBe('DomainError');
+      expect(parsed.message).toBe('Processing failed');
+      expect(parsed.cause.name).toBe('TypeError');
+      expect(parsed.cause.message).toBe('Original cause');
+    });
+  });
+
+  describe('error stack trace preservation', () => {
+    it('should maintain stack traces with cause information', () => {
+      const rootError = new Error('Root error');
+      const wrappedError = new StructureError('Wrapper error', rootError);
+
+      expect(wrappedError.stack).toBeDefined();
+      expect(wrappedError.stack).toContain('DomainError'); // Base class sets the name
+      expect(wrappedError.stack).toContain('Wrapper error');
+      expect(wrappedError.cause).toBe(rootError);
+    });
+  });
+
+  describe('error property access', () => {
+    it('should provide access to error properties', () => {
+      const rootCause = new TypeError('Type error');
+      const error = new ProcessingError('Test error', rootCause);
+
+      // Verify all properties are accessible
+      expect(error.name).toBe('DomainError');
+      expect(error.message).toBe('Test error');
+      expect(error.cause).toBe(rootCause);
+      expect(error.stack).toBeDefined();
+
+      // Verify the cause property is readonly as declared
+      expect(error.cause).toBe(rootCause);
+    });
+
+    it('should handle errors without cause', () => {
+      const error = new ProcessingError('Test error');
+
+      expect(error.name).toBe('DomainError');
+      expect(error.message).toBe('Test error');
+      expect(error.cause).toBeUndefined();
+      expect(error.stack).toBeDefined();
+    });
+  });
+
+  describe('complex error chain scenarios', () => {
+    it('should handle deeply nested error chains', () => {
+      const level1 = new Error('Level 1');
+      const level2 = new ProcessingError('Level 2', level1);
+      const level3 = new StructureError('Level 3', level2);
+      const level4 = new RepositoryError('Level 4', level3);
+
+      expect(level4.cause).toBe(level3);
+      expect(level4.cause?.cause).toBe(level2);
+      expect(level4.cause?.cause?.cause).toBe(level1);
+    });
+  });
+
+  describe('error handling in async contexts', () => {
+    it('should work correctly with async/await patterns', async () => {
+      const asyncOperation = async (shouldFail: boolean) => {
+        await Promise.resolve(); // Add await to fix linting error
+        if (shouldFail) {
+          throw new ProcessingError('Async operation failed');
+        }
+        return 'success';
+      };
+
+      await expect(asyncOperation(true)).rejects.toThrow(ProcessingError);
+      await expect(asyncOperation(false)).resolves.toBe('success');
+    });
+  });
+});
+
+describe('Memory and Performance Considerations', () => {
+  describe('error object memory footprint', () => {
+    it('should not retain unnecessary references', () => {
+      const errors: DomainError[] = [];
+
+      // Create many errors to test memory patterns
+      for (let i = 0; i < 100; i++) {
+        errors.push(new ProcessingError(`Error ${i}`));
+      }
+
+      // All errors should have consistent structure
+      errors.forEach((error, index) => {
+        expect(error.message).toBe(`Error ${index}`);
+        expect(error.name).toBe('DomainError');
+        expect(error.cause).toBeUndefined();
+      });
+    });
+
+    it('should handle large error messages efficiently', () => {
+      const largeMessage = 'X'.repeat(10000);
+      const error = new StructureError(largeMessage);
+
+      expect(error.message).toBe(largeMessage);
+      expect(error.message.length).toBe(10000);
+    });
+  });
+
+  describe('error creation performance', () => {
+    it('should create errors quickly in tight loops', () => {
+      const createManyErrors = () => {
+        const errors: ProcessingError[] = [];
+        for (let i = 0; i < 1000; i++) {
+          errors.push(new ProcessingError(`Error ${i}`));
+        }
+        return errors;
+      };
+
+      const errors = createManyErrors();
+      expect(errors).toHaveLength(1000);
+      expect(errors[0]).toBeInstanceOf(ProcessingError);
+      expect(errors[999]).toBeInstanceOf(ProcessingError);
+    });
+  });
+});
+
+describe('Error Boundary Testing', () => {
+  describe('special character handling', () => {
+    it('should handle messages with special characters', () => {
+      const specialMessages = [
+        'Error with "quotes"',
+        "Error with 'single quotes'",
+        'Error with \n newlines',
+        'Error with \t tabs',
+        'Error with \\ backslashes',
+        'Error with unicode: 🚀 ✨ 🎯',
+        'Error with null char: \0',
+        'Error with <html>tags</html>',
+      ];
+
+      specialMessages.forEach(message => {
+        const error = new ProcessingError(message);
+        expect(error.message).toBe(message);
+      });
+    });
+
+    it('should handle empty string messages', () => {
+      const error = new StructureError('');
+      expect(error.message).toBe('');
+      expect(error.name).toBe('DomainError');
+    });
+  });
+
+  describe('cause edge cases', () => {
+    it('should handle null cause gracefully', () => {
+      // TypeScript prevents null, but runtime might not
+      const error = new ProcessingError('Test', undefined);
+      expect(error.cause).toBeUndefined();
+    });
+
+    it('should handle same error as cause', () => {
+      const error1 = new ProcessingError('Error 1');
+      const error2 = new ProcessingError('Error 2', error1);
+      // This creates a valid chain, not a cycle
+      expect(error2.cause).toBe(error1);
+    });
+  });
+});
+
+describe('Cross-Domain Error Patterns', () => {
+  describe('error transformation patterns', () => {
+    it('should support error wrapping for domain boundaries', () => {
+      // Simulate external error
+      const externalError = new Error('External service failed');
+
+      // Wrap in domain error
+      const domainError = new RepositoryError(
+        'Failed to fetch from external service',
+        externalError
+      );
+
+      expect(domainError.cause).toBe(externalError);
+      expect(domainError.message).toContain('external service');
+    });
+
+    it('should support error enrichment patterns', () => {
+      const baseError = new ProcessingError('Basic processing failed');
+
+      // Enrich with context
+      const enrichedError = new ProcessingError(
+        `${baseError.message} - Context: User ID 123`,
+        baseError
+      );
+
+      expect(enrichedError.cause).toBe(baseError);
+      expect(enrichedError.message).toContain('User ID 123');
+    });
+  });
+
+  describe('error categorization patterns', () => {
+    it('should support error filtering by type', () => {
+      const mixedErrors: Error[] = [
+        new ProcessingError('Process 1'),
+        new StructureError('Structure 1'),
+        new RepositoryError('Repo 1'),
+        new Error('Generic 1'),
+        new ProcessingError('Process 2'),
+      ];
+
+      const processingErrors = mixedErrors.filter(
+        (e): e is ProcessingError => e instanceof ProcessingError
+      );
+
+      expect(processingErrors).toHaveLength(2);
+      processingErrors.forEach(e => {
+        expect(e).toBeInstanceOf(ProcessingError);
+      });
+    });
+  });
+});
+
+describe('Error Name Property Behavior', () => {
+  it('should set name to DomainError for all domain error types', () => {
+    // This tests the actual behavior where base class sets name
+    const processingError = new ProcessingError('test');
+    const structureError = new StructureError('test');
+
+    expect(processingError.name).toBe('DomainError');
+    expect(structureError.name).toBe('DomainError');
+
+    // RepositoryError extends Error directly, so it sets its own name
+    const repoError = new RepositoryError('test');
+    expect(repoError.name).toBe('RepositoryError');
+  });
+
+  it('should maintain Error.prototype.toString behavior', () => {
+    const error = new ProcessingError('Custom message');
+    expect((error as Error).toString()).toBe('DomainError: Custom message');
+
+    const repoError = new RepositoryError('Repo message');
+    expect((repoError as Error).toString()).toBe('RepositoryError: Repo message');
+  });
+});

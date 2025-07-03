@@ -67,7 +67,7 @@ export class PackageDiscoveryService {
     }
 
     const packages: Package[] = [];
-    const maxResults = options?.maxResults || 50;
+    const maxResults = options?.maxResults ?? 50;
 
     for (const gitSource of gitSourcesResult.value.slice(0, maxResults)) {
       const packageSourceResult = PackageSource.createFromGit(gitSource);

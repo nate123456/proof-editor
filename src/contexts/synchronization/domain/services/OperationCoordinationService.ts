@@ -2,10 +2,6 @@ import { err, ok, type Result } from 'neverthrow';
 
 import { Conflict } from '../entities/Conflict';
 import { type Operation } from '../entities/Operation';
-import { VectorClock } from '../entities/VectorClock';
-import { ConflictType } from '../value-objects/ConflictType';
-import { DeviceId } from '../value-objects/DeviceId';
-import { OperationType } from '../value-objects/OperationType';
 
 export interface IOperationCoordinationService {
   applyOperation(operation: Operation, currentState: unknown): Promise<Result<unknown, Error>>;
@@ -18,16 +14,13 @@ export interface IOperationCoordinationService {
 }
 
 export class OperationCoordinationService implements IOperationCoordinationService {
-  async applyOperation(
-    operation: Operation,
-    currentState: unknown
-  ): Promise<Result<unknown, Error>> {
-    return operation.applyTo(currentState);
+  applyOperation(operation: Operation, currentState: unknown): Promise<Result<unknown, Error>> {
+    return Promise.resolve(operation.applyTo(currentState));
   }
 
   async detectConflicts(operations: Operation[]): Promise<Result<Conflict[], Error>> {
     if (operations.length < 2) {
-      return ok([]);
+      return Promise.resolve(ok([]));
     }
 
     try {
@@ -80,11 +73,11 @@ export class OperationCoordinationService implements IOperationCoordinationServi
     }
   }
 
-  async transformOperation(
+  transformOperation(
     operation: Operation,
     againstOperations: Operation[]
   ): Promise<Result<Operation, Error>> {
-    return operation.transformAgainstOperations(againstOperations);
+    return Promise.resolve(operation.transformAgainstOperations(againstOperations));
   }
 
   private groupOperationsByTarget(operations: Operation[]): Map<string, Operation[]> {
@@ -101,7 +94,7 @@ export class OperationCoordinationService implements IOperationCoordinationServi
     return groups;
   }
 
-  private async analyzeOperationsForConflictsUsingEntities(
+  private analyzeOperationsForConflictsUsingEntities(
     targetPath: string,
     operations: Operation[]
   ): Promise<Result<Conflict[], Error>> {
@@ -120,29 +113,31 @@ export class OperationCoordinationService implements IOperationCoordinationServi
       const conflictingOperations = concurrentGroup.slice(1);
 
       for (const conflictingOp of conflictingOperations) {
-        const conflictTypeResult = primaryOperation.detectConflictWith(conflictingOp);
-        if (conflictTypeResult.isErr()) {
+        const conflictResult = primaryOperation.detectConflictWith(conflictingOp);
+        if (conflictResult.isErr()) {
           continue;
         }
 
-        const conflictType = conflictTypeResult.value;
-        if (!conflictType) {
+        const conflictData = conflictResult.value;
+        if (!conflictData) {
           continue;
         }
 
-        const conflictId = this.generateConflictId(targetPath, [primaryOperation, conflictingOp]);
-        const conflictResult = Conflict.create(conflictId, conflictType, targetPath, [
-          primaryOperation,
-          conflictingOp,
-        ]);
+        // Create proper Conflict instance
+        const conflictInstance = Conflict.create(
+          conflictData.id,
+          conflictData.conflictType,
+          conflictData.targetPath,
+          conflictData.operations
+        );
 
-        if (conflictResult.isOk()) {
-          conflicts.push(conflictResult.value);
+        if (conflictInstance.isOk()) {
+          conflicts.push(conflictInstance.value);
         }
       }
     }
 
-    return ok(conflicts);
+    return Promise.resolve(ok(conflicts));
   }
 
   private findConcurrentOperations(operations: Operation[]): Operation[][] {
@@ -179,15 +174,6 @@ export class OperationCoordinationService implements IOperationCoordinationServi
     return concurrentGroups;
   }
 
-  private generateConflictId(targetPath: string, operations: Operation[]): string {
-    const operationIds = operations
-      .map(op => op.getId())
-      .sort()
-      .join('-');
-    const pathHash = this.simpleHash(targetPath);
-    return `conflict-${pathHash}-${this.simpleHash(operationIds)}`;
-  }
-
   private validateOperationOrdering(operations: Operation[]): Result<void, Error> {
     for (let i = 0; i < operations.length - 1; i++) {
       const current = operations[i];
@@ -212,7 +198,7 @@ export class OperationCoordinationService implements IOperationCoordinationServi
   }
 
   canOperationsCommute(op1: Operation, op2: Operation): boolean {
-    return op1.canCommutewWith(op2);
+    return op1.canCommuteWith(op2);
   }
 
   calculateOperationDependencies(operations: Operation[]): Map<string, string[]> {

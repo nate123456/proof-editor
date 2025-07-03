@@ -1,4 +1,4 @@
-import { err, ok, type Result } from 'neverthrow';
+import { err as _err, ok as _ok, type Result } from 'neverthrow';
 
 import { ValidationError } from '../errors/DomainErrors';
 import { DiagnosticSeverity } from './DiagnosticSeverity';
@@ -12,7 +12,7 @@ export class ValidationRule {
     private readonly severity: DiagnosticSeverity,
     private readonly pattern: ValidationRulePattern,
     private readonly isActive: boolean,
-    private readonly metadata: ValidationRuleMetadata
+    private readonly metadata: IValidationRuleMetadata
   ) {}
 
   static create(
@@ -21,27 +21,20 @@ export class ValidationRule {
     category: ValidationRuleCategory,
     severity: DiagnosticSeverity,
     pattern: ValidationRulePattern,
-    metadata: ValidationRuleMetadata = ValidationRuleMetadata.createDefault()
+    metadata: IValidationRuleMetadata = ValidationRuleMetadata.createDefault()
   ): Result<ValidationRule, ValidationError> {
     if (!name || name.trim().length === 0) {
-      return {
-        success: false,
-        error: new ValidationError('Rule name cannot be empty'),
-      };
+      return _err(new ValidationError('Rule name cannot be empty'));
     }
 
     if (!description || description.trim().length === 0) {
-      return {
-        success: false,
-        error: new ValidationError('Rule description cannot be empty'),
-      };
+      return _err(new ValidationError('Rule description cannot be empty'));
     }
 
     const id = ValidationRule.generateId(name, category);
 
-    return {
-      success: true,
-      data: new ValidationRule(
+    return _ok(
+      new ValidationRule(
         id,
         name.trim(),
         description.trim(),
@@ -50,8 +43,8 @@ export class ValidationRule {
         pattern,
         true,
         metadata
-      ),
-    };
+      )
+    );
   }
 
   static createSyntaxRule(
@@ -136,7 +129,7 @@ export class ValidationRule {
     return this.isActive;
   }
 
-  getMetadata(): ValidationRuleMetadata {
+  getMetadata(): IValidationRuleMetadata {
     return this.metadata;
   }
 
@@ -146,7 +139,7 @@ export class ValidationRule {
     switch (this.pattern.type) {
       case 'regex':
         try {
-          const regex = new RegExp(this.pattern.value, this.pattern.flags || 'g');
+          const regex = new RegExp(this.pattern.value, this.pattern.flags ?? 'g');
           return regex.test(text);
         } catch {
           return false;
@@ -156,12 +149,8 @@ export class ValidationRule {
         return text.includes(this.pattern.value);
 
       case 'function':
-        try {
-          const func = new Function('text', this.pattern.value);
-          return Boolean(func(text));
-        } catch {
-          return false;
-        }
+        // Function-based validation disabled for security reasons
+        return false;
 
       case 'ast':
         return this.matchesAST(text);
@@ -195,7 +184,7 @@ export class ValidationRule {
         }
         break;
 
-      case 'literal':
+      case 'literal': {
         let index = text.indexOf(this.pattern.value);
         while (index !== -1) {
           matches.push({
@@ -207,6 +196,7 @@ export class ValidationRule {
           index = text.indexOf(this.pattern.value, index + 1);
         }
         break;
+      }
     }
 
     return matches;
@@ -277,7 +267,7 @@ export class ValidationRule {
     );
   }
 
-  private matchesAST(text: string): boolean {
+  private matchesAST(_text: string): boolean {
     // Simplified AST matching - in practice would use a proper parser
     // This is a placeholder for more sophisticated pattern matching
     return false;
@@ -286,7 +276,7 @@ export class ValidationRule {
   private calculateConfidence(matchedText: string): number {
     // Simple confidence calculation based on match quality
     const lengthScore = Math.min(matchedText.length / 10, 1);
-    const contextScore = this.pattern.contextWeight || 0.5;
+    const contextScore = this.pattern.contextWeight ?? 0.5;
     return Math.min(lengthScore + contextScore, 1);
   }
 
@@ -318,7 +308,7 @@ export interface ValidationRulePattern {
   contextWeight?: number;
 }
 
-export interface ValidationRuleMetadata {
+export interface IValidationRuleMetadata {
   autoFix: boolean;
   educationalHints: string[];
   isExclusive: boolean;
@@ -348,7 +338,7 @@ export interface ValidationRuleResult {
 }
 
 export class ValidationRuleMetadata {
-  static createDefault(): ValidationRuleMetadata {
+  static createDefault(): IValidationRuleMetadata {
     return {
       autoFix: false,
       educationalHints: [],
@@ -359,7 +349,7 @@ export class ValidationRuleMetadata {
     };
   }
 
-  static createForSyntax(): ValidationRuleMetadata {
+  static createForSyntax(): IValidationRuleMetadata {
     return {
       ...ValidationRuleMetadata.createDefault(),
       autoFix: true,
@@ -368,7 +358,7 @@ export class ValidationRuleMetadata {
     };
   }
 
-  static createForSemantic(): ValidationRuleMetadata {
+  static createForSemantic(): IValidationRuleMetadata {
     return {
       ...ValidationRuleMetadata.createDefault(),
       educationalHints: ['Review logical structure', 'Check inference validity'],
@@ -377,7 +367,7 @@ export class ValidationRuleMetadata {
     };
   }
 
-  static createForStyle(): ValidationRuleMetadata {
+  static createForStyle(): IValidationRuleMetadata {
     return {
       ...ValidationRuleMetadata.createDefault(),
       autoFix: true,

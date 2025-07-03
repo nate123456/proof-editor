@@ -11,7 +11,7 @@ export class ValidationResult {
   private constructor(
     private readonly id: ValidationResultId,
     private readonly level: ValidationLevel,
-    private readonly isValid: boolean,
+    private readonly _isValid: boolean,
     private diagnostics: Diagnostic[],
     private readonly metrics: ValidationMetrics,
     private readonly timestamp: Timestamp,
@@ -24,16 +24,18 @@ export class ValidationResult {
     documentId: string,
     languagePackageId: string,
     metrics: ValidationMetrics
-  ): ValidationResult {
-    return new ValidationResult(
-      ValidationResultId.generate(),
-      level,
-      true,
-      [],
-      metrics,
-      Timestamp.now(),
-      documentId,
-      languagePackageId
+  ): Result<ValidationResult, ValidationError> {
+    return ok(
+      new ValidationResult(
+        ValidationResultId.generate(),
+        level,
+        true,
+        [],
+        metrics,
+        Timestamp.now(),
+        documentId,
+        languagePackageId
+      )
     );
   }
 
@@ -71,7 +73,7 @@ export class ValidationResult {
   }
 
   isValidationSuccessful(): boolean {
-    return this.isValid;
+    return this._isValid;
   }
 
   getDiagnostics(): readonly Diagnostic[] {
@@ -94,8 +96,12 @@ export class ValidationResult {
     return this.languagePackageId;
   }
 
+  isValid(): boolean {
+    return this._isValid;
+  }
+
   addDiagnostic(diagnostic: Diagnostic): Result<void, ValidationError> {
-    if (this.isValid) {
+    if (this._isValid) {
       return err(new ValidationError('Cannot add diagnostic to successful validation result'));
     }
 
@@ -151,7 +157,7 @@ export class ValidationResult {
     const combinedDiagnostics = [...this.diagnostics, ...other.diagnostics];
     const combinedMetrics = this.metrics.combineWith(other.metrics);
     const isValidCombined =
-      this.isValid && other.isValid && combinedDiagnostics.every(d => !d.getSeverity().isError());
+      this._isValid && other._isValid && combinedDiagnostics.every(d => !d.getSeverity().isError());
 
     if (isValidCombined) {
       return ok(
@@ -202,7 +208,10 @@ export class ValidationResult {
     const mistakes: CommonMistake[] = [];
 
     for (const diagnostic of this.diagnostics) {
-      if (diagnostic.getCode().getCode().includes('inference')) {
+      const code = diagnostic.getCode().getCode();
+      const message = diagnostic.getMessage().getText().toLowerCase();
+
+      if (code.includes('inference') || message.includes('inference')) {
         mistakes.push({
           type: 'invalid-inference',
           description: diagnostic.getMessage().getText(),

@@ -1,0 +1,21 @@
+statements:
+  s1: 123  # Should be string, not number
+  s2: ""   # Empty string not allowed
+  s3: "Valid statement"
+
+orderedSets:
+  os1: "not an array"  # Should be array
+  os2: [s1, 456]       # Contains non-string
+  os3: [s3]
+
+atomicArguments:
+  arg1: "not an object"  # Should be object
+  arg2:
+    premises: 123        # Should be string reference
+    conclusions: os3
+
+trees:
+  tree1:
+    offset: "not an object"  # Should be {x, y}
+    nodes:
+      n1: { arg: arg2 }

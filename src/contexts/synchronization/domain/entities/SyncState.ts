@@ -239,13 +239,18 @@ export class SyncState {
   markSyncCompleted(): Result<SyncState, Error> {
     const newStatus = this.conflictCount === 0 ? 'SYNCED' : 'CONFLICT_PENDING';
 
+    // Create a new timestamp that is guaranteed to be different from the previous one
+    const now = new Date();
+    const completionTime =
+      now.getTime() <= this.lastSyncAt.getTime() ? new Date(this.lastSyncAt.getTime() + 1) : now;
+
     return ok(
       new SyncState(
         this.localDeviceId,
         this.localVectorClock,
         newStatus,
         this.peerStates,
-        new Date(),
+        completionTime,
         this.conflictCount,
         0,
         undefined

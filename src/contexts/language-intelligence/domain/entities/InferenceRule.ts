@@ -319,7 +319,8 @@ export class InferenceRule {
       features.logicalComplexity += this.calculateStatementComplexity(statement);
     }
 
-    features.logicalComplexity = Math.round(features.logicalComplexity / statements.length);
+    features.logicalComplexity =
+      statements.length > 0 ? Math.round(features.logicalComplexity / statements.length) : 0;
     return features;
   }
 
@@ -438,7 +439,8 @@ export class InferenceRule {
     complexity += statement.length * 0.1;
     complexity += (statement.match(/[∀∃∧∨→↔¬□◇]/g) ?? []).length * 2;
     complexity += (statement.match(/\(/g) ?? []).length * 1.5;
-    return complexity;
+    // Ensure minimum complexity of 1 for non-empty statements
+    return Math.max(1, complexity);
   }
 
   equals(other: InferenceRule): boolean {

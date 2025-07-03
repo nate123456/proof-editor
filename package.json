@@ -1,8 +1,49 @@
 {
   "name": "proof-editor",
-  "version": "1.0.0",
-  "type": "module",
+  "displayName": "Proof Editor",
+  "description": "Visual formal reasoning tool for constructing logical arguments",
+  "version": "0.1.0",
+  "engines": {
+    "vscode": "^1.74.0",
+    "node": ">=22.0.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./out/extension/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "proof",
+        "aliases": [
+          "Proof",
+          "proof"
+        ],
+        "extensions": [
+          ".proof"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "proof",
+        "scopeName": "source.proof",
+        "path": "./syntaxes/proof.tmLanguage.json"
+      }
+    ],
+    "themes": [
+      {
+        "label": "Proof Editor Theme",
+        "uiTheme": "vs",
+        "path": "./themes/proof-theme.json"
+      }
+    ]
+  },
   "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./tsconfig.extension.json",
+    "watch": "tsc -watch -p ./tsconfig.extension.json",
     "build": "tsc --noEmit",
     "dev": "tsc --noEmit --watch",
     "type-check": "tsc --noEmit",
@@ -22,6 +63,7 @@
     "deps:orphans": "madge --orphans --extensions ts --exclude '^node_modules' src",
     "deps:report": "echo '=== DEPENDENCY ANALYSIS ===' && echo '\n--- Circular Dependencies ---' && npm run deps:circular && echo '\n--- Orphaned Modules ---' && npm run deps:orphans && echo '\n--- Full Dependency Tree ---' && npm run deps",
     "test:prioritize": "node scripts/prioritize-testing.js",
+    "test:coverage:integration": "node scripts/integration-coverage-report.js",
     "llm:collect": "node scripts/collect-source-files.js",
     "llm:analysis": "node scripts/generate-llm-analysis-input.js",
     "llm:prepare": "npm run llm:analysis && echo '\n✅ LLM analysis input ready!' && echo 'Upload llm-analysis-input.json and llm-analysis-summary.md to your LLM.' && echo 'Choose from prompts: DDD analysis, Security review, Performance audit, or General code analysis'",
@@ -30,6 +72,7 @@
   "devDependencies": {
     "@faker-js/faker": "^9.8.0",
     "@types/node": "^22.0.0",
+    "@types/vscode": "^1.74.0",
     "@vitest/coverage-v8": "^2.1.8",
     "eslint": "^9.30.0",
     "eslint-config-prettier": "^9.1.0",
@@ -43,10 +86,9 @@
     "typescript-eslint": "^8.35.1",
     "vitest": "^2.1.8"
   },
-  "engines": {
-    "node": ">=22.0.0"
-  },
   "dependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "js-yaml": "^4.1.0",
     "neverthrow": "^8.2.0"
   }
 }

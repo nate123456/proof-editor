@@ -1,4 +1,4 @@
-import { err, ok, type Result } from 'neverthrow';
+import { err as _err, ok as _ok, type Result } from 'neverthrow';
 
 import { ValidationError } from '../errors/DomainErrors';
 
@@ -7,24 +7,15 @@ export class Timestamp {
 
   static create(date: Date): Result<Timestamp, ValidationError> {
     if (!date || isNaN(date.getTime())) {
-      return {
-        success: false,
-        error: new ValidationError('Invalid date provided'),
-      };
+      return _err(new ValidationError('Invalid date provided'));
     }
 
-    return {
-      success: true,
-      data: new Timestamp(new Date(date.getTime())),
-    };
+    return _ok(new Timestamp(new Date(date.getTime())));
   }
 
   static fromMilliseconds(milliseconds: number): Result<Timestamp, ValidationError> {
     if (milliseconds < 0) {
-      return {
-        success: false,
-        error: new ValidationError('Timestamp cannot be negative'),
-      };
+      return _err(new ValidationError('Timestamp cannot be negative'));
     }
 
     return Timestamp.create(new Date(milliseconds));
@@ -35,10 +26,7 @@ export class Timestamp {
       const date = new Date(isoString);
       return Timestamp.create(date);
     } catch {
-      return {
-        success: false,
-        error: new ValidationError('Invalid ISO string format'),
-      };
+      return _err(new ValidationError('Invalid ISO string format'));
     }
   }
 

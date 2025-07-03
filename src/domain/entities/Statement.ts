@@ -1,4 +1,6 @@
-import { err, ok, type Result, ValidationError } from '../shared/result.js';
+import { err, ok, type Result } from 'neverthrow';
+
+import { ValidationError } from '../shared/result.js';
 import { StatementContent, StatementId } from '../shared/value-objects.js';
 
 export class Statement {

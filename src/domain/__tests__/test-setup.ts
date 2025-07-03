@@ -72,10 +72,16 @@ expect.extend({
       const current = received[i];
       const next = received[i + 1];
 
-      const currentConclusion = current.getConclusionSetRef();
-      const nextPremise = next.getPremiseSetRef();
+      const currentConclusion = current?.getConclusionSetRef();
+      const nextPremise = next?.getPremiseSetRef();
 
-      if (!currentConclusion || !nextPremise || !currentConclusion.equals(nextPremise)) {
+      if (
+        !current ||
+        !next ||
+        !currentConclusion ||
+        !nextPremise ||
+        !currentConclusion.equals(nextPremise)
+      ) {
         validConnections = false;
         break;
       }
@@ -94,7 +100,7 @@ expect.extend({
     const pass =
       received != null &&
       typeof received.getId === 'function' &&
-      typeof received.getItems === 'function' &&
+      typeof received.getStatementIds === 'function' &&
       typeof received.size === 'function';
 
     return {

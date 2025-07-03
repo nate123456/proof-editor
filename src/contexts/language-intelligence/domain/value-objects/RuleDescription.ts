@@ -1,4 +1,4 @@
-import { err, ok, type Result } from 'neverthrow';
+import { err as _err, ok as _ok, type Result } from 'neverthrow';
 
 import { ValidationError } from '../errors/DomainErrors';
 
@@ -7,32 +7,20 @@ export class RuleDescription {
 
   static create(value: string): Result<RuleDescription, ValidationError> {
     if (!value || value.trim().length === 0) {
-      return {
-        success: false,
-        error: new ValidationError('Rule description cannot be empty'),
-      };
+      return _err(new ValidationError('Rule description cannot be empty'));
     }
 
     const trimmedValue = value.trim();
 
     if (trimmedValue.length < 10) {
-      return {
-        success: false,
-        error: new ValidationError('Rule description must be at least 10 characters long'),
-      };
+      return _err(new ValidationError('Rule description must be at least 10 characters long'));
     }
 
     if (trimmedValue.length > 1000) {
-      return {
-        success: false,
-        error: new ValidationError('Rule description cannot exceed 1000 characters'),
-      };
+      return _err(new ValidationError('Rule description cannot exceed 1000 characters'));
     }
 
-    return {
-      success: true,
-      data: new RuleDescription(trimmedValue),
-    };
+    return _ok(new RuleDescription(trimmedValue));
   }
 
   getValue(): string {

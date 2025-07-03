@@ -1,0 +1,18 @@
+statements:
+  # This file demonstrates an empty argument structure
+  # You can start building your proof by adding statements here
+  # Example: s1: "Your statement here"
+
+arguments:
+  # Define arguments that connect premises to conclusions
+  # Example:
+  # arg1:
+  #   premises: [s1, s2]
+  #   conclusions: [s3]
+
+trees:
+  # Define the visual structure of your proof trees
+  # Example:
+  # tree1:
+  #   nodes:
+  #     n1: {arg: arg1}

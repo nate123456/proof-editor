@@ -211,7 +211,7 @@ export interface ValidationSuggestion {
 }
 
 export interface RuleApplicationResult {
-  success: boolean;
+  isValid: boolean;
   modifications: RuleModification[];
   warnings: string[];
   performanceMetrics: {

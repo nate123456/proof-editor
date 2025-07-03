@@ -59,14 +59,7 @@ export class LanguagePackage {
   }
 
   static createModalLogicPackage(): Result<LanguagePackage, ValidationError> {
-    const capabilities = LanguageCapabilities.create([
-      'modal-operators',
-      'possible-worlds',
-      'necessity-validation',
-      'possibility-validation',
-    ]);
-
-    if (capabilities.isErr()) return err(capabilities.error);
+    const capabilities = LanguageCapabilities.modalLogic();
 
     const validationSettings = ValidationSettingsFactory.create({
       strictMode: true,
@@ -84,7 +77,7 @@ export class LanguagePackage {
     const packageResult = LanguagePackage.create(
       'Modal Logic',
       '1.0.0',
-      capabilities.value,
+      capabilities,
       validationSettings,
       performanceTargets
     );
@@ -103,14 +96,7 @@ export class LanguagePackage {
   }
 
   static createPropositionalLogicPackage(): Result<LanguagePackage, ValidationError> {
-    const capabilities = LanguageCapabilities.create([
-      'propositional-operators',
-      'truth-tables',
-      'satisfiability-checking',
-      'tautology-validation',
-    ]);
-
-    if (capabilities.isErr()) return err(capabilities.error);
+    const capabilities = LanguageCapabilities.propositionalOnly();
 
     const validationSettings = ValidationSettingsFactory.create({
       strictMode: false,
@@ -121,7 +107,7 @@ export class LanguagePackage {
     const packageResult = LanguagePackage.create(
       'Propositional Logic',
       '2.0.0',
-      capabilities.value,
+      capabilities,
       validationSettings
     );
 
@@ -289,6 +275,18 @@ export class LanguagePackage {
 
   getSymbolCount(): number {
     return this.symbols.size;
+  }
+
+  getSupportedConnectives(): readonly string[] {
+    return this.capabilities.getSupportedConnectives();
+  }
+
+  getSupportedQuantifiers(): readonly string[] {
+    return this.capabilities.getSupportedQuantifiers();
+  }
+
+  getSupportedModalOperators(): readonly string[] {
+    return this.capabilities.getSupportedModalOperators();
   }
 
   getPackageSize(): PackageSize {

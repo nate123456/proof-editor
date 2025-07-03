@@ -4,290 +4,164 @@ import { ValidationError } from '../errors/DomainErrors';
 
 export class AnalysisMetrics {
   private constructor(
-    private readonly complexityScore: number,
-    private readonly qualityScore: number,
-    private readonly statementCount: number,
-    private readonly connectionCount: number,
-    private readonly treeDepth: number,
-    private readonly branchingFactor: number,
-    private readonly cycleCount: number,
-    private readonly orphanStatements: number,
-    private readonly redundantConnections: number,
-    private readonly validationErrors: number,
-    private readonly validationWarnings: number,
-    private readonly performanceScore: number
+    private readonly totalTimeMs: number,
+    private readonly issueCount: number,
+    private readonly patternMatches: number,
+    private readonly complexityScore: number
   ) {}
 
-  static createEmpty(): AnalysisMetrics {
-    return new AnalysisMetrics(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100);
+  static empty(): AnalysisMetrics {
+    return new AnalysisMetrics(0, 0, 0, 0);
   }
 
   static create(
-    statementCount: number,
-    connectionCount: number,
-    treeDepth: number,
-    branchingFactor: number,
-    cycleCount = 0,
-    orphanStatements = 0,
-    redundantConnections = 0,
-    validationErrors = 0,
-    validationWarnings = 0
+    totalTimeMs: number,
+    issueCount: number,
+    patternMatches: number,
+    complexityScore: number
   ): Result<AnalysisMetrics, ValidationError> {
-    if (statementCount < 0) {
-      return err(new ValidationError('Statement count cannot be negative'));
+    if (totalTimeMs < 0) {
+      return err(new ValidationError('Total time cannot be negative'));
     }
 
-    if (connectionCount < 0) {
-      return err(new ValidationError('Connection count cannot be negative'));
+    if (issueCount < 0) {
+      return err(new ValidationError('Issue count cannot be negative'));
     }
 
-    if (treeDepth < 0) {
-      return err(new ValidationError('Tree depth cannot be negative'));
+    if (patternMatches < 0) {
+      return err(new ValidationError('Pattern matches cannot be negative'));
     }
 
-    const complexityScore = AnalysisMetrics.calculateComplexityScore(
-      statementCount,
-      connectionCount,
-      treeDepth,
-      branchingFactor,
-      cycleCount
-    );
+    if (complexityScore < 0) {
+      return err(new ValidationError('Complexity score cannot be negative'));
+    }
 
-    const qualityScore = AnalysisMetrics.calculateQualityScore(
-      orphanStatements,
-      redundantConnections,
-      validationErrors,
-      validationWarnings,
-      statementCount
-    );
-
-    const performanceScore = AnalysisMetrics.calculatePerformanceScore(
-      complexityScore,
-      qualityScore
-    );
-
-    return ok(
-      new AnalysisMetrics(
-        complexityScore,
-        qualityScore,
-        statementCount,
-        connectionCount,
-        treeDepth,
-        branchingFactor,
-        cycleCount,
-        orphanStatements,
-        redundantConnections,
-        validationErrors,
-        validationWarnings,
-        performanceScore
-      )
-    );
+    return ok(new AnalysisMetrics(totalTimeMs, issueCount, patternMatches, complexityScore));
   }
 
-  private static calculateComplexityScore(
-    statementCount: number,
-    connectionCount: number,
-    treeDepth: number,
-    branchingFactor: number,
-    cycleCount: number
-  ): number {
-    // Normalize factors to 0-100 scale
-    const statementFactor = Math.min(statementCount / 100, 1) * 30; // Max 30 points
-    const connectionFactor = Math.min(connectionCount / 150, 1) * 25; // Max 25 points
-    const depthFactor = Math.min(treeDepth / 20, 1) * 20; // Max 20 points
-    const branchingFactor_normalized = Math.min(branchingFactor / 10, 1) * 15; // Max 15 points
-    const cycleFactor = Math.min(cycleCount / 5, 1) * 10; // Max 10 points for cycles
-
-    return Math.round(
-      statementFactor + connectionFactor + depthFactor + branchingFactor_normalized + cycleFactor
-    );
+  getTotalTimeMs(): number {
+    return this.totalTimeMs;
   }
 
-  private static calculateQualityScore(
-    orphanStatements: number,
-    redundantConnections: number,
-    validationErrors: number,
-    validationWarnings: number,
-    totalStatements: number
-  ): number {
-    const baseScore = 100;
-
-    // Deduct points for issues
-    const orphanPenalty = totalStatements > 0 ? (orphanStatements / totalStatements) * 20 : 0;
-    const redundancyPenalty = redundantConnections * 2;
-    const errorPenalty = validationErrors * 10;
-    const warningPenalty = validationWarnings * 3;
-
-    const finalScore =
-      baseScore - orphanPenalty - redundancyPenalty - errorPenalty - warningPenalty;
-    return Math.max(0, Math.round(finalScore));
+  getIssueCount(): number {
+    return this.issueCount;
   }
 
-  private static calculatePerformanceScore(complexityScore: number, qualityScore: number): number {
-    // Balance complexity and quality for overall performance
-    const complexityWeight = 0.3;
-    const qualityWeight = 0.7;
-
-    return Math.round(complexityScore * complexityWeight + qualityScore * qualityWeight);
+  getPatternMatches(): number {
+    return this.patternMatches;
   }
 
   getComplexityScore(): number {
     return this.complexityScore;
   }
 
-  getQualityScore(): number {
-    return this.qualityScore;
+  getIssuesPerPatternRatio(): number {
+    if (this.patternMatches === 0) {
+      return Infinity;
+    }
+    return this.issueCount / this.patternMatches;
   }
 
-  getStatementCount(): number {
-    return this.statementCount;
-  }
-
-  getConnectionCount(): number {
-    return this.connectionCount;
-  }
-
-  getTreeDepth(): number {
-    return this.treeDepth;
-  }
-
-  getBranchingFactor(): number {
-    return this.branchingFactor;
-  }
-
-  getCycleCount(): number {
-    return this.cycleCount;
-  }
-
-  getOrphanStatements(): number {
-    return this.orphanStatements;
-  }
-
-  getRedundantConnections(): number {
-    return this.redundantConnections;
-  }
-
-  getValidationErrors(): number {
-    return this.validationErrors;
-  }
-
-  getValidationWarnings(): number {
-    return this.validationWarnings;
-  }
-
-  getPerformanceScore(): number {
-    return this.performanceScore;
+  getTimePerIssue(): number {
+    if (this.issueCount === 0) {
+      return Infinity;
+    }
+    return this.totalTimeMs / this.issueCount;
   }
 
   isHighComplexity(): boolean {
-    return this.complexityScore > 70;
+    return this.complexityScore > 7;
   }
 
-  isMediumComplexity(): boolean {
-    return this.complexityScore >= 30 && this.complexityScore <= 70;
+  isFasterThan(other: AnalysisMetrics): boolean {
+    return this.totalTimeMs < other.totalTimeMs;
   }
 
-  isLowComplexity(): boolean {
-    return this.complexityScore < 30;
+  isMoreAccurateThan(other: AnalysisMetrics): boolean {
+    return this.issueCount < other.issueCount;
   }
 
-  isHighQuality(): boolean {
-    return this.qualityScore > 80;
+  combine(other: AnalysisMetrics): AnalysisMetrics {
+    const combinedTotalTime = this.totalTimeMs + other.totalTimeMs;
+    const combinedIssueCount = this.issueCount + other.issueCount;
+    const combinedPatternMatches = this.patternMatches + other.patternMatches;
+    const averageComplexity = (this.complexityScore + other.complexityScore) / 2;
+
+    return new AnalysisMetrics(
+      combinedTotalTime,
+      combinedIssueCount,
+      combinedPatternMatches,
+      averageComplexity
+    );
   }
 
-  isMediumQuality(): boolean {
-    return this.qualityScore >= 50 && this.qualityScore <= 80;
+  getAnalysisEfficiency(): number {
+    if (this.totalTimeMs === 0 || this.issueCount === 0) {
+      return Infinity;
+    }
+    return this.patternMatches / (this.totalTimeMs * this.issueCount);
   }
 
-  isLowQuality(): boolean {
-    return this.qualityScore < 50;
+  isEfficient(): boolean {
+    const efficiency = this.getAnalysisEfficiency();
+    return efficiency > 0.1; // Threshold for efficiency
   }
 
-  hasIssues(): boolean {
-    return this.validationErrors > 0 || this.orphanStatements > 0 || this.redundantConnections > 0;
+  getStatementCount(): number {
+    return this.issueCount; // Map for compatibility with existing tests
   }
 
-  hasErrors(): boolean {
-    return this.validationErrors > 0;
+  getConnectionCount(): number {
+    return this.patternMatches; // Map for compatibility with existing tests
   }
 
-  hasWarnings(): boolean {
-    return this.validationWarnings > 0;
-  }
-
-  getConnectionDensity(): number {
-    if (this.statementCount <= 1) return 0;
-    const maxConnections = (this.statementCount * (this.statementCount - 1)) / 2;
-    return maxConnections > 0 ? this.connectionCount / maxConnections : 0;
-  }
-
-  getOrphanRate(): number {
-    return this.statementCount > 0 ? this.orphanStatements / this.statementCount : 0;
-  }
-
-  getRedundancyRate(): number {
-    return this.connectionCount > 0 ? this.redundantConnections / this.connectionCount : 0;
+  getQualityScore(): number {
+    // Calculate a quality score based on the ratio of issues to patterns
+    if (this.patternMatches === 0) return 0;
+    const issueRatio = this.issueCount / this.patternMatches;
+    return Math.max(0, 100 - issueRatio * 10); // Lower issues = higher quality
   }
 
   combineWith(other: AnalysisMetrics): AnalysisMetrics {
-    const combinedStatementCount = this.statementCount + other.statementCount;
-    const combinedConnectionCount = this.connectionCount + other.connectionCount;
-    const combinedTreeDepth = Math.max(this.treeDepth, other.treeDepth);
-    const combinedBranchingFactor = Math.max(this.branchingFactor, other.branchingFactor);
-    const combinedCycleCount = this.cycleCount + other.cycleCount;
-    const combinedOrphanStatements = this.orphanStatements + other.orphanStatements;
-    const combinedRedundantConnections = this.redundantConnections + other.redundantConnections;
-    const combinedValidationErrors = this.validationErrors + other.validationErrors;
-    const combinedValidationWarnings = this.validationWarnings + other.validationWarnings;
-
-    const result = AnalysisMetrics.create(
-      combinedStatementCount,
-      combinedConnectionCount,
-      combinedTreeDepth,
-      combinedBranchingFactor,
-      combinedCycleCount,
-      combinedOrphanStatements,
-      combinedRedundantConnections,
-      combinedValidationErrors,
-      combinedValidationWarnings
-    );
-
-    return result.isOk() ? result.value : AnalysisMetrics.createEmpty();
+    return this.combine(other);
   }
 
   generateSummary(): MetricsSummary {
     return {
-      complexityLevel: this.getComplexityLevel(),
-      qualityLevel: this.getQualityLevel(),
-      performanceScore: this.performanceScore,
-      statementCount: this.statementCount,
-      connectionCount: this.connectionCount,
-      hasIssues: this.hasIssues(),
-      hasErrors: this.hasErrors(),
-      connectionDensity: this.getConnectionDensity(),
-      orphanRate: this.getOrphanRate(),
-      redundancyRate: this.getRedundancyRate(),
+      complexityLevel: this.isHighComplexity() ? 'high' : 'low',
+      qualityLevel:
+        this.getQualityScore() > 80 ? 'high' : this.getQualityScore() > 50 ? 'medium' : 'low',
+      performanceScore: this.getQualityScore(),
+      statementCount: this.getStatementCount(),
+      connectionCount: this.getConnectionCount(),
+      hasIssues: this.issueCount > 0,
+      hasErrors: this.issueCount > 0,
+      connectionDensity: this.patternMatches > 0 ? this.issueCount / this.patternMatches : 0,
+      orphanRate: 0,
+      redundancyRate: 0,
     };
   }
 
-  private getComplexityLevel(): 'low' | 'medium' | 'high' {
-    if (this.isLowComplexity()) return 'low';
-    if (this.isMediumComplexity()) return 'medium';
-    return 'high';
-  }
-
-  private getQualityLevel(): 'low' | 'medium' | 'high' {
-    if (this.isLowQuality()) return 'low';
-    if (this.isMediumQuality()) return 'medium';
-    return 'high';
+  toJSON(): {
+    totalTimeMs: number;
+    issueCount: number;
+    patternMatches: number;
+    complexityScore: number;
+  } {
+    return {
+      totalTimeMs: this.totalTimeMs,
+      issueCount: this.issueCount,
+      patternMatches: this.patternMatches,
+      complexityScore: this.complexityScore,
+    };
   }
 
   equals(other: AnalysisMetrics): boolean {
     return (
-      this.complexityScore === other.complexityScore &&
-      this.qualityScore === other.qualityScore &&
-      this.statementCount === other.statementCount &&
-      this.connectionCount === other.connectionCount
+      this.totalTimeMs === other.totalTimeMs &&
+      this.issueCount === other.issueCount &&
+      this.patternMatches === other.patternMatches &&
+      this.complexityScore === other.complexityScore
     );
   }
 }

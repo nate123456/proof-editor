@@ -1,0 +1,21 @@
+statements:
+  s1: "All men are mortal"
+  s2: "Socrates is a man"
+
+orderedSets:
+  os1: [s1, s2, s3]  # s3 doesn't exist
+  os2: [s4]          # s4 doesn't exist
+
+atomicArguments:
+  arg1:
+    premises: os1
+    conclusions: os3  # os3 doesn't exist
+  arg2:
+    premises: os4     # os4 doesn't exist
+    conclusions: os2
+
+trees:
+  tree1:
+    nodes:
+      n1: { arg: arg3 }  # arg3 doesn't exist
+      n2: { n3: arg1, on: 0 }  # n3 doesn't exist

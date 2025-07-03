@@ -1,4 +1,4 @@
-import { err, ok, type Result } from 'neverthrow';
+import { err as _err, ok as _ok, type Result } from 'neverthrow';
 
 import { ValidationError } from '../errors/DomainErrors';
 
@@ -7,25 +7,16 @@ export class ValidationResultId {
 
   static create(value: string): Result<ValidationResultId, ValidationError> {
     if (!value || value.trim().length === 0) {
-      return {
-        success: false,
-        error: new ValidationError('Validation result ID cannot be empty'),
-      };
+      return _err(new ValidationError('Validation result ID cannot be empty'));
     }
 
     const trimmedValue = value.trim();
 
     if (trimmedValue.length < 5) {
-      return {
-        success: false,
-        error: new ValidationError('Validation result ID must be at least 5 characters long'),
-      };
+      return _err(new ValidationError('Validation result ID must be at least 5 characters long'));
     }
 
-    return {
-      success: true,
-      data: new ValidationResultId(trimmedValue),
-    };
+    return _ok(new ValidationResultId(trimmedValue));
   }
 
   static generate(): ValidationResultId {

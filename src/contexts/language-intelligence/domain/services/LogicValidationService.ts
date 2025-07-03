@@ -65,22 +65,41 @@ export class LogicValidationService {
       const hasErrors = diagnostics.some(d => d.getSeverity().isError());
 
       if (hasErrors) {
-        return ValidationResult.createFailedValidation(
+        const failedValidationResult = ValidationResult.createFailedValidation(
           level,
           diagnostics,
           documentId,
           languagePackage.getId().getValue(),
           metrics.value
         );
-      } else {
-        return ok(
-          ValidationResult.createSuccessfulValidation(
-            level,
-            documentId,
-            languagePackage.getId().getValue(),
-            metrics.value
-          )
+        if (failedValidationResult.isErr()) {
+          return err(failedValidationResult.error);
+        }
+        return ok(failedValidationResult.value);
+      } else if (diagnostics.length > 0) {
+        // Successful validation with warnings - create as failed validation but should be treated as valid
+        const validationWithWarnings = ValidationResult.createFailedValidation(
+          level,
+          diagnostics,
+          documentId,
+          languagePackage.getId().getValue(),
+          metrics.value
         );
+        if (validationWithWarnings.isErr()) {
+          return err(validationWithWarnings.error);
+        }
+        return ok(validationWithWarnings.value);
+      } else {
+        const successfulValidationResult = ValidationResult.createSuccessfulValidation(
+          level,
+          documentId,
+          languagePackage.getId().getValue(),
+          metrics.value
+        );
+        if (successfulValidationResult.isErr()) {
+          return err(successfulValidationResult.error);
+        }
+        return ok(successfulValidationResult.value);
       }
     } catch (error) {
       return err(
@@ -154,22 +173,41 @@ export class LogicValidationService {
       const hasErrors = diagnostics.some(d => d.getSeverity().isError());
 
       if (hasErrors) {
-        return ValidationResult.createFailedValidation(
+        const failedValidationResult = ValidationResult.createFailedValidation(
           level,
           diagnostics,
           documentId,
           languagePackage.getId().getValue(),
           metrics.value
         );
-      } else {
-        return ok(
-          ValidationResult.createSuccessfulValidation(
-            level,
-            documentId,
-            languagePackage.getId().getValue(),
-            metrics.value
-          )
+        if (failedValidationResult.isErr()) {
+          return err(failedValidationResult.error);
+        }
+        return ok(failedValidationResult.value);
+      } else if (diagnostics.length > 0) {
+        // Successful validation with warnings - create as failed validation but should be treated as valid
+        const validationWithWarnings = ValidationResult.createFailedValidation(
+          level,
+          diagnostics,
+          documentId,
+          languagePackage.getId().getValue(),
+          metrics.value
         );
+        if (validationWithWarnings.isErr()) {
+          return err(validationWithWarnings.error);
+        }
+        return ok(validationWithWarnings.value);
+      } else {
+        const successfulValidationResult = ValidationResult.createSuccessfulValidation(
+          level,
+          documentId,
+          languagePackage.getId().getValue(),
+          metrics.value
+        );
+        if (successfulValidationResult.isErr()) {
+          return err(successfulValidationResult.error);
+        }
+        return ok(successfulValidationResult.value);
       }
     } catch (error) {
       return err(
@@ -192,14 +230,20 @@ export class LogicValidationService {
     // Simplified implementation
     const documentId = `proof-${Date.now()}`;
 
-    return ok(
-      ValidationResult.createSuccessfulValidation(
-        ValidationLevel.syntax(),
-        documentId,
-        'default-package',
-        ValidationMetrics.empty()
-      )
+    const metrics = ValidationMetrics.empty();
+
+    const validationResult = ValidationResult.createSuccessfulValidation(
+      ValidationLevel.syntax(),
+      documentId,
+      'default-package',
+      metrics
     );
+
+    if (validationResult.isErr()) {
+      return err(validationResult.error);
+    }
+
+    return ok(validationResult.value);
   }
 
   private validateSyntax(
@@ -301,7 +345,7 @@ export class LogicValidationService {
     if (statement.length > 200) {
       const warningResult = Diagnostic.create(
         DiagnosticSeverity.warning(),
-        'Statement is very long, consider breaking it down',
+        'Statement is long, consider breaking it down',
         'style-length',
         location,
         'default-package',
@@ -397,11 +441,11 @@ export class LogicValidationService {
   }
 
   private findInvalidSymbols(statement: string, _languagePackage: LanguagePackage): string[] {
-    // Simplified implementation - return empty array for now
-    const symbols = statement.match(/[∀∃∧∨¬→↔]/g) ?? [];
-    // Basic validation - assume common symbols are valid
-    const commonValidSymbols = ['∀', '∃', '∧', '∨', '¬', '→', '↔'];
-    return symbols.filter(symbol => !commonValidSymbols.includes(symbol));
+    // Find all non-alphanumeric, non-whitespace, non-standard punctuation characters
+    const allSymbols = statement.match(/[^\w\s(),.]/g) ?? [];
+    // Basic validation - assume common logical symbols are valid
+    const validSymbols = ['∀', '∃', '∧', '∨', '¬', '→', '↔'];
+    return allSymbols.filter(symbol => !validSymbols.includes(symbol));
   }
 
   private parseLogicalStructure(statement: string): {

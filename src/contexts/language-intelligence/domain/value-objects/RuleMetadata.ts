@@ -1,4 +1,4 @@
-import { err, ok, type Result } from 'neverthrow';
+import { err as _err, ok as _ok, type Result } from 'neverthrow';
 
 import { ValidationError } from '../errors/DomainErrors';
 
@@ -31,41 +31,31 @@ export class RuleMetadata {
     } = options;
 
     if (tags.some(tag => tag.trim().length === 0)) {
-      return {
-        success: false,
-        error: new ValidationError('Tags cannot be empty'),
-      };
+      return _err(new ValidationError('Tags cannot be empty'));
     }
 
     if (prerequisiteKnowledge.some(prereq => prereq.trim().length === 0)) {
-      return {
-        success: false,
-        error: new ValidationError('Prerequisite knowledge items cannot be empty'),
-      };
+      return _err(new ValidationError('Prerequisite knowledge items cannot be empty'));
     }
 
     if (relatedConcepts.some(concept => concept.trim().length === 0)) {
-      return {
-        success: false,
-        error: new ValidationError('Related concepts cannot be empty'),
-      };
+      return _err(new ValidationError('Related concepts cannot be empty'));
     }
 
-    return {
-      success: true,
-      data: new RuleMetadata(
+    return _ok(
+      new RuleMetadata(
         complexityLevel,
         category,
         logicType,
         isBuiltIn,
         isStandard,
         tags.map(tag => tag.trim()),
-        sourceReference?.trim() || null,
+        sourceReference?.trim() ?? null,
         educationalLevel,
         prerequisiteKnowledge.map(prereq => prereq.trim()),
         relatedConcepts.map(concept => concept.trim())
-      ),
-    };
+      )
+    );
   }
 
   static createDefault(): RuleMetadata {
@@ -325,7 +315,7 @@ export interface RuleMetadataOptions {
   isBuiltIn?: boolean;
   isStandard?: boolean;
   tags?: string[];
-  sourceReference?: string;
+  sourceReference?: string | null;
   educationalLevel?: EducationalLevel;
   prerequisiteKnowledge?: string[];
   relatedConcepts?: string[];

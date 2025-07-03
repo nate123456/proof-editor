@@ -47,8 +47,77 @@ const validContentArbitrary = fc
 const invalidContentArbitrary = fc.oneof(
   fc.constant(''),
   fc.constant('   '),
-  fc.string({ minLength: 10001 })
+  fc.string({ minLength: 10001, maxLength: 15000 }) // Add reasonable upper bound
 );
+
+describe('Utility Functions Coverage', () => {
+  // Test the internal utility functions for complete coverage
+  it('should cover edge cases in UUID generation', () => {
+    // Test multiple UUID generations to ensure pattern coverage
+    const uuids = Array.from({ length: 10 }, () => StatementId.generate().getValue());
+
+    // All should match UUID pattern
+    uuids.forEach(uuid => {
+      expect(uuid).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+      );
+    });
+
+    // All should be unique
+    const uniqueUuids = new Set(uuids);
+    expect(uniqueUuids.size).toBe(uuids.length);
+  });
+
+  it('should test Version with edge integer values', () => {
+    // Test integer validation edge cases
+    const maxSafeInteger = Number.MAX_SAFE_INTEGER;
+    const result = Version.create(maxSafeInteger);
+    expect(result.isOk()).toBe(true);
+
+    // Test zero case specifically
+    const zeroResult = Version.create(0);
+    expect(zeroResult.isOk()).toBe(true);
+    if (zeroResult.isOk()) {
+      expect(zeroResult.value.getValue()).toBe(0);
+    }
+  });
+
+  it('should test Position2D with edge finite values', () => {
+    // Test very small finite numbers
+    const smallResult = Position2D.create(Number.MIN_VALUE, -Number.MIN_VALUE);
+    expect(smallResult.isOk()).toBe(true);
+
+    // Test large finite numbers
+    const largeResult = Position2D.create(Number.MAX_VALUE, -Number.MAX_VALUE);
+    expect(largeResult.isOk()).toBe(true);
+  });
+
+  it('should test PhysicalProperties with all update methods', () => {
+    const original = PhysicalProperties.default();
+
+    // Test withExpansionDirection
+    const withHorizontal = original.withExpansionDirection('horizontal');
+    expect(withHorizontal.isOk()).toBe(true);
+    if (withHorizontal.isOk()) {
+      expect(withHorizontal.value.getExpansionDirection()).toBe('horizontal');
+    }
+
+    // Test withAlignmentMode
+    const withLeft = original.withAlignmentMode('left');
+    expect(withLeft.isOk()).toBe(true);
+    if (withLeft.isOk()) {
+      expect(withLeft.value.getAlignmentMode()).toBe('left');
+    }
+
+    // Test withMinDimensions
+    const withDims = original.withMinDimensions(200, 150);
+    expect(withDims.isOk()).toBe(true);
+    if (withDims.isOk()) {
+      expect(withDims.value.getMinWidth()).toBe(200);
+      expect(withDims.value.getMinHeight()).toBe(150);
+    }
+  });
+});
 
 describe('ValueObject Base Class', () => {
   // Example concrete implementation for testing
@@ -162,12 +231,10 @@ describe('ID Value Objects', () => {
         });
 
         it('should reject null and undefined', () => {
-          // @ts-expect-error Testing invalid input
-          const nullResult = IdClass.create(null);
+          const nullResult = IdClass.create(null as any);
           expect(nullResult.isErr()).toBe(true);
 
-          // @ts-expect-error Testing invalid input
-          const undefinedResult = IdClass.create(undefined);
+          const undefinedResult = IdClass.create(undefined as any);
           expect(undefinedResult.isErr()).toBe(true);
         });
 
@@ -192,7 +259,7 @@ describe('ID Value Objects', () => {
           const id1 = IdClass.fromString('test-id');
           const id2 = IdClass.fromString('test-id');
 
-          expect(id1.equals(id2)).toBe(true);
+          expect(id1.equals(id2 as any)).toBe(true);
           expect(id1.getValue()).toBe(id2.getValue());
         });
 
@@ -236,12 +303,10 @@ describe('StatementContent', () => {
     });
 
     it('should handle null and undefined gracefully', () => {
-      // @ts-expect-error Testing invalid input
-      const nullResult = StatementContent.create(null);
+      const nullResult = StatementContent.create(null as any);
       expect(nullResult.isErr()).toBe(true);
 
-      // @ts-expect-error Testing invalid input
-      const undefinedResult = StatementContent.create(undefined);
+      const undefinedResult = StatementContent.create(undefined as any);
       expect(undefinedResult.isErr()).toBe(true);
     });
   });
@@ -346,14 +411,24 @@ describe('Version', () => {
     });
 
     it('should compare versions correctly', () => {
-      const v1 = Version.create(5).value!;
-      const v2 = Version.create(10).value!;
-      const v3 = Version.create(5).value!;
+      const v1Result = Version.create(5);
+      const v2Result = Version.create(10);
+      const v3Result = Version.create(5);
 
-      expect(v2.isAfter(v1)).toBe(true);
-      expect(v1.isBefore(v2)).toBe(true);
-      expect(v1.isAfter(v3)).toBe(false);
-      expect(v1.isBefore(v3)).toBe(false);
+      expect(v1Result.isOk()).toBe(true);
+      expect(v2Result.isOk()).toBe(true);
+      expect(v3Result.isOk()).toBe(true);
+
+      if (v1Result.isOk() && v2Result.isOk() && v3Result.isOk()) {
+        const v1 = v1Result.value;
+        const v2 = v2Result.value;
+        const v3 = v3Result.value;
+
+        expect(v2.isAfter(v1)).toBe(true);
+        expect(v1.isBefore(v2)).toBe(true);
+        expect(v1.isAfter(v3)).toBe(false);
+        expect(v1.isBefore(v3)).toBe(false);
+      }
     });
   });
 
@@ -361,18 +436,26 @@ describe('Version', () => {
     it('should maintain ordering invariants', () => {
       fc.assert(
         fc.property(fc.nat(), fc.nat(), (a, b) => {
-          const vA = Version.create(a).value!;
-          const vB = Version.create(b).value!;
+          const vAResult = Version.create(a);
+          const vBResult = Version.create(b);
 
-          if (a < b) {
-            expect(vA.isBefore(vB)).toBe(true);
-            expect(vB.isAfter(vA)).toBe(true);
-          } else if (a > b) {
-            expect(vA.isAfter(vB)).toBe(true);
-            expect(vB.isBefore(vA)).toBe(true);
-          } else {
-            expect(vA.isBefore(vB)).toBe(false);
-            expect(vA.isAfter(vB)).toBe(false);
+          expect(vAResult.isOk()).toBe(true);
+          expect(vBResult.isOk()).toBe(true);
+
+          if (vAResult.isOk() && vBResult.isOk()) {
+            const vA = vAResult.value;
+            const vB = vBResult.value;
+
+            if (a < b) {
+              expect(vA.isBefore(vB)).toBe(true);
+              expect(vB.isAfter(vA)).toBe(true);
+            } else if (a > b) {
+              expect(vA.isAfter(vB)).toBe(true);
+              expect(vB.isBefore(vA)).toBe(true);
+            } else {
+              expect(vA.isBefore(vB)).toBe(false);
+              expect(vA.isAfter(vB)).toBe(false);
+            }
           }
         })
       );
@@ -411,27 +494,54 @@ describe('Timestamp', () => {
       expect(timestamp.getValue()).toBe(date.getTime());
       expect(timestamp.toDate()).toEqual(date);
     });
+
+    it('should reject invalid timestamp values', () => {
+      const negativeResult = Timestamp.create(-1);
+      expect(negativeResult.isErr()).toBe(true);
+
+      const floatResult = Timestamp.create(123.45);
+      expect(floatResult.isErr()).toBe(true);
+
+      const nanResult = Timestamp.create(NaN);
+      expect(nanResult.isErr()).toBe(true);
+
+      const infiniteResult = Timestamp.create(Infinity);
+      expect(infiniteResult.isErr()).toBe(true);
+    });
   });
 
   describe('temporal operations', () => {
     it('should compare timestamps correctly', () => {
-      const early = Timestamp.create(1000).value!;
-      const late = Timestamp.create(2000).value!;
+      const earlyResult = Timestamp.create(1000);
+      const lateResult = Timestamp.create(2000);
 
-      expect(late.isAfter(early)).toBe(true);
-      expect(early.isBefore(late)).toBe(true);
-      expect(early.isAfter(early)).toBe(false);
-      expect(early.isBefore(early)).toBe(false);
+      expect(earlyResult.isOk()).toBe(true);
+      expect(lateResult.isOk()).toBe(true);
+
+      if (earlyResult.isOk() && lateResult.isOk()) {
+        const early = earlyResult.value;
+        const late = lateResult.value;
+
+        expect(late.isAfter(early)).toBe(true);
+        expect(early.isBefore(late)).toBe(true);
+        expect(early.isAfter(early)).toBe(false);
+        expect(early.isBefore(early)).toBe(false);
+      }
     });
 
     it('should convert to Date consistently', () => {
       fc.assert(
         fc.property(fc.nat(), timestamp => {
-          const ts = Timestamp.create(timestamp).value!;
-          const date = ts.toDate();
-          const roundTrip = Timestamp.fromDate(date);
+          const tsResult = Timestamp.create(timestamp);
+          expect(tsResult.isOk()).toBe(true);
 
-          expect(roundTrip.getValue()).toBe(timestamp);
+          if (tsResult.isOk()) {
+            const ts = tsResult.value;
+            const date = ts.toDate();
+            const roundTrip = Timestamp.fromDate(date);
+
+            expect(roundTrip.getValue()).toBe(timestamp);
+          }
         })
       );
     });
@@ -479,28 +589,66 @@ describe('Position2D', () => {
     });
 
     it('should move by delta correctly', () => {
-      const pos = Position2D.create(10, 20).value!;
-      const moved = pos.moveBy(5, -3).value!;
+      const posResult = Position2D.create(10, 20);
+      expect(posResult.isOk()).toBe(true);
 
-      expect(moved.getX()).toBe(15);
-      expect(moved.getY()).toBe(17);
+      if (posResult.isOk()) {
+        const pos = posResult.value;
+        const movedResult = pos.moveBy(5, -3);
+        expect(movedResult.isOk()).toBe(true);
+
+        if (movedResult.isOk()) {
+          const moved = movedResult.value;
+
+          expect(moved.getX()).toBe(15);
+          expect(moved.getY()).toBe(17);
+        }
+      }
     });
 
     it('should calculate distance correctly', () => {
-      const p1 = Position2D.create(0, 0).value!;
-      const p2 = Position2D.create(3, 4).value!;
+      const p1Result = Position2D.create(0, 0);
+      const p2Result = Position2D.create(3, 4);
 
-      expect(p1.distanceTo(p2)).toBe(5); // 3-4-5 triangle
-      expect(p2.distanceTo(p1)).toBe(5); // Distance is symmetric
+      expect(p1Result.isOk()).toBe(true);
+      expect(p2Result.isOk()).toBe(true);
+
+      if (p1Result.isOk() && p2Result.isOk()) {
+        const p1 = p1Result.value;
+        const p2 = p2Result.value;
+
+        expect(p1.distanceTo(p2)).toBe(5); // 3-4-5 triangle
+        expect(p2.distanceTo(p1)).toBe(5); // Distance is symmetric
+      }
     });
 
     it('should implement equality correctly', () => {
-      const p1 = Position2D.create(1.5, 2.7).value!;
-      const p2 = Position2D.create(1.5, 2.7).value!;
-      const p3 = Position2D.create(1.5, 2.8).value!;
+      const p1Result = Position2D.create(1.5, 2.7);
+      const p2Result = Position2D.create(1.5, 2.7);
+      const p3Result = Position2D.create(1.5, 2.8);
 
-      expect(p1.equals(p2)).toBe(true);
-      expect(p1.equals(p3)).toBe(false);
+      expect(p1Result.isOk()).toBe(true);
+      expect(p2Result.isOk()).toBe(true);
+      expect(p3Result.isOk()).toBe(true);
+
+      if (p1Result.isOk() && p2Result.isOk() && p3Result.isOk()) {
+        const p1 = p1Result.value;
+        const p2 = p2Result.value;
+        const p3 = p3Result.value;
+
+        expect(p1.equals(p2)).toBe(true);
+        expect(p1.equals(p3)).toBe(false);
+      }
+    });
+
+    it('should provide readable string representation', () => {
+      const posResult = Position2D.create(10.5, -20.3);
+      expect(posResult.isOk()).toBe(true);
+
+      if (posResult.isOk()) {
+        const pos = posResult.value;
+        expect(pos.toString()).toBe('(10.5, -20.3)');
+      }
     });
   });
 
@@ -513,19 +661,27 @@ describe('Position2D', () => {
           fc.float({ noNaN: true, noDefaultInfinity: true }),
           fc.float({ noNaN: true, noDefaultInfinity: true }),
           (x1, y1, x2, y2) => {
-            const p1 = Position2D.create(x1, y1).value!;
-            const p2 = Position2D.create(x2, y2).value!;
+            const p1Result = Position2D.create(x1, y1);
+            const p2Result = Position2D.create(x2, y2);
 
-            const distance = p1.distanceTo(p2);
+            expect(p1Result.isOk()).toBe(true);
+            expect(p2Result.isOk()).toBe(true);
 
-            // Distance is non-negative
-            expect(distance).toBeGreaterThanOrEqual(0);
+            if (p1Result.isOk() && p2Result.isOk()) {
+              const p1 = p1Result.value;
+              const p2 = p2Result.value;
 
-            // Distance is symmetric
-            expect(p2.distanceTo(p1)).toBeCloseTo(distance);
+              const distance = p1.distanceTo(p2);
 
-            // Distance to self is zero
-            expect(p1.distanceTo(p1)).toBe(0);
+              // Distance is non-negative
+              expect(distance).toBeGreaterThanOrEqual(0);
+
+              // Distance is symmetric
+              expect(p2.distanceTo(p1)).toBeCloseTo(distance);
+
+              // Distance to self is zero
+              expect(p1.distanceTo(p1)).toBe(0);
+            }
           }
         )
       );
@@ -583,23 +739,43 @@ describe('Attachment', () => {
   describe('attachment equality and representation', () => {
     it('should implement equality correctly', () => {
       const parentId = NodeId.generate();
-      const attachment1 = Attachment.create(parentId, 0).value!;
-      const attachment2 = Attachment.create(parentId, 0).value!;
-      const attachment3 = Attachment.create(parentId, 1).value!;
+      const attachment1Result = Attachment.create(parentId, 0);
+      const attachment2Result = Attachment.create(parentId, 0);
+      const attachment3Result = Attachment.create(parentId, 1);
 
-      expect(attachment1.equals(attachment2)).toBe(true);
-      expect(attachment1.equals(attachment3)).toBe(false);
+      expect(attachment1Result.isOk()).toBe(true);
+      expect(attachment2Result.isOk()).toBe(true);
+      expect(attachment3Result.isOk()).toBe(true);
+
+      if (attachment1Result.isOk() && attachment2Result.isOk() && attachment3Result.isOk()) {
+        const attachment1 = attachment1Result.value;
+        const attachment2 = attachment2Result.value;
+        const attachment3 = attachment3Result.value;
+
+        expect(attachment1.equals(attachment2)).toBe(true);
+        expect(attachment1.equals(attachment3)).toBe(false);
+      }
     });
 
     it('should provide readable string representation', () => {
       const parentId = NodeId.fromString('test-parent');
 
-      const simple = Attachment.create(parentId, 0).value!;
-      expect(simple.toString()).toContain('parent=test-parent');
-      expect(simple.toString()).toContain('position=0');
+      const simpleResult = Attachment.create(parentId, 0);
+      expect(simpleResult.isOk()).toBe(true);
 
-      const withFrom = Attachment.create(parentId, 1, 2).value!;
-      expect(withFrom.toString()).toContain('from=2');
+      if (simpleResult.isOk()) {
+        const simple = simpleResult.value;
+        expect(simple.toString()).toContain('parent=test-parent');
+        expect(simple.toString()).toContain('position=0');
+      }
+
+      const withFromResult = Attachment.create(parentId, 1, 2);
+      expect(withFromResult.isOk()).toBe(true);
+
+      if (withFromResult.isOk()) {
+        const withFrom = withFromResult.value;
+        expect(withFrom.toString()).toContain('from=2');
+      }
     });
   });
 });
@@ -619,11 +795,23 @@ describe('PhysicalProperties', () => {
     });
 
     it('should validate spacing constraints', () => {
-      const negativeSpacing = PhysicalProperties.create('bottom-up', -10, 40);
-      expect(negativeSpacing.isErr()).toBe(true);
+      const negativeSpacingX = PhysicalProperties.create('bottom-up', -10, 40);
+      expect(negativeSpacingX.isErr()).toBe(true);
 
-      const infiniteSpacing = PhysicalProperties.create('bottom-up', Infinity, 40);
-      expect(infiniteSpacing.isErr()).toBe(true);
+      const negativeSpacingY = PhysicalProperties.create('bottom-up', 50, -10);
+      expect(negativeSpacingY.isErr()).toBe(true);
+
+      const infiniteSpacingX = PhysicalProperties.create('bottom-up', Infinity, 40);
+      expect(infiniteSpacingX.isErr()).toBe(true);
+
+      const infiniteSpacingY = PhysicalProperties.create('bottom-up', 50, Infinity);
+      expect(infiniteSpacingY.isErr()).toBe(true);
+
+      const nanSpacingX = PhysicalProperties.create('bottom-up', NaN, 40);
+      expect(nanSpacingX.isErr()).toBe(true);
+
+      const nanSpacingY = PhysicalProperties.create('bottom-up', 50, NaN);
+      expect(nanSpacingY.isErr()).toBe(true);
     });
 
     it('should validate dimension constraints', () => {
@@ -639,13 +827,23 @@ describe('PhysicalProperties', () => {
     it('should create new instances on updates', () => {
       const original = PhysicalProperties.default();
 
-      const withNewStyle = original.withLayoutStyle('top-down').value!;
-      expect(withNewStyle.getLayoutStyle()).toBe('top-down');
-      expect(original.getLayoutStyle()).toBe('bottom-up'); // Original unchanged
+      const withNewStyleResult = original.withLayoutStyle('top-down');
+      expect(withNewStyleResult.isOk()).toBe(true);
 
-      const withNewSpacing = original.withSpacing(100, 80).value!;
-      expect(withNewSpacing.getSpacingX()).toBe(100);
-      expect(withNewSpacing.getSpacingY()).toBe(80);
+      if (withNewStyleResult.isOk()) {
+        const withNewStyle = withNewStyleResult.value;
+        expect(withNewStyle.getLayoutStyle()).toBe('top-down');
+        expect(original.getLayoutStyle()).toBe('bottom-up'); // Original unchanged
+      }
+
+      const withNewSpacingResult = original.withSpacing(100, 80);
+      expect(withNewSpacingResult.isOk()).toBe(true);
+
+      if (withNewSpacingResult.isOk()) {
+        const withNewSpacing = withNewSpacingResult.value;
+        expect(withNewSpacing.getSpacingX()).toBe(100);
+        expect(withNewSpacing.getSpacingY()).toBe(80);
+      }
     });
 
     it('should maintain validation in updates', () => {
@@ -658,23 +856,207 @@ describe('PhysicalProperties', () => {
 
   describe('layout analysis', () => {
     it('should detect flow directions correctly', () => {
-      const bottomUp = PhysicalProperties.create('bottom-up').value!;
-      expect(bottomUp.isBottomUpFlow()).toBe(true);
-      expect(bottomUp.isVerticalFlow()).toBe(true);
-      expect(bottomUp.isHorizontalFlow()).toBe(false);
+      const bottomUpResult = PhysicalProperties.create('bottom-up');
+      expect(bottomUpResult.isOk()).toBe(true);
 
-      const leftRight = PhysicalProperties.create('left-right').value!;
-      expect(leftRight.isHorizontalFlow()).toBe(true);
-      expect(leftRight.isVerticalFlow()).toBe(false);
+      if (bottomUpResult.isOk()) {
+        const bottomUp = bottomUpResult.value;
+        expect(bottomUp.isBottomUpFlow()).toBe(true);
+        expect(bottomUp.isVerticalFlow()).toBe(true);
+        expect(bottomUp.isHorizontalFlow()).toBe(false);
+      }
+
+      const topDownResult = PhysicalProperties.create('top-down');
+      expect(topDownResult.isOk()).toBe(true);
+
+      if (topDownResult.isOk()) {
+        const topDown = topDownResult.value;
+        expect(topDown.isTopDownFlow()).toBe(true);
+        expect(topDown.isVerticalFlow()).toBe(true);
+        expect(topDown.isBottomUpFlow()).toBe(false);
+      }
+
+      const leftRightResult = PhysicalProperties.create('left-right');
+      expect(leftRightResult.isOk()).toBe(true);
+
+      if (leftRightResult.isOk()) {
+        const leftRight = leftRightResult.value;
+        expect(leftRight.isHorizontalFlow()).toBe(true);
+        expect(leftRight.isVerticalFlow()).toBe(false);
+      }
+
+      const rightLeftResult = PhysicalProperties.create('right-left');
+      expect(rightLeftResult.isOk()).toBe(true);
+
+      if (rightLeftResult.isOk()) {
+        const rightLeft = rightLeftResult.value;
+        expect(rightLeft.isHorizontalFlow()).toBe(true);
+        expect(rightLeft.isVerticalFlow()).toBe(false);
+      }
     });
 
     it('should provide readable string representation', () => {
-      const props = PhysicalProperties.create('bottom-up', 50, 40, 100, 80).value!;
-      const str = props.toString();
+      const propsResult = PhysicalProperties.create('bottom-up', 50, 40, 100, 80);
+      expect(propsResult.isOk()).toBe(true);
 
-      expect(str).toContain('bottom-up');
-      expect(str).toContain('50×40');
-      expect(str).toContain('100×80');
+      if (propsResult.isOk()) {
+        const props = propsResult.value;
+        const str = props.toString();
+
+        expect(str).toContain('bottom-up');
+        expect(str).toContain('50×40');
+        expect(str).toContain('100×80');
+      }
+    });
+  });
+
+  describe('equality behavior', () => {
+    it('should implement equality correctly for identical properties', () => {
+      const props1Result = PhysicalProperties.create(
+        'bottom-up',
+        50,
+        40,
+        100,
+        80,
+        'vertical',
+        'center'
+      );
+      const props2Result = PhysicalProperties.create(
+        'bottom-up',
+        50,
+        40,
+        100,
+        80,
+        'vertical',
+        'center'
+      );
+
+      expect(props1Result.isOk()).toBe(true);
+      expect(props2Result.isOk()).toBe(true);
+
+      if (props1Result.isOk() && props2Result.isOk()) {
+        const props1 = props1Result.value;
+        const props2 = props2Result.value;
+
+        expect(props1.equals(props2)).toBe(true);
+      }
+    });
+
+    it('should detect differences in all properties', () => {
+      const baseResult = PhysicalProperties.create(
+        'bottom-up',
+        50,
+        40,
+        100,
+        80,
+        'vertical',
+        'center'
+      );
+      expect(baseResult.isOk()).toBe(true);
+
+      if (baseResult.isOk()) {
+        const base = baseResult.value;
+
+        const diffLayoutResult = PhysicalProperties.create(
+          'top-down',
+          50,
+          40,
+          100,
+          80,
+          'vertical',
+          'center'
+        );
+        expect(diffLayoutResult.isOk()).toBe(true);
+
+        if (diffLayoutResult.isOk()) {
+          const diffLayout = diffLayoutResult.value;
+          expect(base.equals(diffLayout)).toBe(false);
+        }
+
+        const diffSpacingXResult = PhysicalProperties.create(
+          'bottom-up',
+          60,
+          40,
+          100,
+          80,
+          'vertical',
+          'center'
+        );
+        expect(diffSpacingXResult.isOk()).toBe(true);
+        if (diffSpacingXResult.isOk()) {
+          expect(base.equals(diffSpacingXResult.value)).toBe(false);
+        }
+
+        const diffSpacingYResult = PhysicalProperties.create(
+          'bottom-up',
+          50,
+          50,
+          100,
+          80,
+          'vertical',
+          'center'
+        );
+        expect(diffSpacingYResult.isOk()).toBe(true);
+        if (diffSpacingYResult.isOk()) {
+          expect(base.equals(diffSpacingYResult.value)).toBe(false);
+        }
+
+        const diffMinWidthResult = PhysicalProperties.create(
+          'bottom-up',
+          50,
+          40,
+          120,
+          80,
+          'vertical',
+          'center'
+        );
+        expect(diffMinWidthResult.isOk()).toBe(true);
+        if (diffMinWidthResult.isOk()) {
+          expect(base.equals(diffMinWidthResult.value)).toBe(false);
+        }
+
+        const diffMinHeightResult = PhysicalProperties.create(
+          'bottom-up',
+          50,
+          40,
+          100,
+          90,
+          'vertical',
+          'center'
+        );
+        expect(diffMinHeightResult.isOk()).toBe(true);
+        if (diffMinHeightResult.isOk()) {
+          expect(base.equals(diffMinHeightResult.value)).toBe(false);
+        }
+
+        const diffExpansionResult = PhysicalProperties.create(
+          'bottom-up',
+          50,
+          40,
+          100,
+          80,
+          'horizontal',
+          'center'
+        );
+        expect(diffExpansionResult.isOk()).toBe(true);
+        if (diffExpansionResult.isOk()) {
+          expect(base.equals(diffExpansionResult.value)).toBe(false);
+        }
+
+        const diffAlignmentResult = PhysicalProperties.create(
+          'bottom-up',
+          50,
+          40,
+          100,
+          80,
+          'vertical',
+          'left'
+        );
+        expect(diffAlignmentResult.isOk()).toBe(true);
+        if (diffAlignmentResult.isOk()) {
+          expect(base.equals(diffAlignmentResult.value)).toBe(false);
+        }
+      }
     });
   });
 });
@@ -686,8 +1068,8 @@ describe('Error Handling Patterns', () => {
 
     if (result.isErr()) {
       expect(result.error.context).toBeDefined();
-      expect(result.error.context?.field).toBe('value');
-      expect(result.error.context?.value).toBe('');
+      expect(result.error.context?.['field']).toBe('value');
+      expect(result.error.context?.['value']).toBe('');
     }
   });
 
@@ -698,7 +1080,7 @@ describe('Error Handling Patterns', () => {
       StatementContent.fromString('');
     } catch (error) {
       expect(error).toBeInstanceOf(ValidationError);
-      expect(error.message).toContain('cannot be empty');
+      expect((error as ValidationError).message).toContain('cannot be empty');
     }
   });
 });

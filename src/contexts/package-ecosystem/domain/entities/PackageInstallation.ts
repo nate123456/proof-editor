@@ -55,7 +55,7 @@ export class PackageInstallation {
   ): Result<PackageInstallation, PackageInstallationError> {
     const installationInfo: PackageInstallationInfo = {
       installedAt: new Date(),
-      installedFrom: source.asGitSource() || source.asLocalSource()!,
+      installedFrom: source.asGitSource() ?? source.asLocalSource()!,
       isEnabled: true,
     };
 

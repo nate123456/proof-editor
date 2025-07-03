@@ -60,7 +60,7 @@ export class PackageVersion {
       version: version.trim(),
       status,
       source,
-      publishedAt: publishedAt || new Date(),
+      publishedAt: publishedAt ?? new Date(),
     };
 
     return PackageVersion.create(data);
@@ -95,7 +95,7 @@ export class PackageVersion {
   }
 
   getBreakingChanges(): readonly string[] {
-    return this.data.breakingChanges || [];
+    return this.data.breakingChanges ?? [];
   }
 
   getMigrationGuide(): string | undefined {

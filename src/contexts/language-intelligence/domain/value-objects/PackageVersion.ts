@@ -31,8 +31,8 @@ export class PackageVersion {
     const major = parseInt(match[1] ?? '0', 10);
     const minor = parseInt(match[2] ?? '0', 10);
     const patch = parseInt(match[3] ?? '0', 10);
-    const prerelease = match[4] || null;
-    const build = match[5] || null;
+    const prerelease = match[4] ?? null;
+    const build = match[5] ?? null;
 
     if (major < 0 || minor < 0 || patch < 0) {
       return err(new ValidationError('Version numbers cannot be negative'));
@@ -52,7 +52,7 @@ export class PackageVersion {
       return err(new ValidationError('Version numbers cannot be negative'));
     }
 
-    return ok(new PackageVersion(major, minor, patch, prerelease || null, build || null));
+    return ok(new PackageVersion(major, minor, patch, prerelease ?? null, build ?? null));
   }
 
   getMajor(): number {

@@ -261,9 +261,9 @@ export class AnalysisInsight {
         description.trim(),
         priority,
         confidence,
-        evidence,
-        recommendations,
-        relatedPatterns
+        [...evidence],
+        [...recommendations],
+        [...relatedPatterns]
       )
     );
   }
@@ -403,7 +403,7 @@ export class PatternMatch {
         location,
         confidence,
         matchedContent.trim(),
-        variables,
+        new Map(variables),
         context,
         validationScope
       )

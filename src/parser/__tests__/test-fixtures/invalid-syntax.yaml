@@ -1,0 +1,14 @@
+statements:
+  s1: "All men are mortal"
+  s2: "Socrates is a man"
+  s3: "Socrates is mortal"
+
+orderedSets:
+  os1: [s1, s2
+  # Missing closing bracket above - syntax error
+  os2: [s3]
+
+atomicArguments:
+  arg1:
+    premises: os1
+    conclusions: os2

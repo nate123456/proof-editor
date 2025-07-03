@@ -20,40 +20,30 @@ export class ValidationRequest {
     level: ValidationLevel,
     documentId: string,
     languagePackageId: string,
-    metadata: ValidationRequestMetadata = ValidationRequestMetadata.createDefault()
+    metadata: ValidationRequestMetadata = ValidationRequestMetadataFactory.createDefault()
   ): Result<ValidationRequest, ValidationError> {
     if (!statementText || statementText.trim().length === 0) {
-      return {
-        success: false,
-        error: new ValidationError('Statement text cannot be empty'),
-      };
+      return err(new ValidationError('Statement text cannot be empty'));
     }
 
     if (!documentId || documentId.trim().length === 0) {
-      return {
-        success: false,
-        error: new ValidationError('Document ID cannot be empty'),
-      };
+      return err(new ValidationError('Document ID cannot be empty'));
     }
 
     if (!languagePackageId || languagePackageId.trim().length === 0) {
-      return {
-        success: false,
-        error: new ValidationError('Language package ID cannot be empty'),
-      };
+      return err(new ValidationError('Language package ID cannot be empty'));
     }
 
-    return {
-      success: true,
-      data: new ValidationRequest(
+    return ok(
+      new ValidationRequest(
         statementText.trim(),
         location,
         level,
         documentId.trim(),
         languagePackageId.trim(),
         metadata
-      ),
-    };
+      )
+    );
   }
 
   static createForInference(
@@ -62,20 +52,14 @@ export class ValidationRequest {
     level: ValidationLevel,
     documentId: string,
     languagePackageId: string,
-    metadata: ValidationRequestMetadata = ValidationRequestMetadata.createDefault()
+    metadata: ValidationRequestMetadata = ValidationRequestMetadataFactory.createDefault()
   ): Result<ValidationRequest, ValidationError> {
     if (!premises || premises.length === 0) {
-      return {
-        success: false,
-        error: new ValidationError('At least one premise is required'),
-      };
+      return err(new ValidationError('At least one premise is required'));
     }
 
     if (!conclusions || conclusions.length === 0) {
-      return {
-        success: false,
-        error: new ValidationError('At least one conclusion is required'),
-      };
+      return err(new ValidationError('At least one conclusion is required'));
     }
 
     const premiseText = premises.join(' | ');
@@ -121,11 +105,11 @@ export class ValidationRequest {
   }
 
   getPremises(): string[] {
-    return this.metadata.premises || [];
+    return this.metadata.premises ?? [];
   }
 
   getConclusions(): string[] {
-    return this.metadata.conclusions || [];
+    return this.metadata.conclusions ?? [];
   }
 
   requiresPerformanceTracking(): boolean {
@@ -141,7 +125,7 @@ export class ValidationRequest {
   }
 
   getCustomValidators(): string[] {
-    return this.metadata.customValidators || [];
+    return this.metadata.customValidators ?? [];
   }
 
   withLevel(newLevel: ValidationLevel): ValidationRequest {
@@ -172,8 +156,8 @@ export class ValidationRequest {
 
   getComplexityScore(): number {
     const baseScore = this.statementText.length;
-    const symbolWeight = (this.statementText.match(/[∀∃∧∨→↔¬□◇]/g) || []).length * 2;
-    const parenthesesWeight = (this.statementText.match(/[()]/g) || []).length * 0.5;
+    const symbolWeight = (this.statementText.match(/[∀∃∧∨→↔¬□◇]/g) ?? []).length * 2;
+    const parenthesesWeight = (this.statementText.match(/[()]/g) ?? []).length * 0.5;
 
     return Math.floor(baseScore + symbolWeight + parenthesesWeight);
   }
@@ -203,7 +187,7 @@ export interface ValidationRequestMetadata {
 export type ValidationRequestSource = 'editor' | 'lsp' | 'api' | 'test';
 export type ValidationPriority = 'low' | 'normal' | 'high' | 'urgent';
 
-export class ValidationRequestMetadata {
+export class ValidationRequestMetadataFactory {
   static createDefault(): ValidationRequestMetadata {
     return {
       isInferenceValidation: false,
@@ -217,7 +201,7 @@ export class ValidationRequestMetadata {
 
   static createForLSP(): ValidationRequestMetadata {
     return {
-      ...ValidationRequestMetadata.createDefault(),
+      ...ValidationRequestMetadataFactory.createDefault(),
       requestSource: 'lsp',
       timeout: 5000,
     };
@@ -225,7 +209,7 @@ export class ValidationRequestMetadata {
 
   static createForAPI(): ValidationRequestMetadata {
     return {
-      ...ValidationRequestMetadata.createDefault(),
+      ...ValidationRequestMetadataFactory.createDefault(),
       requestSource: 'api',
       priority: 'high',
       timeout: 15000,

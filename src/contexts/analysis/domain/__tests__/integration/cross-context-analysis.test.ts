@@ -1,0 +1,765 @@
+/**
+ * Cross-Context Analysis Integration Tests
+ *
+ * Tests analysis workflows that span multiple bounded contexts:
+ * - Core Domain services + Language Intelligence validation
+ * - Statement flow analysis with Package Ecosystem integration
+ * - Synchronization-aware analysis for collaborative editing
+ * - End-to-end proof construction and validation workflows
+ * - Performance analysis across context boundaries
+ * - Error propagation in complex analysis scenarios
+ */
+
+import { ok } from 'neverthrow';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+// Core Domain Entities
+// import { AtomicArgument } from '../../../../../domain/entities/AtomicArgument.js';
+// import { OrderedSet } from '../../../../../domain/entities/OrderedSet.js';
+// import { Statement } from '../../../../../domain/entities/Statement.js';
+// Core Domain Services
+import { ConnectionResolutionService } from '../../../../../domain/services/ConnectionResolutionService.js';
+import { CyclePreventionService } from '../../../../../domain/services/CyclePreventionService.js';
+import { PathCompletenessService } from '../../../../../domain/services/PathCompletenessService.js';
+import { StatementFlowService } from '../../../../../domain/services/StatementFlowService.js';
+import { StatementProcessingService } from '../../../../../domain/services/StatementProcessingService.js';
+import { TreeStructureService } from '../../../../../domain/services/TreeStructureService.js';
+import { SourceLocation } from '../../../../../domain/shared/index.js';
+// Language Intelligence Context
+import { InferenceRule } from '../../../../language-intelligence/domain/entities/InferenceRule.js';
+import { LanguagePackage } from '../../../../language-intelligence/domain/entities/LanguagePackage.js';
+import { EducationalFeedbackService } from '../../../../language-intelligence/domain/services/EducationalFeedbackService.js';
+import { LogicValidationService } from '../../../../language-intelligence/domain/services/LogicValidationService.js';
+import { PatternRecognitionService } from '../../../../language-intelligence/domain/services/PatternRecognitionService.js';
+import { LanguagePackageId } from '../../../../language-intelligence/domain/value-objects/LanguagePackageId.js';
+import { PackageName } from '../../../../language-intelligence/domain/value-objects/PackageName.js';
+import { RuleDescription } from '../../../../language-intelligence/domain/value-objects/RuleDescription.js';
+import { RuleName } from '../../../../language-intelligence/domain/value-objects/RuleName.js';
+import { RulePattern } from '../../../../language-intelligence/domain/value-objects/RulePattern.js';
+import { ValidationLevel } from '../../../../language-intelligence/domain/value-objects/ValidationLevel.js';
+// Package Ecosystem Context
+import { Package } from '../../../../package-ecosystem/domain/entities/Package.js';
+import { PackageVersion } from '../../../../package-ecosystem/domain/entities/PackageVersion.js';
+import { DependencyResolutionService } from '../../../../package-ecosystem/domain/services/DependencyResolutionService.js';
+import { PackageDiscoveryService } from '../../../../package-ecosystem/domain/services/package-discovery-service.js';
+import { PackageValidationService } from '../../../../package-ecosystem/domain/services/PackageValidationService.js';
+import { VersionResolutionService } from '../../../../package-ecosystem/domain/services/VersionResolutionService.js';
+import { PackageId } from '../../../../package-ecosystem/domain/value-objects/package-id.js';
+import { PackageManifest } from '../../../../package-ecosystem/domain/value-objects/package-manifest.js';
+import { PackageSource } from '../../../../package-ecosystem/domain/value-objects/package-source.js';
+// Synchronization Context
+import { Operation } from '../../../../synchronization/domain/entities/Operation.js';
+import { SyncState } from '../../../../synchronization/domain/entities/SyncState.js';
+import { VectorClock } from '../../../../synchronization/domain/entities/VectorClock.js';
+import { ConflictResolutionService } from '../../../../synchronization/domain/services/ConflictResolutionService.js';
+import { OperationCoordinationService } from '../../../../synchronization/domain/services/OperationCoordinationService.js';
+import { DeviceId } from '../../../../synchronization/domain/value-objects/DeviceId.js';
+import { LogicalTimestamp } from '../../../../synchronization/domain/value-objects/LogicalTimestamp.js';
+import { OperationId } from '../../../../synchronization/domain/value-objects/OperationId.js';
+import { OperationPayload } from '../../../../synchronization/domain/value-objects/OperationPayload.js';
+import { OperationType } from '../../../../synchronization/domain/value-objects/OperationType.js';
+
+describe('Cross-Context Analysis Integration', () => {
+  // Core Domain Services
+  let statementFlowService: StatementFlowService;
+  let _treeStructureService: TreeStructureService;
+  let pathCompletenessService: PathCompletenessService;
+  let cyclePreventionService: CyclePreventionService;
+  let _connectionResolutionService: ConnectionResolutionService;
+  let _statementProcessingService: StatementProcessingService;
+
+  // Language Intelligence Services
+  let logicValidationService: LogicValidationService;
+  let patternRecognitionService: PatternRecognitionService;
+  let educationalFeedbackService: EducationalFeedbackService;
+  let testLanguagePackage: LanguagePackage;
+
+  // Package Ecosystem Services
+  let packageValidationService: PackageValidationService;
+  let dependencyResolutionService: DependencyResolutionService;
+  let testPackage: Package;
+
+  // Synchronization Services
+  let _conflictResolutionService: ConflictResolutionService;
+  let operationCoordinationService: OperationCoordinationService;
+  let testDevice: DeviceId;
+
+  beforeEach(() => {
+    // Initialize Core Domain Services
+    statementFlowService = new StatementFlowService();
+    _treeStructureService = new TreeStructureService();
+    pathCompletenessService = new PathCompletenessService();
+    cyclePreventionService = new CyclePreventionService();
+    _connectionResolutionService = new ConnectionResolutionService();
+    _statementProcessingService = new StatementProcessingService();
+
+    // Initialize Language Intelligence Services
+    logicValidationService = new LogicValidationService();
+    patternRecognitionService = new PatternRecognitionService();
+    educationalFeedbackService = new EducationalFeedbackService();
+
+    // Create test language package
+    const packageId = LanguagePackageId.create('cross-context-test');
+    const packageName = PackageName.create('Cross Context Test Package');
+    expect(packageId.isOk()).toBe(true);
+    expect(packageName.isOk()).toBe(true);
+
+    if (packageId.isOk() && packageName.isOk()) {
+      const languagePackageResult = LanguagePackage.create(
+        packageId.value,
+        packageName.value,
+        'Test package for cross-context analysis'
+      );
+      expect(languagePackageResult.isOk()).toBe(true);
+      if (languagePackageResult.isOk()) {
+        testLanguagePackage = languagePackageResult.value;
+
+        // Add test inference rules
+        const ruleName = RuleName.create('cross-context-rule');
+        const ruleDescription = RuleDescription.create('Cross context analysis rule');
+        const rulePattern = RulePattern.create(['P', 'P -> Q'], ['Q']);
+
+        if (ruleName.isOk() && ruleDescription.isOk() && rulePattern.isOk()) {
+          const inferenceRule = InferenceRule.create(
+            ruleName.value,
+            ruleDescription.value,
+            rulePattern.value
+          );
+          if (inferenceRule.isOk()) {
+            testLanguagePackage.addInferenceRule(inferenceRule.value);
+          }
+        }
+      }
+    }
+
+    // Initialize Package Ecosystem Services
+    packageValidationService = new PackageValidationService();
+    const mockRepo = {
+      findById: vi.fn(),
+      findByName: vi.fn(),
+      save: vi.fn(),
+      delete: vi.fn(),
+      findAll: vi.fn(),
+      exists: vi.fn(),
+      findBySource: vi.fn(),
+      findByVersion: vi.fn(),
+      findInstalled: vi.fn(),
+    };
+    const packageDiscoveryService = new PackageDiscoveryService(mockRepo);
+    const versionResolutionService = new VersionResolutionService();
+    const mockDependencyRepo = {
+      findDependenciesForPackage: vi.fn(),
+      findPackagesThatDependOn: vi.fn(),
+      save: vi.fn(),
+      findByPackageId: vi.fn(),
+      findDependentsOf: vi.fn(),
+      findTransitiveDependencies: vi.fn(),
+      delete: vi.fn(),
+      deleteByPackageId: vi.fn(),
+      exists: vi.fn(),
+      hasCycle: vi.fn(),
+    };
+    dependencyResolutionService = new DependencyResolutionService(
+      mockDependencyRepo,
+      packageDiscoveryService,
+      versionResolutionService
+    );
+
+    // Create test package
+    const testPackageId = PackageId.create('test-analysis-package');
+    const testVersion = PackageVersion.create('1.0.0');
+    const testManifest = PackageManifest.create({
+      name: 'Test Analysis Package',
+      version: '1.0.0',
+      description: 'Package for cross-context analysis testing',
+    });
+    const testSource = PackageSource.createFromGit({
+      url: 'https://github.com/test/analysis',
+      ref: 'main',
+    });
+
+    if (testPackageId.isOk() && testVersion.isOk() && testManifest.isOk() && testSource.isOk()) {
+      const packageResult = Package.create(
+        testPackageId.value,
+        testVersion.value.getValue(),
+        testManifest.value,
+        testSource.value
+      );
+      if (packageResult.isOk()) {
+        testPackage = packageResult.value;
+      }
+    }
+
+    // Initialize Synchronization Services
+    _conflictResolutionService = new ConflictResolutionService();
+    operationCoordinationService = new OperationCoordinationService();
+
+    const deviceResult = DeviceId.create('test-analysis-device');
+    expect(deviceResult.isOk()).toBe(true);
+    if (deviceResult.isOk()) {
+      testDevice = deviceResult.value;
+    }
+  });
+
+  describe('Statement Flow Analysis with Language Intelligence', () => {
+    it('should analyze statement flow with validation across contexts', () => {
+      // Arrange - Create statements that form a logical flow
+      const premise1 = statementFlowService.createStatementFromContent('All men are mortal');
+      const premise2 = statementFlowService.createStatementFromContent('Socrates is a man');
+      const conclusion = statementFlowService.createStatementFromContent('Socrates is mortal');
+
+      expect(premise1.isOk()).toBe(true);
+      expect(premise2.isOk()).toBe(true);
+      expect(conclusion.isOk()).toBe(true);
+
+      if (premise1.isOk() && premise2.isOk() && conclusion.isOk()) {
+        // Create ordered sets for the argument structure
+        const premiseSet = statementFlowService.createOrderedSetFromStatements([
+          premise1.value,
+          premise2.value,
+        ]);
+        const conclusionSet = statementFlowService.createOrderedSetFromStatements([
+          conclusion.value,
+        ]);
+
+        expect(premiseSet.isOk()).toBe(true);
+        expect(conclusionSet.isOk()).toBe(true);
+
+        if (premiseSet.isOk() && conclusionSet.isOk()) {
+          // Create atomic argument
+          const argument = statementFlowService.createAtomicArgumentWithSets(
+            premiseSet.value,
+            conclusionSet.value
+          );
+
+          expect(argument.isOk()).toBe(true);
+
+          if (argument.isOk()) {
+            // Act - Validate the argument using Language Intelligence
+            const validationResult = logicValidationService.validateInference(
+              [premise1.value.getContent(), premise2.value.getContent()],
+              [conclusion.value.getContent()],
+              testLanguagePackage,
+              ValidationLevel.semantic()
+            );
+
+            // Analyze structural properties using Core Domain services
+            const allArguments = new Map();
+            allArguments.set(argument.value.getId(), argument.value);
+
+            const connectedArguments = statementFlowService.findAllConnectedArguments(
+              argument.value,
+              allArguments
+            );
+
+            // Assert
+            expect(validationResult.isOk()).toBe(true);
+            if (validationResult.isOk()) {
+              expect(validationResult.value.isSuccessful()).toBe(true);
+            }
+
+            expect(connectedArguments.size).toBe(1);
+            expect(connectedArguments.has(argument.value)).toBe(true);
+          }
+        }
+      }
+    });
+
+    it('should detect and resolve statement flow cycles across contexts', () => {
+      // Arrange - Create a potential cycle scenario
+      const statement1 = statementFlowService.createStatementFromContent('P implies Q');
+      const statement2 = statementFlowService.createStatementFromContent('Q implies R');
+      const statement3 = statementFlowService.createStatementFromContent('R implies P');
+
+      expect(statement1.isOk()).toBe(true);
+      expect(statement2.isOk()).toBe(true);
+      expect(statement3.isOk()).toBe(true);
+
+      if (statement1.isOk() && statement2.isOk() && statement3.isOk()) {
+        // Create a chain of arguments
+        const set1 = statementFlowService.createOrderedSetFromStatements([statement1.value]);
+        const set2 = statementFlowService.createOrderedSetFromStatements([statement2.value]);
+        const set3 = statementFlowService.createOrderedSetFromStatements([statement3.value]);
+
+        expect(set1.isOk()).toBe(true);
+        expect(set2.isOk()).toBe(true);
+        expect(set3.isOk()).toBe(true);
+
+        if (set1.isOk() && set2.isOk() && set3.isOk()) {
+          const arg1 = statementFlowService.createAtomicArgumentWithSets(set1.value, set2.value);
+          const arg2 = statementFlowService.createAtomicArgumentWithSets(set2.value, set3.value);
+          const arg3 = statementFlowService.createAtomicArgumentWithSets(set3.value, set1.value);
+
+          expect(arg1.isOk()).toBe(true);
+          expect(arg2.isOk()).toBe(true);
+          expect(arg3.isOk()).toBe(true);
+
+          if (arg1.isOk() && arg2.isOk() && arg3.isOk()) {
+            const allArguments = new Map();
+            allArguments.set(arg1.value.getId(), arg1.value);
+            allArguments.set(arg2.value.getId(), arg2.value);
+            allArguments.set(arg3.value.getId(), arg3.value);
+
+            // Act - Use cycle prevention service
+            const cycleResult = cyclePreventionService.detectCycles(
+              Array.from(allArguments.values())
+            );
+
+            // Validate the circular reasoning with Language Intelligence
+            const circularValidation = logicValidationService.validateInference(
+              [statement1.value.getContent()],
+              [statement1.value.getContent()], // Same statement as premise and conclusion
+              testLanguagePackage,
+              ValidationLevel.semantic()
+            );
+
+            // Assert
+            expect(cycleResult.isOk()).toBe(true);
+            expect(circularValidation.isOk()).toBe(true);
+
+            if (circularValidation.isOk()) {
+              // Should detect the circular reasoning issue
+              expect(circularValidation.value.isSuccessful()).toBe(false);
+            }
+          }
+        }
+      }
+    });
+  });
+
+  describe('Package-Aware Analysis Workflows', () => {
+    it('should validate proof structures with package dependencies', () => {
+      // Arrange - Create a proof that depends on external package logic
+      const proofStatement = statementFlowService.createStatementFromContent(
+        'Using package logic: All elements have properties'
+      );
+
+      expect(proofStatement.isOk()).toBe(true);
+
+      if (proofStatement.isOk()) {
+        // Validate the package first
+        const packageValidation = packageValidationService.validatePackageStructure(testPackage);
+        expect(packageValidation.isOk()).toBe(true);
+
+        if (packageValidation.isOk() && packageValidation.value.isValid) {
+          // Act - Validate statement using package-aware validation
+          const validationResult = logicValidationService.validateStatement(
+            proofStatement.value.getContent(),
+            SourceLocation.createDefault(),
+            testLanguagePackage,
+            ValidationLevel.semantic()
+          );
+
+          // Assert
+          expect(validationResult.isOk()).toBe(true);
+          if (validationResult.isOk()) {
+            // Should succeed since package is valid
+            expect(validationResult.value.getLanguagePackageId()).toBe(
+              testLanguagePackage.getId().getValue()
+            );
+          }
+        }
+      }
+    });
+
+    it('should handle package version conflicts in proof analysis', async () => {
+      // Arrange - Simulate scenario with package dependencies
+      const dependencyList = [];
+      const mockDependencyRepo = dependencyResolutionService as any;
+      mockDependencyRepo.dependencyRepository.findDependenciesForPackage = vi
+        .fn()
+        .mockResolvedValue(ok(dependencyList));
+
+      // Act - Resolve dependencies for analysis package
+      const resolutionResult =
+        await dependencyResolutionService.resolveDependenciesForPackage(testPackage);
+
+      // Perform analysis with resolved dependencies
+      const statement = statementFlowService.createStatementFromContent(
+        'Analysis with resolved dependencies'
+      );
+
+      expect(resolutionResult.isOk()).toBe(true);
+      expect(statement.isOk()).toBe(true);
+
+      if (resolutionResult.isOk() && statement.isOk()) {
+        const validationResult = logicValidationService.validateStatement(
+          statement.value.getContent(),
+          SourceLocation.createDefault(),
+          testLanguagePackage,
+          ValidationLevel.syntax()
+        );
+
+        // Assert
+        expect(validationResult.isOk()).toBe(true);
+        expect(resolutionResult.value.conflicts).toHaveLength(0);
+      }
+    });
+  });
+
+  describe('Collaborative Analysis with Synchronization', () => {
+    it('should handle concurrent proof editing across devices', async () => {
+      // Arrange - Create operations from multiple devices
+      const statement1 = statementFlowService.createStatementFromContent('Device A statement');
+      const statement2 = statementFlowService.createStatementFromContent('Device B statement');
+
+      expect(statement1.isOk()).toBe(true);
+      expect(statement2.isOk()).toBe(true);
+
+      if (statement1.isOk() && statement2.isOk()) {
+        // Create operations for collaborative editing
+        const vectorClock = VectorClock.create([testDevice]);
+        expect(vectorClock.isOk()).toBe(true);
+
+        if (vectorClock.isOk()) {
+          vectorClock.value.increment(testDevice);
+
+          const operationId = OperationId.create('collaborative-edit');
+          const timestamp = LogicalTimestamp.create(1);
+          const opType = OperationType.create('STATEMENT_EDIT');
+          const payload = OperationPayload.create({
+            statementId: statement1.value.getId().getValue(),
+            newContent: 'Collaboratively edited statement',
+          });
+
+          expect(operationId.isOk()).toBe(true);
+          expect(timestamp.isOk()).toBe(true);
+          expect(opType.isOk()).toBe(true);
+          expect(payload.isOk()).toBe(true);
+
+          if (operationId.isOk() && timestamp.isOk() && opType.isOk() && payload.isOk()) {
+            const operation = Operation.create(
+              operationId.value,
+              opType.value,
+              payload.value,
+              testDevice,
+              timestamp.value,
+              vectorClock.value
+            );
+
+            expect(operation.isOk()).toBe(true);
+
+            if (operation.isOk()) {
+              const syncState = SyncState.create(testDevice);
+              expect(syncState.isOk()).toBe(true);
+
+              if (syncState.isOk()) {
+                // Act - Coordinate operation and validate result
+                const coordinationResult = await operationCoordinationService.coordinateOperation(
+                  operation.value,
+                  syncState.value
+                );
+
+                const validationResult = logicValidationService.validateStatement(
+                  'Collaboratively edited statement',
+                  SourceLocation.createDefault(),
+                  testLanguagePackage,
+                  ValidationLevel.syntax()
+                );
+
+                // Assert
+                expect(coordinationResult.isOk()).toBe(true);
+                expect(validationResult.isOk()).toBe(true);
+
+                if (validationResult.isOk()) {
+                  expect(validationResult.value.isSuccessful()).toBe(true);
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+
+    it('should maintain proof integrity during conflict resolution', () => {
+      // Arrange - Create conflicting operations on the same proof element
+      const originalStatement =
+        statementFlowService.createStatementFromContent('Original statement');
+      expect(originalStatement.isOk()).toBe(true);
+
+      if (originalStatement.isOk()) {
+        // Simulate conflicting edits
+        const vectorClock1 = VectorClock.create([testDevice]);
+        const vectorClock2 = VectorClock.create([testDevice]);
+
+        expect(vectorClock1.isOk()).toBe(true);
+        expect(vectorClock2.isOk()).toBe(true);
+
+        if (vectorClock1.isOk() && vectorClock2.isOk()) {
+          vectorClock1.value.increment(testDevice);
+          vectorClock2.value.increment(testDevice);
+
+          // Create first operation
+          const op1Id = OperationId.create('conflict-op-1');
+          const op1Timestamp = LogicalTimestamp.create(1);
+          const op1Type = OperationType.create('STATEMENT_EDIT');
+          const op1Payload = OperationPayload.create({
+            statementId: originalStatement.value.getId().getValue(),
+            newContent: 'Edit version 1',
+          });
+
+          // Create second operation
+          const op2Id = OperationId.create('conflict-op-2');
+          const op2Timestamp = LogicalTimestamp.create(1);
+          const op2Type = OperationType.create('STATEMENT_EDIT');
+          const op2Payload = OperationPayload.create({
+            statementId: originalStatement.value.getId().getValue(),
+            newContent: 'Edit version 2',
+          });
+
+          expect(op1Id.isOk()).toBe(true);
+          expect(op2Id.isOk()).toBe(true);
+
+          if (
+            op1Id.isOk() &&
+            op1Timestamp.isOk() &&
+            op1Type.isOk() &&
+            op1Payload.isOk() &&
+            op2Id.isOk() &&
+            op2Timestamp.isOk() &&
+            op2Type.isOk() &&
+            op2Payload.isOk()
+          ) {
+            const operation1 = Operation.create(
+              op1Id.value,
+              op1Type.value,
+              op1Payload.value,
+              testDevice,
+              op1Timestamp.value,
+              vectorClock1.value
+            );
+
+            const operation2 = Operation.create(
+              op2Id.value,
+              op2Type.value,
+              op2Payload.value,
+              testDevice,
+              op2Timestamp.value,
+              vectorClock2.value
+            );
+
+            expect(operation1.isOk()).toBe(true);
+            expect(operation2.isOk()).toBe(true);
+
+            if (operation1.isOk() && operation2.isOk()) {
+              // Act - Resolve conflict and validate resulting proof integrity
+              const transformResult = operation1.value.transformWith(operation2.value);
+              expect(transformResult.isOk()).toBe(true);
+
+              if (transformResult.isOk()) {
+                const [resolved1, resolved2] = transformResult.value;
+
+                // Validate both resolved versions
+                const validation1 = logicValidationService.validateStatement(
+                  'Edit version 1',
+                  SourceLocation.createDefault(),
+                  testLanguagePackage,
+                  ValidationLevel.syntax()
+                );
+
+                const validation2 = logicValidationService.validateStatement(
+                  'Edit version 2',
+                  SourceLocation.createDefault(),
+                  testLanguagePackage,
+                  ValidationLevel.syntax()
+                );
+
+                // Assert
+                expect(validation1.isOk()).toBe(true);
+                expect(validation2.isOk()).toBe(true);
+                expect(resolved1.getDeviceId()).toBe(testDevice);
+                expect(resolved2.getDeviceId()).toBe(testDevice);
+              }
+            }
+          }
+        }
+      }
+    });
+  });
+
+  describe('End-to-End Analysis Workflows', () => {
+    it('should perform complete proof analysis across all contexts', () => {
+      // Arrange - Create a complex proof structure
+      const statements = [
+        'All humans are mortal',
+        'Socrates is human',
+        'Therefore, Socrates is mortal',
+        'All mortals have finite lifespans',
+        'Therefore, Socrates has a finite lifespan',
+      ].map(content => statementFlowService.createStatementFromContent(content));
+
+      // Verify all statements created successfully
+      statements.forEach(stmt => expect(stmt.isOk()).toBe(true));
+
+      const validStatements = statements.filter(stmt => stmt.isOk()).map(stmt => stmt.value);
+
+      if (validStatements.length === 5) {
+        // Create argument chain
+        const argumentsList = [];
+
+        // First argument: Humans mortal + Socrates human → Socrates mortal
+        const premiseSet1 = statementFlowService.createOrderedSetFromStatements([
+          validStatements[0]!,
+          validStatements[1]!,
+        ]);
+        const conclusionSet1 = statementFlowService.createOrderedSetFromStatements([
+          validStatements[2]!,
+        ]);
+
+        if (premiseSet1.isOk() && conclusionSet1.isOk()) {
+          const arg1 = statementFlowService.createAtomicArgumentWithSets(
+            premiseSet1.value,
+            conclusionSet1.value
+          );
+          if (arg1.isOk()) {
+            argumentsList.push(arg1.value);
+          }
+        }
+
+        // Second argument: Socrates mortal + Mortals finite → Socrates finite
+        const premiseSet2 = statementFlowService.createOrderedSetFromStatements([
+          validStatements[2]!,
+          validStatements[3]!,
+        ]);
+        const conclusionSet2 = statementFlowService.createOrderedSetFromStatements([
+          validStatements[4]!,
+        ]);
+
+        if (premiseSet2.isOk() && conclusionSet2.isOk()) {
+          const arg2 = statementFlowService.createAtomicArgumentWithSets(
+            premiseSet2.value,
+            conclusionSet2.value
+          );
+          if (arg2.isOk()) {
+            argumentsList.push(arg2.value);
+          }
+        }
+
+        if (argumentsList.length === 2) {
+          // Act - Perform comprehensive analysis
+
+          // 1. Structural Analysis
+          const allArguments = new Map();
+          argumentsList.forEach(arg => allArguments.set(arg.getId(), arg));
+
+          const pathResult = pathCompletenessService.validatePathCompleteness(
+            argumentsList[0]!,
+            argumentsList[1]!,
+            allArguments
+          );
+
+          // 2. Logic Validation
+          const inference1Validation = logicValidationService.validateInference(
+            [validStatements[0]!.getContent(), validStatements[1]!.getContent()],
+            [validStatements[2]!.getContent()],
+            testLanguagePackage,
+            ValidationLevel.semantic()
+          );
+
+          const inference2Validation = logicValidationService.validateInference(
+            [validStatements[2]!.getContent(), validStatements[3]!.getContent()],
+            [validStatements[4]!.getContent()],
+            testLanguagePackage,
+            ValidationLevel.semantic()
+          );
+
+          // 3. Pattern Recognition
+          const patternResult = patternRecognitionService.recognizeProofPatterns(
+            validStatements.map(s => s.getContent()),
+            [],
+            testLanguagePackage
+          );
+
+          // 4. Educational Feedback
+          if (inference1Validation.isOk()) {
+            const feedbackResult = educationalFeedbackService.generateInferenceFeedback(
+              [validStatements[0]!.getContent(), validStatements[1]!.getContent()],
+              [validStatements[2]!.getContent()],
+              inference1Validation.value,
+              testLanguagePackage,
+              'intermediate'
+            );
+
+            // Assert - All analysis components should work together
+            expect(pathResult.isOk()).toBe(true);
+            expect(inference1Validation.isOk()).toBe(true);
+            expect(inference2Validation.isOk()).toBe(true);
+            expect(patternResult.isOk()).toBe(true);
+            expect(feedbackResult.isOk()).toBe(true);
+
+            if (
+              pathResult.isOk() &&
+              inference1Validation.isOk() &&
+              inference2Validation.isOk() &&
+              patternResult.isOk() &&
+              feedbackResult.isOk()
+            ) {
+              // Verify logical flow
+              expect(inference1Validation.value.isSuccessful()).toBe(true);
+              expect(inference2Validation.value.isSuccessful()).toBe(true);
+
+              // Verify pattern recognition
+              expect(patternResult.value.recognizedPatterns.length).toBeGreaterThanOrEqual(0);
+
+              // Verify educational feedback
+              expect(feedbackResult.value.getFeedbackType()).toBe('inference');
+              expect(feedbackResult.value.getLevelAppropriate()).toBe('intermediate');
+            }
+          }
+        }
+      }
+    });
+
+    it('should handle performance analysis across large proof structures', () => {
+      // Arrange - Create a large proof structure
+      const statementCount = 50;
+      const statements = [];
+
+      for (let i = 0; i < statementCount; i++) {
+        const statement = statementFlowService.createStatementFromContent(`Statement ${i + 1}`);
+        if (statement.isOk()) {
+          statements.push(statement.value);
+        }
+      }
+
+      expect(statements).toHaveLength(statementCount);
+
+      // Act - Perform batch analysis
+      const startTime = Date.now();
+
+      // Validate all statements
+      const validationResults = statements.map(stmt =>
+        logicValidationService.validateStatement(
+          stmt.getContent(),
+          SourceLocation.createDefault(),
+          testLanguagePackage,
+          ValidationLevel.syntax()
+        )
+      );
+
+      // Analyze patterns
+      const patternAnalysis = patternRecognitionService.recognizeProofPatterns(
+        statements.map(s => s.getContent()),
+        [],
+        testLanguagePackage
+      );
+
+      const endTime = Date.now();
+      const processingTime = endTime - startTime;
+
+      // Assert
+      expect(validationResults).toHaveLength(statementCount);
+      expect(patternAnalysis.isOk()).toBe(true);
+      expect(processingTime).toBeLessThan(10000); // Should complete within 10 seconds
+
+      validationResults.forEach(result => {
+        expect(result.isOk()).toBe(true);
+      });
+
+      if (patternAnalysis.isOk()) {
+        expect(patternAnalysis.value.recognizedPatterns).toBeDefined();
+        expect(patternAnalysis.value.structuralFeatures.statementCount).toBe(statementCount);
+      }
+    });
+  });
+});
