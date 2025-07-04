@@ -145,14 +145,41 @@ describe('ProofStrategyAnalysisService', () => {
           expect(result.error.message).toContain('empty conclusion');
         }
       });
+
+      it('should return error for whitespace-only premises', () => {
+        const premises = ['Some premise', '   ', 'Another premise'];
+        const conclusion = 'Some conclusion';
+
+        const result = service.analyzeProofStrategies(premises, conclusion);
+
+        expect(result.isErr()).toBe(true);
+        if (result.isErr()) {
+          expect(result.error.message).toContain('empty content');
+        }
+      });
+
+      it('should return error for empty string premises', () => {
+        const premises = ['Valid premise', '', 'Another premise'];
+        const conclusion = 'Some conclusion';
+
+        const result = service.analyzeProofStrategies(premises, conclusion);
+
+        expect(result.isErr()).toBe(true);
+        if (result.isErr()) {
+          expect(result.error.message).toContain('empty content');
+        }
+      });
     });
 
     describe('property-based tests', () => {
       it('should always return non-empty strategies for valid input', () => {
+        // Generate strings with meaningful content (not just whitespace)
+        const meaningfulString = fc.string({ minLength: 1 }).filter((s) => s.trim().length > 0);
+
         fc.assert(
           fc.property(
-            fc.array(fc.string({ minLength: 1 }), { minLength: 1 }),
-            fc.string({ minLength: 1 }),
+            fc.array(meaningfulString, { minLength: 1 }),
+            meaningfulString,
             (premises, conclusion) => {
               const result = service.analyzeProofStrategies(premises, conclusion);
               expect(result.isOk()).toBe(true);
@@ -165,10 +192,13 @@ describe('ProofStrategyAnalysisService', () => {
       });
 
       it('should maintain consistent confidence bounds', () => {
+        // Generate strings with meaningful content (not just whitespace)
+        const meaningfulString = fc.string({ minLength: 1 }).filter((s) => s.trim().length > 0);
+
         fc.assert(
           fc.property(
-            fc.array(fc.string({ minLength: 1 }), { minLength: 1 }),
-            fc.string({ minLength: 1 }),
+            fc.array(meaningfulString, { minLength: 1 }),
+            meaningfulString,
             (premises, conclusion) => {
               const result = service.analyzeProofStrategies(premises, conclusion);
               if (result.isOk()) {
@@ -273,10 +303,13 @@ describe('ProofStrategyAnalysisService', () => {
     });
 
     it('should provide consistent steps for any input', () => {
+      // Generate strings with meaningful content (not just whitespace)
+      const meaningfulString = fc.string({ minLength: 1 }).filter((s) => s.trim().length > 0);
+
       fc.assert(
         fc.property(
-          fc.array(fc.string(), { minLength: 1 }),
-          fc.string(),
+          fc.array(meaningfulString, { minLength: 1 }),
+          meaningfulString,
           (premises, conclusion) => {
             const analysis = service.analyzeDirectProofViability(premises, conclusion);
             expect(analysis.steps.length).toBe(3);

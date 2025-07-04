@@ -74,6 +74,21 @@ export class YAMLValidator {
       }
     }
 
+    // Validate proof section (simplified format for single tree)
+    if (data.proof !== undefined) {
+      const proofValidation = this.validateProofSection(data.proof);
+      if (proofValidation.isErr()) {
+        errors.push(...proofValidation.error);
+      } else {
+        // Convert proof section to trees format
+        result.trees = {
+          proof: {
+            nodes: proofValidation.value,
+          },
+        };
+      }
+    }
+
     if (errors.length > 0) {
       return err(errors);
     }
@@ -467,7 +482,7 @@ export class YAMLValidator {
       }
 
       const premisesKey = keys[0];
-      if (!premisesKey) {
+      if (premisesKey === undefined) {
         errors.push({
           type: ParseErrorType.INVALID_ARGUMENT,
           message: `Concise argument at index ${index} has no premise key`,
@@ -726,6 +741,43 @@ export class YAMLValidator {
           message: `Node spec must be an object, got ${typeof nodeSpec}`,
           section: 'trees',
           reference: `${treeId}.${nodeId}`,
+        });
+        continue;
+      }
+
+      result[nodeId] = nodeSpec as NodeSpec;
+    }
+
+    return errors.length > 0 ? err(errors) : ok(result);
+  }
+
+  private validateProofSection(proof: unknown): Result<Record<string, NodeSpec>, ParseError[]> {
+    const errors: ParseError[] = [];
+
+    // Handle null/undefined as empty valid section
+    if (proof === null || proof === undefined) {
+      return ok({});
+    }
+
+    if (typeof proof !== 'object') {
+      errors.push({
+        type: ParseErrorType.INVALID_STRUCTURE,
+        message: 'Proof section must be an object',
+        section: 'proof',
+      });
+      return err(errors);
+    }
+
+    const proofObj = proof as Record<string, unknown>;
+    const result: Record<string, NodeSpec> = {};
+
+    for (const [nodeId, nodeSpec] of Object.entries(proofObj)) {
+      if (!nodeSpec || typeof nodeSpec !== 'object') {
+        errors.push({
+          type: ParseErrorType.INVALID_TREE_STRUCTURE,
+          message: `Node spec must be an object, got ${typeof nodeSpec}`,
+          section: 'proof',
+          reference: nodeId,
         });
         continue;
       }

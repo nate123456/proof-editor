@@ -84,8 +84,8 @@ export class StatementFlowService {
     childArg: AtomicArgument,
     sharedSet: OrderedSet,
   ): Result<void, ValidationError> {
-    const parentConclusionRef = parentArg.getConclusionSetRef();
-    const childPremiseRef = childArg.getPremiseSetRef();
+    const parentConclusionRef = parentArg.getConclusionSet();
+    const childPremiseRef = childArg.getPremiseSet();
 
     if (!parentConclusionRef || !childPremiseRef) {
       return err(new ValidationError('Both arguments must have the relevant ordered sets'));
@@ -105,7 +105,7 @@ export class StatementFlowService {
     parentArg: AtomicArgument,
     conclusionSet: OrderedSet,
   ): Result<AtomicArgument, ValidationError> {
-    if (!parentArg.getConclusionSetRef()?.equals(conclusionSet.getId())) {
+    if (!parentArg.getConclusionSet()?.equals(conclusionSet.getId())) {
       return err(new ValidationError('Conclusion set must match parent argument'));
     }
 
@@ -174,8 +174,8 @@ export class StatementFlowService {
     toArgument: AtomicArgument,
     orderedSets: Map<OrderedSetId, OrderedSet>,
   ): Result<void, ValidationError> {
-    const fromConclusionRef = fromArgument.getConclusionSetRef();
-    const toPremiseRef = toArgument.getPremiseSetRef();
+    const fromConclusionRef = fromArgument.getConclusionSet();
+    const toPremiseRef = toArgument.getPremiseSet();
 
     if (!fromConclusionRef || !toPremiseRef) {
       return err(new ValidationError('Both arguments must have relevant ordered sets for flow'));
@@ -198,8 +198,8 @@ export class StatementFlowService {
   }
 
   canStatementsFlowBetween(fromArgument: AtomicArgument, toArgument: AtomicArgument): boolean {
-    const fromConclusionRef = fromArgument.getConclusionSetRef();
-    const toPremiseRef = toArgument.getPremiseSetRef();
+    const fromConclusionRef = fromArgument.getConclusionSet();
+    const toPremiseRef = toArgument.getPremiseSet();
 
     return (
       fromConclusionRef !== null && toPremiseRef !== null && fromConclusionRef.equals(toPremiseRef)

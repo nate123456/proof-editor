@@ -44,8 +44,13 @@ export class VersionResolutionService {
   ): Promise<Result<GitRefResolutionResult, PackageSourceUnavailableError>> {
     const { url, ref } = gitSource;
 
-    if (!ref.trim()) {
+    if (!ref || !ref.trim()) {
       return err(new PackageSourceUnavailableError('Git ref cannot be empty'));
+    }
+
+    // Validate ref format to prevent invalid refs like whitespace-only or malformed ones
+    if (ref.includes('  ') || ref.match(/^\s+$/) || ref.match(/[\s]{2,}/)) {
+      return err(new PackageSourceUnavailableError('Git ref contains invalid whitespace'));
     }
 
     const refResolutionResult = await this.gitRefProvider.resolveRefToCommit(url, ref);
@@ -133,8 +138,10 @@ export class VersionResolutionService {
     }
 
     const branchesResult = await this.gitRefProvider.listAvailableBranches(_gitUrl);
-    if (branchesResult.isErr()) {
-      return err(branchesResult.error);
+    if (!branchesResult || branchesResult.isErr()) {
+      return err(
+        branchesResult?.error || new PackageSourceUnavailableError('Failed to list branches'),
+      );
     }
 
     const versions: PackageVersion[] = [];
@@ -229,6 +236,15 @@ export class VersionResolutionService {
     ref: string,
     _gitUrl: string,
   ): Result<PackageVersion, PackageSourceUnavailableError> {
+    // Handle invalid refs with whitespace or empty content
+    if (!ref || !ref.trim() || ref.includes('  ') || ref.match(/^\s+$/)) {
+      return err(
+        new PackageSourceUnavailableError(
+          'Invalid git ref format: contains invalid whitespace or is empty',
+        ),
+      );
+    }
+
     if (ref.startsWith('v') && /^v\d+\.\d+\.\d+/.exec(ref)) {
       const result = PackageVersion.create(ref.slice(1));
       if (result.isErr()) {

@@ -160,6 +160,9 @@ describe('CrossContextOrchestrationService', () => {
         err(new Error('Invalid statement content')),
       );
 
+      // Mock successful operation coordination (needed for sync coordination)
+      vi.mocked(mockOperationCoordination.applyOperation).mockResolvedValue(ok(undefined));
+
       // Act
       const result = await orchestrationService.orchestrateProofValidation(request);
 
@@ -180,7 +183,7 @@ describe('CrossContextOrchestrationService', () => {
         ref: 'main',
       });
       const manifest = PackageManifest.create({
-        name: 'Test Package',
+        name: 'test-package',
         version: '1.0.0',
         description: 'Test package',
         author: 'Test Author',
@@ -238,6 +241,9 @@ describe('CrossContextOrchestrationService', () => {
             vi.mocked(mockStatementFlow.createStatementFromContent).mockReturnValue(
               ok(mockStatement),
             );
+
+            // Mock successful operation coordination (needed for sync coordination)
+            vi.mocked(mockOperationCoordination.applyOperation).mockResolvedValue(ok(undefined));
 
             // Act
             const result = await orchestrationService.orchestrateProofValidation(request);

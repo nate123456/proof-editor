@@ -37,10 +37,10 @@ export function validateStatementUsage(
     // Count total set references in arguments
     let totalSetReferences = 0;
     for (const argument of argumentsMap.values()) {
-      if (argument.getPremiseSetRef()) {
+      if (argument.getPremiseSet()) {
         totalSetReferences++;
       }
-      if (argument.getConclusionSetRef()) {
+      if (argument.getConclusionSet()) {
         totalSetReferences++;
       }
     }
@@ -110,8 +110,8 @@ export function validateArgumentConnections(
     }
 
     for (const argument of argumentsMap.values()) {
-      const premiseSetId = argument.getPremiseSetRef();
-      const conclusionSetId = argument.getConclusionSetRef();
+      const premiseSetId = argument.getPremiseSet();
+      const conclusionSetId = argument.getConclusionSet();
 
       if (premiseSetId && conclusionSetId && premiseSetId.equals(conclusionSetId)) {
         return err(

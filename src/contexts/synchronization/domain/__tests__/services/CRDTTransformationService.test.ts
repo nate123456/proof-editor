@@ -551,14 +551,13 @@ describe('CRDTTransformationService', () => {
     });
 
     it('should fail validation when target path changes', () => {
-      const device = deviceIdFactory.build();
       const operation1 = operationFactory.build();
       const operationType = operation1.getOperationType();
 
       // Create operation with different target path
       const operation2Result = Operation.create(
         operation1.getId(),
-        device,
+        operation1.getDeviceId(),
         operationType,
         '/different/path',
         operation1.getPayload(),

@@ -50,8 +50,8 @@ expect.extend({
     const pass =
       received != null &&
       typeof received.getId === 'function' &&
-      typeof received.getPremiseSetRef === 'function' &&
-      typeof received.getConclusionSetRef === 'function';
+      typeof received.getPremiseSet === 'function' &&
+      typeof received.getConclusionSet === 'function';
 
     return {
       pass,
@@ -74,8 +74,8 @@ expect.extend({
       const current = received[i];
       const next = received[i + 1];
 
-      const currentConclusion = current?.getConclusionSetRef();
-      const nextPremise = next?.getPremiseSetRef();
+      const currentConclusion = current?.getConclusionSet();
+      const nextPremise = next?.getPremiseSet();
 
       if (
         !current ||

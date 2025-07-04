@@ -1,7 +1,14 @@
+import type { Result } from 'neverthrow';
 import { describe, expect, it } from 'vitest';
 import { ProofAggregate } from '../../aggregates/ProofAggregate.js';
 import { ProofTreeAggregate } from '../../aggregates/ProofTreeAggregate.js';
-import { Attachment, Position2D } from '../../shared/value-objects.js';
+import type { ValidationError } from '../../shared/result.js';
+import {
+  AtomicArgumentId,
+  Attachment,
+  type NodeId,
+  Position2D,
+} from '../../shared/value-objects.js';
 
 describe('ProofTreeAggregate', () => {
   describe('createNew', () => {
@@ -145,11 +152,12 @@ describe('ProofTreeAggregate', () => {
 
         if (treeResult.isOk()) {
           const tree = treeResult.value;
-          const fakeArgumentId = proof.createAtomicArgument([], []);
 
-          // Use a fake argument ID that doesn't exist
-          if (!fakeArgumentId.isOk()) return;
-          const nodeResult = tree.addNode({ argumentId: fakeArgumentId.value });
+          // Create a fake argument ID that doesn't exist in the proof
+          const fakeArgumentId = AtomicArgumentId.generate();
+
+          // Use a fake argument ID that doesn't exist in the proof
+          const nodeResult = tree.addNode({ argumentId: fakeArgumentId });
 
           expect(nodeResult.isErr()).toBe(true);
           if (nodeResult.isErr()) {
@@ -474,6 +482,149 @@ describe('ProofTreeAggregate', () => {
 
           const events = tree.getUncommittedEvents();
           expect(events.length).toBe(0);
+        }
+      }
+    });
+  });
+
+  describe('deep tree structures', () => {
+    it('should handle deep tree structures with multiple levels efficiently', () => {
+      const proofResult = ProofAggregate.createNew();
+      expect(proofResult.isOk()).toBe(true);
+
+      if (proofResult.isOk()) {
+        const proof = proofResult.value;
+        const treeResult = ProofTreeAggregate.createNew(proof);
+        expect(treeResult.isOk()).toBe(true);
+
+        if (treeResult.isOk()) {
+          const tree = treeResult.value;
+          const depth = 500; // Deep tree with 500 levels
+
+          // Create arguments for each level
+          const argumentIds: AtomicArgumentId[] = [];
+          for (let i = 0; i < depth; i++) {
+            const argResult = proof.createAtomicArgument([], []);
+            expect(argResult.isOk()).toBe(true);
+            if (argResult.isOk()) {
+              argumentIds.push(argResult.value);
+            }
+          }
+
+          // Ensure all arguments were created successfully
+          expect(argumentIds).toHaveLength(depth);
+
+          // Build linear chain: root -> child1 -> child2 -> ... -> childN
+          const startTime = Date.now();
+
+          let parentNodeId: NodeId | null = null;
+          for (let i = 0; i < depth; i++) {
+            let nodeResult: Result<NodeId, ValidationError> | undefined;
+            const currentArgumentId = argumentIds[i];
+            expect(currentArgumentId).toBeDefined();
+
+            if (!currentArgumentId) {
+              throw new Error(`Missing argument ID at index ${i}`);
+            }
+
+            if (i === 0) {
+              // Root node
+              nodeResult = tree.addNode({ argumentId: currentArgumentId });
+            } else if (parentNodeId !== null) {
+              // Child node
+              const attachmentResult = Attachment.create(parentNodeId, 0);
+              expect(attachmentResult.isOk()).toBe(true);
+              if (attachmentResult.isOk()) {
+                nodeResult = tree.addNode({
+                  argumentId: currentArgumentId,
+                  attachment: attachmentResult.value,
+                });
+              }
+            }
+
+            expect(nodeResult?.isOk()).toBe(true);
+            if (nodeResult?.isOk()) {
+              parentNodeId = nodeResult.value;
+            }
+          }
+
+          // Validate that operations complete in reasonable time
+          const structureValidation = tree.validateTreeStructure();
+          expect(structureValidation.isOk()).toBe(true);
+
+          const cycleDetection = tree.detectCycles();
+          expect(cycleDetection.hasCycles).toBe(false);
+
+          const endTime = Date.now();
+          const executionTime = endTime - startTime;
+
+          // Should complete in under 2 seconds for 500 levels (optimized)
+          expect(executionTime).toBeLessThan(2000);
+
+          // Verify tree structure
+          expect(tree.getNodes().size).toBe(depth);
+        }
+      }
+    });
+
+    it('should handle wide tree structures efficiently', () => {
+      const proofResult = ProofAggregate.createNew();
+      expect(proofResult.isOk()).toBe(true);
+
+      if (proofResult.isOk()) {
+        const proof = proofResult.value;
+        const treeResult = ProofTreeAggregate.createNew(proof);
+        expect(treeResult.isOk()).toBe(true);
+
+        if (treeResult.isOk()) {
+          const tree = treeResult.value;
+          const childCount = 100; // Wide tree with 100 children
+
+          // Create root argument
+          const rootArgResult = proof.createAtomicArgument([], []);
+          expect(rootArgResult.isOk()).toBe(true);
+
+          if (rootArgResult.isOk()) {
+            const rootNodeResult = tree.addNode({ argumentId: rootArgResult.value });
+            expect(rootNodeResult.isOk()).toBe(true);
+
+            if (rootNodeResult.isOk()) {
+              const rootNodeId = rootNodeResult.value;
+
+              // Create child arguments and nodes
+              const startTime = Date.now();
+
+              for (let i = 0; i < childCount; i++) {
+                const childArgResult = proof.createAtomicArgument([], []);
+                expect(childArgResult.isOk()).toBe(true);
+
+                if (childArgResult.isOk()) {
+                  const attachmentResult = Attachment.create(rootNodeId, i);
+                  expect(attachmentResult.isOk()).toBe(true);
+
+                  if (attachmentResult.isOk()) {
+                    const childNodeResult = tree.addNode({
+                      argumentId: childArgResult.value,
+                      attachment: attachmentResult.value,
+                    });
+                    expect(childNodeResult.isOk()).toBe(true);
+                  }
+                }
+              }
+
+              const endTime = Date.now();
+              const executionTime = endTime - startTime;
+
+              // Should complete in under 1 second for 100 children
+              expect(executionTime).toBeLessThan(1000);
+
+              // Verify tree structure
+              expect(tree.getNodes().size).toBe(childCount + 1); // +1 for root
+
+              const validation = tree.validateTreeStructure();
+              expect(validation.isOk()).toBe(true);
+            }
+          }
         }
       }
     });

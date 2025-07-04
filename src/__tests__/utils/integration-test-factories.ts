@@ -27,7 +27,6 @@ import { ValidationMetrics } from '../../contexts/language-intelligence/domain/v
 // Package Ecosystem Context
 import { Package } from '../../contexts/package-ecosystem/domain/entities/Package.js';
 import type { ValidationResult } from '../../contexts/package-ecosystem/domain/types/common-types.js';
-import { PackageId } from '../../contexts/package-ecosystem/domain/value-objects/package-id.js';
 import { PackageManifest } from '../../contexts/package-ecosystem/domain/value-objects/package-manifest.js';
 import { PackageSource } from '../../contexts/package-ecosystem/domain/value-objects/package-source.js';
 // Synchronization Context
@@ -342,19 +341,26 @@ let packageEcosystemCounter = 0;
  */
 export function createPackage(name?: string, version?: string, dependencies?: string[]): Package {
   packageEcosystemCounter++;
-  const defaultName = name ?? `Test Package ${packageEcosystemCounter}`;
+  const inputName = name ?? `test-package-${packageEcosystemCounter}`;
   const defaultVersion = version ?? '1.0.0';
 
-  const packageId = PackageId.create(`test-package-${packageEcosystemCounter}`);
-  // We don't need PackageVersion here since manifest contains version
+  // Normalize the name to be valid for PackageId (lowercase, hyphens only)
+  const normalizedName = inputName
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]/g, '')
+    .replace(/^-+|-+$/g, '')
+    .replace(/-+/g, '-');
+
+  // Create manifest first to get the correct PackageId
   const packageManifest = PackageManifest.create({
-    name: defaultName,
+    name: normalizedName,
     version: defaultVersion,
-    description: `Test package: ${defaultName}`,
+    description: `Test package: ${inputName}`,
     author: 'Test Author',
     dependencies: dependencies ? Object.fromEntries(dependencies.map((dep) => [dep, '*'])) : {},
     license: 'MIT',
-    homepage: `https://github.com/test/${defaultName.toLowerCase().replace(/\s+/g, '-')}`,
+    homepage: `https://github.com/test/${normalizedName}`,
     requirements: {
       node: '>=14.0.0',
     },
@@ -365,13 +371,21 @@ export function createPackage(name?: string, version?: string, dependencies?: st
       },
     },
   });
+
+  if (packageManifest.isErr()) {
+    throw new Error(`Failed to create package manifest: ${packageManifest.error.message}`);
+  }
+
+  // Use the same PackageId as the manifest
+  const packageId = packageManifest.value.getPackageId();
+
   const packageSource = PackageSource.createFromGit({
-    url: `https://github.com/test/${defaultName.toLowerCase().replace(/\s+/g, '-')}`,
+    url: `https://github.com/test/${normalizedName}`,
     ref: 'main',
   });
 
-  if (packageId.isErr() || packageManifest.isErr() || packageSource.isErr()) {
-    throw new Error('Failed to create package components');
+  if (packageSource.isErr()) {
+    throw new Error(`Failed to create package source: ${packageSource.error.message}`);
   }
 
   const validationResult: ValidationResult = {
@@ -381,7 +395,7 @@ export function createPackage(name?: string, version?: string, dependencies?: st
   };
 
   const result = Package.create({
-    id: packageId.value,
+    id: packageId,
     source: packageSource.value,
     manifest: packageManifest.value,
     sdkInterfaces: [],
@@ -438,8 +452,17 @@ let operationCounter = 0;
  */
 export function createDevice(name?: string): DeviceId {
   deviceCounter++;
-  const deviceName = name ?? `test-device-${deviceCounter}`;
-  const result = DeviceId.create(deviceName);
+  const inputName = name ?? `test-device-${deviceCounter}`;
+
+  // Normalize the device name to be valid (alphanumeric, hyphens, underscores only)
+  const normalizedName = inputName
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-_]/g, '')
+    .replace(/^[-_]+|[-_]+$/g, '')
+    .replace(/[-_]+/g, '-');
+
+  const result = DeviceId.create(normalizedName);
   if (result.isErr()) {
     throw new Error(`Failed to create device: ${result.error.message}`);
   }
@@ -494,36 +517,80 @@ export function createOperation(
   operationCounter++;
 
   const operationId = OperationId.create(`test-operation-${operationCounter}`);
+  if (operationId.isErr()) {
+    throw new Error(`Failed to create operation ID: ${operationId.error.message}`);
+  }
+
   const vectorClock = VectorClock.create(device);
   if (vectorClock.isErr()) {
     throw new Error(`Failed to create vector clock: ${vectorClock.error.message}`);
   }
 
+  const incrementedClock = vectorClock.value.incrementForDevice(device);
+  if (incrementedClock.isErr()) {
+    throw new Error(`Failed to increment vector clock: ${incrementedClock.error.message}`);
+  }
+
   const timestamp = LogicalTimestamp.create(
     device,
     Date.now() + operationCounter,
-    vectorClock.value,
+    incrementedClock.value,
   );
+  if (timestamp.isErr()) {
+    throw new Error(`Failed to create timestamp: ${timestamp.error.message}`);
+  }
+
   const opType = OperationType.create(operationType);
   if (opType.isErr()) {
     throw new Error(`Failed to create operation type: ${opType.error.message}`);
   }
 
-  const opPayload = OperationPayload.create(payload, opType.value);
-
-  if (
-    operationId.isErr() ||
-    timestamp.isErr() ||
-    opType.isErr() ||
-    opPayload.isErr() ||
-    vectorClock.isErr()
-  ) {
-    throw new Error('Failed to create operation components');
+  // Create appropriate payload based on operation type
+  let finalPayload = payload;
+  if (operationType === 'UPDATE_STATEMENT' || operationType === 'CREATE_STATEMENT') {
+    finalPayload = {
+      id: `statement-${operationCounter}`,
+      content: `Test statement content ${operationCounter}`,
+      ...payload,
+    };
+  } else if (operationType === 'UPDATE_ARGUMENT' || operationType === 'CREATE_ARGUMENT') {
+    finalPayload = {
+      id: `argument-${operationCounter}`,
+      premises: [`premise-${operationCounter}`],
+      conclusions: [`conclusion-${operationCounter}`],
+      ...payload,
+    };
+  } else if (operationType === 'CREATE_TREE') {
+    finalPayload = {
+      id: `tree-${operationCounter}`,
+      rootNodeId: `node-${operationCounter}`,
+      position: { x: 0, y: 0 },
+      ...payload,
+    };
+  } else if (operationType === 'UPDATE_TREE_POSITION') {
+    finalPayload = {
+      x: 10,
+      y: 20,
+      ...payload,
+    };
+  } else if (operationType === 'CREATE_CONNECTION') {
+    finalPayload = {
+      sourceId: `source-${operationCounter}`,
+      targetId: `target-${operationCounter}`,
+      connectionType: 'logical',
+      ...payload,
+    };
+  } else if (operationType === 'UPDATE_METADATA') {
+    finalPayload = {
+      key: `test-key-${operationCounter}`,
+      value: `test-value-${operationCounter}`,
+      ...payload,
+    };
   }
 
-  const incrementedClock = vectorClock.value.incrementForDevice(device);
-  if (incrementedClock.isErr()) {
-    throw new Error('Failed to increment vector clock');
+  const opPayload = OperationPayload.create(finalPayload, opType.value);
+  if (opPayload.isErr()) {
+    throw new Error(`Failed to create operation payload: ${opPayload.error.message}`);
   }
 
   const result = Operation.create(

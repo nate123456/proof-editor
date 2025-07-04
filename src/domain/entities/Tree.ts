@@ -390,8 +390,8 @@ export class Tree {
       const argumentInTree = this.isArgumentInTree(argument.getId(), atomicArgumentRepo);
       if (!argumentInTree) continue;
 
-      const premiseRef = argument.getPremiseSetRef();
-      const conclusionRef = argument.getConclusionSetRef();
+      const premiseRef = argument.getPremiseSet();
+      const conclusionRef = argument.getConclusionSet();
 
       if (premiseRef?.equals(orderedSetId)) {
         references.push(new TreeOrderedSetReference(argument.getId(), 'premise', orderedSetId));
@@ -427,7 +427,7 @@ export class Tree {
 
     const issues: TreeConnectionIntegrityIssue[] = [];
 
-    const premiseSetRef = argument.getPremiseSetRef();
+    const premiseSetRef = argument.getPremiseSet();
     if (premiseSetRef) {
       const premiseSet = await orderedSetRepo.findById(premiseSetRef);
       if (!premiseSet) {
@@ -440,7 +440,7 @@ export class Tree {
       }
     }
 
-    const conclusionSetRef = argument.getConclusionSetRef();
+    const conclusionSetRef = argument.getConclusionSet();
     if (conclusionSetRef) {
       const conclusionSet = await orderedSetRepo.findById(conclusionSetRef);
       if (!conclusionSet) {
@@ -471,13 +471,13 @@ export class Tree {
     argument: AtomicArgument,
     atomicArgumentRepo: IAtomicArgumentRepository,
   ): Promise<AtomicArgument[]> {
-    const premiseSetRef = argument.getPremiseSetRef();
+    const premiseSetRef = argument.getPremiseSet();
     if (!premiseSetRef) return [];
 
     const allArguments = await atomicArgumentRepo.findAll();
     return allArguments.filter(
       (arg) =>
-        arg.getConclusionSetRef()?.equals(premiseSetRef) && !arg.getId().equals(argument.getId()),
+        arg.getConclusionSet()?.equals(premiseSetRef) && !arg.getId().equals(argument.getId()),
     );
   }
 
@@ -485,13 +485,13 @@ export class Tree {
     argument: AtomicArgument,
     atomicArgumentRepo: IAtomicArgumentRepository,
   ): Promise<AtomicArgument[]> {
-    const conclusionSetRef = argument.getConclusionSetRef();
+    const conclusionSetRef = argument.getConclusionSet();
     if (!conclusionSetRef) return [];
 
     const allArguments = await atomicArgumentRepo.findAll();
     return allArguments.filter(
       (arg) =>
-        arg.getPremiseSetRef()?.equals(conclusionSetRef) && !arg.getId().equals(argument.getId()),
+        arg.getPremiseSet()?.equals(conclusionSetRef) && !arg.getId().equals(argument.getId()),
     );
   }
 

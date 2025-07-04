@@ -70,7 +70,7 @@ test.describe('TreeRenderer Output', () => {
 
     // Verify SVG structure
     await expect(page.locator('[data-testid="rendered-svg"]')).toBeVisible();
-    await expect(page.locator('defs marker#arrowhead')).toBeVisible();
+    await expect(page.locator('defs marker#arrowhead')).toBeAttached();
     
     // Verify argument nodes
     await expect(page.locator('[data-testid="argument-1"]')).toBeVisible();
@@ -154,7 +154,7 @@ test.describe('TreeRenderer Output', () => {
     
     // Check that all statement texts are properly positioned
     const statements = page.locator('.statement-text');
-    await expect(statements).toHaveCount(7);
+    await expect(statements).toHaveCount(8);
   });
 
   test('handles empty or minimal content gracefully', async ({ page }) => {

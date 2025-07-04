@@ -59,13 +59,14 @@ describe('Package Ecosystem Context - Service Integration', () => {
       findAll: vi.fn(),
       findBySource: vi.fn(),
       findByGitRepository: vi.fn(),
-      searchByKeywords: vi.fn(),
+      searchByKeywords: vi.fn().mockResolvedValue(ok([])),
     };
 
     // Create mock for GitRefProvider
     mockGitRefProvider = {
       resolveRefToCommit: vi.fn().mockResolvedValue(ok({ commit: 'abc123', actualRef: 'main' })),
       listAvailableTags: vi.fn().mockResolvedValue(ok(['v1.0.0', 'v2.0.0'])),
+      listAvailableBranches: vi.fn().mockResolvedValue(ok(['main', 'develop'])),
     };
 
     // Create mock for file system
@@ -116,7 +117,7 @@ describe('Package Ecosystem Context - Service Integration', () => {
     const dependencyIdResult = PackageId.create('test-dependency');
     const versionResult = PackageVersionValue.create('1.0.0');
     const manifestResult = PackageManifest.create({
-      name: 'Test Package',
+      name: 'test-package',
       version: '1.0.0',
       description: 'Test package for integration tests',
       author: 'Test Author',
@@ -156,7 +157,7 @@ describe('Package Ecosystem Context - Service Integration', () => {
       }
 
       const dependencyManifest = PackageManifest.create({
-        name: 'Test Dependency',
+        name: 'test-dependency',
         version: '2.0.0',
         description: 'Test dependency package',
         author: 'Test Author',
@@ -259,6 +260,69 @@ describe('Package Ecosystem Context - Service Integration', () => {
             return Promise.resolve(ok(testDependency));
           }
           return Promise.resolve(err(new PackageNotFoundError('Package not found')));
+        });
+
+        // Create specific test packages for the dependencies
+        const dep1Manifest = PackageManifest.create({
+          name: 'dep1',
+          version: '1.0.0',
+          description: 'Dependency 1',
+          author: 'Test Author',
+        });
+        const dep2Manifest = PackageManifest.create({
+          name: 'dep2',
+          version: '1.0.0',
+          description: 'Dependency 2',
+          author: 'Test Author',
+        });
+
+        const testSource = PackageSource.createFromGit({
+          url: 'https://github.com/test/dep',
+          ref: 'main',
+        });
+
+        expect(dep1Manifest.isOk()).toBe(true);
+        expect(dep2Manifest.isOk()).toBe(true);
+        expect(testSource.isOk()).toBe(true);
+
+        if (!dep1Manifest.isOk() || !dep2Manifest.isOk() || !testSource.isOk()) {
+          throw new Error('Failed to create dependency manifests or source');
+        }
+
+        const dep1Result = Package.create({
+          id: dependency1Id.value,
+          source: testSource.value,
+          manifest: dep1Manifest.value,
+          sdkInterfaces: [],
+          validationResult: { isValid: true, errors: [], warnings: [] },
+        });
+        const dep2Result = Package.create({
+          id: dependency2Id.value,
+          source: testSource.value,
+          manifest: dep2Manifest.value,
+          sdkInterfaces: [],
+          validationResult: { isValid: true, errors: [], warnings: [] },
+        });
+
+        expect(dep1Result.isOk()).toBe(true);
+        expect(dep2Result.isOk()).toBe(true);
+
+        if (!dep1Result.isOk() || !dep2Result.isOk()) {
+          throw new Error('Failed to create dependency packages');
+        }
+
+        const dep1Package = dep1Result.value;
+        const dep2Package = dep2Result.value;
+
+        // Update searchByKeywords mock to return correct packages for specific search terms
+        mockPackageRepository.searchByKeywords = vi.fn().mockImplementation(async (keywords) => {
+          if (keywords.includes('dep1')) {
+            return Promise.resolve(ok([dep1Package]));
+          }
+          if (keywords.includes('dep2')) {
+            return Promise.resolve(ok([dep2Package]));
+          }
+          return Promise.resolve(ok([]));
         });
 
         // Act
@@ -496,7 +560,53 @@ describe('Package Ecosystem Context - Service Integration', () => {
             return Promise.resolve(ok([]));
           });
 
-        mockPackageRepository.findById = vi.fn().mockResolvedValue(ok(testDependency));
+        // Create a shared dependency package for the test
+        const sharedDepManifest = PackageManifest.create({
+          name: 'shared-dependency',
+          version: '1.5.0',
+          description: 'Shared dependency package',
+          author: 'Test Author',
+        });
+
+        expect(sharedDepManifest.isOk()).toBe(true);
+        if (!sharedDepManifest.isOk()) {
+          throw new Error('Failed to create shared dependency manifest');
+        }
+
+        const sharedTestSource = PackageSource.createFromGit({
+          url: 'https://github.com/test/shared-dep',
+          ref: 'main',
+        });
+
+        expect(sharedTestSource.isOk()).toBe(true);
+        if (!sharedTestSource.isOk()) {
+          throw new Error('Failed to create shared dependency source');
+        }
+
+        const sharedDepResult = Package.create({
+          id: sharedDepId.value,
+          source: sharedTestSource.value,
+          manifest: sharedDepManifest.value,
+          sdkInterfaces: [],
+          validationResult: { isValid: true, errors: [], warnings: [] },
+        });
+
+        expect(sharedDepResult.isOk()).toBe(true);
+        if (!sharedDepResult.isOk()) {
+          throw new Error('Failed to create shared dependency package');
+        }
+
+        const sharedDepPackage = sharedDepResult.value;
+
+        mockPackageRepository.findById = vi.fn().mockResolvedValue(ok(sharedDepPackage));
+
+        // Update searchByKeywords mock to return the shared dependency
+        mockPackageRepository.searchByKeywords = vi.fn().mockImplementation(async (keywords) => {
+          if (keywords.includes('shared-dependency')) {
+            return Promise.resolve(ok([sharedDepPackage]));
+          }
+          return Promise.resolve(ok([]));
+        });
 
         // Act
         const resolutionResult =
@@ -569,7 +679,7 @@ describe('Package Ecosystem Context - Service Integration', () => {
         if (discoveryResult.isErr()) {
           expect(discoveryResult.error).toBeInstanceOf(PackageNotFoundError);
           // Service should not leak internal implementation details
-          expect(discoveryResult.error.message).toBe('Package not found');
+          expect(discoveryResult.error.message).toBe('Package not found: non-existent');
         }
       }
     });
@@ -636,7 +746,49 @@ describe('Package Ecosystem Context - Service Integration', () => {
         .fn()
         .mockResolvedValue(ok(largeDependencyList.slice(0, 10))); // Limit to avoid too much complexity
 
-      mockPackageRepository.findById = vi.fn().mockResolvedValue(ok(testDependency));
+      // Create mock packages for the large dependency list
+      const createMockPackage = (id: string) => {
+        const manifest = PackageManifest.create({
+          name: id,
+          version: '1.0.0',
+          description: `Mock package ${id}`,
+          author: 'Test Author',
+        });
+
+        const source = PackageSource.createFromGit({
+          url: `https://github.com/test/${id}`,
+          ref: 'main',
+        });
+
+        if (manifest.isErr() || source.isErr()) {
+          throw new Error(`Failed to create mock package ${id}`);
+        }
+
+        const packageResult = Package.create({
+          id: PackageId.create(id).unwrapOr({} as any),
+          source: source.value,
+          manifest: manifest.value,
+          sdkInterfaces: [],
+          validationResult: { isValid: true, errors: [], warnings: [] },
+        });
+
+        return packageResult.unwrapOr({} as Package);
+      };
+
+      mockPackageRepository.findById = vi.fn().mockImplementation(async (id) => {
+        const mockPackage = createMockPackage(id.toString());
+        return Promise.resolve(ok(mockPackage));
+      });
+
+      // Update searchByKeywords to handle dep-* patterns
+      mockPackageRepository.searchByKeywords = vi.fn().mockImplementation(async (keywords) => {
+        const keyword = keywords[0];
+        if (keyword?.startsWith('dep-')) {
+          const mockPackage = createMockPackage(keyword);
+          return Promise.resolve(ok([mockPackage]));
+        }
+        return Promise.resolve(ok([]));
+      });
 
       // Act
       const startTime = Date.now();

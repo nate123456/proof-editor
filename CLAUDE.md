@@ -636,12 +636,13 @@ DO NOT run any git commands that mutate state in any way.
 ### Discovery Criteria - Document These:
 **✅ Strategic Insights Requiring Human Judgment**:
 - Design pattern violations (SRP, SOLID principles)
-- Result pattern adoption gaps  
 - Architecture decisions (CQRS opportunities, domain boundaries)
-- Test strategy issues (redundancies, missing coverage)
-- Dev principle violations or gaps
-- Project vision conflicts
-- Business logic needing extraction or clarification
+- Test strategy patterns (infrastructure vs domain logic distinctions)
+- Domain boundary enforcement issues
+- Configuration vs code pattern mismatches (like TypeScript strict mode)
+- Test infrastructure requiring custom domain matchers
+- Cross-context integration patterns
+- Performance vs maintainability tradeoffs
 
 ### Anti-Discovery - Fix These Immediately:
 **❌ Operational Issues (Just Fix, Don't Document)**:
@@ -651,13 +652,31 @@ DO NOT run any git commands that mutate state in any way.
 - Formatting violations
 - Test failures due to broken code
 - Linting violations
+- Hardcoded placeholder content
+- Simple parameter validation issues
+- Mock configuration drift
 
-### Discovery Test:
+### Enhanced Discovery Test:
 Before documenting, ask:
-- Does this require **design decisions**? (Yes = document)
-- Does this reveal **architecture issues**? (Yes = document)  
-- Does this need **human judgment**? (Yes = document)
-- Is this just **broken code**? (Yes = just fix)
+1. **Does this require **design decisions**? (Yes = document)
+2. **Does this reveal **architecture patterns**? (Yes = document)  
+3. **Does this need **human judgment** on approach? (Yes = document)
+4. **Is this **infrastructure vs logic** distinction? (Yes = document)
+5. **Is this just **broken code**? (Yes = just fix)
+6. **Was this already resolved**? (Yes = don't document)
+
+### Discovery Quality Criteria:
+**High-quality discoveries**:
+- Reveal patterns applicable across the codebase
+- Distinguish between infrastructure and domain concerns  
+- Identify when configuration changes are more appropriate than code changes
+- Show architectural implications of decisions
+
+**Low-quality discoveries** (avoid documenting):
+- One-off implementation issues
+- Simple code fixes
+- Already resolved problems
+- Configuration issues without broader architectural impact
 
 ### Discovery Format:
 ```markdown
@@ -672,3 +691,7 @@ Before documenting, ask:
 ```
 
 **Remember**: Discovery is a **secondary objective** that emerges naturally from work, not a primary goal to hunt for. 
+
+DONT MAKE SUMMARIES OF YOUR EFFORTS, UNLESS SPECIFICALLY INSTRUCTED.
+
+RESULT PATTERN ONLY, NO ERROR THROWING.

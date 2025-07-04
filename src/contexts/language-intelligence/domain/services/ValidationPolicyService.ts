@@ -63,6 +63,9 @@ export class ValidationPolicyService {
     level: ValidationLevel,
   ): Result<ValidationWorkflow, ValidationError> {
     try {
+      if (!level) {
+        throw new Error('ValidationLevel is required');
+      }
       const workflow = new DefaultValidationWorkflow(level);
       return ok(workflow);
     } catch (error) {
@@ -81,10 +84,16 @@ export class ValidationPolicyService {
     executedLevels: ValidationLevel[],
   ): Result<ComplianceReport, ValidationError> {
     try {
+      if (!resultLevel || !requestedLevel || !executedLevels) {
+        throw new Error('All parameters are required for business rule compliance validation');
+      }
+
       const violations: string[] = [];
       const recommendations: string[] = [];
 
-      if (!resultLevel.includesLevel(ValidationLevel.syntax())) {
+      // Check if syntax validation was executed
+      const hasSyntaxValidation = executedLevels.some((level) => level.isSyntax());
+      if (!hasSyntaxValidation) {
         violations.push('Syntax validation must always be executed');
       }
 
@@ -113,18 +122,16 @@ export class ValidationPolicyService {
   getValidationLevelRequirements(level: ValidationLevel): ValidationLevel[] {
     const requirements: ValidationLevel[] = [];
 
+    // Always include syntax as it's required for all levels
     requirements.push(ValidationLevel.syntax());
 
-    if (level.isFlow() || level.isSemantic() || level.isStyle()) {
-      requirements.push(ValidationLevel.syntax());
-    }
-
+    // Add the specific level if it's not syntax
     if (level.isSemantic()) {
-      requirements.push(ValidationLevel.syntax());
-    }
-
-    if (level.isStyle()) {
-      requirements.push(ValidationLevel.syntax());
+      requirements.push(ValidationLevel.semantic());
+    } else if (level.isFlow()) {
+      requirements.push(ValidationLevel.flow());
+    } else if (level.isStyle()) {
+      requirements.push(ValidationLevel.style());
     }
 
     return requirements;
@@ -192,7 +199,7 @@ class DefaultValidationContext implements ValidationContext {
   }
 
   private getContent(): string {
-    return 'placeholder';
+    return this.request.getStatementText();
   }
 }
 

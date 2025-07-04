@@ -23,8 +23,8 @@ export class CreateConnectionOperation extends ProofOperation {
   validate(): Result<void, ValidationError> {
     const { parentArgument, childArgument, sharedSet } = this.request;
 
-    const parentConclusionRef = parentArgument.getConclusionSetRef();
-    const childPremiseRef = childArgument.getPremiseSetRef();
+    const parentConclusionRef = parentArgument.getConclusionSet();
+    const childPremiseRef = childArgument.getPremiseSet();
 
     if (!parentConclusionRef || !childPremiseRef) {
       return err(new ValidationError('Both arguments must have the relevant ordered sets'));
@@ -89,8 +89,8 @@ export class RemoveConnectionOperation extends ProofOperation {
   validate(): Result<void, ValidationError> {
     const { parentArgument, childArgument, sharedSet } = this.request;
 
-    const parentConclusionRef = parentArgument.getConclusionSetRef();
-    const childPremiseRef = childArgument.getPremiseSetRef();
+    const parentConclusionRef = parentArgument.getConclusionSet();
+    const childPremiseRef = childArgument.getPremiseSet();
 
     if (!parentConclusionRef || !childPremiseRef) {
       return err(new ValidationError('Both arguments must have the relevant ordered sets'));

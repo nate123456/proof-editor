@@ -141,8 +141,8 @@ export class TreeRenderer {
 
       if (!argument) continue;
 
-      const premisesId = argument.getPremiseSetRef();
-      const conclusionsId = argument.getConclusionSetRef();
+      const premisesId = argument.getPremiseSet();
+      const conclusionsId = argument.getConclusionSet();
 
       const premises = this.getStatementsFromOrderedSet(premisesId, proofDoc);
       const conclusions = this.getStatementsFromOrderedSet(conclusionsId, proofDoc);
@@ -252,8 +252,8 @@ export class TreeRenderer {
 
     // Find the ordered set by looking through arguments that use it
     for (const argument of Array.from(proofDoc.atomicArguments.values())) {
-      const premiseSetId = argument.getPremiseSetRef();
-      const conclusionSetId = argument.getConclusionSetRef();
+      const premiseSetId = argument.getPremiseSet();
+      const conclusionSetId = argument.getConclusionSet();
 
       if (premiseSetId?.getValue() === orderedSetId.getValue()) {
         return this.getStatementsFromArgumentSet(proofDoc, argument, 'premises');
@@ -274,7 +274,7 @@ export class TreeRenderer {
   ): Statement[] {
     // Get the ordered set from the argument
     const orderedSetId =
-      type === 'premises' ? argument.getPremiseSetRef() : argument.getConclusionSetRef();
+      type === 'premises' ? argument.getPremiseSet() : argument.getConclusionSet();
     if (!orderedSetId) return [];
 
     // Look up the ordered set in the document

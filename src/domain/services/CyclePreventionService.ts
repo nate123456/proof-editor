@@ -1,9 +1,10 @@
 // import type { AtomicArgument } from '../entities/AtomicArgument';
+
+import { err, ok, type Result } from 'neverthrow';
 import type { Tree } from '../entities/Tree';
 import { StructureError } from '../errors/DomainErrors';
 import type { IAtomicArgumentRepository } from '../repositories/IAtomicArgumentRepository';
 import type { ITreeRepository } from '../repositories/ITreeRepository';
-import { err, ok, type Result } from '../shared/result.js';
 import type { AtomicArgumentId, NodeId, TreeId } from '../shared/value-objects.js';
 import type { ConnectionResolutionService } from './ConnectionResolutionService';
 

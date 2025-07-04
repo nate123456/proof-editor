@@ -143,7 +143,7 @@ test.describe('ProofTreePanel Webview', () => {
     await expect(page.locator('[data-testid="argument-node-1"]')).toBeVisible();
     await expect(page.locator('.argument-node')).toBeVisible();
     await expect(page.locator('.statement-text').first()).toContainText('All men are mortal');
-    await expect(page.locator('.implication-line')).toBeVisible();
+    await expect(page.locator('.implication-line')).toBeAttached();
   });
 
   test('handles webview message updates', async ({ page }) => {

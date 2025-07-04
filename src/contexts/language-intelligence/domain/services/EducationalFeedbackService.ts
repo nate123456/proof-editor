@@ -276,7 +276,13 @@ export class EducationalFeedbackService {
     const examples: string[] = [];
     const concepts: string[] = [];
 
-    const message = diagnostic.getMessage().getText().toLowerCase();
+    let message = '';
+    try {
+      message = diagnostic.getMessage().getText().toLowerCase();
+    } catch {
+      // Handle cases where diagnostic doesn't have proper message structure
+      message = '';
+    }
 
     if (message.includes('parentheses')) {
       hints.push('Check that every opening parenthesis "(" has a matching closing parenthesis ")"');
@@ -300,6 +306,13 @@ export class EducationalFeedbackService {
       }
     }
 
+    // Add default syntax hints if no specific patterns found
+    if (hints.length === 0) {
+      hints.push('Check your syntax for proper logical structure');
+      concepts.push('syntax-basics');
+      examples.push('Basic format: Premise 1, Premise 2, therefore Conclusion');
+    }
+
     return { hints, examples, concepts };
   }
 
@@ -312,7 +325,13 @@ export class EducationalFeedbackService {
     const examples: string[] = [];
     const concepts: string[] = [];
 
-    const message = diagnostic.getMessage().getText().toLowerCase();
+    let message = '';
+    try {
+      message = diagnostic.getMessage().getText().toLowerCase();
+    } catch {
+      // Handle cases where diagnostic doesn't have proper message structure
+      message = '';
+    }
 
     if (message.includes('inference')) {
       hints.push('Check that your conclusion logically follows from the premises');
@@ -336,6 +355,14 @@ export class EducationalFeedbackService {
       examples.push('Example contradiction: P ∧ ¬P (always false)');
     }
 
+    // Add default semantic hints if no specific patterns found
+    if (hints.length === 0) {
+      hints.push('Review the logical structure of your argument');
+      hints.push('Ensure premises logically support the conclusion');
+      concepts.push('logical-reasoning');
+      examples.push('Valid argument: All A are B, X is A, therefore X is B');
+    }
+
     return { hints, examples, concepts };
   }
 
@@ -348,7 +375,13 @@ export class EducationalFeedbackService {
     const examples: string[] = [];
     const concepts: string[] = ['style', 'readability'];
 
-    const message = diagnostic.getMessage().getText().toLowerCase();
+    let message = '';
+    try {
+      message = diagnostic.getMessage().getText().toLowerCase();
+    } catch {
+      // Handle cases where diagnostic doesn't have proper message structure
+      message = '';
+    }
 
     if (message.includes('length')) {
       hints.push('Consider breaking long statements into smaller, more manageable parts');
@@ -360,6 +393,12 @@ export class EducationalFeedbackService {
     if (message.includes('inconsistent')) {
       hints.push('Use the same symbols consistently throughout your proof');
       examples.push('Use either → or ⊃ for implication, but not both in the same proof');
+    }
+
+    // Add default style hints if no specific patterns found
+    if (hints.length === 0) {
+      hints.push('Consider improving the clarity and readability of your argument');
+      examples.push('Use consistent notation and clear logical structure');
     }
 
     return { hints, examples, concepts };
@@ -550,6 +589,20 @@ export class EducationalFeedbackService {
 
     if (analysis.isCaseAnalysisNeeded) {
       insights.push('This proof involves disjunctions - case analysis might be helpful');
+    }
+
+    if (analysis.isDirectProofPossible) {
+      insights.push('A direct proof approach should work well for this argument');
+    }
+
+    if (analysis.requiredRules.length > 0) {
+      insights.push(`This proof may benefit from using: ${analysis.requiredRules.join(', ')}`);
+    }
+
+    // Always provide at least one insight
+    if (insights.length === 0) {
+      insights.push('Consider the logical structure and identify the key reasoning steps');
+      insights.push('Look for patterns that match common inference rules');
     }
 
     return insights;

@@ -59,8 +59,8 @@ describe('AtomicArgument Entity', () => {
         if (result.isOk()) {
           const argument = result.value;
           customExpect(argument).toBeValidAtomicArgument();
-          expect(argument.getPremiseSetRef()).toBeNull();
-          expect(argument.getConclusionSetRef()).toBeNull();
+          expect(argument.getPremiseSet()).toBeNull();
+          expect(argument.getConclusionSet()).toBeNull();
           expect(argument.isBootstrapArgument()).toBe(true);
           expect(argument.isEmpty()).toBe(true);
           expect(argument.isComplete()).toBe(false);
@@ -78,8 +78,8 @@ describe('AtomicArgument Entity', () => {
         expect(result.isOk()).toBe(true);
         if (result.isOk()) {
           const argument = result.value;
-          expect(argument.getPremiseSetRef()).toBe(premiseSetRef);
-          expect(argument.getConclusionSetRef()).toBeNull();
+          expect(argument.getPremiseSet()).toBe(premiseSetRef);
+          expect(argument.getConclusionSet()).toBeNull();
           expect(argument.hasPremiseSet()).toBe(true);
           expect(argument.hasConclusionSet()).toBe(false);
           expect(argument.hasEmptyPremiseSet()).toBe(false);
@@ -97,8 +97,8 @@ describe('AtomicArgument Entity', () => {
         expect(result.isOk()).toBe(true);
         if (result.isOk()) {
           const argument = result.value;
-          expect(argument.getPremiseSetRef()).toBeNull();
-          expect(argument.getConclusionSetRef()).toBe(conclusionSetRef);
+          expect(argument.getPremiseSet()).toBeNull();
+          expect(argument.getConclusionSet()).toBe(conclusionSetRef);
           expect(argument.hasPremiseSet()).toBe(false);
           expect(argument.hasConclusionSet()).toBe(true);
           expect(argument.hasEmptyPremiseSet()).toBe(true);
@@ -117,8 +117,8 @@ describe('AtomicArgument Entity', () => {
         expect(result.isOk()).toBe(true);
         if (result.isOk()) {
           const argument = result.value;
-          expect(argument.getPremiseSetRef()).toBe(premiseSetRef);
-          expect(argument.getConclusionSetRef()).toBe(conclusionSetRef);
+          expect(argument.getPremiseSet()).toBe(premiseSetRef);
+          expect(argument.getConclusionSet()).toBe(conclusionSetRef);
           expect(argument.hasPremiseSet()).toBe(true);
           expect(argument.hasConclusionSet()).toBe(true);
           expect(argument.isBootstrapArgument()).toBe(false);
@@ -163,8 +163,8 @@ describe('AtomicArgument Entity', () => {
 
         const argument = AtomicArgument.createComplete(premiseSetRef, conclusionSetRef, sideLabels);
 
-        expect(argument.getPremiseSetRef()).toBe(premiseSetRef);
-        expect(argument.getConclusionSetRef()).toBe(conclusionSetRef);
+        expect(argument.getPremiseSet()).toBe(premiseSetRef);
+        expect(argument.getConclusionSet()).toBe(conclusionSetRef);
         expect(argument.isComplete()).toBe(true);
         expect(argument.getSideLabels()).toEqual(sideLabels);
         expect(argument.getCreatedAt()).toBe(FIXED_TIMESTAMP);
@@ -201,8 +201,8 @@ describe('AtomicArgument Entity', () => {
               if (result.isOk()) {
                 const argument = result.value;
                 customExpect(argument).toBeValidAtomicArgument();
-                expect(argument.getPremiseSetRef()).toBe(premiseRef ?? null);
-                expect(argument.getConclusionSetRef()).toBe(conclusionRef ?? null);
+                expect(argument.getPremiseSet()).toBe(premiseRef ?? null);
+                expect(argument.getConclusionSet()).toBe(conclusionRef ?? null);
                 expect(argument.isBootstrapArgument()).toBe(!premiseRef && !conclusionRef);
                 expect(argument.isComplete()).toBe(!!premiseRef && !!conclusionRef);
                 expect(argument.getSideLabels()).toEqual(sideLabels);
@@ -237,8 +237,8 @@ describe('AtomicArgument Entity', () => {
         if (result.isOk()) {
           const argument = result.value;
           expect(argument.getId()).toBe(id);
-          expect(argument.getPremiseSetRef()).toBe(premiseSetRef);
-          expect(argument.getConclusionSetRef()).toBe(conclusionSetRef);
+          expect(argument.getPremiseSet()).toBe(premiseSetRef);
+          expect(argument.getConclusionSet()).toBe(conclusionSetRef);
           expect(argument.getCreatedAt()).toBe(createdAt);
           expect(argument.getModifiedAt()).toBe(modifiedAt);
           expect(argument.getSideLabels()).toEqual(sideLabels);
@@ -280,8 +280,8 @@ describe('AtomicArgument Entity', () => {
               if (result.isOk()) {
                 const argument = result.value;
                 expect(argument.getId()).toBe(id);
-                expect(argument.getPremiseSetRef()).toBe(premiseRef ?? null);
-                expect(argument.getConclusionSetRef()).toBe(conclusionRef ?? null);
+                expect(argument.getPremiseSet()).toBe(premiseRef ?? null);
+                expect(argument.getConclusionSet()).toBe(conclusionRef ?? null);
                 expect(argument.getCreatedAt()).toBe(createdAt);
                 expect(argument.getModifiedAt()).toBe(modifiedAt);
               }
@@ -308,7 +308,7 @@ describe('AtomicArgument Entity', () => {
 
           argument.setPremiseSetRef(premiseSetRef);
 
-          expect(argument.getPremiseSetRef()).toBe(premiseSetRef);
+          expect(argument.getPremiseSet()).toBe(premiseSetRef);
           expect(argument.hasPremiseSet()).toBe(true);
           expect(argument.hasEmptyPremiseSet()).toBe(false);
           expect(argument.getModifiedAt()).toBe(FIXED_TIMESTAMP + 1000);
@@ -327,7 +327,7 @@ describe('AtomicArgument Entity', () => {
 
           argument.setPremiseSetRef(null);
 
-          expect(argument.getPremiseSetRef()).toBeNull();
+          expect(argument.getPremiseSet()).toBeNull();
           expect(argument.hasPremiseSet()).toBe(false);
           expect(argument.hasEmptyPremiseSet()).toBe(true);
           expect(argument.getModifiedAt()).toBe(FIXED_TIMESTAMP + 1000);
@@ -363,7 +363,7 @@ describe('AtomicArgument Entity', () => {
           mockDateNow.mockReturnValue(FIXED_TIMESTAMP + 1000);
           argument.setConclusionSetRef(conclusionSetRef);
 
-          expect(argument.getConclusionSetRef()).toBe(conclusionSetRef);
+          expect(argument.getConclusionSet()).toBe(conclusionSetRef);
           expect(argument.hasConclusionSet()).toBe(true);
           expect(argument.hasEmptyConclusionSet()).toBe(false);
           expect(argument.getModifiedAt()).toBe(FIXED_TIMESTAMP + 1000);
@@ -381,7 +381,7 @@ describe('AtomicArgument Entity', () => {
           mockDateNow.mockReturnValue(FIXED_TIMESTAMP + 1000);
           argument.setConclusionSetRef(null);
 
-          expect(argument.getConclusionSetRef()).toBeNull();
+          expect(argument.getConclusionSet()).toBeNull();
           expect(argument.hasConclusionSet()).toBe(false);
           expect(argument.hasEmptyConclusionSet()).toBe(true);
           expect(argument.getModifiedAt()).toBe(FIXED_TIMESTAMP + 1000);
@@ -780,8 +780,8 @@ describe('AtomicArgument Entity', () => {
 
         if (branchResult.isOk()) {
           const branchArgument = branchResult.value;
-          expect(branchArgument.getPremiseSetRef()).toBe(conclusionSetRef);
-          expect(branchArgument.getConclusionSetRef()).toBeNull();
+          expect(branchArgument.getPremiseSet()).toBe(conclusionSetRef);
+          expect(branchArgument.getConclusionSet()).toBeNull();
           expect(parentArgument.canConnectToPremiseOf(branchArgument)).toBe(true);
         }
       });
@@ -810,8 +810,8 @@ describe('AtomicArgument Entity', () => {
         );
 
         const childArgument = parentArgument.createChildArgument();
-        expect(childArgument.getPremiseSetRef()).toBe(conclusionSetRef);
-        expect(childArgument.getConclusionSetRef()).toBeNull();
+        expect(childArgument.getPremiseSet()).toBe(conclusionSetRef);
+        expect(childArgument.getConclusionSet()).toBeNull();
         expect(parentArgument.canConnectToPremiseOf(childArgument)).toBe(true);
       });
 
@@ -843,8 +843,8 @@ describe('AtomicArgument Entity', () => {
 
         if (branchResult.isOk()) {
           const branchArgument = branchResult.value;
-          expect(branchArgument.getPremiseSetRef()).toBeNull();
-          expect(branchArgument.getConclusionSetRef()).toBe(premiseSetRef);
+          expect(branchArgument.getPremiseSet()).toBeNull();
+          expect(branchArgument.getConclusionSet()).toBe(premiseSetRef);
           expect(branchArgument.canConnectToPremiseOf(childArgument)).toBe(true);
         }
       });
@@ -1084,10 +1084,10 @@ describe('AtomicArgument Entity', () => {
 
         const argument = AtomicArgument.createComplete(premiseSetRef, conclusionSetRef);
 
-        const retrievedPremise1 = argument.getPremiseSetRef();
-        const retrievedPremise2 = argument.getPremiseSetRef();
-        const retrievedConclusion1 = argument.getConclusionSetRef();
-        const retrievedConclusion2 = argument.getConclusionSetRef();
+        const retrievedPremise1 = argument.getPremiseSet();
+        const retrievedPremise2 = argument.getPremiseSet();
+        const retrievedConclusion1 = argument.getConclusionSet();
+        const retrievedConclusion2 = argument.getConclusionSet();
 
         expect(retrievedPremise1).toBe(retrievedPremise2);
         expect(retrievedConclusion1).toBe(retrievedConclusion2);
@@ -1362,8 +1362,8 @@ describe('AtomicArgument Entity', () => {
 
         if (result.isOk()) {
           const argument = result.value;
-          expect(argument.getPremiseSetRef()).toBeNull();
-          expect(argument.getConclusionSetRef()).toBeNull();
+          expect(argument.getPremiseSet()).toBeNull();
+          expect(argument.getConclusionSet()).toBeNull();
           expect(argument.isBootstrapArgument()).toBe(true);
         }
       });

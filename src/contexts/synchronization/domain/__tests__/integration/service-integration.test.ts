@@ -238,7 +238,7 @@ describe('Synchronization Context - Service Integration', () => {
             opType.isOk()
               ? opType.value
               : (() => {
-                  const fallback = OperationType.create('UPDATE_STATEMENT');
+                  const fallback = OperationType.create('CREATE_STATEMENT');
                   if (fallback.isErr()) throw new Error('Failed to create fallback operation type');
                   return fallback.value;
                 })(),
@@ -424,7 +424,7 @@ describe('Synchronization Context - Service Integration', () => {
           if (!incremented.isOk()) return;
           vectorClock = incremented.value; // Update for next iteration
           const timestamp = LogicalTimestamp.create(deviceA, Date.now(), incremented.value);
-          const opType = OperationType.create('UPDATE_STATEMENT');
+          const opType = OperationType.create('CREATE_STATEMENT');
           const payload = OperationPayload.create(
             {
               id: `stmt-coord-${i}`,
@@ -434,7 +434,7 @@ describe('Synchronization Context - Service Integration', () => {
             opType.isOk()
               ? opType.value
               : (() => {
-                  const fallback = OperationType.create('UPDATE_STATEMENT');
+                  const fallback = OperationType.create('CREATE_STATEMENT');
                   if (fallback.isErr()) throw new Error('Failed to create fallback operation type');
                   return fallback.value;
                 })(),
@@ -689,7 +689,7 @@ describe('Synchronization Context - Service Integration', () => {
             opType.isOk()
               ? opType.value
               : (() => {
-                  const fallback = OperationType.create('UPDATE_STATEMENT');
+                  const fallback = OperationType.create('CREATE_STATEMENT');
                   if (fallback.isErr()) throw new Error('Failed to create fallback operation type');
                   return fallback.value;
                 })(),
@@ -749,7 +749,7 @@ describe('Synchronization Context - Service Integration', () => {
           opType.isOk()
             ? opType.value
             : (() => {
-                const fallback = OperationType.create('UPDATE_STATEMENT');
+                const fallback = OperationType.create('CREATE_STATEMENT');
                 if (fallback.isErr()) throw new Error('Failed to create fallback operation type');
                 return fallback.value;
               })(),
@@ -811,7 +811,7 @@ describe('Synchronization Context - Service Integration', () => {
           opType.isOk()
             ? opType.value
             : (() => {
-                const fallback = OperationType.create('UPDATE_STATEMENT');
+                const fallback = OperationType.create('CREATE_STATEMENT');
                 if (fallback.isErr()) throw new Error('Failed to create fallback operation type');
                 return fallback.value;
               })(),
@@ -888,13 +888,13 @@ describe('Synchronization Context - Service Integration', () => {
         expect(incResult.isOk()).toBe(true);
         if (!incResult.isOk()) continue;
         const timestamp = LogicalTimestamp.create(deviceA, Date.now(), incResult.value);
-        const opType = OperationType.create('UPDATE_STATEMENT');
+        const opType = OperationType.create('CREATE_STATEMENT');
         const payload = OperationPayload.create(
           { id: `stmt-perf-${i}`, content: `Edit ${i}`, metadata: { position: i } },
           opType.isOk()
             ? opType.value
             : (() => {
-                const fallback = OperationType.create('UPDATE_STATEMENT');
+                const fallback = OperationType.create('CREATE_STATEMENT');
                 if (fallback.isErr()) throw new Error('Failed to create fallback operation type');
                 return fallback.value;
               })(),

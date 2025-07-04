@@ -39,8 +39,8 @@ class MockAtomicArgumentRepository implements IAtomicArgumentRepository {
       const id = argument.getId().getValue();
 
       // Check for valid references
-      const premiseRef = argument.getPremiseSetRef();
-      const conclusionRef = argument.getConclusionSetRef();
+      const premiseRef = argument.getPremiseSet();
+      const conclusionRef = argument.getConclusionSet();
 
       if (!premiseRef || !conclusionRef) {
         return err(
@@ -82,8 +82,8 @@ class MockAtomicArgumentRepository implements IAtomicArgumentRepository {
       }
 
       // Remove from indexes
-      const premiseRef = argument.getPremiseSetRef();
-      const conclusionRef = argument.getConclusionSetRef();
+      const premiseRef = argument.getPremiseSet();
+      const conclusionRef = argument.getConclusionSet();
 
       if (premiseRef) {
         this.removeFromOrderedSetIndex(premiseRef, argument);
@@ -256,8 +256,8 @@ describe('IAtomicArgumentRepository', () => {
       const argument = createTestArgument();
       await repository.save(argument);
 
-      const premiseRef = argument.getPremiseSetRef();
-      const conclusionRef = argument.getConclusionSetRef();
+      const premiseRef = argument.getPremiseSet();
+      const conclusionRef = argument.getConclusionSet();
       if (!premiseRef || !conclusionRef) return;
 
       const byPremise = await repository.findByOrderedSetReference(premiseRef);
@@ -347,13 +347,13 @@ describe('IAtomicArgumentRepository', () => {
 
       expect(found).not.toBeNull();
       expect(found?.getId().equals(argument.getId())).toBe(true);
-      const foundPremiseRef = found?.getPremiseSetRef();
-      const argPremiseRef = argument.getPremiseSetRef();
+      const foundPremiseRef = found?.getPremiseSet();
+      const argPremiseRef = argument.getPremiseSet();
       if (foundPremiseRef && argPremiseRef) {
         expect(foundPremiseRef.equals(argPremiseRef)).toBe(true);
       }
-      const foundConclusionRef = found?.getConclusionSetRef();
-      const argConclusionRef = argument.getConclusionSetRef();
+      const foundConclusionRef = found?.getConclusionSet();
+      const argConclusionRef = argument.getConclusionSet();
       if (foundConclusionRef && argConclusionRef) {
         expect(foundConclusionRef.equals(argConclusionRef)).toBe(true);
       }
@@ -456,7 +456,7 @@ describe('IAtomicArgumentRepository', () => {
       const argument = createTestArgument();
       await repository.save(argument);
 
-      const premiseRef = argument.getPremiseSetRef();
+      const premiseRef = argument.getPremiseSet();
       if (!premiseRef) throw new Error('Missing premise ref');
       const found = await repository.findByOrderedSetReference(premiseRef);
 
@@ -471,7 +471,7 @@ describe('IAtomicArgumentRepository', () => {
       const argument = createTestArgument();
       await repository.save(argument);
 
-      const conclusionRef = argument.getConclusionSetRef();
+      const conclusionRef = argument.getConclusionSet();
       if (!conclusionRef) throw new Error('Missing conclusion ref');
       const found = await repository.findByOrderedSetReference(conclusionRef);
 
@@ -590,8 +590,8 @@ describe('IAtomicArgumentRepository', () => {
       const argument = createTestArgument();
       await repository.save(argument);
 
-      const premiseId = argument.getPremiseSetRef();
-      const conclusionId = argument.getConclusionSetRef();
+      const premiseId = argument.getPremiseSet();
+      const conclusionId = argument.getConclusionSet();
 
       await repository.delete(argument.getId());
 
@@ -714,7 +714,7 @@ describe('IAtomicArgumentRepository', () => {
       });
       vi.mocked(mockRepository.findAll).mockResolvedValue([argument]);
       vi.mocked(mockRepository.findByOrderedSetReference).mockImplementation(async (id) => {
-        const argPremiseRef = argument.getPremiseSetRef();
+        const argPremiseRef = argument.getPremiseSet();
         if (argPremiseRef && id.equals(argPremiseRef)) return Promise.resolve([argument]);
         return Promise.resolve([]);
       });
@@ -733,7 +733,7 @@ describe('IAtomicArgumentRepository', () => {
       const all = await mockRepository.findAll();
       expect(all).toEqual([argument]);
 
-      const argPremiseRef = argument.getPremiseSetRef();
+      const argPremiseRef = argument.getPremiseSet();
       if (!argPremiseRef) throw new Error('Missing premise ref');
       const byPremise = await mockRepository.findByOrderedSetReference(argPremiseRef);
       expect(byPremise).toEqual([argument]);
@@ -756,7 +756,7 @@ describe('IAtomicArgumentRepository', () => {
       // Mock ordered set queries
       const firstArg = atomicArgs[0];
       if (!firstArg) throw new Error('Missing first argument');
-      const orderedSetId = firstArg.getPremiseSetRef();
+      const orderedSetId = firstArg.getPremiseSet();
       if (!orderedSetId) throw new Error('Missing ordered set id');
       vi.mocked(mockRepository.findByOrderedSetReference).mockImplementation(async (id) => {
         const arg0 = atomicArgs[0];

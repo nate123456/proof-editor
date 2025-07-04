@@ -88,6 +88,30 @@ const mockValidationController = {
   dispose: vi.fn(),
 };
 
+// Mock DI container
+const mockContainer = {
+  resolve: vi.fn((token: string) => {
+    if (token === 'ValidationController') {
+      return mockValidationController;
+    }
+    return {};
+  }),
+};
+
+vi.mock('../../infrastructure/di/container.js', () => ({
+  getContainer: vi.fn(() => mockContainer),
+  initializeContainer: vi.fn(() => Promise.resolve(mockContainer)),
+  TOKENS: {
+    ValidationController: 'ValidationController',
+  },
+}));
+
+vi.mock('../../infrastructure/di/tokens.js', () => ({
+  TOKENS: {
+    ValidationController: 'ValidationController',
+  },
+}));
+
 // Mock dependencies
 vi.mock('../../validation/index.js', () => ({
   ValidationController: vi.fn().mockImplementation(() => mockValidationController),
@@ -101,7 +125,6 @@ vi.mock('../../webview/ProofTreePanel.js', () => ({
 }));
 
 // Import mocked modules for type checking
-import { ValidationController } from '../../validation/index.js';
 import { ProofTreePanel } from '../../webview/ProofTreePanel.js';
 import { activate, deactivate } from '../extension.js';
 
@@ -297,15 +320,15 @@ describe('Extension', () => {
   });
 
   describe('activate', () => {
-    it('should create and register validation controller', () => {
-      activate(mockContext);
+    it('should create and register validation controller', async () => {
+      await activate(mockContext);
 
-      expect(ValidationController).toHaveBeenCalledWith();
+      expect(mockContainer.resolve).toHaveBeenCalledWith('ValidationController');
       expect(mockContext.subscriptions).toHaveLength(6); // controller + command + 4 event handlers
     });
 
-    it('should register showTree command', () => {
-      activate(mockContext);
+    it('should register showTree command', async () => {
+      await activate(mockContext);
 
       expect(vscode.commands.registerCommand).toHaveBeenCalledWith(
         'proofEditor.showTree',
@@ -313,8 +336,8 @@ describe('Extension', () => {
       );
     });
 
-    it('should register all event handlers', () => {
-      activate(mockContext);
+    it('should register all event handlers', async () => {
+      await activate(mockContext);
 
       expect(vscode.workspace.onDidOpenTextDocument).toHaveBeenCalledWith(expect.any(Function));
       expect(vscode.workspace.onDidChangeTextDocument).toHaveBeenCalledWith(expect.any(Function));
@@ -322,21 +345,21 @@ describe('Extension', () => {
       expect(vscode.window.onDidChangeActiveTextEditor).toHaveBeenCalledWith(expect.any(Function));
     });
 
-    it('should add all disposables to context subscriptions', () => {
-      activate(mockContext);
+    it('should add all disposables to context subscriptions', async () => {
+      await activate(mockContext);
 
       // Should have: ValidationController + showTreeCommand + 4 event handlers
       expect(mockContext.subscriptions).toHaveLength(6);
     });
 
-    it('should check for existing proof files', () => {
+    it('should check for existing proof files', async () => {
       Object.defineProperty(vscode.workspace, 'textDocuments', {
         value: [mockTextDocument],
         writable: true,
         configurable: true,
       });
 
-      activate(mockContext);
+      await activate(mockContext);
 
       expect(ProofTreePanel.createOrShow).toHaveBeenCalledWith(
         mockContext.extensionUri,
@@ -344,7 +367,7 @@ describe('Extension', () => {
       );
     });
 
-    it('should not process non-proof files during initialization', () => {
+    it('should not process non-proof files during initialization', async () => {
       const nonProofDoc = { ...mockTextDocument, languageId: 'javascript' };
       Object.defineProperty(vscode.workspace, 'textDocuments', {
         value: [nonProofDoc],
@@ -352,7 +375,7 @@ describe('Extension', () => {
         configurable: true,
       });
 
-      activate(mockContext);
+      await activate(mockContext);
 
       expect(ProofTreePanel.createOrShow).not.toHaveBeenCalled();
     });
@@ -375,8 +398,8 @@ describe('Extension', () => {
   });
 
   describe('showTree command', () => {
-    beforeEach(() => {
-      activate(mockContext);
+    beforeEach(async () => {
+      await activate(mockContext);
     });
 
     it('should create webview panel when active editor has proof file', () => {
@@ -434,8 +457,8 @@ describe('Extension', () => {
   });
 
   describe('document open handler', () => {
-    beforeEach(() => {
-      activate(mockContext);
+    beforeEach(async () => {
+      await activate(mockContext);
     });
 
     it('should handle proof file opening', () => {
@@ -491,8 +514,8 @@ describe('Extension', () => {
   });
 
   describe('document change handler', () => {
-    beforeEach(() => {
-      activate(mockContext);
+    beforeEach(async () => {
+      await activate(mockContext);
     });
 
     it('should handle proof file changes', () => {
@@ -518,8 +541,8 @@ describe('Extension', () => {
   });
 
   describe('active editor change handler', () => {
-    beforeEach(() => {
-      activate(mockContext);
+    beforeEach(async () => {
+      await activate(mockContext);
     });
 
     it('should handle switching to proof file editor', () => {
@@ -555,8 +578,8 @@ describe('Extension', () => {
   });
 
   describe('document close handler', () => {
-    beforeEach(() => {
-      activate(mockContext);
+    beforeEach(async () => {
+      await activate(mockContext);
     });
 
     it('should clear validation for closed proof files', () => {
@@ -577,8 +600,8 @@ describe('Extension', () => {
   });
 
   describe('helper functions', () => {
-    it('should extract filename from path with forward slashes', () => {
-      activate(mockContext);
+    it('should extract filename from path with forward slashes', async () => {
+      await activate(mockContext);
 
       const docWithPath = {
         ...mockTextDocument,
@@ -592,8 +615,8 @@ describe('Extension', () => {
       );
     });
 
-    it('should handle empty filename gracefully', () => {
-      activate(mockContext);
+    it('should handle empty filename gracefully', async () => {
+      await activate(mockContext);
 
       const docWithEmptyName = {
         ...mockTextDocument,
@@ -609,18 +632,16 @@ describe('Extension', () => {
   });
 
   describe('error scenarios', () => {
-    it('should handle ValidationController constructor throwing', () => {
-      vi.mocked(ValidationController).mockImplementationOnce(() => {
+    it('should handle ValidationController constructor throwing', async () => {
+      mockContainer.resolve.mockImplementationOnce(() => {
         throw new Error('Mock validation error');
       });
 
-      expect(() => {
-        activate(mockContext);
-      }).toThrow('Mock validation error');
+      await expect(activate(mockContext)).rejects.toThrow('Mock validation error');
     });
 
-    it('should handle ProofTreePanel.createOrShow throwing', () => {
-      activate(mockContext);
+    it('should handle ProofTreePanel.createOrShow throwing', async () => {
+      await activate(mockContext);
       vi.mocked(ProofTreePanel.createOrShow).mockImplementationOnce(() => {
         throw new Error('Mock webview error');
       });
@@ -630,8 +651,8 @@ describe('Extension', () => {
       }).toThrow('Mock webview error');
     });
 
-    it('should handle getText() throwing', () => {
-      activate(mockContext);
+    it('should handle getText() throwing', async () => {
+      await activate(mockContext);
       const docWithBadGetText = {
         ...mockTextDocument,
         getText: () => {
@@ -646,8 +667,8 @@ describe('Extension', () => {
   });
 
   describe('integration scenarios', () => {
-    it('should handle rapid document changes', () => {
-      activate(mockContext);
+    it('should handle rapid document changes', async () => {
+      await activate(mockContext);
 
       // Simulate rapid document changes
       for (let i = 0; i < 10; i++) {
@@ -658,8 +679,8 @@ describe('Extension', () => {
       expect(mockValidationController.validateDocumentDebounced).toHaveBeenCalledTimes(10);
     });
 
-    it('should handle multiple proof files being opened', () => {
-      activate(mockContext);
+    it('should handle multiple proof files being opened', async () => {
+      await activate(mockContext);
 
       const doc1 = { ...mockTextDocument, fileName: 'file1.proof' };
       const doc2 = { ...mockTextDocument, fileName: 'file2.proof' };
@@ -673,8 +694,8 @@ describe('Extension', () => {
       expect(mockValidationController.validateDocumentImmediate).toHaveBeenCalledTimes(3);
     });
 
-    it('should handle mixed file types correctly', () => {
-      activate(mockContext);
+    it('should handle mixed file types correctly', async () => {
+      await activate(mockContext);
 
       const proofDoc = mockTextDocument;
       const jsDoc = { ...mockTextDocument, languageId: 'javascript' };
@@ -691,21 +712,21 @@ describe('Extension', () => {
   });
 
   describe('subscription management', () => {
-    it('should add validation controller to subscriptions', () => {
-      activate(mockContext);
+    it('should add validation controller to subscriptions', async () => {
+      await activate(mockContext);
 
       expect(mockContext.subscriptions).toContain(mockValidationController);
     });
 
-    it('should add all event handlers to subscriptions', () => {
-      activate(mockContext);
+    it('should add all event handlers to subscriptions', async () => {
+      await activate(mockContext);
 
       // Should have 6 items: ValidationController + showTreeCommand + 4 event handlers
       expect(mockContext.subscriptions).toHaveLength(6);
     });
 
-    it('should handle subscription disposal', () => {
-      activate(mockContext);
+    it('should handle subscription disposal', async () => {
+      await activate(mockContext);
 
       // Each subscription should have a dispose method
       mockContext.subscriptions.forEach((subscription) => {

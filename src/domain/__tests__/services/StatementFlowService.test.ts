@@ -351,8 +351,8 @@ describe('StatementFlowService', () => {
         expect(result.isOk()).toBe(true);
         if (result.isOk()) {
           customExpect(result.value).toBeValidAtomicArgument();
-          expect(result.value.getPremiseSetRef()?.equals(premiseSet.getId())).toBe(true);
-          expect(result.value.getConclusionSetRef()?.equals(conclusionSet.getId())).toBe(true);
+          expect(result.value.getPremiseSet()?.equals(premiseSet.getId())).toBe(true);
+          expect(result.value.getConclusionSet()?.equals(conclusionSet.getId())).toBe(true);
         }
       });
 
@@ -362,8 +362,8 @@ describe('StatementFlowService', () => {
         expect(result.isOk()).toBe(true);
         if (result.isOk()) {
           customExpect(result.value).toBeValidAtomicArgument();
-          expect(result.value.getPremiseSetRef()?.equals(premiseSet.getId())).toBe(true);
-          expect(result.value.getConclusionSetRef()).toBe(null);
+          expect(result.value.getPremiseSet()?.equals(premiseSet.getId())).toBe(true);
+          expect(result.value.getConclusionSet()).toBe(null);
         }
       });
 
@@ -373,8 +373,8 @@ describe('StatementFlowService', () => {
         expect(result.isOk()).toBe(true);
         if (result.isOk()) {
           customExpect(result.value).toBeValidAtomicArgument();
-          expect(result.value.getPremiseSetRef()).toBe(null);
-          expect(result.value.getConclusionSetRef()?.equals(conclusionSet.getId())).toBe(true);
+          expect(result.value.getPremiseSet()).toBe(null);
+          expect(result.value.getConclusionSet()?.equals(conclusionSet.getId())).toBe(true);
         }
       });
 
@@ -384,8 +384,8 @@ describe('StatementFlowService', () => {
         expect(result.isOk()).toBe(true);
         if (result.isOk()) {
           customExpect(result.value).toBeValidAtomicArgument();
-          expect(result.value.getPremiseSetRef()).toBe(null);
-          expect(result.value.getConclusionSetRef()).toBe(null);
+          expect(result.value.getPremiseSet()).toBe(null);
+          expect(result.value.getConclusionSet()).toBe(null);
         }
       });
 
@@ -551,7 +551,7 @@ describe('StatementFlowService', () => {
         if (result.isOk()) {
           customExpect(result.value).toBeValidAtomicArgument();
           // Child should use parent's conclusion as premise
-          expect(result.value.getPremiseSetRef()?.equals(conclusionSet.getId())).toBe(true);
+          expect(result.value.getPremiseSet()?.equals(conclusionSet.getId())).toBe(true);
         }
       });
 

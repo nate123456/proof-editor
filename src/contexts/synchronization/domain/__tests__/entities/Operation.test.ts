@@ -13,7 +13,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Operation } from '../../entities/Operation';
-import type { VectorClock } from '../../entities/VectorClock';
+import { VectorClock } from '../../entities/VectorClock';
 import { DeviceId } from '../../value-objects/DeviceId';
 import { OperationId } from '../../value-objects/OperationId';
 import { OperationPayload } from '../../value-objects/OperationPayload';
@@ -379,13 +379,29 @@ describe('Operation', () => {
     it('should detect conflicts with concurrent operations on same path', () => {
       const params = createValidOperationParams();
 
+      // Create real VectorClock instances for concurrent operations
+      const vectorClock1Result = VectorClock.create(createDeviceId('device-1'));
+      const vectorClock2Result = VectorClock.create(createDeviceId('device-2'));
+
+      if (vectorClock1Result.isErr() || vectorClock2Result.isErr()) {
+        throw new Error('Failed to create vector clocks');
+      }
+
+      // Increment each clock to simulate concurrent operations
+      const clock1Result = vectorClock1Result.value.incrementForDevice(createDeviceId('device-1'));
+      const clock2Result = vectorClock2Result.value.incrementForDevice(createDeviceId('device-2'));
+
+      if (clock1Result.isErr() || clock2Result.isErr()) {
+        throw new Error('Failed to increment vector clocks');
+      }
+
       const op1 = Operation.create(
         params.operationId,
-        params.deviceId,
+        createDeviceId('device-1'),
         createOperationType('UPDATE_STATEMENT'),
         '/document/title',
         params.payload,
-        params.vectorClock,
+        clock1Result.value,
       );
 
       const op2 = Operation.create(
@@ -394,7 +410,7 @@ describe('Operation', () => {
         createOperationType('UPDATE_STATEMENT'),
         '/document/title',
         params.payload,
-        createMockVectorClock({ 'device-2': 1 }),
+        clock2Result.value,
       );
 
       if (op1.isOk() && op2.isOk()) {
@@ -447,14 +463,30 @@ describe('Operation', () => {
     it('should detect different conflict types based on operations', () => {
       const params = createValidOperationParams();
 
+      // Create real VectorClock instances for concurrent operations
+      const vectorClock1Result = VectorClock.create(createDeviceId('device-1'));
+      const vectorClock2Result = VectorClock.create(createDeviceId('device-2'));
+
+      if (vectorClock1Result.isErr() || vectorClock2Result.isErr()) {
+        throw new Error('Failed to create vector clocks');
+      }
+
+      // Increment each clock to simulate concurrent operations
+      const clock1Result = vectorClock1Result.value.incrementForDevice(createDeviceId('device-1'));
+      const clock2Result = vectorClock2Result.value.incrementForDevice(createDeviceId('device-2'));
+
+      if (clock1Result.isErr() || clock2Result.isErr()) {
+        throw new Error('Failed to increment vector clocks');
+      }
+
       // Delete vs Update conflict
       const deleteOp = Operation.create(
         params.operationId,
-        params.deviceId,
+        createDeviceId('device-1'),
         createOperationType('DELETE_STATEMENT'),
         '/document/section',
         createDeletePayload(createOperationType('DELETE_STATEMENT')),
-        params.vectorClock,
+        clock1Result.value,
       );
 
       const updateOp = Operation.create(
@@ -463,7 +495,7 @@ describe('Operation', () => {
         createOperationType('UPDATE_STATEMENT'),
         '/document/section',
         params.payload,
-        createMockVectorClock({ 'device-2': 1 }),
+        clock2Result.value,
       );
 
       if (deleteOp.isOk() && updateOp.isOk()) {

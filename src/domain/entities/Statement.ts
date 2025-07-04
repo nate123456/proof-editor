@@ -121,4 +121,12 @@ export class Statement {
   hasContent(): boolean {
     return !this.content.isEmpty;
   }
+
+  /**
+   * Create a placeholder statement for UI display before user types.
+   * This is used during bootstrap to show empty fields.
+   */
+  static createPlaceholder(): Result<Statement, ValidationError> {
+    return Statement.create('[Enter text]');
+  }
 }

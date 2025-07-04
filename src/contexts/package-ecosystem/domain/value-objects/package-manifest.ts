@@ -2,6 +2,7 @@ import { err, ok, type Result } from 'neverthrow';
 
 import type { PackageManifestData } from '../types/common-types.js';
 import { PackageValidationError } from '../types/domain-errors.js';
+import { PackageVersion } from './PackageVersion.js';
 import { PackageId } from './package-id.js';
 import { VersionConstraint } from './version-constraint.js';
 
@@ -19,7 +20,7 @@ export class PackageManifest {
       name: data.name.trim(),
       version: data.version.trim(),
       description: data.description.trim(),
-      author: data.author?.trim() || '',
+      author: data.author.trim(),
     };
 
     const packageIdResult = PackageId.create(trimmedData.name);
@@ -33,11 +34,11 @@ export class PackageManifest {
       return err(new PackageValidationError('Package version cannot be empty'));
     }
 
-    const versionConstraintResult = VersionConstraint.create(trimmedData.version);
-    if (versionConstraintResult.isErr()) {
+    const packageVersionResult = PackageVersion.create(trimmedData.version);
+    if (packageVersionResult.isErr()) {
       return err(
         new PackageValidationError(
-          `Invalid package version: ${versionConstraintResult.error.message}`,
+          `Invalid package version: ${packageVersionResult.error.message}`,
         ),
       );
     }

@@ -37,13 +37,20 @@ export interface CycleDetectionResult {
 export class ProofTreeAggregate {
   private readonly uncommittedEvents: DomainEvent[] = [];
 
+  // Performance optimization: Cache for parent-child relationships
+  private readonly parentToChildrenMap: Map<string, Set<NodeId>> = new Map();
+  private readonly childToParentMap: Map<NodeId, NodeId> = new Map();
+
   private constructor(
     private readonly id: ProofTreeId,
     private readonly nodes: Map<NodeId, Node>,
     private spatialLayout: SpatialLayout,
     private readonly proofAggregate: ProofAggregate,
     private version: number = 1,
-  ) {}
+  ) {
+    // Initialize parent-child caches
+    this.rebuildParentChildCache();
+  }
 
   static createNew(
     proofAggregate: ProofAggregate,
@@ -123,6 +130,9 @@ export class ProofTreeAggregate {
 
     const node = nodeResult.value;
     this.nodes.set(node.getId(), node);
+
+    // Update performance caches
+    this.updateCachesForNewNode(node);
     this.incrementVersion();
 
     return ok(node.getId());
@@ -144,6 +154,9 @@ export class ProofTreeAggregate {
     }
 
     this.nodes.delete(nodeId);
+
+    // Update performance caches
+    this.updateCachesForRemovedNode(node);
     this.incrementVersion();
 
     return ok(undefined);
@@ -199,6 +212,8 @@ export class ProofTreeAggregate {
       return err(structureValidation.error);
     }
 
+    // Update caches after successful connection
+    this.addToParentChildCache(parentId, childId);
     this.incrementVersion();
 
     return ok(undefined);
@@ -244,12 +259,14 @@ export class ProofTreeAggregate {
   }
 
   detectCycles(): CycleDetectionResult {
-    const visited = new Set<NodeId>();
-    const recursionStack = new Set<NodeId>();
+    const visited = new Set<string>();
+    const recursionStack = new Set<string>();
     const cycles: NodeId[][] = [];
 
     const detectCycleFromNode = (nodeId: NodeId, path: NodeId[]): void => {
-      if (recursionStack.has(nodeId)) {
+      const nodeKey = nodeId.getValue();
+
+      if (recursionStack.has(nodeKey)) {
         const cycleStartIndex = path.findIndex((id) => id.equals(nodeId));
         if (cycleStartIndex !== -1) {
           cycles.push(path.slice(cycleStartIndex));
@@ -257,23 +274,25 @@ export class ProofTreeAggregate {
         return;
       }
 
-      if (visited.has(nodeId)) {
+      if (visited.has(nodeKey)) {
         return;
       }
 
-      visited.add(nodeId);
-      recursionStack.add(nodeId);
+      visited.add(nodeKey);
+      recursionStack.add(nodeKey);
 
-      const children = this.getChildNodes(nodeId);
-      for (const child of children) {
-        detectCycleFromNode(child.getId(), [...path, child.getId()]);
+      // Use cached children lookup for better performance
+      const childIds = this.parentToChildrenMap.get(nodeKey) ?? new Set();
+      for (const childId of childIds) {
+        detectCycleFromNode(childId, [...path, childId]);
       }
 
-      recursionStack.delete(nodeId);
+      recursionStack.delete(nodeKey);
     };
 
     for (const [nodeId] of this.nodes) {
-      if (!visited.has(nodeId)) {
+      const nodeKey = nodeId.getValue();
+      if (!visited.has(nodeKey)) {
         detectCycleFromNode(nodeId, [nodeId]);
       }
     }
@@ -293,7 +312,11 @@ export class ProofTreeAggregate {
   }
 
   private getChildNodes(parentId: NodeId): Node[] {
-    return Array.from(this.nodes.values()).filter((node) => node.isChildOf(parentId));
+    // Use cache for O(1) lookup instead of O(n) filtering
+    const childIds = this.parentToChildrenMap.get(parentId.getValue()) ?? new Set();
+    return Array.from(childIds)
+      .map((id) => this.nodes.get(id))
+      .filter((node): node is Node => node !== undefined);
   }
 
   private getChildAtPosition(parentId: NodeId, position: number): Node | null {
@@ -374,5 +397,65 @@ export class ProofTreeAggregate {
 
   private incrementVersion(): void {
     this.version++;
+  }
+
+  // Performance optimization methods
+  private rebuildParentChildCache(): void {
+    this.parentToChildrenMap.clear();
+    this.childToParentMap.clear();
+
+    for (const node of this.nodes.values()) {
+      if (node.isChild()) {
+        const parentId = node.getParentNodeId();
+        if (parentId) {
+          this.addToParentChildCache(parentId, node.getId());
+        }
+      }
+    }
+  }
+
+  private updateCachesForNewNode(node: Node): void {
+    if (node.isChild()) {
+      const parentId = node.getParentNodeId();
+      if (parentId) {
+        this.addToParentChildCache(parentId, node.getId());
+      }
+    }
+  }
+
+  private updateCachesForRemovedNode(node: Node): void {
+    if (node.isChild()) {
+      const parentId = node.getParentNodeId();
+      if (parentId) {
+        this.removeFromParentChildCache(parentId, node.getId());
+      }
+    }
+
+    // Also remove any children this node had
+    const parentKey = node.getId().getValue();
+    this.parentToChildrenMap.delete(parentKey);
+
+    // Remove from child-to-parent mapping
+    this.childToParentMap.delete(node.getId());
+  }
+
+  private addToParentChildCache(parentId: NodeId, childId: NodeId): void {
+    const parentKey = parentId.getValue();
+    const children = this.parentToChildrenMap.get(parentKey) ?? new Set();
+    children.add(childId);
+    this.parentToChildrenMap.set(parentKey, children);
+    this.childToParentMap.set(childId, parentId);
+  }
+
+  private removeFromParentChildCache(parentId: NodeId, childId: NodeId): void {
+    const parentKey = parentId.getValue();
+    const children = this.parentToChildrenMap.get(parentKey);
+    if (children) {
+      children.delete(childId);
+      if (children.size === 0) {
+        this.parentToChildrenMap.delete(parentKey);
+      }
+    }
+    this.childToParentMap.delete(childId);
   }
 }

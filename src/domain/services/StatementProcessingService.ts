@@ -52,7 +52,7 @@ export class StatementProcessingService {
       return err(new ProcessingError('Parent argument not found'));
     }
 
-    if (parent.getConclusionSetRef() === null) {
+    if (parent.getConclusionSet() === null) {
       return err(new ProcessingError('Parent argument has no conclusion to branch from'));
     }
 

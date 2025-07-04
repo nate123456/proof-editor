@@ -647,8 +647,8 @@ function createMockAtomicArgument(
 ): AtomicArgument {
   return {
     getId: vi.fn(() => id),
-    getPremiseSetRef: vi.fn(() => premiseSetRef),
-    getConclusionSetRef: vi.fn(() => conclusionSetRef),
+    getPremiseSet: vi.fn(() => premiseSetRef),
+    getConclusionSet: vi.fn(() => conclusionSetRef),
     getCreatedAt: vi.fn(() => Date.now()),
     getModifiedAt: vi.fn(() => Date.now()),
     getSideLabels: vi.fn(() => ({})),

@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, it, vi } from 'vitest';
+import { expect } from '../../__tests__/test-setup.js';
 import { ValidationLevel } from '../../value-objects/ValidationLevel';
 import type { ValidationRequest } from '../../value-objects/ValidationRequest';
 import { type ValidationContext, ValidationPolicyService } from '../ValidationPolicyService';
@@ -115,7 +116,7 @@ describe('ValidationPolicyService', () => {
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         const workflow = result.value;
-        expect(workflow.getRequiredLevels()).toContain(ValidationLevel.syntax());
+        expect(workflow.getRequiredLevels()).toContainValidationLevel(ValidationLevel.syntax());
         expect(workflow.getValidationOrder()[0]?.isSyntax()).toBe(true);
       }
     });
@@ -129,8 +130,8 @@ describe('ValidationPolicyService', () => {
       if (result.isOk()) {
         const workflow = result.value;
         const requiredLevels = workflow.getRequiredLevels();
-        expect(requiredLevels).toContain(ValidationLevel.syntax());
-        expect(requiredLevels).toContain(ValidationLevel.semantic());
+        expect(requiredLevels).toContainValidationLevel(ValidationLevel.syntax());
+        expect(requiredLevels).toContainValidationLevel(ValidationLevel.semantic());
       }
     });
 
@@ -256,7 +257,7 @@ describe('ValidationPolicyService', () => {
 
       const requirements = service.getValidationLevelRequirements(level);
 
-      expect(requirements).toContain(ValidationLevel.syntax());
+      expect(requirements).toContainValidationLevel(ValidationLevel.syntax());
       expect(requirements).toHaveLength(1);
     });
 
@@ -265,7 +266,7 @@ describe('ValidationPolicyService', () => {
 
       const requirements = service.getValidationLevelRequirements(level);
 
-      expect(requirements).toContain(ValidationLevel.syntax());
+      expect(requirements).toContainValidationLevel(ValidationLevel.syntax());
       expect(requirements.length).toBeGreaterThan(1);
     });
 
@@ -274,7 +275,7 @@ describe('ValidationPolicyService', () => {
 
       const requirements = service.getValidationLevelRequirements(level);
 
-      expect(requirements).toContain(ValidationLevel.syntax());
+      expect(requirements).toContainValidationLevel(ValidationLevel.syntax());
     });
 
     it('should return syntax requirement for style level', () => {
@@ -282,7 +283,7 @@ describe('ValidationPolicyService', () => {
 
       const requirements = service.getValidationLevelRequirements(level);
 
-      expect(requirements).toContain(ValidationLevel.syntax());
+      expect(requirements).toContainValidationLevel(ValidationLevel.syntax());
     });
   });
 });

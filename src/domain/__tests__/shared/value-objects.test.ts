@@ -47,7 +47,9 @@ const validContentArbitrary = fc
 const invalidContentArbitrary = fc.oneof(
   fc.constant(''),
   fc.constant('   '),
-  fc.string({ minLength: 10001, maxLength: 15000 }), // Add reasonable upper bound
+  fc
+    .string({ minLength: 10001, maxLength: 15000 })
+    .filter((s) => s.trim().length > 10000), // Ensure trimmed length exceeds limit
 );
 
 describe('Utility Functions Coverage', () => {

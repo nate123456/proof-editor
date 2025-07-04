@@ -34,9 +34,8 @@ describe('ProofTransactionService Simple Tests', () => {
 
       if (result1.isOk()) {
         await result1.value.commit();
-        // Manual commit doesn't trigger cleanup in our current implementation
-        // The cleanup only happens in executeInTransaction
-        expect(service.getActiveTransactionCount()).toBe(2);
+        // Manual commit triggers cleanup via onComplete callback
+        expect(service.getActiveTransactionCount()).toBe(1);
       }
     });
 

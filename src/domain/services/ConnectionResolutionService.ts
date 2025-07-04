@@ -68,24 +68,24 @@ export class ConnectionResolutionService {
   }
 
   private async findParentArguments(argument: AtomicArgument): Promise<AtomicArgument[]> {
-    const premiseSetRef = argument.getPremiseSetRef();
+    const premiseSetRef = argument.getPremiseSet();
     if (!premiseSetRef) return [];
 
     const allArguments = await this.atomicArgumentRepo.findAll();
     return allArguments.filter(
       (arg) =>
-        arg.getConclusionSetRef()?.equals(premiseSetRef) && !arg.getId().equals(argument.getId()),
+        arg.getConclusionSet()?.equals(premiseSetRef) && !arg.getId().equals(argument.getId()),
     );
   }
 
   private async findChildArguments(argument: AtomicArgument): Promise<AtomicArgument[]> {
-    const conclusionSetRef = argument.getConclusionSetRef();
+    const conclusionSetRef = argument.getConclusionSet();
     if (!conclusionSetRef) return [];
 
     const allArguments = await this.atomicArgumentRepo.findAll();
     return allArguments.filter(
       (arg) =>
-        arg.getPremiseSetRef()?.equals(conclusionSetRef) && !arg.getId().equals(argument.getId()),
+        arg.getPremiseSet()?.equals(conclusionSetRef) && !arg.getId().equals(argument.getId()),
     );
   }
 }

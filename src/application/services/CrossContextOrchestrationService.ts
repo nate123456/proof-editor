@@ -93,12 +93,17 @@ export class CrossContextOrchestrationService {
       let dependenciesResolved = true;
       if (packageDependencies && Array.isArray(packageDependencies)) {
         for (const pkg of packageDependencies as Package[]) {
-          // Note: Using simplified validation - in production this would call proper validation method
           try {
-            const pkgId = pkg.getId();
-            if (!pkgId || pkgId.toString().length === 0) {
+            const validationResult = await this.packageValidation.validatePackage(pkg);
+            if (validationResult.isOk()) {
+              const validation = validationResult.value;
+              if (!validation.isValid) {
+                dependenciesResolved = false;
+                errors.push(`Package validation failed: ${pkg.getId().toString()}`);
+              }
+            } else {
               dependenciesResolved = false;
-              errors.push(`Package validation failed: ${pkgId?.toString() || 'unknown'}`);
+              errors.push(`Package validation failed: ${pkg.getId().toString()}`);
             }
           } catch (_error) {
             dependenciesResolved = false;
@@ -272,8 +277,24 @@ export class CrossContextOrchestrationService {
       // coordinate between package discovery, dependency resolution, and installation
       const { packageId, version, source } = request;
 
-      // Simulate package discovery and validation (simplified for now)
-      const discoveryResult = ok({} as Package);
+      // Convert string packageId to PackageId value object
+      const { PackageId } = await import(
+        '../../contexts/package-ecosystem/domain/value-objects/package-id.js'
+      );
+      const packageIdResult = PackageId.create(packageId);
+
+      if (packageIdResult.isErr()) {
+        return err(
+          new OrchestrationError(
+            `Invalid package ID: ${packageIdResult.error.message}`,
+            'package-ecosystem',
+            packageIdResult.error,
+          ),
+        );
+      }
+
+      // Package discovery and validation
+      const discoveryResult = await this.packageDiscovery.findPackageById(packageIdResult.value);
       const installed = discoveryResult.isOk();
 
       contextResults.set('package-ecosystem', {

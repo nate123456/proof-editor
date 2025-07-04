@@ -75,6 +75,20 @@ export class OrderedSet {
     return OrderedSet.create(statementIds);
   }
 
+  /**
+   * Create an empty OrderedSet for bootstrap scenarios.
+   * Explicitly allows empty collection which is normally not permitted.
+   */
+  static createEmpty(): Result<OrderedSet, ValidationError> {
+    const now = Date.now();
+    return ok(
+      new OrderedSet(OrderedSetId.generate(), [], now, now, {
+        asPremise: new SimpleSet(),
+        asConclusion: new SimpleSet(),
+      }),
+    );
+  }
+
   static reconstruct(
     id: OrderedSetId,
     statementIds: StatementId[],
@@ -236,6 +250,19 @@ export class OrderedSet {
     return this.referencedBy.asPremise.size + this.referencedBy.asConclusion.size;
   }
 
+  /**
+   * CRITICAL: Identity comparison - same object reference.
+   * This is THE key to connections between AtomicArguments.
+   * When two atomic arguments share the same OrderedSet object, they are connected.
+   */
+  isSameAs(other: OrderedSet): boolean {
+    return this === other; // Object identity, not content!
+  }
+
+  /**
+   * Content comparison - same statements in same order.
+   * This checks if two OrderedSets have identical content but may be different objects.
+   */
   orderedEquals(other: OrderedSet): boolean {
     if (this.statementIds.length !== other.statementIds.length) {
       return false;
@@ -247,8 +274,11 @@ export class OrderedSet {
     });
   }
 
+  /**
+   * Content equality (unordered) - same statements regardless of order.
+   * This is for checking if two OrderedSets have the same content.
+   */
   equals(other: OrderedSet): boolean {
-    // Content equality (unordered) - same statements regardless of order
     if (this.statementIds.length !== other.statementIds.length) {
       return false;
     }

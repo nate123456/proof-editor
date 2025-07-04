@@ -197,6 +197,18 @@ export class SemanticValidationPolicy implements IValidationPolicy {
         return result.isOk() ? ok(result.value) : err(result.error);
       }
 
+      // If there are warnings but no errors, create successful validation with warnings
+      if (diagnostics.length > 0) {
+        const result = ValidationResult.createSuccessfulValidationWithWarnings(
+          this.level,
+          diagnostics,
+          documentId,
+          target.getLanguagePackage().getId().getValue(),
+          metrics,
+        );
+        return result.isOk() ? ok(result.value) : err(result.error);
+      }
+
       const result = ValidationResult.createSuccessfulValidation(
         this.level,
         documentId,
@@ -219,9 +231,20 @@ export class SemanticValidationPolicy implements IValidationPolicy {
   }
 
   private hasUnboundVariables(content: string): boolean {
-    const variables = content.match(/[a-z]/g) ?? [];
-    const quantifiers = content.match(/[∀∃]/g) ?? [];
-    return variables.length > quantifiers.length;
+    // Extract variables that appear in predicates like P(x), Q(y)
+    const variableMatches = content.match(/\w+\(([a-z])\)/g) ?? [];
+    const variables = variableMatches
+      .map((match) => match.match(/\(([a-z])\)/)?.[1])
+      .filter(Boolean);
+
+    // Extract quantified variables like ∀x or ∃y
+    const quantifierMatches = content.match(/[∀∃]([a-z])/g) ?? [];
+    const quantifiedVars = quantifierMatches
+      .map((match) => match.match(/[∀∃]([a-z])/)?.[1])
+      .filter(Boolean);
+
+    // Check if any variables are not quantified
+    return variables.some((v) => !quantifiedVars.includes(v));
   }
 }
 
@@ -366,6 +389,18 @@ export class StyleValidationPolicy implements IValidationPolicy {
 
       if (hasErrors) {
         const result = ValidationResult.createFailedValidation(
+          this.level,
+          diagnostics,
+          documentId,
+          target.getLanguagePackage().getId().getValue(),
+          metricsResult.value,
+        );
+        return result.isOk() ? ok(result.value) : err(result.error);
+      }
+
+      // If there are warnings but no errors, create successful validation with warnings
+      if (diagnostics.length > 0) {
+        const result = ValidationResult.createSuccessfulValidationWithWarnings(
           this.level,
           diagnostics,
           documentId,

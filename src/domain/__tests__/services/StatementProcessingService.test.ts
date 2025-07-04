@@ -268,8 +268,8 @@ describe('StatementProcessingService', () => {
         // Assert - Should succeed with empty premise set
         expect(result.isOk()).toBe(true);
         if (result.isOk()) {
-          expect(result.value.getPremiseSetRef()).not.toBeNull();
-          expect(result.value.getConclusionSetRef()).not.toBeNull();
+          expect(result.value.getPremiseSet()).not.toBeNull();
+          expect(result.value.getConclusionSet()).not.toBeNull();
         }
       });
 
@@ -366,8 +366,8 @@ describe('StatementProcessingService', () => {
         if (result.isOk()) {
           const childArgument = result.value;
           customExpect(childArgument).toBeValidAtomicArgument();
-          expect(childArgument.getPremiseSetRef()).toEqual(conclusionSetId);
-          expect(childArgument.getConclusionSetRef()).toBeNull();
+          expect(childArgument.getPremiseSet()).toEqual(conclusionSetId);
+          expect(childArgument.getConclusionSet()).toBeNull();
         }
       });
 
@@ -919,7 +919,7 @@ describe('StatementProcessingService', () => {
         expect(branchResult.isOk()).toBe(true);
         if (branchResult.isOk()) {
           const child = branchResult.value;
-          expect(child.getPremiseSetRef()).toEqual(parent.getConclusionSetRef());
+          expect(child.getPremiseSet()).toEqual(parent.getConclusionSet());
         }
       }
     });

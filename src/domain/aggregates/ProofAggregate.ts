@@ -176,8 +176,8 @@ export class ProofAggregate {
       return err(connectionResult.error);
     }
 
-    const sourceConclusionSetId = sourceArgument.getConclusionSetRef();
-    const targetPremiseSetId = targetArgument.getPremiseSetRef();
+    const sourceConclusionSetId = sourceArgument.getConclusionSet();
+    const targetPremiseSetId = targetArgument.getPremiseSet();
 
     if (!sourceConclusionSetId || !targetPremiseSetId) {
       return err(new ValidationError('Arguments must have complete premise/conclusion sets'));
@@ -278,23 +278,43 @@ export class ProofAggregate {
 
   private validateArgumentConnections(): Result<void, ValidationError> {
     for (const argument of this.argumentsMap.values()) {
-      const premiseSetId = argument.getPremiseSetRef();
-      const conclusionSetId = argument.getConclusionSetRef();
+      const premiseSet = argument.getPremiseSet();
+      const conclusionSet = argument.getConclusionSet();
 
-      if (premiseSetId && !this.orderedSets.has(premiseSetId)) {
-        return err(
-          new ValidationError(
-            `Argument ${argument.getId().getValue()} references non-existent premise set`,
-          ),
-        );
+      if (premiseSet) {
+        // Check if the ordered set exists by comparing ID values
+        let found = false;
+        for (const [osId, _os] of this.orderedSets) {
+          if (osId.getValue() === premiseSet.getValue()) {
+            found = true;
+            break;
+          }
+        }
+        if (!found) {
+          return err(
+            new ValidationError(
+              `Argument ${argument.getId().getValue()} references non-existent premise set`,
+            ),
+          );
+        }
       }
 
-      if (conclusionSetId && !this.orderedSets.has(conclusionSetId)) {
-        return err(
-          new ValidationError(
-            `Argument ${argument.getId().getValue()} references non-existent conclusion set`,
-          ),
-        );
+      if (conclusionSet) {
+        // Check if the ordered set exists by comparing ID values
+        let found = false;
+        for (const [osId, _os] of this.orderedSets) {
+          if (osId.getValue() === conclusionSet.getValue()) {
+            found = true;
+            break;
+          }
+        }
+        if (!found) {
+          return err(
+            new ValidationError(
+              `Argument ${argument.getId().getValue()} references non-existent conclusion set`,
+            ),
+          );
+        }
       }
     }
 

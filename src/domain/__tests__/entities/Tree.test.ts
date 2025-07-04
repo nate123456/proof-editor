@@ -295,15 +295,29 @@ describe('Tree Entity', () => {
     });
 
     it('should update physical properties', () => {
-      const newPhysicalProperties = PhysicalProperties.default();
-      const laterTimestamp = FIXED_TIMESTAMP + 1000;
-      mockDateNow.mockReturnValueOnce(laterTimestamp);
+      // Create different properties from the default ones used in tree creation
+      const newPropertiesResult = PhysicalProperties.create(
+        'top-down',
+        60,
+        50,
+        120,
+        90,
+        'horizontal',
+        'left',
+      );
+      expect(newPropertiesResult.isOk()).toBe(true);
 
-      const result = tree.updatePhysicalProperties(newPhysicalProperties);
+      if (newPropertiesResult.isOk()) {
+        const newPhysicalProperties = newPropertiesResult.value;
+        const laterTimestamp = FIXED_TIMESTAMP + 1000;
+        mockDateNow.mockReturnValueOnce(laterTimestamp);
 
-      expect(result.isOk()).toBe(true);
-      expect(tree.getPhysicalProperties()).toEqual(newPhysicalProperties);
-      expect(tree.getModifiedAt()).toBe(laterTimestamp);
+        const result = tree.updatePhysicalProperties(newPhysicalProperties);
+
+        expect(result.isOk()).toBe(true);
+        expect(tree.getPhysicalProperties()).toEqual(newPhysicalProperties);
+        expect(tree.getModifiedAt()).toBe(laterTimestamp);
+      }
     });
   });
 
@@ -530,14 +544,16 @@ describe('Tree Entity', () => {
 
         expect(bounds.minX).toBe(0);
         expect(bounds.minY).toBe(0);
-        expect(bounds.maxX).toBe(100);
-        expect(bounds.maxY).toBe(80); // Adjusted based on actual implementation
+        expect(bounds.maxX).toBe(60); // minWidth from PhysicalProperties.create()
+        expect(bounds.maxY).toBe(30); // minHeight from PhysicalProperties.create()
       });
     });
 
     describe('overlapsWithBounds', () => {
       it('should detect overlapping bounds', () => {
-        const overlappingBounds = { minX: 50, minY: 50, maxX: 150, maxY: 150 };
+        // tree1 bounds: minX=0, minY=0, maxX=60, maxY=30
+        // These bounds overlap with tree1's bounds
+        const overlappingBounds = { minX: 30, minY: 15, maxX: 150, maxY: 150 };
         expect(tree1.overlapsWithBounds(overlappingBounds)).toBe(true);
       });
 
@@ -1457,8 +1473,8 @@ function createMockAtomicArgument(
 ): AtomicArgument {
   return {
     getId: vi.fn(() => id),
-    getPremiseSetRef: vi.fn(() => premiseSetRef),
-    getConclusionSetRef: vi.fn(() => conclusionSetRef),
+    getPremiseSet: vi.fn(() => premiseSetRef),
+    getConclusionSet: vi.fn(() => conclusionSetRef),
     getCreatedAt: vi.fn(() => Date.now()),
     getModifiedAt: vi.fn(() => Date.now()),
     getSideLabels: vi.fn(() => ({})),

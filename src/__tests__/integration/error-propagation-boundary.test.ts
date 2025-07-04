@@ -75,7 +75,7 @@ function _translateError(externalError: unknown, context: string): Error {
 function validateDataTransfer(data: unknown, expectedType: string): boolean {
   switch (expectedType) {
     case 'validation-result':
-      return typeof data === 'object' && data !== null && 'isSuccessful' in data;
+      return typeof data === 'object' && data !== null && 'isValidationSuccessful' in data;
     case 'package':
       return typeof data === 'object' && data !== null && 'getId' in data && 'getVersion' in data;
     case 'operation':
@@ -246,9 +246,9 @@ describe('Error Propagation and Domain Boundary Tests', () => {
       // Arrange - Create scenario with package dependency issues
       const testPackage = PackageEcosystemFactory.createPackage('failing-package');
 
-      // Mock package repository to simulate failure
-      const mockRepo = packageEcosystemServices.packageDiscovery as any;
-      mockRepo.packageRepository.findById = vi
+      // Mock dependency repository to simulate failure when finding dependencies
+      const mockDependencyRepo = packageEcosystemServices.dependencyResolution as any;
+      mockDependencyRepo.dependencyRepository.findDependenciesForPackage = vi
         .fn()
         .mockResolvedValue(err(new PackageNotFoundError('Package not found')));
 
@@ -738,8 +738,8 @@ describe('Error Propagation and Domain Boundary Tests', () => {
       // Act - Other contexts should remain isolated
       expect(coreStatement.getContent()).toBe('Core context data');
       expect(languagePackage.getName().getValue()).toBe('Test Package');
-      expect(ecosystemPackage.getId().toString()).toContain('test-package');
-      expect(syncDevice.getShortId()).toContain('sync-device');
+      expect(ecosystemPackage.getId().toString()).toContain('ecosystem-package');
+      expect(syncDevice.getShortId()).toContain('sync');
 
       // Language Intelligence failure should not affect other contexts
       try {

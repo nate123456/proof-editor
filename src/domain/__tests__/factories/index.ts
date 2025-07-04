@@ -151,14 +151,18 @@ export const sideLabelsFactory = Factory.define<SideLabels>(() => {
 // Factory for creating AtomicArgument entities
 export const atomicArgumentFactory = Factory.define<AtomicArgument>(({ transientParams }) => {
   const { premiseSetRef, conclusionSetRef, sideLabels } = transientParams as {
-    premiseSetRef?: OrderedSetId;
-    conclusionSetRef?: OrderedSetId;
+    premiseSetRef?: OrderedSet;
+    conclusionSetRef?: OrderedSet;
     sideLabels?: SideLabels;
   };
 
   const actualSideLabels = sideLabels ?? sideLabelsFactory.build();
 
-  const result = AtomicArgument.create(premiseSetRef, conclusionSetRef, actualSideLabels);
+  const result = AtomicArgument.create(
+    premiseSetRef?.getId(),
+    conclusionSetRef?.getId(),
+    actualSideLabels,
+  );
   if (result.isErr()) {
     throw result.error;
   }

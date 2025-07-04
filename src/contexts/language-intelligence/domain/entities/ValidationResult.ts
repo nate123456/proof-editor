@@ -39,6 +39,33 @@ export class ValidationResult {
     );
   }
 
+  static createSuccessfulValidationWithWarnings(
+    level: ValidationLevel,
+    diagnostics: Diagnostic[],
+    documentId: string,
+    languagePackageId: string,
+    metrics: ValidationMetrics,
+  ): Result<ValidationResult, ValidationError> {
+    // Ensure all diagnostics are non-error (warnings or info only)
+    const hasErrors = diagnostics.some((d) => d.getSeverity().isError());
+    if (hasErrors) {
+      return err(new ValidationError('Successful validation cannot contain error diagnostics'));
+    }
+
+    return ok(
+      new ValidationResult(
+        ValidationResultId.generate(),
+        level,
+        true,
+        diagnostics,
+        metrics,
+        Timestamp.now(),
+        documentId,
+        languagePackageId,
+      ),
+    );
+  }
+
   static createFailedValidation(
     level: ValidationLevel,
     diagnostics: Diagnostic[],

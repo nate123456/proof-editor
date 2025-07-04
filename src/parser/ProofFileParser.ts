@@ -12,7 +12,6 @@ import {
   AtomicArgumentId,
   Attachment,
   NodeId,
-  OrderedSetId,
   Position2D,
   StatementId,
 } from '../domain/shared/value-objects.js';
@@ -235,9 +234,6 @@ export class ProofFileParser {
     const atomicArguments = new Map<string, AtomicArgument>();
 
     for (const [id, argSpec] of Object.entries(atomicArgumentsData)) {
-      let premiseSetId: string | undefined;
-      let conclusionSetId: string | undefined;
-
       // Validate premise reference
       if (argSpec.premises) {
         if (!orderedSets.has(argSpec.premises)) {
@@ -247,8 +243,6 @@ export class ProofFileParser {
             section: 'atomicArguments',
             reference: id,
           });
-        } else {
-          premiseSetId = orderedSets.get(argSpec.premises)?.getId().getValue();
         }
       }
 
@@ -261,49 +255,21 @@ export class ProofFileParser {
             section: 'atomicArguments',
             reference: id,
           });
-        } else {
-          conclusionSetId = orderedSets.get(argSpec.conclusions)?.getId().getValue();
         }
       }
 
       // Create atomic argument with side labels
       const sideLabels = argSpec.sideLabel ? { left: argSpec.sideLabel } : {};
 
-      // Convert string IDs to OrderedSetId types
-      let premiseOrderedSetId: OrderedSetId | undefined;
-      let conclusionOrderedSetId: OrderedSetId | undefined;
-
-      if (premiseSetId) {
-        const premiseIdResult = OrderedSetId.create(premiseSetId);
-        if (premiseIdResult.isErr()) {
-          errors.push({
-            type: ParseErrorType.INVALID_ATOMIC_ARGUMENT,
-            message: `Invalid premise set ID '${premiseSetId}': ${premiseIdResult.error.message}`,
-            section: 'atomicArguments',
-            reference: id,
-          });
-          continue;
-        }
-        premiseOrderedSetId = premiseIdResult.value;
-      }
-
-      if (conclusionSetId) {
-        const conclusionIdResult = OrderedSetId.create(conclusionSetId);
-        if (conclusionIdResult.isErr()) {
-          errors.push({
-            type: ParseErrorType.INVALID_ATOMIC_ARGUMENT,
-            message: `Invalid conclusion set ID '${conclusionSetId}': ${conclusionIdResult.error.message}`,
-            section: 'atomicArguments',
-            reference: id,
-          });
-          continue;
-        }
-        conclusionOrderedSetId = conclusionIdResult.value;
-      }
+      // Get the OrderedSet IDs from the map
+      const premiseOrderedSet = argSpec.premises ? orderedSets.get(argSpec.premises) : undefined;
+      const conclusionOrderedSet = argSpec.conclusions
+        ? orderedSets.get(argSpec.conclusions)
+        : undefined;
 
       const atomicArgumentResult = AtomicArgument.create(
-        premiseOrderedSetId,
-        conclusionOrderedSetId,
+        premiseOrderedSet?.getId(),
+        conclusionOrderedSet?.getId(),
         sideLabels,
       );
 
@@ -353,7 +319,7 @@ export class ProofFileParser {
               section: 'arguments',
               reference: id,
             });
-            return err(errors);
+            continue;
           }
 
           const statementIdResult = StatementId.create(statementId);
@@ -364,7 +330,7 @@ export class ProofFileParser {
               section: 'arguments',
               reference: id,
             });
-            return err(errors);
+            continue;
           }
 
           validPremiseIds.push(statementIdResult.value);
@@ -396,7 +362,7 @@ export class ProofFileParser {
               section: 'arguments',
               reference: id,
             });
-            return err(errors);
+            continue;
           }
 
           const statementIdResult = StatementId.create(statementId);
@@ -407,7 +373,7 @@ export class ProofFileParser {
               section: 'arguments',
               reference: id,
             });
-            return err(errors);
+            continue;
           }
 
           validConclusionIds.push(statementIdResult.value);
@@ -520,7 +486,7 @@ export class ProofFileParser {
               section: 'arguments',
               reference: `argument-${index}`,
             });
-            return;
+            continue;
           }
 
           const statementIdResult = StatementId.create(statementId);
@@ -531,7 +497,7 @@ export class ProofFileParser {
               section: 'arguments',
               reference: `argument-${index}`,
             });
-            return;
+            continue;
           }
 
           validPremiseIds.push(statementIdResult.value);
@@ -564,7 +530,7 @@ export class ProofFileParser {
               section: 'arguments',
               reference: `argument-${index}`,
             });
-            return;
+            continue;
           }
 
           const statementIdResult = StatementId.create(statementId);
@@ -575,7 +541,7 @@ export class ProofFileParser {
               section: 'arguments',
               reference: `argument-${index}`,
             });
-            return;
+            continue;
           }
 
           validConclusionIds.push(statementIdResult.value);

@@ -17,6 +17,10 @@ export class ProofStrategyAnalysisService {
       return err(new ValidationError('Cannot analyze strategies for empty premises'));
     }
 
+    if (premises.some((premise) => !premise || premise.trim().length === 0)) {
+      return err(new ValidationError('Cannot analyze strategies for premises with empty content'));
+    }
+
     if (!conclusion || conclusion.trim().length === 0) {
       return err(new ValidationError('Cannot analyze strategies for empty conclusion'));
     }

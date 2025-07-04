@@ -45,6 +45,7 @@ declare const DocumentIdBrand: unique symbol;
 declare const PackageIdBrand: unique symbol;
 declare const ProofIdBrand: unique symbol;
 declare const ProofTreeIdBrand: unique symbol;
+declare const ProofDocumentIdBrand: unique symbol;
 
 type BrandedStatementId = string & { readonly [StatementIdBrand]: never };
 type BrandedOrderedSetId = string & { readonly [OrderedSetIdBrand]: never };
@@ -55,6 +56,7 @@ type BrandedDocumentId = string & { readonly [DocumentIdBrand]: never };
 type BrandedPackageId = string & { readonly [PackageIdBrand]: never };
 type BrandedProofId = string & { readonly [ProofIdBrand]: never };
 type BrandedProofTreeId = string & { readonly [ProofTreeIdBrand]: never };
+type BrandedProofDocumentId = string & { readonly [ProofDocumentIdBrand]: never };
 
 export class StatementId extends ValueObject<BrandedStatementId> {
   private constructor(value: string) {
@@ -780,6 +782,41 @@ export class ProofTreeId extends ValueObject<BrandedProofTreeId> {
 
   static fromString(value: string): ProofTreeId {
     const result = ProofTreeId.create(value);
+    if (result.isErr()) {
+      throw result.error;
+    }
+    return result.value;
+  }
+}
+
+export class ProofDocumentId extends ValueObject<BrandedProofDocumentId> {
+  private constructor(value: string) {
+    super(value as BrandedProofDocumentId);
+  }
+
+  static create(value: string): Result<ProofDocumentId, ValidationError> {
+    if (!value || value.trim().length === 0) {
+      return err(new ValidationError('ProofDocumentId cannot be empty', { field: 'value', value }));
+    }
+
+    if (value.length > 255) {
+      return err(
+        new ValidationError('ProofDocumentId cannot exceed 255 characters', {
+          field: 'value',
+          value,
+        }),
+      );
+    }
+
+    return ok(new ProofDocumentId(value.trim()));
+  }
+
+  static generate(): ProofDocumentId {
+    return new ProofDocumentId(randomUUID());
+  }
+
+  static fromString(value: string): ProofDocumentId {
+    const result = ProofDocumentId.create(value);
     if (result.isErr()) {
       throw result.error;
     }
