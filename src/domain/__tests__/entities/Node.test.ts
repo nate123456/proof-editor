@@ -801,7 +801,11 @@ describe('Node Entity', () => {
   describe('String Representation', () => {
     describe('toString method', () => {
       it('should represent root nodes correctly', () => {
-        const argumentId = AtomicArgumentId.fromString('root-arg-1');
+        const argumentIdResult = AtomicArgumentId.fromString('root-arg-1');
+        expect(argumentIdResult.isOk()).toBe(true);
+        if (!argumentIdResult.isOk()) return;
+
+        const argumentId = argumentIdResult.value;
         const result = Node.createRoot(argumentId);
 
         expect(result.isOk()).toBe(true);
@@ -815,8 +819,16 @@ describe('Node Entity', () => {
       });
 
       it('should represent simple child nodes correctly', () => {
-        const argumentId = AtomicArgumentId.fromString('child-arg-1');
-        const parentNodeId = NodeId.fromString('parent-node-1');
+        const argumentIdResult = AtomicArgumentId.fromString('child-arg-1');
+        expect(argumentIdResult.isOk()).toBe(true);
+        if (!argumentIdResult.isOk()) return;
+
+        const parentNodeIdResult = NodeId.fromString('parent-node-1');
+        expect(parentNodeIdResult.isOk()).toBe(true);
+        if (!parentNodeIdResult.isOk()) return;
+
+        const argumentId = argumentIdResult.value;
+        const parentNodeId = parentNodeIdResult.value;
         const attachment = createTestAttachment(parentNodeId, 2);
 
         const result = Node.createChild(argumentId, attachment);
@@ -835,8 +847,16 @@ describe('Node Entity', () => {
       });
 
       it('should represent child nodes with multiple conclusion sources', () => {
-        const argumentId = AtomicArgumentId.fromString('child-arg-2');
-        const parentNodeId = NodeId.fromString('parent-node-2');
+        const argumentIdResult = AtomicArgumentId.fromString('child-arg-2');
+        expect(argumentIdResult.isOk()).toBe(true);
+        if (!argumentIdResult.isOk()) return;
+
+        const parentNodeIdResult = NodeId.fromString('parent-node-2');
+        expect(parentNodeIdResult.isOk()).toBe(true);
+        if (!parentNodeIdResult.isOk()) return;
+
+        const argumentId = argumentIdResult.value;
+        const parentNodeId = parentNodeIdResult.value;
         const attachment = createTestAttachment(parentNodeId, 1, 3);
 
         const result = Node.createChild(argumentId, attachment);

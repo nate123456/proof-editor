@@ -189,6 +189,17 @@ export class ProofAggregate {
     if (oldPremiseSet) {
       oldPremiseSet.removeAtomicArgumentReference(targetId, 'premise');
       if (!oldPremiseSet.isReferencedByAtomicArguments()) {
+        // Decrement usage counts for statements in the old premise set
+        for (const statementId of oldPremiseSet.getStatementIds()) {
+          const statement = this.statements.get(statementId);
+          if (statement) {
+            const decrementResult = statement.decrementUsage();
+            if (decrementResult.isErr()) {
+              // Error occurred but continue - this shouldn't prevent the connection
+              // TODO: Consider emitting an event or using a proper logger
+            }
+          }
+        }
         this.orderedSets.delete(targetPremiseSetId);
       }
     }

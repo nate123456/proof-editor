@@ -270,4 +270,156 @@ describe('OrderedSetIdentityService', () => {
 
     expect(connections).toHaveLength(0);
   });
+
+  test('handles empty argument map gracefully', () => {
+    const service = new OrderedSetIdentityService();
+
+    const connections = service.findPotentialConnections(new Map());
+    expect(connections).toHaveLength(0);
+  });
+
+  test('handles single argument in map', () => {
+    const service = new OrderedSetIdentityService();
+
+    const arg1Result = AtomicArgument.create();
+    expect(arg1Result.isOk()).toBe(true);
+
+    if (arg1Result.isOk()) {
+      const arg1 = arg1Result.value;
+      const connections = service.findPotentialConnections(
+        new Map([[arg1.getId().getValue(), arg1]]),
+      );
+      expect(connections).toHaveLength(0);
+    }
+  });
+
+  test('analyzeConnectionPaths handles cycles properly', () => {
+    const service = new OrderedSetIdentityService();
+
+    // Create statements for cyclic chain
+    const stmt1Result = Statement.create('A');
+    const stmt2Result = Statement.create('B');
+    const stmt3Result = Statement.create('C');
+
+    expect(stmt1Result.isOk() && stmt2Result.isOk() && stmt3Result.isOk()).toBe(true);
+
+    if (stmt1Result.isOk() && stmt2Result.isOk() && stmt3Result.isOk()) {
+      const stmt1 = stmt1Result.value;
+      const stmt2 = stmt2Result.value;
+      const stmt3 = stmt3Result.value;
+
+      const setAResult = OrderedSet.create([stmt1.getId()]);
+      const setBResult = OrderedSet.create([stmt2.getId()]);
+      const setCResult = OrderedSet.create([stmt3.getId()]);
+
+      expect(setAResult.isOk() && setBResult.isOk() && setCResult.isOk()).toBe(true);
+
+      if (setAResult.isOk() && setBResult.isOk() && setCResult.isOk()) {
+        const setA = setAResult.value;
+        const setB = setBResult.value;
+        const setC = setCResult.value;
+
+        // Create cycle: A -> B -> C -> A
+        const arg1 = AtomicArgument.createComplete(setA.getId(), setB.getId());
+        const arg2 = AtomicArgument.createComplete(setB.getId(), setC.getId());
+        const arg3 = AtomicArgument.createComplete(setC.getId(), setA.getId());
+
+        const argumentMap = new Map([
+          [arg1.getId().getValue(), arg1],
+          [arg2.getId().getValue(), arg2],
+          [arg3.getId().getValue(), arg3],
+        ]);
+
+        const paths = service.analyzeConnectionPaths(argumentMap, arg1.getId());
+
+        // Should find paths without infinite loop
+        expect(paths.length).toBeGreaterThan(0);
+
+        // Verify no path contains the same argument twice (cycle prevention)
+        for (const path of paths) {
+          const argIds = path.steps.map((id) => id.getValue());
+          const uniqueIds = new Set(argIds);
+          expect(uniqueIds.size).toBe(argIds.length);
+        }
+      }
+    }
+  });
+
+  test('analyzeConnectionPaths handles missing arguments in map', () => {
+    const service = new OrderedSetIdentityService();
+
+    // Create statement and ordered set
+    const stmtResult = Statement.create('Test');
+    expect(stmtResult.isOk()).toBe(true);
+
+    if (stmtResult.isOk()) {
+      const stmt = stmtResult.value;
+      const setResult = OrderedSet.create([stmt.getId()]);
+      expect(setResult.isOk()).toBe(true);
+
+      if (setResult.isOk()) {
+        const set = setResult.value;
+        const arg1 = AtomicArgument.createComplete(undefined, set.getId());
+
+        // Empty map - argument not found
+        const paths = service.analyzeConnectionPaths(new Map(), arg1.getId());
+        expect(paths).toHaveLength(0);
+      }
+    }
+  });
+
+  test('analyzeSimilarity handles empty sets', () => {
+    const service = new OrderedSetIdentityService();
+
+    // Create two empty ordered sets
+    const set1Result = OrderedSet.create([]);
+    const set2Result = OrderedSet.create([]);
+
+    expect(set1Result.isOk()).toBe(true);
+    expect(set2Result.isOk()).toBe(true);
+
+    if (set1Result.isOk() && set2Result.isOk()) {
+      const set1 = set1Result.value;
+      const set2 = set2Result.value;
+
+      const similarity = service.analyzeSimilarity(set1, set2);
+
+      expect(similarity.sharedStatements).toBe(0);
+      expect(similarity.totalStatements).toBe(0);
+      expect(similarity.jaccardIndex).toBe(0 / 0); // NaN case
+      expect(similarity.isIdentical).toBe(false); // Different objects
+    }
+  });
+
+  test('analyzeSimilarity handles sets with no overlap', () => {
+    const service = new OrderedSetIdentityService();
+
+    // Create different statements
+    const stmt1Result = Statement.create('Statement 1');
+    const stmt2Result = Statement.create('Statement 2');
+
+    expect(stmt1Result.isOk() && stmt2Result.isOk()).toBe(true);
+
+    if (stmt1Result.isOk() && stmt2Result.isOk()) {
+      const stmt1 = stmt1Result.value;
+      const stmt2 = stmt2Result.value;
+
+      const set1Result = OrderedSet.create([stmt1.getId()]);
+      const set2Result = OrderedSet.create([stmt2.getId()]);
+
+      expect(set1Result.isOk() && set2Result.isOk()).toBe(true);
+
+      if (set1Result.isOk() && set2Result.isOk()) {
+        const set1 = set1Result.value;
+        const set2 = set2Result.value;
+
+        const similarity = service.analyzeSimilarity(set1, set2);
+
+        expect(similarity.sharedStatements).toBe(0);
+        expect(similarity.totalStatements).toBe(2);
+        expect(similarity.jaccardIndex).toBe(0);
+        expect(similarity.isIdentical).toBe(false);
+      }
+    }
+  });
 });

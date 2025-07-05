@@ -175,21 +175,22 @@ class ProofTransaction implements IProofTransaction {
 
   readonly startTime = new Date();
 
-  addOperation(operation: ProofOperation): void {
+  addOperation(operation: ProofOperation): Result<void, Error> {
     if (!this.active) {
-      throw new Error('Cannot add operation to inactive transaction');
+      return err(new Error('Cannot add operation to inactive transaction'));
     }
 
     if (this.operations.length >= this.config.maxOperations) {
-      throw new Error('Maximum operations per transaction exceeded');
+      return err(new Error('Maximum operations per transaction exceeded'));
     }
 
     const validationResult = operation.validate();
     if (validationResult.isErr()) {
-      throw new Error(`Invalid operation: ${validationResult.error.message}`);
+      return err(new Error(`Invalid operation: ${validationResult.error.message}`));
     }
 
     this.operations.push(operation);
+    return ok(undefined);
   }
 
   async commit(): Promise<Result<void, TransactionError>> {

@@ -251,7 +251,9 @@ describe('INodeRepository', () => {
       const argument = createTestArgument();
 
       // Create a node with "cycle" in its ID to trigger cycle detection
-      const nodeId = NodeId.fromString('cycle-node-123');
+      const nodeIdResult = NodeId.fromString('cycle-node-123');
+      if (!nodeIdResult.isOk()) throw new Error('NodeId creation failed');
+      const nodeId = nodeIdResult.value;
       const nodeResult = Node.reconstruct(nodeId, argument.getId(), null, Date.now(), Date.now());
 
       if (nodeResult.isOk()) {

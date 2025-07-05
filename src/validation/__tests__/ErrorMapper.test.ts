@@ -318,5 +318,182 @@ describe('ErrorMapper', () => {
       expect(diagnostic.severity).toBe(mockVscode.DiagnosticSeverity.Error);
       expect(diagnostic.message).toContain('Unknown error type');
     });
+
+    it('should handle errors with exact column positioning', () => {
+      const error: ParseError = {
+        type: ParseErrorType.INVALID_STATEMENT,
+        message: 'Statement error',
+        line: 5,
+        column: 10,
+      };
+
+      const diagnostic = convertParseErrorToDiagnostic(error, mockDocument);
+
+      expect(diagnostic.range.start.line).toBe(4); // 0-indexed
+      expect(diagnostic.range.start.character).toBe(10); // Column passed as-is
+    });
+
+    it('should handle errors without column information', () => {
+      const error: ParseError = {
+        type: ParseErrorType.INVALID_STATEMENT,
+        message: 'Statement error',
+        line: 3,
+      };
+
+      const diagnostic = convertParseErrorToDiagnostic(error, mockDocument);
+
+      expect(diagnostic.range.start.line).toBe(2); // 0-indexed
+      expect(diagnostic.range.start.character).toBe(0);
+      expect(diagnostic.range.end.character).toBeGreaterThan(0);
+    });
+
+    it('should find and highlight specific references in line text', () => {
+      const error: ParseError = {
+        type: ParseErrorType.MISSING_REFERENCE,
+        message: 'Reference not found',
+        line: 6,
+        reference: 's3',
+      };
+
+      const mockDocumentWithS3 = {
+        ...mockDocument,
+        lineAt: (lineOrPosition: number | { line: number }) => {
+          const line = typeof lineOrPosition === 'number' ? lineOrPosition : lineOrPosition.line;
+          return {
+            text: line === 5 ? '  orderedSets:\n    os1: [s1, s3, s2]' : 'other content',
+            lineNumber: line,
+            range: new mockVscode.Range(
+              new mockVscode.Position(line, 0),
+              new mockVscode.Position(line, line === 5 ? 28 : 13),
+            ),
+            rangeIncludingLineBreak: new mockVscode.Range(
+              new mockVscode.Position(line, 0),
+              new mockVscode.Position(line + 1, 0),
+            ),
+            firstNonWhitespaceCharacterIndex: line === 5 ? 2 : 0,
+            isEmptyOrWhitespace: false,
+          };
+        },
+      };
+
+      const diagnostic = convertParseErrorToDiagnostic(error, mockDocumentWithS3);
+
+      // Should find s3 in the line and create appropriate range
+      expect(diagnostic.range).toBeDefined();
+    });
+
+    it('should handle references not found in line text', () => {
+      const error: ParseError = {
+        type: ParseErrorType.MISSING_REFERENCE,
+        message: 'Reference not found',
+        line: 6,
+        reference: 'notInLine',
+      };
+
+      const diagnostic = convertParseErrorToDiagnostic(error, mockDocument);
+
+      // Should use full line range when reference not found
+      expect(diagnostic.range).toBeDefined();
+      expect(diagnostic.range.start.line).toBe(5); // 0-indexed
+    });
+
+    it('should handle all INVALID_ARGUMENT error variants', () => {
+      const errorTypes = [ParseErrorType.INVALID_ARGUMENT];
+
+      errorTypes.forEach((type) => {
+        const error: ParseError = {
+          type,
+          message: 'Argument validation failed',
+        };
+
+        const diagnostic = convertParseErrorToDiagnostic(error, mockDocument);
+        expect(diagnostic.severity).toBe(mockVscode.DiagnosticSeverity.Error);
+        expect(diagnostic.message).toContain('Arguments must reference');
+      });
+    });
+
+    it('should handle section-specific error context', () => {
+      const error: ParseError = {
+        type: ParseErrorType.MISSING_REFERENCE,
+        message: 'Referenced item not found',
+        section: 'atomicArguments',
+        reference: 'missing_item',
+      };
+
+      const diagnostic = convertParseErrorToDiagnostic(error, mockDocument);
+
+      expect(diagnostic.message).toContain('Referenced item not found');
+      expect(diagnostic.message).toContain('Ensure all referenced items are defined');
+    });
+
+    it('should handle empty line content', () => {
+      const emptyLineDocument = {
+        lineCount: 5,
+        lineAt: (lineOrPosition: number | { line: number }) => {
+          const line = typeof lineOrPosition === 'number' ? lineOrPosition : lineOrPosition.line;
+          return {
+            text: '',
+            lineNumber: line,
+            range: new mockVscode.Range(
+              new mockVscode.Position(line, 0),
+              new mockVscode.Position(line, 0),
+            ),
+            rangeIncludingLineBreak: new mockVscode.Range(
+              new mockVscode.Position(line, 0),
+              new mockVscode.Position(line + 1, 0),
+            ),
+            firstNonWhitespaceCharacterIndex: 0,
+            isEmptyOrWhitespace: true,
+          };
+        },
+      } as any;
+
+      const error: ParseError = {
+        type: ParseErrorType.INVALID_STRUCTURE,
+        message: 'Structure error',
+        line: 1,
+      };
+
+      const diagnostic = convertParseErrorToDiagnostic(error, emptyLineDocument);
+
+      expect(diagnostic.range).toBeDefined();
+      expect(diagnostic.range.start.character).toBe(0);
+      expect(diagnostic.range.end.character).toBe(0); // Empty line constrains end to line length
+    });
+
+    it('should handle all transformation patterns for academic language', () => {
+      const transformations = [
+        {
+          input: 'referenced in ordered set but not defined in statements section',
+          expectedOutput: 'referenced in statement list but statement not found',
+        },
+        {
+          input: 'referenced as premises but not defined in orderedSets section',
+          expectedOutput: 'used as premises but statement list not found',
+        },
+        {
+          input: 'referenced as conclusions but not defined in atomicArguments section',
+          expectedOutput: 'used as conclusions but argument not found',
+        },
+        {
+          input: 'orderedSets section',
+          expectedOutput: 'orderedSets section', // No transformation happens for this standalone phrase
+        },
+        {
+          input: 'atomicArguments section',
+          expectedOutput: 'atomicArguments section', // No transformation happens for this standalone phrase
+        },
+      ];
+
+      transformations.forEach(({ input, expectedOutput }) => {
+        const error: ParseError = {
+          type: ParseErrorType.MISSING_REFERENCE,
+          message: input,
+        };
+
+        const diagnostic = convertParseErrorToDiagnostic(error, mockDocument);
+        expect(diagnostic.message).toContain(expectedOutput);
+      });
+    });
   });
 });

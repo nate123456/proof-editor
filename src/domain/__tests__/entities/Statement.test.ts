@@ -24,10 +24,19 @@ const validContentArbitrary = fc
   .filter((s) => s.trim().length > 0);
 
 const invalidContentArbitrary = fc.oneof(
+  // Empty and whitespace-only strings (will fail with "empty" message)
   fc.constant(''),
   fc.constant('   '),
   fc.constant('\t\n\r'),
-  fc.string({ minLength: 10001, maxLength: 15000 }), // Add reasonable upper bound
+  fc.constant('\t\t\t'),
+  fc.constant('\n\n\n'),
+  fc.constant(' \t \n \r '),
+  // Generate whitespace-only strings efficiently
+  fc
+    .array(fc.constantFrom(' ', '\t', '\n', '\r'), { minLength: 1, maxLength: 50 })
+    .map((arr) => arr.join('')),
+  // Overly long strings (will fail with "exceed" message)
+  fc.string({ minLength: 10001, maxLength: 15000 }),
 );
 
 const usageCountArbitrary = fc.nat({ max: 1000 });
@@ -47,6 +56,48 @@ describe('Statement Entity', () => {
   });
 
   describe('Statement Creation', () => {
+    describe('placeholder creation', () => {
+      it('should create placeholder statement for UI display', () => {
+        const result = Statement.createPlaceholder();
+
+        expect(result.isOk()).toBe(true);
+        if (result.isOk()) {
+          const statement = result.value;
+          expect(statement.getContent()).toBe('[Enter text]');
+          expect(statement.hasContent()).toBe(true);
+          expect(statement.getWordCount()).toBe(2); // '[Enter' and 'text]'
+          expect(statement.getUsageCount()).toBe(0);
+          expect(statement.isReferencedInOrderedSets()).toBe(false);
+        }
+      });
+
+      it('should create placeholder statement with proper timestamp', () => {
+        const result = Statement.createPlaceholder();
+
+        expect(result.isOk()).toBe(true);
+        if (result.isOk()) {
+          const statement = result.value;
+          expect(statement.getCreatedAt()).toBe(FIXED_TIMESTAMP);
+          expect(statement.getModifiedAt()).toBe(FIXED_TIMESTAMP);
+        }
+      });
+
+      it('should create placeholder statements with unique IDs', () => {
+        const result1 = Statement.createPlaceholder();
+        const result2 = Statement.createPlaceholder();
+
+        expect(result1.isOk()).toBe(true);
+        expect(result2.isOk()).toBe(true);
+
+        if (result1.isOk() && result2.isOk()) {
+          const statement1 = result1.value;
+          const statement2 = result2.value;
+          expect(statement1.getId().equals(statement2.getId())).toBe(false);
+          expect(statement1.equals(statement2)).toBe(false);
+        }
+      });
+    });
+
     describe('valid creation cases', () => {
       it('should create valid statements from non-empty content', () => {
         fc.assert(
@@ -898,6 +949,569 @@ describe('Statement Entity', () => {
           },
         ),
       );
+    });
+  });
+
+  describe('Edge case coverage for improved test coverage', () => {
+    it('should test incrementUsageCount method as alias to incrementUsage', () => {
+      const result = Statement.create('Test statement');
+      expect(result.isOk()).toBe(true);
+
+      if (result.isOk()) {
+        const statement = result.value;
+
+        expect(statement.getUsageCount()).toBe(0);
+
+        // Test incrementUsage
+        statement.incrementUsage();
+        expect(statement.getUsageCount()).toBe(1);
+
+        // Test incrementUsageCount (should be the same)
+        statement.incrementUsageCount();
+        expect(statement.getUsageCount()).toBe(2);
+
+        // Both methods should have the same effect
+        statement.incrementUsage();
+        statement.incrementUsageCount();
+        expect(statement.getUsageCount()).toBe(4);
+      }
+    });
+
+    it('should test content equality edge cases', () => {
+      const content1 = 'Test content';
+      const content2 = 'Test content';
+      const content3 = 'Different content';
+
+      const result1 = Statement.create(content1);
+      const result2 = Statement.create(content2);
+      const result3 = Statement.create(content3);
+
+      expect(result1.isOk()).toBe(true);
+      expect(result2.isOk()).toBe(true);
+      expect(result3.isOk()).toBe(true);
+
+      if (result1.isOk() && result2.isOk() && result3.isOk()) {
+        const statement1 = result1.value;
+        const statement2 = result2.value;
+        const statement3 = result3.value;
+
+        // Same content should be content equal but not ID equal
+        expect(statement1.contentEquals(statement2)).toBe(true);
+        expect(statement1.equals(statement2)).toBe(false); // Different IDs
+
+        // Different content should not be content equal
+        expect(statement1.contentEquals(statement3)).toBe(false);
+        expect(statement1.equals(statement3)).toBe(false);
+
+        // Statement should equal itself
+        expect(statement1.equals(statement1)).toBe(true);
+        expect(statement1.contentEquals(statement1)).toBe(true);
+      }
+    });
+
+    it('should test updateContent with identical content', () => {
+      const originalContent = 'Test content';
+      const result = Statement.create(originalContent);
+      expect(result.isOk()).toBe(true);
+
+      if (result.isOk()) {
+        const statement = result.value;
+        const originalModifiedAt = statement.getModifiedAt();
+
+        // Update with identical content should succeed but not change modifiedAt
+        const updateResult = statement.updateContent(originalContent);
+        expect(updateResult.isOk()).toBe(true);
+
+        // Modified timestamp should not change for identical content
+        expect(statement.getModifiedAt()).toBe(originalModifiedAt);
+        expect(statement.getContent()).toBe(originalContent);
+      }
+    });
+
+    it('should test hasContent with different content states', () => {
+      // Normal content
+      const normalResult = Statement.create('Normal content');
+      expect(normalResult.isOk()).toBe(true);
+      if (normalResult.isOk()) {
+        expect(normalResult.value.hasContent()).toBe(true);
+      }
+
+      // Single character
+      const singleCharResult = Statement.create('A');
+      expect(singleCharResult.isOk()).toBe(true);
+      if (singleCharResult.isOk()) {
+        expect(singleCharResult.value.hasContent()).toBe(true);
+      }
+
+      // Special characters
+      const specialResult = Statement.create('!@#$%^&*()');
+      expect(specialResult.isOk()).toBe(true);
+      if (specialResult.isOk()) {
+        expect(specialResult.value.hasContent()).toBe(true);
+      }
+    });
+
+    it('should test getContentObject method', () => {
+      const content = 'Test content for content object';
+      const result = Statement.create(content);
+      expect(result.isOk()).toBe(true);
+
+      if (result.isOk()) {
+        const statement = result.value;
+        const contentObject = statement.getContentObject();
+
+        expect(contentObject.getValue()).toBe(content);
+        expect(contentObject.wordCount).toBe(5); // "Test content for content object"
+        expect(contentObject.isEmpty).toBe(false);
+      }
+    });
+
+    it('should test createPlaceholder static method', () => {
+      const placeholderResult = Statement.createPlaceholder();
+      expect(placeholderResult.isOk()).toBe(true);
+
+      if (placeholderResult.isOk()) {
+        const placeholder = placeholderResult.value;
+        expect(placeholder.getContent()).toBe('[Enter text]');
+        expect(placeholder.hasContent()).toBe(true);
+        expect(placeholder.getUsageCount()).toBe(0);
+        expect(placeholder.isReferencedInOrderedSets()).toBe(false);
+      }
+    });
+
+    it('should test reconstruct with edge case usage counts', () => {
+      const id = StatementId.generate();
+      const content = 'Reconstructed content';
+      const now = Date.now();
+
+      // Test with zero usage count (default)
+      const result1 = Statement.reconstruct(id, content, now, now);
+      expect(result1.isOk()).toBe(true);
+      if (result1.isOk()) {
+        expect(result1.value.getUsageCount()).toBe(0);
+      }
+
+      // Test with explicit zero usage count
+      const result2 = Statement.reconstruct(id, content, now, now, 0);
+      expect(result2.isOk()).toBe(true);
+      if (result2.isOk()) {
+        expect(result2.value.getUsageCount()).toBe(0);
+      }
+
+      // Test with positive usage count
+      const result3 = Statement.reconstruct(id, content, now, now, 5);
+      expect(result3.isOk()).toBe(true);
+      if (result3.isOk()) {
+        expect(result3.value.getUsageCount()).toBe(5);
+        expect(result3.value.isReferencedInOrderedSets()).toBe(true);
+      }
+
+      // Test with negative usage count (should fail)
+      const result4 = Statement.reconstruct(id, content, now, now, -1);
+      expect(result4.isErr()).toBe(true);
+      if (result4.isErr()) {
+        expect(result4.error.message).toContain('Usage count cannot be negative');
+      }
+    });
+  });
+
+  // Enhanced coverage tests for Statement edge cases
+  describe('Enhanced Coverage Tests', () => {
+    describe('content validation edge cases', () => {
+      it('should handle various whitespace characters', () => {
+        const whitespaceVariations = [
+          '\u0009', // Tab
+          '\u000A', // Line Feed
+          '\u000B', // Vertical Tab
+          '\u000C', // Form Feed
+          '\u000D', // Carriage Return
+          '\u0020', // Space
+          '\u00A0', // Non-breaking space
+          '\u1680', // Ogham space mark
+          '\u2000', // En quad
+          '\u2001', // Em quad
+          '\u2002', // En space
+          '\u2003', // Em space
+          '\u2004', // Three-per-em space
+          '\u2005', // Four-per-em space
+          '\u2006', // Six-per-em space
+          '\u2007', // Figure space
+          '\u2008', // Punctuation space
+          '\u2009', // Thin space
+          '\u200A', // Hair space
+          '\u2028', // Line separator
+          '\u2029', // Paragraph separator
+          '\u202F', // Narrow no-break space
+          '\u205F', // Medium mathematical space
+          '\u3000', // Ideographic space
+        ];
+
+        whitespaceVariations.forEach((whitespace) => {
+          const result = Statement.create(whitespace);
+          expect(result.isErr()).toBe(true);
+          if (result.isErr()) {
+            expect(result.error.message).toContain('cannot be empty');
+          }
+
+          // Test with content containing these whitespace characters
+          const contentWithWhitespace = `valid${whitespace}content`;
+          const validResult = Statement.create(contentWithWhitespace);
+          expect(validResult.isOk()).toBe(true);
+          if (validResult.isOk()) {
+            expect(validResult.value.getContent()).toBe(contentWithWhitespace.trim());
+          }
+        });
+      });
+
+      it('should handle Unicode and special characters', () => {
+        const unicodeTestCases = [
+          'Mathematical symbols: ∑∏∫∆∇∂',
+          'Greek letters: αβγδεζηθικλμνξοπρστυφχψω',
+          'Emoji: 🔬⚗️📊📈📉🧮🔢',
+          'CJK characters: 中文 日本語 한국어',
+          'Arabic: العربية',
+          'Hebrew: עברית',
+          'Cyrillic: русский',
+          'Combining characters: é ñ ü',
+          'Mathematical operators: ≠ ≤ ≥ ≈ ∞ ∅',
+          'Special punctuation: "quotes" \'apostrophes\' —em-dash —',
+          'Line breaks in content\nwith multiple\nlines',
+          'Tab-separated\tvalues\there',
+          'Mixed\tmultiple\nwhitespace\r\ntypes',
+        ];
+
+        unicodeTestCases.forEach((content) => {
+          const result = Statement.create(content);
+          expect(result.isOk()).toBe(true);
+          if (result.isOk()) {
+            expect(result.value.getContent()).toBe(content.trim());
+          }
+        });
+      });
+
+      it('should handle null and undefined inputs', () => {
+        const nullResult = Statement.create(null as any);
+        expect(nullResult.isErr()).toBe(true);
+        if (nullResult.isErr()) {
+          expect(nullResult.error.message).toContain('null or undefined');
+        }
+
+        const undefinedResult = Statement.create(undefined as any);
+        expect(undefinedResult.isErr()).toBe(true);
+        if (undefinedResult.isErr()) {
+          expect(undefinedResult.error.message).toContain('null or undefined');
+        }
+      });
+    });
+
+    describe('usage tracking edge cases', () => {
+      it('should handle usage count edge cases', () => {
+        const result = Statement.create('Test statement');
+        expect(result.isOk()).toBe(true);
+
+        if (result.isOk()) {
+          const statement = result.value;
+
+          // Test multiple increments
+          statement.incrementUsageCount();
+          statement.incrementUsageCount();
+          statement.incrementUsageCount();
+          expect(statement.getUsageCount()).toBe(3);
+          expect(statement.isReferencedInOrderedSets()).toBe(true);
+
+          // Test multiple decrements
+          const decrementResult1 = statement.decrementUsage();
+          expect(decrementResult1.isOk()).toBe(true);
+          expect(statement.getUsageCount()).toBe(2);
+          expect(statement.isReferencedInOrderedSets()).toBe(true);
+
+          const decrementResult2 = statement.decrementUsage();
+          expect(decrementResult2.isOk()).toBe(true);
+          expect(statement.getUsageCount()).toBe(1);
+          expect(statement.isReferencedInOrderedSets()).toBe(true);
+
+          const decrementResult3 = statement.decrementUsage();
+          expect(decrementResult3.isOk()).toBe(true);
+          expect(statement.getUsageCount()).toBe(0);
+          expect(statement.isReferencedInOrderedSets()).toBe(false);
+
+          // Test decrement below zero (should fail)
+          const decrementResult4 = statement.decrementUsage();
+          expect(decrementResult4.isErr()).toBe(true);
+          expect(statement.getUsageCount()).toBe(0);
+          expect(statement.isReferencedInOrderedSets()).toBe(false);
+        }
+      });
+
+      it('should handle large usage counts', () => {
+        const result = Statement.create('Test statement');
+        expect(result.isOk()).toBe(true);
+
+        if (result.isOk()) {
+          const statement = result.value;
+
+          // Test incrementing to large number
+          for (let i = 0; i < 1000; i++) {
+            statement.incrementUsageCount();
+          }
+          expect(statement.getUsageCount()).toBe(1000);
+          expect(statement.isReferencedInOrderedSets()).toBe(true);
+
+          // Test decrementing back to zero
+          for (let i = 0; i < 1000; i++) {
+            const decrementResult = statement.decrementUsage();
+            expect(decrementResult.isOk()).toBe(true);
+          }
+          expect(statement.getUsageCount()).toBe(0);
+          expect(statement.isReferencedInOrderedSets()).toBe(false);
+        }
+      });
+    });
+
+    describe('equality and identity edge cases', () => {
+      it('should implement proper equality semantics', () => {
+        const content = 'Test statement content';
+
+        const stmt1Result = Statement.create(content);
+        const stmt2Result = Statement.create(content);
+        const stmt3Result = Statement.create(content);
+        const stmt4Result = Statement.create('Different content');
+
+        expect(stmt1Result.isOk()).toBe(true);
+        expect(stmt2Result.isOk()).toBe(true);
+        expect(stmt3Result.isOk()).toBe(true);
+        expect(stmt4Result.isOk()).toBe(true);
+
+        if (stmt1Result.isOk() && stmt2Result.isOk() && stmt3Result.isOk() && stmt4Result.isOk()) {
+          // Equality based on ID, not content - each has unique ID
+          expect(stmt1Result.value.equals(stmt2Result.value)).toBe(false);
+          expect(stmt1Result.value.equals(stmt3Result.value)).toBe(false);
+          expect(stmt1Result.value.equals(stmt4Result.value)).toBe(false);
+
+          // Test reflexivity
+          expect(stmt1Result.value.equals(stmt1Result.value)).toBe(true);
+
+          // Test symmetry
+          expect(stmt1Result.value.equals(stmt2Result.value)).toBe(
+            stmt2Result.value.equals(stmt1Result.value),
+          );
+        }
+      });
+    });
+
+    describe('reconstruction with extreme values', () => {
+      it('should handle reconstruction with boundary timestamp values', () => {
+        const content = 'Test content';
+        const id = StatementId.generate();
+
+        // Test with minimum timestamp values
+        const minResult = Statement.reconstruct(id, content, 0, 0, 0);
+        expect(minResult.isOk()).toBe(true);
+        if (minResult.isOk()) {
+          expect(minResult.value.getCreatedAt()).toBe(0);
+          expect(minResult.value.getModifiedAt()).toBe(0);
+        }
+
+        // Test with maximum safe integer timestamps
+        const maxResult = Statement.reconstruct(
+          id,
+          content,
+          Number.MAX_SAFE_INTEGER,
+          Number.MAX_SAFE_INTEGER,
+          0,
+        );
+        expect(maxResult.isOk()).toBe(true);
+        if (maxResult.isOk()) {
+          expect(maxResult.value.getCreatedAt()).toBe(Number.MAX_SAFE_INTEGER);
+          expect(maxResult.value.getModifiedAt()).toBe(Number.MAX_SAFE_INTEGER);
+        }
+
+        // Test with modified time before created time
+        const backwardsTimeResult = Statement.reconstruct(id, content, 2000, 1000, 0);
+        expect(backwardsTimeResult.isOk()).toBe(true); // Should not validate time order in reconstruct
+        if (backwardsTimeResult.isOk()) {
+          expect(backwardsTimeResult.value.getCreatedAt()).toBe(2000);
+          expect(backwardsTimeResult.value.getModifiedAt()).toBe(1000);
+        }
+      });
+
+      it('should handle reconstruction with maximum usage count', () => {
+        const content = 'Test content';
+        const id = StatementId.generate();
+        const now = Date.now();
+
+        const maxUsageResult = Statement.reconstruct(
+          id,
+          content,
+          now,
+          now,
+          Number.MAX_SAFE_INTEGER,
+        );
+        expect(maxUsageResult.isOk()).toBe(true);
+        if (maxUsageResult.isOk()) {
+          expect(maxUsageResult.value.getUsageCount()).toBe(Number.MAX_SAFE_INTEGER);
+          expect(maxUsageResult.value.isReferencedInOrderedSets()).toBe(true);
+        }
+      });
+    });
+
+    describe('content boundary testing', () => {
+      it('should handle content at exact size limits', () => {
+        // Test content at exactly 10000 characters (max allowed)
+        const maxContent = 'a'.repeat(10000);
+        const maxResult = Statement.create(maxContent);
+        expect(maxResult.isOk()).toBe(true);
+        if (maxResult.isOk()) {
+          expect(maxResult.value.getContent()).toBe(maxContent);
+        }
+
+        // Test content at 10001 characters (over limit)
+        const overMaxContent = 'a'.repeat(10001);
+        const overMaxResult = Statement.create(overMaxContent);
+        expect(overMaxResult.isErr()).toBe(true);
+        if (overMaxResult.isErr()) {
+          expect(overMaxResult.error.message).toContain('cannot exceed 10000 characters');
+        }
+
+        // Test content at exactly 1 character (minimum)
+        const minContent = 'a';
+        const minResult = Statement.create(minContent);
+        expect(minResult.isOk()).toBe(true);
+        if (minResult.isOk()) {
+          expect(minResult.value.getContent()).toBe(minContent);
+        }
+      });
+
+      it('should handle whitespace trimming edge cases', () => {
+        const testCases = [
+          { input: '  content  ', expected: 'content' },
+          { input: '\t\tcontent\t\t', expected: 'content' },
+          { input: '\n\ncontent\n\n', expected: 'content' },
+          { input: '\r\rcontent\r\r', expected: 'content' },
+          { input: '  \t\n\r  content  \r\n\t  ', expected: 'content' },
+          { input: 'content with  internal   spaces', expected: 'content with  internal   spaces' },
+          { input: 'content\twith\ttabs', expected: 'content\twith\ttabs' },
+          { input: 'content\nwith\nlines', expected: 'content\nwith\nlines' },
+        ];
+
+        testCases.forEach(({ input, expected }) => {
+          const result = Statement.create(input);
+          expect(result.isOk()).toBe(true);
+          if (result.isOk()) {
+            expect(result.value.getContent()).toBe(expected);
+          }
+        });
+      });
+    });
+
+    describe('modification timestamp tracking', () => {
+      it('should not update modification time on usage count changes', () => {
+        const result = Statement.create('Test statement');
+        expect(result.isOk()).toBe(true);
+
+        if (result.isOk()) {
+          const statement = result.value;
+          const initialModified = statement.getModifiedAt();
+
+          // Test increment does not update timestamp
+          mockDateNow.mockReturnValue(FIXED_TIMESTAMP + 1000);
+          statement.incrementUsageCount();
+          expect(statement.getModifiedAt()).toBe(initialModified);
+
+          // Test decrement does not update timestamp
+          mockDateNow.mockReturnValue(FIXED_TIMESTAMP + 2000);
+          const decrementResult = statement.decrementUsage();
+          expect(decrementResult.isOk()).toBe(true);
+          expect(statement.getModifiedAt()).toBe(initialModified);
+        }
+      });
+
+      it('should not update timestamp when decrementing below zero', () => {
+        const result = Statement.create('Test statement');
+        expect(result.isOk()).toBe(true);
+
+        if (result.isOk()) {
+          const statement = result.value;
+
+          // Start with zero usage count
+          expect(statement.getUsageCount()).toBe(0);
+          const initialModified = statement.getModifiedAt();
+
+          // Try to decrement below zero
+          mockDateNow.mockReturnValue(FIXED_TIMESTAMP + 1000);
+          const decrementResult = statement.decrementUsage();
+
+          // Should fail and not update timestamp since count didn't change
+          expect(decrementResult.isErr()).toBe(true);
+          expect(statement.getUsageCount()).toBe(0);
+          expect(statement.getModifiedAt()).toBe(initialModified);
+        }
+      });
+    });
+
+    describe('error handling comprehensive coverage', () => {
+      it('should provide detailed error information for all failure modes', () => {
+        // Test StatementContent validation errors
+        const emptyResult = Statement.create('');
+        expect(emptyResult.isErr()).toBe(true);
+        if (emptyResult.isErr()) {
+          expect(emptyResult.error).toBeInstanceOf(ValidationError);
+          expect(emptyResult.error.message).toContain('StatementContent cannot be empty');
+          expect(emptyResult.error.context?.field).toBe('value');
+        }
+
+        const oversizeResult = Statement.create('x'.repeat(10001));
+        expect(oversizeResult.isErr()).toBe(true);
+        if (oversizeResult.isErr()) {
+          expect(oversizeResult.error).toBeInstanceOf(ValidationError);
+          expect(oversizeResult.error.message).toContain(
+            'StatementContent cannot exceed 10000 characters',
+          );
+          expect(oversizeResult.error.context?.field).toBe('value');
+        }
+
+        const nullResult = Statement.create(null as any);
+        expect(nullResult.isErr()).toBe(true);
+        if (nullResult.isErr()) {
+          expect(nullResult.error).toBeInstanceOf(ValidationError);
+          expect(nullResult.error.message).toContain(
+            'StatementContent cannot be null or undefined',
+          );
+          expect(nullResult.error.context?.field).toBe('value');
+        }
+
+        // Test reconstruction validation errors
+        const id = StatementId.generate();
+        const negativeUsageResult = Statement.reconstruct(id, 'content', 0, 0, -1);
+        expect(negativeUsageResult.isErr()).toBe(true);
+        if (negativeUsageResult.isErr()) {
+          expect(negativeUsageResult.error).toBeInstanceOf(ValidationError);
+          expect(negativeUsageResult.error.message).toContain('Usage count cannot be negative');
+        }
+      });
+    });
+
+    describe('toString edge cases', () => {
+      it('should provide meaningful string representations', () => {
+        const testCases = [
+          'Simple statement',
+          'Statement with special chars: αβγ',
+          'Statement\nwith\nmultiple\nlines',
+          'Statement\twith\ttabs',
+          'Very long statement that might need truncation in some contexts but should be preserved fully in toString ' +
+            'x'.repeat(100),
+        ];
+
+        testCases.forEach((content) => {
+          const result = Statement.create(content);
+          expect(result.isOk()).toBe(true);
+          if (result.isOk()) {
+            const statement = result.value;
+            const stringRepresentation = statement.toString();
+            expect(stringRepresentation).toBe(content.trim());
+          }
+        });
+      });
     });
   });
 });

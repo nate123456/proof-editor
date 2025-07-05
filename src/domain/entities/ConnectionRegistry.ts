@@ -1,3 +1,4 @@
+import { err, ok, type Result } from '../shared/result.js';
 import { AtomicArgumentId, type OrderedSetId } from '../shared/value-objects.js';
 
 /**
@@ -116,7 +117,7 @@ export class ConnectionRegistry {
    * Get all arguments that are connected (directly or indirectly) to the given argument.
    * This represents a connected component in graph theory terms.
    */
-  getConnectedComponent(argumentId: AtomicArgumentId): AtomicArgumentId[] {
+  getConnectedComponent(argumentId: AtomicArgumentId): Result<AtomicArgumentId[], Error> {
     const component = new Set<string>();
     const toVisit = [argumentId];
 
@@ -148,7 +149,15 @@ export class ConnectionRegistry {
       }
     }
 
-    return Array.from(component).map((id) => AtomicArgumentId.fromString(id));
+    const results: AtomicArgumentId[] = [];
+    for (const id of component) {
+      const result = AtomicArgumentId.fromString(id);
+      if (result.isErr()) {
+        return err(result.error);
+      }
+      results.push(result.value);
+    }
+    return ok(results);
   }
 
   /**

@@ -3,7 +3,10 @@ import { err, ok, type Result } from 'neverthrow';
 import { PackageValidationError } from '../types/domain-errors.js';
 
 export class PackageId {
-  private constructor(private readonly value: string) {}
+  private constructor(private readonly value: string) {
+    // Make the object truly immutable at runtime
+    Object.freeze(this);
+  }
 
   static create(value: string): Result<PackageId, PackageValidationError> {
     const trimmed = value.trim();
@@ -17,6 +20,19 @@ export class PackageId {
     }
 
     if (!/^[a-z0-9-]+$/.test(trimmed)) {
+      return err(
+        new PackageValidationError(
+          'Package ID must contain only lowercase letters, numbers, and hyphens',
+        ),
+      );
+    }
+
+    // Check for spaces that are not purely leading/trailing
+    // If the original string has spaces, but the trimmed string is different,
+    // then spaces were only leading/trailing and should be allowed
+    // If the original string has spaces and trimming doesn't change it,
+    // then spaces are internal and should be rejected
+    if (value.includes(' ') && value.trim() === value) {
       return err(
         new PackageValidationError(
           'Package ID must contain only lowercase letters, numbers, and hyphens',

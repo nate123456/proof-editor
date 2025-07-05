@@ -223,7 +223,9 @@ export class ValidationWorkflowEngine {
   }
 
   private isLevelBlockedByPrevious(level: ValidationLevel): boolean {
-    return level.isSemantic() || level.isFlow();
+    // Only semantic level is blocked by previous (syntax) errors
+    // Flow level can continue even if semantic level had errors
+    return level.isSemantic();
   }
 
   private hasBlockingErrors(result: ValidationResult): boolean {
@@ -238,10 +240,6 @@ export class ValidationWorkflowEngine {
     steps: ValidationStep[],
     requestedLevel: ValidationLevel,
   ): Result<ValidationResult, ValidationError> {
-    if (steps.length === 0) {
-      return err(new ValidationError('No validation steps executed'));
-    }
-
     const allDiagnostics = this.getAggregatedDiagnostics(steps);
     const totalExecutionTime = steps.reduce((sum, step) => sum + step.executionTimeMs, 0);
     const hasErrors = steps.some(

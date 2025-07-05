@@ -419,4 +419,253 @@ describe('Domain Errors', () => {
       expect((structureError.cause as ProcessingError).cause).toBeInstanceOf(RepositoryError);
     });
   });
+
+  describe('comprehensive edge case and error scenario coverage', () => {
+    it('should handle error construction with null message', () => {
+      const error = new ProcessingError(null as any);
+      expect(error.message).toBe('null');
+      expect(error.name).toBe('DomainError');
+    });
+
+    it('should handle error construction with undefined message', () => {
+      const error = new StructureError(undefined as any);
+      expect(error.message).toBe('');
+      expect(error.name).toBe('DomainError');
+    });
+
+    it('should handle error construction with numeric message', () => {
+      const error = new ProcessingError(123 as any);
+      expect(error.message).toBe('123');
+    });
+
+    it('should handle error construction with object message', () => {
+      const error = new RepositoryError({ toString: () => 'object error' } as any);
+      expect(error.message).toBe('object error');
+    });
+
+    it('should handle DomainError subclass with overridden name property', () => {
+      class CustomDomainError extends DomainError {
+        public override readonly name = 'DomainError' as const;
+      }
+
+      const error = new CustomDomainError('custom error');
+      expect(error.name).toBe('DomainError');
+      expect(error).toBeInstanceOf(DomainError);
+      expect(error).toBeInstanceOf(CustomDomainError);
+    });
+
+    it('should handle RepositoryError subclass', () => {
+      class DatabaseError extends RepositoryError {
+        public readonly connectionString: string;
+
+        constructor(message: string, connectionString: string, cause?: Error) {
+          super(message, cause);
+          this.connectionString = connectionString;
+        }
+      }
+
+      const dbError = new DatabaseError('Connection failed', 'postgres://localhost:5432');
+      expect(dbError).toBeInstanceOf(RepositoryError);
+      expect(dbError).toBeInstanceOf(DatabaseError);
+      expect(dbError.connectionString).toBe('postgres://localhost:5432');
+    });
+
+    it('should handle complex nested error scenarios with mixed types', () => {
+      const systemError = new Error('System failure');
+      const dbError = new RepositoryError('Database unavailable', systemError);
+      const processingError = new ProcessingError('Data processing failed', dbError);
+      const structureError = new StructureError('Validation failed', processingError);
+
+      // Test complete error chain
+      expect(structureError.cause).toBe(processingError);
+      expect(processingError.cause).toBe(dbError);
+      expect(dbError.cause).toBe(systemError);
+
+      // Test error type checks through the chain
+      expect(structureError).toBeInstanceOf(DomainError);
+      expect(structureError.cause).toBeInstanceOf(DomainError);
+      expect((structureError.cause as ProcessingError).cause).toBeInstanceOf(RepositoryError);
+      expect((structureError.cause as ProcessingError).cause).not.toBeInstanceOf(DomainError);
+    });
+
+    it('should handle error serialization and properties preservation', () => {
+      const originalStack = 'Error\\n    at test.js:1:1';
+      const originalError = new Error('Original error');
+      originalError.stack = originalStack;
+
+      const domainError = new ProcessingError('Processing failed', originalError);
+
+      // Check that all properties are preserved
+      expect(domainError.message).toBe('Processing failed');
+      expect(domainError.cause).toBe(originalError);
+      expect(domainError.name).toBe('DomainError');
+      expect(domainError.stack).toBeDefined();
+      expect((domainError.cause as Error).stack).toBe(originalStack);
+    });
+
+    it('should handle errors with additional properties', () => {
+      const errorWithProps = new ProcessingError('Processing failed');
+      (errorWithProps as any).customProperty = 'custom value';
+      (errorWithProps as any).errorCode = 'PROC_001';
+
+      expect((errorWithProps as any).customProperty).toBe('custom value');
+      expect((errorWithProps as any).errorCode).toBe('PROC_001');
+      expect(errorWithProps).toBeInstanceOf(ProcessingError);
+    });
+
+    it('should test error instanceof behavior with dynamic types', () => {
+      const ErrorTypes = [ProcessingError, StructureError, RepositoryError] as const;
+
+      ErrorTypes.forEach((ErrorType, index) => {
+        const error = new ErrorType(`Test error ${index}`);
+
+        if (ErrorType === RepositoryError) {
+          expect(error).not.toBeInstanceOf(DomainError);
+          expect(error.name).toBe('RepositoryError');
+        } else {
+          expect(error).toBeInstanceOf(DomainError);
+          expect(error.name).toBe('DomainError');
+        }
+
+        expect(error).toBeInstanceOf(ErrorType);
+        expect(error).toBeInstanceOf(Error);
+      });
+    });
+
+    it('should handle rapid error creation for performance testing', () => {
+      const errors: DomainError[] = [];
+
+      // Create many errors quickly to test memory and performance
+      for (let i = 0; i < 100; i++) {
+        errors.push(new ProcessingError(`Error ${i}`));
+        errors.push(new StructureError(`Structure Error ${i}`));
+      }
+
+      expect(errors).toHaveLength(200);
+      expect(errors.every((error) => error instanceof DomainError)).toBe(true);
+      expect(errors.filter((error) => error instanceof ProcessingError)).toHaveLength(100);
+      expect(errors.filter((error) => error instanceof StructureError)).toHaveLength(100);
+    });
+
+    it('should validate error prototypes and constructor chains', () => {
+      const processingError = new ProcessingError('test');
+      const structureError = new StructureError('test');
+      const repositoryError = new RepositoryError('test');
+
+      // Test constructor references
+      expect(processingError.constructor).toBe(ProcessingError);
+      expect(structureError.constructor).toBe(StructureError);
+      expect(repositoryError.constructor).toBe(RepositoryError);
+
+      // Test prototype chains
+      expect(Object.getPrototypeOf(processingError)).toBe(ProcessingError.prototype);
+      expect(Object.getPrototypeOf(ProcessingError.prototype)).toBe(DomainError.prototype);
+      expect(Object.getPrototypeOf(DomainError.prototype)).toBe(Error.prototype);
+
+      expect(Object.getPrototypeOf(repositoryError)).toBe(RepositoryError.prototype);
+      expect(Object.getPrototypeOf(RepositoryError.prototype)).toBe(Error.prototype);
+    });
+  });
+
+  describe('integration with neverthrow result patterns', () => {
+    it('should work correctly as error in Result.err()', () => {
+      // Simulate neverthrow pattern usage
+      const createResult = (shouldSucceed: boolean) => {
+        if (shouldSucceed) {
+          return { isOk: () => true, isErr: () => false, value: 'success' };
+        } else {
+          return {
+            isOk: () => false,
+            isErr: () => true,
+            error: new ProcessingError('Operation failed'),
+          };
+        }
+      };
+
+      const failureResult = createResult(false);
+      expect(failureResult.isErr()).toBe(true);
+      if (failureResult.isErr()) {
+        expect(failureResult.error).toBeInstanceOf(ProcessingError);
+        expect(failureResult.error?.message).toBe('Operation failed');
+      }
+    });
+
+    it('should handle error chaining in result transformations', () => {
+      const transformError = (input: string) => {
+        try {
+          if (input === 'invalid') {
+            throw new ProcessingError('Input validation failed');
+          }
+          return { isOk: () => true, value: input.toUpperCase() };
+        } catch (error) {
+          return {
+            isOk: () => false,
+            isErr: () => true,
+            error: new StructureError('Transform failed', error as Error),
+          };
+        }
+      };
+
+      const result = transformError('invalid');
+      expect(result.isOk()).toBe(false);
+      if ('error' in result) {
+        expect(result.error).toBeInstanceOf(StructureError);
+        expect(result.error.cause).toBeInstanceOf(ProcessingError);
+      }
+    });
+  });
+
+  describe('domain-specific error scenarios', () => {
+    it('should handle proof validation errors', () => {
+      const invalidStatement = new Error('Invalid statement syntax');
+      const processingError = new ProcessingError('Statement processing failed', invalidStatement);
+      const structureError = new StructureError('Proof structure invalid', processingError);
+
+      expect(structureError.message).toBe('Proof structure invalid');
+      expect(structureError.cause).toBe(processingError);
+      expect((structureError.cause as ProcessingError).cause).toBe(invalidStatement);
+    });
+
+    it('should handle argument tree construction errors', () => {
+      const cycleDetectionError = new Error('Cycle detected in argument dependencies');
+      const structureError = new StructureError(
+        'Cannot construct argument tree',
+        cycleDetectionError,
+      );
+
+      expect(structureError).toBeInstanceOf(StructureError);
+      expect(structureError.cause).toBe(cycleDetectionError);
+    });
+
+    it('should handle statement flow processing errors', () => {
+      const flowError = new Error('Invalid statement flow connection');
+      const processingError = new ProcessingError('Statement flow validation failed', flowError);
+
+      expect(processingError).toBeInstanceOf(ProcessingError);
+      expect(processingError.cause).toBe(flowError);
+    });
+
+    it('should handle repository persistence errors', () => {
+      const ioError = new Error('Disk write failed');
+      const repositoryError = new RepositoryError('Cannot persist proof document', ioError);
+
+      expect(repositoryError).not.toBeInstanceOf(DomainError);
+      expect(repositoryError).toBeInstanceOf(RepositoryError);
+      expect(repositoryError.cause).toBe(ioError);
+    });
+
+    it('should handle async error propagation patterns', async () => {
+      const asyncFunction = async (): Promise<void> => {
+        throw new ProcessingError('Async processing failed');
+      };
+
+      try {
+        await asyncFunction();
+        throw new Error('Should have thrown an error');
+      } catch (error) {
+        expect(error).toBeInstanceOf(ProcessingError);
+        expect((error as ProcessingError).message).toBe('Async processing failed');
+      }
+    });
+  });
 });

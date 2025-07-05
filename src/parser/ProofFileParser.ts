@@ -24,6 +24,10 @@ import type { YAMLValidator } from './YAMLValidator.js';
 export class ProofFileParser {
   constructor(@inject(TOKENS.YAMLValidator) private readonly validator: YAMLValidator) {}
 
+  parse(yamlContent: string): Result<ProofDocument, ParseFailureError> {
+    return this.parseProofFile(yamlContent);
+  }
+
   parseProofFile(yamlContent: string): Result<ProofDocument, ParseFailureError> {
     const errors: ParseError[] = [];
 

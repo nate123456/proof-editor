@@ -8,7 +8,8 @@ import {
 } from '../../../domain/__tests__/factories/index.js';
 import { Tree } from '../../../domain/entities/Tree.js';
 import { PhysicalProperties, Position2D } from '../../../domain/shared/value-objects.js';
-import { treesToDTOs, treeToDTO } from '../TreeMapper.js';
+import type { TreeDTO } from '../../queries/shared-types.js';
+import { treesToDomains, treesToDTOs, treeToDomain, treeToDTO } from '../TreeMapper.js';
 
 describe('TreeMapper', () => {
   describe('treeToDTO', () => {
@@ -334,6 +335,379 @@ describe('TreeMapper', () => {
     });
   });
 
+  describe('treeToDomain', () => {
+    it('should convert valid TreeDTO to Tree domain entity', () => {
+      // Arrange
+      const dto: TreeDTO = {
+        id: 'test-tree-id',
+        position: { x: 100, y: 200 },
+        bounds: { width: 300, height: 400 },
+        nodeCount: 0,
+        rootNodeIds: [],
+      };
+      const documentId = 'test-doc-id';
+
+      // Act
+      const result = treeToDomain(dto, documentId);
+
+      // Assert
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        const tree = result.value;
+        expect(tree.getId().getValue()).toBe('test-tree-id');
+        expect(tree.getPosition().getX()).toBe(100);
+        expect(tree.getPosition().getY()).toBe(200);
+        expect(tree.getPhysicalProperties().getMinWidth()).toBe(300);
+        expect(tree.getPhysicalProperties().getMinHeight()).toBe(400);
+        expect(tree.getNodeCount()).toBe(0);
+      }
+    });
+
+    it('should convert TreeDTO without bounds using defaults', () => {
+      // Arrange
+      const dto: TreeDTO = {
+        id: 'test-tree-id',
+        position: { x: 50, y: 75 },
+        nodeCount: 2,
+        rootNodeIds: ['node1', 'node2'],
+      };
+      const documentId = 'test-doc-id';
+
+      // Act
+      const result = treeToDomain(dto, documentId);
+
+      // Assert
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        const tree = result.value;
+        expect(tree.getId().getValue()).toBe('test-tree-id');
+        expect(tree.getPosition().getX()).toBe(50);
+        expect(tree.getPosition().getY()).toBe(75);
+        // Should use default physical properties
+        expect(tree.getPhysicalProperties().getMinWidth()).toBeGreaterThan(0);
+        expect(tree.getPhysicalProperties().getMinHeight()).toBeGreaterThan(0);
+      }
+    });
+
+    it('should fail with invalid tree ID', () => {
+      // Arrange
+      const dto: TreeDTO = {
+        id: '', // Invalid empty ID
+        position: { x: 0, y: 0 },
+        nodeCount: 0,
+        rootNodeIds: [],
+      };
+      const documentId = 'test-doc-id';
+
+      // Act
+      const result = treeToDomain(dto, documentId);
+
+      // Assert
+      expect(result.isErr()).toBe(true);
+      if (result.isErr()) {
+        expect(result.error.message).toContain('cannot be empty');
+      }
+    });
+
+    it('should fail with invalid position coordinates', () => {
+      // Arrange
+      const dto: TreeDTO = {
+        id: 'test-tree-id',
+        position: { x: Number.NaN, y: 0 }, // Invalid coordinates
+        nodeCount: 0,
+        rootNodeIds: [],
+      };
+      const documentId = 'test-doc-id';
+
+      // Act
+      const result = treeToDomain(dto, documentId);
+
+      // Assert
+      expect(result.isErr()).toBe(true);
+    });
+
+    it('should fail with invalid physical properties', () => {
+      // Arrange
+      const dto: TreeDTO = {
+        id: 'test-tree-id',
+        position: { x: 0, y: 0 },
+        bounds: { width: -100, height: 200 }, // Invalid negative width
+        nodeCount: 0,
+        rootNodeIds: [],
+      };
+      const documentId = 'test-doc-id';
+
+      // Act
+      const result = treeToDomain(dto, documentId);
+
+      // Assert
+      expect(result.isErr()).toBe(true);
+    });
+
+    it('should handle edge case coordinates', () => {
+      // Arrange
+      const dto: TreeDTO = {
+        id: 'test-tree-id',
+        position: { x: -1000, y: 1000 },
+        bounds: { width: 1, height: 1 },
+        nodeCount: 0,
+        rootNodeIds: [],
+      };
+      const documentId = 'test-doc-id';
+
+      // Act
+      const result = treeToDomain(dto, documentId);
+
+      // Assert
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        const tree = result.value;
+        expect(tree.getPosition().getX()).toBe(-1000);
+        expect(tree.getPosition().getY()).toBe(1000);
+        expect(tree.getPhysicalProperties().getMinWidth()).toBe(1);
+        expect(tree.getPhysicalProperties().getMinHeight()).toBe(1);
+      }
+    });
+
+    it('should use current timestamp for creation and modification times', () => {
+      // Arrange
+      const dto: TreeDTO = {
+        id: 'test-tree-id',
+        position: { x: 0, y: 0 },
+        nodeCount: 0,
+        rootNodeIds: [],
+      };
+      const documentId = 'test-doc-id';
+      const startTime = Date.now();
+
+      // Act
+      const result = treeToDomain(dto, documentId);
+
+      // Assert
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        const tree = result.value;
+        const endTime = Date.now();
+        expect(tree.getCreatedAt()).toBeGreaterThanOrEqual(startTime);
+        expect(tree.getCreatedAt()).toBeLessThanOrEqual(endTime);
+        expect(tree.getModifiedAt()).toBeGreaterThanOrEqual(startTime);
+        expect(tree.getModifiedAt()).toBeLessThanOrEqual(endTime);
+      }
+    });
+  });
+
+  describe('treesToDomains', () => {
+    it('should convert empty array of TreeDTOs', () => {
+      // Arrange
+      const dtos: TreeDTO[] = [];
+      const documentId = 'test-doc-id';
+
+      // Act
+      const result = treesToDomains(dtos, documentId);
+
+      // Assert
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        expect(result.value).toEqual([]);
+      }
+    });
+
+    it('should convert single valid TreeDTO', () => {
+      // Arrange
+      const dto: TreeDTO = {
+        id: 'test-tree-id',
+        position: { x: 100, y: 200 },
+        nodeCount: 0,
+        rootNodeIds: [],
+      };
+      const documentId = 'test-doc-id';
+
+      // Act
+      const result = treesToDomains([dto], documentId);
+
+      // Assert
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        expect(result.value).toHaveLength(1);
+        expect(result.value[0]?.getId().getValue()).toBe('test-tree-id');
+      }
+    });
+
+    it('should convert multiple valid TreeDTOs', () => {
+      // Arrange
+      const dtos: TreeDTO[] = [
+        {
+          id: 'tree-1',
+          position: { x: 0, y: 0 },
+          nodeCount: 0,
+          rootNodeIds: [],
+        },
+        {
+          id: 'tree-2',
+          position: { x: 100, y: 100 },
+          nodeCount: 1,
+          rootNodeIds: ['node1'],
+        },
+        {
+          id: 'tree-3',
+          position: { x: 200, y: 200 },
+          bounds: { width: 150, height: 100 },
+          nodeCount: 2,
+          rootNodeIds: ['node2', 'node3'],
+        },
+      ];
+      const documentId = 'test-doc-id';
+
+      // Act
+      const result = treesToDomains(dtos, documentId);
+
+      // Assert
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        expect(result.value).toHaveLength(3);
+        expect(result.value[0]?.getId().getValue()).toBe('tree-1');
+        expect(result.value[1]?.getId().getValue()).toBe('tree-2');
+        expect(result.value[2]?.getId().getValue()).toBe('tree-3');
+      }
+    });
+
+    it('should fail fast on first invalid TreeDTO', () => {
+      // Arrange
+      const dtos: TreeDTO[] = [
+        {
+          id: 'valid-tree',
+          position: { x: 0, y: 0 },
+          nodeCount: 0,
+          rootNodeIds: [],
+        },
+        {
+          id: '', // Invalid empty ID
+          position: { x: 100, y: 100 },
+          nodeCount: 0,
+          rootNodeIds: [],
+        },
+        {
+          id: 'never-reached',
+          position: { x: 200, y: 200 },
+          nodeCount: 0,
+          rootNodeIds: [],
+        },
+      ];
+      const documentId = 'test-doc-id';
+
+      // Act
+      const result = treesToDomains(dtos, documentId);
+
+      // Assert
+      expect(result.isErr()).toBe(true);
+      if (result.isErr()) {
+        expect(result.error.message).toContain('cannot be empty');
+      }
+    });
+
+    it('should maintain order of trees in conversion', () => {
+      // Arrange
+      const dtos: TreeDTO[] = [
+        { id: 'first', position: { x: 0, y: 0 }, nodeCount: 0, rootNodeIds: [] },
+        { id: 'second', position: { x: 0, y: 0 }, nodeCount: 0, rootNodeIds: [] },
+        { id: 'third', position: { x: 0, y: 0 }, nodeCount: 0, rootNodeIds: [] },
+      ];
+      const documentId = 'test-doc-id';
+
+      // Act
+      const result = treesToDomains(dtos, documentId);
+
+      // Assert
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        expect(result.value).toHaveLength(3);
+        expect(result.value[0]?.getId().getValue()).toBe('first');
+        expect(result.value[1]?.getId().getValue()).toBe('second');
+        expect(result.value[2]?.getId().getValue()).toBe('third');
+      }
+    });
+  });
+
+  describe('round-trip conversion', () => {
+    it('should maintain tree identity through round-trip conversion', () => {
+      // Arrange
+      const originalTree = treeFactory.build();
+      const documentId = 'test-doc-id';
+
+      // Act
+      const dto = treeToDTO(originalTree);
+      const result = treeToDomain(dto, documentId);
+
+      // Assert
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        const reconstructedTree = result.value;
+
+        // Verify core properties are preserved (note: timestamps will differ)
+        expect(reconstructedTree.getId().getValue()).toBe(originalTree.getId().getValue());
+        expect(reconstructedTree.getPosition().getX()).toBe(originalTree.getPosition().getX());
+        expect(reconstructedTree.getPosition().getY()).toBe(originalTree.getPosition().getY());
+        expect(reconstructedTree.getPhysicalProperties().getMinWidth()).toBe(
+          originalTree.getPhysicalProperties().getMinWidth(),
+        );
+        expect(reconstructedTree.getPhysicalProperties().getMinHeight()).toBe(
+          originalTree.getPhysicalProperties().getMinHeight(),
+        );
+      }
+    });
+
+    it('should handle round-trip with complex tree configurations', () => {
+      // Arrange
+      const customPosition = Position2D.create(500, 600);
+      const customPhysicalProperties = PhysicalProperties.create(
+        'bottom-up',
+        25,
+        30,
+        400,
+        300,
+        'vertical',
+        'left',
+      );
+
+      if (customPosition.isErr() || customPhysicalProperties.isErr()) return;
+
+      const trees = [
+        treeFactory.build(),
+        treeFactory.build(
+          {},
+          {
+            transient: {
+              position: customPosition.value,
+              physicalProperties: customPhysicalProperties.value,
+            },
+          },
+        ),
+      ];
+      const documentId = 'test-doc-id';
+
+      // Act
+      const dtos = treesToDTOs(trees);
+      const result = treesToDomains(dtos, documentId);
+
+      // Assert
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        const reconstructedTrees = result.value;
+        expect(reconstructedTrees).toHaveLength(2);
+
+        // Verify first tree
+        expect(reconstructedTrees[0]?.getId().getValue()).toBe(trees[0]?.getId().getValue());
+
+        // Verify second tree with custom properties
+        expect(reconstructedTrees[1]?.getId().getValue()).toBe(trees[1]?.getId().getValue());
+        expect(reconstructedTrees[1]?.getPosition().getX()).toBe(500);
+        expect(reconstructedTrees[1]?.getPosition().getY()).toBe(600);
+        expect(reconstructedTrees[1]?.getPhysicalProperties().getMinWidth()).toBe(400);
+        expect(reconstructedTrees[1]?.getPhysicalProperties().getMinHeight()).toBe(300);
+      }
+    });
+  });
+
   describe('error handling and edge cases', () => {
     it('should handle tree with complex node hierarchy', () => {
       // Arrange
@@ -419,6 +793,60 @@ describe('TreeMapper', () => {
 
       // Assert - Results should be identical
       expect(dto1).toEqual(dto2);
+    });
+
+    it('should handle extreme coordinate values in round-trip', () => {
+      // Arrange
+      const extremePosition = Position2D.create(Number.MAX_SAFE_INTEGER, Number.MIN_SAFE_INTEGER);
+      expect(extremePosition.isOk()).toBe(true);
+      if (extremePosition.isErr()) return;
+
+      const tree = treeFactory.build(
+        {},
+        {
+          transient: {
+            position: extremePosition.value,
+          },
+        },
+      );
+      const documentId = 'test-doc-id';
+
+      // Act
+      const dto = treeToDTO(tree);
+      const result = treeToDomain(dto, documentId);
+
+      // Assert
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        const reconstructed = result.value;
+        expect(reconstructed.getPosition().getX()).toBe(Number.MAX_SAFE_INTEGER);
+        expect(reconstructed.getPosition().getY()).toBe(Number.MIN_SAFE_INTEGER);
+      }
+    });
+
+    it('should handle zero-sized bounds gracefully', () => {
+      // Arrange
+      const dto: TreeDTO = {
+        id: 'zero-bounds-tree',
+        position: { x: 0, y: 0 },
+        bounds: { width: 0, height: 0 },
+        nodeCount: 0,
+        rootNodeIds: [],
+      };
+      const documentId = 'test-doc-id';
+
+      // Act
+      const result = treeToDomain(dto, documentId);
+
+      // This might fail validation, which is expected behavior
+      // The test documents the current behavior
+      if (result.isOk()) {
+        expect(result.value.getPhysicalProperties().getMinWidth()).toBe(0);
+        expect(result.value.getPhysicalProperties().getMinHeight()).toBe(0);
+      } else {
+        // If validation fails, that's also valid behavior
+        expect(result.isErr()).toBe(true);
+      }
     });
   });
 

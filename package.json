@@ -3,6 +3,7 @@
   "displayName": "Proof Editor",
   "description": "Visual formal reasoning tool for constructing logical arguments",
   "version": "0.1.0",
+  "type": "module",
   "engines": {
     "vscode": "^1.74.0",
     "node": ">=22.0.0"
@@ -38,7 +39,94 @@
         "uiTheme": "vs",
         "path": "./themes/proof-theme.json"
       }
-    ]
+    ],
+    "commands": [
+      {
+        "command": "proofEditor.showTree",
+        "title": "Show Proof Tree",
+        "category": "Proof Editor"
+      },
+      {
+        "command": "proofEditor.createBootstrapDocument",
+        "title": "Create New Proof Document",
+        "category": "Proof Editor"
+      },
+      {
+        "command": "proofEditor.createBootstrapArgument",
+        "title": "Create First Argument",
+        "category": "Proof Editor"
+      },
+      {
+        "command": "proofEditor.populateEmptyArgument",
+        "title": "Populate Empty Argument",
+        "category": "Proof Editor"
+      },
+      {
+        "command": "proofEditor.showBootstrapWorkflow",
+        "title": "Show Bootstrap Workflow",
+        "category": "Proof Editor"
+      },
+      {
+        "command": "proofEditor.createEmptyImplicationLine",
+        "title": "Create Empty Implication Line",
+        "category": "Proof Editor"
+      }
+    ],
+    "iconThemes": [
+      {
+        "id": "proof-icons",
+        "label": "Proof Editor Icons",
+        "path": "./icons/proof-icon-theme.json"
+      }
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "when": "explorerResourceIsFolder",
+          "command": "proofEditor.createBootstrapDocument",
+          "group": "navigation@1"
+        }
+      ],
+      "editor/context": [
+        {
+          "when": "resourceLangId == proof",
+          "command": "proofEditor.createBootstrapArgument",
+          "group": "proof@1"
+        },
+        {
+          "when": "resourceLangId == proof",
+          "command": "proofEditor.populateEmptyArgument",
+          "group": "proof@2"
+        },
+        {
+          "when": "resourceLangId == proof",
+          "command": "proofEditor.showBootstrapWorkflow",
+          "group": "proof@3"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "proofEditor.createBootstrapDocument",
+          "when": "true"
+        },
+        {
+          "command": "proofEditor.createBootstrapArgument",
+          "when": "resourceLangId == proof"
+        },
+        {
+          "command": "proofEditor.populateEmptyArgument",
+          "when": "resourceLangId == proof"
+        },
+        {
+          "command": "proofEditor.showBootstrapWorkflow",
+          "when": "resourceLangId == proof"
+        },
+        {
+          "command": "proofEditor.createEmptyImplicationLine",
+          "when": "resourceLangId == proof"
+        }
+      ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",

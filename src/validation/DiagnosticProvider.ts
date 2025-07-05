@@ -1,10 +1,14 @@
 import { inject, injectable } from 'tsyringe';
 import * as vscode from 'vscode';
-
 import { TOKENS } from '../infrastructure/di/tokens.js';
 import type { ParseFailureError } from '../parser/ParseError.js';
 import type { ProofFileParser } from '../parser/ProofFileParser.js';
 import { convertParseErrorToDiagnostic } from './ErrorMapper.js';
+
+/**
+ * @deprecated Use IDiagnosticPort interface with platform abstraction instead.
+ * This class is kept for backward compatibility with legacy VS Code specific code.
+ */
 
 @injectable()
 export class ProofDiagnosticProvider {

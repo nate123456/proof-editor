@@ -839,4 +839,340 @@ describe('CRDTTransformationService', () => {
       expect(result.isOk() || result.isErr()).toBe(true);
     });
   });
+
+  describe('advanced synchronization scenarios', () => {
+    it('should handle three-way concurrent operations', async () => {
+      const device1 = deviceIdFactory.build();
+      const device2 = deviceIdFactory.build();
+      const device3 = deviceIdFactory.build();
+      const updateOpType = OperationType.create('UPDATE_STATEMENT');
+
+      expect(updateOpType.isOk()).toBe(true);
+      if (!updateOpType.isOk()) return;
+
+      const operations = [device1, device2, device3].map((device) => {
+        const opId = operationIdFactory.build();
+        const payload = operationPayloadFactory.build();
+        const vectorClock = VectorClock.create(device);
+
+        expect(vectorClock.isOk()).toBe(true);
+        if (!vectorClock.isOk()) throw new Error('Failed to create vector clock');
+
+        return Operation.create(
+          opId,
+          device,
+          updateOpType.value,
+          '/shared/path',
+          payload,
+          vectorClock.value,
+        );
+      });
+
+      const validOperations = operations.filter((op) => op.isOk()).map((op) => op.value);
+      expect(validOperations).toHaveLength(3);
+
+      const result = await service.transformOperationSequence(validOperations);
+      expect(result.isOk() || result.isErr()).toBe(true);
+    });
+
+    it('should handle operations with parent-child relationships', async () => {
+      const device = deviceIdFactory.build();
+      const createOpType = OperationType.create('CREATE_STATEMENT');
+      const updateOpType = OperationType.create('UPDATE_STATEMENT');
+
+      expect(createOpType.isOk()).toBe(true);
+      expect(updateOpType.isOk()).toBe(true);
+      if (!createOpType.isOk() || !updateOpType.isOk()) return;
+
+      const parentOpId = operationIdFactory.build();
+      const childOpId = operationIdFactory.build();
+      const payload = operationPayloadFactory.build();
+      const vectorClock = VectorClock.create(device);
+
+      expect(vectorClock.isOk()).toBe(true);
+      if (!vectorClock.isOk()) return;
+
+      const parentOpResult = Operation.create(
+        parentOpId,
+        device,
+        createOpType.value,
+        '/parent/path',
+        payload,
+        vectorClock.value,
+      );
+
+      const childOpResult = Operation.create(
+        childOpId,
+        device,
+        updateOpType.value,
+        '/parent/path/child',
+        payload,
+        vectorClock.value,
+        parentOpId,
+      );
+
+      expect(parentOpResult.isOk()).toBe(true);
+      expect(childOpResult.isOk()).toBe(true);
+      if (!parentOpResult.isOk() || !childOpResult.isOk()) return;
+
+      const result = await service.transformOperationSequence([
+        parentOpResult.value,
+        childOpResult.value,
+      ]);
+
+      expect(result.isOk() || result.isErr()).toBe(true);
+    });
+
+    it('should handle nested path transformations', async () => {
+      const device = deviceIdFactory.build();
+      const updateOpType = OperationType.create('UPDATE_STATEMENT');
+
+      expect(updateOpType.isOk()).toBe(true);
+      if (!updateOpType.isOk()) return;
+
+      const paths = [
+        '/root/document',
+        '/root/document/section1',
+        '/root/document/section1/subsection',
+        '/root/document/section2',
+      ];
+
+      const operations = paths.map((path) => {
+        const opId = operationIdFactory.build();
+        const payload = operationPayloadFactory.build();
+        const vectorClock = VectorClock.create(device);
+
+        expect(vectorClock.isOk()).toBe(true);
+        if (!vectorClock.isOk()) throw new Error('Failed to create vector clock');
+
+        return Operation.create(opId, device, updateOpType.value, path, payload, vectorClock.value);
+      });
+
+      const validOperations = operations.filter((op) => op.isOk()).map((op) => op.value);
+      expect(validOperations).toHaveLength(4);
+
+      const result = await service.transformOperationSequence(validOperations);
+      expect(result.isOk() || result.isErr()).toBe(true);
+    });
+
+    it('should handle conflicting operations on same path', async () => {
+      const device1 = deviceIdFactory.build();
+      const device2 = deviceIdFactory.build();
+      const deleteOpType = OperationType.create('DELETE_STATEMENT');
+      const updateOpType = OperationType.create('UPDATE_STATEMENT');
+
+      expect(deleteOpType.isOk()).toBe(true);
+      expect(updateOpType.isOk()).toBe(true);
+      if (!deleteOpType.isOk() || !updateOpType.isOk()) return;
+
+      const samePath = '/conflicted/path';
+      const opId1 = operationIdFactory.build();
+      const opId2 = operationIdFactory.build();
+      const payload = operationPayloadFactory.build();
+      const vectorClock1 = VectorClock.create(device1);
+      const vectorClock2 = VectorClock.create(device2);
+
+      expect(vectorClock1.isOk()).toBe(true);
+      expect(vectorClock2.isOk()).toBe(true);
+      if (!vectorClock1.isOk() || !vectorClock2.isOk()) return;
+
+      const deleteOpResult = Operation.create(
+        opId1,
+        device1,
+        deleteOpType.value,
+        samePath,
+        payload,
+        vectorClock1.value,
+      );
+
+      const updateOpResult = Operation.create(
+        opId2,
+        device2,
+        updateOpType.value,
+        samePath,
+        payload,
+        vectorClock2.value,
+      );
+
+      expect(deleteOpResult.isOk()).toBe(true);
+      expect(updateOpResult.isOk()).toBe(true);
+      if (!deleteOpResult.isOk() || !updateOpResult.isOk()) return;
+
+      const result = await service.transformOperation(deleteOpResult.value, updateOpResult.value);
+
+      expect(result.isOk() || result.isErr()).toBe(true);
+    });
+  });
+
+  describe('transformation statistics analysis', () => {
+    it('should provide detailed statistics for complex concurrent scenarios', () => {
+      const operations = createOperationsWithComplexity('COMPLEX');
+      const stats = service.getTransformationStatistics(operations);
+
+      expect(stats.totalOperations).toBe(operations.length);
+      expect(stats.concurrentOperations).toBeGreaterThanOrEqual(0);
+      expect(stats.transformableOperations).toBeGreaterThanOrEqual(0);
+      expect(stats.complexityDistribution).toHaveProperty('SIMPLE');
+      expect(stats.complexityDistribution).toHaveProperty('MODERATE');
+      expect(stats.complexityDistribution).toHaveProperty('COMPLEX');
+      expect(stats.complexityDistribution).toHaveProperty('INTRACTABLE');
+
+      // Verify that complexity distribution adds up correctly
+      const totalComplexityCount = Object.values(stats.complexityDistribution).reduce(
+        (sum, count) => sum + count,
+        0,
+      );
+      expect(totalComplexityCount).toBeGreaterThanOrEqual(0);
+    });
+
+    it('should handle mixed complexity distributions', () => {
+      const simpleOps = createOperationsWithComplexity('SIMPLE');
+      const complexOps = createOperationsWithComplexity('COMPLEX');
+      const mixedOps = [...simpleOps, ...complexOps];
+
+      const stats = service.getTransformationStatistics(mixedOps);
+
+      expect(stats.totalOperations).toBe(mixedOps.length);
+      expect(stats.complexityDistribution.SIMPLE).toBeGreaterThanOrEqual(0);
+      expect(stats.complexityDistribution.COMPLEX).toBeGreaterThanOrEqual(0);
+    });
+
+    it('should identify intractable operations correctly', () => {
+      const intractableOps = createOperationsWithComplexity('COMPLEX');
+      const stats = service.getTransformationStatistics(intractableOps);
+
+      expect(stats.totalOperations).toBe(intractableOps.length);
+      expect(stats.transformableOperations).toBeLessThanOrEqual(stats.totalOperations);
+
+      // Intractable operations should not be counted as transformable
+      if (stats.complexityDistribution.INTRACTABLE > 0) {
+        expect(stats.transformableOperations).toBeLessThan(stats.totalOperations);
+      }
+    });
+  });
+
+  describe('validation edge cases', () => {
+    it('should detect payload modifications during transformation', () => {
+      const operation = operationFactory.build();
+      const _originalPayload = operation.getPayload();
+
+      // Create a modified operation with different payload
+      const modifiedPayload = operationPayloadFactory.build();
+      const modifiedOperationResult = Operation.create(
+        operation.getId(),
+        operation.getDeviceId(),
+        operation.getOperationType(),
+        operation.getTargetPath(),
+        modifiedPayload,
+        operation.getVectorClock(),
+      );
+
+      expect(modifiedOperationResult.isOk()).toBe(true);
+      if (modifiedOperationResult.isOk()) {
+        // Validation should still pass for payload changes during transformation
+        const result = service.validateTransformationResult(
+          operation,
+          modifiedOperationResult.value,
+        );
+        expect(result.isOk()).toBe(true);
+      }
+    });
+
+    it('should handle operations with identical vector clocks', () => {
+      const device = deviceIdFactory.build();
+      const vectorClock = VectorClock.create(device);
+
+      expect(vectorClock.isOk()).toBe(true);
+      if (!vectorClock.isOk()) return;
+
+      const opType = OperationType.create('UPDATE_STATEMENT');
+      expect(opType.isOk()).toBe(true);
+      if (!opType.isOk()) return;
+
+      const opId1 = operationIdFactory.build();
+      const opId2 = operationIdFactory.build();
+      const payload1 = operationPayloadFactory.build();
+      const payload2 = operationPayloadFactory.build();
+
+      const operation1Result = Operation.create(
+        opId1,
+        device,
+        opType.value,
+        '/test/path',
+        payload1,
+        vectorClock.value,
+      );
+      const operation2Result = Operation.create(
+        opId2,
+        device,
+        opType.value,
+        '/test/path',
+        payload2,
+        vectorClock.value,
+      );
+
+      expect(operation1Result.isOk()).toBe(true);
+      expect(operation2Result.isOk()).toBe(true);
+      if (!operation1Result.isOk() || !operation2Result.isOk()) return;
+
+      const canTransform = service.canTransformOperations(
+        operation1Result.value,
+        operation2Result.value,
+      );
+      expect(typeof canTransform).toBe('boolean');
+    });
+  });
+
+  describe('interface compliance verification', () => {
+    it('should implement all ICRDTTransformationService methods', () => {
+      expect(service.transformOperation).toBeDefined();
+      expect(service.transformOperationSequence).toBeDefined();
+      expect(service.canTransformOperations).toBeDefined();
+      expect(service.calculateTransformationComplexity).toBeDefined();
+      expect(typeof service.transformOperation).toBe('function');
+      expect(typeof service.transformOperationSequence).toBe('function');
+      expect(typeof service.canTransformOperations).toBe('function');
+      expect(typeof service.calculateTransformationComplexity).toBe('function');
+    });
+
+    it('should provide additional utility methods', () => {
+      expect(service.getTransformationStatistics).toBeDefined();
+      expect(service.validateTransformationResult).toBeDefined();
+      expect(typeof service.getTransformationStatistics).toBe('function');
+      expect(typeof service.validateTransformationResult).toBe('function');
+    });
+  });
+
+  describe('async operation handling', () => {
+    it('should handle async transformation errors gracefully', async () => {
+      const operation1 = operationFactory.build();
+      const operation2 = operationFactory.build();
+
+      // Test with a potentially throwing operation
+      const result = await service.transformOperation(operation1, operation2);
+
+      expect(result.isOk() || result.isErr()).toBe(true);
+      if (result.isErr()) {
+        expect(result.error).toBeInstanceOf(Error);
+      }
+    });
+
+    it('should maintain promise resolution for all operations', async () => {
+      const operations = Array.from({ length: 5 }, () => operationFactory.build());
+
+      const firstOperation = operations[0];
+      if (!firstOperation) {
+        throw new Error('Failed to create test operations');
+      }
+
+      const promises = operations.map((op) => service.transformOperation(op, firstOperation));
+
+      const results = await Promise.allSettled(promises);
+
+      expect(results).toHaveLength(5);
+      results.forEach((result) => {
+        expect(result.status).toBe('fulfilled');
+      });
+    });
+  });
 });

@@ -250,6 +250,10 @@ export class OrderedSet {
     return this.referencedBy.asPremise.size + this.referencedBy.asConclusion.size;
   }
 
+  indexOf(statementId: StatementId): number {
+    return findIndex(this.statementIds, (id) => id.equals(statementId));
+  }
+
   /**
    * CRITICAL: Identity comparison - same object reference.
    * This is THE key to connections between AtomicArguments.

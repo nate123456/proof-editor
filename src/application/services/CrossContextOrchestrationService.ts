@@ -151,7 +151,7 @@ export class CrossContextOrchestrationService {
               ValidationLevel.semantic(),
             );
 
-            if (validationResult.isErr() || !validationResult.value.isValid) {
+            if (validationResult.isErr() || !validationResult.value.isValid()) {
               logicalValid = false;
               errors.push('Logical validation failed');
             }

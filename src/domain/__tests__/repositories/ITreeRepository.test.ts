@@ -35,11 +35,13 @@ class MockTreeRepository implements ITreeRepository {
         return Promise.resolve(err(new RepositoryError('Tree must belong to a document')));
       }
 
-      const documentId = DocumentId.fromString(documentIdString);
+      const documentIdResult = DocumentId.fromString(documentIdString);
 
-      if (!documentId) {
+      if (!documentIdResult.isOk()) {
         return Promise.resolve(err(new RepositoryError('Tree must belong to a document')));
       }
+
+      const documentId = documentIdResult.value;
 
       // Check for tree name uniqueness within document
       const documentTrees = this.documentIndex.get(documentId.getValue()) ?? new Set();
@@ -87,8 +89,10 @@ class MockTreeRepository implements ITreeRepository {
       // Remove from indexes
       const documentIdString = tree.getDocumentId();
       if (documentIdString) {
-        const documentId = DocumentId.fromString(documentIdString);
-        this.removeFromDocumentIndex(documentId, tree);
+        const documentIdResult = DocumentId.fromString(documentIdString);
+        if (documentIdResult.isOk()) {
+          this.removeFromDocumentIndex(documentIdResult.value, tree);
+        }
       }
 
       this.trees.delete(id.getValue());
@@ -146,7 +150,11 @@ describe('ITreeRepository', () => {
   });
 
   // Helper function to create document ID
-  const createDocumentId = () => DocumentId.fromString(`doc-${Date.now()}-${Math.random()}`);
+  const createDocumentId = () => {
+    const result = DocumentId.fromString(`doc-${Date.now()}-${Math.random()}`);
+    if (!result.isOk()) throw new Error('DocumentId creation failed');
+    return result.value;
+  };
 
   // Helper function to create test tree
   const createTestTree = (documentId: DocumentId, name = 'Test Tree', offset = { x: 0, y: 0 }) => {
@@ -457,7 +465,9 @@ describe('ITreeRepository', () => {
     it('should reject deleting tree with nodes', async () => {
       const documentId = createDocumentId();
       // Create tree with ID that triggers hasNodes check
-      const treeId = TreeId.fromString('with-nodes-tree-123');
+      const treeIdResult = TreeId.fromString('with-nodes-tree-123');
+      if (!treeIdResult.isOk()) throw new Error('TreeId creation failed');
+      const treeId = treeIdResult.value;
       const treeResult = Tree.reconstruct(
         treeId,
         documentId.getValue(),

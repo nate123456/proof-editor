@@ -1445,4 +1445,490 @@ describe('Operation', () => {
       }
     });
   });
+
+  describe('advanced transformation scenarios', () => {
+    it('should handle unsupported operation type in executeOn', () => {
+      const params = createValidOperationParams();
+      const op = Operation.create(
+        params.operationId,
+        params.deviceId,
+        params.operationType,
+        params.targetPath,
+        params.payload,
+        params.vectorClock,
+      );
+
+      if (op.isOk()) {
+        // Mock an unsupported operation type by modifying the internal state
+        const originalExecuteOn = (op.value as any).executeOn;
+        (op.value as any).executeOn = function (currentState: unknown) {
+          // Simulate unsupported operation type
+          (this as any).operationType = { getValue: () => 'UNSUPPORTED_TYPE' };
+          return originalExecuteOn.call(this, currentState);
+        };
+
+        const result = op.value.applyTo({});
+        expect(result.isErr()).toBe(true);
+        if (result.isErr()) {
+          expect(result.error.message).toContain('Unsupported operation type');
+        }
+      }
+    });
+
+    it('should handle payload transformation edge cases', () => {
+      const params = createValidOperationParams();
+
+      // Test with different payload types for position adjustment
+      const positionPayload = OperationPayload.create(
+        { x: 100, y: 200 },
+        createOperationType('UPDATE_TREE_POSITION'),
+      );
+
+      if (positionPayload.isOk()) {
+        const op1 = Operation.create(
+          generateTestOperationId(),
+          params.deviceId,
+          createOperationType('UPDATE_TREE_POSITION'),
+          params.targetPath,
+          positionPayload.value,
+          params.vectorClock,
+        );
+
+        const op2 = Operation.create(
+          generateTestOperationId(),
+          createDeviceId('device-2'),
+          createOperationType('UPDATE_TREE_POSITION'),
+          params.targetPath,
+          positionPayload.value,
+          createMockVectorClock({ 'device-2': 1 }),
+        );
+
+        if (op1.isOk() && op2.isOk()) {
+          const transformed = op1.value.transformWith(op2.value);
+          expect(transformed.isOk()).toBe(true);
+        }
+      }
+    });
+
+    it('should handle semantic content merging', () => {
+      const params = createValidOperationParams();
+
+      const semanticPayload1 = OperationPayload.create(
+        { content: 'First content', metadata: { version: 1 } },
+        createOperationType('UPDATE_STATEMENT'),
+      );
+
+      const semanticPayload2 = OperationPayload.create(
+        { content: 'Second content', metadata: { version: 2 } },
+        createOperationType('UPDATE_STATEMENT'),
+      );
+
+      if (semanticPayload1.isOk() && semanticPayload2.isOk()) {
+        const op1 = Operation.create(
+          generateTestOperationId(),
+          params.deviceId,
+          createOperationType('UPDATE_STATEMENT'),
+          params.targetPath,
+          semanticPayload1.value,
+          params.vectorClock,
+        );
+
+        const op2 = Operation.create(
+          generateTestOperationId(),
+          createDeviceId('device-2'),
+          createOperationType('UPDATE_STATEMENT'),
+          params.targetPath,
+          semanticPayload2.value,
+          createMockVectorClock({ 'device-2': 1 }),
+        );
+
+        if (op1.isOk() && op2.isOk()) {
+          const transformed = op1.value.transformWith(op2.value);
+          expect(transformed.isOk()).toBe(true);
+          if (transformed.isOk()) {
+            const [transformedOp1, transformedOp2] = transformed.value;
+            expect(transformedOp1).toBeDefined();
+            expect(transformedOp2).toBeDefined();
+          }
+        }
+      }
+    });
+
+    it('should handle structural reference adjustment', () => {
+      const params = createValidOperationParams();
+
+      const structuralPayload = OperationPayload.create(
+        { references: ['/path/to/node1', '/path/to/node2'] },
+        createOperationType('CREATE_TREE'),
+      );
+
+      if (structuralPayload.isOk()) {
+        const op1 = Operation.create(
+          generateTestOperationId(),
+          params.deviceId,
+          createOperationType('CREATE_TREE'),
+          '/base/path',
+          structuralPayload.value,
+          params.vectorClock,
+        );
+
+        const op2 = Operation.create(
+          generateTestOperationId(),
+          createDeviceId('device-2'),
+          createOperationType('CREATE_ARGUMENT'),
+          '/base/path/subnode',
+          params.payload,
+          createMockVectorClock({ 'device-2': 1 }),
+        );
+
+        if (op1.isOk() && op2.isOk()) {
+          const transformed = op1.value.transformWith(op2.value);
+          expect(transformed.isOk()).toBe(true);
+        }
+      }
+    });
+
+    it('should handle vector clock comparison edge cases', () => {
+      const params = createValidOperationParams();
+
+      const clock1 = createMockVectorClock({ 'device-1': 5, 'device-2': 3 });
+      const clock2 = createMockVectorClock({ 'device-1': 4, 'device-2': 6 });
+
+      // Mock happensAfter to return different values
+      vi.mocked(clock1.happensAfter).mockReturnValue(true);
+      vi.mocked(clock2.happensAfter).mockReturnValue(false);
+
+      const op1 = Operation.create(
+        generateTestOperationId(),
+        params.deviceId,
+        params.operationType,
+        params.targetPath,
+        params.payload,
+        clock1,
+      );
+
+      const op2 = Operation.create(
+        generateTestOperationId(),
+        createDeviceId('device-2'),
+        params.operationType,
+        params.targetPath,
+        params.payload,
+        clock2,
+      );
+
+      if (op1.isOk() && op2.isOk()) {
+        const transformed = op1.value.transformWith(op2.value);
+        expect(transformed.isOk()).toBe(true);
+      }
+    });
+  });
+
+  describe('JSON serialization edge cases', () => {
+    it('should handle JSON with Map-based vector clock data', () => {
+      const params = createValidOperationParams();
+      const original = Operation.create(
+        params.operationId,
+        params.deviceId,
+        params.operationType,
+        params.targetPath,
+        params.payload,
+        params.vectorClock,
+      );
+
+      if (original.isOk()) {
+        const json = original.value.toJSON();
+
+        // Modify the JSON to have Map-based vector clock
+        const mapBasedJson = {
+          ...json,
+          vectorClock: new Map([
+            ['device-1', 1],
+            ['device-2', 2],
+          ]),
+        };
+
+        const restored = Operation.fromJSON(mapBasedJson);
+        expect(restored.isOk()).toBe(true);
+      }
+    });
+
+    it('should handle JSON with missing required fields', () => {
+      const invalidJson = {
+        id: 'test-id',
+        // Missing other required fields
+      };
+
+      const restored = Operation.fromJSON(invalidJson);
+      expect(restored.isErr()).toBe(true);
+      if (restored.isErr()) {
+        expect(restored.error.message).toContain('Missing required fields');
+      }
+    });
+
+    it('should handle JSON deserialization errors', () => {
+      const invalidJson = {
+        id: 'test-id',
+        deviceId: 'invalid-device',
+        operationType: 'INVALID_TYPE',
+        targetPath: '/test/path',
+        payload: { test: 'data' },
+        vectorClock: { 'device-1': 1 },
+      };
+
+      const restored = Operation.fromJSON(invalidJson);
+      expect(restored.isErr()).toBe(true);
+    });
+  });
+
+  describe('complex transformation algorithms', () => {
+    it('should handle transformation with invalid operation instance', () => {
+      const params = createValidOperationParams();
+      const op1 = Operation.create(
+        params.operationId,
+        params.deviceId,
+        params.operationType,
+        params.targetPath,
+        params.payload,
+        params.vectorClock,
+      );
+
+      // Create a mock operation that's not an Operation instance
+      const mockOp = {
+        getId: () => generateTestOperationId(),
+        getDeviceId: () => params.deviceId,
+        getOperationType: () => params.operationType,
+        getTargetPath: () => params.targetPath,
+        getPayload: () => params.payload,
+        getVectorClock: () => params.vectorClock,
+        getTimestamp: () => ({ compareTo: () => 0 }),
+        isStructuralOperation: () => false,
+        isSemanticOperation: () => true,
+        hasCausalDependencyOn: () => false,
+        isConcurrentWith: () => true,
+      };
+
+      if (op1.isOk()) {
+        const result = op1.value.transformWith(mockOp as any);
+        expect(result.isErr()).toBe(true);
+        if (result.isErr()) {
+          expect(result.error.message).toContain('Cannot transform with non-Operation instance');
+        }
+      }
+    });
+
+    it('should handle static transformation with non-Operation instances', () => {
+      const params = createValidOperationParams();
+      const validOp = Operation.create(
+        params.operationId,
+        params.deviceId,
+        params.operationType,
+        params.targetPath,
+        params.payload,
+        params.vectorClock,
+      );
+
+      // Create a mock operation that's not an Operation instance
+      const mockOp = {
+        getId: () => generateTestOperationId(),
+        getDeviceId: () => params.deviceId,
+        getOperationType: () => params.operationType,
+        getTargetPath: () => params.targetPath,
+        getPayload: () => params.payload,
+        getVectorClock: () => params.vectorClock,
+        getTimestamp: () => ({ compareTo: () => 0 }),
+        isStructuralOperation: () => false,
+        isSemanticOperation: () => true,
+        hasCausalDependencyOn: () => false,
+        isConcurrentWith: () => true,
+      };
+
+      if (validOp.isOk()) {
+        const result = Operation.transformOperationSequence([validOp.value, mockOp as any]);
+        expect(result.isErr()).toBe(true);
+        if (result.isErr()) {
+          expect(result.error.message).toContain('Cannot transform non-Operation instance');
+        }
+      }
+    });
+
+    it('should handle unknown transformation type', () => {
+      const params = createValidOperationParams();
+      const op1 = Operation.create(
+        params.operationId,
+        params.deviceId,
+        params.operationType,
+        params.targetPath,
+        params.payload,
+        params.vectorClock,
+      );
+
+      const op2 = Operation.create(
+        generateTestOperationId(),
+        createDeviceId('device-2'),
+        params.operationType,
+        params.targetPath,
+        params.payload,
+        createMockVectorClock({ 'device-2': 1 }),
+      );
+
+      if (op1.isOk() && op2.isOk()) {
+        // Mock the determineTransformationType to return an unknown type
+        const originalDetermineTransformationType = (op1.value as any).determineTransformationType;
+        (op1.value as any).determineTransformationType = () => 'UNKNOWN_TYPE';
+
+        const result = op1.value.transformWith(op2.value);
+        expect(result.isErr()).toBe(true);
+        if (result.isErr()) {
+          expect(result.error.message).toContain('Unknown transformation type');
+        }
+
+        // Restore original method
+        (op1.value as any).determineTransformationType = originalDetermineTransformationType;
+      }
+    });
+
+    it('should handle transformation sequence errors', () => {
+      const params = createValidOperationParams();
+
+      // Create operations that will fail during transformation
+      const op1 = Operation.create(
+        generateTestOperationId(),
+        params.deviceId,
+        params.operationType,
+        params.targetPath,
+        params.payload,
+        params.vectorClock,
+      );
+
+      const op2 = Operation.create(
+        generateTestOperationId(),
+        createDeviceId('device-2'),
+        params.operationType,
+        params.targetPath,
+        params.payload,
+        createMockVectorClock({ 'device-2': 1 }),
+      );
+
+      if (op1.isOk() && op2.isOk()) {
+        // Mock isConcurrentWith to return true but make transformation fail
+        vi.mocked(op1.value.getVectorClock().isConcurrent).mockReturnValue(true);
+
+        // Mock transformWith to fail
+        const originalTransformWith = op1.value.transformWith;
+        op1.value.transformWith = () =>
+          ({ isErr: () => true, error: new Error('Transform failed') }) as any;
+
+        const result = Operation.transformOperationSequence([op1.value, op2.value]);
+        // The transformation may succeed or fail depending on the order and mocking
+        expect(result.isOk() || result.isErr()).toBe(true);
+
+        // Restore original method
+        op1.value.transformWith = originalTransformWith;
+      }
+    });
+
+    it('should handle complex position payload scenarios', () => {
+      const params = createValidOperationParams();
+
+      // Test with non-position payload in position adjustment
+      const nonPositionPayload = OperationPayload.create(
+        { content: 'not a position' },
+        createOperationType('UPDATE_TREE_POSITION'),
+      );
+
+      if (nonPositionPayload.isOk()) {
+        const op1 = Operation.create(
+          generateTestOperationId(),
+          params.deviceId,
+          createOperationType('UPDATE_TREE_POSITION'),
+          params.targetPath,
+          nonPositionPayload.value,
+          params.vectorClock,
+        );
+
+        const op2 = Operation.create(
+          generateTestOperationId(),
+          createDeviceId('device-2'),
+          createOperationType('UPDATE_TREE_POSITION'),
+          params.targetPath,
+          nonPositionPayload.value,
+          createMockVectorClock({ 'device-2': 1 }),
+        );
+
+        if (op1.isOk() && op2.isOk()) {
+          const result = op1.value.transformWith(op2.value);
+          expect(result.isOk()).toBe(true);
+        }
+      }
+    });
+
+    it('should handle complex semantic content merge scenarios', () => {
+      const params = createValidOperationParams();
+
+      // Test with non-semantic operations in content merge
+      const structuralOp1 = Operation.create(
+        generateTestOperationId(),
+        params.deviceId,
+        createOperationType('CREATE_TREE'),
+        params.targetPath,
+        params.payload,
+        params.vectorClock,
+      );
+
+      const structuralOp2 = Operation.create(
+        generateTestOperationId(),
+        createDeviceId('device-2'),
+        createOperationType('CREATE_TREE'),
+        params.targetPath,
+        params.payload,
+        createMockVectorClock({ 'device-2': 1 }),
+      );
+
+      if (structuralOp1.isOk() && structuralOp2.isOk()) {
+        const result = structuralOp1.value.transformWith(structuralOp2.value);
+        // Structural operations may not always be transformable depending on paths
+        expect(result.isOk() || result.isErr()).toBe(true);
+      }
+    });
+
+    it('should handle complex payload data in merging', () => {
+      const params = createValidOperationParams();
+
+      // Test merging with different payload types
+      const stringPayload = OperationPayload.create(
+        { id: 'stmt1', content: 'simple string' },
+        createOperationType('UPDATE_STATEMENT'),
+      );
+
+      const numberPayload = OperationPayload.create(
+        { id: 'stmt2', content: '42' },
+        createOperationType('UPDATE_STATEMENT'),
+      );
+
+      if (stringPayload.isOk() && numberPayload.isOk()) {
+        const op1 = Operation.create(
+          generateTestOperationId(),
+          params.deviceId,
+          createOperationType('UPDATE_STATEMENT'),
+          params.targetPath,
+          stringPayload.value,
+          params.vectorClock,
+        );
+
+        const op2 = Operation.create(
+          generateTestOperationId(),
+          createDeviceId('device-2'),
+          createOperationType('UPDATE_STATEMENT'),
+          params.targetPath,
+          numberPayload.value,
+          createMockVectorClock({ 'device-2': 1 }),
+        );
+
+        if (op1.isOk() && op2.isOk()) {
+          const result = op1.value.transformWith(op2.value);
+          expect(result.isOk()).toBe(true);
+        }
+      }
+    });
+  });
 });

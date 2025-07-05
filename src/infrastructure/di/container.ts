@@ -8,7 +8,7 @@ import { TOKENS, type TokenType } from './tokens.js';
 // Export TOKENS for easy access
 export { TOKENS, type TokenType };
 
-class ApplicationContainer {
+export class ApplicationContainer {
   private readonly _container: DependencyContainer;
 
   constructor() {
@@ -75,9 +75,137 @@ export function createTestContainer(): ApplicationContainer {
 }
 
 // Helper function to register repository implementations
-export function registerRepositoryImplementations(_container: ApplicationContainer): void {
-  // This will be populated when file-based repositories are created
-  // For now, it's a placeholder for the registration pattern
+export async function registerRepositoryImplementations(
+  container: ApplicationContainer,
+): Promise<void> {
+  // Use dynamic imports for repository implementations
+  const { YAMLProofDocumentRepository } = await import(
+    '../repositories/yaml/YAMLProofDocumentRepository.js'
+  );
+
+  // Register ProofDocumentRepository with proper dependencies
+  container.registerFactory(
+    TOKENS.IProofDocumentRepository,
+    (c) =>
+      new YAMLProofDocumentRepository(
+        c.resolve(TOKENS.IFileSystemPort),
+        './proof-documents', // Default base path - would come from config
+      ),
+  );
+
+  // Register mock implementations for other repositories that aren't implemented yet
+  // These will be replaced with real implementations as they are created
+
+  // Core domain repositories
+  container.registerFactory(TOKENS.IAtomicArgumentRepository, () => ({
+    findById: async () => null,
+    save: async () => ok(undefined),
+    exists: async () => false,
+    delete: async () => ok(undefined),
+    findAll: async () => [],
+    nextIdentity: () => ({ getValue: () => `arg-${Date.now()}` }),
+  }));
+
+  container.registerFactory(TOKENS.IStatementRepository, () => ({
+    findById: async () => null,
+    save: async () => ok(undefined),
+    exists: async () => false,
+    delete: async () => ok(undefined),
+    findAll: async () => [],
+    nextIdentity: () => ({ getValue: () => `stmt-${Date.now()}` }),
+  }));
+
+  container.registerFactory(TOKENS.IOrderedSetRepository, () => ({
+    findById: async () => null,
+    save: async () => ok(undefined),
+    exists: async () => false,
+    delete: async () => ok(undefined),
+    findAll: async () => [],
+    nextIdentity: () => ({ getValue: () => `set-${Date.now()}` }),
+  }));
+
+  container.registerFactory(TOKENS.ITreeRepository, () => ({
+    findById: async () => null,
+    save: async () => ok(undefined),
+    exists: async () => false,
+    delete: async () => ok(undefined),
+    findAll: async () => [],
+    nextIdentity: () => ({ getValue: () => `tree-${Date.now()}` }),
+  }));
+
+  container.registerFactory(TOKENS.INodeRepository, () => ({
+    findById: async () => null,
+    save: async () => ok(undefined),
+    exists: async () => false,
+    delete: async () => ok(undefined),
+    findAll: async () => [],
+    nextIdentity: () => ({ getValue: () => `node-${Date.now()}` }),
+  }));
+
+  // Package ecosystem repositories
+  container.registerFactory(TOKENS.IPackageRepository, () => ({
+    findById: async () => null,
+    save: async () => ok(undefined),
+    exists: async () => false,
+    delete: async () => ok(undefined),
+    findAll: async () => [],
+    nextIdentity: () => ({ getValue: () => `pkg-${Date.now()}` }),
+  }));
+
+  container.registerFactory(TOKENS.IDependencyRepository, () => ({
+    findById: async () => null,
+    save: async () => ok(undefined),
+    exists: async () => false,
+    delete: async () => ok(undefined),
+    findAll: async () => [],
+    nextIdentity: () => ({ getValue: () => `dep-${Date.now()}` }),
+  }));
+
+  container.registerFactory(TOKENS.IPackageInstallationRepository, () => ({
+    findById: async () => null,
+    save: async () => ok(undefined),
+    exists: async () => false,
+    delete: async () => ok(undefined),
+    findAll: async () => [],
+    nextIdentity: () => ({ getValue: () => `install-${Date.now()}` }),
+  }));
+
+  // Synchronization repositories
+  container.registerFactory(TOKENS.IOperationRepository, () => ({
+    findById: async () => null,
+    save: async () => ok(undefined),
+    exists: async () => false,
+    delete: async () => ok(undefined),
+    findAll: async () => [],
+    nextIdentity: () => ({ getValue: () => `op-${Date.now()}` }),
+  }));
+
+  container.registerFactory(TOKENS.ISyncStateRepository, () => ({
+    findById: async () => null,
+    save: async () => ok(undefined),
+    exists: async () => false,
+    delete: async () => ok(undefined),
+    findAll: async () => [],
+    nextIdentity: () => ({ getValue: () => `sync-${Date.now()}` }),
+  }));
+
+  container.registerFactory(TOKENS.IVectorClockRepository, () => ({
+    findById: async () => null,
+    save: async () => ok(undefined),
+    exists: async () => false,
+    delete: async () => ok(undefined),
+    findAll: async () => [],
+    nextIdentity: () => ({ getValue: () => `clock-${Date.now()}` }),
+  }));
+
+  container.registerFactory(TOKENS.IConflictRepository, () => ({
+    findById: async () => null,
+    save: async () => ok(undefined),
+    exists: async () => false,
+    delete: async () => ok(undefined),
+    findAll: async () => [],
+    nextIdentity: () => ({ getValue: () => `conflict-${Date.now()}` }),
+  }));
 }
 
 // Helper function to register domain services
@@ -190,30 +318,49 @@ export async function registerInfrastructureServices(
   const [
     { ProofFileParser },
     { YAMLValidator },
+    { YAMLSerializer },
     { ValidationController },
     { ProofDiagnosticProvider },
     { ErrorMapper },
     { TreeRenderer },
     { DomainEventBus, createDefaultEventBusConfig },
+    { createEventBus },
   ] = await Promise.all([
     import('../../parser/ProofFileParser.js'),
     import('../../parser/YAMLValidator.js'),
+    import('../repositories/yaml/YAMLSerializer.js'),
     import('../../validation/ValidationController.js'),
     import('../../validation/DiagnosticProvider.js'),
     import('../../validation/ErrorMapper.js'),
     import('../../webview/TreeRenderer.js'),
     import('../events/DomainEventBus.js'),
+    import('../events/EventBus.js'),
   ]);
 
   // Register infrastructure services with proper factory functions
   // Register YAMLValidator first as it has no dependencies
   container.registerSingleton(TOKENS.YAMLValidator, YAMLValidator);
 
+  // Register YAMLSerializer as it has no dependencies
+  container.registerSingleton(TOKENS.YAMLSerializer, YAMLSerializer);
+
   // Register TreeRenderer as it has no dependencies
   container.registerSingleton(TOKENS.TreeRenderer, TreeRenderer);
 
   // Register ErrorMapper as instance (it's a const object, not a class)
   container.registerInstance(TOKENS.ErrorMapper, ErrorMapper);
+
+  // Register EventBus as singleton with production configuration
+  container.registerFactory(TOKENS.EventBus, () =>
+    createEventBus({
+      maxEventHistory: 1000,
+      handlerTimeout: 5000,
+      enableReplay: false,
+      enableMetrics: true,
+      enableLogging: true,
+      testMode: false,
+    }),
+  );
 
   // Register Domain Event Bus with default configuration
   container.registerFactory(
@@ -233,10 +380,26 @@ export async function registerInfrastructureServices(
     (c) => new ProofDiagnosticProvider(c.resolve(TOKENS.ProofFileParser)),
   );
 
-  // Register ValidationController with ProofDiagnosticProvider dependency
+  // Register Infrastructure ValidationController with IDiagnosticPort dependency
   container.registerFactory(
-    TOKENS.ValidationController,
-    (c) => new ValidationController(c.resolve(TOKENS.DiagnosticProvider)),
+    TOKENS.InfrastructureValidationController,
+    (c) => new ValidationController(c.resolve(TOKENS.IDiagnosticPort)),
+  );
+
+  // Register DocumentOrchestrationService with proper dependencies
+  const { DocumentOrchestrationServiceImpl } = await import(
+    '../../application/services/DocumentOrchestrationService.js'
+  );
+  container.registerFactory(
+    TOKENS.DocumentOrchestrationService,
+    (c) =>
+      new DocumentOrchestrationServiceImpl(
+        c.resolve(TOKENS.ProofFileParser),
+        c.resolve(TOKENS.EventBus),
+        c.resolve(TOKENS.DocumentQueryService),
+        c.resolve(TOKENS.ProofApplicationService),
+        c.resolve(TOKENS.CrossContextOrchestrationService),
+      ),
   );
 
   // Note: ProofTreePanel is not registered as it uses private constructor and manual DI resolution
@@ -340,9 +503,75 @@ export async function registerContextServices(container: ApplicationContainer): 
 // Helper function to register application services
 export async function registerApplicationServices(container: ApplicationContainer): Promise<void> {
   // Use dynamic imports for application services
-  const [{ CrossContextOrchestrationService }] = await Promise.all([
+  const [
+    { CrossContextOrchestrationService },
+    { ProofApplicationService },
+    { TreeLayoutService },
+    { ProofVisualizationService },
+    { DocumentQueryService },
+    { ViewStateManager },
+    { ViewStateObserver },
+    { ConnectionTracker },
+    { StatementUsageTracker, StatementUsageEventHandler },
+  ] = await Promise.all([
     import('../../application/services/CrossContextOrchestrationService.js'),
+    import('../../application/services/ProofApplicationService.js'),
+    import('../../application/services/TreeLayoutService.js'),
+    import('../../application/services/ProofVisualizationService.js'),
+    import('../../application/services/DocumentQueryService.js'),
+    import('../../application/services/ViewStateManager.js'),
+    import('../../application/services/ViewStateObserver.js'),
+    import('../../application/event-handlers/ConnectionTracker.js'),
+    import('../../application/event-handlers/StatementUsageTracker.js'),
   ]);
+
+  // Register core application service with event integration
+  container.registerFactory(
+    TOKENS.ProofApplicationService,
+    (c) =>
+      new ProofApplicationService(
+        c.resolve(TOKENS.IProofDocumentRepository),
+        c.resolve(TOKENS.EventBus),
+      ),
+  );
+
+  // Register view layer services
+  container.registerSingleton(TOKENS.TreeLayoutService, TreeLayoutService);
+
+  container.registerFactory(
+    TOKENS.ProofVisualizationService,
+    (c) => new ProofVisualizationService(c.resolve(TOKENS.TreeLayoutService)),
+  );
+
+  container.registerFactory(
+    TOKENS.DocumentQueryService,
+    (c) =>
+      new DocumentQueryService(
+        c.resolve(TOKENS.IProofDocumentRepository),
+        c.resolve(TOKENS.ProofFileParser),
+      ),
+  );
+
+  // Register view state management services
+  container.registerFactory(
+    TOKENS.ViewStateManager,
+    (c) => new ViewStateManager(c.resolve(TOKENS.IViewStatePort)),
+  );
+
+  container.registerFactory(
+    TOKENS.ViewStateObserver,
+    (c) => new ViewStateObserver(c.resolve(TOKENS.ViewStateManager)),
+  );
+
+  // Register event handlers as singletons
+  container.registerSingleton(TOKENS.ConnectionTracker, ConnectionTracker);
+  container.registerSingleton(TOKENS.StatementUsageTracker, StatementUsageTracker);
+
+  // Register combined event handler
+  container.registerFactory(
+    TOKENS.StatementUsageEventHandler,
+    (c) => new StatementUsageEventHandler(c.resolve(TOKENS.StatementUsageTracker)),
+  );
 
   // Register application services as singletons using factory function for type safety
   container.registerFactory(
@@ -367,11 +596,148 @@ export async function initializeContainer(): Promise<ApplicationContainer> {
   const appContainer = getContainer();
 
   // Register all implementations
-  registerRepositoryImplementations(appContainer);
+  await registerRepositoryImplementations(appContainer);
   await registerDomainServices(appContainer);
   await registerContextServices(appContainer);
   await registerApplicationServices(appContainer);
   await registerInfrastructureServices(appContainer);
+  await registerPresentationControllers(appContainer);
 
   return appContainer;
+}
+
+// Helper function to register presentation controllers
+export async function registerPresentationControllers(
+  container: ApplicationContainer,
+): Promise<void> {
+  // Use dynamic imports for P1 presentation controllers
+  const [
+    { ProofDocumentController },
+    { StatementController },
+    { ArgumentController },
+    { TreeController },
+    { ValidationController },
+    { BootstrapController },
+    { ProofTreeController },
+  ] = await Promise.all([
+    import('../../presentation/controllers/ProofDocumentController.js'),
+    import('../../presentation/controllers/StatementController.js'),
+    import('../../presentation/controllers/ArgumentController.js'),
+    import('../../presentation/controllers/TreeController.js'),
+    import('../../presentation/controllers/ValidationController.js'),
+    import('../../presentation/controllers/BootstrapController.js'),
+    import('../../presentation/controllers/ProofTreeController.js'),
+  ]);
+
+  // Register P1 controllers as singletons with dependencies
+  container.registerFactory(
+    TOKENS.ProofDocumentController,
+    (c) =>
+      new ProofDocumentController(
+        c.resolve(TOKENS.CrossContextOrchestrationService),
+        c.resolve(TOKENS.DocumentOrchestrationService),
+        c.resolve(TOKENS.DocumentQueryService),
+        c.resolve(TOKENS.IFileSystemPort),
+        c.resolve(TOKENS.IPlatformPort),
+        c.resolve(TOKENS.IUIPort),
+        c.resolve(TOKENS.YAMLSerializer),
+        c.resolve(TOKENS.ProofVisualizationService),
+      ),
+  );
+
+  container.registerFactory(
+    TOKENS.StatementController,
+    (c) =>
+      new StatementController(
+        c.resolve(TOKENS.CrossContextOrchestrationService),
+        c.resolve(TOKENS.ProofApplicationService),
+        c.resolve(TOKENS.DocumentQueryService),
+        c.resolve(TOKENS.IPlatformPort),
+        c.resolve(TOKENS.IUIPort),
+      ),
+  );
+
+  container.registerFactory(
+    TOKENS.ArgumentController,
+    (c) =>
+      new ArgumentController(
+        c.resolve(TOKENS.CrossContextOrchestrationService),
+        c.resolve(TOKENS.IPlatformPort),
+        c.resolve(TOKENS.IUIPort),
+      ),
+  );
+
+  container.registerFactory(
+    TOKENS.TreeController,
+    (c) =>
+      new TreeController(
+        c.resolve(TOKENS.CrossContextOrchestrationService),
+        c.resolve(TOKENS.IPlatformPort),
+        c.resolve(TOKENS.IUIPort),
+      ),
+  );
+
+  container.registerFactory(
+    TOKENS.PresentationValidationController,
+    (c) =>
+      new ValidationController(
+        c.resolve(TOKENS.CrossContextOrchestrationService),
+        c.resolve(TOKENS.IPlatformPort),
+        c.resolve(TOKENS.IUIPort),
+      ),
+  );
+
+  container.registerFactory(
+    TOKENS.BootstrapController,
+    (c) =>
+      new BootstrapController(
+        c.resolve(TOKENS.DocumentOrchestrationService),
+        c.resolve(TOKENS.ProofApplicationService),
+        c.resolve(TOKENS.IProofDocumentRepository),
+        c.resolve(TOKENS.IPlatformPort),
+        c.resolve(TOKENS.IUIPort),
+      ),
+  );
+
+  // Register legacy controller for backward compatibility
+  container.registerFactory(
+    TOKENS.ProofTreeController,
+    (c) => new ProofTreeController(c.resolve(TOKENS.IUIPort), c.resolve(TOKENS.EventBus)),
+  );
+}
+
+// Helper function for platform adapter registration
+export async function registerPlatformAdapters(
+  container: ApplicationContainer,
+  context: unknown,
+): Promise<void> {
+  // Type assertion - extension.ts guarantees this will be vscode.ExtensionContext
+  // Using any to avoid circular dependency with vscode types
+  // biome-ignore lint/suspicious/noExplicitAny: ExtensionContext type would create circular dependency
+  const vscodeContext = context as any;
+
+  // Import platform adapters - using dynamic imports for ES modules
+  const [
+    { VSCodeFileSystemAdapter },
+    { VSCodeUIAdapter },
+    { VSCodePlatformAdapter },
+    { VSCodeViewStateAdapter },
+    { VSCodeDiagnosticAdapter },
+  ] = await Promise.all([
+    import('../vscode/VSCodeFileSystemAdapter.js'),
+    import('../vscode/VSCodeUIAdapter.js'),
+    import('../vscode/VSCodePlatformAdapter.js'),
+    import('../vscode/VSCodeViewStateAdapter.js'),
+    import('../vscode/VSCodeDiagnosticAdapter.js'),
+  ]);
+
+  // Register platform adapters as instances with proper type handling
+  container.registerInstance(TOKENS.IFileSystemPort, new VSCodeFileSystemAdapter(vscodeContext));
+  container.registerInstance(TOKENS.IUIPort, new VSCodeUIAdapter(vscodeContext));
+  container.registerInstance(TOKENS.IPlatformPort, new VSCodePlatformAdapter(vscodeContext));
+  container.registerInstance(TOKENS.IViewStatePort, new VSCodeViewStateAdapter(vscodeContext));
+  container.registerFactory(
+    TOKENS.IDiagnosticPort,
+    (c) => new VSCodeDiagnosticAdapter(c.resolve(TOKENS.ProofFileParser)),
+  );
 }

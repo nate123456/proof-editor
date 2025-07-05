@@ -215,16 +215,12 @@ export class AtomicArgument {
     return AtomicArgument.create(undefined, this.premiseSet);
   }
 
-  createChildArgument(): AtomicArgument {
+  createChildArgument(): Result<AtomicArgument, ValidationError> {
     if (!this.conclusionSet) {
-      throw new ValidationError('Cannot create child argument without conclusion set');
+      return err(new ValidationError('Cannot create child argument without conclusion set'));
     }
 
-    const result = AtomicArgument.create(this.conclusionSet);
-    if (result.isErr()) {
-      throw result.error;
-    }
-    return result.value;
+    return AtomicArgument.create(this.conclusionSet);
   }
 
   /**

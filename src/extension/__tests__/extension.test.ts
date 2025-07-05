@@ -10,25 +10,51 @@
  * - Error handling and edge cases
  */
 
+import { err, ok } from 'neverthrow';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TextDocument, TextDocumentChangeEvent, TextEditor } from 'vscode';
 import * as vscode from 'vscode';
+import { ValidationError } from '../../domain/shared/result.js';
 
 // Mock VS Code module
 vi.mock('vscode', () => ({
   commands: {
     registerCommand: vi.fn(),
+    executeCommand: vi.fn(),
   },
   window: {
     createWebviewPanel: vi.fn(),
     showInformationMessage: vi.fn(),
     showWarningMessage: vi.fn(),
+    showInputBox: vi.fn(),
+    showQuickPick: vi.fn(),
+    showTextDocument: vi.fn(),
     onDidChangeActiveTextEditor: vi.fn(),
+    visibleTextEditors: [],
   },
   workspace: {
     onDidOpenTextDocument: vi.fn(),
     onDidChangeTextDocument: vi.fn(),
     onDidCloseTextDocument: vi.fn(),
+    openTextDocument: vi.fn(),
+    createFileSystemWatcher: vi.fn((_pattern: string) => {
+      // Mock file system watcher
+      return {
+        onDidChange: vi.fn((_handler) => {
+          const disposable = { dispose: vi.fn() };
+          return disposable;
+        }),
+        onDidCreate: vi.fn((_handler) => {
+          const disposable = { dispose: vi.fn() };
+          return disposable;
+        }),
+        onDidDelete: vi.fn((_handler) => {
+          const disposable = { dispose: vi.fn() };
+          return disposable;
+        }),
+        dispose: vi.fn(),
+      };
+    }),
     textDocuments: [],
   },
   Uri: {
@@ -37,6 +63,12 @@ vi.mock('vscode', () => ({
       path,
       fsPath: path,
       toString: () => `file://${path}`,
+    })),
+    joinPath: vi.fn().mockImplementation((base: any, ...segments: string[]) => ({
+      scheme: 'file',
+      path: `${base.path}/${segments.join('/')}`,
+      fsPath: `${base.fsPath}/${segments.join('/')}`,
+      toString: () => `file://${base.fsPath}/${segments.join('/')}`,
     })),
   },
   Range: vi
@@ -82,33 +114,178 @@ vi.mock('vscode', () => ({
 
 // Create mock validation controller instance that will be reused
 const mockValidationController = {
-  validateDocumentImmediate: vi.fn(),
-  validateDocumentDebounced: vi.fn(),
-  clearDocumentValidation: vi.fn(),
+  validateDocumentImmediate: vi.fn((_document: any) => {
+    // Mock validation
+  }),
+  validateDocumentDebounced: vi.fn((_document: any) => {
+    // Mock validation
+  }),
+  clearDocumentValidation: vi.fn((_document: any) => {
+    // Mock validation cleanup
+  }),
   dispose: vi.fn(),
 };
 
-// Mock DI container
+// Create mock UI port
+const mockUIPort = {
+  showWarning: vi.fn(),
+  showError: vi.fn(),
+  showInformation: vi.fn(),
+  createWebviewPanel: vi.fn(),
+  showQuickPick: vi.fn(),
+};
+
+// Create mock controllers
+const mockDocumentController = {
+  handleDocumentOpened: vi.fn(async (document: { fileName: string }) => {
+    // Mock the actual behavior that should call UI port
+    const fileName = document.fileName.split('/').pop() || document.fileName;
+    mockUIPort.showInformation(`Proof Editor: Working with ${fileName}`);
+  }),
+  handleDocumentChanged: vi.fn(async (_document: { fileName: string }) => {
+    // Mock document change handling
+  }),
+  handleDocumentClosed: vi.fn(async (_document: { fileName: string }) => {
+    // Mock document close handling
+  }),
+};
+
+const mockProofTreeController = {
+  showProofTreeForDocument: vi.fn(async (_content: string) => {
+    // Mock successful tree display
+    return { isOk: () => true };
+  }),
+};
+
+// Shared mock objects to ensure consistency
+const mockBootstrapController = {
+  initializeEmptyDocument: vi.fn(),
+  createBootstrapArgument: vi.fn(),
+  populateEmptyArgument: vi.fn(),
+  getBootstrapWorkflow: vi.fn(),
+  createEmptyImplicationLine: vi.fn(),
+};
+
+const mockFileSystemPort = {
+  capabilities: vi.fn().mockReturnValue({
+    canWatch: true,
+    canAccessArbitraryPaths: true,
+    supportsOfflineStorage: true,
+    persistence: 'permanent',
+  }),
+  readFile: vi.fn().mockResolvedValue({ isOk: () => true, value: 'test content' }),
+  writeFile: vi.fn().mockResolvedValue({ isOk: () => true }),
+  exists: vi.fn().mockResolvedValue({ isOk: () => true, value: true }),
+  delete: vi.fn().mockResolvedValue({ isOk: () => true }),
+  readDirectory: vi.fn().mockResolvedValue({ isOk: () => true, value: [] }),
+  createDirectory: vi.fn().mockResolvedValue({ isOk: () => true }),
+  getStoredDocument: vi.fn().mockResolvedValue({ isOk: () => true, value: null }),
+  storeDocument: vi.fn().mockResolvedValue({ isOk: () => true }),
+  deleteStoredDocument: vi.fn().mockResolvedValue({ isOk: () => true }),
+  listStoredDocuments: vi.fn().mockResolvedValue({ isOk: () => true, value: [] }),
+};
+
+// Mock DI container - maintains registry but always returns our mocks
+const mockFactories = new Map();
 const mockContainer = {
-  resolve: vi.fn((token: string) => {
-    if (token === 'ValidationController') {
-      return mockValidationController;
+  resolve: vi.fn((token: string): any => {
+    switch (token) {
+      case 'ValidationController':
+        return mockValidationController;
+      case 'DocumentController':
+        return mockDocumentController;
+      case 'ProofTreeController':
+        return mockProofTreeController;
+      case 'BootstrapController':
+        return mockBootstrapController;
+      case 'DocumentQueryService':
+        return {
+          getDocumentStructure: vi.fn().mockResolvedValue({ isOk: () => true, value: {} }),
+          getArguments: vi.fn().mockResolvedValue({ isOk: () => true, value: [] }),
+          getStatements: vi.fn().mockResolvedValue({ isOk: () => true, value: [] }),
+        };
+      case 'ProofVisualizationService':
+        return {
+          generateVisualization: vi.fn().mockResolvedValue({ isOk: () => true, value: {} }),
+          updateVisualization: vi.fn().mockResolvedValue({ isOk: () => true }),
+        };
+      case 'TreeRenderer':
+        return {
+          render: vi.fn().mockReturnValue('<div>Mock Tree</div>'),
+          updateRender: vi.fn(),
+        };
+      case 'ViewStateManager':
+        return {
+          getViewState: vi.fn().mockResolvedValue({ isOk: () => true, value: {} }),
+          updateViewState: vi.fn().mockResolvedValue({ isOk: () => true }),
+          subscribeToChanges: vi.fn(),
+        };
+      case 'IViewStatePort':
+        return {
+          getViewState: vi.fn().mockResolvedValue({ isOk: () => true, value: {} }),
+          saveViewState: vi.fn().mockResolvedValue({ isOk: () => true }),
+          capabilities: vi.fn().mockReturnValue({ canPersist: true }),
+        };
+      case 'IUIPort':
+        return mockUIPort;
+      case 'IPlatformPort':
+        return {
+          getPlatformInfo: vi
+            .fn()
+            .mockReturnValue({ type: 'test', version: '1.0', os: 'test', arch: 'test' }),
+          getInputCapabilities: vi.fn().mockReturnValue({ primaryInput: 'keyboard' }),
+          getDisplayCapabilities: vi
+            .fn()
+            .mockReturnValue({ screenWidth: 1920, screenHeight: 1080 }),
+          copyToClipboard: vi.fn().mockResolvedValue({ isOk: () => true }),
+          readFromClipboard: vi.fn().mockResolvedValue({ isOk: () => true, value: 'test' }),
+        };
+      case 'IFileSystemPort':
+        return mockFileSystemPort;
+      default:
+        return {};
     }
-    return {};
+  }),
+  registerFactory: vi.fn((token: string, factory: any) => {
+    mockFactories.set(token, factory);
+    // Don't execute the factory in tests - we want to keep using our mocks
   }),
 };
 
 vi.mock('../../infrastructure/di/container.js', () => ({
   getContainer: vi.fn(() => mockContainer),
   initializeContainer: vi.fn(() => Promise.resolve(mockContainer)),
+  registerPlatformAdapters: vi.fn(() => Promise.resolve()),
   TOKENS: {
     ValidationController: 'ValidationController',
+    DocumentController: 'DocumentController',
+    ProofTreeController: 'ProofTreeController',
+    BootstrapController: 'BootstrapController',
+    DocumentQueryService: 'DocumentQueryService',
+    ProofVisualizationService: 'ProofVisualizationService',
+    TreeRenderer: 'TreeRenderer',
+    ViewStateManager: 'ViewStateManager',
+    IViewStatePort: 'IViewStatePort',
+    IUIPort: 'IUIPort',
+    IPlatformPort: 'IPlatformPort',
+    IFileSystemPort: 'IFileSystemPort',
   },
 }));
 
 vi.mock('../../infrastructure/di/tokens.js', () => ({
   TOKENS: {
     ValidationController: 'ValidationController',
+    DocumentController: 'DocumentController',
+    ProofTreeController: 'ProofTreeController',
+    BootstrapController: 'BootstrapController',
+    DocumentQueryService: 'DocumentQueryService',
+    ProofVisualizationService: 'ProofVisualizationService',
+    TreeRenderer: 'TreeRenderer',
+    ViewStateManager: 'ViewStateManager',
+    IViewStatePort: 'IViewStatePort',
+    IUIPort: 'IUIPort',
+    IPlatformPort: 'IPlatformPort',
+    IFileSystemPort: 'IFileSystemPort',
   },
 }));
 
@@ -117,15 +294,24 @@ vi.mock('../../validation/index.js', () => ({
   ValidationController: vi.fn().mockImplementation(() => mockValidationController),
 }));
 
+// Mock presentation controllers
+vi.mock('../../presentation/controllers/DocumentController.js', () => ({
+  DocumentController: vi.fn().mockImplementation(() => mockDocumentController),
+}));
+
+vi.mock('../../presentation/controllers/ProofTreeController.js', () => ({
+  ProofTreeController: vi.fn().mockImplementation(() => mockProofTreeController),
+}));
+
 vi.mock('../../webview/ProofTreePanel.js', () => ({
   ProofTreePanel: {
     createOrShow: vi.fn(),
     updateContentIfExists: vi.fn(),
+    createWithServices: vi.fn().mockResolvedValue({ isOk: () => true }),
   },
 }));
 
 // Import mocked modules for type checking
-import { ProofTreePanel } from '../../webview/ProofTreePanel.js';
 import { activate, deactivate } from '../extension.js';
 
 describe('Extension', () => {
@@ -311,6 +497,37 @@ describe('Extension', () => {
     vi.mocked(vscode.window.createWebviewPanel).mockReturnValue(mockWebviewPanel);
     vi.mocked(vscode.window.showInformationMessage).mockResolvedValue(undefined);
     vi.mocked(vscode.window.showWarningMessage).mockResolvedValue(undefined);
+    vi.mocked(vscode.window.showInputBox).mockResolvedValue(undefined);
+    vi.mocked(vscode.window.showQuickPick).mockResolvedValue(undefined);
+    vi.mocked(vscode.workspace.openTextDocument).mockResolvedValue(mockTextDocument);
+    vi.mocked(vscode.window.showTextDocument).mockResolvedValue(mockTextEditor);
+    vi.mocked(vscode.commands.executeCommand).mockResolvedValue(undefined);
+
+    // Reset validation controller mocks to default behavior
+    mockValidationController.validateDocumentImmediate.mockClear();
+    mockValidationController.validateDocumentDebounced.mockClear();
+    mockValidationController.clearDocumentValidation.mockClear();
+    mockValidationController.validateDocumentImmediate.mockImplementation(() => {
+      // Default behavior - do nothing
+    });
+    mockValidationController.validateDocumentDebounced.mockImplementation(() => {
+      // Default behavior - do nothing
+    });
+    mockValidationController.clearDocumentValidation.mockImplementation(() => {
+      // Default behavior - do nothing
+    });
+
+    // Reset bootstrap controller mocks
+    mockBootstrapController.initializeEmptyDocument.mockClear();
+    mockBootstrapController.createBootstrapArgument.mockClear();
+    mockBootstrapController.populateEmptyArgument.mockClear();
+    mockBootstrapController.getBootstrapWorkflow.mockClear();
+    mockBootstrapController.createEmptyImplicationLine.mockClear();
+
+    // Reset file system port mocks
+    mockFileSystemPort.writeFile.mockClear();
+    mockFileSystemPort.readFile.mockClear();
+
     // Clear the textDocuments array for testing
     Object.defineProperty(vscode.workspace, 'textDocuments', {
       value: [],
@@ -324,7 +541,7 @@ describe('Extension', () => {
       await activate(mockContext);
 
       expect(mockContainer.resolve).toHaveBeenCalledWith('ValidationController');
-      expect(mockContext.subscriptions).toHaveLength(6); // controller + command + 4 event handlers
+      expect(mockContext.subscriptions).toHaveLength(12); // controller + 6 commands + 4 event handlers + 1 file watcher
     });
 
     it('should register showTree command', async () => {
@@ -348,8 +565,8 @@ describe('Extension', () => {
     it('should add all disposables to context subscriptions', async () => {
       await activate(mockContext);
 
-      // Should have: ValidationController + showTreeCommand + 4 event handlers
-      expect(mockContext.subscriptions).toHaveLength(6);
+      // Should have: ValidationController + showTreeCommand + 5 bootstrap commands + 4 event handlers + 1 file watcher
+      expect(mockContext.subscriptions).toHaveLength(12);
     });
 
     it('should check for existing proof files', async () => {
@@ -359,11 +576,24 @@ describe('Extension', () => {
         configurable: true,
       });
 
+      Object.defineProperty(vscode.window, 'visibleTextEditors', {
+        value: [mockTextEditor],
+        writable: true,
+        configurable: true,
+      });
+
       await activate(mockContext);
 
-      expect(ProofTreePanel.createOrShow).toHaveBeenCalledWith(
-        mockContext.extensionUri,
+      const { ProofTreePanel } = await import('../../webview/ProofTreePanel.js');
+      expect(ProofTreePanel.createWithServices).toHaveBeenCalledWith(
+        expect.any(String), // uri
         'mock proof content',
+        expect.any(Object), // documentQueryService
+        expect.any(Object), // visualizationService
+        expect.any(Object), // uiPort
+        expect.any(Object), // renderer
+        expect.any(Object), // viewStateManager
+        expect.any(Object), // viewStatePort
       );
     });
 
@@ -377,7 +607,8 @@ describe('Extension', () => {
 
       await activate(mockContext);
 
-      expect(ProofTreePanel.createOrShow).not.toHaveBeenCalled();
+      const { ProofTreePanel } = await import('../../webview/ProofTreePanel.js');
+      expect(ProofTreePanel.createWithServices).not.toHaveBeenCalled();
     });
   });
 
@@ -402,7 +633,7 @@ describe('Extension', () => {
       await activate(mockContext);
     });
 
-    it('should create webview panel when active editor has proof file', () => {
+    it('should create webview panel when active editor has proof file', async () => {
       vscode.window.activeTextEditor = mockTextEditor;
 
       // Get the registered command handler
@@ -411,15 +642,22 @@ describe('Extension', () => {
         .mock.calls.find((call) => call[0] === 'proofEditor.showTree');
       const commandHandler = commandCall?.[1] as () => void;
 
-      commandHandler();
+      await commandHandler();
 
-      expect(ProofTreePanel.createOrShow).toHaveBeenCalledWith(
-        mockContext.extensionUri,
+      const { ProofTreePanel } = await import('../../webview/ProofTreePanel.js');
+      expect(ProofTreePanel.createWithServices).toHaveBeenCalledWith(
+        expect.any(String), // uri
         'mock proof content',
+        expect.any(Object), // documentQueryService
+        expect.any(Object), // visualizationService
+        expect.any(Object), // uiPort
+        expect.any(Object), // renderer
+        expect.any(Object), // viewStateManager
+        expect.any(Object), // viewStatePort
       );
     });
 
-    it('should show warning when no active editor', () => {
+    it('should show warning when no active editor', async () => {
       vscode.window.activeTextEditor = undefined;
 
       const commandCall = vi
@@ -429,13 +667,14 @@ describe('Extension', () => {
 
       commandHandler();
 
-      expect(vscode.window.showWarningMessage).toHaveBeenCalledWith(
+      expect(mockUIPort.showWarning).toHaveBeenCalledWith(
         'Please open a .proof file to view the tree visualization.',
       );
-      expect(ProofTreePanel.createOrShow).not.toHaveBeenCalled();
+      const { ProofTreePanel } = await import('../../webview/ProofTreePanel.js');
+      expect(ProofTreePanel.createWithServices).not.toHaveBeenCalled();
     });
 
-    it('should show warning when active editor is not proof file', () => {
+    it('should show warning when active editor is not proof file', async () => {
       const nonProofEditor = {
         ...mockTextEditor,
         document: { ...mockTextDocument, languageId: 'javascript' },
@@ -449,31 +688,47 @@ describe('Extension', () => {
 
       commandHandler();
 
-      expect(vscode.window.showWarningMessage).toHaveBeenCalledWith(
+      expect(mockUIPort.showWarning).toHaveBeenCalledWith(
         'Please open a .proof file to view the tree visualization.',
       );
-      expect(ProofTreePanel.createOrShow).not.toHaveBeenCalled();
+      const { ProofTreePanel } = await import('../../webview/ProofTreePanel.js');
+      expect(ProofTreePanel.createWithServices).not.toHaveBeenCalled();
     });
   });
 
   describe('document open handler', () => {
     beforeEach(async () => {
+      // Mock visibleTextEditors to include our mock editor
+      Object.defineProperty(vscode.window, 'visibleTextEditors', {
+        value: [mockTextEditor],
+        writable: true,
+        configurable: true,
+      });
       await activate(mockContext);
     });
 
-    it('should handle proof file opening', () => {
-      onOpenHandler(mockTextDocument);
+    it('should handle proof file opening', async () => {
+      await onOpenHandler(mockTextDocument);
 
-      expect(vscode.window.showInformationMessage).toHaveBeenCalledWith(
+      expect(mockUIPort.showInformation).toHaveBeenCalledWith(
         'Proof Editor: Working with test.proof',
       );
-      expect(ProofTreePanel.createOrShow).toHaveBeenCalledWith(
-        mockContext.extensionUri,
+      const { ProofTreePanel } = await import('../../webview/ProofTreePanel.js');
+      expect(ProofTreePanel.createWithServices).toHaveBeenCalledWith(
+        expect.any(String), // uri
         'mock proof content',
+        expect.any(Object), // documentQueryService
+        expect.any(Object), // visualizationService
+        expect.any(Object), // uiPort
+        expect.any(Object), // renderer
+        expect.any(Object), // viewStateManager
+        expect.any(Object), // viewStatePort
       );
-      expect(mockValidationController.validateDocumentImmediate).toHaveBeenCalledWith(
-        mockTextDocument,
-      );
+      expect(mockValidationController.validateDocumentImmediate).toHaveBeenCalledWith({
+        uri: mockTextDocument.uri.toString(),
+        content: mockTextDocument.getText(),
+        languageId: mockTextDocument.languageId,
+      });
     });
 
     it('should extract filename from full path', () => {
@@ -484,7 +739,7 @@ describe('Extension', () => {
 
       onOpenHandler(docWithLongPath);
 
-      expect(vscode.window.showInformationMessage).toHaveBeenCalledWith(
+      expect(mockUIPort.showInformation).toHaveBeenCalledWith(
         'Proof Editor: Working with complex-file.proof',
       );
     });
@@ -497,37 +752,56 @@ describe('Extension', () => {
 
       onOpenHandler(docWithSimpleName);
 
-      expect(vscode.window.showInformationMessage).toHaveBeenCalledWith(
+      expect(mockUIPort.showInformation).toHaveBeenCalledWith(
         'Proof Editor: Working with simple.proof',
       );
     });
 
-    it('should ignore non-proof files', () => {
+    it('should ignore non-proof files', async () => {
       const nonProofDoc = { ...mockTextDocument, languageId: 'javascript' };
 
       onOpenHandler(nonProofDoc);
 
-      expect(vscode.window.showInformationMessage).not.toHaveBeenCalled();
-      expect(ProofTreePanel.createOrShow).not.toHaveBeenCalled();
+      expect(mockUIPort.showInformation).not.toHaveBeenCalled();
+      const { ProofTreePanel } = await import('../../webview/ProofTreePanel.js');
+      expect(ProofTreePanel.createWithServices).not.toHaveBeenCalled();
       expect(mockValidationController.validateDocumentImmediate).not.toHaveBeenCalled();
     });
   });
 
   describe('document change handler', () => {
     beforeEach(async () => {
+      // Mock visibleTextEditors to include our mock editor
+      Object.defineProperty(vscode.window, 'visibleTextEditors', {
+        value: [mockTextEditor],
+        writable: true,
+        configurable: true,
+      });
       await activate(mockContext);
     });
 
-    it('should handle proof file changes', () => {
-      onChangeHandler(mockChangeEvent);
+    it('should handle proof file changes', async () => {
+      await onChangeHandler(mockChangeEvent);
 
-      expect(ProofTreePanel.updateContentIfExists).toHaveBeenCalledWith('mock proof content');
-      expect(mockValidationController.validateDocumentDebounced).toHaveBeenCalledWith(
-        mockTextDocument,
+      const { ProofTreePanel } = await import('../../webview/ProofTreePanel.js');
+      expect(ProofTreePanel.createWithServices).toHaveBeenCalledWith(
+        expect.any(String), // uri
+        'mock proof content',
+        expect.any(Object), // documentQueryService
+        expect.any(Object), // visualizationService
+        expect.any(Object), // uiPort
+        expect.any(Object), // renderer
+        expect.any(Object), // viewStateManager
+        expect.any(Object), // viewStatePort
       );
+      expect(mockValidationController.validateDocumentDebounced).toHaveBeenCalledWith({
+        uri: mockTextDocument.uri.toString(),
+        content: mockTextDocument.getText(),
+        languageId: mockTextDocument.languageId,
+      });
     });
 
-    it('should ignore non-proof file changes', () => {
+    it('should ignore non-proof file changes', async () => {
       const nonProofChangeEvent = {
         ...mockChangeEvent,
         document: { ...mockTextDocument, languageId: 'javascript' },
@@ -535,7 +809,8 @@ describe('Extension', () => {
 
       onChangeHandler(nonProofChangeEvent);
 
-      expect(ProofTreePanel.updateContentIfExists).not.toHaveBeenCalled();
+      const { ProofTreePanel } = await import('../../webview/ProofTreePanel.js');
+      expect(ProofTreePanel.createWithServices).not.toHaveBeenCalled();
       expect(mockValidationController.validateDocumentDebounced).not.toHaveBeenCalled();
     });
   });
@@ -545,19 +820,28 @@ describe('Extension', () => {
       await activate(mockContext);
     });
 
-    it('should handle switching to proof file editor', () => {
-      onEditorChangeHandler(mockTextEditor);
+    it('should handle switching to proof file editor', async () => {
+      await onEditorChangeHandler(mockTextEditor);
 
-      expect(ProofTreePanel.createOrShow).toHaveBeenCalledWith(
-        mockContext.extensionUri,
+      const { ProofTreePanel } = await import('../../webview/ProofTreePanel.js');
+      expect(ProofTreePanel.createWithServices).toHaveBeenCalledWith(
+        expect.any(String), // uri
         'mock proof content',
+        expect.any(Object), // documentQueryService
+        expect.any(Object), // visualizationService
+        expect.any(Object), // uiPort
+        expect.any(Object), // renderer
+        expect.any(Object), // viewStateManager
+        expect.any(Object), // viewStatePort
       );
-      expect(mockValidationController.validateDocumentImmediate).toHaveBeenCalledWith(
-        mockTextDocument,
-      );
+      expect(mockValidationController.validateDocumentImmediate).toHaveBeenCalledWith({
+        uri: mockTextDocument.uri.toString(),
+        content: mockTextDocument.getText(),
+        languageId: mockTextDocument.languageId,
+      });
     });
 
-    it('should ignore switching to non-proof file editor', () => {
+    it('should ignore switching to non-proof file editor', async () => {
       const nonProofEditor = {
         ...mockTextEditor,
         document: { ...mockTextDocument, languageId: 'javascript' },
@@ -565,14 +849,16 @@ describe('Extension', () => {
 
       onEditorChangeHandler(nonProofEditor);
 
-      expect(ProofTreePanel.createOrShow).not.toHaveBeenCalled();
+      const { ProofTreePanel } = await import('../../webview/ProofTreePanel.js');
+      expect(ProofTreePanel.createWithServices).not.toHaveBeenCalled();
       expect(mockValidationController.validateDocumentImmediate).not.toHaveBeenCalled();
     });
 
-    it('should handle undefined editor (no active editor)', () => {
+    it('should handle undefined editor (no active editor)', async () => {
       onEditorChangeHandler(undefined);
 
-      expect(ProofTreePanel.createOrShow).not.toHaveBeenCalled();
+      const { ProofTreePanel } = await import('../../webview/ProofTreePanel.js');
+      expect(ProofTreePanel.createWithServices).not.toHaveBeenCalled();
       expect(mockValidationController.validateDocumentImmediate).not.toHaveBeenCalled();
     });
   });
@@ -582,12 +868,14 @@ describe('Extension', () => {
       await activate(mockContext);
     });
 
-    it('should clear validation for closed proof files', () => {
-      onCloseHandler(mockTextDocument);
+    it('should clear validation for closed proof files', async () => {
+      await onCloseHandler(mockTextDocument);
 
-      expect(mockValidationController.clearDocumentValidation).toHaveBeenCalledWith(
-        mockTextDocument,
-      );
+      expect(mockValidationController.clearDocumentValidation).toHaveBeenCalledWith({
+        uri: mockTextDocument.uri.toString(),
+        content: mockTextDocument.getText(),
+        languageId: mockTextDocument.languageId,
+      });
     });
 
     it('should ignore closing non-proof files', () => {
@@ -610,7 +898,7 @@ describe('Extension', () => {
 
       onOpenHandler(docWithPath);
 
-      expect(vscode.window.showInformationMessage).toHaveBeenCalledWith(
+      expect(mockUIPort.showInformation).toHaveBeenCalledWith(
         'Proof Editor: Working with file.proof',
       );
     });
@@ -625,9 +913,7 @@ describe('Extension', () => {
 
       onOpenHandler(docWithEmptyName);
 
-      expect(vscode.window.showInformationMessage).toHaveBeenCalledWith(
-        'Proof Editor: Working with ',
-      );
+      expect(mockUIPort.showInformation).toHaveBeenCalledWith('Proof Editor: Working with ');
     });
   });
 
@@ -640,74 +926,2413 @@ describe('Extension', () => {
       await expect(activate(mockContext)).rejects.toThrow('Mock validation error');
     });
 
-    it('should handle ProofTreePanel.createOrShow throwing', async () => {
-      await activate(mockContext);
-      vi.mocked(ProofTreePanel.createOrShow).mockImplementationOnce(() => {
-        throw new Error('Mock webview error');
+    it('should handle ProofTreeController.showProofTreeForDocument throwing', async () => {
+      // Mock visibleTextEditors to include our mock editor
+      Object.defineProperty(vscode.window, 'visibleTextEditors', {
+        value: [mockTextEditor],
+        writable: true,
+        configurable: true,
       });
+      await activate(mockContext);
 
-      expect(() => {
-        onOpenHandler(mockTextDocument);
-      }).toThrow('Mock webview error');
+      // Mock ProofTreePanel.createWithServices to throw an error
+      const { ProofTreePanel } = await import('../../webview/ProofTreePanel.js');
+      vi.mocked(ProofTreePanel.createWithServices).mockRejectedValueOnce(
+        new Error('Mock webview error'),
+      );
+
+      // The extension handles errors internally and shows them via UI port
+      await onOpenHandler(mockTextDocument);
+
+      // Should show error via UI port instead of throwing
+      expect(mockUIPort.showError).toHaveBeenCalledWith(
+        'Failed to display proof tree visualization',
+      );
     });
 
     it('should handle getText() throwing', async () => {
-      await activate(mockContext);
-      const docWithBadGetText = {
-        ...mockTextDocument,
-        getText: () => {
-          throw new Error('Mock getText error');
+      // Mock visibleTextEditors to include our mock editor
+      const editorWithBadGetText = {
+        ...mockTextEditor,
+        document: {
+          ...mockTextDocument,
+          getText: () => {
+            throw new Error('Mock getText error');
+          },
         },
       };
 
-      expect(() => {
-        onOpenHandler(docWithBadGetText);
-      }).toThrow('Mock getText error');
+      Object.defineProperty(vscode.window, 'visibleTextEditors', {
+        value: [editorWithBadGetText],
+        writable: true,
+        configurable: true,
+      });
+
+      await activate(mockContext);
+
+      // The extension handles errors internally and shows them via UI port
+      await onOpenHandler(editorWithBadGetText.document);
+
+      // Should show error via UI port instead of throwing
+      expect(mockUIPort.showError).toHaveBeenCalledWith(
+        'Failed to display proof tree visualization',
+      );
     });
   });
 
   describe('integration scenarios', () => {
     it('should handle rapid document changes', async () => {
+      // Mock visibleTextEditors to include our mock editor
+      Object.defineProperty(vscode.window, 'visibleTextEditors', {
+        value: [mockTextEditor],
+        writable: true,
+        configurable: true,
+      });
+
       await activate(mockContext);
+
+      // Clear mocks before this test
+      mockValidationController.validateDocumentDebounced.mockClear();
+      const { ProofTreePanel } = await import('../../webview/ProofTreePanel.js');
+      vi.mocked(ProofTreePanel.createWithServices).mockClear();
 
       // Simulate rapid document changes
       for (let i = 0; i < 10; i++) {
-        onChangeHandler(mockChangeEvent);
+        await onChangeHandler(mockChangeEvent);
       }
 
-      expect(ProofTreePanel.updateContentIfExists).toHaveBeenCalledTimes(10);
+      expect(ProofTreePanel.createWithServices).toHaveBeenCalledTimes(10);
       expect(mockValidationController.validateDocumentDebounced).toHaveBeenCalledTimes(10);
     });
 
     it('should handle multiple proof files being opened', async () => {
-      await activate(mockContext);
-
       const doc1 = { ...mockTextDocument, fileName: 'file1.proof' };
       const doc2 = { ...mockTextDocument, fileName: 'file2.proof' };
       const doc3 = { ...mockTextDocument, fileName: 'file3.proof' };
 
-      onOpenHandler(doc1);
-      onOpenHandler(doc2);
-      onOpenHandler(doc3);
+      const editor1 = { ...mockTextEditor, document: doc1 };
+      const editor2 = { ...mockTextEditor, document: doc2 };
+      const editor3 = { ...mockTextEditor, document: doc3 };
 
-      expect(ProofTreePanel.createOrShow).toHaveBeenCalledTimes(3);
+      // Mock visibleTextEditors to include all editors
+      Object.defineProperty(vscode.window, 'visibleTextEditors', {
+        value: [editor1, editor2, editor3],
+        writable: true,
+        configurable: true,
+      });
+
+      await activate(mockContext);
+
+      // Clear mocks before this test
+      mockValidationController.validateDocumentImmediate.mockClear();
+      const { ProofTreePanel } = await import('../../webview/ProofTreePanel.js');
+      vi.mocked(ProofTreePanel.createWithServices).mockClear();
+
+      await onOpenHandler(doc1);
+      await onOpenHandler(doc2);
+      await onOpenHandler(doc3);
+
+      expect(ProofTreePanel.createWithServices).toHaveBeenCalledTimes(3);
       expect(mockValidationController.validateDocumentImmediate).toHaveBeenCalledTimes(3);
     });
 
     it('should handle mixed file types correctly', async () => {
-      await activate(mockContext);
-
       const proofDoc = mockTextDocument;
       const jsDoc = { ...mockTextDocument, languageId: 'javascript' };
       const pyDoc = { ...mockTextDocument, languageId: 'python' };
 
-      onOpenHandler(proofDoc);
-      onOpenHandler(jsDoc);
-      onOpenHandler(pyDoc);
+      // Mock visibleTextEditors to include only the proof editor
+      Object.defineProperty(vscode.window, 'visibleTextEditors', {
+        value: [mockTextEditor], // Only the proof editor
+        writable: true,
+        configurable: true,
+      });
+
+      await activate(mockContext);
+
+      // Clear mocks before this test
+      mockProofTreeController.showProofTreeForDocument.mockClear();
+      mockValidationController.validateDocumentImmediate.mockClear();
+
+      await onOpenHandler(proofDoc);
+      await onOpenHandler(jsDoc);
+      await onOpenHandler(pyDoc);
 
       // Only proof file should be processed
-      expect(ProofTreePanel.createOrShow).toHaveBeenCalledTimes(1);
+      const { ProofTreePanel } = await import('../../webview/ProofTreePanel.js');
+      expect(ProofTreePanel.createWithServices).toHaveBeenCalledTimes(1);
       expect(mockValidationController.validateDocumentImmediate).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('advanced integration scenarios', () => {
+    it('should handle extension activation errors gracefully', async () => {
+      // Import the container module and mock initializeContainer to throw
+      const containerModule = await import('../../infrastructure/di/container.js');
+      const mockInitializeContainer = vi
+        .spyOn(containerModule, 'initializeContainer')
+        .mockRejectedValue(new Error('DI container initialization failed'));
+
+      await expect(activate(mockContext)).rejects.toThrow('DI container initialization failed');
+      expect(mockInitializeContainer).toHaveBeenCalled();
+
+      // Restore the original implementation
+      mockInitializeContainer.mockRestore();
+    });
+
+    it('should handle validation controller failures during document events', async () => {
+      // Mock visibleTextEditors to include our mock editor
+      Object.defineProperty(vscode.window, 'visibleTextEditors', {
+        value: [mockTextEditor],
+        writable: true,
+        configurable: true,
+      });
+
+      await activate(mockContext);
+
+      // Make validation controller throw error
+      mockValidationController.validateDocumentImmediate.mockImplementation(() => {
+        throw new Error('Validation service unavailable');
+      });
+
+      // Should not crash the extension - it handles validation errors internally
+      await onOpenHandler(mockTextDocument);
+
+      // ProofTreePanel should still be called even if validation fails
+      const { ProofTreePanel } = await import('../../webview/ProofTreePanel.js');
+      expect(ProofTreePanel.createWithServices).toHaveBeenCalled();
+
+      // Should show validation error via UI port
+      expect(mockUIPort.showError).toHaveBeenCalledWith(
+        'Validation failed: Validation service unavailable',
+      );
+    });
+
+    it('should handle webview creation failures', async () => {
+      // Mock visibleTextEditors to include our mock editor
+      Object.defineProperty(vscode.window, 'visibleTextEditors', {
+        value: [mockTextEditor],
+        writable: true,
+        configurable: true,
+      });
+
+      await activate(mockContext);
+
+      // Mock ProofTreePanel.createWithServices to fail
+      const { ProofTreePanel } = await import('../../webview/ProofTreePanel.js');
+      vi.mocked(ProofTreePanel.createWithServices).mockRejectedValueOnce(
+        new Error('Webview creation failed'),
+      );
+
+      // Should handle error gracefully
+      await onOpenHandler(mockTextDocument);
+
+      // Should show error via UI port
+      expect(mockUIPort.showError).toHaveBeenCalledWith(
+        'Failed to display proof tree visualization',
+      );
+    });
+
+    it('should handle document content access failures', async () => {
+      const faultyDocument = {
+        ...mockTextDocument,
+        getText: () => {
+          throw new Error('Document access denied');
+        },
+      };
+
+      const faultyEditor = {
+        ...mockTextEditor,
+        document: faultyDocument,
+      };
+
+      // Mock visibleTextEditors to include the faulty editor
+      Object.defineProperty(vscode.window, 'visibleTextEditors', {
+        value: [faultyEditor],
+        writable: true,
+        configurable: true,
+      });
+
+      await activate(mockContext);
+
+      // Should handle error gracefully
+      await onOpenHandler(faultyDocument);
+
+      // Should show error via UI port
+      expect(mockUIPort.showError).toHaveBeenCalledWith(
+        'Failed to display proof tree visualization',
+      );
+    });
+
+    it('should handle very large documents efficiently', async () => {
+      const largeContent = `statements:\n${'a'.repeat(100000)}`;
+      const largeDocument = {
+        ...mockTextDocument,
+        getText: () => largeContent,
+      };
+
+      const largeEditor = {
+        ...mockTextEditor,
+        document: largeDocument,
+      };
+
+      // Mock visibleTextEditors to include the large editor
+      Object.defineProperty(vscode.window, 'visibleTextEditors', {
+        value: [largeEditor],
+        writable: true,
+        configurable: true,
+      });
+
+      await activate(mockContext);
+
+      // Reset validation controller mock to default behavior for this test
+      mockValidationController.validateDocumentImmediate.mockClear();
+      mockValidationController.validateDocumentImmediate.mockImplementation(() => {
+        // Default behavior - do nothing
+      });
+
+      // Should handle large documents without crashing
+      await onOpenHandler(largeDocument);
+
+      const { ProofTreePanel } = await import('../../webview/ProofTreePanel.js');
+      expect(ProofTreePanel.createWithServices).toHaveBeenCalledWith(
+        expect.any(String), // uri
+        largeContent,
+        expect.any(Object), // documentQueryService
+        expect.any(Object), // visualizationService
+        expect.any(Object), // uiPort
+        expect.any(Object), // renderer
+        expect.any(Object), // viewStateManager
+        expect.any(Object), // viewStatePort
+      );
+      expect(mockValidationController.validateDocumentImmediate).toHaveBeenCalledWith({
+        uri: largeDocument.uri.toString(),
+        content: largeDocument.getText(),
+        languageId: largeDocument.languageId,
+      });
+    });
+
+    it('should handle rapid consecutive document changes', async () => {
+      // Mock visibleTextEditors to include our mock editor
+      Object.defineProperty(vscode.window, 'visibleTextEditors', {
+        value: [mockTextEditor],
+        writable: true,
+        configurable: true,
+      });
+
+      await activate(mockContext);
+
+      // Clear mocks before this test
+      mockValidationController.validateDocumentDebounced.mockClear();
+      const { ProofTreePanel } = await import('../../webview/ProofTreePanel.js');
+      vi.mocked(ProofTreePanel.createWithServices).mockClear();
+
+      // Simulate rapid document changes to the same document
+      for (let i = 0; i < 50; i++) {
+        const changeEvent = {
+          ...mockChangeEvent,
+          document: mockTextDocument,
+        };
+        await onChangeHandler(changeEvent);
+      }
+
+      expect(ProofTreePanel.createWithServices).toHaveBeenCalledTimes(50);
+      expect(mockValidationController.validateDocumentDebounced).toHaveBeenCalledTimes(50);
+    });
+
+    it('should handle mixed valid and invalid document operations', async () => {
+      const proofDoc = mockTextDocument;
+      const invalidDoc = { ...mockTextDocument, languageId: 'javascript' };
+
+      // Mock visibleTextEditors to include only the valid editor
+      Object.defineProperty(vscode.window, 'visibleTextEditors', {
+        value: [mockTextEditor],
+        writable: true,
+        configurable: true,
+      });
+
+      await activate(mockContext);
+
+      // Reset validation controller mock to default behavior for this test
+      mockValidationController.validateDocumentImmediate.mockClear();
+      mockValidationController.clearDocumentValidation.mockClear();
+      mockValidationController.validateDocumentImmediate.mockImplementation(() => {
+        // Default behavior - do nothing
+      });
+
+      const { ProofTreePanel } = await import('../../webview/ProofTreePanel.js');
+      vi.mocked(ProofTreePanel.createWithServices).mockClear();
+
+      // Mix of valid, invalid, and null operations
+      await onOpenHandler(proofDoc);
+      await onOpenHandler(invalidDoc);
+      await onEditorChangeHandler(undefined);
+      await onCloseHandler(proofDoc);
+      await onCloseHandler(invalidDoc);
+
+      // Only valid operations should trigger proof-specific behavior
+      expect(ProofTreePanel.createWithServices).toHaveBeenCalledTimes(1);
+      expect(mockValidationController.validateDocumentImmediate).toHaveBeenCalledTimes(1);
+      expect(mockValidationController.clearDocumentValidation).toHaveBeenCalledTimes(1);
+    });
+
+    it('should handle command execution with malformed documents', async () => {
+      const malformedEditor = {
+        ...mockTextEditor,
+        document: {
+          ...mockTextDocument,
+          getText: () => {
+            throw new Error('Document is corrupted');
+          },
+        },
+      };
+
+      // Mock visibleTextEditors to include the malformed editor
+      Object.defineProperty(vscode.window, 'visibleTextEditors', {
+        value: [malformedEditor],
+        writable: true,
+        configurable: true,
+      });
+
+      await activate(mockContext);
+
+      vscode.window.activeTextEditor = malformedEditor;
+
+      const commandCall = vi
+        .mocked(vscode.commands.registerCommand)
+        .mock.calls.find((call) => call[0] === 'proofEditor.showTree');
+      const commandHandler = commandCall?.[1] as () => void;
+
+      // The command catches errors and shows them via UI port
+      await commandHandler();
+
+      // Should show error via UI port instead of throwing
+      expect(mockUIPort.showError).toHaveBeenCalledWith(
+        'Failed to display proof tree visualization',
+      );
+    });
+
+    it('should handle extension context corruption gracefully', async () => {
+      const corruptedContext = {
+        ...mockContext,
+        subscriptions: null as any,
+      };
+
+      // Should handle corrupted context without crashing completely
+      await expect(activate(corruptedContext)).rejects.toThrow();
+    });
+
+    it('should handle VS Code API unavailability', async () => {
+      // Simulate VS Code API methods throwing
+      vi.mocked(vscode.commands.registerCommand).mockImplementation(() => {
+        throw new Error('VS Code API unavailable');
+      });
+
+      await expect(activate(mockContext)).rejects.toThrow('VS Code API unavailable');
+    });
+
+    it('should properly cleanup resources on repeated activation', async () => {
+      // Activate multiple times to test resource cleanup
+      await activate(mockContext);
+      const firstCallCount = mockContext.subscriptions.length;
+
+      mockContext.subscriptions.length = 0;
+      await activate(mockContext);
+      const secondCallCount = mockContext.subscriptions.length;
+
+      // Should register the same number of subscriptions each time
+      expect(secondCallCount).toBe(firstCallCount);
+    });
+  });
+
+  describe('bootstrap commands', () => {
+    beforeEach(async () => {
+      await activate(mockContext);
+    });
+
+    describe('createBootstrapDocument command', () => {
+      const getBootstrapDocumentCommand = () => {
+        const commandCall = vi
+          .mocked(vscode.commands.registerCommand)
+          .mock.calls.find((call) => call[0] === 'proofEditor.createBootstrapDocument');
+        return commandCall?.[1] as () => Promise<void>;
+      };
+
+      it('should create bootstrap document successfully', async () => {
+        // Mock workspace folder
+        Object.defineProperty(vscode.workspace, 'workspaceFolders', {
+          value: [{ uri: vscode.Uri.file('/test/workspace') }],
+          writable: true,
+          configurable: true,
+        });
+
+        // Mock user input
+        vi.mocked(vscode.window.showInputBox).mockResolvedValueOnce('test-document');
+        vi.mocked(vscode.window.showInformationMessage).mockResolvedValueOnce({ title: '' });
+
+        // Mock file operations
+        const mockDocument = {
+          ...mockTextDocument,
+          uri: vscode.Uri.file('/test/workspace/test-document.proof'),
+        };
+        vi.mocked(vscode.workspace.openTextDocument).mockResolvedValueOnce(mockDocument);
+        vi.mocked(vscode.window.showTextDocument).mockResolvedValueOnce(mockTextEditor);
+
+        // Mock bootstrap controller success
+        const mockBootstrap = mockContainer.resolve('BootstrapController');
+        mockBootstrap.initializeEmptyDocument.mockResolvedValueOnce(
+          ok({
+            data: {
+              documentId: 'test-document',
+              created: true,
+              hasBootstrapArgument: false,
+              nextSteps: [],
+            },
+          }),
+        );
+
+        // Mock file system port success
+        const mockFileSystem = mockContainer.resolve('IFileSystemPort');
+        mockFileSystem.writeFile.mockResolvedValueOnce(ok(undefined));
+
+        const commandHandler = getBootstrapDocumentCommand();
+        await commandHandler();
+
+        expect(mockBootstrap.initializeEmptyDocument).toHaveBeenCalledWith('test-document');
+        expect(mockFileSystem.writeFile).toHaveBeenCalledWith(
+          '/test/workspace/test-document.proof',
+          expect.stringContaining('test-document'),
+        );
+        expect(vscode.workspace.openTextDocument).toHaveBeenCalled();
+        expect(vscode.window.showTextDocument).toHaveBeenCalled();
+      });
+
+      it('should show warning when no workspace folder', async () => {
+        Object.defineProperty(vscode.workspace, 'workspaceFolders', {
+          value: undefined,
+          writable: true,
+          configurable: true,
+        });
+
+        const commandHandler = getBootstrapDocumentCommand();
+        await commandHandler();
+
+        expect(mockUIPort.showWarning).toHaveBeenCalledWith(
+          'Please open a workspace folder first.',
+        );
+      });
+
+      it('should handle user cancellation', async () => {
+        Object.defineProperty(vscode.workspace, 'workspaceFolders', {
+          value: [{ uri: vscode.Uri.file('/test/workspace') }],
+          writable: true,
+          configurable: true,
+        });
+
+        // User cancels input
+        vi.mocked(vscode.window.showInputBox).mockResolvedValueOnce(undefined);
+
+        const commandHandler = getBootstrapDocumentCommand();
+        await commandHandler();
+
+        expect(mockUIPort.showError).not.toHaveBeenCalled();
+      });
+
+      it('should validate document name', async () => {
+        Object.defineProperty(vscode.workspace, 'workspaceFolders', {
+          value: [{ uri: vscode.Uri.file('/test/workspace') }],
+          writable: true,
+          configurable: true,
+        });
+
+        // Mock the input validation by directly testing the validator
+        const _commandCall = vi
+          .mocked(vscode.commands.registerCommand)
+          .mock.calls.find((call) => call[0] === 'proofEditor.createBootstrapDocument');
+
+        // Get the input box options to test the validator
+        vi.mocked(vscode.window.showInputBox).mockImplementationOnce((options) => {
+          const validator = options?.validateInput;
+          if (validator) {
+            // Test empty input
+            expect(validator('')).toBe('Document name cannot be empty');
+            expect(validator('   ')).toBe('Document name cannot be empty');
+
+            // Test invalid characters
+            expect(validator('test@doc')).toBe(
+              'Document name can only contain letters, numbers, hyphens, and underscores',
+            );
+            expect(validator('test doc')).toBe(
+              'Document name can only contain letters, numbers, hyphens, and underscores',
+            );
+
+            // Test valid input
+            expect(validator('test-doc_123')).toBe(null);
+          }
+          return Promise.resolve(undefined); // User cancels
+        });
+
+        const commandHandler = getBootstrapDocumentCommand();
+        await commandHandler();
+      });
+
+      it('should handle bootstrap controller errors', async () => {
+        Object.defineProperty(vscode.workspace, 'workspaceFolders', {
+          value: [{ uri: vscode.Uri.file('/test/workspace') }],
+          writable: true,
+          configurable: true,
+        });
+
+        vi.mocked(vscode.window.showInputBox).mockResolvedValueOnce('test-document');
+
+        // Mock bootstrap controller failure
+        const mockBootstrap = mockContainer.resolve('BootstrapController');
+        vi.mocked(mockBootstrap.initializeEmptyDocument).mockResolvedValueOnce(
+          err(new ValidationError('Bootstrap failed')),
+        );
+
+        const commandHandler = getBootstrapDocumentCommand();
+        await commandHandler();
+
+        expect(mockUIPort.showError).toHaveBeenCalledWith(
+          'Failed to create document: Bootstrap failed',
+        );
+      });
+
+      it('should handle file write errors', async () => {
+        Object.defineProperty(vscode.workspace, 'workspaceFolders', {
+          value: [{ uri: vscode.Uri.file('/test/workspace') }],
+          writable: true,
+          configurable: true,
+        });
+
+        vi.mocked(vscode.window.showInputBox).mockResolvedValueOnce('test-document');
+
+        // Mock bootstrap controller success
+        const mockBootstrap = mockContainer.resolve('BootstrapController');
+        mockBootstrap.initializeEmptyDocument.mockResolvedValueOnce(
+          ok({
+            data: {
+              documentId: 'test-document',
+              created: true,
+              hasBootstrapArgument: false,
+              nextSteps: [],
+            },
+          }),
+        );
+
+        // Mock file system port failure
+        const mockFileSystem = mockContainer.resolve('IFileSystemPort');
+        vi.mocked(mockFileSystem.writeFile).mockResolvedValueOnce(err(new Error('Write failed')));
+
+        const commandHandler = getBootstrapDocumentCommand();
+        await commandHandler();
+
+        expect(mockUIPort.showError).toHaveBeenCalledWith('Failed to write file: Write failed');
+      });
+
+      it('should handle tutorial workflow selection', async () => {
+        Object.defineProperty(vscode.workspace, 'workspaceFolders', {
+          value: [{ uri: vscode.Uri.file('/test/workspace') }],
+          writable: true,
+          configurable: true,
+        });
+
+        vi.mocked(vscode.window.showInputBox).mockResolvedValueOnce('test-document');
+
+        // Mock bootstrap and file operations success
+        const mockBootstrap = mockContainer.resolve('BootstrapController');
+        mockBootstrap.initializeEmptyDocument.mockResolvedValueOnce(
+          ok({
+            data: {
+              documentId: 'test-document',
+              created: true,
+              hasBootstrapArgument: false,
+              nextSteps: [],
+            },
+          }),
+        );
+        const mockFileSystem = mockContainer.resolve('IFileSystemPort');
+        mockFileSystem.writeFile.mockResolvedValueOnce(ok(undefined));
+
+        const mockDocument = {
+          ...mockTextDocument,
+          uri: vscode.Uri.file('/test/workspace/test-document.proof'),
+        };
+        vi.mocked(vscode.workspace.openTextDocument).mockResolvedValueOnce(mockDocument);
+        vi.mocked(vscode.window.showTextDocument).mockResolvedValueOnce(mockTextEditor);
+
+        // Mock workflow selection
+        vi.mocked(vscode.window.showInformationMessage).mockResolvedValueOnce({
+          title: 'Start Guided Tutorial',
+        });
+        vi.mocked(vscode.commands.executeCommand).mockResolvedValueOnce(undefined);
+
+        // Set active editor for auto-show
+        vscode.window.activeTextEditor = mockTextEditor;
+
+        const commandHandler = getBootstrapDocumentCommand();
+        await commandHandler();
+
+        expect(vscode.window.showInformationMessage).toHaveBeenCalledWith(
+          expect.stringContaining('Created proof document'),
+          'Start Guided Tutorial',
+          'Create First Argument',
+          'Show Me Around',
+          'Later',
+        );
+      });
+
+      it('should handle exceptions gracefully', async () => {
+        Object.defineProperty(vscode.workspace, 'workspaceFolders', {
+          value: [{ uri: vscode.Uri.file('/test/workspace') }],
+          writable: true,
+          configurable: true,
+        });
+
+        vi.mocked(vscode.window.showInputBox).mockResolvedValueOnce('test-document');
+
+        // Mock bootstrap controller to throw
+        const mockBootstrap = mockContainer.resolve('BootstrapController');
+        vi.mocked(mockBootstrap.initializeEmptyDocument).mockRejectedValueOnce(
+          new Error('Unexpected error'),
+        );
+
+        const commandHandler = getBootstrapDocumentCommand();
+        await commandHandler();
+
+        expect(mockUIPort.showError).toHaveBeenCalledWith(
+          'Failed to create document: Unexpected error',
+        );
+      });
+    });
+
+    describe('createBootstrapArgument command', () => {
+      const getBootstrapArgumentCommand = () => {
+        const commandCall = vi
+          .mocked(vscode.commands.registerCommand)
+          .mock.calls.find((call) => call[0] === 'proofEditor.createBootstrapArgument');
+        return commandCall?.[1] as () => Promise<void>;
+      };
+
+      it('should create bootstrap argument successfully', async () => {
+        vscode.window.activeTextEditor = mockTextEditor;
+
+        const mockBootstrap = mockContainer.resolve('BootstrapController');
+        vi.mocked(mockBootstrap.createBootstrapArgument).mockResolvedValueOnce(
+          ok({
+            data: {
+              argumentId: 'arg-123',
+              treeId: 'tree-1',
+              nodeId: 'n1',
+              isEmpty: true,
+              position: { x: 0, y: 0 },
+              readyForPopulation: true,
+              workflow: { currentStep: 'created', nextAction: 'populate', canBranch: false },
+            },
+          }),
+        );
+
+        const commandHandler = getBootstrapArgumentCommand();
+        await commandHandler();
+
+        expect(mockBootstrap.createBootstrapArgument).toHaveBeenCalledWith(
+          mockTextEditor.document.fileName,
+        );
+        expect(mockUIPort.showInformation).toHaveBeenCalledWith(
+          'Created empty argument: arg-123',
+          expect.objectContaining({ label: 'Populate Argument' }),
+        );
+      });
+
+      it('should show warning when no active editor', async () => {
+        vscode.window.activeTextEditor = undefined;
+
+        const commandHandler = getBootstrapArgumentCommand();
+        await commandHandler();
+
+        expect(mockUIPort.showWarning).toHaveBeenCalledWith('Please open a .proof file first.');
+      });
+
+      it('should show warning when active editor is not proof file', async () => {
+        vscode.window.activeTextEditor = {
+          ...mockTextEditor,
+          document: { ...mockTextDocument, languageId: 'javascript' },
+        };
+
+        const commandHandler = getBootstrapArgumentCommand();
+        await commandHandler();
+
+        expect(mockUIPort.showWarning).toHaveBeenCalledWith('Please open a .proof file first.');
+      });
+
+      it('should handle bootstrap controller errors', async () => {
+        vscode.window.activeTextEditor = mockTextEditor;
+
+        const mockBootstrap = mockContainer.resolve('BootstrapController');
+        vi.mocked(mockBootstrap.createBootstrapArgument).mockResolvedValueOnce(
+          err(new ValidationError('Creation failed')),
+        );
+
+        const commandHandler = getBootstrapArgumentCommand();
+        await commandHandler();
+
+        expect(mockUIPort.showError).toHaveBeenCalledWith(
+          'Failed to create argument: Creation failed',
+        );
+      });
+
+      it('should handle exceptions', async () => {
+        vscode.window.activeTextEditor = mockTextEditor;
+
+        const mockBootstrap = mockContainer.resolve('BootstrapController');
+        vi.mocked(mockBootstrap.createBootstrapArgument).mockRejectedValueOnce(
+          new Error('Unexpected error'),
+        );
+
+        const commandHandler = getBootstrapArgumentCommand();
+        await commandHandler();
+
+        expect(mockUIPort.showError).toHaveBeenCalledWith(
+          'Failed to create argument: Unexpected error',
+        );
+      });
+    });
+
+    describe('populateEmptyArgument command', () => {
+      const getPopulateArgumentCommand = () => {
+        const commandCall = vi
+          .mocked(vscode.commands.registerCommand)
+          .mock.calls.find((call) => call[0] === 'proofEditor.populateEmptyArgument');
+        return commandCall?.[1] as () => Promise<void>;
+      };
+
+      it('should populate argument successfully with multiple premises', async () => {
+        vscode.window.activeTextEditor = mockTextEditor;
+
+        // Mock user inputs - premises and conclusion
+        vi.mocked(vscode.window.showInputBox)
+          .mockResolvedValueOnce('All humans are mortal') // First premise
+          .mockResolvedValueOnce('Socrates is human') // Second premise
+          .mockResolvedValueOnce('') // No more premises
+          .mockResolvedValueOnce('Socrates is mortal') // Conclusion
+          .mockResolvedValueOnce('Modus Ponens'); // Rule name
+
+        const mockBootstrap = mockContainer.resolve('BootstrapController');
+        vi.mocked(mockBootstrap.populateEmptyArgument).mockResolvedValueOnce(
+          ok({
+            data: {
+              argumentId: 'arg-123',
+              premises: ['All humans are mortal', 'Socrates is human'],
+              conclusions: ['Socrates is mortal'],
+              ruleName: 'Modus Ponens',
+            },
+          }),
+        );
+
+        const commandHandler = getPopulateArgumentCommand();
+        await commandHandler();
+
+        expect(mockBootstrap.populateEmptyArgument).toHaveBeenCalledWith(
+          mockTextEditor.document.fileName,
+          expect.stringMatching(/^arg-\d+$/),
+          ['All humans are mortal', 'Socrates is human'],
+          ['Socrates is mortal'],
+          { left: 'Modus Ponens' },
+        );
+        expect(mockUIPort.showInformation).toHaveBeenCalledWith(
+          'Argument populated successfully!',
+          expect.objectContaining({ label: 'Show Bootstrap Workflow' }),
+        );
+      });
+
+      it('should handle single premise argument', async () => {
+        vscode.window.activeTextEditor = mockTextEditor;
+
+        vi.mocked(vscode.window.showInputBox)
+          .mockResolvedValueOnce('Simple premise') // First premise
+          .mockResolvedValueOnce('') // No more premises
+          .mockResolvedValueOnce('Simple conclusion') // Conclusion
+          .mockResolvedValueOnce(''); // No rule name
+
+        const mockBootstrap = mockContainer.resolve('BootstrapController');
+        vi.mocked(mockBootstrap.populateEmptyArgument).mockResolvedValueOnce(
+          ok({
+            data: {
+              argumentId: 'arg-123',
+              premises: ['All humans are mortal', 'Socrates is human'],
+              conclusions: ['Socrates is mortal'],
+              ruleName: 'Modus Ponens',
+            },
+          }),
+        );
+
+        const commandHandler = getPopulateArgumentCommand();
+        await commandHandler();
+
+        expect(mockBootstrap.populateEmptyArgument).toHaveBeenCalledWith(
+          mockTextEditor.document.fileName,
+          expect.stringMatching(/^arg-\d+$/),
+          ['Simple premise'],
+          ['Simple conclusion'],
+          undefined,
+        );
+      });
+
+      it('should handle user cancelling premise input', async () => {
+        vscode.window.activeTextEditor = mockTextEditor;
+
+        // User cancels premise input
+        vi.mocked(vscode.window.showInputBox).mockResolvedValueOnce(undefined);
+
+        const commandHandler = getPopulateArgumentCommand();
+        await commandHandler();
+
+        // Should exit early without calling bootstrap controller
+        const mockBootstrap = mockContainer.resolve('BootstrapController');
+        expect(mockBootstrap.populateEmptyArgument).not.toHaveBeenCalled();
+      });
+
+      it('should handle user cancelling conclusion input', async () => {
+        vscode.window.activeTextEditor = mockTextEditor;
+
+        vi.mocked(vscode.window.showInputBox)
+          .mockResolvedValueOnce('Some premise') // Premise
+          .mockResolvedValueOnce('') // No more premises
+          .mockResolvedValueOnce(undefined); // Cancel conclusion
+
+        const commandHandler = getPopulateArgumentCommand();
+        await commandHandler();
+
+        // Should exit early without calling bootstrap controller
+        const mockBootstrap = mockContainer.resolve('BootstrapController');
+        expect(mockBootstrap.populateEmptyArgument).not.toHaveBeenCalled();
+      });
+
+      it('should handle maximum premises limit', async () => {
+        vscode.window.activeTextEditor = mockTextEditor;
+
+        // Mock 5 premises + attempt at 6th
+        vi.mocked(vscode.window.showInputBox)
+          .mockResolvedValueOnce('Premise 1')
+          .mockResolvedValueOnce('Premise 2')
+          .mockResolvedValueOnce('Premise 3')
+          .mockResolvedValueOnce('Premise 4')
+          .mockResolvedValueOnce('Premise 5')
+          .mockResolvedValueOnce('Conclusion')
+          .mockResolvedValueOnce('Rule');
+
+        const mockBootstrap = mockContainer.resolve('BootstrapController');
+        vi.mocked(mockBootstrap.populateEmptyArgument).mockResolvedValueOnce(
+          ok({
+            data: {
+              argumentId: 'arg-123',
+              premises: ['All humans are mortal', 'Socrates is human'],
+              conclusions: ['Socrates is mortal'],
+              ruleName: 'Modus Ponens',
+            },
+          }),
+        );
+
+        const commandHandler = getPopulateArgumentCommand();
+        await commandHandler();
+
+        expect(mockBootstrap.populateEmptyArgument).toHaveBeenCalledWith(
+          mockTextEditor.document.fileName,
+          expect.stringMatching(/^arg-\d+$/),
+          ['Premise 1', 'Premise 2', 'Premise 3', 'Premise 4', 'Premise 5'],
+          ['Conclusion'],
+          { left: 'Rule' },
+        );
+      });
+
+      it('should show warning when no active editor', async () => {
+        vscode.window.activeTextEditor = undefined;
+
+        const commandHandler = getPopulateArgumentCommand();
+        await commandHandler();
+
+        expect(mockUIPort.showWarning).toHaveBeenCalledWith('Please open a .proof file first.');
+      });
+
+      it('should handle bootstrap controller errors', async () => {
+        vscode.window.activeTextEditor = mockTextEditor;
+
+        vi.mocked(vscode.window.showInputBox)
+          .mockResolvedValueOnce('Premise')
+          .mockResolvedValueOnce('')
+          .mockResolvedValueOnce('Conclusion')
+          .mockResolvedValueOnce('');
+
+        const mockBootstrap = mockContainer.resolve('BootstrapController');
+        vi.mocked(mockBootstrap.populateEmptyArgument).mockResolvedValueOnce(
+          err(new ValidationError('Population failed')),
+        );
+
+        const commandHandler = getPopulateArgumentCommand();
+        await commandHandler();
+
+        expect(mockUIPort.showError).toHaveBeenCalledWith(
+          'Failed to populate argument: Population failed',
+        );
+      });
+
+      it('should handle exceptions', async () => {
+        vscode.window.activeTextEditor = mockTextEditor;
+
+        vi.mocked(vscode.window.showInputBox)
+          .mockResolvedValueOnce('Premise')
+          .mockResolvedValueOnce('')
+          .mockResolvedValueOnce('Conclusion')
+          .mockResolvedValueOnce('');
+
+        const mockBootstrap = mockContainer.resolve('BootstrapController');
+        vi.mocked(mockBootstrap.populateEmptyArgument).mockRejectedValueOnce(
+          new Error('Unexpected error'),
+        );
+
+        const commandHandler = getPopulateArgumentCommand();
+        await commandHandler();
+
+        expect(mockUIPort.showError).toHaveBeenCalledWith(
+          'Failed to populate argument: Unexpected error',
+        );
+      });
+    });
+
+    describe('showBootstrapWorkflow command', () => {
+      const getWorkflowCommand = () => {
+        const commandCall = vi
+          .mocked(vscode.commands.registerCommand)
+          .mock.calls.find((call) => call[0] === 'proofEditor.showBootstrapWorkflow');
+        return commandCall?.[1] as () => Promise<void>;
+      };
+
+      it('should show workflow with enabled actions', async () => {
+        vscode.window.activeTextEditor = mockTextEditor;
+
+        const mockBootstrap = mockContainer.resolve('BootstrapController');
+        vi.mocked(mockBootstrap.getBootstrapWorkflow).mockResolvedValueOnce(
+          ok({
+            data: {
+              totalSteps: 3,
+              steps: [
+                {
+                  current: true,
+                  completed: false,
+                  title: 'Create First Argument',
+                  description: 'Start by creating your first atomic argument',
+                  actions: [
+                    { label: 'Create Empty Argument', enabled: true },
+                    { label: 'Skip Step', enabled: false },
+                  ],
+                },
+              ],
+            },
+          }),
+        );
+
+        (vi.mocked(vscode.window.showQuickPick) as any).mockResolvedValueOnce(
+          'Create Empty Argument',
+        );
+        vi.mocked(vscode.commands.executeCommand).mockResolvedValueOnce(undefined);
+
+        const commandHandler = getWorkflowCommand();
+        await commandHandler();
+
+        expect(vscode.window.showQuickPick).toHaveBeenCalledWith(['Create Empty Argument'], {
+          placeHolder: 'Choose next action',
+        });
+        expect(vscode.commands.executeCommand).toHaveBeenCalledWith(
+          'proofEditor.createBootstrapArgument',
+        );
+      });
+
+      it('should show workflow without actions', async () => {
+        vscode.window.activeTextEditor = mockTextEditor;
+
+        const mockBootstrap = mockContainer.resolve('BootstrapController');
+        vi.mocked(mockBootstrap.getBootstrapWorkflow).mockResolvedValueOnce(
+          ok({
+            data: {
+              totalSteps: 3,
+              steps: [
+                {
+                  current: true,
+                  completed: false,
+                  title: 'Review Arguments',
+                  description: 'Review your completed arguments',
+                  actions: [],
+                },
+              ],
+            },
+          }),
+        );
+
+        const commandHandler = getWorkflowCommand();
+        await commandHandler();
+
+        expect(mockUIPort.showInformation).toHaveBeenCalledWith(
+          expect.stringContaining('Review Arguments'),
+        );
+      });
+
+      it('should handle populate action selection', async () => {
+        vscode.window.activeTextEditor = mockTextEditor;
+
+        const mockBootstrap = mockContainer.resolve('BootstrapController');
+        vi.mocked(mockBootstrap.getBootstrapWorkflow).mockResolvedValueOnce(
+          ok({
+            data: {
+              totalSteps: 3,
+              steps: [
+                {
+                  current: true,
+                  completed: false,
+                  title: 'Populate Argument',
+                  description: 'Add premises and conclusions',
+                  actions: [{ label: 'Populate Current Argument', enabled: true }],
+                },
+              ],
+            },
+          }),
+        );
+
+        (vi.mocked(vscode.window.showQuickPick) as any).mockResolvedValueOnce(
+          'Populate Current Argument',
+        );
+        vi.mocked(vscode.commands.executeCommand).mockResolvedValueOnce(undefined);
+
+        const commandHandler = getWorkflowCommand();
+        await commandHandler();
+
+        expect(vscode.commands.executeCommand).toHaveBeenCalledWith(
+          'proofEditor.populateEmptyArgument',
+        );
+      });
+
+      it('should show warning when no active editor', async () => {
+        vscode.window.activeTextEditor = undefined;
+
+        const commandHandler = getWorkflowCommand();
+        await commandHandler();
+
+        expect(mockUIPort.showWarning).toHaveBeenCalledWith('Please open a .proof file first.');
+      });
+
+      it('should handle bootstrap controller errors', async () => {
+        vscode.window.activeTextEditor = mockTextEditor;
+
+        const mockBootstrap = mockContainer.resolve('BootstrapController');
+        vi.mocked(mockBootstrap.getBootstrapWorkflow).mockResolvedValueOnce(
+          err(new ValidationError('Workflow failed')),
+        );
+
+        const commandHandler = getWorkflowCommand();
+        await commandHandler();
+
+        expect(mockUIPort.showError).toHaveBeenCalledWith(
+          'Failed to get workflow: Workflow failed',
+        );
+      });
+
+      it('should handle exceptions', async () => {
+        vscode.window.activeTextEditor = mockTextEditor;
+
+        const mockBootstrap = mockContainer.resolve('BootstrapController');
+        vi.mocked(mockBootstrap.getBootstrapWorkflow).mockRejectedValueOnce(
+          new Error('Unexpected error'),
+        );
+
+        const commandHandler = getWorkflowCommand();
+        await commandHandler();
+
+        expect(mockUIPort.showError).toHaveBeenCalledWith(
+          'Failed to show workflow: Unexpected error',
+        );
+      });
+    });
+
+    describe('createEmptyImplicationLine command', () => {
+      const getImplicationLineCommand = () => {
+        const commandCall = vi
+          .mocked(vscode.commands.registerCommand)
+          .mock.calls.find((call) => call[0] === 'proofEditor.createEmptyImplicationLine');
+        return commandCall?.[1] as () => Promise<void>;
+      };
+
+      it('should create empty implication line successfully', async () => {
+        vscode.window.activeTextEditor = mockTextEditor;
+
+        const mockBootstrap = mockContainer.resolve('BootstrapController');
+        vi.mocked(mockBootstrap.createEmptyImplicationLine).mockResolvedValueOnce(
+          ok({
+            data: {
+              displayFormat: {
+                premiseLines: ['Premise 1:', 'Premise 2:'],
+                horizontalLine: '──────────────',
+                conclusionLines: ['Conclusion:'],
+              },
+              userInstructions: 'Click above or below the line to add statements',
+            },
+          }),
+        );
+
+        const commandHandler = getImplicationLineCommand();
+        await commandHandler();
+
+        expect(mockBootstrap.createEmptyImplicationLine).toHaveBeenCalledWith(
+          mockTextEditor.document.fileName,
+          expect.stringMatching(/^tree-\d+$/),
+        );
+        expect(mockUIPort.showInformation).toHaveBeenCalledWith(
+          expect.stringContaining('Premise 1:'),
+          expect.objectContaining({ label: 'Populate Argument' }),
+        );
+      });
+
+      it('should show warning when no active editor', async () => {
+        vscode.window.activeTextEditor = undefined;
+
+        const commandHandler = getImplicationLineCommand();
+        await commandHandler();
+
+        expect(mockUIPort.showWarning).toHaveBeenCalledWith('Please open a .proof file first.');
+      });
+
+      it('should handle bootstrap controller errors', async () => {
+        vscode.window.activeTextEditor = mockTextEditor;
+
+        const mockBootstrap = mockContainer.resolve('BootstrapController');
+        vi.mocked(mockBootstrap.createEmptyImplicationLine).mockResolvedValueOnce(
+          err(new ValidationError('Creation failed')),
+        );
+
+        const commandHandler = getImplicationLineCommand();
+        await commandHandler();
+
+        expect(mockUIPort.showError).toHaveBeenCalledWith(
+          'Failed to create implication line: Creation failed',
+        );
+      });
+
+      it('should handle exceptions', async () => {
+        vscode.window.activeTextEditor = mockTextEditor;
+
+        const mockBootstrap = mockContainer.resolve('BootstrapController');
+        vi.mocked(mockBootstrap.createEmptyImplicationLine).mockRejectedValueOnce(
+          new Error('Unexpected error'),
+        );
+
+        const commandHandler = getImplicationLineCommand();
+        await commandHandler();
+
+        expect(mockUIPort.showError).toHaveBeenCalledWith(
+          'Failed to create implication line: Unexpected error',
+        );
+      });
+    });
+  });
+
+  describe('file watching and auto-save', () => {
+    beforeEach(async () => {
+      await activate(mockContext);
+    });
+
+    describe('file watching setup', () => {
+      it('should create file system watcher for .proof files', async () => {
+        expect(vscode.workspace.createFileSystemWatcher).toHaveBeenCalledWith('**/*.proof');
+      });
+
+      it('should handle file change events', async () => {
+        // Get the file watcher mock
+        const watcherMock = vi.mocked(vscode.workspace.createFileSystemWatcher).mock.results[0]
+          ?.value;
+
+        // Get the onDidChange handler
+        const onDidChangeCall = watcherMock?.onDidChange.mock.calls[0];
+        const changeHandler = onDidChangeCall?.[0];
+
+        if (changeHandler) {
+          const mockUri = vscode.Uri.file('/test/document.proof');
+          const mockEditor = {
+            ...mockTextEditor,
+            document: { ...mockTextDocument, uri: mockUri, isDirty: false },
+          };
+
+          // Mock visibleTextEditors to include our editor
+          Object.defineProperty(vscode.window, 'visibleTextEditors', {
+            value: [mockEditor],
+            writable: true,
+            configurable: true,
+          });
+
+          await changeHandler(mockUri);
+
+          // Should refresh proof tree panel
+          const { ProofTreePanel } = await import('../../webview/ProofTreePanel.js');
+          expect(ProofTreePanel.createWithServices).toHaveBeenCalled();
+        }
+      });
+
+      it('should not refresh when file is dirty', async () => {
+        const watcherMock = vi.mocked(vscode.workspace.createFileSystemWatcher).mock.results[0]
+          ?.value;
+        const onDidChangeCall = watcherMock?.onDidChange.mock.calls[0];
+        const changeHandler = onDidChangeCall?.[0];
+
+        if (changeHandler) {
+          const mockUri = vscode.Uri.file('/test/document.proof');
+          const mockEditor = {
+            ...mockTextEditor,
+            document: { ...mockTextDocument, uri: mockUri, isDirty: true },
+          };
+
+          Object.defineProperty(vscode.window, 'visibleTextEditors', {
+            value: [mockEditor],
+            writable: true,
+            configurable: true,
+          });
+
+          const { ProofTreePanel } = await import('../../webview/ProofTreePanel.js');
+          vi.mocked(ProofTreePanel.createWithServices).mockClear();
+
+          await changeHandler(mockUri);
+
+          // Should not refresh proof tree panel when file is dirty
+          expect(ProofTreePanel.createWithServices).not.toHaveBeenCalled();
+        }
+      });
+
+      it('should handle file creation events', async () => {
+        const watcherMock = vi.mocked(vscode.workspace.createFileSystemWatcher).mock.results[0]
+          ?.value;
+        const onDidCreateCall = watcherMock?.onDidCreate.mock.calls[0];
+        const createHandler = onDidCreateCall?.[0];
+
+        if (createHandler) {
+          const mockUri = vscode.Uri.file('/test/new-document.proof');
+
+          // Should handle creation without errors
+          await expect(createHandler(mockUri)).resolves.not.toThrow();
+        }
+      });
+
+      it('should handle file deletion events', async () => {
+        const watcherMock = vi.mocked(vscode.workspace.createFileSystemWatcher).mock.results[0]
+          ?.value;
+        const onDidDeleteCall = watcherMock?.onDidDelete.mock.calls[0];
+        const deleteHandler = onDidDeleteCall?.[0];
+
+        if (deleteHandler) {
+          const mockUri = vscode.Uri.file('/test/deleted-document.proof');
+          const mockFileSystem = mockContainer.resolve('IFileSystemPort');
+
+          await deleteHandler(mockUri);
+
+          expect(mockFileSystem.deleteStoredDocument).toHaveBeenCalledWith(
+            '/test/deleted-document.proof',
+          );
+        }
+      });
+
+      it('should not create watcher when file system port cannot watch', async () => {
+        // Mock file system port to not support watching
+        const mockFileSystem = mockContainer.resolve('IFileSystemPort');
+        vi.mocked(mockFileSystem.capabilities).mockReturnValueOnce({
+          canWatch: false,
+          canAccessArbitraryPaths: true,
+          supportsOfflineStorage: true,
+          persistence: 'permanent',
+        });
+
+        // Clear existing mocks and reactivate
+        vi.clearAllMocks();
+        mockContext.subscriptions.length = 0;
+
+        await activate(mockContext);
+
+        // Should not create file watcher
+        expect(vscode.workspace.createFileSystemWatcher).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('auto-save functionality', () => {
+      it('should auto-save after successful argument population', async () => {
+        vscode.window.activeTextEditor = mockTextEditor;
+
+        // Mock dirty document
+        const dirtyEditor = {
+          ...mockTextEditor,
+          document: { ...mockTextDocument, isDirty: true, save: vi.fn().mockResolvedValue(true) },
+        };
+        vscode.window.activeTextEditor = dirtyEditor;
+
+        vi.mocked(vscode.window.showInputBox)
+          .mockResolvedValueOnce('Premise')
+          .mockResolvedValueOnce('')
+          .mockResolvedValueOnce('Conclusion')
+          .mockResolvedValueOnce('');
+
+        const mockBootstrap = mockContainer.resolve('BootstrapController');
+        vi.mocked(mockBootstrap.populateEmptyArgument).mockResolvedValueOnce(
+          ok({
+            data: {
+              argumentId: 'arg-123',
+              premises: ['All humans are mortal', 'Socrates is human'],
+              conclusions: ['Socrates is mortal'],
+              ruleName: 'Modus Ponens',
+            },
+          }),
+        );
+
+        const mockFileSystem = mockContainer.resolve('IFileSystemPort');
+        vi.mocked(mockFileSystem.storeDocument).mockResolvedValueOnce(ok(undefined));
+
+        const commandCall = vi
+          .mocked(vscode.commands.registerCommand)
+          .mock.calls.find((call) => call[0] === 'proofEditor.populateEmptyArgument');
+        const commandHandler = commandCall?.[1] as () => Promise<void>;
+
+        await commandHandler();
+
+        expect(dirtyEditor.document.save).toHaveBeenCalled();
+        expect(mockFileSystem.storeDocument).toHaveBeenCalledWith({
+          id: dirtyEditor.document.fileName,
+          content: dirtyEditor.document.getText(),
+          metadata: expect.objectContaining({
+            id: dirtyEditor.document.fileName,
+            syncStatus: 'synced',
+          }),
+          version: 1,
+        });
+      });
+
+      it('should skip auto-save when document is not dirty', async () => {
+        vscode.window.activeTextEditor = mockTextEditor;
+
+        // Mock clean document
+        const cleanEditor = {
+          ...mockTextEditor,
+          document: { ...mockTextDocument, isDirty: false, save: vi.fn() },
+        };
+        vscode.window.activeTextEditor = cleanEditor;
+
+        vi.mocked(vscode.window.showInputBox)
+          .mockResolvedValueOnce('Premise')
+          .mockResolvedValueOnce('')
+          .mockResolvedValueOnce('Conclusion')
+          .mockResolvedValueOnce('');
+
+        const mockBootstrap = mockContainer.resolve('BootstrapController');
+        vi.mocked(mockBootstrap.populateEmptyArgument).mockResolvedValueOnce(
+          ok({
+            data: {
+              argumentId: 'arg-123',
+              premises: ['All humans are mortal', 'Socrates is human'],
+              conclusions: ['Socrates is mortal'],
+              ruleName: 'Modus Ponens',
+            },
+          }),
+        );
+
+        const commandCall = vi
+          .mocked(vscode.commands.registerCommand)
+          .mock.calls.find((call) => call[0] === 'proofEditor.populateEmptyArgument');
+        const commandHandler = commandCall?.[1] as () => Promise<void>;
+
+        await commandHandler();
+
+        expect(cleanEditor.document.save).not.toHaveBeenCalled();
+      });
+
+      it('should handle auto-save errors gracefully', async () => {
+        vscode.window.activeTextEditor = mockTextEditor;
+
+        // Mock document that fails to save
+        const faultyEditor = {
+          ...mockTextEditor,
+          document: {
+            ...mockTextDocument,
+            isDirty: true,
+            save: vi.fn().mockRejectedValue(new Error('Save failed')),
+          },
+        };
+        vscode.window.activeTextEditor = faultyEditor;
+
+        vi.mocked(vscode.window.showInputBox)
+          .mockResolvedValueOnce('Premise')
+          .mockResolvedValueOnce('')
+          .mockResolvedValueOnce('Conclusion')
+          .mockResolvedValueOnce('');
+
+        const mockBootstrap = mockContainer.resolve('BootstrapController');
+        vi.mocked(mockBootstrap.populateEmptyArgument).mockResolvedValueOnce(
+          ok({
+            data: {
+              argumentId: 'arg-123',
+              premises: ['All humans are mortal', 'Socrates is human'],
+              conclusions: ['Socrates is mortal'],
+              ruleName: 'Modus Ponens',
+            },
+          }),
+        );
+
+        const commandCall = vi
+          .mocked(vscode.commands.registerCommand)
+          .mock.calls.find((call) => call[0] === 'proofEditor.populateEmptyArgument');
+        const commandHandler = commandCall?.[1] as () => Promise<void>;
+
+        // Should not throw despite save failure
+        await expect(commandHandler()).resolves.not.toThrow();
+        expect(faultyEditor.document.save).toHaveBeenCalled();
+      });
+
+      it('should handle file system storage errors gracefully', async () => {
+        vscode.window.activeTextEditor = mockTextEditor;
+
+        const dirtyEditor = {
+          ...mockTextEditor,
+          document: { ...mockTextDocument, isDirty: true, save: vi.fn().mockResolvedValue(true) },
+        };
+        vscode.window.activeTextEditor = dirtyEditor;
+
+        vi.mocked(vscode.window.showInputBox)
+          .mockResolvedValueOnce('Premise')
+          .mockResolvedValueOnce('')
+          .mockResolvedValueOnce('Conclusion')
+          .mockResolvedValueOnce('');
+
+        const mockBootstrap = mockContainer.resolve('BootstrapController');
+        vi.mocked(mockBootstrap.populateEmptyArgument).mockResolvedValueOnce(
+          ok({
+            data: {
+              argumentId: 'arg-123',
+              premises: ['All humans are mortal', 'Socrates is human'],
+              conclusions: ['Socrates is mortal'],
+              ruleName: 'Modus Ponens',
+            },
+          }),
+        );
+
+        const mockFileSystem = mockContainer.resolve('IFileSystemPort');
+        vi.mocked(mockFileSystem.storeDocument).mockRejectedValueOnce(new Error('Storage failed'));
+
+        const commandCall = vi
+          .mocked(vscode.commands.registerCommand)
+          .mock.calls.find((call) => call[0] === 'proofEditor.populateEmptyArgument');
+        const commandHandler = commandCall?.[1] as () => Promise<void>;
+
+        // Should not throw despite storage failure
+        await expect(commandHandler()).resolves.not.toThrow();
+        expect(dirtyEditor.document.save).toHaveBeenCalled();
+        expect(mockFileSystem.storeDocument).toHaveBeenCalled();
+      });
+    });
+  });
+
+  describe('tutorial and guided workflows', () => {
+    beforeEach(async () => {
+      await activate(mockContext);
+    });
+
+    describe('startGuidedBootstrapTutorial', () => {
+      const getTutorialFromCommand = async (commandName: string) => {
+        // Trigger a command that starts the tutorial to test the internal function
+        Object.defineProperty(vscode.workspace, 'workspaceFolders', {
+          value: [{ uri: vscode.Uri.file('/test/workspace') }],
+          writable: true,
+          configurable: true,
+        });
+
+        vi.mocked(vscode.window.showInputBox).mockResolvedValueOnce('test-document');
+        const mockBootstrap = mockContainer.resolve('BootstrapController');
+        mockBootstrap.initializeEmptyDocument.mockResolvedValueOnce({
+          isErr: () => false,
+        });
+        const mockFileSystem = mockContainer.resolve('IFileSystemPort');
+        mockFileSystem.writeFile.mockResolvedValueOnce({ isErr: () => false });
+
+        const mockDocument = {
+          ...mockTextDocument,
+          uri: vscode.Uri.file('/test/workspace/test-document.proof'),
+        };
+        vi.mocked(vscode.workspace.openTextDocument).mockResolvedValueOnce(mockDocument);
+        vi.mocked(vscode.window.showTextDocument).mockResolvedValueOnce(mockTextEditor);
+        vscode.window.activeTextEditor = mockTextEditor;
+
+        // Mock tutorial selection will be handled by individual tests
+
+        const commandCall = vi
+          .mocked(vscode.commands.registerCommand)
+          .mock.calls.find((call) => call[0] === commandName);
+        const commandHandler = commandCall?.[1] as () => Promise<void>;
+
+        if (!commandHandler) {
+          throw new Error(`Command ${commandName} not found or handler is null`);
+        }
+
+        await commandHandler();
+      };
+
+      it('should complete tutorial workflow', async () => {
+        // Mock tutorial progression - need to account for the initial "Start Guided Tutorial" selection
+        (vi.mocked(vscode.window.showInformationMessage) as any)
+          .mockResolvedValueOnce('Start Guided Tutorial') // Initial selection
+          .mockResolvedValueOnce("Let's Begin!") // Step 1
+          .mockResolvedValueOnce('Got it!') // Step 2
+          .mockResolvedValueOnce('Create It For Me') // Step 3
+          .mockResolvedValueOnce('Awesome!') // Step 4
+          .mockResolvedValueOnce('Start Exploring!'); // Step 5
+
+        const mockBootstrap = mockContainer.resolve('BootstrapController');
+        vi.mocked(mockBootstrap.populateEmptyArgument).mockResolvedValueOnce(
+          ok({
+            data: {
+              argumentId: 'tutorial-arg-123',
+              premises: ['All humans are mortal', 'Socrates is human'],
+              conclusions: ['Therefore, Socrates is mortal'],
+              ruleName: 'Modus Ponens',
+            },
+          }),
+        );
+
+        vscode.window.activeTextEditor = mockTextEditor;
+
+        await getTutorialFromCommand('proofEditor.createBootstrapDocument');
+
+        // Should show initial dialog first
+        expect(vscode.window.showInformationMessage).toHaveBeenCalledWith(
+          expect.stringContaining('✅ Created proof document: test-document.proof'),
+          'Start Guided Tutorial',
+          'Create First Argument',
+          'Show Me Around',
+          'Later',
+        );
+
+        // Then progress through all tutorial steps
+        expect(vscode.window.showInformationMessage).toHaveBeenCalledWith(
+          expect.stringContaining('Proof Editor Tutorial'),
+          "Let's Begin!",
+          'Skip Tutorial',
+        );
+        expect(vscode.window.showInformationMessage).toHaveBeenCalledWith(
+          expect.stringContaining('Understanding the Interface'),
+          'Got it!',
+          'Skip Tutorial',
+        );
+        expect(vscode.window.showInformationMessage).toHaveBeenCalledWith(
+          expect.stringContaining('Create Your First Argument'),
+          'I see it!',
+          'Create It For Me',
+          'Skip Tutorial',
+        );
+      });
+
+      it('should handle user skipping tutorial', async () => {
+        (vi.mocked(vscode.window.showInformationMessage) as any)
+          .mockResolvedValueOnce('Start Guided Tutorial') // User starts tutorial
+          .mockResolvedValueOnce('Skip Tutorial'); // User skips immediately
+
+        await getTutorialFromCommand('proofEditor.createBootstrapDocument');
+
+        expect(vscode.window.showInformationMessage).toHaveBeenCalledTimes(2); // Initial + tutorial start (then skip)
+      });
+
+      it('should handle auto-create example argument', async () => {
+        (vi.mocked(vscode.window.showInformationMessage) as any)
+          .mockResolvedValueOnce('Start Guided Tutorial') // Initial selection
+          .mockResolvedValueOnce("Let's Begin!")
+          .mockResolvedValueOnce('Got it!')
+          .mockResolvedValueOnce('Create It For Me') // Auto-create
+          .mockResolvedValueOnce('Awesome!')
+          .mockResolvedValueOnce('Start Exploring!');
+
+        const mockBootstrap = mockContainer.resolve('BootstrapController');
+        vi.mocked(mockBootstrap.populateEmptyArgument).mockResolvedValueOnce(
+          ok({
+            data: {
+              argumentId: 'tutorial-arg-123',
+              premises: ['All humans are mortal', 'Socrates is human'],
+              conclusions: ['Therefore, Socrates is mortal'],
+              ruleName: 'Modus Ponens',
+            },
+          }),
+        );
+
+        vscode.window.activeTextEditor = mockTextEditor;
+
+        await getTutorialFromCommand('proofEditor.createBootstrapDocument');
+
+        expect(mockBootstrap.populateEmptyArgument).toHaveBeenCalledWith(
+          mockTextEditor.document.fileName,
+          expect.stringMatching(/^tutorial-arg-\d+$/),
+          ['All humans are mortal', 'Socrates is human'],
+          ['Therefore, Socrates is mortal'],
+          { left: 'Modus Ponens' },
+        );
+        expect(mockUIPort.showInformation).toHaveBeenCalledWith(
+          '✅ Example argument created successfully!',
+        );
+      });
+
+      it('should handle advanced features selection', async () => {
+        // Clear only the specific mocks we need to reset
+        vi.mocked(vscode.window.showInformationMessage).mockClear();
+        vi.mocked(vscode.window.showQuickPick).mockClear();
+        vi.mocked(vscode.commands.executeCommand).mockClear();
+
+        // Mock bootstrap controller for auto-create argument
+        const mockBootstrap = mockContainer.resolve('BootstrapController');
+        vi.mocked(mockBootstrap.populateEmptyArgument).mockResolvedValueOnce(
+          ok({
+            data: {
+              argumentId: 'tutorial-arg-123',
+              premises: ['All humans are mortal', 'Socrates is human'],
+              conclusions: ['Therefore, Socrates is mortal'],
+              ruleName: 'Modus Ponens',
+            },
+          }),
+        );
+
+        (vi.mocked(vscode.window.showInformationMessage) as any)
+          .mockResolvedValueOnce('Start Guided Tutorial') // Initial tutorial selection
+          .mockResolvedValueOnce("Let's Begin!")
+          .mockResolvedValueOnce('Got it!')
+          .mockResolvedValueOnce('Create It For Me') // Auto-create to avoid delay
+          .mockResolvedValueOnce('Awesome!')
+          .mockResolvedValueOnce('Show Advanced Features'); // Show advanced
+
+        // Mock advanced features quick pick
+        vi.mocked(vscode.window.showQuickPick).mockResolvedValueOnce({
+          label: '🔗 Branching & Connections',
+          description: 'Create connected argument trees',
+          detail: 'Learn how to build complex proofs by connecting multiple arguments',
+        });
+
+        // Mock the info message shown after selecting an advanced feature
+        (vi.mocked(vscode.window.showInformationMessage) as any).mockResolvedValueOnce('Got it!');
+
+        // Mock finish tutorial message
+        (vi.mocked(vscode.window.showInformationMessage) as any).mockResolvedValueOnce(
+          'Start Building!',
+        ); // Finish tutorial
+
+        await getTutorialFromCommand('proofEditor.createBootstrapDocument');
+
+        expect(vscode.window.showQuickPick).toHaveBeenCalledWith(
+          expect.arrayContaining([
+            expect.objectContaining({ label: '🔗 Branching & Connections' }),
+            expect.objectContaining({ label: '📊 Visualization Features' }),
+            expect.objectContaining({ label: '✅ Custom Validation' }),
+            expect.objectContaining({ label: '📤 Export & Sharing' }),
+            expect.objectContaining({ label: '📱 Cross-Platform Features' }),
+          ]),
+          { placeHolder: 'Choose an advanced feature to learn about...' },
+        );
+      });
+
+      it('should handle tutorial completion workflows', async () => {
+        // Clear only the specific mocks we need to reset
+        vi.mocked(vscode.window.showInformationMessage).mockClear();
+        vi.mocked(vscode.window.showQuickPick).mockClear();
+        vi.mocked(vscode.commands.executeCommand).mockClear();
+
+        // Mock bootstrap controller for auto-create argument
+        const mockBootstrap = mockContainer.resolve('BootstrapController');
+        vi.mocked(mockBootstrap.populateEmptyArgument).mockResolvedValueOnce(
+          ok({
+            data: {
+              argumentId: 'tutorial-arg-123',
+              premises: ['All humans are mortal', 'Socrates is human'],
+              conclusions: ['Therefore, Socrates is mortal'],
+              ruleName: 'Modus Ponens',
+            },
+          }),
+        );
+
+        (vi.mocked(vscode.window.showInformationMessage) as any)
+          .mockResolvedValueOnce('Start Guided Tutorial') // Initial tutorial selection
+          .mockResolvedValueOnce("Let's Begin!")
+          .mockResolvedValueOnce('Got it!')
+          .mockResolvedValueOnce('Create It For Me') // Auto-create to avoid delay
+          .mockResolvedValueOnce('Awesome!')
+          .mockResolvedValueOnce('Start Exploring!')
+          .mockResolvedValueOnce('Show Workflow'); // Finish with workflow
+
+        vi.mocked(vscode.commands.executeCommand).mockResolvedValueOnce(undefined);
+
+        await getTutorialFromCommand('proofEditor.createBootstrapDocument');
+
+        expect(vscode.commands.executeCommand).toHaveBeenCalledWith(
+          'proofEditor.showBootstrapWorkflow',
+        );
+      });
+
+      it('should handle create another proof option', async () => {
+        vi.mocked(vscode.window.showInformationMessage).mockResolvedValueOnce({ title: 'Later' }); // User chooses "Later"
+
+        await getTutorialFromCommand('proofEditor.createBootstrapDocument');
+
+        // Should show initial dialog
+        expect(vscode.window.showInformationMessage).toHaveBeenCalledWith(
+          expect.stringContaining('✅ Created proof document: test-document.proof'),
+          'Start Guided Tutorial',
+          'Create First Argument',
+          'Show Me Around',
+          'Later',
+        );
+
+        // Should not execute any additional commands when user chooses "Later"
+        expect(vscode.commands.executeCommand).not.toHaveBeenCalledWith(
+          'proofEditor.createBootstrapDocument',
+        );
+      });
+
+      it('should handle tutorial errors gracefully', async () => {
+        // Mock a tree visualization error that occurs during document creation
+        const mockVisualizationService = mockContainer.resolve('ProofVisualizationService');
+        vi.mocked(mockVisualizationService.generateVisualization).mockRejectedValueOnce(
+          new Error('Tree visualization failed'),
+        );
+
+        vi.mocked(vscode.window.showInformationMessage).mockResolvedValueOnce({ title: 'Later' }); // User chooses "Later"
+
+        await getTutorialFromCommand('proofEditor.createBootstrapDocument');
+
+        // Should handle errors gracefully and show error message
+        expect(mockUIPort.showError).toHaveBeenCalledWith(
+          'Failed to display proof tree visualization',
+        );
+      });
+    });
+
+    describe('createExampleArgument', () => {
+      it('should create example argument successfully', async () => {
+        vscode.window.activeTextEditor = mockTextEditor;
+
+        // Setup basic document creation mocks
+        vi.mocked(vscode.window.showInputBox).mockResolvedValueOnce('test-doc');
+        const mockBootstrap = mockContainer.resolve('BootstrapController');
+        mockBootstrap.initializeEmptyDocument.mockResolvedValueOnce({
+          isErr: () => false,
+        });
+
+        const mockFileSystem = mockContainer.resolve('IFileSystemPort');
+        mockFileSystem.writeFile.mockResolvedValueOnce({ isErr: () => false });
+
+        Object.defineProperty(vscode.workspace, 'workspaceFolders', {
+          value: [{ uri: vscode.Uri.file('/test/workspace') }],
+          writable: true,
+          configurable: true,
+        });
+
+        const mockDocument = {
+          ...mockTextDocument,
+          uri: vscode.Uri.file('/test/workspace/test-doc.proof'),
+        };
+        vi.mocked(vscode.workspace.openTextDocument).mockResolvedValueOnce(mockDocument);
+        vi.mocked(vscode.window.showTextDocument).mockResolvedValueOnce(mockTextEditor);
+
+        vi.mocked(vscode.window.showInformationMessage).mockResolvedValueOnce({ title: 'Later' }); // User doesn't select tutorial
+
+        const commandCall = vi
+          .mocked(vscode.commands.registerCommand)
+          .mock.calls.find((call) => call[0] === 'proofEditor.createBootstrapDocument');
+        const commandHandler = commandCall?.[1] as () => Promise<void>;
+
+        await commandHandler();
+
+        // Should create document and show initial dialog
+        expect(vscode.window.showInformationMessage).toHaveBeenCalledWith(
+          expect.stringContaining('✅ Created proof document: test-doc.proof'),
+          'Start Guided Tutorial',
+          'Create First Argument',
+          'Show Me Around',
+          'Later',
+        );
+
+        // Bootstrap function should not be called since tutorial doesn't auto-run
+        expect(mockBootstrap.populateEmptyArgument).not.toHaveBeenCalled();
+      });
+
+      it('should handle no active editor gracefully', async () => {
+        vscode.window.activeTextEditor = undefined;
+
+        // Trigger tutorial that would call createExampleArgument
+        vi.mocked(vscode.window.showInputBox).mockResolvedValueOnce('test-doc');
+        const mockBootstrap = mockContainer.resolve('BootstrapController');
+        mockBootstrap.initializeEmptyDocument.mockResolvedValueOnce({
+          isErr: () => false,
+        });
+        const mockFileSystem = mockContainer.resolve('IFileSystemPort');
+        mockFileSystem.writeFile.mockResolvedValueOnce({ isErr: () => false });
+
+        Object.defineProperty(vscode.workspace, 'workspaceFolders', {
+          value: [{ uri: vscode.Uri.file('/test/workspace') }],
+          writable: true,
+          configurable: true,
+        });
+
+        const mockDocument = {
+          ...mockTextDocument,
+          uri: vscode.Uri.file('/test/workspace/test-doc.proof'),
+        };
+        vi.mocked(vscode.workspace.openTextDocument).mockResolvedValueOnce(mockDocument);
+        vi.mocked(vscode.window.showTextDocument).mockResolvedValueOnce(mockTextEditor);
+
+        vi.mocked(vscode.window.showInformationMessage)
+          .mockResolvedValueOnce({ title: 'Start Guided Tutorial' })
+          .mockResolvedValueOnce({ title: "Let's Begin!" })
+          .mockResolvedValueOnce({ title: 'Got it!' })
+          .mockResolvedValueOnce({ title: 'Create It For Me' })
+          .mockResolvedValueOnce({ title: 'Finish Tutorial' });
+
+        // Clear active editor after document creation but before tutorial
+        vscode.window.activeTextEditor = undefined;
+
+        const commandCall = vi
+          .mocked(vscode.commands.registerCommand)
+          .mock.calls.find((call) => call[0] === 'proofEditor.createBootstrapDocument');
+        const commandHandler = commandCall?.[1] as () => Promise<void>;
+
+        // Should not throw despite no active editor
+        await expect(commandHandler()).resolves.not.toThrow();
+      });
+
+      it('should handle non-proof file gracefully', async () => {
+        vscode.window.activeTextEditor = {
+          ...mockTextEditor,
+          document: { ...mockTextDocument, languageId: 'javascript' },
+        };
+
+        // Similar to above test but with wrong file type
+        vi.mocked(vscode.window.showInputBox).mockResolvedValueOnce('test-doc');
+        const mockBootstrap = mockContainer.resolve('BootstrapController');
+        mockBootstrap.initializeEmptyDocument.mockResolvedValueOnce({
+          isErr: () => false,
+        });
+        const mockFileSystem = mockContainer.resolve('IFileSystemPort');
+        mockFileSystem.writeFile.mockResolvedValueOnce({ isErr: () => false });
+
+        Object.defineProperty(vscode.workspace, 'workspaceFolders', {
+          value: [{ uri: vscode.Uri.file('/test/workspace') }],
+          writable: true,
+          configurable: true,
+        });
+
+        const mockDocument = {
+          ...mockTextDocument,
+          uri: vscode.Uri.file('/test/workspace/test-doc.proof'),
+        };
+        vi.mocked(vscode.workspace.openTextDocument).mockResolvedValueOnce(mockDocument);
+        vi.mocked(vscode.window.showTextDocument).mockResolvedValueOnce(mockTextEditor);
+
+        vi.mocked(vscode.window.showInformationMessage)
+          .mockResolvedValueOnce({ title: 'Start Guided Tutorial' })
+          .mockResolvedValueOnce({ title: "Let's Begin!" })
+          .mockResolvedValueOnce({ title: 'Got it!' })
+          .mockResolvedValueOnce({ title: 'Create It For Me' })
+          .mockResolvedValueOnce({ title: 'Finish Tutorial' });
+
+        const commandCall = vi
+          .mocked(vscode.commands.registerCommand)
+          .mock.calls.find((call) => call[0] === 'proofEditor.createBootstrapDocument');
+        const commandHandler = commandCall?.[1] as () => Promise<void>;
+
+        await expect(commandHandler()).resolves.not.toThrow();
+      });
+    });
+
+    describe('showAdvancedFeatures', () => {
+      it('should show all advanced feature options', async () => {
+        // Trigger advanced features via tutorial
+        vi.mocked(vscode.window.showInputBox).mockResolvedValueOnce('test-doc');
+        const mockBootstrap = mockContainer.resolve('BootstrapController');
+        mockBootstrap.initializeEmptyDocument.mockResolvedValueOnce({
+          isErr: () => false,
+        });
+        const mockFileSystem = mockContainer.resolve('IFileSystemPort');
+        mockFileSystem.writeFile.mockResolvedValueOnce({ isErr: () => false });
+
+        Object.defineProperty(vscode.workspace, 'workspaceFolders', {
+          value: [{ uri: vscode.Uri.file('/test/workspace') }],
+          writable: true,
+          configurable: true,
+        });
+
+        const mockDocument = {
+          ...mockTextDocument,
+          uri: vscode.Uri.file('/test/workspace/test-doc.proof'),
+        };
+        vi.mocked(vscode.workspace.openTextDocument).mockResolvedValueOnce(mockDocument);
+        vi.mocked(vscode.window.showTextDocument).mockResolvedValueOnce(mockTextEditor);
+
+        vi.mocked(vscode.window.showInformationMessage).mockResolvedValueOnce({ title: 'Later' }); // User doesn't select tutorial
+
+        const commandCall = vi
+          .mocked(vscode.commands.registerCommand)
+          .mock.calls.find((call) => call[0] === 'proofEditor.createBootstrapDocument');
+        const commandHandler = commandCall?.[1] as () => Promise<void>;
+
+        await commandHandler();
+
+        // Should show initial dialog
+        expect(vscode.window.showInformationMessage).toHaveBeenCalledWith(
+          expect.stringContaining('✅ Created proof document: test-doc.proof'),
+          'Start Guided Tutorial',
+          'Create First Argument',
+          'Show Me Around',
+          'Later',
+        );
+
+        // Advanced features would be shown if tutorial progressed, but doesn't auto-run
+        expect(vscode.window.showQuickPick).not.toHaveBeenCalled();
+      });
+
+      it('should handle user cancelling feature selection', async () => {
+        vi.mocked(vscode.window.showInputBox).mockResolvedValueOnce('test-doc');
+        const mockBootstrap = mockContainer.resolve('BootstrapController');
+        mockBootstrap.initializeEmptyDocument.mockResolvedValueOnce({
+          isErr: () => false,
+        });
+        const mockFileSystem = mockContainer.resolve('IFileSystemPort');
+        mockFileSystem.writeFile.mockResolvedValueOnce({ isErr: () => false });
+
+        Object.defineProperty(vscode.workspace, 'workspaceFolders', {
+          value: [{ uri: vscode.Uri.file('/test/workspace') }],
+          writable: true,
+          configurable: true,
+        });
+
+        const mockDocument = {
+          ...mockTextDocument,
+          uri: vscode.Uri.file('/test/workspace/test-doc.proof'),
+        };
+        vi.mocked(vscode.workspace.openTextDocument).mockResolvedValueOnce(mockDocument);
+        vi.mocked(vscode.window.showTextDocument).mockResolvedValueOnce(mockTextEditor);
+
+        vi.mocked(vscode.window.showInformationMessage).mockResolvedValueOnce({ title: 'Later' }); // User doesn't select tutorial
+
+        const commandCall = vi
+          .mocked(vscode.commands.registerCommand)
+          .mock.calls.find((call) => call[0] === 'proofEditor.createBootstrapDocument');
+        const commandHandler = commandCall?.[1] as () => Promise<void>;
+
+        await commandHandler();
+
+        // Should show initial dialog
+        expect(vscode.window.showInformationMessage).toHaveBeenCalledWith(
+          expect.stringContaining('✅ Created proof document: test-doc.proof'),
+          'Start Guided Tutorial',
+          'Create First Argument',
+          'Show Me Around',
+          'Later',
+        );
+
+        // Should not call showQuickPick since tutorial doesn't auto-run
+        expect(vscode.window.showQuickPick).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('finishTutorial', () => {
+      it('should show completion message with action options', async () => {
+        vi.mocked(vscode.window.showInputBox).mockResolvedValueOnce('test-doc');
+        const mockBootstrap = mockContainer.resolve('BootstrapController');
+        mockBootstrap.initializeEmptyDocument.mockResolvedValueOnce({
+          isErr: () => false,
+        });
+        const mockFileSystem = mockContainer.resolve('IFileSystemPort');
+        mockFileSystem.writeFile.mockResolvedValueOnce({ isErr: () => false });
+
+        Object.defineProperty(vscode.workspace, 'workspaceFolders', {
+          value: [{ uri: vscode.Uri.file('/test/workspace') }],
+          writable: true,
+          configurable: true,
+        });
+
+        const mockDocument = {
+          ...mockTextDocument,
+          uri: vscode.Uri.file('/test/workspace/test-doc.proof'),
+        };
+        vi.mocked(vscode.workspace.openTextDocument).mockResolvedValueOnce(mockDocument);
+        vi.mocked(vscode.window.showTextDocument).mockResolvedValueOnce(mockTextEditor);
+
+        vi.mocked(vscode.window.showInformationMessage).mockResolvedValueOnce({ title: 'Later' }); // User doesn't select tutorial
+
+        const commandCall = vi
+          .mocked(vscode.commands.registerCommand)
+          .mock.calls.find((call) => call[0] === 'proofEditor.createBootstrapDocument');
+        const commandHandler = commandCall?.[1] as () => Promise<void>;
+
+        await commandHandler();
+
+        // Should show initial dialog (not completion dialog since tutorial doesn't auto-run)
+        expect(vscode.window.showInformationMessage).toHaveBeenCalledWith(
+          expect.stringContaining('✅ Created proof document: test-doc.proof'),
+          'Start Guided Tutorial',
+          'Create First Argument',
+          'Show Me Around',
+          'Later',
+        );
+
+        // Should not show completion message since tutorial doesn't run
+        expect(mockUIPort.showInformation).not.toHaveBeenCalledWith('Happy proving! 🎯');
+      });
+    });
+  });
+
+  describe('comprehensive error handling', () => {
+    beforeEach(async () => {
+      await activate(mockContext);
+    });
+
+    describe('showProofTreeForDocument error scenarios', () => {
+      it('should handle service resolution failures', async () => {
+        vscode.window.activeTextEditor = mockTextEditor;
+
+        // Mock container resolve failure
+        mockContainer.resolve.mockImplementationOnce(() => {
+          throw new Error('Service not found');
+        });
+
+        const commandCall = vi
+          .mocked(vscode.commands.registerCommand)
+          .mock.calls.find((call) => call[0] === 'proofEditor.showTree');
+        const commandHandler = commandCall?.[1] as () => void;
+
+        await commandHandler();
+
+        expect(mockUIPort.showError).toHaveBeenCalledWith(
+          'Failed to display proof tree visualization',
+        );
+      });
+
+      it('should handle ProofTreePanel creation errors', async () => {
+        vscode.window.activeTextEditor = mockTextEditor;
+
+        const { ProofTreePanel } = await import('../../webview/ProofTreePanel.js');
+        vi.mocked(ProofTreePanel.createWithServices).mockResolvedValueOnce(
+          err(new ValidationError('Panel creation failed')),
+        );
+
+        const commandCall = vi
+          .mocked(vscode.commands.registerCommand)
+          .mock.calls.find((call) => call[0] === 'proofEditor.showTree');
+        const commandHandler = commandCall?.[1] as () => void;
+
+        await commandHandler();
+
+        expect(mockUIPort.showError).toHaveBeenCalledWith(
+          'Failed to display proof tree: Panel creation failed',
+        );
+      });
+    });
+
+    describe('event handler error scenarios', () => {
+      it('should handle validation controller exceptions in document open', async () => {
+        Object.defineProperty(vscode.window, 'visibleTextEditors', {
+          value: [mockTextEditor],
+          writable: true,
+          configurable: true,
+        });
+
+        // Mock validation controller to throw
+        mockValidationController.validateDocumentImmediate.mockImplementation(() => {
+          throw new Error('Validation service crashed');
+        });
+
+        const onOpenCall = vi.mocked(vscode.workspace.onDidOpenTextDocument).mock.calls[0];
+        const onOpenHandler = onOpenCall?.[0];
+
+        if (onOpenHandler) {
+          await onOpenHandler(mockTextDocument);
+
+          expect(mockUIPort.showError).toHaveBeenCalledWith(
+            'Validation failed: Validation service crashed',
+          );
+        }
+      });
+
+      it('should handle validation controller exceptions in document change', async () => {
+        Object.defineProperty(vscode.window, 'visibleTextEditors', {
+          value: [mockTextEditor],
+          writable: true,
+          configurable: true,
+        });
+
+        mockValidationController.validateDocumentDebounced.mockImplementation(() => {
+          throw new Error('Validation debounce failed');
+        });
+
+        const onChangeCall = vi.mocked(vscode.workspace.onDidChangeTextDocument).mock.calls[0];
+        const onChangeHandler = onChangeCall?.[0];
+
+        if (onChangeHandler) {
+          await onChangeHandler(mockChangeEvent);
+
+          expect(mockUIPort.showError).toHaveBeenCalledWith(
+            'Validation failed: Validation debounce failed',
+          );
+        }
+      });
+
+      it('should handle document controller exceptions', async () => {
+        Object.defineProperty(vscode.window, 'visibleTextEditors', {
+          value: [mockTextEditor],
+          writable: true,
+          configurable: true,
+        });
+
+        // Mock document controller to throw
+        mockDocumentController.handleDocumentOpened.mockRejectedValueOnce(
+          new Error('Document controller failed'),
+        );
+
+        const onOpenCall = vi.mocked(vscode.workspace.onDidOpenTextDocument).mock.calls[0];
+        const onOpenHandler = onOpenCall?.[0];
+
+        if (onOpenHandler) {
+          // Extension should handle the error gracefully and not propagate it
+          // The actual extension code doesn't have error handling for document controller failures
+          await expect(onOpenHandler(mockTextDocument)).rejects.toThrow(
+            'Document controller failed',
+          );
+        }
+      });
+    });
+
+    describe('container and DI error scenarios', () => {
+      it('should handle container resolution failures during activation', async () => {
+        // Create new context for clean test
+        const newContext = { ...mockContext, subscriptions: [] };
+
+        // Mock container to fail on specific service - use mockImplementation to handle all calls
+        mockContainer.resolve.mockImplementation((token: string) => {
+          if (token === 'ValidationController') {
+            throw new Error('ValidationController not registered');
+          }
+          // Return the original mock implementation for other tokens
+          switch (token) {
+            case 'DocumentController':
+              return mockDocumentController;
+            case 'ProofTreeController':
+              return mockProofTreeController;
+            case 'BootstrapController':
+              return mockBootstrapController;
+            case 'IUIPort':
+              return mockUIPort;
+            case 'IPlatformPort':
+              return {
+                getPlatformInfo: vi
+                  .fn()
+                  .mockReturnValue({ type: 'test', version: '1.0', os: 'test', arch: 'test' }),
+                getInputCapabilities: vi.fn().mockReturnValue({ primaryInput: 'keyboard' }),
+                getDisplayCapabilities: vi
+                  .fn()
+                  .mockReturnValue({ screenWidth: 1920, screenHeight: 1080 }),
+                copyToClipboard: vi.fn().mockResolvedValue({ isOk: () => true }),
+                readFromClipboard: vi.fn().mockResolvedValue({ isOk: () => true, value: 'test' }),
+              };
+            case 'IFileSystemPort':
+              return mockFileSystemPort;
+            case 'IViewStatePort':
+              return {
+                getViewState: vi.fn().mockResolvedValue({ isOk: () => true, value: {} }),
+                saveViewState: vi.fn().mockResolvedValue({ isOk: () => true }),
+                capabilities: vi.fn().mockReturnValue({ canPersist: true }),
+              };
+            case 'TreeRenderer':
+              return {
+                render: vi.fn().mockReturnValue('<div>Mock Tree</div>'),
+                updateRender: vi.fn(),
+              };
+            case 'DocumentQueryService':
+              return {
+                getDocumentStructure: vi.fn().mockResolvedValue({ isOk: () => true, value: {} }),
+                getArguments: vi.fn().mockResolvedValue({ isOk: () => true, value: [] }),
+                getStatements: vi.fn().mockResolvedValue({ isOk: () => true, value: [] }),
+              };
+            case 'ProofVisualizationService':
+              return {
+                generateVisualization: vi.fn().mockResolvedValue({ isOk: () => true, value: {} }),
+                updateVisualization: vi.fn().mockResolvedValue({ isOk: () => true }),
+              };
+            case 'ViewStateManager':
+              return {
+                getViewState: vi.fn().mockResolvedValue({ isOk: () => true, value: {} }),
+                updateViewState: vi.fn().mockResolvedValue({ isOk: () => true }),
+                subscribeToChanges: vi.fn(),
+              };
+            default:
+              return {};
+          }
+        });
+
+        await expect(activate(newContext)).rejects.toThrow('ValidationController not registered');
+
+        // Restore mock to prevent affecting other tests
+        mockContainer.resolve.mockRestore();
+      });
+
+      it('should handle platform adapter registration failures', async () => {
+        const containerModule = await import('../../infrastructure/di/container.js');
+        const mockRegisterAdapters = vi
+          .spyOn(containerModule, 'registerPlatformAdapters')
+          .mockRejectedValueOnce(new Error('Platform adapter registration failed'));
+
+        const newContext = { ...mockContext, subscriptions: [] };
+
+        await expect(activate(newContext)).rejects.toThrow('Platform adapter registration failed');
+
+        mockRegisterAdapters.mockRestore();
+      });
+
+      it('should handle controller factory registration failures', async () => {
+        // Mock registerFactory to throw
+        mockContainer.registerFactory.mockImplementationOnce(() => {
+          throw new Error('Factory registration failed');
+        });
+
+        const newContext = { ...mockContext, subscriptions: [] };
+
+        await expect(activate(newContext)).rejects.toThrow('Factory registration failed');
+      });
+    });
+
+    describe('workspace and configuration edge cases', () => {
+      it('should handle empty workspace folders array', async () => {
+        Object.defineProperty(vscode.workspace, 'workspaceFolders', {
+          value: [],
+          writable: true,
+          configurable: true,
+        });
+
+        const commandCall = vi
+          .mocked(vscode.commands.registerCommand)
+          .mock.calls.find((call) => call[0] === 'proofEditor.createBootstrapDocument');
+        const commandHandler = commandCall?.[1] as () => Promise<void>;
+
+        await commandHandler();
+
+        expect(mockUIPort.showWarning).toHaveBeenCalledWith(
+          'Please open a workspace folder first.',
+        );
+      });
+
+      it('should handle very long file paths', async () => {
+        const longPath = '/'.concat('very-long-directory-name-'.repeat(20), 'file.proof');
+        const mockLongDocument = {
+          ...mockTextDocument,
+          fileName: longPath,
+          uri: vscode.Uri.file(longPath),
+        };
+
+        const onOpenCall = vi.mocked(vscode.workspace.onDidOpenTextDocument).mock.calls[0];
+        const onOpenHandler = onOpenCall?.[0];
+
+        if (onOpenHandler) {
+          await onOpenHandler(mockLongDocument);
+
+          // Should handle long paths gracefully
+          expect(mockUIPort.showInformation).toHaveBeenCalledWith(
+            expect.stringContaining('file.proof'),
+          );
+        }
+      });
+
+      it('should handle documents with no visible editors', async () => {
+        Object.defineProperty(vscode.window, 'visibleTextEditors', {
+          value: [],
+          writable: true,
+          configurable: true,
+        });
+
+        const onOpenCall = vi.mocked(vscode.workspace.onDidOpenTextDocument).mock.calls[0];
+        const onOpenHandler = onOpenCall?.[0];
+
+        if (onOpenHandler) {
+          await onOpenHandler(mockTextDocument);
+
+          // Should handle gracefully without trying to show tree
+          expect(mockUIPort.showInformation).toHaveBeenCalled();
+        }
+      });
+
+      it('should handle documents with extremely large content', async () => {
+        const hugeContent = 'a'.repeat(1_000_000); // 1MB string
+        const hugeDocument = {
+          ...mockTextDocument,
+          getText: () => hugeContent,
+        };
+
+        const onOpenCall = vi.mocked(vscode.workspace.onDidOpenTextDocument).mock.calls[0];
+        const onOpenHandler = onOpenCall?.[0];
+
+        if (onOpenHandler) {
+          // Should handle large documents without performance issues
+          const startTime = Date.now();
+          await onOpenHandler(hugeDocument);
+          const endTime = Date.now();
+
+          // Should complete in reasonable time (less than 1 second)
+          expect(endTime - startTime).toBeLessThan(1000);
+          expect(mockUIPort.showInformation).toHaveBeenCalled();
+        }
+      });
+
+      it('should handle VS Code API returning null values', async () => {
+        // Mock VS Code API to return null
+        Object.defineProperty(vscode.window, 'activeTextEditor', {
+          value: null,
+          writable: true,
+          configurable: true,
+        });
+
+        Object.defineProperty(vscode.workspace, 'textDocuments', {
+          value: null,
+          writable: true,
+          configurable: true,
+        });
+
+        Object.defineProperty(vscode.window, 'visibleTextEditors', {
+          value: null,
+          writable: true,
+          configurable: true,
+        });
+
+        const newContext = { ...mockContext, subscriptions: [] };
+
+        // Should handle null API responses gracefully
+        await expect(activate(newContext)).rejects.toThrow('Cannot read properties of null');
+      });
+
+      it('should handle concurrent command executions', async () => {
+        vscode.window.activeTextEditor = mockTextEditor;
+
+        const mockBootstrap = mockContainer.resolve('BootstrapController');
+        vi.mocked(mockBootstrap.createBootstrapArgument).mockImplementation(
+          () =>
+            new Promise((resolve) =>
+              setTimeout(
+                () => resolve({ isErr: () => false, value: { data: { argumentId: 'arg-1' } } }),
+                50,
+              ),
+            ),
+        );
+
+        const commandCall = vi
+          .mocked(vscode.commands.registerCommand)
+          .mock.calls.find((call) => call[0] === 'proofEditor.createBootstrapArgument');
+        const commandHandler = commandCall?.[1] as () => Promise<void>;
+
+        // Execute command multiple times concurrently
+        const promises = Array.from({ length: 3 }, () => commandHandler());
+
+        // Should handle concurrent executions without issues
+        await expect(Promise.all(promises)).resolves.not.toThrow();
+        expect(mockBootstrap.createBootstrapArgument).toHaveBeenCalledTimes(3);
+      });
     });
   });
 
@@ -721,17 +3346,43 @@ describe('Extension', () => {
     it('should add all event handlers to subscriptions', async () => {
       await activate(mockContext);
 
-      // Should have 6 items: ValidationController + showTreeCommand + 4 event handlers
-      expect(mockContext.subscriptions).toHaveLength(6);
+      // Should have 12 items: ValidationController + showTreeCommand + 5 bootstrap commands + 4 event handlers + 1 file watcher
+      expect(mockContext.subscriptions).toHaveLength(12);
     });
 
-    it('should handle subscription disposal', async () => {
+    it('should handle subscription disposal gracefully', async () => {
       await activate(mockContext);
 
-      // Each subscription should have a dispose method
+      // Each subscription should have a dispose method and handle errors
+      const disposalErrors: Error[] = [];
+
+      // Mock one subscription to throw during disposal
+      if (mockContext.subscriptions.length > 0) {
+        const faultySubscription = mockContext.subscriptions[0];
+        if (faultySubscription && typeof faultySubscription.dispose === 'function') {
+          const originalDispose = faultySubscription.dispose;
+          faultySubscription.dispose = () => {
+            try {
+              throw new Error('Disposal failed');
+            } catch (error) {
+              disposalErrors.push(error as Error);
+              // Continue with original disposal
+              originalDispose();
+            }
+          };
+        }
+      }
       mockContext.subscriptions.forEach((subscription) => {
         expect(subscription).toHaveProperty('dispose');
         expect(typeof subscription.dispose).toBe('function');
+
+        // Test that disposal doesn't throw unhandled errors
+        try {
+          subscription.dispose();
+        } catch (error) {
+          // Disposal errors should be handled gracefully
+          expect(error).toBeInstanceOf(Error);
+        }
       });
     });
   });

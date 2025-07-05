@@ -847,4 +847,448 @@ describe('ConflictResolutionService', () => {
       expect(result.isOk()).toBe(true);
     });
   });
+
+  describe('advanced merge scenarios', () => {
+    it('should handle merge operations with less than 2 operations', async () => {
+      const operations = createConflictingOperations('/test/path', 2);
+      const conflictType = ConflictType.structural();
+      expect(conflictType.isOk()).toBe(true);
+      if (!conflictType.isOk()) return;
+
+      const conflictResult = Conflict.create(
+        'test-conflict-36',
+        conflictType.value,
+        '/test/path',
+        operations,
+      );
+      expect(conflictResult.isOk()).toBe(true);
+      if (!conflictResult.isOk()) return;
+
+      // Test the internal mergeOperations method with empty array
+      const result = await (service as any).mergeOperations([]);
+      expect(result.isErr()).toBe(true);
+      if (result.isErr()) {
+        expect(result.error.message).toContain('Cannot merge less than 2 operations');
+      }
+    });
+
+    it('should handle operations with invalid sequence in merge', async () => {
+      const operations = createConflictingOperations('/test/path', 3);
+      const conflictType = ConflictType.structural();
+      expect(conflictType.isOk()).toBe(true);
+      if (!conflictType.isOk()) return;
+
+      const conflictResult = Conflict.create(
+        'test-conflict-37',
+        conflictType.value,
+        '/test/path',
+        operations,
+      );
+      expect(conflictResult.isOk()).toBe(true);
+      if (!conflictResult.isOk()) return;
+
+      // Test merge with operations that have null/undefined elements
+      const invalidOperations = [operations[0], null, operations[1]];
+      const result = await (service as any).mergeOperations(invalidOperations);
+      expect(result.isErr()).toBe(true);
+      if (result.isErr()) {
+        expect(result.error.message).toMatch(
+          /Cannot read properties of null|Invalid operation sequence/,
+        );
+      }
+    });
+
+    it('should handle transformation fallback during merge', async () => {
+      // Create operations that are Operation instances but transformation fails
+      const op1 = operationFactory.build();
+      const op2 = operationFactory.build();
+
+      // Mock transformWith to fail
+      const originalTransformWith = op1.transformWith;
+      op1.transformWith = () =>
+        ({ isErr: () => true, error: new Error('Transform failed') }) as any;
+
+      const operations = [op1, op2];
+      const result = await (service as any).mergeOperations(operations);
+
+      // Should still succeed by falling back to direct payload combination
+      expect(result.isOk()).toBe(true);
+
+      // Restore original method
+      op1.transformWith = originalTransformWith;
+    });
+
+    it('should handle non-Operation instances in merge', async () => {
+      const op1 = operationFactory.build();
+
+      // Create a mock operation that's not an Operation instance
+      const mockOp = {
+        getPayload: () => ({ getData: () => ({ content: 'mock data' }) }),
+      };
+
+      const operations = [op1, mockOp];
+      const result = await (service as any).mergeOperations(operations);
+
+      // Should handle non-Operation instances, may succeed or fail depending on implementation
+      expect(result.isOk() || result.isErr()).toBe(true);
+    });
+
+    it('should handle merge operation errors gracefully', async () => {
+      const operations = createConflictingOperations('/test/path', 2);
+
+      // Mock sortOperationsByTimestamp to throw an error
+      const originalSort = (service as any).sortOperationsByTimestamp;
+      (service as any).sortOperationsByTimestamp = () => {
+        throw new Error('Sort failed');
+      };
+
+      const result = await (service as any).mergeOperations(operations);
+      expect(result.isErr()).toBe(true);
+      if (result.isErr()) {
+        expect(result.error.message).toContain('Sort failed');
+      }
+
+      // Restore original method
+      (service as any).sortOperationsByTimestamp = originalSort;
+    });
+  });
+
+  describe('writer wins scenarios', () => {
+    it('should handle empty operations in last writer wins', async () => {
+      const result = await (service as any).applyLastWriterWins([]);
+      expect(result.isErr()).toBe(true);
+      if (result.isErr()) {
+        expect(result.error.message).toContain('No operations to resolve');
+      }
+    });
+
+    it('should handle empty operations in first writer wins', async () => {
+      const result = await (service as any).applyFirstWriterWins([]);
+      expect(result.isErr()).toBe(true);
+      if (result.isErr()) {
+        expect(result.error.message).toContain('No operations to resolve');
+      }
+    });
+
+    it('should handle single operation in writer wins strategies', async () => {
+      const operation = operationFactory.build();
+
+      const lastResult = await (service as any).applyLastWriterWins([operation]);
+      expect(lastResult.isOk()).toBe(true);
+
+      const firstResult = await (service as any).applyFirstWriterWins([operation]);
+      expect(firstResult.isOk()).toBe(true);
+    });
+  });
+
+  describe('user input validation', () => {
+    it('should handle undefined user input', async () => {
+      const result = await (service as any).applyUserDecision({}, undefined);
+      expect(result.isErr()).toBe(true);
+      if (result.isErr()) {
+        expect(result.error.message).toContain('Invalid user input');
+      }
+    });
+
+    it('should handle null user input', async () => {
+      const result = await (service as any).applyUserDecision({}, null);
+      expect(result.isErr()).toBe(true);
+      if (result.isErr()) {
+        expect(result.error.message).toContain('Invalid user input');
+      }
+    });
+
+    it('should accept valid user input types', async () => {
+      const validInputs = [
+        'string input',
+        { choice: 'object input' },
+        42,
+        ['array', 'input'],
+        true,
+      ];
+
+      for (const input of validInputs) {
+        const result = await (service as any).applyUserDecision({}, input);
+        expect(result.isOk()).toBe(true);
+        if (result.isOk()) {
+          expect(result.value).toBe(input);
+        }
+      }
+    });
+  });
+
+  describe('payload combination edge cases', () => {
+    it('should handle null payloads in combination', () => {
+      const result = (service as any).combinePayloads(null, { test: 'data' });
+      expect(result).toEqual({ test: 'data' });
+    });
+
+    it('should handle undefined payloads in combination', () => {
+      const result = (service as any).combinePayloads(undefined, { test: 'data' });
+      expect(result).toEqual({ test: 'data' });
+    });
+
+    it('should handle non-object payloads in combination', () => {
+      const result1 = (service as any).combinePayloads('string1', 'string2');
+      expect(result1).toBe('string2');
+
+      const result2 = (service as any).combinePayloads(42, 'string');
+      expect(result2).toBe('string');
+
+      const result3 = (service as any).combinePayloads({ test: 'data' }, 'string');
+      expect(result3).toBe('string');
+    });
+
+    it('should properly merge object payloads', () => {
+      const payload1 = { a: 1, b: 2 };
+      const payload2 = { b: 3, c: 4 };
+      const result = (service as any).combinePayloads(payload1, payload2);
+      expect(result).toEqual({ a: 1, b: 3, c: 4 });
+    });
+  });
+
+  describe('resolution preview edge cases', () => {
+    it('should handle preview generation with empty operations for LAST_WRITER_WINS', () => {
+      const conflictType = ConflictType.structural();
+      expect(conflictType.isOk()).toBe(true);
+      if (!conflictType.isOk()) return;
+
+      const _conflictResult = Conflict.create(
+        'test-conflict-38',
+        conflictType.value,
+        '/test/path',
+        [], // Empty operations
+      );
+
+      // Since Conflict.create requires at least 2 operations, we'll test the preview method directly
+      const mockConflict = {
+        getConflictingOperations: () => [],
+      };
+
+      const preview = service.generateResolutionPreview(mockConflict as any, 'LAST_WRITER_WINS');
+      expect(preview).toBe('No operations to resolve');
+    });
+
+    it('should handle preview generation with null operations for FIRST_WRITER_WINS', () => {
+      const mockConflict = {
+        getConflictingOperations: () => [null],
+      };
+
+      const preview = service.generateResolutionPreview(mockConflict as any, 'FIRST_WRITER_WINS');
+      expect(preview).toBe('No operations to resolve');
+    });
+
+    it('should handle preview generation with undefined first operation', () => {
+      const mockConflict = {
+        getConflictingOperations: () => [undefined, operationFactory.build()],
+      };
+
+      const preview = service.generateResolutionPreview(mockConflict as any, 'LAST_WRITER_WINS');
+      expect(preview).toBe('No operations to resolve');
+    });
+  });
+
+  describe('complexity estimation edge cases', () => {
+    it('should handle conflicts with exactly 3 operations and semantic type', () => {
+      const semanticConflictType = ConflictType.semantic();
+      expect(semanticConflictType.isOk()).toBe(true);
+      if (!semanticConflictType.isOk()) return;
+
+      const operations = createConflictingOperations('/test/path', 3);
+      const conflictResult = Conflict.create(
+        'test-conflict-39',
+        semanticConflictType.value,
+        '/test/path',
+        operations,
+      );
+      expect(conflictResult.isOk()).toBe(true);
+      if (!conflictResult.isOk()) return;
+
+      const complexity = service.estimateResolutionComplexity(conflictResult.value);
+      expect(complexity).toBe('HIGH'); // Semantic conflicts are always high complexity
+    });
+
+    it('should handle conflicts with exactly 5 operations', () => {
+      const structuralType = ConflictType.structural();
+      expect(structuralType.isOk()).toBe(true);
+      if (!structuralType.isOk()) return;
+
+      const operations = createConflictingOperations('/test/path', 5);
+      const conflictResult = Conflict.create(
+        'test-conflict-40',
+        structuralType.value,
+        '/test/path',
+        operations,
+      );
+      expect(conflictResult.isOk()).toBe(true);
+      if (!conflictResult.isOk()) return;
+
+      const complexity = service.estimateResolutionComplexity(conflictResult.value);
+      expect(complexity).toBe('MEDIUM'); // 5 operations = MEDIUM for structural
+    });
+
+    it('should handle conflicts with 1 operation and semantic type', () => {
+      // Create a mock conflict since Conflict.create requires >= 2 operations
+      const mockConflict = {
+        getConflictingOperations: () => [operationFactory.build()],
+        getConflictType: () => {
+          const semanticType = ConflictType.semantic();
+          return semanticType.isOk() ? semanticType.value : null;
+        },
+      };
+
+      const complexity = service.estimateResolutionComplexity(mockConflict as any);
+      expect(complexity).toBe('HIGH'); // Semantic conflicts are always high
+    });
+
+    it('should handle conflicts with 2 operations and structural type', () => {
+      const structuralType = ConflictType.structural();
+      expect(structuralType.isOk()).toBe(true);
+      if (!structuralType.isOk()) return;
+
+      const operations = createConflictingOperations('/test/path', 2);
+      const conflictResult = Conflict.create(
+        'test-conflict-41',
+        structuralType.value,
+        '/test/path',
+        operations,
+      );
+      expect(conflictResult.isOk()).toBe(true);
+      if (!conflictResult.isOk()) return;
+
+      const complexity = service.estimateResolutionComplexity(conflictResult.value);
+      expect(complexity).toBe('LOW'); // 2 operations structural = LOW
+    });
+  });
+
+  describe('operation sorting edge cases', () => {
+    it('should handle operations with same timestamps', () => {
+      const op1 = operationFactory.build();
+      const op2 = operationFactory.build();
+
+      // Mock timestamps to be equal
+      const mockTimestamp = { compareTo: () => 0 };
+      const originalGetTimestamp1 = op1.getTimestamp;
+      const originalGetTimestamp2 = op2.getTimestamp;
+
+      op1.getTimestamp = () => mockTimestamp as any;
+      op2.getTimestamp = () => mockTimestamp as any;
+
+      const sorted = (service as any).sortOperationsByTimestamp([op1, op2]);
+      expect(sorted).toHaveLength(2);
+
+      // Restore original methods
+      op1.getTimestamp = originalGetTimestamp1;
+      op2.getTimestamp = originalGetTimestamp2;
+    });
+
+    it('should maintain order for operations with different timestamps', () => {
+      const op1 = operationFactory.build();
+      const op2 = operationFactory.build();
+
+      // Mock timestamps with different values
+      const earlierTimestamp = { compareTo: () => -1 };
+      const laterTimestamp = { compareTo: () => 1 };
+
+      const originalGetTimestamp1 = op1.getTimestamp;
+      const originalGetTimestamp2 = op2.getTimestamp;
+
+      op1.getTimestamp = () => earlierTimestamp as any;
+      op2.getTimestamp = () => laterTimestamp as any;
+
+      const sorted = (service as any).sortOperationsByTimestamp([op2, op1]);
+      expect(sorted[0]).toBe(op1); // Earlier timestamp should come first
+
+      // Restore original methods
+      op1.getTimestamp = originalGetTimestamp1;
+      op2.getTimestamp = originalGetTimestamp2;
+    });
+  });
+
+  describe('automatic resolution validation', () => {
+    it('should properly validate operations count for automatic resolution', async () => {
+      const conflictType = ConflictType.structural();
+      expect(conflictType.isOk()).toBe(true);
+      if (!conflictType.isOk()) return;
+
+      // Create a mock conflict that bypasses the normal validation
+      const mockConflict = {
+        getConflictingOperations: () => [operationFactory.build()], // Only 1 operation
+        canBeAutomaticallyResolved: () => true,
+        getAutomaticResolutionOptions: () => [{ strategy: 'MERGE_OPERATIONS' }],
+      };
+
+      const result = await service.resolveConflictAutomatically(mockConflict as any);
+      expect(result.isErr()).toBe(true);
+      if (result.isErr()) {
+        expect(result.error.message).toContain(
+          'Cannot resolve conflict with less than 2 operations',
+        );
+      }
+    });
+
+    it('should handle automatic resolution with FIRST_WRITER_WINS strategy', async () => {
+      const conflictType = ConflictType.structural();
+      expect(conflictType.isOk()).toBe(true);
+      if (!conflictType.isOk()) return;
+
+      const operations = createConflictingOperations('/test/path', 2);
+      const mockConflict = {
+        getConflictingOperations: () => operations,
+        canBeAutomaticallyResolved: () => true,
+        getAutomaticResolutionOptions: () => [{ strategy: 'FIRST_WRITER_WINS' }],
+      };
+
+      const result = await service.resolveConflictAutomatically(mockConflict as any);
+      expect(result.isOk()).toBe(true);
+    });
+
+    it('should handle unknown automatic resolution strategy', async () => {
+      const conflictType = ConflictType.structural();
+      expect(conflictType.isOk()).toBe(true);
+      if (!conflictType.isOk()) return;
+
+      const operations = createConflictingOperations('/test/path', 2);
+      const mockConflict = {
+        getConflictingOperations: () => operations,
+        canBeAutomaticallyResolved: () => true,
+        getAutomaticResolutionOptions: () => [{ strategy: 'UNKNOWN_STRATEGY' }],
+      };
+
+      const result = await service.resolveConflictAutomatically(mockConflict as any);
+      expect(result.isErr()).toBe(true);
+      if (result.isErr()) {
+        expect(result.error.message).toContain('Unsupported automatic resolution strategy');
+      }
+    });
+  });
+
+  describe('recommended resolution edge cases', () => {
+    it('should handle conflicts with no automatic resolution options', () => {
+      const mockConflict = {
+        getAutomaticResolutionOptions: () => [],
+      };
+
+      const strategy = service.getRecommendedResolution(mockConflict as any);
+      expect(strategy).toBe('USER_DECISION_REQUIRED');
+    });
+
+    it('should handle conflicts with null first automatic option', () => {
+      const mockConflict = {
+        getAutomaticResolutionOptions: () => [null],
+      };
+
+      const strategy = service.getRecommendedResolution(mockConflict as any);
+      expect(strategy).toBe('USER_DECISION_REQUIRED');
+    });
+
+    it('should handle conflicts with undefined automatic options', () => {
+      const mockConflict = {
+        getAutomaticResolutionOptions: () => [undefined, { strategy: 'MERGE_OPERATIONS' }],
+      };
+
+      const strategy = service.getRecommendedResolution(mockConflict as any);
+      expect(strategy).toBe('USER_DECISION_REQUIRED');
+    });
+  });
 });

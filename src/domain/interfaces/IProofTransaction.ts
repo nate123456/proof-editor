@@ -6,7 +6,7 @@ export interface IProofTransaction {
   readonly startTime: Date;
   readonly operations: ProofOperation[];
 
-  addOperation(operation: ProofOperation): void;
+  addOperation(operation: ProofOperation): Result<void, Error>;
   commit(): Promise<Result<void, TransactionError>>;
   rollback(): Promise<Result<void, TransactionError>>;
   isActive(): boolean;

@@ -14,10 +14,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 // Core Domain Services
 import { StatementFlowService } from '../../domain/services/StatementFlowService.js';
 import { TreeStructureService } from '../../domain/services/TreeStructureService.js';
+import type { VSCodeDiagnosticAdapter } from '../../infrastructure/vscode/VSCodeDiagnosticAdapter.js';
 // Parser layer
 import { ProofFileParser } from '../../parser/ProofFileParser.js';
 import { YAMLValidator } from '../../parser/YAMLValidator.js';
-import type { ProofDiagnosticProvider } from '../../validation/DiagnosticProvider.js';
 import { ValidationController } from '../../validation/ValidationController.js';
 
 // Mock DiagnosticProvider for ValidationController
@@ -26,7 +26,7 @@ const mockDiagnosticProvider = {
   clearDiagnostics: vi.fn(),
   clearAllDiagnostics: vi.fn(),
   dispose: vi.fn(),
-} as unknown as ProofDiagnosticProvider;
+} as unknown as VSCodeDiagnosticAdapter;
 
 describe('Parser → Domain Integration Tests', () => {
   let parserService: ProofFileParser;

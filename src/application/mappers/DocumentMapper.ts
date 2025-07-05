@@ -9,7 +9,7 @@ import type { DocumentDTO, DocumentStatsDTO } from '../queries/document-queries.
 import { atomicArgumentFromDTO, atomicArgumentToDTO } from './AtomicArgumentMapper.js';
 import { orderedSetFromDTO, orderedSetToDTO } from './OrderedSetMapper.js';
 import { statementToDomain, statementToDTO } from './StatementMapper.js';
-import { treeToDTO } from './TreeMapper.js';
+import { treeToDomain, treeToDTO } from './TreeMapper.js';
 
 /**
  * Converts a ProofAggregate (document) to a DocumentDTO
@@ -217,9 +217,19 @@ export function documentFromDTO(
       );
     }
 
-    // For now, trees are not reconstructed from DTOs since we don't have a treeFromDTO function
-    // In a complete implementation, we would need to implement tree reconstruction
+    // Reconstruct trees from DTOs
     const trees: Tree[] = [];
+    for (const [_id, treeDTO] of Object.entries(dto.trees)) {
+      const treeResult = treeToDomain(treeDTO, dto.id);
+      if (treeResult.isErr()) {
+        return err(
+          new ValidationError(
+            `Failed to reconstruct tree ${treeDTO.id}: ${treeResult.error.message}`,
+          ),
+        );
+      }
+      trees.push(treeResult.value);
+    }
 
     return ok({
       aggregate: aggregateResult.value,

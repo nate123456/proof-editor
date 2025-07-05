@@ -809,23 +809,31 @@ describe('AtomicArgument Entity', () => {
           conclusionSetRef,
         );
 
-        const childArgument = parentArgument.createChildArgument();
-        expect(childArgument.getPremiseSet()).toBe(conclusionSetRef);
-        expect(childArgument.getConclusionSet()).toBeNull();
-        expect(parentArgument.canConnectToPremiseOf(childArgument)).toBe(true);
+        const childResult = parentArgument.createChildArgument();
+        expect(childResult.isOk()).toBe(true);
+
+        if (childResult.isOk()) {
+          const childArgument = childResult.value;
+          expect(childArgument.getPremiseSet()).toBe(conclusionSetRef);
+          expect(childArgument.getConclusionSet()).toBeNull();
+          expect(parentArgument.canConnectToPremiseOf(childArgument)).toBe(true);
+        }
       });
 
-      it('should throw when creating child from argument without conclusion', () => {
+      it('should return error when creating child from argument without conclusion', () => {
         const argumentWithoutConclusion = AtomicArgument.create(orderedSetIdFactory.build());
         expect(argumentWithoutConclusion.isOk()).toBe(true);
 
         if (argumentWithoutConclusion.isOk()) {
-          expect(() => argumentWithoutConclusion.value.createChildArgument()).toThrow(
-            ValidationError,
-          );
-          expect(() => argumentWithoutConclusion.value.createChildArgument()).toThrow(
-            'Cannot create child argument without conclusion set',
-          );
+          const childResult = argumentWithoutConclusion.value.createChildArgument();
+          expect(childResult.isErr()).toBe(true);
+
+          if (childResult.isErr()) {
+            expect(childResult.error).toBeInstanceOf(ValidationError);
+            expect(childResult.error.message).toBe(
+              'Cannot create child argument without conclusion set',
+            );
+          }
         }
       });
     });
@@ -1171,10 +1179,18 @@ describe('AtomicArgument Entity', () => {
   describe('String Representation', () => {
     describe('toString method', () => {
       it('should represent complete arguments', () => {
-        const premiseRef = OrderedSetId.fromString('premise-set-1');
-        const conclusionRef = OrderedSetId.fromString('conclusion-set-1');
+        const premiseRefResult = OrderedSetId.fromString('premise-set-1');
+        const conclusionRefResult = OrderedSetId.fromString('conclusion-set-1');
 
-        const argument = AtomicArgument.createComplete(premiseRef, conclusionRef);
+        expect(premiseRefResult.isOk()).toBe(true);
+        expect(conclusionRefResult.isOk()).toBe(true);
+
+        if (!premiseRefResult.isOk() || !conclusionRefResult.isOk()) return;
+
+        const argument = AtomicArgument.createComplete(
+          premiseRefResult.value,
+          conclusionRefResult.value,
+        );
         const stringRep = argument.toString();
 
         expect(stringRep).toContain('premise-set-1');
@@ -1196,7 +1212,11 @@ describe('AtomicArgument Entity', () => {
       });
 
       it('should represent partial arguments', () => {
-        const premiseRef = OrderedSetId.fromString('premise-only');
+        const premiseRefResult = OrderedSetId.fromString('premise-only');
+        expect(premiseRefResult.isOk()).toBe(true);
+        if (!premiseRefResult.isOk()) return;
+
+        const premiseRef = premiseRefResult.value;
         const result = AtomicArgument.create(premiseRef);
         expect(result.isOk()).toBe(true);
 
@@ -1350,6 +1370,97 @@ describe('AtomicArgument Entity', () => {
         expect(argument).toBeDefined();
         expect(premises).toBeDefined();
         expect(conclusion).toBeDefined();
+      });
+    });
+  });
+
+  describe('Bootstrap and Population Methods', () => {
+    describe('createBootstrap factory method', () => {
+      it('should create bootstrap arguments directly', () => {
+        const bootstrapArgument = AtomicArgument.createBootstrap();
+
+        expect(bootstrapArgument).toBeInstanceOf(AtomicArgument);
+        expect(bootstrapArgument.getPremiseSet()).toBeNull();
+        expect(bootstrapArgument.getConclusionSet()).toBeNull();
+        expect(bootstrapArgument.isBootstrapArgument()).toBe(true);
+        expect(bootstrapArgument.isBootstrap()).toBe(true);
+        expect(bootstrapArgument.isEmpty()).toBe(true);
+        expect(bootstrapArgument.isComplete()).toBe(false);
+        expect(bootstrapArgument.canPopulate()).toBe(true);
+        expect(bootstrapArgument.getSideLabels()).toEqual({});
+        expect(bootstrapArgument.hasSideLabels()).toBe(false);
+        customExpect(bootstrapArgument).toBeValidAtomicArgument();
+      });
+
+      it('should create bootstrap arguments with consistent timestamps', () => {
+        const bootstrapArgument = AtomicArgument.createBootstrap();
+
+        expect(bootstrapArgument.getCreatedAt()).toBe(bootstrapArgument.getModifiedAt());
+        expect(bootstrapArgument.getCreatedAt()).toBeGreaterThan(0);
+      });
+
+      it('should create unique bootstrap arguments', () => {
+        const bootstrap1 = AtomicArgument.createBootstrap();
+        const bootstrap2 = AtomicArgument.createBootstrap();
+
+        expect(bootstrap1.getId().equals(bootstrap2.getId())).toBe(false);
+        expect(bootstrap1.equals(bootstrap2)).toBe(false);
+      });
+    });
+
+    describe('canPopulate method', () => {
+      it('should return true for bootstrap arguments', () => {
+        const result = AtomicArgument.create();
+        expect(result.isOk()).toBe(true);
+
+        if (result.isOk()) {
+          const argument = result.value;
+          expect(argument.canPopulate()).toBe(true);
+          expect(argument.isBootstrap()).toBe(true);
+          expect(argument.isBootstrapArgument()).toBe(true);
+        }
+      });
+
+      it('should return false for non-bootstrap arguments', () => {
+        const premiseSetRef = orderedSetIdFactory.build();
+        const result = AtomicArgument.create(premiseSetRef);
+        expect(result.isOk()).toBe(true);
+
+        if (result.isOk()) {
+          const argument = result.value;
+          expect(argument.canPopulate()).toBe(false);
+          expect(argument.isBootstrap()).toBe(false);
+          expect(argument.isBootstrapArgument()).toBe(false);
+        }
+      });
+
+      it('should return false for complete arguments', () => {
+        const argument = AtomicArgument.createComplete(
+          orderedSetIdFactory.build(),
+          orderedSetIdFactory.build(),
+        );
+        expect(argument.canPopulate()).toBe(false);
+        expect(argument.isBootstrap()).toBe(false);
+      });
+    });
+
+    describe('isBootstrap alias method', () => {
+      it('should work as alias for isBootstrapArgument', () => {
+        const bootstrapResult = AtomicArgument.create();
+        const completeArgument = AtomicArgument.createComplete(
+          orderedSetIdFactory.build(),
+          orderedSetIdFactory.build(),
+        );
+
+        expect(bootstrapResult.isOk()).toBe(true);
+        if (bootstrapResult.isOk()) {
+          const bootstrap = bootstrapResult.value;
+          expect(bootstrap.isBootstrap()).toBe(bootstrap.isBootstrapArgument());
+          expect(bootstrap.isBootstrap()).toBe(true);
+        }
+
+        expect(completeArgument.isBootstrap()).toBe(completeArgument.isBootstrapArgument());
+        expect(completeArgument.isBootstrap()).toBe(false);
       });
     });
   });
@@ -1560,6 +1671,576 @@ describe('AtomicArgument Entity', () => {
             }
           }),
         );
+      });
+    });
+
+    describe('comprehensive edge case coverage', () => {
+      it('should handle createChildArgument edge cases', () => {
+        // Test with conclusion set
+        const conclusionSetRef = orderedSetIdFactory.build();
+        const parentResult = AtomicArgument.create(undefined, conclusionSetRef);
+        expect(parentResult.isOk()).toBe(true);
+
+        if (parentResult.isOk()) {
+          const parent = parentResult.value;
+          const childResult = parent.createChildArgument();
+
+          expect(childResult.isOk()).toBe(true);
+          if (childResult.isOk()) {
+            const child = childResult.value;
+            expect(child).toBeInstanceOf(AtomicArgument);
+            expect(child.getPremiseSet()).toBe(conclusionSetRef);
+            expect(child.getConclusionSet()).toBeNull();
+          }
+        }
+
+        // Test without conclusion set should return error
+        const emptyParentResult = AtomicArgument.create();
+        expect(emptyParentResult.isOk()).toBe(true);
+
+        if (emptyParentResult.isOk()) {
+          const emptyParent = emptyParentResult.value;
+          const childResult = emptyParent.createChildArgument();
+          expect(childResult.isErr()).toBe(true);
+
+          if (childResult.isErr()) {
+            expect(childResult.error).toBeInstanceOf(ValidationError);
+          }
+        }
+      });
+
+      it('should handle complex connection validation scenarios', () => {
+        const sharedSet = orderedSetIdFactory.build();
+        const arg1 = AtomicArgument.createComplete(orderedSetIdFactory.build(), sharedSet);
+        const arg2 = AtomicArgument.createComplete(sharedSet, orderedSetIdFactory.build());
+
+        // Test self-reference validation
+        const selfValidation = arg1.validateConnectionSafety(arg1);
+        expect(selfValidation.isErr()).toBe(true);
+        if (selfValidation.isErr()) {
+          expect(selfValidation.error.message).toContain('Cannot connect argument to itself');
+        }
+
+        // Test missing conclusion set
+        const noConclusionResult = AtomicArgument.create(orderedSetIdFactory.build());
+        expect(noConclusionResult.isOk()).toBe(true);
+        if (noConclusionResult.isOk()) {
+          const noConclusionArg = noConclusionResult.value;
+          const noConclusionValidation = noConclusionArg.validateConnectionSafety(arg2);
+          expect(noConclusionValidation.isErr()).toBe(true);
+          if (noConclusionValidation.isErr()) {
+            expect(noConclusionValidation.error.message).toContain(
+              'Source argument has no conclusion set',
+            );
+          }
+        }
+
+        // Test missing premise set on target
+        const noPremiseResult = AtomicArgument.create(undefined, orderedSetIdFactory.build());
+        expect(noPremiseResult.isOk()).toBe(true);
+        if (noPremiseResult.isOk()) {
+          const noPremiseArg = noPremiseResult.value;
+          const noPremiseValidation = arg1.validateConnectionSafety(noPremiseArg);
+          expect(noPremiseValidation.isErr()).toBe(true);
+          if (noPremiseValidation.isErr()) {
+            expect(noPremiseValidation.error.message).toContain(
+              'Target argument has no premise set',
+            );
+          }
+        }
+      });
+
+      it('should handle side label edge cases comprehensively', () => {
+        const argumentResult = AtomicArgument.create();
+        expect(argumentResult.isOk()).toBe(true);
+        if (!argumentResult.isOk()) return;
+        const argument = argumentResult.value;
+
+        // Test setting empty string labels (should not be detected as having labels)
+        argument.setLeftSideLabel('');
+        expect(argument.hasLeftSideLabel()).toBe(false);
+
+        argument.setRightSideLabel('');
+        expect(argument.hasRightSideLabel()).toBe(false);
+
+        // Test setting whitespace-only labels
+        argument.setLeftSideLabel('   \t\n  ');
+        expect(argument.hasLeftSideLabel()).toBe(false);
+
+        argument.setRightSideLabel('\t\n  ');
+        expect(argument.hasRightSideLabel()).toBe(false);
+
+        // Test null values
+        argument.setLeftSideLabel(null as any);
+        expect(argument.hasLeftSideLabel()).toBe(false);
+
+        argument.setRightSideLabel(null as any);
+        expect(argument.hasRightSideLabel()).toBe(false);
+
+        // Test undefined values
+        argument.setLeftSideLabel(undefined);
+        expect(argument.hasLeftSideLabel()).toBe(false);
+
+        argument.setRightSideLabel(undefined);
+        expect(argument.hasRightSideLabel()).toBe(false);
+
+        // Test valid labels
+        argument.setLeftSideLabel('Valid Left');
+        expect(argument.hasLeftSideLabel()).toBe(true);
+
+        argument.setRightSideLabel('Valid Right');
+        expect(argument.hasRightSideLabel()).toBe(true);
+        expect(argument.hasSideLabels()).toBe(true);
+      });
+
+      it('should handle timestamp consistency during mutations', () => {
+        const argumentResult = AtomicArgument.create();
+        expect(argumentResult.isOk()).toBe(true);
+        if (!argumentResult.isOk()) return;
+        const argument = argumentResult.value;
+        const originalModified = argument.getModifiedAt();
+
+        // Mock Date.now to return a different value
+        const newTimestamp = originalModified + 1000;
+        vi.spyOn(Date, 'now').mockReturnValue(newTimestamp);
+
+        // Verify timestamp updates on mutations
+        argument.setPremiseSetRef(orderedSetIdFactory.build());
+        expect(argument.getModifiedAt()).toBe(newTimestamp);
+
+        const newerTimestamp = newTimestamp + 1000;
+        vi.spyOn(Date, 'now').mockReturnValue(newerTimestamp);
+
+        argument.setConclusionSetRef(orderedSetIdFactory.build());
+        expect(argument.getModifiedAt()).toBe(newerTimestamp);
+
+        // Test side label updates also update timestamp
+        const latestTimestamp = newerTimestamp + 1000;
+        vi.spyOn(Date, 'now').mockReturnValue(latestTimestamp);
+
+        argument.setLeftSideLabel('New Label');
+        expect(argument.getModifiedAt()).toBe(latestTimestamp);
+      });
+
+      it('should handle toString representation edge cases', () => {
+        // Empty argument
+        const emptyResult = AtomicArgument.create();
+        expect(emptyResult.isOk()).toBe(true);
+        if (emptyResult.isOk()) {
+          const emptyArg = emptyResult.value;
+          expect(emptyArg.toString()).toBe('empty → empty');
+        }
+
+        // Premise only
+        const premiseId = orderedSetIdFactory.build();
+        const premiseOnlyResult = AtomicArgument.create(premiseId);
+        expect(premiseOnlyResult.isOk()).toBe(true);
+        if (premiseOnlyResult.isOk()) {
+          const premiseOnlyArg = premiseOnlyResult.value;
+          expect(premiseOnlyArg.toString()).toBe(`${premiseId.getValue()} → empty`);
+        }
+
+        // Conclusion only
+        const conclusionId = orderedSetIdFactory.build();
+        const conclusionOnlyResult = AtomicArgument.create(undefined, conclusionId);
+        expect(conclusionOnlyResult.isOk()).toBe(true);
+        if (conclusionOnlyResult.isOk()) {
+          const conclusionOnlyArg = conclusionOnlyResult.value;
+          expect(conclusionOnlyArg.toString()).toBe(`empty → ${conclusionId.getValue()}`);
+        }
+
+        // Complete argument
+        const completeArg = AtomicArgument.createComplete(premiseId, conclusionId);
+        expect(completeArg.toString()).toBe(`${premiseId.getValue()} → ${conclusionId.getValue()}`);
+      });
+    });
+  });
+
+  // Enhanced coverage tests for AtomicArgument edge cases
+  describe('Enhanced Coverage Tests', () => {
+    describe('createChildArgument edge cases', () => {
+      it('should return ValidationError when no conclusion set exists', () => {
+        const arg = AtomicArgument.createBootstrap();
+        const childResult = arg.createChildArgument();
+
+        expect(childResult.isErr()).toBe(true);
+        if (childResult.isErr()) {
+          expect(childResult.error).toBeInstanceOf(ValidationError);
+          expect(childResult.error.message).toBe(
+            'Cannot create child argument without conclusion set',
+          );
+        }
+      });
+
+      it('should handle createChildArgument with conclusion set', () => {
+        const conclusionSetRef = orderedSetIdFactory.build();
+        const result = AtomicArgument.create(undefined, conclusionSetRef);
+
+        expect(result.isOk()).toBe(true);
+        if (result.isOk()) {
+          const parentArg = result.value;
+          const childResult = parentArg.createChildArgument();
+
+          expect(childResult.isOk()).toBe(true);
+          if (childResult.isOk()) {
+            const childArg = childResult.value;
+            expect(childArg.getPremiseSet()).toBe(conclusionSetRef);
+            expect(childArg.getConclusionSet()).toBeNull();
+            expect(childArg.isBootstrapArgument()).toBe(false);
+          }
+        }
+      });
+    });
+
+    describe('reconstruct method edge cases', () => {
+      it('should handle reconstruct with all parameter combinations', () => {
+        const id = atomicArgumentIdFactory.build();
+        const premiseSet = orderedSetIdFactory.build();
+        const conclusionSet = orderedSetIdFactory.build();
+        const now = Date.now();
+        const sideLabels: SideLabels = { left: 'test-left', right: 'test-right' };
+
+        // Test all combinations
+        const combinations = [
+          { premise: null, conclusion: null, labels: {} },
+          { premise: premiseSet, conclusion: null, labels: {} },
+          { premise: null, conclusion: conclusionSet, labels: {} },
+          { premise: premiseSet, conclusion: conclusionSet, labels: {} },
+          { premise: premiseSet, conclusion: conclusionSet, labels: sideLabels },
+        ];
+
+        combinations.forEach(({ premise, conclusion, labels }) => {
+          const result = AtomicArgument.reconstruct(
+            id,
+            premise,
+            conclusion,
+            now,
+            now + 1000,
+            labels,
+          );
+          expect(result.isOk()).toBe(true);
+
+          if (result.isOk()) {
+            const arg = result.value;
+            expect(arg.getId()).toBe(id);
+            expect(arg.getPremiseSet()).toBe(premise);
+            expect(arg.getConclusionSet()).toBe(conclusion);
+            expect(arg.getCreatedAt()).toBe(now);
+            expect(arg.getModifiedAt()).toBe(now + 1000);
+            expect(arg.getSideLabels()).toEqual(labels);
+          }
+        });
+      });
+    });
+
+    describe('connection validation edge cases', () => {
+      it('should test validateConnectionSafety with all error conditions', () => {
+        const bootstrapArg1 = AtomicArgument.createBootstrap();
+        const bootstrapArg2 = AtomicArgument.createBootstrap();
+
+        // Test self-connection
+        const selfResult = bootstrapArg1.validateConnectionSafety(bootstrapArg1);
+        expect(selfResult.isErr()).toBe(true);
+        if (selfResult.isErr()) {
+          expect(selfResult.error.message).toContain('Cannot connect argument to itself');
+        }
+
+        // Test no conclusion set
+        const noConclResult = bootstrapArg1.validateConnectionSafety(bootstrapArg2);
+        expect(noConclResult.isErr()).toBe(true);
+        if (noConclResult.isErr()) {
+          expect(noConclResult.error.message).toContain('Source argument has no conclusion set');
+        }
+
+        // Test no premise set on target
+        const conclusionSetRef = orderedSetIdFactory.build();
+        const arg1WithConclusion = AtomicArgument.createComplete(
+          orderedSetIdFactory.build(),
+          conclusionSetRef,
+        );
+        const noPremiseResult = arg1WithConclusion.validateConnectionSafety(bootstrapArg2);
+        expect(noPremiseResult.isErr()).toBe(true);
+        if (noPremiseResult.isErr()) {
+          expect(noPremiseResult.error.message).toContain('Target argument has no premise set');
+        }
+
+        // Test direct cycle detection
+        // Create two arguments that would form a cycle: A→B and B→A
+        const setRefA = orderedSetIdFactory.build();
+        const setRefB = orderedSetIdFactory.build();
+
+        const argCycle1 = AtomicArgument.createComplete(setRefA, setRefB); // A→B
+        const argCycle2 = AtomicArgument.createComplete(setRefB, setRefA); // B→A
+
+        const cycleResult = argCycle1.validateConnectionSafety(argCycle2);
+        expect(cycleResult.isErr()).toBe(true);
+        if (cycleResult.isErr()) {
+          expect(cycleResult.error.message).toContain('Connection would create direct cycle');
+        }
+      });
+    });
+
+    describe('side label management edge cases', () => {
+      it('should handle side label edge cases thoroughly', () => {
+        const arg = AtomicArgument.createBootstrap();
+
+        // Test setting empty and whitespace labels
+        const emptyLabelResult = arg.setLeftSideLabel('');
+        expect(emptyLabelResult.isOk()).toBe(true);
+        expect(arg.hasLeftSideLabel()).toBe(false);
+
+        const whitespaceLabelResult = arg.setRightSideLabel('   ');
+        expect(whitespaceLabelResult.isOk()).toBe(true);
+        expect(arg.hasRightSideLabel()).toBe(false);
+
+        // Test setting valid labels
+        const validLeftResult = arg.setLeftSideLabel('valid-left');
+        expect(validLeftResult.isOk()).toBe(true);
+        expect(arg.hasLeftSideLabel()).toBe(true);
+
+        const validRightResult = arg.setRightSideLabel('valid-right');
+        expect(validRightResult.isOk()).toBe(true);
+        expect(arg.hasRightSideLabel()).toBe(true);
+        expect(arg.hasSideLabels()).toBe(true);
+
+        // Test clearing labels with undefined
+        const clearLeftResult = arg.setLeftSideLabel(undefined);
+        expect(clearLeftResult.isOk()).toBe(true);
+        expect(arg.hasLeftSideLabel()).toBe(false);
+
+        const clearRightResult = arg.setRightSideLabel(undefined);
+        expect(clearRightResult.isOk()).toBe(true);
+        expect(arg.hasRightSideLabel()).toBe(false);
+        expect(arg.hasSideLabels()).toBe(false);
+
+        // Test updating all labels at once
+        const newLabels: SideLabels = { left: 'new-left', right: 'new-right' };
+        const updateResult = arg.updateSideLabels(newLabels);
+        expect(updateResult.isOk()).toBe(true);
+        expect(arg.getSideLabels()).toEqual(newLabels);
+        expect(arg.hasSideLabels()).toBe(true);
+      });
+
+      it('should handle side label edge cases with null and special characters', () => {
+        const arg = AtomicArgument.createBootstrap();
+
+        // Test labels with special characters
+        const specialLabels: SideLabels = {
+          left: 'äöü-βγδ-🌟',
+          right: 'line1\nline2\ttab',
+        };
+
+        const result = arg.updateSideLabels(specialLabels);
+        expect(result.isOk()).toBe(true);
+        expect(arg.getSideLabels()).toEqual(specialLabels);
+        expect(arg.hasLeftSideLabel()).toBe(true);
+        expect(arg.hasRightSideLabel()).toBe(true);
+      });
+    });
+
+    describe('branching edge cases', () => {
+      it('should handle createBranchFromConclusion edge cases', () => {
+        // Test branching from argument without conclusion
+        const emptyArg = AtomicArgument.createBootstrap();
+        const branchResult = emptyArg.createBranchFromConclusion();
+        expect(branchResult.isErr()).toBe(true);
+        if (branchResult.isErr()) {
+          expect(branchResult.error.message).toContain(
+            'Cannot branch from argument without conclusion set',
+          );
+        }
+
+        // Test successful branching
+        const conclusionSetRef = orderedSetIdFactory.build();
+        const argWithConclusion = AtomicArgument.createComplete(
+          orderedSetIdFactory.build(),
+          conclusionSetRef,
+        );
+
+        const successfulBranchResult = argWithConclusion.createBranchFromConclusion();
+        expect(successfulBranchResult.isOk()).toBe(true);
+        if (successfulBranchResult.isOk()) {
+          const branchedArg = successfulBranchResult.value;
+          expect(branchedArg.getPremiseSet()).toBe(conclusionSetRef);
+          expect(branchedArg.getConclusionSet()).toBeNull();
+        }
+      });
+
+      it('should handle createBranchToPremise edge cases', () => {
+        // Test branching to argument without premise
+        const emptyArg = AtomicArgument.createBootstrap();
+        const branchResult = emptyArg.createBranchToPremise();
+        expect(branchResult.isErr()).toBe(true);
+        if (branchResult.isErr()) {
+          expect(branchResult.error.message).toContain(
+            'Cannot branch to argument without premise set',
+          );
+        }
+
+        // Test successful branching
+        const premiseSetRef = orderedSetIdFactory.build();
+        const argWithPremise = AtomicArgument.createComplete(
+          premiseSetRef,
+          orderedSetIdFactory.build(),
+        );
+
+        const successfulBranchResult = argWithPremise.createBranchToPremise();
+        expect(successfulBranchResult.isOk()).toBe(true);
+        if (successfulBranchResult.isOk()) {
+          const branchedArg = successfulBranchResult.value;
+          expect(branchedArg.getPremiseSet()).toBeNull();
+          expect(branchedArg.getConclusionSet()).toBe(premiseSetRef);
+        }
+      });
+    });
+
+    describe('reference modification timing', () => {
+      it('should update modified timestamp when setting references', () => {
+        const arg = AtomicArgument.createBootstrap();
+        const originalModified = arg.getModifiedAt();
+
+        // Wait a bit to ensure timestamp difference
+        mockDateNow.mockReturnValue(FIXED_TIMESTAMP + 1000);
+
+        const newPremiseSet = orderedSetIdFactory.build();
+        arg.setPremiseSetRef(newPremiseSet);
+
+        expect(arg.getModifiedAt()).toBe(FIXED_TIMESTAMP + 1000);
+        expect(arg.getModifiedAt()).toBeGreaterThan(originalModified);
+
+        // Test that setting same reference doesn't update timestamp
+        mockDateNow.mockReturnValue(FIXED_TIMESTAMP + 2000);
+        arg.setPremiseSetRef(newPremiseSet); // Same reference
+
+        expect(arg.getModifiedAt()).toBe(FIXED_TIMESTAMP + 1000); // Should not change
+      });
+
+      it('should update modified timestamp when setting conclusion references', () => {
+        const arg = AtomicArgument.createBootstrap();
+        const originalModified = arg.getModifiedAt();
+
+        mockDateNow.mockReturnValue(FIXED_TIMESTAMP + 1000);
+
+        const newConclusionSet = orderedSetIdFactory.build();
+        arg.setConclusionSetRef(newConclusionSet);
+
+        expect(arg.getModifiedAt()).toBe(FIXED_TIMESTAMP + 1000);
+        expect(arg.getModifiedAt()).toBeGreaterThan(originalModified);
+
+        // Test that setting same reference doesn't update timestamp
+        mockDateNow.mockReturnValue(FIXED_TIMESTAMP + 2000);
+        arg.setConclusionSetRef(newConclusionSet); // Same reference
+
+        expect(arg.getModifiedAt()).toBe(FIXED_TIMESTAMP + 1000); // Should not change
+      });
+    });
+
+    describe('connection compatibility edge cases', () => {
+      it('should test all connection methods with various scenarios', () => {
+        const sharedSetRef = orderedSetIdFactory.build();
+        const otherSetRef = orderedSetIdFactory.build();
+
+        const arg1 = AtomicArgument.createComplete(orderedSetIdFactory.build(), sharedSetRef);
+        const arg2 = AtomicArgument.createComplete(sharedSetRef, orderedSetIdFactory.build());
+        const arg3 = AtomicArgument.createComplete(otherSetRef, orderedSetIdFactory.build());
+
+        // Test canConnectToPremiseOf
+        expect(arg1.canConnectToPremiseOf(arg2)).toBe(true);
+        expect(arg1.canConnectToPremiseOf(arg3)).toBe(false);
+
+        // Test canConnectToConclusionOf
+        expect(arg2.canConnectToConclusionOf(arg1)).toBe(true);
+        expect(arg3.canConnectToConclusionOf(arg1)).toBe(false);
+
+        // Test isDirectlyConnectedTo
+        expect(arg1.isDirectlyConnectedTo(arg2)).toBe(true);
+        expect(arg1.isDirectlyConnectedTo(arg3)).toBe(false);
+
+        // Test sharesOrderedSetWith and its alias
+        expect(arg1.sharesOrderedSetWith(arg2)).toBe(true);
+        expect(arg1.sharesSetWith(arg2)).toBe(true); // Alias
+        expect(arg1.sharesOrderedSetWith(arg3)).toBe(false);
+
+        // Test canConnectTo and wouldCreateDirectCycle
+        expect(arg1.canConnectTo(arg2)).toBe(true);
+        // arg1 can connect to arg2, but arg2 CANNOT connect back to arg1 (no cycle)
+        // because arg2's conclusion connects to a different set than arg1's premise
+        expect(arg1.wouldCreateDirectCycle(arg2)).toBe(false);
+        expect(arg1.canConnectTo(arg3)).toBe(false);
+        expect(arg1.wouldCreateDirectCycle(arg3)).toBe(false);
+      });
+    });
+
+    describe('bootstrap and population states', () => {
+      it('should test bootstrap state transitions and validation', () => {
+        const bootstrapArg = AtomicArgument.createBootstrap();
+
+        // Test initial bootstrap state
+        expect(bootstrapArg.isBootstrap()).toBe(true);
+        expect(bootstrapArg.isBootstrapArgument()).toBe(true); // Alias
+        expect(bootstrapArg.canPopulate()).toBe(true);
+        expect(bootstrapArg.isEmpty()).toBe(true);
+        expect(bootstrapArg.isComplete()).toBe(false);
+
+        // Test state after adding premise
+        const premiseSetRef = orderedSetIdFactory.build();
+        bootstrapArg.setPremiseSetRef(premiseSetRef);
+
+        expect(bootstrapArg.isBootstrap()).toBe(false);
+        expect(bootstrapArg.canPopulate()).toBe(false);
+        expect(bootstrapArg.isEmpty()).toBe(false);
+        expect(bootstrapArg.isComplete()).toBe(false);
+
+        // Test state after adding conclusion
+        const conclusionSetRef = orderedSetIdFactory.build();
+        bootstrapArg.setConclusionSetRef(conclusionSetRef);
+
+        expect(bootstrapArg.isBootstrap()).toBe(false);
+        expect(bootstrapArg.canPopulate()).toBe(false);
+        expect(bootstrapArg.isEmpty()).toBe(false);
+        expect(bootstrapArg.isComplete()).toBe(true);
+      });
+    });
+
+    describe('property validation and state checks', () => {
+      it('should comprehensively test all state checking methods', () => {
+        // Test empty argument
+        const emptyArg = AtomicArgument.createBootstrap();
+        expect(emptyArg.hasPremiseSet()).toBe(false);
+        expect(emptyArg.hasConclusionSet()).toBe(false);
+        expect(emptyArg.hasEmptyPremiseSet()).toBe(true);
+        expect(emptyArg.hasEmptyConclusionSet()).toBe(true);
+
+        // Test premise-only argument
+        const premiseSetRef = orderedSetIdFactory.build();
+        const premiseOnlyResult = AtomicArgument.create(premiseSetRef);
+        expect(premiseOnlyResult.isOk()).toBe(true);
+        if (premiseOnlyResult.isOk()) {
+          const premiseOnlyArg = premiseOnlyResult.value;
+          expect(premiseOnlyArg.hasPremiseSet()).toBe(true);
+          expect(premiseOnlyArg.hasConclusionSet()).toBe(false);
+          expect(premiseOnlyArg.hasEmptyPremiseSet()).toBe(false);
+          expect(premiseOnlyArg.hasEmptyConclusionSet()).toBe(true);
+        }
+
+        // Test conclusion-only argument
+        const conclusionSetRef = orderedSetIdFactory.build();
+        const conclusionOnlyResult = AtomicArgument.create(undefined, conclusionSetRef);
+        expect(conclusionOnlyResult.isOk()).toBe(true);
+        if (conclusionOnlyResult.isOk()) {
+          const conclusionOnlyArg = conclusionOnlyResult.value;
+          expect(conclusionOnlyArg.hasPremiseSet()).toBe(false);
+          expect(conclusionOnlyArg.hasConclusionSet()).toBe(true);
+          expect(conclusionOnlyArg.hasEmptyPremiseSet()).toBe(true);
+          expect(conclusionOnlyArg.hasEmptyConclusionSet()).toBe(false);
+        }
+
+        // Test complete argument
+        const completeArg = AtomicArgument.createComplete(premiseSetRef, conclusionSetRef);
+        expect(completeArg.hasPremiseSet()).toBe(true);
+        expect(completeArg.hasConclusionSet()).toBe(true);
+        expect(completeArg.hasEmptyPremiseSet()).toBe(false);
+        expect(completeArg.hasEmptyConclusionSet()).toBe(false);
       });
     });
   });

@@ -81,12 +81,8 @@ export class StatementId extends ValueObject<BrandedStatementId> {
     return new StatementId(randomUUID());
   }
 
-  static fromString(value: string): StatementId {
-    const result = StatementId.create(value);
-    if (result.isErr()) {
-      throw result.error;
-    }
-    return result.value;
+  static fromString(value: string): Result<StatementId, ValidationError> {
+    return StatementId.create(value);
   }
 }
 
@@ -113,12 +109,8 @@ export class OrderedSetId extends ValueObject<BrandedOrderedSetId> {
     return new OrderedSetId(randomUUID());
   }
 
-  static fromString(value: string): OrderedSetId {
-    const result = OrderedSetId.create(value);
-    if (result.isErr()) {
-      throw result.error;
-    }
-    return result.value;
+  static fromString(value: string): Result<OrderedSetId, ValidationError> {
+    return OrderedSetId.create(value);
   }
 }
 
@@ -150,12 +142,8 @@ export class AtomicArgumentId extends ValueObject<BrandedAtomicArgumentId> {
     return new AtomicArgumentId(randomUUID());
   }
 
-  static fromString(value: string): AtomicArgumentId {
-    const result = AtomicArgumentId.create(value);
-    if (result.isErr()) {
-      throw result.error;
-    }
-    return result.value;
+  static fromString(value: string): Result<AtomicArgumentId, ValidationError> {
+    return AtomicArgumentId.create(value);
   }
 }
 
@@ -182,12 +170,8 @@ export class NodeId extends ValueObject<BrandedNodeId> {
     return new NodeId(randomUUID());
   }
 
-  static fromString(value: string): NodeId {
-    const result = NodeId.create(value);
-    if (result.isErr()) {
-      throw result.error;
-    }
-    return result.value;
+  static fromString(value: string): Result<NodeId, ValidationError> {
+    return NodeId.create(value);
   }
 }
 
@@ -214,12 +198,8 @@ export class TreeId extends ValueObject<BrandedTreeId> {
     return new TreeId(randomUUID());
   }
 
-  static fromString(value: string): TreeId {
-    const result = TreeId.create(value);
-    if (result.isErr()) {
-      throw result.error;
-    }
-    return result.value;
+  static fromString(value: string): Result<TreeId, ValidationError> {
+    return TreeId.create(value);
   }
 }
 
@@ -246,12 +226,8 @@ export class DocumentId extends ValueObject<BrandedDocumentId> {
     return new DocumentId(randomUUID());
   }
 
-  static fromString(value: string): DocumentId {
-    const result = DocumentId.create(value);
-    if (result.isErr()) {
-      throw result.error;
-    }
-    return result.value;
+  static fromString(value: string): Result<DocumentId, ValidationError> {
+    return DocumentId.create(value);
   }
 }
 
@@ -278,12 +254,8 @@ export class PackageId extends ValueObject<BrandedPackageId> {
     return new PackageId(randomUUID());
   }
 
-  static fromString(value: string): PackageId {
-    const result = PackageId.create(value);
-    if (result.isErr()) {
-      throw result.error;
-    }
-    return result.value;
+  static fromString(value: string): Result<PackageId, ValidationError> {
+    return PackageId.create(value);
   }
 }
 
@@ -321,12 +293,8 @@ export class StatementContent extends ValueObject<string> {
     return ok(new StatementContent(trimmed));
   }
 
-  static fromString(value: string): StatementContent {
-    const result = StatementContent.create(value);
-    if (result.isErr()) {
-      throw result.error;
-    }
-    return result.value;
+  static fromString(value: string): Result<StatementContent, ValidationError> {
+    return StatementContent.create(value);
   }
 
   get isEmpty(): boolean {
@@ -748,12 +716,8 @@ export class ProofId extends ValueObject<BrandedProofId> {
     return new ProofId(randomUUID());
   }
 
-  static fromString(value: string): ProofId {
-    const result = ProofId.create(value);
-    if (result.isErr()) {
-      throw result.error;
-    }
-    return result.value;
+  static fromString(value: string): Result<ProofId, ValidationError> {
+    return ProofId.create(value);
   }
 }
 
@@ -780,12 +744,8 @@ export class ProofTreeId extends ValueObject<BrandedProofTreeId> {
     return new ProofTreeId(randomUUID());
   }
 
-  static fromString(value: string): ProofTreeId {
-    const result = ProofTreeId.create(value);
-    if (result.isErr()) {
-      throw result.error;
-    }
-    return result.value;
+  static fromString(value: string): Result<ProofTreeId, ValidationError> {
+    return ProofTreeId.create(value);
   }
 }
 
@@ -815,11 +775,7 @@ export class ProofDocumentId extends ValueObject<BrandedProofDocumentId> {
     return new ProofDocumentId(randomUUID());
   }
 
-  static fromString(value: string): ProofDocumentId {
-    const result = ProofDocumentId.create(value);
-    if (result.isErr()) {
-      throw result.error;
-    }
-    return result.value;
+  static fromString(value: string): Result<ProofDocumentId, ValidationError> {
+    return ProofDocumentId.create(value);
   }
 }

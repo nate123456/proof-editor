@@ -493,6 +493,9 @@ export class YAMLValidator {
       }
       const conclusionsValue = argumentObj[premisesKey];
 
+      // Validate premise key - empty keys are allowed for bootstrap arguments
+      // Empty arrays in YAML are converted to empty strings, which is valid for bootstrap
+
       // Parse premises from key (YAML converts ['s1', 's2'] to "s1,s2")
       let premises: string[];
       if (premisesKey.includes(',')) {
@@ -501,12 +504,33 @@ export class YAMLValidator {
           .split(',')
           .map((s) => s.trim())
           .filter((s) => s.length > 0);
-      } else if (premisesKey.length > 0) {
+      } else if (premisesKey.trim().length === 0) {
+        // Handle empty premises (bootstrap case) - only valid when conclusions are also empty
+        if (!Array.isArray(conclusionsValue) || conclusionsValue.length > 0) {
+          errors.push({
+            type: ParseErrorType.INVALID_ARGUMENT,
+            message: `Empty premises in argument ${index} are only valid for bootstrap arguments (empty conclusions required)`,
+            section: 'arguments',
+            reference: `argument-${index}`,
+          });
+          continue;
+        }
+        premises = [];
+      } else {
         // Handle single premise
         premises = [premisesKey.trim()];
-      } else {
-        // Handle empty premises (bootstrap case)
-        premises = [];
+      }
+
+      // Validate each individual premise statement ID
+      for (const premise of premises) {
+        if (!this.isValidStatementId(premise)) {
+          errors.push({
+            type: ParseErrorType.INVALID_ARGUMENT,
+            message: `Premise '${premise}' in argument ${index} must be a valid statement ID`,
+            section: 'arguments',
+            reference: `argument-${index}`,
+          });
+        }
       }
 
       // Validate conclusions value (should be array)
@@ -697,12 +721,26 @@ export class YAMLValidator {
         section: 'trees',
         reference: treeId,
       });
+    } else if (!Number.isFinite(offsetObj.x)) {
+      errors.push({
+        type: ParseErrorType.INVALID_TREE_STRUCTURE,
+        message: `Tree offset.x must be a finite number, got ${offsetObj.x}`,
+        section: 'trees',
+        reference: treeId,
+      });
     }
 
     if (typeof offsetObj.y !== 'number') {
       errors.push({
         type: ParseErrorType.INVALID_TREE_STRUCTURE,
         message: `Tree offset.y must be a number, got ${typeof offsetObj.y}`,
+        section: 'trees',
+        reference: treeId,
+      });
+    } else if (!Number.isFinite(offsetObj.y)) {
+      errors.push({
+        type: ParseErrorType.INVALID_TREE_STRUCTURE,
+        message: `Tree offset.y must be a finite number, got ${offsetObj.y}`,
         section: 'trees',
         reference: treeId,
       });

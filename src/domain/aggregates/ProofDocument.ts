@@ -17,10 +17,10 @@ import {
 } from '../events/proof-document-events.js';
 import { ValidationError } from '../shared/result.js';
 import {
-  type AtomicArgumentId,
-  type OrderedSetId,
+  AtomicArgumentId,
+  OrderedSetId,
   ProofDocumentId,
-  type StatementId,
+  StatementId,
 } from '../shared/value-objects.js';
 
 // Types for connection discovery and validation
@@ -70,12 +70,14 @@ export class ProofDocument extends AggregateRoot {
   private orderedSetRegistry: Map<string, Set<string>> = new Map(); // Tracks usage
   private atomicArguments: Map<string, AtomicArgument> = new Map();
   private version: number = 0;
+  private modifiedAt: Date;
 
   private constructor(
     private readonly id: ProofDocumentId,
     private readonly createdAt: Date,
   ) {
     super();
+    this.modifiedAt = createdAt;
   }
 
   static create(): ProofDocument {
@@ -88,6 +90,142 @@ export class ProofDocument extends AggregateRoot {
     return doc;
   }
 
+  static createBootstrap(id: ProofDocumentId): Result<ProofDocument, ValidationError> {
+    const doc = new ProofDocument(id, new Date());
+
+    doc.addDomainEvent(
+      new ProofDocumentCreated(doc.id.getValue(), { createdAt: doc.createdAt.getTime() }),
+    );
+
+    return ok(doc);
+  }
+
+  static reconstruct(data: {
+    id: string;
+    version: number;
+    createdAt: Date;
+    modifiedAt: Date;
+    statements: Record<string, string>;
+    orderedSets: Record<string, string[]>;
+    atomicArguments: Record<
+      string,
+      {
+        premises: string | null;
+        conclusions: string | null;
+        sideLabel?: string;
+      }
+    >;
+    trees: Record<
+      string,
+      {
+        offset: { x: number; y: number };
+        nodes: Record<string, unknown>;
+      }
+    >;
+  }): Result<ProofDocument, ValidationError> {
+    const idResult = ProofDocumentId.create(data.id);
+    if (idResult.isErr()) {
+      return err(idResult.error);
+    }
+
+    const doc = new ProofDocument(idResult.value, data.createdAt);
+    doc.version = data.version;
+    doc.modifiedAt = data.modifiedAt;
+
+    // Reconstruct statements
+    for (const [id, content] of Object.entries(data.statements)) {
+      const statementIdResult = StatementId.create(id);
+      if (statementIdResult.isErr()) {
+        return err(statementIdResult.error);
+      }
+
+      const statement = Statement.create(content);
+      if (statement.isErr()) {
+        return err(statement.error);
+      }
+
+      doc.statements.set(statementIdResult.value.getValue(), statement.value);
+    }
+
+    // Reconstruct ordered sets
+    for (const [id, statementIds] of Object.entries(data.orderedSets)) {
+      const orderedSetIdResult = OrderedSetId.create(id);
+      if (orderedSetIdResult.isErr()) {
+        return err(orderedSetIdResult.error);
+      }
+
+      const statementIdResults = statementIds.map((sid) => StatementId.create(sid));
+      for (const result of statementIdResults) {
+        if (result.isErr()) {
+          return err(result.error);
+        }
+      }
+
+      const validStatementIds = statementIdResults.map((r) => {
+        if (r.isErr()) {
+          throw new Error('This should not happen as we checked errors above');
+        }
+        return r.value;
+      });
+
+      const orderedSet = OrderedSet.create(validStatementIds);
+      if (orderedSet.isErr()) {
+        return err(orderedSet.error);
+      }
+
+      doc.orderedSets.set(orderedSetIdResult.value.getValue(), orderedSet.value);
+      doc.orderedSetRegistry.set(orderedSetIdResult.value.getValue(), new Set());
+    }
+
+    // Reconstruct atomic arguments
+    for (const [id, argData] of Object.entries(data.atomicArguments)) {
+      const argumentIdResult = AtomicArgumentId.create(id);
+      if (argumentIdResult.isErr()) {
+        return err(argumentIdResult.error);
+      }
+
+      const premiseSetId = argData.premises ? OrderedSetId.create(argData.premises) : null;
+      const conclusionSetId = argData.conclusions ? OrderedSetId.create(argData.conclusions) : null;
+
+      if (premiseSetId?.isErr()) {
+        return err(premiseSetId.error);
+      }
+      if (conclusionSetId?.isErr()) {
+        return err(conclusionSetId.error);
+      }
+
+      const validPremiseSetId = premiseSetId?.isOk() ? premiseSetId.value : undefined;
+      const validConclusionSetId = conclusionSetId?.isOk() ? conclusionSetId.value : undefined;
+
+      const argument = AtomicArgument.create(validPremiseSetId, validConclusionSetId);
+      if (argument.isErr()) {
+        return err(argument.error);
+      }
+
+      if (argData.sideLabel) {
+        const labelResult = argument.value.updateSideLabels({ left: argData.sideLabel });
+        if (labelResult.isErr()) {
+          return err(labelResult.error);
+        }
+      }
+
+      doc.atomicArguments.set(argumentIdResult.value.getValue(), argument.value);
+
+      // Register usage
+      if (validPremiseSetId) {
+        doc.registerOrderedSetUsage(validPremiseSetId, argumentIdResult.value, 'premise');
+      }
+      if (validConclusionSetId) {
+        doc.registerOrderedSetUsage(validConclusionSetId, argumentIdResult.value, 'conclusion');
+      }
+    }
+
+    // Note: Tree reconstruction would be handled by ProofTreeAggregateRepository
+    // We don't reconstruct trees here as they're stored in a separate aggregate
+
+    return ok(doc);
+  }
+
   // Statement operations
   createStatement(content: string): Result<Statement, ValidationError> {
     const statement = Statement.create(content);
@@ -96,7 +234,7 @@ export class ProofDocument extends AggregateRoot {
     }
 
     this.statements.set(statement.value.getId().getValue(), statement.value);
-    this.version++;
+    this.incrementVersion();
 
     this.addDomainEvent(
       new StatementCreated(this.id.getValue(), {
@@ -125,7 +263,7 @@ export class ProofDocument extends AggregateRoot {
       return err(updateResult.error);
     }
 
-    this.version++;
+    this.incrementVersion();
 
     this.addDomainEvent(
       new StatementUpdated(this.id.getValue(), {
@@ -149,7 +287,7 @@ export class ProofDocument extends AggregateRoot {
     }
 
     this.statements.delete(id.getValue());
-    this.version++;
+    this.incrementVersion();
 
     this.addDomainEvent(
       new StatementDeleted(this.id.getValue(), {
@@ -183,7 +321,7 @@ export class ProofDocument extends AggregateRoot {
 
     this.orderedSets.set(orderedSet.value.getId().getValue(), orderedSet.value);
     this.orderedSetRegistry.set(orderedSet.value.getId().getValue(), new Set());
-    this.version++;
+    this.incrementVersion();
 
     this.addDomainEvent(
       new OrderedSetCreated(this.id.getValue(), {
@@ -209,7 +347,7 @@ export class ProofDocument extends AggregateRoot {
 
     this.orderedSets.delete(id.getValue());
     this.orderedSetRegistry.delete(id.getValue());
-    this.version++;
+    this.incrementVersion();
 
     this.addDomainEvent(
       new OrderedSetDeleted(this.id.getValue(), {
@@ -252,7 +390,7 @@ export class ProofDocument extends AggregateRoot {
       this.registerOrderedSetUsage(conclusionSet.getId(), argument.value.getId(), 'conclusion');
     }
 
-    this.version++;
+    this.incrementVersion();
 
     this.addDomainEvent(
       new AtomicArgumentCreated(this.id.getValue(), {
@@ -306,7 +444,7 @@ export class ProofDocument extends AggregateRoot {
       this.registerOrderedSetUsage(conclusionSet.getId(), argumentId, 'conclusion');
     }
 
-    this.version++;
+    this.incrementVersion();
 
     this.addDomainEvent(
       new AtomicArgumentUpdated(this.id.getValue(), {
@@ -337,7 +475,7 @@ export class ProofDocument extends AggregateRoot {
     }
 
     this.atomicArguments.delete(id.getValue());
-    this.version++;
+    this.incrementVersion();
 
     this.addDomainEvent(
       new AtomicArgumentDeleted(this.id.getValue(), {
@@ -393,7 +531,7 @@ export class ProofDocument extends AggregateRoot {
 
   private findArgumentsProvidingOrderedSet(setId: OrderedSetId): AtomicArgument[] {
     const providers: AtomicArgument[] = [];
-    for (const arg of this.atomicArguments.values()) {
+    for (const arg of Array.from(this.atomicArguments.values())) {
       const conclusionSetId = arg.getConclusionSet();
       if (conclusionSetId && conclusionSetId.getValue() === setId.getValue()) {
         providers.push(arg);
@@ -404,7 +542,7 @@ export class ProofDocument extends AggregateRoot {
 
   private findArgumentsConsumingOrderedSet(setId: OrderedSetId): AtomicArgument[] {
     const consumers: AtomicArgument[] = [];
-    for (const arg of this.atomicArguments.values()) {
+    for (const arg of Array.from(this.atomicArguments.values())) {
       const premiseSetId = arg.getPremiseSet();
       if (premiseSetId && premiseSetId.getValue() === setId.getValue()) {
         consumers.push(arg);
@@ -417,16 +555,17 @@ export class ProofDocument extends AggregateRoot {
   findSharedOrderedSets(): SharedOrderedSet[] {
     const shared: SharedOrderedSet[] = [];
 
-    for (const [setId, usages] of this.orderedSetRegistry.entries()) {
+    for (const [setId, usages] of Array.from(this.orderedSetRegistry.entries())) {
       if (usages.size > 1) {
         const orderedSet = this.orderedSets.get(setId);
         if (orderedSet) {
           shared.push({
             orderedSet,
             usages: Array.from(usages).map((usage) => {
-              const [argId, role] = usage.split(':');
+              const usageStr = String(usage);
+              const [argId, role] = usageStr.split(':');
               if (!argId || !role) {
-                throw new Error(`Invalid usage format: ${usage}`);
+                return { argumentId: usageStr, role: 'premise' as 'premise' | 'conclusion' };
               }
               return { argumentId: argId, role: role as 'premise' | 'conclusion' };
             }),
@@ -439,6 +578,11 @@ export class ProofDocument extends AggregateRoot {
   }
 
   // Private helper methods
+  private incrementVersion(): void {
+    this.version++;
+    this.modifiedAt = new Date();
+  }
+
   private registerOrderedSetUsage(
     setId: OrderedSetId,
     argumentId: AtomicArgumentId,
@@ -476,7 +620,7 @@ export class ProofDocument extends AggregateRoot {
   }
 
   private isStatementInUse(statementId: StatementId): boolean {
-    for (const orderedSet of this.orderedSets.values()) {
+    for (const orderedSet of Array.from(this.orderedSets.values())) {
       if (orderedSet.containsStatement(statementId)) {
         return true;
       }
@@ -485,7 +629,7 @@ export class ProofDocument extends AggregateRoot {
   }
 
   private findOrderedSetByContent(statementIds: StatementId[]): OrderedSet | null {
-    for (const orderedSet of this.orderedSets.values()) {
+    for (const orderedSet of Array.from(this.orderedSets.values())) {
       const candidate = OrderedSet.create(statementIds);
       if (candidate.isOk() && orderedSet.orderedEquals(candidate.value)) {
         return orderedSet;
@@ -514,7 +658,7 @@ export class ProofDocument extends AggregateRoot {
     const visited = new Set<string>();
     const recursionStack = new Set<string>();
 
-    for (const argument of this.atomicArguments.values()) {
+    for (const argument of Array.from(this.atomicArguments.values())) {
       if (!visited.has(argument.getId().getValue())) {
         this.detectCyclesHelper(argument.getId(), visited, recursionStack, [], cycles);
       }
@@ -560,7 +704,7 @@ export class ProofDocument extends AggregateRoot {
 
   private findOrphanedArguments(): AtomicArgumentId[] {
     const orphans: AtomicArgumentId[] = [];
-    for (const arg of this.atomicArguments.values()) {
+    for (const arg of Array.from(this.atomicArguments.values())) {
       const connections = this.findConnectionsForArgument(arg.getId());
       if (connections.length === 0 && !arg.isBootstrap()) {
         orphans.push(arg.getId());
@@ -572,7 +716,7 @@ export class ProofDocument extends AggregateRoot {
   private findInconsistentConnections(): ConnectionInconsistency[] {
     const inconsistencies: ConnectionInconsistency[] = [];
 
-    for (const arg of this.atomicArguments.values()) {
+    for (const arg of Array.from(this.atomicArguments.values())) {
       // Check for missing premises
       const premiseSetId = arg.getPremiseSet();
       if (premiseSetId) {
@@ -609,6 +753,12 @@ export class ProofDocument extends AggregateRoot {
   }
   getVersion(): number {
     return this.version;
+  }
+  getCreatedAt(): Date {
+    return this.createdAt;
+  }
+  getModifiedAt(): Date {
+    return this.modifiedAt;
   }
 
   // For queries

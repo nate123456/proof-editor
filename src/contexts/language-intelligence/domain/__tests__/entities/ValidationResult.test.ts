@@ -711,4 +711,504 @@ describe('ValidationResult', () => {
       }
     });
   });
+
+  describe('createSuccessfulValidationWithWarnings factory method', () => {
+    it('should create successful validation with warning diagnostics', () => {
+      const warningDiag = Diagnostic.createStyleWarning(
+        'Style warning',
+        mockLocation,
+        languagePackageId,
+      );
+      const infoDiag = Diagnostic.createEducationalInfo(
+        'Educational info',
+        mockLocation,
+        languagePackageId,
+      );
+
+      expect(warningDiag.isOk()).toBe(true);
+      expect(infoDiag.isOk()).toBe(true);
+
+      if (warningDiag.isOk() && infoDiag.isOk()) {
+        const diagnostics = [warningDiag.value, infoDiag.value];
+        const result = ValidationResult.createSuccessfulValidationWithWarnings(
+          mockLevel,
+          diagnostics,
+          documentId,
+          languagePackageId,
+          mockMetrics,
+        );
+
+        expect(result.isOk()).toBe(true);
+        if (result.isOk()) {
+          const validationResult = result.value;
+          expect(validationResult.isValidationSuccessful()).toBe(true);
+          expect(validationResult.isValid()).toBe(true);
+          expect(validationResult.getDiagnostics()).toEqual(diagnostics);
+          expect(validationResult.hasWarningDiagnostics()).toBe(true);
+          expect(validationResult.hasErrorDiagnostics()).toBe(false);
+        }
+      }
+    });
+
+    it('should reject successful validation with error diagnostics', () => {
+      const errorDiag = Diagnostic.createSyntaxError(
+        'Syntax error',
+        mockLocation,
+        languagePackageId,
+      );
+
+      expect(errorDiag.isOk()).toBe(true);
+      if (errorDiag.isOk()) {
+        const diagnostics = [errorDiag.value];
+        const result = ValidationResult.createSuccessfulValidationWithWarnings(
+          mockLevel,
+          diagnostics,
+          documentId,
+          languagePackageId,
+          mockMetrics,
+        );
+
+        expect(result.isErr()).toBe(true);
+        if (result.isErr()) {
+          expect(result.error.message).toBe(
+            'Successful validation cannot contain error diagnostics',
+          );
+        }
+      }
+    });
+
+    it('should handle mixed warning and info diagnostics', () => {
+      const warningDiag1 = Diagnostic.createStyleWarning(
+        'Warning 1',
+        mockLocation,
+        languagePackageId,
+      );
+      const warningDiag2 = Diagnostic.createStyleWarning(
+        'Warning 2',
+        mockLocation,
+        languagePackageId,
+      );
+      const infoDiag = Diagnostic.createEducationalInfo(
+        'Info message',
+        mockLocation,
+        languagePackageId,
+      );
+
+      if (warningDiag1.isOk() && warningDiag2.isOk() && infoDiag.isOk()) {
+        const diagnostics = [warningDiag1.value, warningDiag2.value, infoDiag.value];
+        const result = ValidationResult.createSuccessfulValidationWithWarnings(
+          mockLevel,
+          diagnostics,
+          documentId,
+          languagePackageId,
+          mockMetrics,
+        );
+
+        expect(result.isOk()).toBe(true);
+        if (result.isOk()) {
+          const validationResult = result.value;
+          expect(validationResult.isValidationSuccessful()).toBe(true);
+          expect(validationResult.getWarningCount()).toBe(2);
+          expect(validationResult.getInfoCount()).toBe(1);
+          expect(validationResult.getErrorCount()).toBe(0);
+        }
+      }
+    });
+  });
+
+  describe('enhanced combination scenarios', () => {
+    it('should combine successful validation with warnings and failed validation', () => {
+      const warningDiag = Diagnostic.createStyleWarning(
+        'Style warning',
+        mockLocation,
+        languagePackageId,
+      );
+      const errorDiag = Diagnostic.createSyntaxError(
+        'Syntax error',
+        mockLocation,
+        languagePackageId,
+      );
+
+      if (warningDiag.isOk() && errorDiag.isOk()) {
+        const successWithWarningsResult = ValidationResult.createSuccessfulValidationWithWarnings(
+          mockLevel,
+          [warningDiag.value],
+          documentId,
+          languagePackageId,
+          mockMetrics,
+        );
+        const failedResult = ValidationResult.createFailedValidation(
+          mockLevel,
+          [errorDiag.value],
+          documentId,
+          languagePackageId,
+          mockMetrics,
+        );
+
+        expect(successWithWarningsResult.isOk()).toBe(true);
+        expect(failedResult.isOk()).toBe(true);
+
+        if (successWithWarningsResult.isOk() && failedResult.isOk()) {
+          const combinedResult = successWithWarningsResult.value.combineWith(failedResult.value);
+
+          expect(combinedResult.isOk()).toBe(true);
+          if (combinedResult.isOk()) {
+            const combined = combinedResult.value;
+            expect(combined.isValidationSuccessful()).toBe(false);
+            expect(combined.getDiagnostics()).toHaveLength(2);
+            expect(combined.hasWarningDiagnostics()).toBe(true);
+            expect(combined.hasErrorDiagnostics()).toBe(true);
+          }
+        }
+      }
+    });
+
+    it('should successfully combine two successful validations with combined metrics', () => {
+      const result1 = ValidationResult.createSuccessfulValidation(
+        mockLevel,
+        documentId,
+        languagePackageId,
+        mockMetrics,
+      );
+      const result2 = ValidationResult.createSuccessfulValidation(
+        mockLevel,
+        documentId,
+        languagePackageId,
+        mockMetrics,
+      );
+
+      expect(result1.isOk()).toBe(true);
+      expect(result2.isOk()).toBe(true);
+
+      if (result1.isOk() && result2.isOk()) {
+        const combinedResult = result1.value.combineWith(result2.value);
+
+        expect(combinedResult.isOk()).toBe(true);
+        if (combinedResult.isOk()) {
+          const combined = combinedResult.value;
+          expect(combined.isValidationSuccessful()).toBe(true);
+          expect(combined.getDiagnostics()).toHaveLength(0);
+          expect(combined.getDocumentId()).toBe(documentId);
+          expect(combined.getLanguagePackageId()).toBe(languagePackageId);
+          // Verify that a new ID was generated
+          expect(combined.getId()).not.toEqual(result1.value.getId());
+          expect(combined.getId()).not.toEqual(result2.value.getId());
+        }
+      }
+    });
+  });
+
+  describe('comprehensive educational analysis methods', () => {
+    it('should handle detectMissingPremises with semantic errors', () => {
+      const semanticDiag = Diagnostic.createSemanticError(
+        'Semantic validation failed',
+        mockLocation,
+        languagePackageId,
+      );
+
+      if (semanticDiag.isOk()) {
+        const result = ValidationResult.createFailedValidation(
+          mockLevel,
+          [semanticDiag.value],
+          documentId,
+          languagePackageId,
+          mockMetrics,
+        );
+
+        if (result.isOk()) {
+          const mistakes = result.value.detectMissingPremises();
+
+          expect(mistakes).toHaveLength(1);
+          const mistake = mistakes[0];
+          if (mistake) {
+            expect(mistake.type).toBe('missing-premise');
+            expect(mistake.confidence).toBe(0.6);
+            expect(mistake.description).toBe('Possible missing premise detected');
+            expect(mistake.suggestion).toContain('Consider if additional premises are needed');
+          }
+        }
+      }
+    });
+
+    it('should handle detectMissingPremises with no semantic errors', () => {
+      const syntaxDiag = Diagnostic.createSyntaxError(
+        'Syntax error',
+        mockLocation,
+        languagePackageId,
+      );
+
+      if (syntaxDiag.isOk()) {
+        const result = ValidationResult.createFailedValidation(
+          mockLevel,
+          [syntaxDiag.value],
+          documentId,
+          languagePackageId,
+          mockMetrics,
+        );
+
+        if (result.isOk()) {
+          const mistakes = result.value.detectMissingPremises();
+          expect(mistakes).toHaveLength(0);
+        }
+      }
+    });
+
+    it('should detect multiple modal logic errors', () => {
+      const modalError1 = Diagnostic.createSemanticError(
+        'Modal necessity operator misused',
+        mockLocation,
+        languagePackageId,
+      );
+      const modalError2 = Diagnostic.createSemanticError(
+        'Possibility logic error in argument',
+        mockLocation,
+        languagePackageId,
+      );
+
+      if (modalError1.isOk() && modalError2.isOk()) {
+        const result = ValidationResult.createFailedValidation(
+          mockLevel,
+          [modalError1.value, modalError2.value],
+          documentId,
+          languagePackageId,
+          mockMetrics,
+        );
+
+        if (result.isOk()) {
+          const mistakes = result.value.detectModalLogicErrors();
+
+          expect(mistakes).toHaveLength(2);
+          mistakes.forEach((mistake) => {
+            expect(mistake.type).toBe('modal-logic-error');
+            expect(mistake.confidence).toBe(0.85);
+            expect(mistake.suggestion).toContain('modal logic principles');
+          });
+        }
+      }
+    });
+
+    it('should handle identifyImprovementAreas with all mistake types', () => {
+      const allMistakeTypes: CommonMistake[] = [
+        {
+          type: 'invalid-inference',
+          description: 'Invalid inference',
+          confidence: 0.8,
+          instances: ['loc1'],
+          suggestion: 'Check inference rules',
+        },
+        {
+          type: 'missing-premise',
+          description: 'Missing premise',
+          confidence: 0.7,
+          instances: ['loc2'],
+          suggestion: 'Add missing premise',
+        },
+        {
+          type: 'modal-logic-error',
+          description: 'Modal error',
+          confidence: 0.9,
+          instances: ['loc3'],
+          suggestion: 'Fix modal logic',
+        },
+        {
+          type: 'circular-reasoning',
+          description: 'Circular reasoning',
+          confidence: 0.85,
+          instances: ['loc4'],
+          suggestion: 'Remove circularity',
+        },
+      ];
+
+      const result = ValidationResult.createSuccessfulValidation(
+        mockLevel,
+        documentId,
+        languagePackageId,
+        mockMetrics,
+      );
+
+      if (result.isOk()) {
+        const areas = result.value.identifyImprovementAreas(allMistakeTypes);
+
+        expect(areas).toContain('logical-reasoning');
+        expect(areas).toContain('argument-structure');
+        expect(areas).toContain('modal-logic');
+        expect(areas).toContain('logical-dependencies');
+        expect(areas).toHaveLength(4);
+      }
+    });
+
+    it('should handle generateLearningRecommendations for all mistake types', () => {
+      const allMistakeTypes: CommonMistake[] = [
+        {
+          type: 'invalid-inference',
+          description: 'Invalid inference',
+          confidence: 0.8,
+          instances: ['loc1'],
+          suggestion: 'Check inference rules',
+        },
+        {
+          type: 'modal-logic-error',
+          description: 'Modal error',
+          confidence: 0.9,
+          instances: ['loc2'],
+          suggestion: 'Fix modal logic',
+        },
+        {
+          type: 'circular-reasoning',
+          description: 'Circular reasoning',
+          confidence: 0.85,
+          instances: ['loc3'],
+          suggestion: 'Remove circularity',
+        },
+      ];
+
+      const result = ValidationResult.createSuccessfulValidation(
+        mockLevel,
+        documentId,
+        languagePackageId,
+        mockMetrics,
+      );
+
+      if (result.isOk()) {
+        const recommendations = result.value.generateLearningRecommendations(allMistakeTypes);
+
+        expect(recommendations).toContain(
+          'Study basic inference rules (modus ponens, modus tollens, etc.)',
+        );
+        expect(recommendations).toContain('Review modal logic concepts and operator semantics');
+        expect(recommendations).toContain(
+          'Practice identifying logical dependencies and avoiding circular arguments',
+        );
+        expect(recommendations).toHaveLength(3);
+      }
+    });
+  });
+
+  describe('private constructor and factory pattern validation', () => {
+    it('should only allow creation through factory methods', () => {
+      // ValidationResult constructor is private, so we can only test that factory methods work
+      // and that the class maintains proper encapsulation
+      const result = ValidationResult.createSuccessfulValidation(
+        mockLevel,
+        documentId,
+        languagePackageId,
+        mockMetrics,
+      );
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        expect(result.value).toBeDefined();
+        expect(result.value.getId()).toBeDefined();
+        expect(result.value.isValidationSuccessful()).toBe(true);
+      }
+    });
+
+    it('should generate unique IDs for each validation result', () => {
+      const results = [];
+      for (let i = 0; i < 5; i++) {
+        const result = ValidationResult.createSuccessfulValidation(
+          mockLevel,
+          documentId,
+          languagePackageId,
+          mockMetrics,
+        );
+        if (result.isOk()) {
+          results.push(result.value);
+        }
+      }
+
+      expect(results).toHaveLength(5);
+      const ids = results.map((r) => r.getId().getValue());
+      const uniqueIds = new Set(ids);
+      expect(uniqueIds.size).toBe(5); // All IDs should be unique
+    });
+
+    it('should generate timestamps for validation results', async () => {
+      const result1Result = ValidationResult.createSuccessfulValidation(
+        mockLevel,
+        documentId,
+        languagePackageId,
+        mockMetrics,
+      );
+
+      expect(result1Result.isOk()).toBe(true);
+
+      if (result1Result.isOk()) {
+        const timestamp1 = result1Result.value.getTimestamp();
+
+        // Timestamps should exist and be valid
+        expect(timestamp1).toBeDefined();
+        expect(timestamp1.getValue()).toBeInstanceOf(Date);
+        expect(timestamp1.getMilliseconds()).toBeGreaterThan(0);
+      }
+    });
+  });
+
+  describe('diagnostic array immutability and safety', () => {
+    it('should return immutable copy of diagnostics array', () => {
+      const errorDiag = Diagnostic.createSyntaxError('Test error', mockLocation, languagePackageId);
+
+      if (errorDiag.isOk()) {
+        const result = ValidationResult.createFailedValidation(
+          mockLevel,
+          [errorDiag.value],
+          documentId,
+          languagePackageId,
+          mockMetrics,
+        );
+
+        if (result.isOk()) {
+          const validationResult = result.value;
+          const diagnostics1 = validationResult.getDiagnostics();
+          const diagnostics2 = validationResult.getDiagnostics();
+
+          // Should return new array each time (defensive copy)
+          expect(diagnostics1).not.toBe(diagnostics2);
+          expect(diagnostics1).toEqual(diagnostics2);
+
+          // Modifying returned array should not affect internal state
+          const mutableDiagnostics1 = [...diagnostics1];
+          mutableDiagnostics1.push(errorDiag.value);
+          expect(validationResult.getDiagnostics()).toHaveLength(1);
+        }
+      }
+    });
+
+    it('should handle empty error frequency calculation', () => {
+      const result = ValidationResult.createSuccessfulValidation(
+        mockLevel,
+        documentId,
+        languagePackageId,
+        mockMetrics,
+      );
+
+      if (result.isOk()) {
+        const frequency = result.value.calculateErrorFrequency();
+        expect(frequency).toEqual({});
+      }
+    });
+
+    it('should handle complex error frequency calculation', () => {
+      const error1 = Diagnostic.createSyntaxError('Error 1', mockLocation, languagePackageId);
+      const error2 = Diagnostic.createSyntaxError('Error 2', mockLocation, languagePackageId);
+      const error3 = Diagnostic.createSemanticError('Error 3', mockLocation, languagePackageId);
+
+      if (error1.isOk() && error2.isOk() && error3.isOk()) {
+        const result = ValidationResult.createFailedValidation(
+          mockLevel,
+          [error1.value, error2.value, error3.value],
+          documentId,
+          languagePackageId,
+          mockMetrics,
+        );
+
+        if (result.isOk()) {
+          const frequency = result.value.calculateErrorFrequency();
+
+          expect(frequency['syntax-error']).toBeCloseTo(2 / 3, 2);
+          expect(frequency['semantic-error']).toBeCloseTo(1 / 3, 2);
+        }
+      }
+    });
+  });
 });

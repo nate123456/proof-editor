@@ -55,6 +55,22 @@ export interface IProofDocumentRepository {
    * Useful for statistics and pagination.
    */
   count(): Promise<number>;
+
+  /**
+   * Create a new bootstrap document with auto-generated ID.
+   * Bootstrap documents are completely empty and require no validation.
+   * This is the primary way users start working with the system.
+   */
+  createBootstrapDocument(): Promise<Result<ProofDocument, ValidationError>>;
+
+  /**
+   * Create a new bootstrap document with specific ID.
+   * Bootstrap documents are completely empty and require no validation.
+   * Used when client needs to specify the document ID.
+   */
+  createBootstrapDocumentWithId(
+    id: ProofDocumentId,
+  ): Promise<Result<ProofDocument, ValidationError>>;
 }
 
 /**

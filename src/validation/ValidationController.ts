@@ -1,8 +1,15 @@
+import { err, ok, type Result } from 'neverthrow';
 import { inject, injectable } from 'tsyringe';
-import type * as vscode from 'vscode';
-
+import type { IDiagnosticPort } from '../application/ports/IDiagnosticPort.js';
+import { ValidationError } from '../domain/shared/result.js';
 import { TOKENS } from '../infrastructure/di/tokens.js';
-import type { ProofDiagnosticProvider } from './DiagnosticProvider.js';
+
+// Platform-agnostic document interface
+export interface DocumentInfo {
+  uri: string;
+  content: string;
+  languageId: string;
+}
 
 @injectable()
 export class ValidationController {
@@ -10,22 +17,36 @@ export class ValidationController {
   private readonly validationDelay: number;
 
   constructor(
-    @inject(TOKENS.DiagnosticProvider) private readonly diagnosticProvider: ProofDiagnosticProvider,
+    @inject(TOKENS.IDiagnosticPort) private readonly diagnosticPort: IDiagnosticPort,
     validationDelay = 500,
   ) {
     this.validationDelay = validationDelay;
   }
 
-  public validateDocumentImmediate(document: vscode.TextDocument): void {
-    this.diagnosticProvider.validateDocument(document);
+  public async validateDocumentImmediate(
+    document: DocumentInfo,
+  ): Promise<Result<void, ValidationError>> {
+    if (document.languageId !== 'proof') {
+      return ok(undefined);
+    }
+
+    const result = await this.diagnosticPort.validateDocument(document.uri, document.content);
+    if (result.isErr()) {
+      return err(new ValidationError(`Validation failed: ${result.error.message}`));
+    }
+
+    return ok(undefined);
   }
 
-  public validateDocumentDebounced(document: vscode.TextDocument): void {
+  public validateDocumentDebounced(
+    document: DocumentInfo,
+    onError?: (error: ValidationError) => void,
+  ): void {
     if (document.languageId !== 'proof') {
       return;
     }
 
-    const documentUri = document.uri.toString();
+    const documentUri = document.uri;
 
     // Clear existing timeout for this document
     const existingTimeout = this.validationTimeouts.get(documentUri);
@@ -34,16 +55,25 @@ export class ValidationController {
     }
 
     // Set new debounced validation
-    const timeout = setTimeout(() => {
-      this.diagnosticProvider.validateDocument(document);
+    const timeout = setTimeout(async () => {
+      const result = await this.diagnosticPort.validateDocument(document.uri, document.content);
+      if (result.isErr()) {
+        const validationError = new ValidationError(
+          `Debounced validation failed: ${result.error.message}`,
+        );
+        if (onError) {
+          onError(validationError);
+        }
+        // If no error handler provided, validation fails silently (resilient behavior)
+      }
       this.validationTimeouts.delete(documentUri);
     }, this.validationDelay);
 
     this.validationTimeouts.set(documentUri, timeout);
   }
 
-  public clearDocumentValidation(document: vscode.TextDocument): void {
-    const documentUri = document.uri.toString();
+  public clearDocumentValidation(document: DocumentInfo): void {
+    const documentUri = document.uri;
 
     // Clear any pending validation
     const existingTimeout = this.validationTimeouts.get(documentUri);
@@ -53,7 +83,7 @@ export class ValidationController {
     }
 
     // Clear diagnostics
-    this.diagnosticProvider.clearDiagnostics(document);
+    this.diagnosticPort.clearDiagnostics(documentUri);
   }
 
   public clearAllValidation(): void {
@@ -64,15 +94,11 @@ export class ValidationController {
     this.validationTimeouts.clear();
 
     // Clear all diagnostics
-    this.diagnosticProvider.clearAllDiagnostics();
+    this.diagnosticPort.clearAllDiagnostics();
   }
 
   public dispose(): void {
     this.clearAllValidation();
-    this.diagnosticProvider.dispose();
-  }
-
-  public getDiagnosticProvider(): ProofDiagnosticProvider {
-    return this.diagnosticProvider;
+    this.diagnosticPort.dispose();
   }
 }

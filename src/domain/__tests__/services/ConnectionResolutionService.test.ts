@@ -312,7 +312,9 @@ describe('ConnectionResolutionService', () => {
               const argumentIds = argumentIdStrings.map((str) => AtomicArgumentId.fromString(str));
               const sharedOrderedSetId = orderedSetIdFactory.build();
 
-              const testArguments = argumentIds.map((id, index) => {
+              const testArguments = argumentIds.map((idResult, index) => {
+                if (idResult.isErr()) throw idResult.error;
+                const id = idResult.value;
                 if (index % 2 === 0) {
                   return createMockAtomicArgument(id, null, sharedOrderedSetId);
                 } else {
@@ -326,8 +328,9 @@ describe('ConnectionResolutionService', () => {
               vi.mocked(mockAtomicArgumentRepo.findAll).mockResolvedValue(testArguments);
 
               // Act
-              const firstArgumentId = argumentIds[0];
-              if (!firstArgumentId) return;
+              const firstArgumentIdResult = argumentIds[0];
+              if (!firstArgumentIdResult || firstArgumentIdResult.isErr()) return;
+              const firstArgumentId = firstArgumentIdResult.value;
               const result = await service.findBasicConnections(firstArgumentId);
 
               // Assert - Connection should be consistent

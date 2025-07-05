@@ -107,6 +107,10 @@ export class EventBus implements IEventBus {
         this.capturedEvents.push(event);
       }
 
+      // Update metrics for published event (regardless of handlers)
+      this.metrics.totalEventsPublished++;
+      this.metrics.lastEventPublishedAt = new Date();
+
       // Get all handlers for this event type
       const typeHandlers = this.subscriptions.get(event.eventType) || new Set();
       const allHandlers = [...typeHandlers, ...this.globalSubscriptions];
@@ -124,10 +128,6 @@ export class EventBus implements IEventBus {
       );
 
       const results = await Promise.allSettled(handlerPromises);
-
-      // Update metrics
-      this.metrics.totalEventsPublished++;
-      this.metrics.lastEventPublishedAt = new Date();
 
       const failures = results.filter((r) => r.status === 'rejected');
       if (failures.length > 0 && this.config.enableLogging) {
@@ -161,8 +161,10 @@ export class EventBus implements IEventBus {
     // Return disposable
     return {
       dispose: () => {
-        handlers.delete(handler);
-        this.metrics.activeSubscriptions--;
+        const wasRemoved = handlers.delete(handler);
+        if (wasRemoved) {
+          this.metrics.activeSubscriptions--;
+        }
         if (handlers.size === 0) {
           this.subscriptions.delete(eventType);
         }
@@ -188,8 +190,10 @@ export class EventBus implements IEventBus {
 
     return {
       dispose: () => {
-        this.globalSubscriptions.delete(handler);
-        this.metrics.activeSubscriptions--;
+        const wasRemoved = this.globalSubscriptions.delete(handler);
+        if (wasRemoved) {
+          this.metrics.activeSubscriptions--;
+        }
         if (this.config.enableLogging) {
           // TODO: Log global subscription removal
         }

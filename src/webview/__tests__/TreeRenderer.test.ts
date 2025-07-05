@@ -1,33 +1,28 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { AtomicArgument } from '../../domain/entities/AtomicArgument.js';
-import { Node } from '../../domain/entities/Node.js';
-import { OrderedSet } from '../../domain/entities/OrderedSet.js';
-import { Statement } from '../../domain/entities/Statement.js';
-import { Tree } from '../../domain/entities/Tree.js';
-import {
-  AtomicArgumentId,
-  Attachment,
-  NodeId,
-  OrderedSetId,
-  Position2D,
-  StatementId,
-} from '../../domain/shared/value-objects.js';
-import type { ProofDocument } from '../../parser/ProofDocument.js';
+import type {
+  ConnectionDTO,
+  ProofVisualizationDTO,
+  RenderedNodeDTO,
+  TreeLayoutDTO,
+  TreeRenderDTO,
+} from '../../application/dtos/view-dtos.js';
+import type { AtomicArgumentDTO } from '../../application/queries/shared-types.js';
+import type { StatementDTO } from '../../application/queries/statement-queries.js';
 import { TreeRenderer } from '../TreeRenderer.js';
 
 describe('TreeRenderer', () => {
   let renderer: TreeRenderer;
-  let mockProofDoc: ProofDocument;
+  let mockVisualizationDTO: ProofVisualizationDTO;
 
   beforeEach(() => {
     renderer = new TreeRenderer();
-    mockProofDoc = {
-      statements: new Map(),
-      orderedSets: new Map(),
-      atomicArguments: new Map(),
-      trees: new Map(),
-      nodes: new Map(),
+    mockVisualizationDTO = {
+      documentId: 'test-doc-id',
+      version: 1,
+      trees: [],
+      totalDimensions: { width: 400, height: 200 },
+      isEmpty: true,
     };
   });
 
@@ -37,7 +32,7 @@ describe('TreeRenderer', () => {
     });
 
     it('should generate empty message when no trees exist', () => {
-      const result = renderer.generateSVG(mockProofDoc);
+      const result = renderer.generateSVG(mockVisualizationDTO);
 
       expect(result).toContain('No proof trees to display');
       expect(result).toContain('color: var(--vscode-descriptionForeground)');
@@ -45,7 +40,7 @@ describe('TreeRenderer', () => {
     });
 
     it('should include proper styling', () => {
-      const result = renderer.generateSVG(mockProofDoc);
+      const result = renderer.generateSVG(mockVisualizationDTO);
 
       expect(result).toContain('display: flex');
       expect(result).toContain('align-items: center');
@@ -53,109 +48,94 @@ describe('TreeRenderer', () => {
     });
 
     it('should be valid HTML structure for empty state', () => {
-      const result = renderer.generateSVG(mockProofDoc);
+      const result = renderer.generateSVG(mockVisualizationDTO);
 
       expect(result).toMatch(/<div[^>]*>[\s\S]*<\/div>/);
       expect(result).toContain('font-style: italic');
     });
 
+    it('should include proper VS Code styling variables', () => {
+      const result = renderer.generateSVG(mockVisualizationDTO);
+
+      expect(result).toContain('var(--vscode-descriptionForeground)');
+    });
+
+    it('should handle different viewport scenarios', () => {
+      const result = renderer.generateSVG(mockVisualizationDTO);
+
+      expect(result).toContain('height: 200px');
+      expect(result).toContain('No proof trees to display');
+    });
+
     it('should generate SVG with tree content when proof document has data', () => {
-      // Create test data
-      const s1Result = Statement.create('All men are mortal');
-      const s2Result = Statement.create('Socrates is a man');
-      const s3Result = Statement.create('Socrates is mortal');
+      // Create test DTOs
+      const statements: StatementDTO[] = [
+        {
+          id: 's1',
+          content: 'All men are mortal',
+          usageCount: 1,
+          createdAt: new Date().toISOString(),
+          modifiedAt: new Date().toISOString(),
+        },
+        {
+          id: 's2',
+          content: 'Socrates is a man',
+          usageCount: 1,
+          createdAt: new Date().toISOString(),
+          modifiedAt: new Date().toISOString(),
+        },
+      ];
 
-      if (s1Result.isErr() || s2Result.isErr() || s3Result.isErr()) {
-        throw new Error('Failed to create statements');
-      }
+      const conclusions: StatementDTO[] = [
+        {
+          id: 's3',
+          content: 'Socrates is mortal',
+          usageCount: 1,
+          createdAt: new Date().toISOString(),
+          modifiedAt: new Date().toISOString(),
+        },
+      ];
 
-      const s1 = s1Result.value;
-      const s2 = s2Result.value;
-      const s3 = s3Result.value;
+      const atomicArgument: AtomicArgumentDTO = {
+        id: 'arg1',
+        premiseSetId: 'os1',
+        conclusionSetId: 'os2',
+        sideLabels: { left: 'Modus Ponens' },
+      };
 
-      // Add statements to mock document
-      mockProofDoc.statements.set('s1', s1);
-      mockProofDoc.statements.set('s2', s2);
-      mockProofDoc.statements.set('s3', s3);
+      const renderedNode: RenderedNodeDTO = {
+        id: 'n1',
+        position: { x: 50, y: 50 },
+        dimensions: { width: 200, height: 100 },
+        argument: atomicArgument,
+        premises: statements,
+        conclusions: conclusions,
+        sideLabel: 'Modus Ponens',
+      };
 
-      // Create ordered sets
-      const s1Id = StatementId.create('s1');
-      const s2Id = StatementId.create('s2');
-      const s3Id = StatementId.create('s3');
+      const treeLayout: TreeLayoutDTO = {
+        nodes: [renderedNode],
+        connections: [],
+        dimensions: { width: 300, height: 200 },
+      };
 
-      if (s1Id.isErr() || s2Id.isErr() || s3Id.isErr()) {
-        throw new Error('Failed to create statement IDs');
-      }
+      const treeRender: TreeRenderDTO = {
+        id: 'tree1',
+        position: { x: 100, y: 100 },
+        layout: treeLayout,
+        bounds: { width: 300, height: 200 },
+      };
 
-      const premisesResult = OrderedSet.create([s1Id.value, s2Id.value]);
-      const conclusionsResult = OrderedSet.create([s3Id.value]);
-
-      if (premisesResult.isErr() || conclusionsResult.isErr()) {
-        throw new Error('Failed to create ordered sets');
-      }
-
-      const premises = premisesResult.value;
-      const conclusions = conclusionsResult.value;
-
-      mockProofDoc.orderedSets.set('os1', premises);
-      mockProofDoc.orderedSets.set('os2', conclusions);
-
-      // Create atomic argument
-      const premisesId = OrderedSetId.create('os1');
-      const conclusionsId = OrderedSetId.create('os2');
-
-      if (premisesId.isErr() || conclusionsId.isErr()) {
-        throw new Error('Failed to create ordered set IDs');
-      }
-
-      const argumentResult = AtomicArgument.create(premisesId.value, conclusionsId.value, {
-        left: 'Modus Ponens',
-      });
-
-      if (argumentResult.isErr()) {
-        throw new Error('Failed to create atomic argument');
-      }
-
-      const argument = argumentResult.value;
-      mockProofDoc.atomicArguments.set('arg1', argument);
-
-      // Create tree and node
-      const position = Position2D.create(100, 200);
-      if (position.isErr()) {
-        throw new Error('Failed to create position');
-      }
-
-      const treeResult = Tree.create('document', position.value);
-      if (treeResult.isErr()) {
-        throw new Error('Failed to create tree');
-      }
-
-      const tree = treeResult.value;
-
-      const argumentId = AtomicArgumentId.create('arg1');
-      if (argumentId.isErr()) {
-        throw new Error('Failed to create argument ID');
-      }
-
-      const nodeResult = Node.createRoot(argumentId.value);
-      if (nodeResult.isErr()) {
-        throw new Error('Failed to create node');
-      }
-
-      const node = nodeResult.value;
-
-      const nodeId = NodeId.create('n1');
-      if (nodeId.isErr()) {
-        throw new Error('Failed to create node ID');
-      }
-
-      tree.addNode(nodeId.value);
-
-      mockProofDoc.trees.set('tree1', tree);
-      mockProofDoc.nodes.set('n1', node);
+      mockVisualizationDTO = {
+        documentId: 'test-doc-id',
+        version: 1,
+        trees: [treeRender],
+        totalDimensions: { width: 500, height: 400 },
+        isEmpty: false,
+      };
 
       // Generate SVG
-      const result = renderer.generateSVG(mockProofDoc);
+      const result = renderer.generateSVG(mockVisualizationDTO);
 
       // Verify SVG structure
       expect(result).toContain('<svg');
@@ -177,25 +157,38 @@ describe('TreeRenderer', () => {
 
   describe('calculateTreeLayouts', () => {
     it('should handle multiple trees with different positions', () => {
-      // Create multiple trees with different positions
-      const tree1Position = Position2D.create(50, 100);
-      const tree2Position = Position2D.create(300, 200);
+      // Create multiple tree DTOs with different positions
+      const tree1: TreeRenderDTO = {
+        id: 'tree1',
+        position: { x: 50, y: 100 },
+        layout: {
+          nodes: [],
+          connections: [],
+          dimensions: { width: 200, height: 150 },
+        },
+        bounds: { width: 200, height: 150 },
+      };
 
-      if (tree1Position.isErr() || tree2Position.isErr()) {
-        throw new Error('Failed to create positions');
-      }
+      const tree2: TreeRenderDTO = {
+        id: 'tree2',
+        position: { x: 300, y: 200 },
+        layout: {
+          nodes: [],
+          connections: [],
+          dimensions: { width: 200, height: 150 },
+        },
+        bounds: { width: 200, height: 150 },
+      };
 
-      const tree1Result = Tree.create('document', tree1Position.value);
-      const tree2Result = Tree.create('document', tree2Position.value);
+      mockVisualizationDTO = {
+        documentId: 'test-doc-id',
+        version: 1,
+        trees: [tree1, tree2],
+        totalDimensions: { width: 600, height: 400 },
+        isEmpty: false,
+      };
 
-      if (tree1Result.isErr() || tree2Result.isErr()) {
-        throw new Error('Failed to create trees');
-      }
-
-      mockProofDoc.trees.set('tree1', tree1Result.value);
-      mockProofDoc.trees.set('tree2', tree2Result.value);
-
-      const result = renderer.generateSVG(mockProofDoc);
+      const result = renderer.generateSVG(mockVisualizationDTO);
 
       expect(result).toContain('<svg');
       expect(result).toContain('xmlns="http://www.w3.org/2000/svg"');
@@ -205,187 +198,181 @@ describe('TreeRenderer', () => {
     });
 
     it('should handle empty trees in layout calculation', () => {
-      const position = Position2D.create(100, 200);
-      if (position.isErr()) {
-        throw new Error('Failed to create position');
-      }
+      // Create empty tree DTO
+      const emptyTree: TreeRenderDTO = {
+        id: 'emptyTree',
+        position: { x: 100, y: 200 },
+        layout: {
+          nodes: [],
+          connections: [],
+          dimensions: { width: 100, height: 100 },
+        },
+        bounds: { width: 100, height: 100 },
+      };
 
-      const treeResult = Tree.create('document', position.value);
-      if (treeResult.isErr()) {
-        throw new Error('Failed to create tree');
-      }
+      mockVisualizationDTO = {
+        documentId: 'test-doc-id',
+        version: 1,
+        trees: [emptyTree],
+        totalDimensions: { width: 300, height: 400 },
+        isEmpty: false,
+      };
 
-      // Add tree with no nodes
-      mockProofDoc.trees.set('emptyTree', treeResult.value);
-
-      const result = renderer.generateSVG(mockProofDoc);
+      const result = renderer.generateSVG(mockVisualizationDTO);
 
       expect(result).toContain('<svg');
       expect(result).toContain('</svg>');
+    });
+
+    it('should handle empty tree with potential node structure', () => {
+      // Create tree DTO that represents an empty tree structure
+      const emptyTreeWithStructure: TreeRenderDTO = {
+        id: 'emptyTreeWithChildren',
+        position: { x: 100, y: 200 },
+        layout: {
+          nodes: [], // No actual nodes but layout structure exists
+          connections: [],
+          dimensions: { width: 150, height: 100 },
+        },
+        bounds: { width: 150, height: 100 },
+      };
+
+      mockVisualizationDTO = {
+        documentId: 'test-doc-id',
+        version: 1,
+        trees: [emptyTreeWithStructure],
+        totalDimensions: { width: 300, height: 350 },
+        isEmpty: false,
+      };
+
+      const result = renderer.generateSVG(mockVisualizationDTO);
+
+      expect(result).toContain('<svg');
+      expect(result).toContain('</svg>');
+      // Should render empty tree layout correctly
+      expect(result).toMatch(/width="\d+"/);
+      expect(result).toMatch(/height="\d+"/);
     });
   });
 
   describe('renderStatements', () => {
     it('should render empty statements with italic placeholder', () => {
-      // Create atomic argument with empty premises
-      const emptyOrderedSetResult = OrderedSet.create([]);
-      const conclusionsResult = OrderedSet.create([]);
+      // Create a node with empty premise statements
+      const emptyPremiseNode: RenderedNodeDTO = {
+        id: 'n1',
+        position: { x: 50, y: 50 },
+        dimensions: { width: 200, height: 100 },
+        argument: {
+          id: 'arg1',
+          premiseSetId: 'empty',
+          conclusionSetId: 'conclusions',
+          sideLabels: {},
+        },
+        premises: [], // Empty premises
+        conclusions: [
+          {
+            id: 'c1',
+            content: 'Some conclusion',
+            usageCount: 1,
+            createdAt: new Date().toISOString(),
+            modifiedAt: new Date().toISOString(),
+          },
+        ],
+        sideLabel: '',
+      };
 
-      if (emptyOrderedSetResult.isErr() || conclusionsResult.isErr()) {
-        throw new Error('Failed to create ordered sets');
-      }
+      const treeWithEmptyPremises: TreeRenderDTO = {
+        id: 'tree1',
+        position: { x: 100, y: 100 },
+        layout: {
+          nodes: [emptyPremiseNode],
+          connections: [],
+          dimensions: { width: 300, height: 200 },
+        },
+        bounds: { width: 300, height: 200 },
+      };
 
-      const emptyPremises = emptyOrderedSetResult.value;
-      const conclusions = conclusionsResult.value;
+      mockVisualizationDTO = {
+        documentId: 'test-doc-id',
+        version: 1,
+        trees: [treeWithEmptyPremises],
+        totalDimensions: { width: 500, height: 400 },
+        isEmpty: false,
+      };
 
-      mockProofDoc.orderedSets.set('empty', emptyPremises);
-      mockProofDoc.orderedSets.set('conclusions', conclusions);
-
-      const premisesId = OrderedSetId.create('empty');
-      const conclusionsId = OrderedSetId.create('conclusions');
-
-      if (premisesId.isErr() || conclusionsId.isErr()) {
-        throw new Error('Failed to create ordered set IDs');
-      }
-
-      const argumentResult = AtomicArgument.create(premisesId.value, conclusionsId.value, {});
-
-      if (argumentResult.isErr()) {
-        throw new Error('Failed to create atomic argument');
-      }
-
-      mockProofDoc.atomicArguments.set('arg1', argumentResult.value);
-
-      const position = Position2D.create(100, 200);
-      if (position.isErr()) {
-        throw new Error('Failed to create position');
-      }
-
-      const treeResult = Tree.create('document', position.value);
-      if (treeResult.isErr()) {
-        throw new Error('Failed to create tree');
-      }
-
-      const tree = treeResult.value;
-
-      const argumentId = AtomicArgumentId.create('arg1');
-      if (argumentId.isErr()) {
-        throw new Error('Failed to create argument ID');
-      }
-
-      const nodeResult = Node.createRoot(argumentId.value);
-      if (nodeResult.isErr()) {
-        throw new Error('Failed to create node');
-      }
-
-      const nodeId = NodeId.create('n1');
-      if (nodeId.isErr()) {
-        throw new Error('Failed to create node ID');
-      }
-
-      tree.addNode(nodeId.value);
-
-      mockProofDoc.trees.set('tree1', tree);
-      mockProofDoc.nodes.set('n1', nodeResult.value);
-
-      const result = renderer.generateSVG(mockProofDoc);
+      const result = renderer.generateSVG(mockVisualizationDTO);
 
       expect(result).toContain('(empty)');
       expect(result).toContain('font-style: italic');
     });
 
     it('should render multiple statements with proper line spacing', () => {
-      // Create statements
-      const s1Result = Statement.create('First premise statement');
-      const s2Result = Statement.create('Second premise statement');
-      const s3Result = Statement.create('Third premise statement');
-      const conclusionResult = Statement.create('Conclusion statement');
+      // Create DTOs with multiple statements
+      const multipleStatementsNode: RenderedNodeDTO = {
+        id: 'n1',
+        position: { x: 50, y: 50 },
+        dimensions: { width: 250, height: 150 },
+        argument: {
+          id: 'arg1',
+          premiseSetId: 'premises',
+          conclusionSetId: 'conclusions',
+          sideLabels: {},
+        },
+        premises: [
+          {
+            id: 's1',
+            content: 'First premise statement',
+            usageCount: 1,
+            createdAt: new Date().toISOString(),
+            modifiedAt: new Date().toISOString(),
+          },
+          {
+            id: 's2',
+            content: 'Second premise statement',
+            usageCount: 1,
+            createdAt: new Date().toISOString(),
+            modifiedAt: new Date().toISOString(),
+          },
+          {
+            id: 's3',
+            content: 'Third premise statement',
+            usageCount: 1,
+            createdAt: new Date().toISOString(),
+            modifiedAt: new Date().toISOString(),
+          },
+        ],
+        conclusions: [
+          {
+            id: 'c1',
+            content: 'Conclusion statement',
+            usageCount: 1,
+            createdAt: new Date().toISOString(),
+            modifiedAt: new Date().toISOString(),
+          },
+        ],
+        sideLabel: '',
+      };
 
-      if (s1Result.isErr() || s2Result.isErr() || s3Result.isErr() || conclusionResult.isErr()) {
-        throw new Error('Failed to create statements');
-      }
+      const treeWithMultipleStatements: TreeRenderDTO = {
+        id: 'tree1',
+        position: { x: 100, y: 100 },
+        layout: {
+          nodes: [multipleStatementsNode],
+          connections: [],
+          dimensions: { width: 350, height: 250 },
+        },
+        bounds: { width: 350, height: 250 },
+      };
 
-      const s1 = s1Result.value;
-      const s2 = s2Result.value;
-      const s3 = s3Result.value;
-      const conclusion = conclusionResult.value;
+      mockVisualizationDTO = {
+        documentId: 'test-doc-id',
+        version: 1,
+        trees: [treeWithMultipleStatements],
+        totalDimensions: { width: 550, height: 450 },
+        isEmpty: false,
+      };
 
-      mockProofDoc.statements.set('s1', s1);
-      mockProofDoc.statements.set('s2', s2);
-      mockProofDoc.statements.set('s3', s3);
-      mockProofDoc.statements.set('c1', conclusion);
-
-      // Create ordered sets with multiple statements
-      const s1Id = StatementId.create('s1');
-      const s2Id = StatementId.create('s2');
-      const s3Id = StatementId.create('s3');
-      const c1Id = StatementId.create('c1');
-
-      if (s1Id.isErr() || s2Id.isErr() || s3Id.isErr() || c1Id.isErr()) {
-        throw new Error('Failed to create statement IDs');
-      }
-
-      const premisesResult = OrderedSet.create([s1Id.value, s2Id.value, s3Id.value]);
-      const conclusionsResult = OrderedSet.create([c1Id.value]);
-
-      if (premisesResult.isErr() || conclusionsResult.isErr()) {
-        throw new Error('Failed to create ordered sets');
-      }
-
-      const premises = premisesResult.value;
-      const conclusions = conclusionsResult.value;
-
-      mockProofDoc.orderedSets.set('premises', premises);
-      mockProofDoc.orderedSets.set('conclusions', conclusions);
-
-      const premisesId = OrderedSetId.create('premises');
-      const conclusionsId = OrderedSetId.create('conclusions');
-
-      if (premisesId.isErr() || conclusionsId.isErr()) {
-        throw new Error('Failed to create ordered set IDs');
-      }
-
-      const argumentResult = AtomicArgument.create(premisesId.value, conclusionsId.value, {});
-
-      if (argumentResult.isErr()) {
-        throw new Error('Failed to create atomic argument');
-      }
-
-      mockProofDoc.atomicArguments.set('arg1', argumentResult.value);
-
-      const position = Position2D.create(100, 200);
-      if (position.isErr()) {
-        throw new Error('Failed to create position');
-      }
-
-      const treeResult = Tree.create('document', position.value);
-      if (treeResult.isErr()) {
-        throw new Error('Failed to create tree');
-      }
-
-      const tree = treeResult.value;
-
-      const argumentId = AtomicArgumentId.create('arg1');
-      if (argumentId.isErr()) {
-        throw new Error('Failed to create argument ID');
-      }
-
-      const nodeResult = Node.createRoot(argumentId.value);
-      if (nodeResult.isErr()) {
-        throw new Error('Failed to create node');
-      }
-
-      const nodeId = NodeId.create('n1');
-      if (nodeId.isErr()) {
-        throw new Error('Failed to create node ID');
-      }
-
-      tree.addNode(nodeId.value);
-
-      mockProofDoc.trees.set('tree1', tree);
-      mockProofDoc.nodes.set('n1', nodeResult.value);
-
-      const result = renderer.generateSVG(mockProofDoc);
+      const result = renderer.generateSVG(mockVisualizationDTO);
 
       expect(result).toContain('First premise statement');
       expect(result).toContain('Second premise statement');
@@ -397,113 +384,102 @@ describe('TreeRenderer', () => {
 
   describe('renderConnections', () => {
     it('should render connections between parent and child nodes', () => {
-      // Create statements for parent and child
-      const parentPremise = Statement.create('Parent premise');
-      const sharedConclusion = Statement.create('Shared statement');
-      const childConclusion = Statement.create('Child conclusion');
+      // Create parent and child nodes with a connection
+      const parentNode: RenderedNodeDTO = {
+        id: 'parent',
+        position: { x: 50, y: 50 },
+        dimensions: { width: 200, height: 100 },
+        argument: {
+          id: 'parentArg',
+          premiseSetId: 'parentPremises',
+          conclusionSetId: 'shared',
+          sideLabels: {},
+        },
+        premises: [
+          {
+            id: 'pp',
+            content: 'Parent premise',
+            usageCount: 1,
+            createdAt: new Date().toISOString(),
+            modifiedAt: new Date().toISOString(),
+          },
+        ],
+        conclusions: [
+          {
+            id: 'shared',
+            content: 'Shared statement',
+            usageCount: 2,
+            createdAt: new Date().toISOString(),
+            modifiedAt: new Date().toISOString(),
+          },
+        ],
+        sideLabel: '',
+      };
 
-      if (parentPremise.isErr() || sharedConclusion.isErr() || childConclusion.isErr()) {
-        throw new Error('Failed to create statements');
-      }
+      const childNode: RenderedNodeDTO = {
+        id: 'child',
+        position: { x: 50, y: 200 },
+        dimensions: { width: 200, height: 100 },
+        argument: {
+          id: 'childArg',
+          premiseSetId: 'shared',
+          conclusionSetId: 'childConclusions',
+          sideLabels: {},
+        },
+        premises: [
+          {
+            id: 'shared',
+            content: 'Shared statement',
+            usageCount: 2,
+            createdAt: new Date().toISOString(),
+            modifiedAt: new Date().toISOString(),
+          },
+        ],
+        conclusions: [
+          {
+            id: 'cc',
+            content: 'Child conclusion',
+            usageCount: 1,
+            createdAt: new Date().toISOString(),
+            modifiedAt: new Date().toISOString(),
+          },
+        ],
+        sideLabel: '',
+      };
 
-      mockProofDoc.statements.set('pp', parentPremise.value);
-      mockProofDoc.statements.set('shared', sharedConclusion.value);
-      mockProofDoc.statements.set('cc', childConclusion.value);
+      const connection: ConnectionDTO = {
+        fromNodeId: 'parent',
+        toNodeId: 'child',
+        fromPosition: 0,
+        toPosition: 0,
+        coordinates: {
+          startX: 150,
+          startY: 150,
+          endX: 150,
+          endY: 200,
+        },
+      };
 
-      // Create statement IDs
-      const ppId = StatementId.create('pp');
-      const sharedId = StatementId.create('shared');
-      const ccId = StatementId.create('cc');
+      const treeWithConnections: TreeRenderDTO = {
+        id: 'tree1',
+        position: { x: 100, y: 100 },
+        layout: {
+          nodes: [parentNode, childNode],
+          connections: [connection],
+          dimensions: { width: 300, height: 350 },
+        },
+        bounds: { width: 300, height: 350 },
+      };
 
-      if (ppId.isErr() || sharedId.isErr() || ccId.isErr()) {
-        throw new Error('Failed to create statement IDs');
-      }
+      mockVisualizationDTO = {
+        documentId: 'test-doc-id',
+        version: 1,
+        trees: [treeWithConnections],
+        totalDimensions: { width: 500, height: 550 },
+        isEmpty: false,
+      };
 
-      // Create ordered sets
-      const parentPremises = OrderedSet.create([ppId.value]);
-      const sharedSet = OrderedSet.create([sharedId.value]);
-      const childConclusions = OrderedSet.create([ccId.value]);
-
-      if (parentPremises.isErr() || sharedSet.isErr() || childConclusions.isErr()) {
-        throw new Error('Failed to create ordered sets');
-      }
-
-      mockProofDoc.orderedSets.set('parentPremises', parentPremises.value);
-      mockProofDoc.orderedSets.set('shared', sharedSet.value);
-      mockProofDoc.orderedSets.set('childConclusions', childConclusions.value);
-
-      // Create ordered set IDs
-      const parentPremisesId = OrderedSetId.create('parentPremises');
-      const sharedSetId = OrderedSetId.create('shared');
-      const childConclusionsId = OrderedSetId.create('childConclusions');
-
-      if (parentPremisesId.isErr() || sharedSetId.isErr() || childConclusionsId.isErr()) {
-        throw new Error('Failed to create ordered set IDs');
-      }
-
-      // Create atomic arguments
-      const parentArg = AtomicArgument.create(parentPremisesId.value, sharedSetId.value, {});
-      const childArg = AtomicArgument.create(sharedSetId.value, childConclusionsId.value, {});
-
-      if (parentArg.isErr() || childArg.isErr()) {
-        throw new Error('Failed to create atomic arguments');
-      }
-
-      mockProofDoc.atomicArguments.set('parentArg', parentArg.value);
-      mockProofDoc.atomicArguments.set('childArg', childArg.value);
-
-      // Create tree
-      const position = Position2D.create(100, 200);
-      if (position.isErr()) {
-        throw new Error('Failed to create position');
-      }
-
-      const treeResult = Tree.create('document', position.value);
-      if (treeResult.isErr()) {
-        throw new Error('Failed to create tree');
-      }
-
-      const tree = treeResult.value;
-
-      // Create nodes
-      const parentArgId = AtomicArgumentId.create('parentArg');
-      const childArgId = AtomicArgumentId.create('childArg');
-
-      if (parentArgId.isErr() || childArgId.isErr()) {
-        throw new Error('Failed to create argument IDs');
-      }
-
-      const parentNodeResult = Node.createRoot(parentArgId.value);
-      if (parentNodeResult.isErr()) {
-        throw new Error('Failed to create parent node');
-      }
-
-      const parentNodeId = NodeId.create('parent');
-      const childNodeId = NodeId.create('child');
-
-      if (parentNodeId.isErr() || childNodeId.isErr()) {
-        throw new Error('Failed to create node IDs');
-      }
-
-      // Create attachment for child node
-      const attachmentResult = Attachment.create(parentNodeId.value, 0);
-      if (attachmentResult.isErr()) {
-        throw new Error('Failed to create attachment');
-      }
-
-      const childNodeResult = Node.createChild(childArgId.value, attachmentResult.value);
-      if (childNodeResult.isErr()) {
-        throw new Error('Failed to create child node');
-      }
-
-      tree.addNode(parentNodeId.value);
-      tree.addNode(childNodeId.value);
-
-      mockProofDoc.trees.set('tree1', tree);
-      mockProofDoc.nodes.set('parent', parentNodeResult.value);
-      mockProofDoc.nodes.set('child', childNodeResult.value);
-
-      const result = renderer.generateSVG(mockProofDoc);
+      const result = renderer.generateSVG(mockVisualizationDTO);
 
       expect(result).toContain('class="connection-line"');
       expect(result).toContain('<line');
@@ -514,92 +490,83 @@ describe('TreeRenderer', () => {
     });
 
     it('should handle missing nodes in connections gracefully', () => {
-      const position = Position2D.create(100, 200);
-      if (position.isErr()) {
-        throw new Error('Failed to create position');
-      }
+      // Create a connection that references non-existent nodes
+      const invalidConnection: ConnectionDTO = {
+        fromNodeId: 'missingNode1',
+        toNodeId: 'missingNode2',
+        fromPosition: 0,
+        toPosition: 0,
+        coordinates: {
+          startX: 100,
+          startY: 100,
+          endX: 200,
+          endY: 200,
+        },
+      };
 
-      const treeResult = Tree.create('document', position.value);
-      if (treeResult.isErr()) {
-        throw new Error('Failed to create tree');
-      }
+      const treeWithInvalidConnection: TreeRenderDTO = {
+        id: 'tree1',
+        position: { x: 100, y: 100 },
+        layout: {
+          nodes: [], // No nodes
+          connections: [invalidConnection],
+          dimensions: { width: 300, height: 300 },
+        },
+        bounds: { width: 300, height: 300 },
+      };
 
-      const tree = treeResult.value;
+      mockVisualizationDTO = {
+        documentId: 'test-doc-id',
+        version: 1,
+        trees: [treeWithInvalidConnection],
+        totalDimensions: { width: 500, height: 500 },
+        isEmpty: false,
+      };
 
-      // Add node ID to tree but don't add actual node to document
-      const nodeId = NodeId.create('missingNode');
-      if (nodeId.isErr()) {
-        throw new Error('Failed to create node ID');
-      }
-
-      tree.addNode(nodeId.value);
-      mockProofDoc.trees.set('tree1', tree);
-
-      const result = renderer.generateSVG(mockProofDoc);
+      const result = renderer.generateSVG(mockVisualizationDTO);
 
       // Should not crash and should generate valid SVG
       expect(result).toContain('<svg');
       expect(result).toContain('</svg>');
     });
 
-    it('should handle missing orderedSets in getStatementsFromOrderedSet', () => {
-      // Create atomic argument with non-existent ordered set reference
-      const nonExistentId = OrderedSetId.create('nonExistent');
-      if (nonExistentId.isErr()) {
-        throw new Error('Failed to create ordered set ID');
-      }
+    it('should handle empty connections gracefully', () => {
+      // Create a tree with no connections
+      const nodeWithoutConnections: RenderedNodeDTO = {
+        id: 'n1',
+        position: { x: 50, y: 50 },
+        dimensions: { width: 200, height: 100 },
+        argument: {
+          id: 'arg1',
+          premiseSetId: 'nonExistent',
+          conclusionSetId: 'empty',
+          sideLabels: {},
+        },
+        premises: [], // Empty premises
+        conclusions: [], // Empty conclusions
+        sideLabel: '',
+      };
 
-      const emptySet = OrderedSet.create([]);
-      if (emptySet.isErr()) {
-        throw new Error('Failed to create empty set');
-      }
+      const treeWithoutConnections: TreeRenderDTO = {
+        id: 'tree1',
+        position: { x: 100, y: 100 },
+        layout: {
+          nodes: [nodeWithoutConnections],
+          connections: [], // No connections
+          dimensions: { width: 300, height: 200 },
+        },
+        bounds: { width: 300, height: 200 },
+      };
 
-      mockProofDoc.orderedSets.set('empty', emptySet.value);
-      const emptyId = OrderedSetId.create('empty');
-      if (emptyId.isErr()) {
-        throw new Error('Failed to create empty ID');
-      }
+      mockVisualizationDTO = {
+        documentId: 'test-doc-id',
+        version: 1,
+        trees: [treeWithoutConnections],
+        totalDimensions: { width: 500, height: 400 },
+        isEmpty: false,
+      };
 
-      const argumentResult = AtomicArgument.create(nonExistentId.value, emptyId.value, {});
-      if (argumentResult.isErr()) {
-        throw new Error('Failed to create atomic argument');
-      }
-
-      mockProofDoc.atomicArguments.set('arg1', argumentResult.value);
-
-      const position = Position2D.create(100, 200);
-      if (position.isErr()) {
-        throw new Error('Failed to create position');
-      }
-
-      const treeResult = Tree.create('document', position.value);
-      if (treeResult.isErr()) {
-        throw new Error('Failed to create tree');
-      }
-
-      const tree = treeResult.value;
-
-      const argumentId = AtomicArgumentId.create('arg1');
-      if (argumentId.isErr()) {
-        throw new Error('Failed to create argument ID');
-      }
-
-      const nodeResult = Node.createRoot(argumentId.value);
-      if (nodeResult.isErr()) {
-        throw new Error('Failed to create node');
-      }
-
-      const nodeId = NodeId.create('n1');
-      if (nodeId.isErr()) {
-        throw new Error('Failed to create node ID');
-      }
-
-      tree.addNode(nodeId.value);
-
-      mockProofDoc.trees.set('tree1', tree);
-      mockProofDoc.nodes.set('n1', nodeResult.value);
-
-      const result = renderer.generateSVG(mockProofDoc);
+      const result = renderer.generateSVG(mockVisualizationDTO);
 
       // Should handle missing ordered set gracefully
       expect(result).toContain('<svg');
@@ -610,72 +577,60 @@ describe('TreeRenderer', () => {
 
   describe('utility methods', () => {
     it('should truncate long text properly', () => {
-      const longStatement = Statement.create(
-        'This is a very long statement that should be truncated when rendered in the tree visualization because it exceeds the maximum length',
-      );
-      if (longStatement.isErr()) {
-        throw new Error('Failed to create long statement');
-      }
+      // Create a node with long statement content
+      const nodeWithLongText: RenderedNodeDTO = {
+        id: 'n1',
+        position: { x: 50, y: 50 },
+        dimensions: { width: 150, height: 100 }, // Narrow width to force truncation
+        argument: {
+          id: 'arg1',
+          premiseSetId: 'longSet',
+          conclusionSetId: 'longSet',
+          sideLabels: {},
+        },
+        premises: [
+          {
+            id: 'long',
+            content:
+              'This is a very long statement that should be truncated when rendered in the tree visualization because it exceeds the maximum length',
+            usageCount: 1,
+            createdAt: new Date().toISOString(),
+            modifiedAt: new Date().toISOString(),
+          },
+        ],
+        conclusions: [
+          {
+            id: 'long',
+            content:
+              'This is a very long statement that should be truncated when rendered in the tree visualization because it exceeds the maximum length',
+            usageCount: 1,
+            createdAt: new Date().toISOString(),
+            modifiedAt: new Date().toISOString(),
+          },
+        ],
+        sideLabel: '',
+      };
 
-      mockProofDoc.statements.set('long', longStatement.value);
+      const treeWithLongText: TreeRenderDTO = {
+        id: 'tree1',
+        position: { x: 100, y: 100 },
+        layout: {
+          nodes: [nodeWithLongText],
+          connections: [],
+          dimensions: { width: 250, height: 200 },
+        },
+        bounds: { width: 250, height: 200 },
+      };
 
-      const longId = StatementId.create('long');
-      if (longId.isErr()) {
-        throw new Error('Failed to create statement ID');
-      }
+      mockVisualizationDTO = {
+        documentId: 'test-doc-id',
+        version: 1,
+        trees: [treeWithLongText],
+        totalDimensions: { width: 450, height: 400 },
+        isEmpty: false,
+      };
 
-      const orderedSetResult = OrderedSet.create([longId.value]);
-      if (orderedSetResult.isErr()) {
-        throw new Error('Failed to create ordered set');
-      }
-
-      mockProofDoc.orderedSets.set('longSet', orderedSetResult.value);
-
-      const setId = OrderedSetId.create('longSet');
-      if (setId.isErr()) {
-        throw new Error('Failed to create ordered set ID');
-      }
-
-      const argumentResult = AtomicArgument.create(setId.value, setId.value, {});
-      if (argumentResult.isErr()) {
-        throw new Error('Failed to create atomic argument');
-      }
-
-      mockProofDoc.atomicArguments.set('arg1', argumentResult.value);
-
-      const position = Position2D.create(100, 200);
-      if (position.isErr()) {
-        throw new Error('Failed to create position');
-      }
-
-      const treeResult = Tree.create('document', position.value);
-      if (treeResult.isErr()) {
-        throw new Error('Failed to create tree');
-      }
-
-      const tree = treeResult.value;
-
-      const argumentId = AtomicArgumentId.create('arg1');
-      if (argumentId.isErr()) {
-        throw new Error('Failed to create argument ID');
-      }
-
-      const nodeResult = Node.createRoot(argumentId.value);
-      if (nodeResult.isErr()) {
-        throw new Error('Failed to create node');
-      }
-
-      const nodeId = NodeId.create('n1');
-      if (nodeId.isErr()) {
-        throw new Error('Failed to create node ID');
-      }
-
-      tree.addNode(nodeId.value);
-
-      mockProofDoc.trees.set('tree1', tree);
-      mockProofDoc.nodes.set('n1', nodeResult.value);
-
-      const result = renderer.generateSVG(mockProofDoc);
+      const result = renderer.generateSVG(mockVisualizationDTO);
 
       // Should contain truncated text with ellipsis
       expect(result).toContain('...');
@@ -683,70 +638,57 @@ describe('TreeRenderer', () => {
 
     it('should escape XML special characters', () => {
       // Use shorter text so special characters aren't truncated
-      const specialStatement = Statement.create('<>&"\'');
-      if (specialStatement.isErr()) {
-        throw new Error('Failed to create statement');
-      }
+      const nodeWithSpecialChars: RenderedNodeDTO = {
+        id: 'n1',
+        position: { x: 50, y: 50 },
+        dimensions: { width: 200, height: 100 },
+        argument: {
+          id: 'arg1',
+          premiseSetId: 'specialSet',
+          conclusionSetId: 'specialSet',
+          sideLabels: {},
+        },
+        premises: [
+          {
+            id: 'special',
+            content: '<>&"\'',
+            usageCount: 1,
+            createdAt: new Date().toISOString(),
+            modifiedAt: new Date().toISOString(),
+          },
+        ],
+        conclusions: [
+          {
+            id: 'special',
+            content: '<>&"\'',
+            usageCount: 1,
+            createdAt: new Date().toISOString(),
+            modifiedAt: new Date().toISOString(),
+          },
+        ],
+        sideLabel: '',
+      };
 
-      mockProofDoc.statements.set('special', specialStatement.value);
+      const treeWithSpecialChars: TreeRenderDTO = {
+        id: 'tree1',
+        position: { x: 100, y: 100 },
+        layout: {
+          nodes: [nodeWithSpecialChars],
+          connections: [],
+          dimensions: { width: 300, height: 200 },
+        },
+        bounds: { width: 300, height: 200 },
+      };
 
-      const specialId = StatementId.create('special');
-      if (specialId.isErr()) {
-        throw new Error('Failed to create statement ID');
-      }
+      mockVisualizationDTO = {
+        documentId: 'test-doc-id',
+        version: 1,
+        trees: [treeWithSpecialChars],
+        totalDimensions: { width: 500, height: 400 },
+        isEmpty: false,
+      };
 
-      const orderedSetResult = OrderedSet.create([specialId.value]);
-      if (orderedSetResult.isErr()) {
-        throw new Error('Failed to create ordered set');
-      }
-
-      mockProofDoc.orderedSets.set('specialSet', orderedSetResult.value);
-
-      const setId = OrderedSetId.create('specialSet');
-      if (setId.isErr()) {
-        throw new Error('Failed to create ordered set ID');
-      }
-
-      const argumentResult = AtomicArgument.create(setId.value, setId.value, {});
-      if (argumentResult.isErr()) {
-        throw new Error('Failed to create atomic argument');
-      }
-
-      mockProofDoc.atomicArguments.set('arg1', argumentResult.value);
-
-      const position = Position2D.create(100, 200);
-      if (position.isErr()) {
-        throw new Error('Failed to create position');
-      }
-
-      const treeResult = Tree.create('document', position.value);
-      if (treeResult.isErr()) {
-        throw new Error('Failed to create tree');
-      }
-
-      const tree = treeResult.value;
-
-      const argumentId = AtomicArgumentId.create('arg1');
-      if (argumentId.isErr()) {
-        throw new Error('Failed to create argument ID');
-      }
-
-      const nodeResult = Node.createRoot(argumentId.value);
-      if (nodeResult.isErr()) {
-        throw new Error('Failed to create node');
-      }
-
-      const nodeId = NodeId.create('n1');
-      if (nodeId.isErr()) {
-        throw new Error('Failed to create node ID');
-      }
-
-      tree.addNode(nodeId.value);
-
-      mockProofDoc.trees.set('tree1', tree);
-      mockProofDoc.nodes.set('n1', nodeResult.value);
-
-      const result = renderer.generateSVG(mockProofDoc);
+      const result = renderer.generateSVG(mockVisualizationDTO);
 
       // Should contain escaped XML characters
       expect(result).toContain('&lt;');
@@ -756,20 +698,27 @@ describe('TreeRenderer', () => {
       expect(result).toContain('&#x27;');
     });
 
-    it('should handle missing ordered sets gracefully', () => {
-      const position = Position2D.create(100, 200);
-      if (position.isErr()) {
-        throw new Error('Failed to create position');
-      }
+    it('should handle empty trees gracefully', () => {
+      const emptyTree: TreeRenderDTO = {
+        id: 'tree1',
+        position: { x: 100, y: 100 },
+        layout: {
+          nodes: [],
+          connections: [],
+          dimensions: { width: 100, height: 100 },
+        },
+        bounds: { width: 100, height: 100 },
+      };
 
-      const treeResult = Tree.create('document', position.value);
-      if (treeResult.isErr()) {
-        throw new Error('Failed to create tree');
-      }
+      mockVisualizationDTO = {
+        documentId: 'test-doc-id',
+        version: 1,
+        trees: [emptyTree],
+        totalDimensions: { width: 300, height: 300 },
+        isEmpty: false,
+      };
 
-      mockProofDoc.trees.set('tree1', treeResult.value);
-
-      const result = renderer.generateSVG(mockProofDoc);
+      const result = renderer.generateSVG(mockVisualizationDTO);
 
       // Should not crash
       expect(result).toContain('<svg');
@@ -777,89 +726,509 @@ describe('TreeRenderer', () => {
     });
   });
 
+  describe('advanced rendering scenarios', () => {
+    it('should handle extremely large tree structures', () => {
+      // Create a tree with many nodes to test performance
+      const nodes: RenderedNodeDTO[] = [];
+
+      // Create 50 nodes with statements
+      for (let i = 0; i < 50; i++) {
+        nodes.push({
+          id: `n${i}`,
+          position: { x: (i % 10) * 220, y: Math.floor(i / 10) * 120 },
+          dimensions: { width: 200, height: 100 },
+          argument: {
+            id: `arg${i}`,
+            premiseSetId: `premises${i}`,
+            conclusionSetId: `conclusions${i}`,
+            sideLabels: {},
+          },
+          premises: [
+            {
+              id: `s${i}`,
+              content: `Statement ${i}`,
+              usageCount: 1,
+              createdAt: new Date().toISOString(),
+              modifiedAt: new Date().toISOString(),
+            },
+          ],
+          conclusions: [
+            {
+              id: `c${i}`,
+              content: `Conclusion ${i}`,
+              usageCount: 1,
+              createdAt: new Date().toISOString(),
+              modifiedAt: new Date().toISOString(),
+            },
+          ],
+          sideLabel: '',
+        });
+      }
+
+      const largeTree: TreeRenderDTO = {
+        id: 'largeTree',
+        position: { x: 0, y: 0 },
+        layout: {
+          nodes,
+          connections: [],
+          dimensions: { width: 2200, height: 600 },
+        },
+        bounds: { width: 2200, height: 600 },
+      };
+
+      mockVisualizationDTO = {
+        documentId: 'test-doc-id',
+        version: 1,
+        trees: [largeTree],
+        totalDimensions: { width: 2200, height: 600 },
+        isEmpty: false,
+      };
+
+      const startTime = Date.now();
+      const result = renderer.generateSVG(mockVisualizationDTO);
+      const endTime = Date.now();
+
+      expect(result).toContain('<svg');
+      expect(endTime - startTime).toBeLessThan(1000); // Should render within 1 second
+    });
+
+    it('should handle malformed tree data gracefully', () => {
+      // Create tree with problematic node data
+      const malformedNode: RenderedNodeDTO = {
+        id: 'malformedNode',
+        position: { x: 50, y: 50 },
+        dimensions: { width: 200, height: 100 },
+        argument: {
+          id: 'nonExistentArg',
+          premiseSetId: 'missingPremises',
+          conclusionSetId: 'missingConclusions',
+          sideLabels: {},
+        },
+        premises: [], // Empty but references non-existent set
+        conclusions: [], // Empty but references non-existent set
+        sideLabel: '',
+      };
+
+      const malformedTree: TreeRenderDTO = {
+        id: 'malformedTree',
+        position: { x: 100, y: 100 },
+        layout: {
+          nodes: [malformedNode],
+          connections: [],
+          dimensions: { width: 300, height: 200 },
+        },
+        bounds: { width: 300, height: 200 },
+      };
+
+      mockVisualizationDTO = {
+        documentId: 'test-doc-id',
+        version: 1,
+        trees: [malformedTree],
+        totalDimensions: { width: 500, height: 400 },
+        isEmpty: false,
+      };
+
+      // Should not crash
+      const result = renderer.generateSVG(mockVisualizationDTO);
+      expect(result).toContain('<svg');
+      expect(result).toContain('</svg>');
+    });
+
+    it('should handle statement content with dangerous characters', () => {
+      // Test XSS prevention and XML escaping
+      const dangerousContent = '<script>&\'alert("xss")</script>"<>\n\t';
+      const dangerousNode: RenderedNodeDTO = {
+        id: 'dangerousNode',
+        position: { x: 50, y: 50 },
+        dimensions: { width: 200, height: 100 },
+        argument: {
+          id: 'dangerousArg',
+          premiseSetId: 'dangerousSet',
+          conclusionSetId: 'dangerousSet',
+          sideLabels: {
+            left: '<script>alert("label")</script>',
+          },
+        },
+        premises: [
+          {
+            id: 'dangerous',
+            content: dangerousContent,
+            usageCount: 1,
+            createdAt: new Date().toISOString(),
+            modifiedAt: new Date().toISOString(),
+          },
+        ],
+        conclusions: [
+          {
+            id: 'dangerous',
+            content: dangerousContent,
+            usageCount: 1,
+            createdAt: new Date().toISOString(),
+            modifiedAt: new Date().toISOString(),
+          },
+        ],
+        sideLabel: '<script>alert("label")</script>',
+      };
+
+      const dangerousTree: TreeRenderDTO = {
+        id: 'dangerousTree',
+        position: { x: 100, y: 100 },
+        layout: {
+          nodes: [dangerousNode],
+          connections: [],
+          dimensions: { width: 300, height: 200 },
+        },
+        bounds: { width: 300, height: 200 },
+      };
+
+      mockVisualizationDTO = {
+        documentId: 'test-doc-id',
+        version: 1,
+        trees: [dangerousTree],
+        totalDimensions: { width: 500, height: 400 },
+        isEmpty: false,
+      };
+
+      const result = renderer.generateSVG(mockVisualizationDTO);
+
+      // Should escape dangerous characters
+      expect(result).not.toContain('<script>');
+      expect(result).toContain('&lt;script&gt;');
+      expect(result).toContain('&amp;');
+      expect(result).toContain('&quot;');
+      expect(result).toContain('&#x27;');
+    });
+
+    it('should handle extreme coordinate values in tree positioning', () => {
+      // Test with extreme coordinate values
+      const extremeNode: RenderedNodeDTO = {
+        id: 'extremeNode',
+        position: { x: -999999, y: 999999 },
+        dimensions: { width: 200, height: 100 },
+        argument: {
+          id: 'extremeArg',
+          premiseSetId: 'extremeSet',
+          conclusionSetId: 'extremeSet',
+          sideLabels: {},
+        },
+        premises: [
+          {
+            id: 'extreme',
+            content: 'Extreme position test',
+            usageCount: 1,
+            createdAt: new Date().toISOString(),
+            modifiedAt: new Date().toISOString(),
+          },
+        ],
+        conclusions: [
+          {
+            id: 'extreme',
+            content: 'Extreme position test',
+            usageCount: 1,
+            createdAt: new Date().toISOString(),
+            modifiedAt: new Date().toISOString(),
+          },
+        ],
+        sideLabel: '',
+      };
+
+      const extremeTree: TreeRenderDTO = {
+        id: 'extremeTree',
+        position: { x: -999999, y: 999999 },
+        layout: {
+          nodes: [extremeNode],
+          connections: [],
+          dimensions: { width: 2000000, height: 2000000 },
+        },
+        bounds: { width: 2000000, height: 2000000 },
+      };
+
+      mockVisualizationDTO = {
+        documentId: 'test-doc-id',
+        version: 1,
+        trees: [extremeTree],
+        totalDimensions: { width: 2000000, height: 2000000 },
+        isEmpty: false,
+      };
+
+      const result = renderer.generateSVG(mockVisualizationDTO);
+
+      // Should handle extreme coordinates without breaking
+      expect(result).toContain('<svg');
+      expect(result).toMatch(/width="\d+"/);
+      expect(result).toMatch(/height="\d+"/);
+    });
+
+    it('should handle rendering with no statements but existing structure', () => {
+      // Create structure without any actual statement content
+      const emptyStructureNode: RenderedNodeDTO = {
+        id: 'emptyNode',
+        position: { x: 50, y: 50 },
+        dimensions: { width: 200, height: 100 },
+        argument: {
+          id: 'emptyArg',
+          premiseSetId: 'empty',
+          conclusionSetId: 'empty',
+          sideLabels: {},
+        },
+        premises: [], // No statements
+        conclusions: [], // No statements
+        sideLabel: '',
+      };
+
+      const emptyStructureTree: TreeRenderDTO = {
+        id: 'emptyTree',
+        position: { x: 0, y: 0 },
+        layout: {
+          nodes: [emptyStructureNode],
+          connections: [],
+          dimensions: { width: 300, height: 200 },
+        },
+        bounds: { width: 300, height: 200 },
+      };
+
+      mockVisualizationDTO = {
+        documentId: 'test-doc-id',
+        version: 1,
+        trees: [emptyStructureTree],
+        totalDimensions: { width: 300, height: 200 },
+        isEmpty: false,
+      };
+
+      const result = renderer.generateSVG(mockVisualizationDTO);
+
+      // Should render empty placeholders
+      expect(result).toContain('(empty)');
+      expect(result).toContain('font-style: italic');
+    });
+
+    it('should handle complex tree hierarchies with deep nesting', () => {
+      // Create a complex tree with multiple levels of reasoning
+      const parentNode: RenderedNodeDTO = {
+        id: 'parent',
+        position: { x: 50, y: 50 },
+        dimensions: { width: 200, height: 100 },
+        argument: {
+          id: 'arg1',
+          premiseSetId: 'set1',
+          conclusionSetId: 'set2',
+          sideLabels: { left: 'Rule 1' },
+        },
+        premises: [
+          {
+            id: 's0',
+            content: 'Root premise',
+            usageCount: 1,
+            createdAt: new Date().toISOString(),
+            modifiedAt: new Date().toISOString(),
+          },
+        ],
+        conclusions: [
+          {
+            id: 's1',
+            content: 'Mid conclusion',
+            usageCount: 2,
+            createdAt: new Date().toISOString(),
+            modifiedAt: new Date().toISOString(),
+          },
+        ],
+        sideLabel: 'Rule 1',
+      };
+
+      const childNode: RenderedNodeDTO = {
+        id: 'child',
+        position: { x: 50, y: 200 },
+        dimensions: { width: 200, height: 100 },
+        argument: {
+          id: 'arg2',
+          premiseSetId: 'set2',
+          conclusionSetId: 'set3',
+          sideLabels: { left: 'Rule 2' },
+        },
+        premises: [
+          {
+            id: 's1',
+            content: 'Mid conclusion',
+            usageCount: 2,
+            createdAt: new Date().toISOString(),
+            modifiedAt: new Date().toISOString(),
+          },
+        ],
+        conclusions: [
+          {
+            id: 's2',
+            content: 'Final conclusion',
+            usageCount: 1,
+            createdAt: new Date().toISOString(),
+            modifiedAt: new Date().toISOString(),
+          },
+        ],
+        sideLabel: 'Rule 2',
+      };
+
+      const connection: ConnectionDTO = {
+        fromNodeId: 'parent',
+        toNodeId: 'child',
+        fromPosition: 0,
+        toPosition: 0,
+        coordinates: {
+          startX: 150,
+          startY: 150,
+          endX: 150,
+          endY: 200,
+        },
+      };
+
+      const hierarchicalTree: TreeRenderDTO = {
+        id: 'hierarchicalTree',
+        position: { x: 100, y: 100 },
+        layout: {
+          nodes: [parentNode, childNode],
+          connections: [connection],
+          dimensions: { width: 300, height: 350 },
+        },
+        bounds: { width: 300, height: 350 },
+      };
+
+      mockVisualizationDTO = {
+        documentId: 'test-doc-id',
+        version: 1,
+        trees: [hierarchicalTree],
+        totalDimensions: { width: 500, height: 550 },
+        isEmpty: false,
+      };
+
+      const result = renderer.generateSVG(mockVisualizationDTO);
+
+      // Should contain all content and structure
+      expect(result).toContain('Root premise');
+      expect(result).toContain('Mid conclusion');
+      expect(result).toContain('Final conclusion');
+      expect(result).toContain('Rule 1');
+      expect(result).toContain('Rule 2');
+      expect(result).toContain('class="connection-line"');
+    });
+  });
+
   describe('side labels', () => {
     it('should render side labels when present', () => {
-      const s1Result = Statement.create('Premise');
-      const s2Result = Statement.create('Conclusion');
+      // Create node with side label
+      const nodeWithSideLabel: RenderedNodeDTO = {
+        id: 'n1',
+        position: { x: 50, y: 50 },
+        dimensions: { width: 200, height: 100 },
+        argument: {
+          id: 'arg1',
+          premiseSetId: 'os1',
+          conclusionSetId: 'os2',
+          sideLabels: {
+            left: 'Rule Name',
+          },
+        },
+        premises: [
+          {
+            id: 's1',
+            content: 'Premise',
+            usageCount: 1,
+            createdAt: new Date().toISOString(),
+            modifiedAt: new Date().toISOString(),
+          },
+        ],
+        conclusions: [
+          {
+            id: 's2',
+            content: 'Conclusion',
+            usageCount: 1,
+            createdAt: new Date().toISOString(),
+            modifiedAt: new Date().toISOString(),
+          },
+        ],
+        sideLabel: 'Rule Name',
+      };
 
-      if (s1Result.isErr() || s2Result.isErr()) {
-        throw new Error('Failed to create statements');
-      }
+      const treeWithSideLabel: TreeRenderDTO = {
+        id: 'tree1',
+        position: { x: 100, y: 200 },
+        layout: {
+          nodes: [nodeWithSideLabel],
+          connections: [],
+          dimensions: { width: 300, height: 200 },
+        },
+        bounds: { width: 300, height: 200 },
+      };
 
-      mockProofDoc.statements.set('s1', s1Result.value);
-      mockProofDoc.statements.set('s2', s2Result.value);
+      mockVisualizationDTO = {
+        documentId: 'test-doc-id',
+        version: 1,
+        trees: [treeWithSideLabel],
+        totalDimensions: { width: 500, height: 500 },
+        isEmpty: false,
+      };
 
-      const s1Id = StatementId.create('s1');
-      const s2Id = StatementId.create('s2');
-
-      if (s1Id.isErr() || s2Id.isErr()) {
-        throw new Error('Failed to create statement IDs');
-      }
-
-      const premisesResult = OrderedSet.create([s1Id.value]);
-      const conclusionsResult = OrderedSet.create([s2Id.value]);
-
-      if (premisesResult.isErr() || conclusionsResult.isErr()) {
-        throw new Error('Failed to create ordered sets');
-      }
-
-      mockProofDoc.orderedSets.set('os1', premisesResult.value);
-      mockProofDoc.orderedSets.set('os2', conclusionsResult.value);
-
-      const premisesId = OrderedSetId.create('os1');
-      const conclusionsId = OrderedSetId.create('os2');
-
-      if (premisesId.isErr() || conclusionsId.isErr()) {
-        throw new Error('Failed to create ordered set IDs');
-      }
-
-      // Create argument with side label
-      const argumentResult = AtomicArgument.create(premisesId.value, conclusionsId.value, {
-        left: 'Rule Name',
-      });
-
-      if (argumentResult.isErr()) {
-        throw new Error('Failed to create atomic argument');
-      }
-
-      mockProofDoc.atomicArguments.set('arg1', argumentResult.value);
-
-      const position = Position2D.create(100, 200);
-      if (position.isErr()) {
-        throw new Error('Failed to create position');
-      }
-
-      const treeResult = Tree.create('document', position.value);
-      if (treeResult.isErr()) {
-        throw new Error('Failed to create tree');
-      }
-
-      const tree = treeResult.value;
-
-      const argumentId = AtomicArgumentId.create('arg1');
-      if (argumentId.isErr()) {
-        throw new Error('Failed to create argument ID');
-      }
-
-      const nodeResult = Node.createRoot(argumentId.value);
-      if (nodeResult.isErr()) {
-        throw new Error('Failed to create node');
-      }
-
-      const nodeId = NodeId.create('n1');
-      if (nodeId.isErr()) {
-        throw new Error('Failed to create node ID');
-      }
-
-      tree.addNode(nodeId.value);
-
-      mockProofDoc.trees.set('tree1', tree);
-      mockProofDoc.nodes.set('n1', nodeResult.value);
-
-      const result = renderer.generateSVG(mockProofDoc);
+      const result = renderer.generateSVG(mockVisualizationDTO);
 
       expect(result).toContain('Rule Name');
       expect(result).toContain('class="side-label"');
+    });
+
+    it('should handle missing side labels gracefully', () => {
+      // Create node without side label
+      const nodeWithoutSideLabel: RenderedNodeDTO = {
+        id: 'n1',
+        position: { x: 50, y: 50 },
+        dimensions: { width: 200, height: 100 },
+        argument: {
+          id: 'arg1',
+          premiseSetId: 'os1',
+          conclusionSetId: 'os2',
+          sideLabels: {}, // No side labels
+        },
+        premises: [
+          {
+            id: 's1',
+            content: 'Premise without label',
+            usageCount: 1,
+            createdAt: new Date().toISOString(),
+            modifiedAt: new Date().toISOString(),
+          },
+        ],
+        conclusions: [
+          {
+            id: 's2',
+            content: 'Simple conclusion',
+            usageCount: 1,
+            createdAt: new Date().toISOString(),
+            modifiedAt: new Date().toISOString(),
+          },
+        ],
+        sideLabel: '', // Empty side label
+      };
+
+      const treeWithoutSideLabel: TreeRenderDTO = {
+        id: 'tree1',
+        position: { x: 100, y: 200 },
+        layout: {
+          nodes: [nodeWithoutSideLabel],
+          connections: [],
+          dimensions: { width: 300, height: 200 },
+        },
+        bounds: { width: 300, height: 200 },
+      };
+
+      mockVisualizationDTO = {
+        documentId: 'test-doc-id',
+        version: 1,
+        trees: [treeWithoutSideLabel],
+        totalDimensions: { width: 500, height: 500 },
+        isEmpty: false,
+      };
+
+      const result = renderer.generateSVG(mockVisualizationDTO);
+
+      // Should not contain side label elements when no label is present
+      expect(result).not.toContain('class="side-label"');
+      expect(result).toContain('Premise without label');
+      expect(result).toContain('Simple conclusion');
     });
   });
 });

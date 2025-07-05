@@ -258,6 +258,102 @@ describe('ProofAggregate', () => {
       }
     });
 
+    it('should handle arguments with missing premise/conclusion sets during connection', () => {
+      const proofResult = ProofAggregate.createNew();
+      expect(proofResult.isOk()).toBe(true);
+
+      if (proofResult.isOk()) {
+        const proof = proofResult.value;
+
+        // Create empty arguments (bootstrap case) - these don't have conclusion/premise sets
+        const arg1Result = proof.createAtomicArgument([], []);
+        const arg2Result = proof.createAtomicArgument([], []);
+
+        expect(arg1Result.isOk() && arg2Result.isOk()).toBe(true);
+
+        if (arg1Result.isOk() && arg2Result.isOk()) {
+          const connectResult = proof.connectArguments(arg1Result.value, arg2Result.value);
+
+          // Empty arguments should fail to connect due to missing sets
+          expect(connectResult.isErr()).toBe(true);
+          if (connectResult.isErr()) {
+            expect(connectResult.error.message).toContain('complete premise/conclusion sets');
+          }
+        }
+      }
+    });
+
+    it('should handle connection safety validation failures', () => {
+      const proofResult = ProofAggregate.createNew();
+      expect(proofResult.isOk()).toBe(true);
+
+      if (proofResult.isOk()) {
+        const proof = proofResult.value;
+
+        // Create statements for incompatible arguments
+        const s1Result = proof.addStatement('Statement 1');
+        const s2Result = proof.addStatement('Statement 2');
+        const s3Result = proof.addStatement('Statement 3');
+        const s4Result = proof.addStatement('Statement 4');
+
+        expect(s1Result.isOk() && s2Result.isOk() && s3Result.isOk() && s4Result.isOk()).toBe(true);
+
+        if (s1Result.isOk() && s2Result.isOk() && s3Result.isOk() && s4Result.isOk()) {
+          // Create incompatible arguments (different statement sets)
+          const arg1Result = proof.createAtomicArgument([s1Result.value], [s2Result.value]);
+          const arg2Result = proof.createAtomicArgument([s3Result.value], [s4Result.value]);
+
+          expect(arg1Result.isOk() && arg2Result.isOk()).toBe(true);
+
+          if (arg1Result.isOk() && arg2Result.isOk()) {
+            const connectResult = proof.connectArguments(arg1Result.value, arg2Result.value);
+
+            // This should fail due to incompatible conclusion/premise sets (different statements)
+            expect(connectResult.isErr()).toBe(true);
+            if (connectResult.isErr()) {
+              // The error might be about connection safety or incompatible sets
+              expect(connectResult.error.message).toBeDefined();
+            }
+          }
+        }
+      }
+    });
+
+    it('should handle ordered set cleanup during connection', () => {
+      const proofResult = ProofAggregate.createNew();
+      expect(proofResult.isOk()).toBe(true);
+
+      if (proofResult.isOk()) {
+        const proof = proofResult.value;
+
+        // Create statements
+        const s1Result = proof.addStatement('Statement 1');
+        const s2Result = proof.addStatement('Statement 2');
+        const s3Result = proof.addStatement('Statement 3');
+
+        expect(s1Result.isOk() && s2Result.isOk() && s3Result.isOk()).toBe(true);
+
+        if (s1Result.isOk() && s2Result.isOk() && s3Result.isOk()) {
+          // Create arguments that will share ordered sets
+          const arg1Result = proof.createAtomicArgument([s1Result.value], [s2Result.value]);
+          const arg2Result = proof.createAtomicArgument([s3Result.value], [s1Result.value]);
+
+          expect(arg1Result.isOk() && arg2Result.isOk()).toBe(true);
+
+          if (arg1Result.isOk() && arg2Result.isOk()) {
+            const _initialOrderedSetsCount = proof.getOrderedSets().size;
+            const connectResult = proof.connectArguments(arg1Result.value, arg2Result.value);
+
+            // Test that connection may succeed or fail based on validation
+            if (connectResult.isOk()) {
+              // Check that ordered sets were properly managed
+              expect(proof.getOrderedSets().size).toBeGreaterThan(0);
+            }
+          }
+        }
+      }
+    });
+
     it('should reject connection of non-existent arguments', () => {
       const proofResult = ProofAggregate.createNew();
       expect(proofResult.isOk()).toBe(true);
@@ -298,6 +394,37 @@ describe('ProofAggregate', () => {
     it('should detect statement usage inconsistencies', () => {
       // This test requires manipulating internal state directly
       // which would be done in integration tests with repositories
+      const proofResult = ProofAggregate.createNew();
+      expect(proofResult.isOk()).toBe(true);
+
+      if (proofResult.isOk()) {
+        const proof = proofResult.value;
+        const validationResult = proof.validateConsistency();
+        expect(validationResult.isOk()).toBe(true);
+      }
+    });
+
+    it('should handle validation errors during consistency check', () => {
+      const proofResult = ProofAggregate.createNew();
+      expect(proofResult.isOk()).toBe(true);
+
+      if (proofResult.isOk()) {
+        const proof = proofResult.value;
+        // Add a statement and argument to test usage consistency
+        const statementResult = proof.addStatement('Test statement');
+        expect(statementResult.isOk()).toBe(true);
+
+        if (statementResult.isOk()) {
+          const argumentResult = proof.createAtomicArgument([statementResult.value], []);
+          expect(argumentResult.isOk()).toBe(true);
+        }
+
+        const validationResult = proof.validateConsistency();
+        expect(validationResult.isOk()).toBe(true);
+      }
+    });
+
+    it('should handle exception during consistency validation', () => {
       const proofResult = ProofAggregate.createNew();
       expect(proofResult.isOk()).toBe(true);
 
@@ -365,6 +492,73 @@ describe('ProofAggregate', () => {
 
         const events = proof.getUncommittedEvents();
         expect(events.length).toBe(0);
+      }
+    });
+  });
+
+  describe('error handling edge cases', () => {
+    it('should handle statement decrement usage error during connection', () => {
+      const proofResult = ProofAggregate.createNew();
+      expect(proofResult.isOk()).toBe(true);
+
+      if (proofResult.isOk()) {
+        const proof = proofResult.value;
+        const s1Result = proof.addStatement('Statement 1');
+        const s2Result = proof.addStatement('Statement 2');
+
+        expect(s1Result.isOk() && s2Result.isOk()).toBe(true);
+
+        if (s1Result.isOk() && s2Result.isOk()) {
+          // Create arguments
+          const arg1Result = proof.createAtomicArgument([], [s1Result.value]);
+          const arg2Result = proof.createAtomicArgument([s2Result.value], []);
+
+          expect(arg1Result.isOk() && arg2Result.isOk()).toBe(true);
+
+          if (arg1Result.isOk() && arg2Result.isOk()) {
+            // This tests the error handling path in connectArguments
+            const connectResult = proof.connectArguments(arg1Result.value, arg2Result.value);
+
+            // Connection should fail due to incompatible sets
+            expect(connectResult.isErr()).toBe(true);
+          }
+        }
+      }
+    });
+  });
+
+  describe('data integrity', () => {
+    it('should return defensive copies of collections', () => {
+      const proofResult = ProofAggregate.createNew();
+      expect(proofResult.isOk()).toBe(true);
+
+      if (proofResult.isOk()) {
+        const proof = proofResult.value;
+        const statementResult = proof.addStatement('Test statement');
+        expect(statementResult.isOk()).toBe(true);
+
+        if (statementResult.isOk()) {
+          const argumentResult = proof.createAtomicArgument([statementResult.value], []);
+          expect(argumentResult.isOk()).toBe(true);
+
+          // Get collections multiple times
+          const statements1 = proof.getStatements();
+          const statements2 = proof.getStatements();
+          const arguments1 = proof.getArguments();
+          const arguments2 = proof.getArguments();
+          const orderedSets1 = proof.getOrderedSets();
+          const orderedSets2 = proof.getOrderedSets();
+
+          // Should return different instances (defensive copies)
+          expect(statements1).not.toBe(statements2);
+          expect(arguments1).not.toBe(arguments2);
+          expect(orderedSets1).not.toBe(orderedSets2);
+
+          // But with same content
+          expect(statements1.size).toBe(statements2.size);
+          expect(arguments1.size).toBe(arguments2.size);
+          expect(orderedSets1.size).toBe(orderedSets2.size);
+        }
       }
     });
   });

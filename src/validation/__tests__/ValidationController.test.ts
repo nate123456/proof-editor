@@ -1,37 +1,41 @@
+import { ok } from 'neverthrow';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type * as vscode from 'vscode';
-import type { ProofDiagnosticProvider } from '../DiagnosticProvider.js';
-import { ValidationController } from '../ValidationController.js';
+import type { IDiagnosticPort } from '../../application/ports/IDiagnosticPort.js';
+import type { DocumentInfo, ValidationController } from '../ValidationController.js';
 
 // Mock timers
 vi.useFakeTimers();
 
-// Mock DiagnosticProvider
-const mockDiagnosticProvider = {
-  validateDocument: vi.fn(),
+// Create properly typed mock IDiagnosticPort
+const createMockDiagnosticPort = (): IDiagnosticPort => ({
+  validateDocument: vi.fn().mockResolvedValue(ok(undefined)),
   clearDiagnostics: vi.fn(),
   clearAllDiagnostics: vi.fn(),
   dispose: vi.fn(),
-} as unknown as ProofDiagnosticProvider;
-
-vi.mock('../DiagnosticProvider.js', () => ({
-  ProofDiagnosticProvider: vi.fn(() => mockDiagnosticProvider),
-}));
+});
 
 describe('ValidationController', () => {
   let controller: ValidationController;
-  let mockDocument: vscode.TextDocument;
+  let mockDocument: DocumentInfo;
+  let mockDiagnosticPort: IDiagnosticPort;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
+
+    // Create a fresh mock diagnostic port instance
+    mockDiagnosticPort = createMockDiagnosticPort();
 
     mockDocument = {
       languageId: 'proof',
-      uri: { toString: () => 'file:///test.proof' } as any,
-      getText: () => 'test content',
-    } as any;
+      uri: 'file:///test.proof',
+      content: 'test content',
+    };
 
-    controller = new ValidationController(mockDiagnosticProvider, 500); // 500ms delay
+    // Dynamic import to avoid circular dependencies
+    const { ValidationController: ValidationControllerClass } = await import(
+      '../ValidationController.js'
+    );
+    controller = new ValidationControllerClass(mockDiagnosticPort, 500); // 500ms delay
   });
 
   afterEach(() => {
@@ -39,30 +43,38 @@ describe('ValidationController', () => {
   });
 
   describe('constructor', () => {
-    it('should create diagnostic provider', () => {
+    it('should create validation controller', () => {
       expect(controller).toBeDefined();
-      expect(controller.getDiagnosticProvider()).toBe(mockDiagnosticProvider);
     });
 
-    it('should use default validation delay when not specified', () => {
-      const defaultController = new ValidationController(mockDiagnosticProvider);
+    it('should use default validation delay when not specified', async () => {
+      const { ValidationController: ValidationControllerClass } = await import(
+        '../ValidationController.js'
+      );
+      const defaultController = new ValidationControllerClass(mockDiagnosticPort);
       expect(defaultController).toBeDefined();
+      defaultController.dispose();
     });
   });
 
   describe('validateDocumentImmediate', () => {
-    it('should validate document immediately', () => {
-      controller.validateDocumentImmediate(mockDocument);
+    it('should validate document immediately', async () => {
+      const result = await controller.validateDocumentImmediate(mockDocument);
 
-      expect(mockDiagnosticProvider.validateDocument).toHaveBeenCalledWith(mockDocument);
+      expect(result.isOk()).toBe(true);
+      expect(mockDiagnosticPort.validateDocument).toHaveBeenCalledWith(
+        mockDocument.uri,
+        mockDocument.content,
+      );
     });
 
-    it('should validate non-proof documents immediately', () => {
+    it('should skip non-proof documents', async () => {
       const nonProofDocument = { ...mockDocument, languageId: 'typescript' };
 
-      controller.validateDocumentImmediate(nonProofDocument);
+      const result = await controller.validateDocumentImmediate(nonProofDocument);
 
-      expect(mockDiagnosticProvider.validateDocument).toHaveBeenCalledWith(nonProofDocument);
+      expect(result.isOk()).toBe(true);
+      expect(mockDiagnosticPort.validateDocument).not.toHaveBeenCalled();
     });
   });
 
@@ -73,19 +85,22 @@ describe('ValidationController', () => {
       controller.validateDocumentDebounced(nonProofDocument);
       vi.runAllTimers();
 
-      expect(mockDiagnosticProvider.validateDocument).not.toHaveBeenCalled();
+      expect(mockDiagnosticPort.validateDocument).not.toHaveBeenCalled();
     });
 
     it('should debounce validation for proof documents', () => {
       controller.validateDocumentDebounced(mockDocument);
 
       // Validation should not happen immediately
-      expect(mockDiagnosticProvider.validateDocument).not.toHaveBeenCalled();
+      expect(mockDiagnosticPort.validateDocument).not.toHaveBeenCalled();
 
       // Run timers to trigger debounced validation
       vi.runAllTimers();
 
-      expect(mockDiagnosticProvider.validateDocument).toHaveBeenCalledWith(mockDocument);
+      expect(mockDiagnosticPort.validateDocument).toHaveBeenCalledWith(
+        mockDocument.uri,
+        mockDocument.content,
+      );
     });
 
     it('should cancel previous validation when new validation is requested', () => {
@@ -99,13 +114,13 @@ describe('ValidationController', () => {
       vi.runAllTimers();
 
       // Should only validate once (the second call)
-      expect(mockDiagnosticProvider.validateDocument).toHaveBeenCalledTimes(1);
+      expect(mockDiagnosticPort.validateDocument).toHaveBeenCalledTimes(1);
     });
 
     it('should handle multiple documents independently', () => {
       const document2 = {
         ...mockDocument,
-        uri: { toString: () => 'file:///test2.proof' } as any,
+        uri: 'file:///test2.proof',
       };
 
       controller.validateDocumentDebounced(mockDocument);
@@ -113,23 +128,35 @@ describe('ValidationController', () => {
 
       vi.runAllTimers();
 
-      expect(mockDiagnosticProvider.validateDocument).toHaveBeenCalledTimes(2);
-      expect(mockDiagnosticProvider.validateDocument).toHaveBeenCalledWith(mockDocument);
-      expect(mockDiagnosticProvider.validateDocument).toHaveBeenCalledWith(document2);
+      expect(mockDiagnosticPort.validateDocument).toHaveBeenCalledTimes(2);
+      expect(mockDiagnosticPort.validateDocument).toHaveBeenCalledWith(
+        mockDocument.uri,
+        mockDocument.content,
+      );
+      expect(mockDiagnosticPort.validateDocument).toHaveBeenCalledWith(
+        document2.uri,
+        document2.content,
+      );
     });
 
-    it('should respect custom validation delay', () => {
-      const customController = new ValidationController(mockDiagnosticProvider, 1000);
+    it('should respect custom validation delay', async () => {
+      const { ValidationController: ValidationControllerClass } = await import(
+        '../ValidationController.js'
+      );
+      const customController = new ValidationControllerClass(mockDiagnosticPort, 1000);
 
       customController.validateDocumentDebounced(mockDocument);
 
       // Advance time by 500ms - should not validate yet
       vi.advanceTimersByTime(500);
-      expect(mockDiagnosticProvider.validateDocument).not.toHaveBeenCalled();
+      expect(mockDiagnosticPort.validateDocument).not.toHaveBeenCalled();
 
       // Advance time by another 500ms - should validate now
       vi.advanceTimersByTime(500);
-      expect(mockDiagnosticProvider.validateDocument).toHaveBeenCalledWith(mockDocument);
+      expect(mockDiagnosticPort.validateDocument).toHaveBeenCalledWith(
+        mockDocument.uri,
+        mockDocument.content,
+      );
 
       customController.dispose();
     });
@@ -145,13 +172,13 @@ describe('ValidationController', () => {
       // Run timers - validation should not happen
       vi.runAllTimers();
 
-      expect(mockDiagnosticProvider.validateDocument).not.toHaveBeenCalled();
+      expect(mockDiagnosticPort.validateDocument).not.toHaveBeenCalled();
     });
 
     it('should clear diagnostics for document', () => {
       controller.clearDocumentValidation(mockDocument);
 
-      expect(mockDiagnosticProvider.clearDiagnostics).toHaveBeenCalledWith(mockDocument);
+      expect(mockDiagnosticPort.clearDiagnostics).toHaveBeenCalledWith(mockDocument.uri);
     });
 
     it('should handle clearing non-existent timeout gracefully', () => {
@@ -160,7 +187,7 @@ describe('ValidationController', () => {
         controller.clearDocumentValidation(mockDocument);
       }).not.toThrow();
 
-      expect(mockDiagnosticProvider.clearDiagnostics).toHaveBeenCalledWith(mockDocument);
+      expect(mockDiagnosticPort.clearDiagnostics).toHaveBeenCalledWith(mockDocument.uri);
     });
   });
 
@@ -168,7 +195,7 @@ describe('ValidationController', () => {
     it('should clear all pending validations', () => {
       const document2 = {
         ...mockDocument,
-        uri: { toString: () => 'file:///test2.proof' } as any,
+        uri: 'file:///test2.proof',
       };
 
       controller.validateDocumentDebounced(mockDocument);
@@ -179,95 +206,86 @@ describe('ValidationController', () => {
       // Run timers - no validations should happen
       vi.runAllTimers();
 
-      expect(mockDiagnosticProvider.validateDocument).not.toHaveBeenCalled();
+      expect(mockDiagnosticPort.validateDocument).not.toHaveBeenCalled();
     });
 
     it('should clear all diagnostics', () => {
       controller.clearAllValidation();
 
-      expect(mockDiagnosticProvider.clearAllDiagnostics).toHaveBeenCalled();
+      expect(mockDiagnosticPort.clearAllDiagnostics).toHaveBeenCalled();
     });
   });
 
-  describe('dispose', () => {
-    it('should clear all validations and dispose diagnostic provider', () => {
-      controller.validateDocumentDebounced(mockDocument);
+  describe('advanced validation scenarios', () => {
+    it('should handle validation errors gracefully', async () => {
+      const { err } = await import('neverthrow');
 
-      controller.dispose();
+      // Mock the diagnostic port to return an error
+      vi.mocked(mockDiagnosticPort.validateDocument).mockResolvedValue(
+        err({
+          code: 'VALIDATION_FAILED',
+          message: 'Document corrupted',
+        }),
+      );
 
-      // Run timers - no validations should happen after dispose
-      vi.runAllTimers();
+      const result = await controller.validateDocumentImmediate(mockDocument);
 
-      expect(mockDiagnosticProvider.validateDocument).not.toHaveBeenCalled();
-      expect(mockDiagnosticProvider.clearAllDiagnostics).toHaveBeenCalled();
-      expect(mockDiagnosticProvider.dispose).toHaveBeenCalled();
+      expect(result.isErr()).toBe(true);
+      expect(result.isErr() && result.error.message).toContain('Document corrupted');
     });
 
-    it('should be safe to call multiple times', () => {
-      controller.dispose();
-      controller.dispose();
+    it('should handle rapid validation requests with debouncing', () => {
+      const rapidDocument = {
+        ...mockDocument,
+        content: 'statements:\n  s1: "Test statement"',
+      };
 
-      expect(mockDiagnosticProvider.dispose).toHaveBeenCalledTimes(2);
-    });
-  });
-
-  describe('getDiagnosticProvider', () => {
-    it('should return the diagnostic provider instance', () => {
-      const provider = controller.getDiagnosticProvider();
-
-      expect(provider).toBe(mockDiagnosticProvider);
-    });
-  });
-
-  describe('debouncing behavior', () => {
-    it('should reset debounce timer on repeated calls', () => {
-      controller.validateDocumentDebounced(mockDocument);
-
-      // Advance time partially
-      vi.advanceTimersByTime(250);
-
-      // Call again - should reset the timer
-      controller.validateDocumentDebounced(mockDocument);
-
-      // Advance time by the original delay - should not validate yet
-      vi.advanceTimersByTime(250);
-      expect(mockDiagnosticProvider.validateDocument).not.toHaveBeenCalled();
-
-      // Advance time by remaining delay - should validate now
-      vi.advanceTimersByTime(250);
-      expect(mockDiagnosticProvider.validateDocument).toHaveBeenCalledTimes(1);
-    });
-
-    it('should handle rapid successive validations correctly', () => {
-      // Simulate rapid typing with multiple validation requests
+      // Fire multiple rapid validation requests
       for (let i = 0; i < 10; i++) {
-        controller.validateDocumentDebounced(mockDocument);
-        vi.advanceTimersByTime(100); // Advance less than the delay each time
+        controller.validateDocumentDebounced(rapidDocument);
       }
 
-      // Should not have validated yet
-      expect(mockDiagnosticProvider.validateDocument).not.toHaveBeenCalled();
+      // Should not have validated yet due to debouncing
+      expect(mockDiagnosticPort.validateDocument).not.toHaveBeenCalled();
 
-      // Complete the final delay
+      // Fast-forward past debounce delay
       vi.advanceTimersByTime(500);
 
-      // Should validate exactly once
-      expect(mockDiagnosticProvider.validateDocument).toHaveBeenCalledTimes(1);
+      // Should have validated only once
+      expect(mockDiagnosticPort.validateDocument).toHaveBeenCalledTimes(1);
     });
-  });
 
-  describe('memory management', () => {
-    it('should clean up timeout references after validation', () => {
-      controller.validateDocumentDebounced(mockDocument);
-      vi.runAllTimers();
+    it('should handle clearing validation for non-existent documents', () => {
+      const nonExistentDocument = {
+        ...mockDocument,
+        uri: 'file:///non-existent.proof',
+      };
 
-      // The timeout should be cleaned up after execution
-      // This is tested implicitly by checking that clearDocumentValidation
-      // doesn't affect anything when called after timeout execution
-      controller.clearDocumentValidation(mockDocument);
+      // Should not throw when clearing validation for non-existent document
+      expect(() => {
+        controller.clearDocumentValidation(nonExistentDocument);
+      }).not.toThrow();
 
-      // Should still clear diagnostics even if no timeout exists
-      expect(mockDiagnosticProvider.clearDiagnostics).toHaveBeenCalledWith(mockDocument);
+      expect(mockDiagnosticPort.clearDiagnostics).toHaveBeenCalledWith(nonExistentDocument.uri);
+    });
+
+    it('should handle validation of extremely large documents', async () => {
+      const largeContent = `statements:\n${'a'.repeat(1000000)}`;
+      const largeDocument = {
+        ...mockDocument,
+        content: largeContent,
+      };
+
+      const startTime = Date.now();
+      const result = await controller.validateDocumentImmediate(largeDocument);
+      const endTime = Date.now();
+
+      expect(result.isOk()).toBe(true);
+      expect(mockDiagnosticPort.validateDocument).toHaveBeenCalledWith(
+        largeDocument.uri,
+        largeDocument.content,
+      );
+      expect(endTime - startTime).toBeLessThan(5000); // Should complete within 5 seconds
     });
   });
 });

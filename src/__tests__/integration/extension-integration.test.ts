@@ -22,6 +22,24 @@ const mockValidationController = {
   dispose: vi.fn(),
 };
 
+const mockProofTreeController = {
+  showProofTreeForDocument: vi.fn(),
+};
+
+const mockUIPort = {
+  showWarning: vi.fn(),
+  showInformationMessage: vi.fn(),
+  showErrorMessage: vi.fn(),
+  showError: vi.fn(),
+  showInformation: vi.fn(),
+};
+
+const mockDocumentController = {
+  handleDocumentOpened: vi.fn(),
+  handleDocumentChanged: vi.fn(),
+  handleDocumentClosed: vi.fn(),
+};
+
 const mockContainer = {
   resolve: vi.fn((token: string) => {
     switch (token) {
@@ -31,18 +49,92 @@ const mockContainer = {
         return {
           parseProofFile: vi.fn(),
         };
+      case 'DocumentController':
+        return mockDocumentController;
+      case 'ProofTreeController':
+        return mockProofTreeController;
+      case 'BootstrapController':
+        return {
+          initializeEmptyDocument: vi.fn(),
+          createBootstrapArgument: vi.fn(),
+          populateEmptyArgument: vi.fn(),
+          getBootstrapWorkflow: vi.fn(),
+          createEmptyImplicationLine: vi.fn(),
+        };
+      case 'DocumentQueryService':
+        return {
+          getDocumentStructure: vi.fn().mockResolvedValue({ isOk: () => true, value: {} }),
+          getArguments: vi.fn().mockResolvedValue({ isOk: () => true, value: [] }),
+          getStatements: vi.fn().mockResolvedValue({ isOk: () => true, value: [] }),
+        };
+      case 'ProofVisualizationService':
+        return {
+          generateVisualization: vi.fn().mockResolvedValue({ isOk: () => true, value: {} }),
+          updateVisualization: vi.fn().mockResolvedValue({ isOk: () => true }),
+        };
+      case 'TreeRenderer':
+        return {
+          render: vi.fn().mockReturnValue('<div>Mock Tree</div>'),
+          updateRender: vi.fn(),
+        };
+      case 'ViewStateManager':
+        return {
+          getViewState: vi.fn().mockResolvedValue({ isOk: () => true, value: {} }),
+          updateViewState: vi.fn().mockResolvedValue({ isOk: () => true }),
+          subscribeToChanges: vi.fn(),
+        };
+      case 'IViewStatePort':
+        return {
+          getViewState: vi.fn().mockResolvedValue({ isOk: () => true, value: {} }),
+          saveViewState: vi.fn().mockResolvedValue({ isOk: () => true }),
+          capabilities: vi.fn().mockReturnValue({ canPersist: true }),
+        };
+      case 'IUIPort':
+        return mockUIPort;
+      case 'IFileSystemPort':
+        return {
+          capabilities: vi.fn().mockReturnValue({
+            canWatch: true,
+            canAccessArbitraryPaths: true,
+            supportsOfflineStorage: true,
+            persistence: 'permanent',
+          }),
+          readFile: vi.fn().mockResolvedValue({ isOk: () => true, value: 'test content' }),
+          writeFile: vi.fn().mockResolvedValue({ isOk: () => true }),
+          exists: vi.fn().mockResolvedValue({ isOk: () => true, value: true }),
+          delete: vi.fn().mockResolvedValue({ isOk: () => true }),
+          readDirectory: vi.fn().mockResolvedValue({ isOk: () => true, value: [] }),
+          createDirectory: vi.fn().mockResolvedValue({ isOk: () => true }),
+          getStoredDocument: vi.fn().mockResolvedValue({ isOk: () => true, value: null }),
+          storeDocument: vi.fn().mockResolvedValue({ isOk: () => true }),
+          deleteStoredDocument: vi.fn().mockResolvedValue({ isOk: () => true }),
+          listStoredDocuments: vi.fn().mockResolvedValue({ isOk: () => true, value: [] }),
+        };
       default:
         return {};
     }
   }),
+  registerFactory: vi.fn(),
 };
 
 vi.mock('../../infrastructure/di/container.js', () => ({
   getContainer: vi.fn(() => mockContainer),
   initializeContainer: vi.fn(() => Promise.resolve(mockContainer)),
+  registerPlatformAdapters: vi.fn(() => Promise.resolve()),
   TOKENS: {
     ValidationController: 'ValidationController',
     ProofFileParser: 'ProofFileParser',
+    DocumentController: 'DocumentController',
+    ProofTreeController: 'ProofTreeController',
+    BootstrapController: 'BootstrapController',
+    DocumentQueryService: 'DocumentQueryService',
+    ProofVisualizationService: 'ProofVisualizationService',
+    TreeRenderer: 'TreeRenderer',
+    ViewStateManager: 'ViewStateManager',
+    IViewStatePort: 'IViewStatePort',
+    IUIPort: 'IUIPort',
+    IPlatformPort: 'IPlatformPort',
+    IFileSystemPort: 'IFileSystemPort',
   },
 }));
 
@@ -51,14 +143,15 @@ import { StatementFlowService } from '../../domain/services/StatementFlowService
 import { TreeStructureService } from '../../domain/services/TreeStructureService.js';
 // Extension layer
 import { activate, deactivate } from '../../extension/extension.js';
+import type { VSCodeDiagnosticAdapter } from '../../infrastructure/vscode/VSCodeDiagnosticAdapter.js';
 // Parser layer
 import { ProofFileParser } from '../../parser/ProofFileParser.js';
 import { YAMLValidator } from '../../parser/YAMLValidator.js';
-import type { ProofDiagnosticProvider } from '../../validation/DiagnosticProvider.js';
 // Validation layer
 import { ValidationController } from '../../validation/ValidationController.js';
 // WebView layer
 import { ProofTreePanel } from '../../webview/ProofTreePanel.js';
+import { ProofTreePanelLegacy } from '../../webview/ProofTreePanelLegacy.js';
 
 // VS Code mock is defined below using vi.mock
 
@@ -67,6 +160,7 @@ vi.mock('../../webview/ProofTreePanel.js', () => ({
   ProofTreePanel: {
     createOrShow: vi.fn(),
     updateContentIfExists: vi.fn(),
+    createWithServices: vi.fn().mockResolvedValue({ isOk: () => true }),
   },
 }));
 
@@ -87,6 +181,7 @@ vi.mock('vscode', () => ({
     createWebviewPanel: vi.fn(),
     activeTextEditor: null,
     onDidChangeActiveTextEditor: vi.fn(),
+    visibleTextEditors: [],
   },
   workspace: {
     getConfiguration: vi.fn(),
@@ -115,6 +210,24 @@ vi.mock('vscode', () => ({
       // Mock event handler registration
       const disposable = { dispose: vi.fn() };
       return disposable;
+    }),
+    createFileSystemWatcher: vi.fn((_pattern: string) => {
+      // Mock file system watcher
+      return {
+        onDidChange: vi.fn((_handler) => {
+          const disposable = { dispose: vi.fn() };
+          return disposable;
+        }),
+        onDidCreate: vi.fn((_handler) => {
+          const disposable = { dispose: vi.fn() };
+          return disposable;
+        }),
+        onDidDelete: vi.fn((_handler) => {
+          const disposable = { dispose: vi.fn() };
+          return disposable;
+        }),
+        dispose: vi.fn(),
+      };
     }),
     textDocuments: [],
   },
@@ -170,7 +283,12 @@ describe('Extension Integration Tests', () => {
 
     // Initialize extension services
     const yamlValidator = new YAMLValidator();
-    const mockDiagnosticProvider = {} as ProofDiagnosticProvider; // Mock for test
+    const mockDiagnosticProvider = {
+      validateDocument: vi.fn(),
+      clearDiagnostics: vi.fn(),
+      clearAllDiagnostics: vi.fn(),
+      dispose: vi.fn(),
+    } as unknown as VSCodeDiagnosticAdapter; // Mock for test
     extensionServices = {
       parser: new ProofFileParser(yamlValidator),
       validation: new ValidationController(mockDiagnosticProvider),
@@ -371,10 +489,17 @@ proof:
         const commandHandler = showTreeCommand[1];
         await commandHandler();
 
-        // Assert - Should create or show ProofTreePanel since we have a valid .proof file
-        expect(ProofTreePanel.createOrShow).toHaveBeenCalledWith(
-          mockContext.extensionUri,
+        // Assert - Should call ProofTreePanel.createWithServices since we have a valid .proof file
+        const { ProofTreePanel } = await import('../../webview/ProofTreePanel.js');
+        expect(ProofTreePanel.createWithServices).toHaveBeenCalledWith(
+          expect.any(String), // uri
           mockProofContent,
+          expect.any(Object), // documentQueryService
+          expect.any(Object), // visualizationService
+          expect.any(Object), // uiPort
+          expect.any(Object), // renderer
+          expect.any(Object), // viewStateManager
+          expect.any(Object), // viewStatePort
         );
       }
     });
@@ -397,7 +522,7 @@ proof:
         await commandHandler();
 
         // Assert - Should show warning message since no active editor
-        expect(vscode.window.showWarningMessage).toHaveBeenCalledWith(
+        expect(mockUIPort.showWarning).toHaveBeenCalledWith(
           'Please open a .proof file to view the tree visualization.',
         );
       }
@@ -556,10 +681,17 @@ proof:
         const commandHandler = treeCommand[1];
         await commandHandler();
 
-        // Assert - Should call ProofTreePanel.createOrShow with correct parameters
-        expect(ProofTreePanel.createOrShow).toHaveBeenCalledWith(
-          mockContext.extensionUri,
+        // Assert - Should call ProofTreePanel.createWithServices with correct parameters
+        const { ProofTreePanel } = await import('../../webview/ProofTreePanel.js');
+        expect(ProofTreePanel.createWithServices).toHaveBeenCalledWith(
+          expect.any(String), // uri
           mockProofContent,
+          expect.any(Object), // documentQueryService
+          expect.any(Object), // visualizationService
+          expect.any(Object), // uiPort
+          expect.any(Object), // renderer
+          expect.any(Object), // viewStateManager
+          expect.any(Object), // viewStatePort
         );
       }
     });
@@ -703,9 +835,16 @@ proof:
         // Act - Trigger open event
         await openHandler(mockOpenedDocument);
 
-        // Assert - Should trigger validation
-        // This is implicit through no errors being thrown
-        expect(mockOpenedDocument.getText).toHaveBeenCalled();
+        // Assert - Should trigger document handling and validation
+        // The handler should call documentController.handleDocumentOpened and validation
+        expect(mockDocumentController.handleDocumentOpened).toHaveBeenCalledWith(
+          mockOpenedDocument,
+        );
+        expect(mockValidationController.validateDocumentImmediate).toHaveBeenCalledWith({
+          uri: 'file:///test/test.proof',
+          content: 'statements:\n  s1: "Test"',
+          languageId: 'proof',
+        });
       }
     });
 
@@ -887,8 +1026,15 @@ proof:
 
         await changeHandler(mockChangeEvent);
 
-        // Assert - Should handle document changes
-        expect(mockChangeEvent.document.getText).toHaveBeenCalled();
+        // Assert - Should handle document changes through controller
+        expect(mockDocumentController.handleDocumentChanged).toHaveBeenCalledWith(
+          mockChangeEvent.document,
+        );
+        expect(mockValidationController.validateDocumentDebounced).toHaveBeenCalledWith({
+          uri: 'file:///test/test.proof',
+          content: 'statements:\n  s1: "Test"',
+          languageId: 'proof',
+        });
       }
     });
   });
@@ -965,7 +1111,7 @@ proof:
             // This tests the parser-domain integration by ensuring ProofTreePanel can be created
             // with domain data and that the parser successfully processes the proof content
             expect(() => {
-              ProofTreePanel.createOrShow(
+              ProofTreePanelLegacy.createOrShow(
                 vscode.Uri.file('/test/extension/path') as any,
                 testProofContent,
               );
@@ -998,7 +1144,7 @@ proof:
       // Mock the webview panel creation
       vi.mocked(vscode.window.createWebviewPanel).mockReturnValue(mockPanel as any);
 
-      const _proofTreePanel = ProofTreePanel.createOrShow(
+      const _proofTreePanel = ProofTreePanelLegacy.createOrShow(
         vscode.Uri.file('/test/path') as any,
         'mock content',
       );
@@ -1176,11 +1322,18 @@ proof:
         const commandHandler = showTreeCommand[1];
         await commandHandler();
 
-        // Assert - Should call ProofTreePanel.createOrShow even with invalid content
-        // The extension itself doesn't handle parsing errors, it just passes content to the panel
-        expect(ProofTreePanel.createOrShow).toHaveBeenCalledWith(
-          mockContext.extensionUri,
+        // Assert - Should call ProofTreePanel.createWithServices even with invalid content
+        // The extension itself doesn't handle parsing errors, it just passes content through
+        const { ProofTreePanel } = await import('../../webview/ProofTreePanel.js');
+        expect(ProofTreePanel.createWithServices).toHaveBeenCalledWith(
+          expect.any(String), // uri
           'invalid yaml content {{{',
+          expect.any(Object), // documentQueryService
+          expect.any(Object), // visualizationService
+          expect.any(Object), // uiPort
+          expect.any(Object), // renderer
+          expect.any(Object), // viewStateManager
+          expect.any(Object), // viewStatePort
         );
       }
 

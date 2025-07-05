@@ -8,6 +8,13 @@ export interface CreateAtomicArgumentCommand {
   };
 }
 
+export interface UpdateAtomicArgumentCommand {
+  documentId: string;
+  argumentId: string;
+  premiseSetId?: string | null;
+  conclusionSetId?: string | null;
+}
+
 export interface UpdateArgumentSideLabelsCommand {
   documentId: string;
   argumentId: string;
@@ -15,4 +22,9 @@ export interface UpdateArgumentSideLabelsCommand {
     left?: string;
     right?: string;
   };
+}
+
+export interface DeleteAtomicArgumentCommand {
+  documentId: string;
+  argumentId: string;
 }

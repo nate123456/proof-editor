@@ -1,11 +1,12 @@
-import { AtomicArgument } from '../entities/AtomicArgument';
-import { OrderedSet } from '../entities/OrderedSet';
-import { Statement } from '../entities/Statement';
+import { err, ok, type Result } from 'neverthrow';
+import { AtomicArgument } from '../entities/AtomicArgument.js';
+import { OrderedSet } from '../entities/OrderedSet.js';
+import { Statement } from '../entities/Statement.js';
 import { ProcessingError } from '../errors/DomainErrors.js';
 import type { IAtomicArgumentRepository } from '../repositories/IAtomicArgumentRepository';
 import type { IOrderedSetRepository } from '../repositories/IOrderedSetRepository';
 import type { IStatementRepository } from '../repositories/IStatementRepository';
-import { err, ok, type Result, type ValidationError } from '../shared/result.js';
+import type { ValidationError } from '../shared/result.js';
 import type { AtomicArgumentId, StatementId } from '../shared/value-objects.js';
 
 export class StatementProcessingService {
@@ -56,14 +57,17 @@ export class StatementProcessingService {
       return err(new ProcessingError('Parent argument has no conclusion to branch from'));
     }
 
-    const childArgument = parent.createChildArgument();
+    const childArgumentResult = parent.createChildArgument();
+    if (childArgumentResult.isErr()) {
+      return err(new ProcessingError('Failed to create child argument', childArgumentResult.error));
+    }
 
-    const saveResult = await this.atomicArgumentRepo.save(childArgument);
+    const saveResult = await this.atomicArgumentRepo.save(childArgumentResult.value);
     if (saveResult.isErr()) {
       return err(new ProcessingError('Failed to save child argument', saveResult.error));
     }
 
-    return ok(childArgument);
+    return ok(childArgumentResult.value);
   }
 
   async validateStatementFlow(

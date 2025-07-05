@@ -592,4 +592,368 @@ describe('LogicValidationService', () => {
       expect(multiRulePackage.findMatchingRules).toHaveBeenCalled();
     });
   });
+
+  describe('edge cases and uncovered methods', () => {
+    it('should handle basic modus ponens detection', () => {
+      const premises = ['All men are mortal', 'Socrates is a man'];
+      const conclusions = ['Socrates is mortal'];
+
+      // Mock package with no matching rules to trigger basic pattern detection
+      const noRulesPackage = {
+        ...mockLanguagePackage,
+        findMatchingRules: vi.fn(() => []),
+      } as unknown as LanguagePackage;
+
+      const result = service.validateInference(
+        premises,
+        conclusions,
+        noRulesPackage,
+        ValidationLevel.semantic(),
+      );
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        // Basic modus ponens should be detected and pass validation without diagnostics
+        expect(result.value.isValid()).toBe(true);
+        expect(result.value.getDiagnostics()).toHaveLength(0);
+      }
+    });
+
+    it('should detect logical contradictions with "X and not X" pattern', () => {
+      const statement = 'Socrates is mortal and not mortal';
+      const level = ValidationLevel.semantic();
+
+      const result = service.validateStatement(statement, mockLocation, mockLanguagePackage, level);
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        expect(result.value.isValid()).toBe(false);
+        const diagnostics = result.value.getDiagnostics();
+        expect(
+          diagnostics.some((d) =>
+            d.getMessage().getValue().toLowerCase().includes('contradiction'),
+          ),
+        ).toBe(true);
+      }
+    });
+
+    it('should handle flow validation level', () => {
+      const statement = 'P therefore Q';
+      const level = ValidationLevel.flow();
+
+      const result = service.validateStatement(statement, mockLocation, mockLanguagePackage, level);
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        expect(result.value).toBeInstanceOf(ValidationResult);
+        // Flow validation currently doesn't add diagnostics but should complete successfully
+        expect(result.value.isValid()).toBe(true);
+      }
+    });
+
+    it('should test validateWithRule error handling', () => {
+      const premises = ['P → Q', 'P'];
+      const conclusions = ['Q'];
+
+      // Mock rule creation to return error
+      const mockRule = createMockInferenceRule(0.9, 0.5); // Low confidence to trigger warning
+      const rulePackage = {
+        ...mockLanguagePackage,
+        findMatchingRules: vi.fn(() => [mockRule]),
+      } as unknown as LanguagePackage;
+
+      const result = service.validateInference(
+        premises,
+        conclusions,
+        rulePackage,
+        ValidationLevel.semantic(),
+      );
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        const diagnostics = result.value.getDiagnostics();
+        expect(
+          diagnostics.some(
+            (d) =>
+              d.getSeverity().isWarning() &&
+              d.getMessage().getValue().toLowerCase().includes('confidence'),
+          ),
+        ).toBe(true);
+      }
+    });
+
+    it('should handle validateWithRule returning errors', () => {
+      const premises = ['P'];
+      const conclusions = ['Q'];
+
+      // Mock Diagnostic.create to return error to test error handling in validateWithRule
+      const originalCreate = Diagnostic.create;
+      vi.spyOn(Diagnostic, 'create').mockReturnValue({
+        isErr: () => true,
+        error: new ValidationError('Diagnostic creation failed'),
+      } as any);
+
+      // Mock rule with low confidence to trigger warning creation
+      const mockRule = createMockInferenceRule(0.9, 0.5);
+      const rulePackage = {
+        ...mockLanguagePackage,
+        findMatchingRules: vi.fn(() => [mockRule]),
+      } as unknown as LanguagePackage;
+
+      const result = service.validateInference(
+        premises,
+        conclusions,
+        rulePackage,
+        ValidationLevel.semantic(),
+      );
+
+      expect(result.isErr()).toBe(true);
+      // Should fail when diagnostic creation fails in validateWithRule
+      if (result.isErr()) {
+        expect(result.error.message).toContain('Diagnostic creation failed');
+      }
+
+      // Restore original
+      vi.spyOn(Diagnostic, 'create').mockImplementation(originalCreate);
+    });
+
+    it('should handle various parentheses edge cases', () => {
+      const testCases = [
+        { statement: ')P(', expected: false },
+        { statement: '()()', expected: true },
+        { statement: '((()))', expected: true },
+        { statement: '((()', expected: false },
+      ];
+
+      testCases.forEach(({ statement, expected }) => {
+        const result = service.validateStatement(
+          statement,
+          mockLocation,
+          mockLanguagePackage,
+          ValidationLevel.syntax(),
+        );
+
+        expect(result.isOk()).toBe(true);
+        if (result.isOk()) {
+          const hasParenthesesError = result.value
+            .getDiagnostics()
+            .some((d) => d.getMessage().getValue().toLowerCase().includes('parentheses'));
+          expect(hasParenthesesError).toBe(!expected);
+        }
+      });
+    });
+
+    it('should detect all types of logical contradictions', () => {
+      const contradictoryStatements = [
+        'mortal AND not mortal',
+        'alive and not alive',
+        'present and not present',
+      ];
+
+      contradictoryStatements.forEach((statement) => {
+        const result = service.validateStatement(
+          statement,
+          mockLocation,
+          mockLanguagePackage,
+          ValidationLevel.semantic(),
+        );
+
+        expect(result.isOk()).toBe(true);
+        if (result.isOk()) {
+          expect(result.value.isValid()).toBe(false);
+          const diagnostics = result.value.getDiagnostics();
+          expect(
+            diagnostics.some((d) =>
+              d.getMessage().getValue().toLowerCase().includes('contradiction'),
+            ),
+          ).toBe(true);
+        }
+      });
+    });
+
+    it('should handle edge cases in modus ponens detection', () => {
+      const edgeCases = [
+        {
+          premises: ['Some premise'],
+          conclusions: ['Some conclusion'],
+          shouldMatch: false,
+        },
+        {
+          premises: ['All men are mortal', 'Socrates is a man'],
+          conclusions: ['Socrates is mortal'],
+          shouldMatch: true,
+        },
+        {
+          premises: ['All cats are animals', 'Fluffy is a cat'],
+          conclusions: ['Fluffy is an animal'],
+          shouldMatch: false, // Doesn't match the specific pattern
+        },
+      ];
+
+      edgeCases.forEach(({ premises, conclusions, shouldMatch }) => {
+        const noRulesPackage = {
+          ...mockLanguagePackage,
+          findMatchingRules: vi.fn(() => []),
+        } as unknown as LanguagePackage;
+
+        const result = service.validateInference(
+          premises,
+          conclusions,
+          noRulesPackage,
+          ValidationLevel.semantic(),
+        );
+
+        expect(result.isOk()).toBe(true);
+        if (result.isOk()) {
+          if (shouldMatch) {
+            expect(result.value.isValid()).toBe(true);
+            expect(result.value.getDiagnostics()).toHaveLength(0);
+          } else {
+            // Should have error diagnostic for no valid rule
+            const diagnostics = result.value.getDiagnostics();
+            expect(
+              diagnostics.some((d) =>
+                d.getMessage().getValue().toLowerCase().includes('no valid inference rule'),
+              ),
+            ).toBe(true);
+          }
+        }
+      });
+    });
+
+    it('should handle validation result creation failures', () => {
+      const statement = 'P ∧ Q';
+
+      // Mock ValidationResult.createSuccessfulValidation to return error
+      const originalCreate = ValidationResult.createSuccessfulValidation;
+      vi.spyOn(ValidationResult, 'createSuccessfulValidation').mockReturnValue({
+        isErr: () => true,
+        error: new ValidationError('Failed to create validation result'),
+      } as any);
+
+      const result = service.validateStatement(
+        statement,
+        mockLocation,
+        mockLanguagePackage,
+        ValidationLevel.syntax(),
+      );
+
+      expect(result.isErr()).toBe(true);
+      if (result.isErr()) {
+        expect(result.error.message).toContain('Failed to create validation result');
+      }
+
+      // Restore original
+      vi.spyOn(ValidationResult, 'createSuccessfulValidation').mockImplementation(originalCreate);
+    });
+
+    it('should handle failed validation result creation failures', () => {
+      const statement = ''; // Empty statement to trigger failed validation
+
+      // Mock ValidationResult.createFailedValidation to return error
+      const originalCreate = ValidationResult.createFailedValidation;
+      vi.spyOn(ValidationResult, 'createFailedValidation').mockReturnValue({
+        isErr: () => true,
+        error: new ValidationError('Failed to create failed validation result'),
+      } as any);
+
+      const result = service.validateStatement(
+        statement,
+        mockLocation,
+        mockLanguagePackage,
+        ValidationLevel.syntax(),
+      );
+
+      expect(result.isErr()).toBe(true);
+      if (result.isErr()) {
+        expect(result.error.message).toContain('Failed to create failed validation result');
+      }
+
+      // Restore original
+      vi.spyOn(ValidationResult, 'createFailedValidation').mockImplementation(originalCreate);
+    });
+
+    it('should handle diagnostic creation errors in syntax validation', () => {
+      const statement = ''; // Empty statement
+
+      // Mock Diagnostic.createSyntaxError to return error
+      const originalCreate = Diagnostic.createSyntaxError;
+      vi.spyOn(Diagnostic, 'createSyntaxError').mockReturnValue({
+        isErr: () => true,
+        error: new ValidationError('Diagnostic creation failed'),
+      } as any);
+
+      const result = service.validateStatement(
+        statement,
+        mockLocation,
+        mockLanguagePackage,
+        ValidationLevel.syntax(),
+      );
+
+      expect(result.isErr()).toBe(true);
+      // Should fail when diagnostic creation fails unexpectedly
+      if (result.isErr()) {
+        expect(result.error.message).toContain('unexpected error');
+      }
+
+      // Restore original
+      vi.spyOn(Diagnostic, 'createSyntaxError').mockImplementation(originalCreate);
+    });
+
+    it('should handle diagnostic creation errors in semantic validation', () => {
+      const statement = 'contradiction and valid'; // Statement with contradiction
+
+      // Mock Diagnostic.createSemanticError to return error
+      const originalCreate = Diagnostic.createSemanticError;
+      vi.spyOn(Diagnostic, 'createSemanticError').mockReturnValue({
+        isErr: () => true,
+        error: new ValidationError('Semantic diagnostic creation failed'),
+      } as any);
+
+      const result = service.validateStatement(
+        statement,
+        mockLocation,
+        mockLanguagePackage,
+        ValidationLevel.semantic(),
+      );
+
+      expect(result.isErr()).toBe(true);
+      // Should fail when semantic diagnostic creation fails unexpectedly
+      if (result.isErr()) {
+        expect(result.error.message).toContain('unexpected error');
+      }
+
+      // Restore original
+      vi.spyOn(Diagnostic, 'createSemanticError').mockImplementation(originalCreate);
+    });
+
+    it('should validate proof structure and handle ValidationResult creation failure', () => {
+      const statements = ['P', 'Q'];
+      const connections = [{ from: 0, to: 1 }];
+
+      // Mock ValidationResult.createSuccessfulValidation to return error
+      const originalCreate = ValidationResult.createSuccessfulValidation;
+      vi.spyOn(ValidationResult, 'createSuccessfulValidation').mockReturnValue({
+        isErr: () => true,
+        error: new ValidationError('Failed to create proof structure validation result'),
+      } as any);
+
+      const result = service.validateProofStructure(
+        statements,
+        connections,
+        mockLanguagePackage,
+        ValidationLevel.syntax(),
+      );
+
+      expect(result.isErr()).toBe(true);
+      if (result.isErr()) {
+        expect(result.error.message).toContain(
+          'Failed to create proof structure validation result',
+        );
+      }
+
+      // Restore original
+      vi.spyOn(ValidationResult, 'createSuccessfulValidation').mockImplementation(originalCreate);
+    });
+  });
 });

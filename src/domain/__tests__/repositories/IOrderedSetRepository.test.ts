@@ -453,7 +453,9 @@ describe('IOrderedSetRepository', () => {
 
     it('should reject deleting referenced ordered set', async () => {
       // Create an ordered set with "referenced" in its ID
-      const id = OrderedSetId.fromString('referenced-12345');
+      const idResult = OrderedSetId.fromString('referenced-12345');
+      if (!idResult.isOk()) throw new Error('OrderedSetId creation failed');
+      const id = idResult.value;
       const statements = Array.from({ length: 2 }, () => {
         const result = Statement.create(statementContentFactory.build());
         if (!result.isOk()) throw new Error('Statement creation failed');

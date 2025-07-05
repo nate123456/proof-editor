@@ -24,6 +24,9 @@ import {
   PackageId,
   PhysicalProperties,
   Position2D,
+  ProofDocumentId,
+  ProofId,
+  ProofTreeId,
   StatementContent,
   StatementId,
   Timestamp,
@@ -82,6 +85,21 @@ describe('Utility Functions Coverage', () => {
     if (zeroResult.isOk()) {
       expect(zeroResult.value.getValue()).toBe(0);
     }
+
+    // Test non-integer values
+    const floatResult = Version.create(1.5);
+    expect(floatResult.isErr()).toBe(true);
+
+    // Test negative values
+    const negativeResult = Version.create(-1);
+    expect(negativeResult.isErr()).toBe(true);
+
+    // Test NaN and infinity
+    const nanResult = Version.create(Number.NaN);
+    expect(nanResult.isErr()).toBe(true);
+
+    const infinityResult = Version.create(Number.POSITIVE_INFINITY);
+    expect(infinityResult.isErr()).toBe(true);
   });
 
   it('should test Position2D with edge finite values', () => {
@@ -92,6 +110,14 @@ describe('Utility Functions Coverage', () => {
     // Test large finite numbers
     const largeResult = Position2D.create(Number.MAX_VALUE, -Number.MAX_VALUE);
     expect(largeResult.isOk()).toBe(true);
+
+    // Test zero coordinates
+    const zeroResult = Position2D.create(0, 0);
+    expect(zeroResult.isOk()).toBe(true);
+    if (zeroResult.isOk()) {
+      expect(zeroResult.value.getX()).toBe(0);
+      expect(zeroResult.value.getY()).toBe(0);
+    }
   });
 
   it('should test PhysicalProperties with all update methods', () => {
@@ -118,6 +144,59 @@ describe('Utility Functions Coverage', () => {
       expect(withDims.value.getMinWidth()).toBe(200);
       expect(withDims.value.getMinHeight()).toBe(150);
     }
+
+    // Test withLayoutStyle for all layout styles
+    const styles = ['bottom-up', 'top-down', 'left-right', 'right-left'] as const;
+    styles.forEach((style) => {
+      const withStyle = original.withLayoutStyle(style);
+      expect(withStyle.isOk()).toBe(true);
+      if (withStyle.isOk()) {
+        expect(withStyle.value.getLayoutStyle()).toBe(style);
+      }
+    });
+
+    // Test withExpansionDirection for all directions
+    const directions = ['horizontal', 'vertical', 'radial'] as const;
+    directions.forEach((direction) => {
+      const withDirection = original.withExpansionDirection(direction);
+      expect(withDirection.isOk()).toBe(true);
+      if (withDirection.isOk()) {
+        expect(withDirection.value.getExpansionDirection()).toBe(direction);
+      }
+    });
+
+    // Test withAlignmentMode for all modes
+    const alignments = ['left', 'center', 'right', 'justify'] as const;
+    alignments.forEach((alignment) => {
+      const withAlignment = original.withAlignmentMode(alignment);
+      expect(withAlignment.isOk()).toBe(true);
+      if (withAlignment.isOk()) {
+        expect(withAlignment.value.getAlignmentMode()).toBe(alignment);
+      }
+    });
+  });
+
+  it('should test internal utility functions with edge cases', () => {
+    // Test integer validation with decimal values
+    const nonIntegerResult = Version.create(Math.PI);
+    expect(nonIntegerResult.isErr()).toBe(true);
+
+    // Test timestamp validation with decimals
+    const timestampFloatResult = Timestamp.create(1234.567);
+    expect(timestampFloatResult.isErr()).toBe(true);
+
+    // Test edge cases for isFiniteNumber function via Position2D
+    const nanXResult = Position2D.create(Number.NaN, 0);
+    expect(nanXResult.isErr()).toBe(true);
+
+    const nanYResult = Position2D.create(0, Number.NaN);
+    expect(nanYResult.isErr()).toBe(true);
+
+    const infXResult = Position2D.create(Number.POSITIVE_INFINITY, 0);
+    expect(infXResult.isErr()).toBe(true);
+
+    const infYResult = Position2D.create(0, Number.NEGATIVE_INFINITY);
+    expect(infYResult.isErr()).toBe(true);
   });
 });
 
@@ -178,6 +257,9 @@ describe('ID Value Objects', () => {
     { name: 'TreeId', class: TreeId },
     { name: 'DocumentId', class: DocumentId },
     { name: 'PackageId', class: PackageId },
+    { name: 'ProofId', class: ProofId },
+    { name: 'ProofTreeId', class: ProofTreeId },
+    { name: 'ProofDocumentId', class: ProofDocumentId },
   ];
 
   idTypes.forEach(({ name, class: IdClass }) => {
@@ -207,9 +289,12 @@ describe('ID Value Objects', () => {
 
         it('should create from string via convenience method', () => {
           const testId = 'test-id-123';
-          const id = IdClass.fromString(testId);
-          expect(id).toBeInstanceOf(IdClass);
-          expect(id.getValue()).toBe(testId);
+          const result = IdClass.fromString(testId);
+          expect(result.isOk()).toBe(true);
+          if (result.isOk()) {
+            expect(result.value).toBeInstanceOf(IdClass);
+            expect(result.value.getValue()).toBe(testId);
+          }
         });
       });
 
@@ -236,10 +321,24 @@ describe('ID Value Objects', () => {
           expect(undefinedResult.isErr()).toBe(true);
         });
 
-        it('should throw when fromString receives invalid input', () => {
-          expect(() => IdClass.fromString('')).toThrow(ValidationError);
-          expect(() => IdClass.fromString('   ')).toThrow(ValidationError);
-          expect(() => IdClass.fromString('a'.repeat(256))).toThrow(ValidationError);
+        it('should return error when fromString receives invalid input', () => {
+          const emptyResult = IdClass.fromString('');
+          expect(emptyResult.isErr()).toBe(true);
+          if (emptyResult.isErr()) {
+            expect(emptyResult.error).toBeInstanceOf(ValidationError);
+          }
+
+          const whitespaceResult = IdClass.fromString('   ');
+          expect(whitespaceResult.isErr()).toBe(true);
+          if (whitespaceResult.isErr()) {
+            expect(whitespaceResult.error).toBeInstanceOf(ValidationError);
+          }
+
+          const tooLongResult = IdClass.fromString('a'.repeat(256));
+          expect(tooLongResult.isErr()).toBe(true);
+          if (tooLongResult.isErr()) {
+            expect(tooLongResult.error).toBeInstanceOf(ValidationError);
+          }
         });
       });
 
@@ -254,17 +353,28 @@ describe('ID Value Objects', () => {
         });
 
         it('should maintain identity across equal values', () => {
-          const id1 = IdClass.fromString('test-id');
-          const id2 = IdClass.fromString('test-id');
+          const result1 = IdClass.fromString('test-id');
+          const result2 = IdClass.fromString('test-id');
 
-          expect(id1.equals(id2 as any)).toBe(true);
-          expect(id1.getValue()).toBe(id2.getValue());
+          expect(result1.isOk()).toBe(true);
+          expect(result2.isOk()).toBe(true);
+
+          if (result1.isOk() && result2.isOk()) {
+            const id1 = result1.value;
+            const id2 = result2.value;
+            expect(id1.equals(id2 as any)).toBe(true);
+            expect(id1.getValue()).toBe(id2.getValue());
+          }
         });
 
         it('should provide readable string representation', () => {
           const testValue = 'readable-id-123';
-          const id = IdClass.fromString(testValue);
-          expect(id.toString()).toBe(testValue);
+          const result = IdClass.fromString(testValue);
+          expect(result.isOk()).toBe(true);
+          if (result.isOk()) {
+            const id = result.value;
+            expect(id.toString()).toBe(testValue);
+          }
         });
       });
     });
@@ -311,31 +421,50 @@ describe('StatementContent', () => {
 
   describe('domain-specific behavior', () => {
     it('should provide word count functionality', () => {
-      const content = StatementContent.fromString('This is a test statement');
-      expect(content.wordCount).toBe(5);
+      const result = StatementContent.fromString('This is a test statement');
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        expect(result.value.wordCount).toBe(5);
+      }
 
-      const singleSpace = StatementContent.fromString(' a ');
-      expect(singleSpace.wordCount).toBe(1);
+      const singleSpaceResult = StatementContent.fromString(' a ');
+      expect(singleSpaceResult.isOk()).toBe(true);
+      if (singleSpaceResult.isOk()) {
+        expect(singleSpaceResult.value.wordCount).toBe(1);
+      }
 
-      const singleWord = StatementContent.fromString('Word');
-      expect(singleWord.wordCount).toBe(1);
+      const singleWordResult = StatementContent.fromString('Word');
+      expect(singleWordResult.isOk()).toBe(true);
+      if (singleWordResult.isOk()) {
+        expect(singleWordResult.value.wordCount).toBe(1);
+      }
     });
 
     it('should detect empty content correctly', () => {
       // Note: Empty content can't be created due to validation
       // This tests the isEmpty property implementation
-      const content = StatementContent.fromString('Not empty');
-      expect(content.isEmpty).toBe(false);
+      const result = StatementContent.fromString('Not empty');
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        expect(result.value.isEmpty).toBe(false);
+      }
 
       // Edge case: minimal content
-      const minimal = StatementContent.fromString('a');
-      expect(minimal.isEmpty).toBe(false);
+      const minimalResult = StatementContent.fromString('a');
+      expect(minimalResult.isOk()).toBe(true);
+      if (minimalResult.isOk()) {
+        expect(minimalResult.value.isEmpty).toBe(false);
+      }
     });
 
     it('should trim whitespace consistently', () => {
-      const content = StatementContent.fromString('  Important statement  ');
-      expect(content.getValue()).toBe('Important statement');
-      expect(content.toString()).toBe('Important statement');
+      const result = StatementContent.fromString('  Important statement  ');
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        const content = result.value;
+        expect(content.getValue()).toBe('Important statement');
+        expect(content.toString()).toBe('Important statement');
+      }
     });
   });
 
@@ -345,14 +474,18 @@ describe('StatementContent', () => {
         fc.property(fc.string({ minLength: 1, maxLength: 100 }), (text) => {
           fc.pre(text.trim().length > 0); // Only test valid content
 
-          const content = StatementContent.fromString(text);
-          const words = text
-            .trim()
-            .split(/\s+/)
-            .filter((word) => word.length > 0);
+          const result = StatementContent.fromString(text);
+          expect(result.isOk()).toBe(true);
+          if (result.isOk()) {
+            const content = result.value;
+            const words = text
+              .trim()
+              .split(/\s+/)
+              .filter((word) => word.length > 0);
 
-          expect(content.wordCount).toBe(words.length);
-          expect(content.wordCount).toBeGreaterThanOrEqual(0);
+            expect(content.wordCount).toBe(words.length);
+            expect(content.wordCount).toBeGreaterThanOrEqual(0);
+          }
         }),
       );
     });
@@ -756,23 +889,28 @@ describe('Attachment', () => {
     });
 
     it('should provide readable string representation', () => {
-      const parentId = NodeId.fromString('test-parent');
+      const parentIdResult = NodeId.fromString('test-parent');
+      expect(parentIdResult.isOk()).toBe(true);
 
-      const simpleResult = Attachment.create(parentId, 0);
-      expect(simpleResult.isOk()).toBe(true);
+      if (parentIdResult.isOk()) {
+        const parentId = parentIdResult.value;
 
-      if (simpleResult.isOk()) {
-        const simple = simpleResult.value;
-        expect(simple.toString()).toContain('parent=test-parent');
-        expect(simple.toString()).toContain('position=0');
-      }
+        const simpleResult = Attachment.create(parentId, 0);
+        expect(simpleResult.isOk()).toBe(true);
 
-      const withFromResult = Attachment.create(parentId, 1, 2);
-      expect(withFromResult.isOk()).toBe(true);
+        if (simpleResult.isOk()) {
+          const simple = simpleResult.value;
+          expect(simple.toString()).toContain('parent=test-parent');
+          expect(simple.toString()).toContain('position=0');
+        }
 
-      if (withFromResult.isOk()) {
-        const withFrom = withFromResult.value;
-        expect(withFrom.toString()).toContain('from=2');
+        const withFromResult = Attachment.create(parentId, 1, 2);
+        expect(withFromResult.isOk()).toBe(true);
+
+        if (withFromResult.isOk()) {
+          const withFrom = withFromResult.value;
+          expect(withFrom.toString()).toContain('from=2');
+        }
       }
     });
   });
@@ -1072,13 +1210,11 @@ describe('Error Handling Patterns', () => {
   });
 
   it('should maintain error information through fromString', () => {
-    expect(() => StatementContent.fromString('')).toThrow(ValidationError);
-
-    try {
-      StatementContent.fromString('');
-    } catch (error) {
-      expect(error).toBeInstanceOf(ValidationError);
-      expect((error as ValidationError).message).toContain('cannot be empty');
+    const result = StatementContent.fromString('');
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error).toBeInstanceOf(ValidationError);
+      expect(result.error.message).toContain('cannot be empty');
     }
   });
 });

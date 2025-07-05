@@ -7,7 +7,7 @@
 
 import { faker } from '@faker-js/faker';
 import { Factory } from 'fishery';
-
+import { ProofDocument } from '../../aggregates/ProofDocument.js';
 import { AtomicArgument, type SideLabels } from '../../entities/AtomicArgument.js';
 import { Node } from '../../entities/Node.js';
 import { OrderedSet } from '../../entities/OrderedSet.js';
@@ -20,33 +20,63 @@ import {
   OrderedSetId,
   PhysicalProperties,
   Position2D,
+  ProofDocumentId,
   StatementId,
   TreeId,
 } from '../../shared/value-objects.js';
 
 // Factory for creating StatementId value objects
 export const statementIdFactory = Factory.define<StatementId>(() => {
-  return StatementId.fromString(faker.string.uuid());
+  const result = StatementId.fromString(faker.string.uuid());
+  if (result.isErr()) {
+    throw result.error;
+  }
+  return result.value;
 });
 
 // Factory for creating AtomicArgumentId value objects
 export const atomicArgumentIdFactory = Factory.define<AtomicArgumentId>(() => {
-  return AtomicArgumentId.fromString(faker.string.uuid());
+  const result = AtomicArgumentId.fromString(faker.string.uuid());
+  if (result.isErr()) {
+    throw result.error;
+  }
+  return result.value;
 });
 
 // Factory for creating OrderedSetId value objects
 export const orderedSetIdFactory = Factory.define<OrderedSetId>(() => {
-  return OrderedSetId.fromString(faker.string.uuid());
+  const result = OrderedSetId.fromString(faker.string.uuid());
+  if (result.isErr()) {
+    throw result.error;
+  }
+  return result.value;
 });
 
 // Factory for creating NodeId value objects
 export const nodeIdFactory = Factory.define<NodeId>(() => {
-  return NodeId.fromString(faker.string.uuid());
+  const result = NodeId.fromString(faker.string.uuid());
+  if (result.isErr()) {
+    throw result.error;
+  }
+  return result.value;
 });
 
 // Factory for creating TreeId value objects
 export const treeIdFactory = Factory.define<TreeId>(() => {
-  return TreeId.fromString(faker.string.uuid());
+  const result = TreeId.fromString(faker.string.uuid());
+  if (result.isErr()) {
+    throw result.error;
+  }
+  return result.value;
+});
+
+// Factory for creating ProofDocumentId value objects
+export const proofDocumentIdFactory = Factory.define<ProofDocumentId>(() => {
+  const result = ProofDocumentId.fromString(faker.string.uuid());
+  if (result.isErr()) {
+    throw result.error;
+  }
+  return result.value;
 });
 
 // Factory for creating realistic statement content
@@ -276,4 +306,48 @@ export const nodeFactory = Factory.define<Node>(({ transientParams }) => {
     }
     return result.value;
   }
+});
+
+// Factory for creating ProofDocument aggregates
+export const proofDocumentFactory = Factory.define<ProofDocument>(({ transientParams }) => {
+  const { id = proofDocumentIdFactory.build(), isEmpty = false } = transientParams as {
+    id?: ProofDocumentId;
+    isEmpty?: boolean;
+  };
+
+  if (isEmpty) {
+    const result = ProofDocument.createBootstrap(id);
+    if (result.isErr()) {
+      throw result.error;
+    }
+    return result.value;
+  }
+
+  // Create a document with some sample content
+  const doc = ProofDocument.create();
+
+  // Add some statements
+  const statement1 = doc.createStatement('All men are mortal');
+  const statement2 = doc.createStatement('Socrates is a man');
+  const statement3 = doc.createStatement('Socrates is mortal');
+
+  if (statement1.isErr() || statement2.isErr() || statement3.isErr()) {
+    throw new Error('Failed to create test statements');
+  }
+
+  // Create ordered sets
+  const premiseSet = doc.createOrderedSet([statement1.value.getId(), statement2.value.getId()]);
+  const conclusionSet = doc.createOrderedSet([statement3.value.getId()]);
+
+  if (premiseSet.isErr() || conclusionSet.isErr()) {
+    throw new Error('Failed to create test ordered sets');
+  }
+
+  // Create atomic argument
+  const argument = doc.createAtomicArgument(premiseSet.value, conclusionSet.value);
+  if (argument.isErr()) {
+    throw new Error('Failed to create test atomic argument');
+  }
+
+  return doc;
 });

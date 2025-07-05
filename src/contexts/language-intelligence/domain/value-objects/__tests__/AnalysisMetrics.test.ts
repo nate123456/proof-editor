@@ -421,4 +421,188 @@ describe('AnalysisMetrics', () => {
       }
     });
   });
+
+  describe('additional methods and edge cases', () => {
+    it('should test equals method with identical metrics', () => {
+      const result1 = AnalysisMetrics.create(100, 5, 10, 2);
+      const result2 = AnalysisMetrics.create(100, 5, 10, 2);
+
+      expect(result1.isOk()).toBe(true);
+      expect(result2.isOk()).toBe(true);
+
+      if (result1.isOk() && result2.isOk()) {
+        const metrics1 = result1.value;
+        const metrics2 = result2.value;
+        expect(metrics1.equals(metrics2)).toBe(true);
+      }
+    });
+
+    it('should test equals method with different metrics', () => {
+      const result1 = AnalysisMetrics.create(100, 5, 10, 2);
+      const result2 = AnalysisMetrics.create(100, 5, 10, 3);
+
+      expect(result1.isOk()).toBe(true);
+      expect(result2.isOk()).toBe(true);
+
+      if (result1.isOk() && result2.isOk()) {
+        const metrics1 = result1.value;
+        const metrics2 = result2.value;
+        expect(metrics1.equals(metrics2)).toBe(false);
+      }
+    });
+
+    it('should test combineWith method alias', () => {
+      const result1 = AnalysisMetrics.create(50, 3, 5, 2);
+      const result2 = AnalysisMetrics.create(75, 4, 8, 3);
+
+      expect(result1.isOk()).toBe(true);
+      expect(result2.isOk()).toBe(true);
+
+      if (result1.isOk() && result2.isOk()) {
+        const metrics1 = result1.value;
+        const metrics2 = result2.value;
+
+        const combined = metrics1.combineWith(metrics2);
+        expect(combined.getTotalTimeMs()).toBe(125);
+        expect(combined.getIssueCount()).toBe(7);
+        expect(combined.getPatternMatches()).toBe(13);
+        expect(combined.getComplexityScore()).toBe(2.5);
+      }
+    });
+
+    it('should generate comprehensive metrics summary', () => {
+      const result = AnalysisMetrics.create(100, 2, 10, 8);
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        const metrics = result.value;
+        const summary = metrics.generateSummary();
+
+        expect(summary.complexityLevel).toBe('high'); // complexity score 8 > 7
+        expect(summary.qualityLevel).toBe('high'); // quality score should be high with low issue ratio
+        expect(summary.performanceScore).toBeGreaterThan(0);
+        expect(summary.statementCount).toBe(2);
+        expect(summary.connectionCount).toBe(10);
+        expect(summary.hasIssues).toBe(true);
+        expect(summary.hasErrors).toBe(true);
+        expect(summary.connectionDensity).toBe(0.2); // 2 issues / 10 patterns
+        expect(summary.orphanRate).toBe(0);
+        expect(summary.redundancyRate).toBe(0);
+      }
+    });
+
+    it('should generate summary with medium quality level', () => {
+      // To get medium quality (50 < score <= 80), we need issueRatio such that:
+      // 100 - issueRatio * 10 = 65 (for example)
+      // issueRatio = 3.5, so 7 issues with 2 patterns gives 7/2 = 3.5
+      // Quality score = 100 - 3.5 * 10 = 65 (which is > 50 and <= 80)
+      const result = AnalysisMetrics.create(100, 7, 2, 3);
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        const metrics = result.value;
+        const summary = metrics.generateSummary();
+
+        expect(summary.complexityLevel).toBe('low'); // complexity score 3 <= 7
+        expect(summary.qualityLevel).toBe('medium'); // quality score is 65 (100 - 7/2*10 = 65, which is 50 < 65 <= 80)
+      }
+    });
+
+    it('should generate summary with low quality level', () => {
+      // To get low quality (score <= 50), we need issueRatio such that:
+      // 100 - issueRatio * 10 = 30 (for example)
+      // issueRatio = 7, so 14 issues with 2 patterns gives 14/2 = 7
+      // Quality score = 100 - 7 * 10 = 30 (which is <= 50)
+      const result = AnalysisMetrics.create(100, 14, 2, 2);
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        const metrics = result.value;
+        const summary = metrics.generateSummary();
+
+        expect(summary.qualityLevel).toBe('low'); // quality score is 30 (100 - 14/2*10 = 30, which is <= 50)
+      }
+    });
+
+    it('should handle zero pattern matches in quality score calculation', () => {
+      const result = AnalysisMetrics.create(100, 5, 0, 2);
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        const metrics = result.value;
+        const qualityScore = metrics.getQualityScore();
+        expect(qualityScore).toBe(0); // Should return 0 when no patterns
+      }
+    });
+
+    it('should handle high issue ratio in quality score calculation', () => {
+      const result = AnalysisMetrics.create(100, 20, 1, 2);
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        const metrics = result.value;
+        const qualityScore = metrics.getQualityScore();
+        expect(qualityScore).toBe(0); // Should be capped at 0 for very high issue ratios
+      }
+    });
+
+    it('should handle zero connection density in summary', () => {
+      const result = AnalysisMetrics.create(100, 5, 0, 2);
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        const metrics = result.value;
+        const summary = metrics.generateSummary();
+        expect(summary.connectionDensity).toBe(0); // 5 issues / 0 patterns, but handled safely
+      }
+    });
+
+    it('should handle boundary case for complexity threshold', () => {
+      const result = AnalysisMetrics.create(100, 5, 10, 7);
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        const metrics = result.value;
+        expect(metrics.isHighComplexity()).toBe(false); // exactly 7, not > 7
+      }
+    });
+
+    it('should handle boundary case for efficiency threshold', () => {
+      const result = AnalysisMetrics.create(100, 10, 1, 2);
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        const metrics = result.value;
+        const efficiency = metrics.getAnalysisEfficiency();
+        // efficiency = 1 / (100 * 10) = 0.001
+        expect(efficiency).toBe(0.001);
+        expect(metrics.isEfficient()).toBe(false); // 0.001 <= 0.1
+      }
+    });
+
+    it('should handle exactly at efficiency threshold', () => {
+      const result = AnalysisMetrics.create(10, 1, 1, 2);
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        const metrics = result.value;
+        const efficiency = metrics.getAnalysisEfficiency();
+        // efficiency = 1 / (10 * 1) = 0.1
+        expect(efficiency).toBe(0.1);
+        expect(metrics.isEfficient()).toBe(false); // exactly 0.1, not > 0.1
+      }
+    });
+
+    it('should handle efficiency calculation with zero time and issues', () => {
+      const result = AnalysisMetrics.create(0, 0, 5, 2);
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        const metrics = result.value;
+        const efficiency = metrics.getAnalysisEfficiency();
+        expect(efficiency).toBe(Number.POSITIVE_INFINITY);
+        expect(metrics.isEfficient()).toBe(true); // infinity > 0.1
+      }
+    });
+  });
 });
