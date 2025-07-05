@@ -259,7 +259,7 @@ describe('VSCodeUIAdapter', () => {
 
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
-        expect(result.value).toBe(null);
+        expect(result.value).toEqual({ filePath: '', cancelled: true });
       }
     });
   });

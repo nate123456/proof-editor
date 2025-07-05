@@ -418,10 +418,10 @@ function createStressTestableMocks() {
 
       // Simulate save dialog cancellation
       if (operationCount > 300 && Math.random() < 0.1) {
-        return ok(null);
+        return ok({ filePath: '', cancelled: true });
       }
 
-      return ok('/save/location/document.proof');
+      return ok({ filePath: '/save/location/document.proof', cancelled: false });
     },
 
     showInformation: vi.fn(),
@@ -496,6 +496,21 @@ function createStressTestableMocks() {
     },
 
     onThemeChange: vi.fn().mockReturnValue({ dispose: vi.fn() }),
+
+    async writeFile(_filePath: string, content: string | Buffer) {
+      operationCount++;
+      memoryUsage += typeof content === 'string' ? content.length * 2 : content.length;
+
+      // Simulate file write failures under high load
+      if (operationCount > 500) {
+        return err({
+          code: 'PLATFORM_ERROR' as const,
+          message: 'Cannot write file under high load',
+        });
+      }
+
+      return ok(undefined);
+    },
 
     capabilities() {
       return {

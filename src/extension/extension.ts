@@ -1,8 +1,10 @@
 import 'reflect-metadata';
 import * as vscode from 'vscode';
+import type { IExportService } from '../application/ports/IExportService.js';
 import type { IFileSystemPort } from '../application/ports/IFileSystemPort.js';
 import type { IUIPort } from '../application/ports/IUIPort.js';
 import type { IViewStatePort } from '../application/ports/IViewStatePort.js';
+import type { IDocumentIdService } from '../application/services/DocumentIdService.js';
 import type { DocumentQueryService } from '../application/services/DocumentQueryService.js';
 import type { ProofApplicationService } from '../application/services/ProofApplicationService.js';
 import type { ProofVisualizationService } from '../application/services/ProofVisualizationService.js';
@@ -55,7 +57,9 @@ export async function activate(context: vscode.ExtensionContext) {
   // Get controllers and validation controller from DI container
   const documentController = container.resolve<DocumentController>(TOKENS.DocumentController);
   const proofTreeController = container.resolve<ProofTreeController>(TOKENS.ProofTreeController);
-  const validationController = container.resolve<ValidationController>(TOKENS.ValidationController);
+  const validationController = container.resolve<ValidationController>(
+    TOKENS.InfrastructureValidationController,
+  );
   const bootstrapController = container.resolve<BootstrapController>(TOKENS.BootstrapController);
 
   // Wire up document controller with panel manager and view state port
@@ -597,6 +601,8 @@ async function showProofTreeForDocument(
       TOKENS.ProofApplicationService,
     );
     const yamlSerializer = container.resolve<YAMLSerializer>(TOKENS.YAMLSerializer);
+    const exportService = container.resolve<IExportService>(TOKENS.IExportService);
+    const documentIdService = container.resolve<IDocumentIdService>(TOKENS.IDocumentIdService);
 
     // Use panel manager for multi-document support
     const panelManager = ProofTreePanelManager.getInstance();
@@ -612,6 +618,8 @@ async function showProofTreeForDocument(
       bootstrapController,
       proofApplicationService,
       yamlSerializer,
+      exportService,
+      documentIdService,
     );
 
     if (createResult.isErr()) {

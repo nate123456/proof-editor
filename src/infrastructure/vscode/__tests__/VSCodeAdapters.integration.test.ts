@@ -127,6 +127,7 @@ describe('VSCode Adapters Integration', () => {
         fonts: { default: 'Arial', monospace: 'Courier', size: 12 },
       }),
       onThemeChange: vi.fn().mockReturnValue({ dispose: vi.fn() }),
+      writeFile: vi.fn().mockResolvedValue(ok(undefined)),
     };
 
     const mockPlatformPort: IPlatformPort = {

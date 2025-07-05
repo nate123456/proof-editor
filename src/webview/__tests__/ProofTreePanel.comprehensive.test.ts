@@ -3,8 +3,10 @@ import 'reflect-metadata';
 import { err, ok } from 'neverthrow';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ValidationApplicationError } from '../../application/dtos/operation-results.js';
+import type { IExportService } from '../../application/ports/IExportService.js';
 import type { IUIPort, WebviewPanel } from '../../application/ports/IUIPort.js';
 import type { IViewStatePort } from '../../application/ports/IViewStatePort.js';
+import type { IDocumentIdService } from '../../application/services/DocumentIdService.js';
 import type { DocumentQueryService } from '../../application/services/DocumentQueryService.js';
 import type { ProofApplicationService } from '../../application/services/ProofApplicationService.js';
 import type { ProofVisualizationService } from '../../application/services/ProofVisualizationService.js';
@@ -40,6 +42,8 @@ describe('ProofTreePanel Comprehensive Tests', () => {
   let mockBootstrapController: BootstrapController;
   let mockProofApplicationService: ProofApplicationService;
   let mockYAMLSerializer: YAMLSerializer;
+  let mockExportService: IExportService;
+  let mockDocumentIdService: IDocumentIdService;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -75,6 +79,7 @@ describe('ProofTreePanel Comprehensive Tests', () => {
       getTheme: vi.fn(),
       onThemeChange: vi.fn(),
       // Platform capabilities
+      writeFile: vi.fn(),
       capabilities: vi.fn(),
     };
 
@@ -142,6 +147,32 @@ describe('ProofTreePanel Comprehensive Tests', () => {
       serialize: vi.fn(),
       deserialize: vi.fn(),
     } as any;
+
+    // Mock IExportService
+    mockExportService = {
+      exportDocument: vi
+        .fn()
+        .mockResolvedValue(
+          ok({ filename: 'test.yaml', content: 'test content', mimeType: 'text/yaml' }),
+        ),
+      exportDocumentContent: vi
+        .fn()
+        .mockResolvedValue(
+          ok({ filename: 'test.yaml', content: 'test content', mimeType: 'text/yaml' }),
+        ),
+      saveToFile: vi
+        .fn()
+        .mockResolvedValue(ok({ filePath: '/test/path', savedSuccessfully: true })),
+      getSupportedFormats: vi.fn().mockResolvedValue(ok(['yaml', 'json'])),
+    } as any;
+
+    // Mock IDocumentIdService
+    mockDocumentIdService = {
+      extractFromUri: vi.fn().mockReturnValue(ok('test-document')),
+      validateDocumentId: vi.fn().mockReturnValue(ok('test-document')),
+      generateFallbackId: vi.fn().mockReturnValue('fallback-id'),
+      extractFromUriWithFallback: vi.fn().mockReturnValue(ok('test-document')),
+    } as any;
   });
 
   describe('createWithServices', () => {
@@ -182,6 +213,8 @@ describe('ProofTreePanel Comprehensive Tests', () => {
         mockBootstrapController,
         mockProofApplicationService,
         mockYAMLSerializer,
+        mockExportService,
+        mockDocumentIdService,
       );
 
       expect(result.isOk()).toBe(true);
@@ -215,6 +248,8 @@ describe('ProofTreePanel Comprehensive Tests', () => {
         mockBootstrapController,
         mockProofApplicationService,
         mockYAMLSerializer,
+        mockExportService,
+        mockDocumentIdService,
       );
 
       // Panel creation succeeds but error is shown in UI
@@ -259,6 +294,8 @@ describe('ProofTreePanel Comprehensive Tests', () => {
         mockBootstrapController,
         mockProofApplicationService,
         mockYAMLSerializer,
+        mockExportService,
+        mockDocumentIdService,
       );
 
       // Panel creation succeeds but error is shown in UI
@@ -290,6 +327,8 @@ describe('ProofTreePanel Comprehensive Tests', () => {
         mockBootstrapController,
         mockProofApplicationService,
         mockYAMLSerializer,
+        mockExportService,
+        mockDocumentIdService,
       );
 
       expect(result.isErr()).toBe(true);
@@ -334,6 +373,8 @@ describe('ProofTreePanel Comprehensive Tests', () => {
         mockBootstrapController,
         mockProofApplicationService,
         mockYAMLSerializer,
+        mockExportService,
+        mockDocumentIdService,
       );
 
       expect(result.isOk()).toBe(true);
@@ -380,6 +421,8 @@ describe('ProofTreePanel Comprehensive Tests', () => {
         mockBootstrapController,
         mockProofApplicationService,
         mockYAMLSerializer,
+        mockExportService,
+        mockDocumentIdService,
       );
 
       expect(result.isOk()).toBe(true);
@@ -488,6 +531,8 @@ describe('ProofTreePanel Comprehensive Tests', () => {
         mockBootstrapController,
         mockProofApplicationService,
         mockYAMLSerializer,
+        mockExportService,
+        mockDocumentIdService,
       );
 
       expect(result.isOk()).toBe(true);
@@ -652,6 +697,8 @@ describe('ProofTreePanel Comprehensive Tests', () => {
         mockBootstrapController,
         mockProofApplicationService,
         mockYAMLSerializer,
+        mockExportService,
+        mockDocumentIdService,
       );
 
       expect(result.isOk()).toBe(true);
@@ -764,6 +811,8 @@ describe('ProofTreePanel Comprehensive Tests', () => {
         mockBootstrapController,
         mockProofApplicationService,
         mockYAMLSerializer,
+        mockExportService,
+        mockDocumentIdService,
       );
 
       expect(result.isOk()).toBe(true);
@@ -835,6 +884,8 @@ describe('ProofTreePanel Comprehensive Tests', () => {
         mockBootstrapController,
         mockProofApplicationService,
         mockYAMLSerializer,
+        mockExportService,
+        mockDocumentIdService,
       );
 
       expect(result.isOk()).toBe(true);
@@ -913,6 +964,8 @@ describe('ProofTreePanel Comprehensive Tests', () => {
         mockBootstrapController,
         mockProofApplicationService,
         mockYAMLSerializer,
+        mockExportService,
+        mockDocumentIdService,
       );
 
       expect(result.isOk()).toBe(true);

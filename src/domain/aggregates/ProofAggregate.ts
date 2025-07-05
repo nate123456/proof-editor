@@ -265,6 +265,20 @@ export class ProofAggregate {
       return err(new ValidationError('Some statement IDs do not exist in this proof'));
     }
 
+    // Check if an OrderedSet with identical content already exists
+    for (const [, existingSet] of this.orderedSets) {
+      const existingIds = existingSet.getStatementIds();
+      if (
+        existingIds.length === validStatementIds.length &&
+        existingIds.every((id, index) => {
+          const validId = validStatementIds[index];
+          return validId !== undefined && id.equals(validId);
+        })
+      ) {
+        return ok(existingSet.getId());
+      }
+    }
+
     const orderedSetResult = OrderedSet.createFromStatements(validStatementIds);
     if (orderedSetResult.isErr()) {
       return err(orderedSetResult.error);

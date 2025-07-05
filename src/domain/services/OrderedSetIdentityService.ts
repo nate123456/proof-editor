@@ -83,6 +83,11 @@ export class OrderedSetIdentityService {
 
         const premiseSet = arg.getPremiseSet();
         if (premiseSet && conclusionSet && premiseSet.equals(conclusionSet)) {
+          // Check for cycles before adding to path
+          if (newVisited.has(arg.getId().getValue())) {
+            continue; // Skip this path as it would create a cycle
+          }
+
           const newPath = [...path, arg.getId()];
           const newSharedSets = [...sharedSets, conclusionSet];
 

@@ -233,10 +233,11 @@ describe('ProofAggregate', () => {
             [s3Result.value],
           );
 
-          // Create second argument: [s3, s4] → [s5]
+          // Create second argument: [s3] → [s4, s5]
+          // Note: The premise of arg2 must be exactly the same as the conclusion of arg1
           const arg2Result = proof.createAtomicArgument(
-            [s3Result.value, s4Result.value],
-            [s5Result.value],
+            [s3Result.value],
+            [s4Result.value, s5Result.value],
           );
 
           expect(arg1Result.isOk() && arg2Result.isOk()).toBe(true);
@@ -274,10 +275,10 @@ describe('ProofAggregate', () => {
         if (arg1Result.isOk() && arg2Result.isOk()) {
           const connectResult = proof.connectArguments(arg1Result.value, arg2Result.value);
 
-          // Empty arguments should fail to connect due to missing sets
+          // Empty arguments create a cycle since they share the same empty ordered set
           expect(connectResult.isErr()).toBe(true);
           if (connectResult.isErr()) {
-            expect(connectResult.error.message).toContain('complete premise/conclusion sets');
+            expect(connectResult.error.message).toContain('direct cycle');
           }
         }
       }

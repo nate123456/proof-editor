@@ -1,13 +1,16 @@
 import 'reflect-metadata';
 
-import { ok } from 'neverthrow';
+import { err, ok } from 'neverthrow';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { IExportService } from '../../application/ports/IExportService.js';
 import type { IUIPort, WebviewPanel } from '../../application/ports/IUIPort.js';
 import type { IViewStatePort } from '../../application/ports/IViewStatePort.js';
+import type { IDocumentIdService } from '../../application/services/DocumentIdService.js';
 import type { DocumentQueryService } from '../../application/services/DocumentQueryService.js';
 import type { ProofApplicationService } from '../../application/services/ProofApplicationService.js';
 import type { ProofVisualizationService } from '../../application/services/ProofVisualizationService.js';
 import type { ViewStateManager } from '../../application/services/ViewStateManager.js';
+import { ValidationError } from '../../domain/shared/result.js';
 import type { YAMLSerializer } from '../../infrastructure/repositories/yaml/YAMLSerializer.js';
 import type { BootstrapController } from '../../presentation/controllers/BootstrapController.js';
 import { ProofTreePanel } from '../ProofTreePanel.js';
@@ -41,6 +44,8 @@ describe('ProofTreePanel Message Handling', () => {
   let mockBootstrapController: BootstrapController;
   let mockProofApplicationService: ProofApplicationService;
   let mockYAMLSerializer: YAMLSerializer;
+  let mockExportService: IExportService;
+  let mockDocumentIdService: IDocumentIdService;
 
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -50,7 +55,10 @@ describe('ProofTreePanel Message Handling', () => {
       id: 'test-panel',
       webview: {
         html: '',
-        onDidReceiveMessage: vi.fn(),
+        onDidReceiveMessage: vi.fn((handler) => {
+          messageHandler = handler;
+          return { dispose: vi.fn() };
+        }),
       },
       onDidDispose: vi.fn(),
       reveal: vi.fn(),
@@ -94,6 +102,7 @@ describe('ProofTreePanel Message Handling', () => {
         supportsWebviews: true,
         supportsThemes: true,
       }),
+      writeFile: vi.fn().mockResolvedValue(ok(undefined)),
     };
 
     mockViewStatePort = {
@@ -223,7 +232,14 @@ describe('ProofTreePanel Message Handling', () => {
           },
         }),
       ),
-      populateEmptyArgument: vi.fn().mockResolvedValue(ok(undefined)),
+      populateEmptyArgument: vi.fn().mockResolvedValue(
+        ok({
+          success: true,
+          data: {
+            argumentId: 'test-arg-id',
+          },
+        }),
+      ),
     } as any;
 
     // Create mock ProofApplicationService
@@ -244,6 +260,32 @@ describe('ProofTreePanel Message Handling', () => {
       deserialize: vi.fn(),
     } as any;
 
+    // Create mock ExportService
+    mockExportService = {
+      exportDocument: vi
+        .fn()
+        .mockResolvedValue(
+          ok({ filename: 'test.yaml', content: 'test content', mimeType: 'text/yaml' }),
+        ),
+      exportDocumentContent: vi
+        .fn()
+        .mockResolvedValue(
+          ok({ filename: 'test.yaml', content: 'test content', mimeType: 'text/yaml' }),
+        ),
+      saveToFile: vi
+        .fn()
+        .mockResolvedValue(ok({ filePath: '/test/path', savedSuccessfully: true })),
+      getSupportedFormats: vi.fn().mockResolvedValue(ok(['yaml', 'json'])),
+    } as any;
+
+    // Create mock DocumentIdService
+    mockDocumentIdService = {
+      extractFromUri: vi.fn().mockReturnValue(ok('test-document')),
+      validateDocumentId: vi.fn().mockReturnValue(ok('test-document')),
+      generateFallbackId: vi.fn().mockReturnValue('fallback-id'),
+      extractFromUriWithFallback: vi.fn().mockReturnValue(ok('test-document')),
+    } as any;
+
     // Create panel and capture message handler
     const result = await ProofTreePanel.createWithServices(
       '/test/document.proof',
@@ -257,6 +299,8 @@ describe('ProofTreePanel Message Handling', () => {
       mockBootstrapController,
       mockProofApplicationService,
       mockYAMLSerializer,
+      mockExportService,
+      mockDocumentIdService,
     );
 
     expect(result.isOk()).toBe(true);
@@ -264,8 +308,11 @@ describe('ProofTreePanel Message Handling', () => {
       panel = result.value;
     }
 
-    // Access the private method to get the message handler
-    messageHandler = (panel as any).handleWebviewMessage.bind(panel);
+    // Verify that onDidReceiveMessage was called during panel creation
+    expect(mockWebviewPanel.webview.onDidReceiveMessage).toHaveBeenCalled();
+
+    // The message handler should have been captured by our mock
+    expect(messageHandler).toBeDefined();
   });
 
   describe('viewportChanged message', () => {
@@ -375,8 +422,11 @@ describe('ProofTreePanel Message Handling', () => {
         ruleName: 'Modus Ponens',
       });
 
+      // Get the actual panel ID from the panel instance
+      const actualPanelId = (panel as any).panelId;
+
       expect(mockUIPort.postMessageToWebview).toHaveBeenCalledWith(
-        'test-panel',
+        actualPanelId,
         expect.objectContaining({
           type: 'argumentCreated',
         }),
@@ -439,6 +489,8 @@ describe('ProofTreePanel Message Handling', () => {
         mockBootstrapController,
         mockProofApplicationService,
         mockYAMLSerializer,
+        mockExportService,
+        mockDocumentIdService,
       );
 
       expect(panelResult.isOk()).toBe(true);
@@ -542,12 +594,18 @@ describe('ProofTreePanel Message Handling', () => {
 
   describe('exportProof message', () => {
     it('should handle export request', async () => {
+      // Mock the quick pick selection
+      vi.mocked(mockUIPort.showQuickPick).mockResolvedValue(
+        ok({ label: 'YAML (.proof)', description: 'Export as YAML proof file' }),
+      );
+
       await messageHandler({
         type: 'exportProof',
       });
 
-      expect(mockUIPort.showInformation).toHaveBeenCalledWith(
-        'Export data prepared - see details in panel',
+      expect(mockUIPort.showQuickPick).toHaveBeenCalledWith(
+        expect.arrayContaining([expect.objectContaining({ label: 'YAML (.proof)' })]),
+        expect.any(Object),
       );
     });
 
@@ -658,6 +716,11 @@ describe('ProofTreePanel Message Handling', () => {
       ];
 
       for (const testCase of testCases) {
+        // Mock the documentIdService to return the expected value
+        vi.mocked(mockDocumentIdService.extractFromUriWithFallback).mockReturnValue(
+          ok(testCase.expected),
+        );
+
         const panelResult = await ProofTreePanel.createWithServices(
           testCase.uri,
           'test content',
@@ -670,6 +733,8 @@ describe('ProofTreePanel Message Handling', () => {
           mockBootstrapController,
           mockProofApplicationService,
           mockYAMLSerializer,
+          mockExportService,
+          mockDocumentIdService,
         );
 
         expect(panelResult.isOk()).toBe(true);
@@ -695,6 +760,17 @@ describe('ProofTreePanel Message Handling', () => {
       ];
 
       for (const testCase of edgeCases) {
+        // Mock the documentIdService to return error for null cases
+        if (testCase.expected === null) {
+          vi.mocked(mockDocumentIdService.extractFromUriWithFallback).mockReturnValue(
+            err(new ValidationError('Invalid URI')),
+          );
+        } else {
+          vi.mocked(mockDocumentIdService.extractFromUriWithFallback).mockReturnValue(
+            ok(testCase.expected),
+          );
+        }
+
         const panelResult = await ProofTreePanel.createWithServices(
           testCase.uri,
           'test content',
@@ -707,6 +783,8 @@ describe('ProofTreePanel Message Handling', () => {
           mockBootstrapController,
           mockProofApplicationService,
           mockYAMLSerializer,
+          mockExportService,
+          mockDocumentIdService,
         );
 
         expect(panelResult.isOk()).toBe(true);
@@ -723,6 +801,11 @@ describe('ProofTreePanel Message Handling', () => {
     });
 
     it('should handle extraction errors gracefully', async () => {
+      // First create panel with valid mock
+      vi.mocked(mockDocumentIdService.extractFromUriWithFallback).mockReturnValue(
+        ok('test-document'),
+      );
+
       const panelResult = await ProofTreePanel.createWithServices(
         '/test/document.proof',
         'test content',
@@ -735,6 +818,8 @@ describe('ProofTreePanel Message Handling', () => {
         mockBootstrapController,
         mockProofApplicationService,
         mockYAMLSerializer,
+        mockExportService,
+        mockDocumentIdService,
       );
 
       expect(panelResult.isOk()).toBe(true);
@@ -743,8 +828,10 @@ describe('ProofTreePanel Message Handling', () => {
         testPanel = panelResult.value;
       }
 
-      // Override documentUri to cause an error
-      (testPanel as any).documentUri = null;
+      // Now mock the service to return error for the test
+      vi.mocked(mockDocumentIdService.extractFromUriWithFallback).mockReturnValue(
+        err(new ValidationError('Failed to extract ID')),
+      );
 
       const extractMethod = (testPanel as any).extractDocumentIdFromUri.bind(testPanel);
       const result = extractMethod();

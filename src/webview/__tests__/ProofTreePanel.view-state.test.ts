@@ -77,6 +77,7 @@ describe('ProofTreePanel View State Management', () => {
         fonts: { default: 'Arial', monospace: 'Monaco', size: 14 },
       }),
       onThemeChange: vi.fn().mockReturnValue({ dispose: vi.fn() }),
+      writeFile: vi.fn(),
       capabilities: vi.fn().mockReturnValue({
         supportsFileDialogs: true,
         supportsNotificationActions: true,
@@ -198,6 +199,22 @@ describe('ProofTreePanel View State Management', () => {
     mockYAMLSerializer = {
       serialize: vi.fn(),
     };
+
+    // Add missing mock services for createWithServices
+    const mockExportService = {
+      exportDocument: vi.fn(),
+      exportDocumentContent: vi.fn(),
+      saveToFile: vi.fn(),
+      getSupportedFormats: vi.fn(),
+    };
+
+    const mockDocumentIdService = {
+      extractFromUriWithFallback: vi.fn().mockReturnValue(ok('test-document-id')),
+    };
+
+    // Make them available globally in the test scope
+    (globalThis as any).mockExportService = mockExportService;
+    (globalThis as any).mockDocumentIdService = mockDocumentIdService;
   });
 
   describe('View state initialization', () => {
@@ -243,6 +260,8 @@ describe('ProofTreePanel View State Management', () => {
         mockBootstrapController as BootstrapController,
         mockProofApplicationService as ProofApplicationService,
         mockYAMLSerializer as YAMLSerializer,
+        (globalThis as any).mockExportService,
+        (globalThis as any).mockDocumentIdService,
       );
 
       expect(result.isOk()).toBe(true);
@@ -296,6 +315,8 @@ describe('ProofTreePanel View State Management', () => {
         mockBootstrapController as BootstrapController,
         mockProofApplicationService as ProofApplicationService,
         mockYAMLSerializer as YAMLSerializer,
+        (globalThis as any).mockExportService,
+        (globalThis as any).mockDocumentIdService,
       );
 
       // Panel should still be created successfully despite view state errors
@@ -341,6 +362,8 @@ describe('ProofTreePanel View State Management', () => {
         mockBootstrapController as BootstrapController,
         mockProofApplicationService as ProofApplicationService,
         mockYAMLSerializer as YAMLSerializer,
+        (globalThis as any).mockExportService,
+        (globalThis as any).mockDocumentIdService,
       );
 
       expect(result.isOk()).toBe(true);
@@ -374,6 +397,8 @@ describe('ProofTreePanel View State Management', () => {
         mockBootstrapController as BootstrapController,
         mockProofApplicationService as ProofApplicationService,
         mockYAMLSerializer as YAMLSerializer,
+        (globalThis as any).mockExportService,
+        (globalThis as any).mockDocumentIdService,
       );
 
       // Panel creation should still succeed
@@ -393,6 +418,8 @@ describe('ProofTreePanel View State Management', () => {
         mockBootstrapController as BootstrapController,
         mockProofApplicationService as ProofApplicationService,
         mockYAMLSerializer as YAMLSerializer,
+        (globalThis as any).mockExportService,
+        (globalThis as any).mockDocumentIdService,
       );
 
       expect(result.isOk()).toBe(true);
@@ -437,6 +464,8 @@ describe('ProofTreePanel View State Management', () => {
         mockBootstrapController as BootstrapController,
         mockProofApplicationService as ProofApplicationService,
         mockYAMLSerializer as YAMLSerializer,
+        (globalThis as any).mockExportService,
+        (globalThis as any).mockDocumentIdService,
       );
 
       // Should still create panel successfully
@@ -463,6 +492,8 @@ describe('ProofTreePanel View State Management', () => {
         mockBootstrapController as BootstrapController,
         mockProofApplicationService as ProofApplicationService,
         mockYAMLSerializer as YAMLSerializer,
+        (globalThis as any).mockExportService,
+        (globalThis as any).mockDocumentIdService,
       );
 
       // Should still create panel successfully
@@ -484,6 +515,8 @@ describe('ProofTreePanel View State Management', () => {
         mockBootstrapController as BootstrapController,
         mockProofApplicationService as ProofApplicationService,
         mockYAMLSerializer as YAMLSerializer,
+        (globalThis as any).mockExportService,
+        (globalThis as any).mockDocumentIdService,
       );
 
       expect(result.isOk()).toBe(true);
@@ -511,6 +544,8 @@ describe('ProofTreePanel View State Management', () => {
         mockBootstrapController as BootstrapController,
         mockProofApplicationService as ProofApplicationService,
         mockYAMLSerializer as YAMLSerializer,
+        (globalThis as any).mockExportService,
+        (globalThis as any).mockDocumentIdService,
       );
 
       expect(result.isOk()).toBe(true);
@@ -549,6 +584,8 @@ describe('ProofTreePanel View State Management', () => {
         mockBootstrapController as BootstrapController,
         mockProofApplicationService as ProofApplicationService,
         mockYAMLSerializer as YAMLSerializer,
+        (globalThis as any).mockExportService,
+        (globalThis as any).mockDocumentIdService,
       );
 
       expect(result.isOk()).toBe(true);
@@ -588,6 +625,8 @@ describe('ProofTreePanel View State Management', () => {
         mockBootstrapController as BootstrapController,
         mockProofApplicationService as ProofApplicationService,
         mockYAMLSerializer as YAMLSerializer,
+        (globalThis as any).mockExportService,
+        (globalThis as any).mockDocumentIdService,
       );
 
       expect(result.isOk()).toBe(true);
@@ -639,6 +678,8 @@ describe('ProofTreePanel View State Management', () => {
         mockBootstrapController as BootstrapController,
         mockProofApplicationService as ProofApplicationService,
         mockYAMLSerializer as YAMLSerializer,
+        (globalThis as any).mockExportService,
+        (globalThis as any).mockDocumentIdService,
       );
 
       expect(result.isOk()).toBe(true);
@@ -675,6 +716,8 @@ describe('ProofTreePanel View State Management', () => {
         mockBootstrapController as BootstrapController,
         mockProofApplicationService as ProofApplicationService,
         mockYAMLSerializer as YAMLSerializer,
+        (globalThis as any).mockExportService,
+        (globalThis as any).mockDocumentIdService,
       );
 
       expect(result.isOk()).toBe(true);
@@ -698,6 +741,8 @@ describe('ProofTreePanel View State Management', () => {
         mockBootstrapController as BootstrapController,
         mockProofApplicationService as ProofApplicationService,
         mockYAMLSerializer as YAMLSerializer,
+        (globalThis as any).mockExportService,
+        (globalThis as any).mockDocumentIdService,
       );
 
       expect(result.isOk()).toBe(true);
@@ -730,6 +775,8 @@ describe('ProofTreePanel View State Management', () => {
         mockBootstrapController as BootstrapController,
         mockProofApplicationService as ProofApplicationService,
         mockYAMLSerializer as YAMLSerializer,
+        (globalThis as any).mockExportService,
+        (globalThis as any).mockDocumentIdService,
       );
 
       expect(result.isOk()).toBe(true);
@@ -761,6 +808,8 @@ describe('ProofTreePanel View State Management', () => {
         mockBootstrapController as BootstrapController,
         mockProofApplicationService as ProofApplicationService,
         mockYAMLSerializer as YAMLSerializer,
+        (globalThis as any).mockExportService,
+        (globalThis as any).mockDocumentIdService,
       );
 
       expect(result.isOk()).toBe(true);

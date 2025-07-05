@@ -18,29 +18,8 @@ import type { StoredDocument } from '../../../application/ports/IFileSystemPort.
 import { VSCodeFileSystemAdapter } from '../VSCodeFileSystemAdapter.js';
 
 // Mock VS Code module with comprehensive error injection capabilities
-vi.mock('vscode', () => ({
-  Uri: {
-    file: vi.fn(),
-    joinPath: vi.fn(),
-  },
-  workspace: {
-    fs: {
-      readFile: vi.fn(),
-      writeFile: vi.fn(),
-      stat: vi.fn(),
-      delete: vi.fn(),
-      readDirectory: vi.fn(),
-      createDirectory: vi.fn(),
-    },
-    createFileSystemWatcher: vi.fn(),
-    workspaceFolders: undefined, // Start with undefined workspace
-  },
-  FileType: {
-    File: 1,
-    Directory: 2,
-  },
-  RelativePattern: vi.fn(),
-  FileSystemError: class extends Error {
+vi.mock('vscode', () => {
+  const FileSystemError = class extends Error {
     public code: string;
     constructor(messageOrUri?: string) {
       super(typeof messageOrUri === 'string' ? messageOrUri : 'FileSystemError');
@@ -48,25 +27,57 @@ vi.mock('vscode', () => ({
       this.code = 'UNKNOWN';
     }
     static FileNotFound(messageOrUri?: string): any {
-      const error = new (class extends vscode.FileSystemError {
-        public override code = 'FileNotFound';
-      })(messageOrUri);
+      const error = new FileSystemError(messageOrUri);
+      error.code = 'FileNotFound';
       return error;
     }
     static NoPermissions(messageOrUri?: string): any {
-      const error = new (class extends vscode.FileSystemError {
-        public override code = 'NoPermissions';
-      })(messageOrUri);
+      const error = new FileSystemError(messageOrUri);
+      error.code = 'NoPermissions';
       return error;
     }
     static Unavailable(messageOrUri?: string): any {
-      const error = new (class extends vscode.FileSystemError {
-        public override code = 'Unavailable';
-      })(messageOrUri);
+      const error = new FileSystemError(messageOrUri);
+      error.code = 'Unavailable';
       return error;
     }
-  },
-}));
+  };
+
+  return {
+    Uri: {
+      file: vi.fn().mockImplementation((path: string) => ({
+        scheme: 'file',
+        path,
+        fsPath: path,
+        toString: () => `file://${path}`,
+      })),
+      joinPath: vi.fn().mockImplementation((base, ...segments) => ({
+        scheme: base.scheme,
+        path: `${base.path}/${segments.join('/')}`,
+        fsPath: `${base.fsPath}/${segments.join('/')}`,
+        toString: () => `file://${base.fsPath}/${segments.join('/')}`,
+      })),
+    },
+    workspace: {
+      fs: {
+        readFile: vi.fn(),
+        writeFile: vi.fn(),
+        stat: vi.fn(),
+        delete: vi.fn(),
+        readDirectory: vi.fn(),
+        createDirectory: vi.fn(),
+      },
+      createFileSystemWatcher: vi.fn(),
+      workspaceFolders: undefined, // Start with undefined workspace
+    },
+    FileType: {
+      File: 1,
+      Directory: 2,
+    },
+    RelativePattern: vi.fn(),
+    FileSystemError,
+  };
+});
 
 describe('VSCodeFileSystemAdapter Error Resilience', () => {
   let adapter: VSCodeFileSystemAdapter;
@@ -77,7 +88,10 @@ describe('VSCodeFileSystemAdapter Error Resilience', () => {
     vi.clearAllMocks();
 
     // Reset VS Code workspace state
-    (vscode.workspace as any).workspaceFolders = undefined;
+    const mockVscode = vi.mocked(vscode);
+    if (mockVscode.workspace) {
+      (mockVscode.workspace as any).workspaceFolders = undefined;
+    }
 
     mockGlobalState = {
       get: vi.fn().mockReturnValue({}),

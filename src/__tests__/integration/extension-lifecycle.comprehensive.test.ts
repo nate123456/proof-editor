@@ -54,6 +54,8 @@ describe('Extension Lifecycle - Comprehensive Integration', () => {
   let mockRenderer: TreeRenderer;
   let mockYAMLSerializer: YAMLSerializer;
   let mockBootstrapController: BootstrapController;
+  let mockExportService: any;
+  let mockDocumentIdService: any;
   let _mockDocumentController: DocumentController;
 
   // Test data
@@ -161,6 +163,7 @@ trees:
       showConfirmation: vi.fn().mockResolvedValue(ok(false)),
       showOpenDialog: vi.fn().mockResolvedValue(ok(null)),
       showSaveDialog: vi.fn().mockResolvedValue(ok(null)),
+      writeFile: vi.fn().mockResolvedValue(ok(undefined)),
       showInformation: vi.fn(),
       showWarning: vi.fn(),
       showError: vi.fn(),
@@ -274,6 +277,29 @@ trees:
     mockBootstrapController = {
       createBootstrapArgument: vi.fn().mockResolvedValue(ok({ data: { argumentId: 'arg1' } })),
       populateEmptyArgument: vi.fn().mockResolvedValue(ok({ data: { argumentId: 'arg1' } })),
+    } as any;
+
+    mockExportService = {
+      exportDocument: vi
+        .fn()
+        .mockResolvedValue(
+          ok({ filename: 'test.proof', content: 'mock content', mimeType: 'text/yaml' }),
+        ),
+      exportDocumentContent: vi
+        .fn()
+        .mockResolvedValue(
+          ok({ filename: 'test.proof', content: 'mock content', mimeType: 'text/yaml' }),
+        ),
+      saveToFile: vi
+        .fn()
+        .mockResolvedValue(ok({ filePath: '/mock/export/path.proof', savedSuccessfully: true })),
+    } as any;
+
+    mockDocumentIdService = {
+      extractFromUri: vi.fn().mockReturnValue(ok('test-document-id')),
+      validateDocumentId: vi.fn().mockReturnValue(ok('test-document-id')),
+      generateFallbackId: vi.fn().mockReturnValue('fallback-id'),
+      extractFromUriWithFallback: vi.fn().mockReturnValue(ok('test-document-id')),
     } as any;
 
     _mockDocumentController = {
@@ -441,6 +467,8 @@ trees:
         mockBootstrapController,
         mockProofApplicationService,
         mockYAMLSerializer,
+        mockExportService,
+        mockDocumentIdService,
       );
 
       expect(panelResult.isOk()).toBe(true);
@@ -495,6 +523,8 @@ trees:
         mockBootstrapController,
         mockProofApplicationService,
         mockYAMLSerializer,
+        mockExportService,
+        mockDocumentIdService,
       );
 
       const panel2Result = await ProofTreePanel.createWithServices(
@@ -509,6 +539,8 @@ trees:
         mockBootstrapController,
         mockProofApplicationService,
         mockYAMLSerializer,
+        mockExportService,
+        mockDocumentIdService,
       );
 
       expect(panel1Result.isOk()).toBe(true);
@@ -564,6 +596,8 @@ trees:
         mockBootstrapController,
         mockProofApplicationService,
         mockYAMLSerializer,
+        mockExportService,
+        mockDocumentIdService,
       );
 
       expect(panelResult.isOk()).toBe(true);
@@ -611,6 +645,8 @@ trees:
         mockBootstrapController,
         mockProofApplicationService,
         mockYAMLSerializer,
+        mockExportService,
+        mockDocumentIdService,
       );
 
       expect(panelResult.isOk()).toBe(true);
@@ -739,6 +775,8 @@ trees:
           mockBootstrapController,
           mockProofApplicationService,
           mockYAMLSerializer,
+          mockExportService,
+          mockDocumentIdService,
         );
       } catch (error) {
         await eventBus.publish([
@@ -801,6 +839,8 @@ trees:
           mockBootstrapController,
           mockProofApplicationService,
           mockYAMLSerializer,
+          mockExportService,
+          mockDocumentIdService,
         ),
         ProofTreePanel.createWithServices(
           '/workspace/panel2.proof',
@@ -814,6 +854,8 @@ trees:
           mockBootstrapController,
           mockProofApplicationService,
           mockYAMLSerializer,
+          mockExportService,
+          mockDocumentIdService,
         ),
       ]);
 
@@ -872,6 +914,8 @@ trees:
           mockBootstrapController,
           mockProofApplicationService,
           mockYAMLSerializer,
+          mockExportService,
+          mockDocumentIdService,
         );
 
         if (panelResult.isOk()) {
@@ -917,6 +961,8 @@ trees:
         mockBootstrapController,
         mockProofApplicationService,
         mockYAMLSerializer,
+        mockExportService,
+        mockDocumentIdService,
       );
 
       if (panelResult.isOk()) {
@@ -969,6 +1015,8 @@ trees:
             mockBootstrapController,
             mockProofApplicationService,
             mockYAMLSerializer,
+            mockExportService,
+            mockDocumentIdService,
           );
 
           const endTime = performance.now();
@@ -1055,6 +1103,8 @@ trees:
               mockBootstrapController,
               mockProofApplicationService,
               mockYAMLSerializer,
+              mockExportService,
+              mockDocumentIdService,
             );
 
             expect(panelResult.isOk()).toBe(true);
@@ -1100,6 +1150,8 @@ trees:
               mockBootstrapController,
               mockProofApplicationService,
               mockYAMLSerializer,
+              mockExportService,
+              mockDocumentIdService,
             );
 
             if (panelResult.isOk()) {

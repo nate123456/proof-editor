@@ -6,18 +6,22 @@ import {
   OrderedSetId,
   ProofDocumentId,
   StatementId,
+  TreeId,
 } from '../../domain/shared/value-objects.js';
 import type { EventBus } from '../../infrastructure/events/EventBus.js';
 import type {
   CreateAtomicArgumentCommand,
   DeleteAtomicArgumentCommand,
+  UpdateArgumentSideLabelsCommand,
   UpdateAtomicArgumentCommand,
 } from '../commands/argument-commands.js';
 import type {
   CreateStatementCommand,
   DeleteStatementCommand,
+  MoveStatementCommand,
   UpdateStatementCommand,
 } from '../commands/statement-commands.js';
+import type { MoveTreeCommand } from '../commands/tree-commands.js';
 import { atomicArgumentToDTO } from '../mappers/AtomicArgumentMapper.js';
 import { statementToDTO } from '../mappers/StatementMapper.js';
 import type { AtomicArgumentDTO } from '../queries/shared-types.js';
@@ -352,5 +356,158 @@ export class ProofApplicationService {
     document.markEventsAsCommitted();
 
     return ok(undefined);
+  }
+
+  /**
+   * Updates side labels for an atomic argument and publishes domain events
+   */
+  async updateArgumentLabel(
+    command: UpdateArgumentSideLabelsCommand,
+  ): Promise<Result<AtomicArgumentDTO, ValidationError>> {
+    // Load aggregate
+    const documentIdResult = ProofDocumentId.create(command.documentId);
+    if (documentIdResult.isErr()) {
+      return err(documentIdResult.error);
+    }
+
+    const document = await this.repository.findById(documentIdResult.value);
+    if (!document) {
+      return err(new ValidationError('Document not found'));
+    }
+
+    // Parse argument ID
+    const argumentIdResult = AtomicArgumentId.create(command.argumentId);
+    if (argumentIdResult.isErr()) {
+      return err(argumentIdResult.error);
+    }
+
+    // Get the atomic argument
+    const argument = document.getArgument(argumentIdResult.value);
+    if (!argument) {
+      return err(new ValidationError('Atomic argument not found'));
+    }
+
+    // Update side labels
+    const updateResult = argument.updateSideLabels(command.sideLabels);
+    if (updateResult.isErr()) {
+      return err(updateResult.error);
+    }
+
+    // Save aggregate
+    const saveResult = await this.repository.save(document);
+    if (saveResult.isErr()) {
+      return err(saveResult.error);
+    }
+
+    // Publish domain events
+    const events = document.getUncommittedEvents();
+    await this.eventBus.publish(events);
+    document.markEventsAsCommitted();
+
+    return ok(atomicArgumentToDTO(argument));
+  }
+
+  /**
+   * Moves a statement from one ordered set to another and publishes domain events
+   */
+  async moveStatement(command: MoveStatementCommand): Promise<Result<void, ValidationError>> {
+    // Load aggregate
+    const documentIdResult = ProofDocumentId.create(command.documentId);
+    if (documentIdResult.isErr()) {
+      return err(documentIdResult.error);
+    }
+
+    const document = await this.repository.findById(documentIdResult.value);
+    if (!document) {
+      return err(new ValidationError('Document not found'));
+    }
+
+    // Parse IDs
+    const statementIdResult = StatementId.create(command.statementId);
+    if (statementIdResult.isErr()) {
+      return err(statementIdResult.error);
+    }
+
+    const sourceOrderedSetIdResult = OrderedSetId.create(command.sourceOrderedSetId);
+    if (sourceOrderedSetIdResult.isErr()) {
+      return err(sourceOrderedSetIdResult.error);
+    }
+
+    const targetOrderedSetIdResult = OrderedSetId.create(command.targetOrderedSetId);
+    if (targetOrderedSetIdResult.isErr()) {
+      return err(targetOrderedSetIdResult.error);
+    }
+
+    // Get the ordered sets
+    const sourceOrderedSet = document.getOrderedSet(sourceOrderedSetIdResult.value);
+    if (!sourceOrderedSet) {
+      return err(new ValidationError('Source ordered set not found'));
+    }
+
+    const targetOrderedSet = document.getOrderedSet(targetOrderedSetIdResult.value);
+    if (!targetOrderedSet) {
+      return err(new ValidationError('Target ordered set not found'));
+    }
+
+    // Remove from source
+    const removeResult = sourceOrderedSet.removeStatement(statementIdResult.value);
+    if (removeResult.isErr()) {
+      return err(removeResult.error);
+    }
+
+    // Add to target at specified position or append at end
+    const addResult =
+      command.targetPosition !== undefined
+        ? targetOrderedSet.insertStatementAt(statementIdResult.value, command.targetPosition)
+        : targetOrderedSet.addStatement(statementIdResult.value);
+    if (addResult.isErr()) {
+      // If adding fails, we need to restore the statement to source
+      sourceOrderedSet.addStatement(statementIdResult.value);
+      return err(addResult.error);
+    }
+
+    // Save aggregate
+    const saveResult = await this.repository.save(document);
+    if (saveResult.isErr()) {
+      return err(saveResult.error);
+    }
+
+    // Publish domain events
+    const events = document.getUncommittedEvents();
+    await this.eventBus.publish(events);
+    document.markEventsAsCommitted();
+
+    return ok(undefined);
+  }
+
+  /**
+   * Moves a tree to a new position and publishes domain events
+   */
+  async moveTree(command: MoveTreeCommand): Promise<Result<void, ValidationError>> {
+    // Load aggregate
+    const documentIdResult = ProofDocumentId.create(command.documentId);
+    if (documentIdResult.isErr()) {
+      return err(documentIdResult.error);
+    }
+
+    const document = await this.repository.findById(documentIdResult.value);
+    if (!document) {
+      return err(new ValidationError('Document not found'));
+    }
+
+    // Parse tree ID
+    const treeIdResult = TreeId.create(command.treeId);
+    if (treeIdResult.isErr()) {
+      return err(treeIdResult.error);
+    }
+
+    // Trees are managed by ProofTreeAggregate, not ProofDocument
+    // For now, return a not implemented error since trees are managed separately
+    // In a full implementation, this would delegate to a TreeApplicationService
+    return err(
+      new ValidationError(
+        'Tree movement not yet implemented - trees are managed by ProofTreeAggregate',
+      ),
+    );
   }
 }

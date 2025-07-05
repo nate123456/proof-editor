@@ -90,14 +90,13 @@ describe('ProofAggregate - Enhanced Coverage', () => {
         expect(arg1Result.isOk() && arg2Result.isOk()).toBe(true);
 
         if (arg1Result.isOk() && arg2Result.isOk()) {
-          // The connection should succeed because empty OrderedSets are valid
-          // but the validation should detect that the connection makes no logical sense
+          // Empty arguments create a cycle since they share the same empty ordered set
+          // Both arguments have the same empty OrderedSet for both premise and conclusion
           const connectResult = proof.connectArguments(arg1Result.value, arg2Result.value);
-          expect(connectResult.isOk()).toBe(true);
-
-          // The validation should detect issues with empty connections
-          const validation = proof.validateConsistency();
-          expect(validation.isOk()).toBe(true); // Empty sets are technically valid
+          expect(connectResult.isErr()).toBe(true);
+          if (connectResult.isErr()) {
+            expect(connectResult.error.message).toContain('direct cycle');
+          }
         }
       }
     });
@@ -124,7 +123,11 @@ describe('ProofAggregate - Enhanced Coverage', () => {
           );
 
           // Create target argument that will consume the conclusion
-          const targetArgResult = proof.createAtomicArgument([stmt3Result.value], []);
+          // The premise must match the conclusion of the source for connection
+          const targetArgResult = proof.createAtomicArgument(
+            [stmt2Result.value],
+            [stmt3Result.value],
+          );
 
           expect(sourceArgResult.isOk() && targetArgResult.isOk()).toBe(true);
 
@@ -443,7 +446,8 @@ describe('ProofAggregate - Enhanced Coverage', () => {
 
         expect(statementIds).toHaveLength(5);
 
-        // Create argument chain: [0,1] → [2], [2,3] → [4]
+        // Create argument chain: [0,1] → [2], [2] → [3,4]
+        // Note: For connection, conclusion of arg1 must exactly match premise of arg2
         // We've already verified the array has 5 elements, so these accesses are safe
         if (statementIds.length === 5) {
           const [s0, s1, s2, s3, s4] = statementIds as [
@@ -454,7 +458,7 @@ describe('ProofAggregate - Enhanced Coverage', () => {
             StatementId,
           ];
           const arg1Result = proof.createAtomicArgument([s0, s1], [s2]);
-          const arg2Result = proof.createAtomicArgument([s2, s3], [s4]);
+          const arg2Result = proof.createAtomicArgument([s2], [s3, s4]);
 
           expect(arg1Result.isOk() && arg2Result.isOk()).toBe(true);
 

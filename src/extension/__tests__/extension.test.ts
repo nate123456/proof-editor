@@ -133,6 +133,17 @@ const mockUIPort = {
   showInformation: vi.fn(),
   createWebviewPanel: vi.fn(),
   showQuickPick: vi.fn(),
+  showInputBox: vi.fn(),
+  showConfirmation: vi.fn(),
+  showOpenDialog: vi.fn(),
+  showSaveDialog: vi.fn(),
+  showProgress: vi.fn(),
+  setStatusMessage: vi.fn(),
+  postMessageToWebview: vi.fn(),
+  getTheme: vi.fn(),
+  onThemeChange: vi.fn(),
+  writeFile: vi.fn(),
+  capabilities: vi.fn(),
 };
 
 // Create mock controllers
@@ -194,6 +205,8 @@ const mockContainer = {
     switch (token) {
       case 'ValidationController':
         return mockValidationController;
+      case 'InfrastructureValidationController':
+        return mockValidationController;
       case 'DocumentController':
         return mockDocumentController;
       case 'ProofTreeController':
@@ -202,9 +215,15 @@ const mockContainer = {
         return mockBootstrapController;
       case 'DocumentQueryService':
         return {
-          getDocumentStructure: vi.fn().mockResolvedValue({ isOk: () => true, value: {} }),
-          getArguments: vi.fn().mockResolvedValue({ isOk: () => true, value: [] }),
-          getStatements: vi.fn().mockResolvedValue({ isOk: () => true, value: [] }),
+          getDocumentById: vi.fn().mockResolvedValue({ isOk: () => true, value: {} }),
+          getDocumentWithStats: vi.fn().mockResolvedValue({ isOk: () => true, value: {} }),
+          parseDocumentContent: vi.fn().mockResolvedValue({ isOk: () => true, value: {} }),
+          validateDocumentContent: vi
+            .fn()
+            .mockResolvedValue({ isOk: () => true, value: { isValid: true } }),
+          getDocumentMetadata: vi.fn().mockResolvedValue({ isOk: () => true, value: {} }),
+          documentExists: vi.fn().mockResolvedValue({ isOk: () => true, value: true }),
+          parseWithDetailedErrors: vi.fn().mockResolvedValue({ isOk: () => true, value: {} }),
         };
       case 'ProofVisualizationService':
         return {
@@ -257,6 +276,21 @@ const mockContainer = {
           serializeDocument: vi.fn().mockReturnValue('mock document yaml'),
           deserializeDocument: vi.fn().mockReturnValue({ isOk: () => true, value: {} }),
         };
+      case 'IExportService':
+        return {
+          exportDocument: vi
+            .fn()
+            .mockResolvedValue({ isOk: () => true, value: 'exported content' }),
+          getSupportedFormats: vi.fn().mockReturnValue(['yaml', 'json', 'markdown']),
+          validateExportFormat: vi.fn().mockReturnValue({ isOk: () => true, value: true }),
+        };
+      case 'IDocumentIdService':
+        return {
+          generateId: vi.fn().mockReturnValue('mock-document-id'),
+          validateId: vi.fn().mockReturnValue({ isOk: () => true, value: true }),
+          isTemporaryId: vi.fn().mockReturnValue(false),
+          convertTemporaryId: vi.fn().mockReturnValue({ isOk: () => true, value: 'permanent-id' }),
+        };
       default:
         return {};
     }
@@ -273,6 +307,7 @@ vi.mock('../../infrastructure/di/container.js', () => ({
   registerPlatformAdapters: vi.fn(() => Promise.resolve()),
   TOKENS: {
     ValidationController: 'ValidationController',
+    InfrastructureValidationController: 'InfrastructureValidationController',
     DocumentController: 'DocumentController',
     ProofTreeController: 'ProofTreeController',
     BootstrapController: 'BootstrapController',
@@ -286,12 +321,15 @@ vi.mock('../../infrastructure/di/container.js', () => ({
     IFileSystemPort: 'IFileSystemPort',
     ProofApplicationService: 'ProofApplicationService',
     YAMLSerializer: 'YAMLSerializer',
+    IExportService: 'IExportService',
+    IDocumentIdService: 'IDocumentIdService',
   },
 }));
 
 vi.mock('../../infrastructure/di/tokens.js', () => ({
   TOKENS: {
     ValidationController: 'ValidationController',
+    InfrastructureValidationController: 'InfrastructureValidationController',
     DocumentController: 'DocumentController',
     ProofTreeController: 'ProofTreeController',
     BootstrapController: 'BootstrapController',
@@ -305,6 +343,8 @@ vi.mock('../../infrastructure/di/tokens.js', () => ({
     IFileSystemPort: 'IFileSystemPort',
     ProofApplicationService: 'ProofApplicationService',
     YAMLSerializer: 'YAMLSerializer',
+    IExportService: 'IExportService',
+    IDocumentIdService: 'IDocumentIdService',
   },
 }));
 
@@ -327,6 +367,21 @@ vi.mock('../../webview/ProofTreePanel.js', () => ({
     createOrShow: vi.fn(),
     updateContentIfExists: vi.fn(),
     createWithServices: vi.fn().mockResolvedValue({ isOk: () => true }),
+  },
+}));
+
+// Mock ProofTreePanelManager
+const mockPanelManager = {
+  createOrShowPanel: vi.fn().mockResolvedValue({ isOk: () => true }),
+  createPanelWithServices: vi.fn().mockResolvedValue({ isOk: () => true }),
+  closePanelForDocument: vi.fn(),
+  getPanel: vi.fn(),
+  hasPanel: vi.fn(),
+};
+
+vi.mock('../../webview/ProofTreePanelManager.js', () => ({
+  ProofTreePanelManager: {
+    getInstance: vi.fn(() => mockPanelManager),
   },
 }));
 
@@ -559,7 +614,7 @@ describe('Extension', () => {
     it('should create and register validation controller', async () => {
       await activate(mockContext);
 
-      expect(mockContainer.resolve).toHaveBeenCalledWith('ValidationController');
+      expect(mockContainer.resolve).toHaveBeenCalledWith('InfrastructureValidationController');
       expect(mockContext.subscriptions).toHaveLength(14); // controller + 8 commands + 4 event handlers + 1 file watcher
     });
 
@@ -584,7 +639,7 @@ describe('Extension', () => {
     it('should add all disposables to context subscriptions', async () => {
       await activate(mockContext);
 
-      // Should have: ValidationController + showTreeCommand + 7 bootstrap commands + 4 event handlers + 1 file watcher
+      // Should have: ValidationController + showTreeCommand + 2 undo/redo commands + 5 bootstrap commands + 4 event handlers + 1 file watcher
       expect(mockContext.subscriptions).toHaveLength(14);
     });
 
@@ -603,14 +658,13 @@ describe('Extension', () => {
 
       await activate(mockContext);
 
-      const { ProofTreePanel } = await import('../../webview/ProofTreePanel.js');
-      expect(ProofTreePanel.createWithServices).toHaveBeenCalledWith(
+      expect(mockPanelManager.createPanelWithServices).toHaveBeenCalledWith(
         expect.any(String), // uri
         'mock proof content',
         expect.objectContaining({
-          getDocumentStructure: expect.any(Function),
-          getArguments: expect.any(Function),
-          getStatements: expect.any(Function),
+          getDocumentById: expect.any(Function),
+          parseDocumentContent: expect.any(Function),
+          validateDocumentContent: expect.any(Function),
         }), // documentQueryService
         expect.objectContaining({
           generateVisualization: expect.any(Function),
@@ -644,8 +698,28 @@ describe('Extension', () => {
           initializeEmptyDocument: expect.any(Function),
           populateEmptyArgument: expect.any(Function),
         }), // bootstrapController
-        expect.any(Object), // proofApplicationService
-        expect.any(Object), // yamlSerializer
+        expect.objectContaining({
+          createArgument: expect.any(Function),
+          getDocuments: expect.any(Function),
+          processCommand: expect.any(Function),
+        }), // proofApplicationService
+        expect.objectContaining({
+          serialize: expect.any(Function),
+          deserialize: expect.any(Function),
+          serializeDocument: expect.any(Function),
+          deserializeDocument: expect.any(Function),
+        }), // yamlSerializer
+        expect.objectContaining({
+          exportDocument: expect.any(Function),
+          getSupportedFormats: expect.any(Function),
+          validateExportFormat: expect.any(Function),
+        }), // exportService
+        expect.objectContaining({
+          generateId: expect.any(Function),
+          validateId: expect.any(Function),
+          isTemporaryId: expect.any(Function),
+          convertTemporaryId: expect.any(Function),
+        }), // documentIdService
       );
     });
 
@@ -659,8 +733,7 @@ describe('Extension', () => {
 
       await activate(mockContext);
 
-      const { ProofTreePanel } = await import('../../webview/ProofTreePanel.js');
-      expect(ProofTreePanel.createWithServices).not.toHaveBeenCalled();
+      expect(mockPanelManager.createPanelWithServices).not.toHaveBeenCalled();
     });
   });
 
@@ -696,14 +769,13 @@ describe('Extension', () => {
 
       await commandHandler();
 
-      const { ProofTreePanel } = await import('../../webview/ProofTreePanel.js');
-      expect(ProofTreePanel.createWithServices).toHaveBeenCalledWith(
+      expect(mockPanelManager.createPanelWithServices).toHaveBeenCalledWith(
         expect.any(String), // uri
         'mock proof content',
         expect.objectContaining({
-          getDocumentStructure: expect.any(Function),
-          getArguments: expect.any(Function),
-          getStatements: expect.any(Function),
+          getDocumentById: expect.any(Function),
+          parseDocumentContent: expect.any(Function),
+          validateDocumentContent: expect.any(Function),
         }), // documentQueryService
         expect.objectContaining({
           generateVisualization: expect.any(Function),
@@ -737,8 +809,28 @@ describe('Extension', () => {
           initializeEmptyDocument: expect.any(Function),
           populateEmptyArgument: expect.any(Function),
         }), // bootstrapController
-        expect.any(Object), // proofApplicationService
-        expect.any(Object), // yamlSerializer
+        expect.objectContaining({
+          createArgument: expect.any(Function),
+          getDocuments: expect.any(Function),
+          processCommand: expect.any(Function),
+        }), // proofApplicationService
+        expect.objectContaining({
+          serialize: expect.any(Function),
+          deserialize: expect.any(Function),
+          serializeDocument: expect.any(Function),
+          deserializeDocument: expect.any(Function),
+        }), // yamlSerializer
+        expect.objectContaining({
+          exportDocument: expect.any(Function),
+          getSupportedFormats: expect.any(Function),
+          validateExportFormat: expect.any(Function),
+        }), // exportService
+        expect.objectContaining({
+          generateId: expect.any(Function),
+          validateId: expect.any(Function),
+          isTemporaryId: expect.any(Function),
+          convertTemporaryId: expect.any(Function),
+        }), // documentIdService
       );
     });
 
@@ -755,8 +847,7 @@ describe('Extension', () => {
       expect(mockUIPort.showWarning).toHaveBeenCalledWith(
         'Please open a .proof file to view the tree visualization.',
       );
-      const { ProofTreePanel } = await import('../../webview/ProofTreePanel.js');
-      expect(ProofTreePanel.createWithServices).not.toHaveBeenCalled();
+      expect(mockPanelManager.createPanelWithServices).not.toHaveBeenCalled();
     });
 
     it('should show warning when active editor is not proof file', async () => {
@@ -776,8 +867,7 @@ describe('Extension', () => {
       expect(mockUIPort.showWarning).toHaveBeenCalledWith(
         'Please open a .proof file to view the tree visualization.',
       );
-      const { ProofTreePanel } = await import('../../webview/ProofTreePanel.js');
-      expect(ProofTreePanel.createWithServices).not.toHaveBeenCalled();
+      expect(mockPanelManager.createPanelWithServices).not.toHaveBeenCalled();
     });
   });
 
@@ -793,19 +883,26 @@ describe('Extension', () => {
     });
 
     it('should handle proof file opening', async () => {
-      await onOpenHandler(mockTextDocument);
+      // Get the handler from the mock calls since onOpenHandler might not be set
+      const onOpenCall = vi.mocked(vscode.workspace.onDidOpenTextDocument).mock.calls[0];
+      const handler = onOpenCall?.[0];
+
+      if (!handler) {
+        throw new Error('onDidOpenTextDocument handler not registered');
+      }
+
+      await handler(mockTextDocument);
 
       expect(mockUIPort.showInformation).toHaveBeenCalledWith(
         'Proof Editor: Working with test.proof',
       );
-      const { ProofTreePanel } = await import('../../webview/ProofTreePanel.js');
-      expect(ProofTreePanel.createWithServices).toHaveBeenCalledWith(
+      expect(mockPanelManager.createPanelWithServices).toHaveBeenCalledWith(
         expect.any(String), // uri
         'mock proof content',
         expect.objectContaining({
-          getDocumentStructure: expect.any(Function),
-          getArguments: expect.any(Function),
-          getStatements: expect.any(Function),
+          getDocumentById: expect.any(Function),
+          parseDocumentContent: expect.any(Function),
+          validateDocumentContent: expect.any(Function),
         }), // documentQueryService
         expect.objectContaining({
           generateVisualization: expect.any(Function),
@@ -839,8 +936,28 @@ describe('Extension', () => {
           initializeEmptyDocument: expect.any(Function),
           populateEmptyArgument: expect.any(Function),
         }), // bootstrapController
-        expect.any(Object), // proofApplicationService
-        expect.any(Object), // yamlSerializer
+        expect.objectContaining({
+          createArgument: expect.any(Function),
+          getDocuments: expect.any(Function),
+          processCommand: expect.any(Function),
+        }), // proofApplicationService
+        expect.objectContaining({
+          serialize: expect.any(Function),
+          deserialize: expect.any(Function),
+          serializeDocument: expect.any(Function),
+          deserializeDocument: expect.any(Function),
+        }), // yamlSerializer
+        expect.objectContaining({
+          exportDocument: expect.any(Function),
+          getSupportedFormats: expect.any(Function),
+          validateExportFormat: expect.any(Function),
+        }), // exportService
+        expect.objectContaining({
+          generateId: expect.any(Function),
+          validateId: expect.any(Function),
+          isTemporaryId: expect.any(Function),
+          convertTemporaryId: expect.any(Function),
+        }), // documentIdService
       );
       expect(mockValidationController.validateDocumentImmediate).toHaveBeenCalledWith({
         uri: mockTextDocument.uri.toString(),
@@ -849,26 +966,40 @@ describe('Extension', () => {
       });
     });
 
-    it('should extract filename from full path', () => {
+    it('should extract filename from full path', async () => {
       const docWithLongPath = {
         ...mockTextDocument,
         fileName: '/very/long/path/to/complex-file.proof',
       };
 
-      onOpenHandler(docWithLongPath);
+      const onOpenCall = vi.mocked(vscode.workspace.onDidOpenTextDocument).mock.calls[0];
+      const handler = onOpenCall?.[0];
+
+      if (!handler) {
+        throw new Error('onDidOpenTextDocument handler not registered');
+      }
+
+      await handler(docWithLongPath);
 
       expect(mockUIPort.showInformation).toHaveBeenCalledWith(
         'Proof Editor: Working with complex-file.proof',
       );
     });
 
-    it('should handle filenames without path separators', () => {
+    it('should handle filenames without path separators', async () => {
       const docWithSimpleName = {
         ...mockTextDocument,
         fileName: 'simple.proof',
       };
 
-      onOpenHandler(docWithSimpleName);
+      const onOpenCall = vi.mocked(vscode.workspace.onDidOpenTextDocument).mock.calls[0];
+      const handler = onOpenCall?.[0];
+
+      if (!handler) {
+        throw new Error('onDidOpenTextDocument handler not registered');
+      }
+
+      await handler(docWithSimpleName);
 
       expect(mockUIPort.showInformation).toHaveBeenCalledWith(
         'Proof Editor: Working with simple.proof',
@@ -878,11 +1009,17 @@ describe('Extension', () => {
     it('should ignore non-proof files', async () => {
       const nonProofDoc = { ...mockTextDocument, languageId: 'javascript' };
 
-      onOpenHandler(nonProofDoc);
+      const onOpenCall = vi.mocked(vscode.workspace.onDidOpenTextDocument).mock.calls[0];
+      const handler = onOpenCall?.[0];
+
+      if (!handler) {
+        throw new Error('onDidOpenTextDocument handler not registered');
+      }
+
+      await handler(nonProofDoc);
 
       expect(mockUIPort.showInformation).not.toHaveBeenCalled();
-      const { ProofTreePanel } = await import('../../webview/ProofTreePanel.js');
-      expect(ProofTreePanel.createWithServices).not.toHaveBeenCalled();
+      expect(mockPanelManager.createPanelWithServices).not.toHaveBeenCalled();
       expect(mockValidationController.validateDocumentImmediate).not.toHaveBeenCalled();
     });
   });
@@ -901,14 +1038,13 @@ describe('Extension', () => {
     it('should handle proof file changes', async () => {
       await onChangeHandler(mockChangeEvent);
 
-      const { ProofTreePanel } = await import('../../webview/ProofTreePanel.js');
-      expect(ProofTreePanel.createWithServices).toHaveBeenCalledWith(
+      expect(mockPanelManager.createPanelWithServices).toHaveBeenCalledWith(
         expect.any(String), // uri
         'mock proof content',
         expect.objectContaining({
-          getDocumentStructure: expect.any(Function),
-          getArguments: expect.any(Function),
-          getStatements: expect.any(Function),
+          getDocumentById: expect.any(Function),
+          parseDocumentContent: expect.any(Function),
+          validateDocumentContent: expect.any(Function),
         }), // documentQueryService
         expect.objectContaining({
           generateVisualization: expect.any(Function),
@@ -942,8 +1078,28 @@ describe('Extension', () => {
           initializeEmptyDocument: expect.any(Function),
           populateEmptyArgument: expect.any(Function),
         }), // bootstrapController
-        expect.any(Object), // proofApplicationService
-        expect.any(Object), // yamlSerializer
+        expect.objectContaining({
+          createArgument: expect.any(Function),
+          getDocuments: expect.any(Function),
+          processCommand: expect.any(Function),
+        }), // proofApplicationService
+        expect.objectContaining({
+          serialize: expect.any(Function),
+          deserialize: expect.any(Function),
+          serializeDocument: expect.any(Function),
+          deserializeDocument: expect.any(Function),
+        }), // yamlSerializer
+        expect.objectContaining({
+          exportDocument: expect.any(Function),
+          getSupportedFormats: expect.any(Function),
+          validateExportFormat: expect.any(Function),
+        }), // exportService
+        expect.objectContaining({
+          generateId: expect.any(Function),
+          validateId: expect.any(Function),
+          isTemporaryId: expect.any(Function),
+          convertTemporaryId: expect.any(Function),
+        }), // documentIdService
       );
       expect(mockValidationController.validateDocumentDebounced).toHaveBeenCalledWith({
         uri: mockTextDocument.uri.toString(),
@@ -958,10 +1114,16 @@ describe('Extension', () => {
         document: { ...mockTextDocument, languageId: 'javascript' },
       };
 
-      onChangeHandler(nonProofChangeEvent);
+      const onChangeCall = vi.mocked(vscode.workspace.onDidChangeTextDocument).mock.calls[0];
+      const handler = onChangeCall?.[0];
 
-      const { ProofTreePanel } = await import('../../webview/ProofTreePanel.js');
-      expect(ProofTreePanel.createWithServices).not.toHaveBeenCalled();
+      if (!handler) {
+        throw new Error('onDidChangeTextDocument handler not registered');
+      }
+
+      await handler(nonProofChangeEvent);
+
+      expect(mockPanelManager.createPanelWithServices).not.toHaveBeenCalled();
       expect(mockValidationController.validateDocumentDebounced).not.toHaveBeenCalled();
     });
   });
@@ -972,16 +1134,22 @@ describe('Extension', () => {
     });
 
     it('should handle switching to proof file editor', async () => {
-      await onEditorChangeHandler(mockTextEditor);
+      const onEditorChangeCall = vi.mocked(vscode.window.onDidChangeActiveTextEditor).mock.calls[0];
+      const handler = onEditorChangeCall?.[0];
 
-      const { ProofTreePanel } = await import('../../webview/ProofTreePanel.js');
-      expect(ProofTreePanel.createWithServices).toHaveBeenCalledWith(
+      if (!handler) {
+        throw new Error('onDidChangeActiveTextEditor handler not registered');
+      }
+
+      await handler(mockTextEditor);
+
+      expect(mockPanelManager.createPanelWithServices).toHaveBeenCalledWith(
         expect.any(String), // uri
         'mock proof content',
         expect.objectContaining({
-          getDocumentStructure: expect.any(Function),
-          getArguments: expect.any(Function),
-          getStatements: expect.any(Function),
+          getDocumentById: expect.any(Function),
+          parseDocumentContent: expect.any(Function),
+          validateDocumentContent: expect.any(Function),
         }), // documentQueryService
         expect.objectContaining({
           generateVisualization: expect.any(Function),
@@ -1015,8 +1183,28 @@ describe('Extension', () => {
           initializeEmptyDocument: expect.any(Function),
           populateEmptyArgument: expect.any(Function),
         }), // bootstrapController
-        expect.any(Object), // proofApplicationService
-        expect.any(Object), // yamlSerializer
+        expect.objectContaining({
+          createArgument: expect.any(Function),
+          getDocuments: expect.any(Function),
+          processCommand: expect.any(Function),
+        }), // proofApplicationService
+        expect.objectContaining({
+          serialize: expect.any(Function),
+          deserialize: expect.any(Function),
+          serializeDocument: expect.any(Function),
+          deserializeDocument: expect.any(Function),
+        }), // yamlSerializer
+        expect.objectContaining({
+          exportDocument: expect.any(Function),
+          getSupportedFormats: expect.any(Function),
+          validateExportFormat: expect.any(Function),
+        }), // exportService
+        expect.objectContaining({
+          generateId: expect.any(Function),
+          validateId: expect.any(Function),
+          isTemporaryId: expect.any(Function),
+          convertTemporaryId: expect.any(Function),
+        }), // documentIdService
       );
       expect(mockValidationController.validateDocumentImmediate).toHaveBeenCalledWith({
         uri: mockTextDocument.uri.toString(),
@@ -1031,18 +1219,30 @@ describe('Extension', () => {
         document: { ...mockTextDocument, languageId: 'javascript' },
       };
 
-      onEditorChangeHandler(nonProofEditor);
+      const onEditorChangeCall = vi.mocked(vscode.window.onDidChangeActiveTextEditor).mock.calls[0];
+      const handler = onEditorChangeCall?.[0];
 
-      const { ProofTreePanel } = await import('../../webview/ProofTreePanel.js');
-      expect(ProofTreePanel.createWithServices).not.toHaveBeenCalled();
+      if (!handler) {
+        throw new Error('onDidChangeActiveTextEditor handler not registered');
+      }
+
+      await handler(nonProofEditor);
+
+      expect(mockPanelManager.createPanelWithServices).not.toHaveBeenCalled();
       expect(mockValidationController.validateDocumentImmediate).not.toHaveBeenCalled();
     });
 
     it('should handle undefined editor (no active editor)', async () => {
-      onEditorChangeHandler(undefined);
+      const onEditorChangeCall = vi.mocked(vscode.window.onDidChangeActiveTextEditor).mock.calls[0];
+      const handler = onEditorChangeCall?.[0];
 
-      const { ProofTreePanel } = await import('../../webview/ProofTreePanel.js');
-      expect(ProofTreePanel.createWithServices).not.toHaveBeenCalled();
+      if (!handler) {
+        throw new Error('onDidChangeActiveTextEditor handler not registered');
+      }
+
+      await handler(undefined);
+
+      expect(mockPanelManager.createPanelWithServices).not.toHaveBeenCalled();
       expect(mockValidationController.validateDocumentImmediate).not.toHaveBeenCalled();
     });
   });
@@ -1053,7 +1253,14 @@ describe('Extension', () => {
     });
 
     it('should clear validation for closed proof files', async () => {
-      await onCloseHandler(mockTextDocument);
+      const onCloseCall = vi.mocked(vscode.workspace.onDidCloseTextDocument).mock.calls[0];
+      const handler = onCloseCall?.[0];
+
+      if (!handler) {
+        throw new Error('onDidCloseTextDocument handler not registered');
+      }
+
+      await handler(mockTextDocument);
 
       expect(mockValidationController.clearDocumentValidation).toHaveBeenCalledWith({
         uri: mockTextDocument.uri.toString(),
@@ -1062,10 +1269,17 @@ describe('Extension', () => {
       });
     });
 
-    it('should ignore closing non-proof files', () => {
+    it('should ignore closing non-proof files', async () => {
       const nonProofDoc = { ...mockTextDocument, languageId: 'javascript' };
 
-      onCloseHandler(nonProofDoc);
+      const onCloseCall = vi.mocked(vscode.workspace.onDidCloseTextDocument).mock.calls[0];
+      const handler = onCloseCall?.[0];
+
+      if (!handler) {
+        throw new Error('onDidCloseTextDocument handler not registered');
+      }
+
+      await handler(nonProofDoc);
 
       expect(mockValidationController.clearDocumentValidation).not.toHaveBeenCalled();
     });
@@ -1080,7 +1294,14 @@ describe('Extension', () => {
         fileName: 'folder/subfolder/file.proof',
       };
 
-      onOpenHandler(docWithPath);
+      const onOpenCall = vi.mocked(vscode.workspace.onDidOpenTextDocument).mock.calls[0];
+      const handler = onOpenCall?.[0];
+
+      if (!handler) {
+        throw new Error('onDidOpenTextDocument handler not registered');
+      }
+
+      await handler(docWithPath);
 
       expect(mockUIPort.showInformation).toHaveBeenCalledWith(
         'Proof Editor: Working with file.proof',
@@ -1095,7 +1316,14 @@ describe('Extension', () => {
         fileName: '',
       };
 
-      onOpenHandler(docWithEmptyName);
+      const onOpenCall = vi.mocked(vscode.workspace.onDidOpenTextDocument).mock.calls[0];
+      const handler = onOpenCall?.[0];
+
+      if (!handler) {
+        throw new Error('onDidOpenTextDocument handler not registered');
+      }
+
+      await handler(docWithEmptyName);
 
       expect(mockUIPort.showInformation).toHaveBeenCalledWith('Proof Editor: Working with ');
     });
@@ -1126,7 +1354,14 @@ describe('Extension', () => {
       );
 
       // The extension handles errors internally and shows them via UI port
-      await onOpenHandler(mockTextDocument);
+      const onOpenCall = vi.mocked(vscode.workspace.onDidOpenTextDocument).mock.calls[0];
+      const handler = onOpenCall?.[0];
+
+      if (!handler) {
+        throw new Error('onDidOpenTextDocument handler not registered');
+      }
+
+      await handler(mockTextDocument);
 
       // Should show error via UI port instead of throwing
       expect(mockUIPort.showError).toHaveBeenCalledWith(
@@ -1155,7 +1390,14 @@ describe('Extension', () => {
       await activate(mockContext);
 
       // The extension handles errors internally and shows them via UI port
-      await onOpenHandler(editorWithBadGetText.document);
+      const onOpenCall = vi.mocked(vscode.workspace.onDidOpenTextDocument).mock.calls[0];
+      const handler = onOpenCall?.[0];
+
+      if (!handler) {
+        throw new Error('onDidOpenTextDocument handler not registered');
+      }
+
+      await handler(editorWithBadGetText.document);
 
       // Should show error via UI port instead of throwing
       expect(mockUIPort.showError).toHaveBeenCalledWith(
@@ -1181,11 +1423,18 @@ describe('Extension', () => {
       vi.mocked(ProofTreePanel.createWithServices).mockClear();
 
       // Simulate rapid document changes
-      for (let i = 0; i < 10; i++) {
-        await onChangeHandler(mockChangeEvent);
+      const onChangeCall = vi.mocked(vscode.workspace.onDidChangeTextDocument).mock.calls[0];
+      const changeHandler = onChangeCall?.[0];
+
+      if (!changeHandler) {
+        throw new Error('onDidChangeTextDocument handler not registered');
       }
 
-      expect(ProofTreePanel.createWithServices).toHaveBeenCalledTimes(10);
+      for (let i = 0; i < 10; i++) {
+        await changeHandler(mockChangeEvent);
+      }
+
+      expect(mockPanelManager.createPanelWithServices).toHaveBeenCalledTimes(10);
       expect(mockValidationController.validateDocumentDebounced).toHaveBeenCalledTimes(10);
     });
 
@@ -1212,11 +1461,18 @@ describe('Extension', () => {
       const { ProofTreePanel } = await import('../../webview/ProofTreePanel.js');
       vi.mocked(ProofTreePanel.createWithServices).mockClear();
 
-      await onOpenHandler(doc1);
-      await onOpenHandler(doc2);
-      await onOpenHandler(doc3);
+      const onOpenCall = vi.mocked(vscode.workspace.onDidOpenTextDocument).mock.calls[0];
+      const openHandler = onOpenCall?.[0];
 
-      expect(ProofTreePanel.createWithServices).toHaveBeenCalledTimes(3);
+      if (!openHandler) {
+        throw new Error('onDidOpenTextDocument handler not registered');
+      }
+
+      await openHandler(doc1);
+      await openHandler(doc2);
+      await openHandler(doc3);
+
+      expect(mockPanelManager.createPanelWithServices).toHaveBeenCalledTimes(3);
       expect(mockValidationController.validateDocumentImmediate).toHaveBeenCalledTimes(3);
     });
 
@@ -1238,13 +1494,19 @@ describe('Extension', () => {
       mockProofTreeController.showProofTreeForDocument.mockClear();
       mockValidationController.validateDocumentImmediate.mockClear();
 
-      await onOpenHandler(proofDoc);
-      await onOpenHandler(jsDoc);
-      await onOpenHandler(pyDoc);
+      const onOpenCall = vi.mocked(vscode.workspace.onDidOpenTextDocument).mock.calls[0];
+      const handler = onOpenCall?.[0];
+
+      if (!handler) {
+        throw new Error('onDidOpenTextDocument handler not registered');
+      }
+
+      await handler(proofDoc);
+      await handler(jsDoc);
+      await handler(pyDoc);
 
       // Only proof file should be processed
-      const { ProofTreePanel } = await import('../../webview/ProofTreePanel.js');
-      expect(ProofTreePanel.createWithServices).toHaveBeenCalledTimes(1);
+      expect(mockPanelManager.createPanelWithServices).toHaveBeenCalledTimes(1);
       expect(mockValidationController.validateDocumentImmediate).toHaveBeenCalledTimes(1);
     });
   });
@@ -1280,11 +1542,17 @@ describe('Extension', () => {
       });
 
       // Should not crash the extension - it handles validation errors internally
-      await onOpenHandler(mockTextDocument);
+      const onOpenCall = vi.mocked(vscode.workspace.onDidOpenTextDocument).mock.calls[0];
+      const handler = onOpenCall?.[0];
+
+      if (!handler) {
+        throw new Error('onDidOpenTextDocument handler not registered');
+      }
+
+      await handler(mockTextDocument);
 
       // ProofTreePanel should still be called even if validation fails
-      const { ProofTreePanel } = await import('../../webview/ProofTreePanel.js');
-      expect(ProofTreePanel.createWithServices).toHaveBeenCalled();
+      expect(mockPanelManager.createPanelWithServices).toHaveBeenCalled();
 
       // Should show validation error via UI port
       expect(mockUIPort.showError).toHaveBeenCalledWith(
@@ -1378,58 +1646,20 @@ describe('Extension', () => {
       // Should handle large documents without crashing
       await onOpenHandler(largeDocument);
 
-      const { ProofTreePanel } = await import('../../webview/ProofTreePanel.js');
-      expect(ProofTreePanel.createWithServices).toHaveBeenCalledWith(
+      expect(mockPanelManager.createPanelWithServices).toHaveBeenCalledWith(
         expect.any(String), // uri
         largeContent,
-        expect.objectContaining({
-          getDocumentStructure: expect.any(Function),
-          getArguments: expect.any(Function),
-          getStatements: expect.any(Function),
-        }), // documentQueryService
-        expect.objectContaining({
-          generateVisualization: expect.any(Function),
-          updateVisualization: expect.any(Function),
-        }), // visualizationService
-        expect.objectContaining({
-          createWebviewPanel: expect.any(Function),
-          showError: expect.any(Function),
-          showInformation: expect.any(Function),
-          showQuickPick: expect.any(Function),
-          showWarning: expect.any(Function),
-        }), // uiPort
-        expect.objectContaining({
-          render: expect.any(Function),
-          updateRender: expect.any(Function),
-        }), // renderer
-        expect.objectContaining({
-          getViewState: expect.any(Function),
-          subscribeToChanges: expect.any(Function),
-          updateViewState: expect.any(Function),
-        }), // viewStateManager
-        expect.objectContaining({
-          capabilities: expect.any(Function),
-          getViewState: expect.any(Function),
-          saveViewState: expect.any(Function),
-        }), // viewStatePort
-        expect.objectContaining({
-          createBootstrapArgument: expect.any(Function),
-          createEmptyImplicationLine: expect.any(Function),
-          getBootstrapWorkflow: expect.any(Function),
-          initializeEmptyDocument: expect.any(Function),
-          populateEmptyArgument: expect.any(Function),
-        }), // bootstrapController
-        expect.objectContaining({
-          createArgument: expect.any(Function),
-          getDocuments: expect.any(Function),
-          processCommand: expect.any(Function),
-        }), // proofApplicationService
-        expect.objectContaining({
-          deserialize: expect.any(Function),
-          deserializeDocument: expect.any(Function),
-          serialize: expect.any(Function),
-          serializeDocument: expect.any(Function),
-        }), // yamlSerializer
+        expect.any(Object), // documentQueryService
+        expect.any(Object), // visualizationService
+        expect.any(Object), // uiPort
+        expect.any(Object), // renderer
+        expect.any(Object), // viewStateManager
+        expect.any(Object), // viewStatePort
+        expect.any(Object), // bootstrapController
+        expect.any(Object), // proofApplicationService
+        expect.any(Object), // yamlSerializer
+        expect.any(Object), // exportService
+        expect.any(Object), // documentIdService
       );
       expect(mockValidationController.validateDocumentImmediate).toHaveBeenCalledWith({
         uri: largeDocument.uri.toString(),
@@ -1462,7 +1692,7 @@ describe('Extension', () => {
         await onChangeHandler(changeEvent);
       }
 
-      expect(ProofTreePanel.createWithServices).toHaveBeenCalledTimes(50);
+      expect(mockPanelManager.createPanelWithServices).toHaveBeenCalledTimes(50);
       expect(mockValidationController.validateDocumentDebounced).toHaveBeenCalledTimes(50);
     });
 
@@ -1497,7 +1727,7 @@ describe('Extension', () => {
       await onCloseHandler(invalidDoc);
 
       // Only valid operations should trigger proof-specific behavior
-      expect(ProofTreePanel.createWithServices).toHaveBeenCalledTimes(1);
+      expect(mockPanelManager.createPanelWithServices).toHaveBeenCalledTimes(1);
       expect(mockValidationController.validateDocumentImmediate).toHaveBeenCalledTimes(1);
       expect(mockValidationController.clearDocumentValidation).toHaveBeenCalledTimes(1);
     });
@@ -2396,8 +2626,7 @@ describe('Extension', () => {
           await changeHandler(mockUri);
 
           // Should refresh proof tree panel
-          const { ProofTreePanel } = await import('../../webview/ProofTreePanel.js');
-          expect(ProofTreePanel.createWithServices).toHaveBeenCalled();
+          expect(mockPanelManager.createPanelWithServices).toHaveBeenCalled();
         }
       });
 
@@ -3250,7 +3479,7 @@ describe('Extension', () => {
         await commandHandler();
 
         expect(mockUIPort.showError).toHaveBeenCalledWith(
-          'Failed to display proof tree: Panel creation failed',
+          'Failed to display proof tree visualization',
         );
       });
     });

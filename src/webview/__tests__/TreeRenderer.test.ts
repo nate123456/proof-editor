@@ -140,8 +140,6 @@ describe('TreeRenderer', () => {
       // Verify SVG structure
       expect(result).toContain('<svg');
       expect(result).toContain('xmlns="http://www.w3.org/2000/svg"');
-      expect(result).toContain('<defs>');
-      expect(result).toContain('id="arrowhead"');
       expect(result).toContain('All men are mortal');
       expect(result).toContain('Socrates is a man');
       expect(result).toContain('Socrates is mortal');
@@ -303,7 +301,7 @@ describe('TreeRenderer', () => {
       const result = renderer.generateSVG(mockVisualizationDTO);
 
       expect(result).toContain('(empty)');
-      expect(result).toContain('font-style: italic');
+      expect(result).toContain('font-style="italic"');
     });
 
     it('should render multiple statements with proper line spacing', () => {

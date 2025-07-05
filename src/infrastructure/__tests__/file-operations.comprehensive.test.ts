@@ -42,6 +42,29 @@ vi.mock('vscode', () => ({
     base,
     pattern,
   })),
+  FileSystemError: class FileSystemError extends Error {
+    public code: string;
+    constructor(messageOrUri?: string) {
+      super(typeof messageOrUri === 'string' ? messageOrUri : 'FileSystemError');
+      this.name = 'FileSystemError';
+      this.code = 'UNKNOWN';
+    }
+    static FileNotFound(messageOrUri?: string): any {
+      const error = new FileSystemError(messageOrUri);
+      error.code = 'FileNotFound';
+      return error;
+    }
+    static NoPermissions(messageOrUri?: string): any {
+      const error = new FileSystemError(messageOrUri);
+      error.code = 'NoPermissions';
+      return error;
+    }
+    static Unavailable(messageOrUri?: string): any {
+      const error = new FileSystemError(messageOrUri);
+      error.code = 'Unavailable';
+      return error;
+    }
+  },
 }));
 
 /**
@@ -251,7 +274,7 @@ trees:
       const doc2Path = '/workspace/document-2.proof';
 
       const doc1Content = validProofContent;
-      const doc2Content = validProofContent.replace('Socrates', 'Plato');
+      const doc2Content = validProofContent.replace(/Socrates/g, 'Plato');
 
       // Mock file system that tracks which document was last accessed
       let lastAccessedPath = '';
@@ -440,20 +463,34 @@ atomic_arguments:
 
     it('should handle file encoding edge cases', async () => {
       const testCases = [
-        { name: 'utf8-bom', content: `\uFEFF${validProofContent}` }, // UTF-8 BOM
+        {
+          name: 'utf8-bom',
+          content: `\uFEFF${validProofContent}`,
+          // BOM is automatically stripped by TextDecoder
+          expectedContent: validProofContent,
+        },
         { name: 'unicode-chars', content: validProofContent.replace('Socrates', 'Σωκράτης') },
         { name: 'mixed-line-endings', content: validProofContent.replace(/\n/g, '\r\n') },
         { name: 'emoji-content', content: `${validProofContent}\n# 🎯 Goal achieved!` },
         { name: 'special-yaml-chars', content: validProofContent.replace('"', '\\"') },
       ];
 
+      // Track written content per file
+      const fileContents = new Map<string, Uint8Array>();
+
+      vi.mocked(vscode.workspace.fs.writeFile).mockImplementation(async (uri, content) => {
+        fileContents.set(uri.fsPath, content);
+        return undefined;
+      });
+
+      vi.mocked(vscode.workspace.fs.readFile).mockImplementation(async (uri) => {
+        const content = fileContents.get(uri.fsPath);
+        if (!content) throw new Error('File not found');
+        return content;
+      });
+
       for (const testCase of testCases) {
         const path = `/workspace/${testCase.name}.proof`;
-
-        vi.mocked(vscode.workspace.fs.writeFile).mockResolvedValue(undefined);
-        vi.mocked(vscode.workspace.fs.readFile).mockResolvedValue(
-          new TextEncoder().encode(testCase.content),
-        );
 
         const writeResult = await adapter.writeFile(path, testCase.content);
         expect(writeResult.isOk()).toBe(true);
@@ -462,7 +499,8 @@ atomic_arguments:
         expect(readResult.isOk()).toBe(true);
 
         if (readResult.isOk()) {
-          expect(readResult.value).toBe(testCase.content);
+          const expected = testCase.expectedContent || testCase.content;
+          expect(readResult.value).toBe(expected);
         }
       }
     });
@@ -589,7 +627,7 @@ atomic_arguments:
         const currentTime = Date.now();
         if (currentTime - lastModified > 100) {
           // Simulate external modification detected
-          throw new Error('File modified externally');
+          throw vscode.FileSystemError.Unavailable('File modified externally');
         }
         fileContent = new TextDecoder().decode(content);
         lastModified = currentTime;
@@ -654,15 +692,24 @@ atomic_arguments:
     it('should handle multiple watchers on same file', () => {
       const path = '/workspace/multi-watched.proof';
       const eventCounts = [0, 0, 0]; // Track events for each watcher
+      const changeHandlers: Array<(uri: any) => void> = [];
 
-      const mockWatcher = {
-        onDidCreate: vi.fn().mockReturnValue({ dispose: vi.fn() }),
-        onDidChange: vi.fn().mockReturnValue({ dispose: vi.fn() }),
-        onDidDelete: vi.fn().mockReturnValue({ dispose: vi.fn() }),
-        dispose: vi.fn(),
+      const createMockWatcher = () => {
+        const mockWatcher = {
+          onDidCreate: vi.fn().mockReturnValue({ dispose: vi.fn() }),
+          onDidChange: vi.fn().mockImplementation((handler) => {
+            changeHandlers.push(handler);
+            return { dispose: vi.fn() };
+          }),
+          onDidDelete: vi.fn().mockReturnValue({ dispose: vi.fn() }),
+          dispose: vi.fn(),
+        };
+        return mockWatcher;
       };
 
-      vi.mocked(vscode.workspace.createFileSystemWatcher).mockReturnValue(mockWatcher as any);
+      vi.mocked(vscode.workspace.createFileSystemWatcher).mockImplementation(() => {
+        return createMockWatcher() as any;
+      });
 
       // Create multiple watchers
       const watcher1 = adapter.watch(path, () => {
@@ -686,9 +733,10 @@ atomic_arguments:
 
       expect(watchers.length).toBe(3);
 
-      // Simulate file change - get the change handler from the first watcher setup
-      const changeHandler = mockWatcher.onDidChange.mock.calls[0]?.[0];
-      changeHandler?.({ fsPath: path });
+      // Simulate file change - trigger all registered handlers
+      changeHandlers.forEach((handler) => {
+        handler({ fsPath: path });
+      });
 
       // All watchers should have received the event
       expect(eventCounts).toEqual([1, 1, 1]);

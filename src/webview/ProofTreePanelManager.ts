@@ -1,6 +1,8 @@
 import { err, ok, type Result } from 'neverthrow';
+import type { IExportService } from '../application/ports/IExportService.js';
 import type { IUIPort } from '../application/ports/IUIPort.js';
 import type { IViewStatePort } from '../application/ports/IViewStatePort.js';
+import type { IDocumentIdService } from '../application/services/DocumentIdService.js';
 import type { DocumentQueryService } from '../application/services/DocumentQueryService.js';
 import type { ProofApplicationService } from '../application/services/ProofApplicationService.js';
 import type { ProofVisualizationService } from '../application/services/ProofVisualizationService.js';
@@ -79,6 +81,8 @@ export class ProofTreePanelManager {
     bootstrapController: BootstrapController,
     proofApplicationService: ProofApplicationService,
     yamlSerializer: YAMLSerializer,
+    exportService: IExportService,
+    documentIdService: IDocumentIdService,
   ): Promise<Result<ProofTreePanel, ValidationError>> {
     try {
       const existingPanel = this.panels.get(documentUri);
@@ -103,6 +107,8 @@ export class ProofTreePanelManager {
         bootstrapController,
         proofApplicationService,
         yamlSerializer,
+        exportService,
+        documentIdService,
       );
 
       if (panelResult.isErr()) {
@@ -253,6 +259,8 @@ export class ProofTreePanelManager {
       bootstrapController: BootstrapController;
       proofApplicationService: ProofApplicationService;
       yamlSerializer: YAMLSerializer;
+      exportService: IExportService;
+      documentIdService: IDocumentIdService;
     },
     ValidationError
   > {
@@ -269,6 +277,8 @@ export class ProofTreePanelManager {
         TOKENS.BootstrapController,
         TOKENS.ProofApplicationService,
         TOKENS.YAMLSerializer,
+        TOKENS.IExportService,
+        TOKENS.IDocumentIdService,
       ];
 
       for (const token of requiredTokens) {
@@ -293,6 +303,8 @@ export class ProofTreePanelManager {
         TOKENS.ProofApplicationService,
       );
       const yamlSerializer = container.resolve<YAMLSerializer>(TOKENS.YAMLSerializer);
+      const exportService = container.resolve<IExportService>(TOKENS.IExportService);
+      const documentIdService = container.resolve<IDocumentIdService>(TOKENS.IDocumentIdService);
 
       return ok({
         documentQueryService,
@@ -303,6 +315,8 @@ export class ProofTreePanelManager {
         bootstrapController,
         proofApplicationService,
         yamlSerializer,
+        exportService,
+        documentIdService,
       });
     } catch (error) {
       return err(
@@ -334,6 +348,8 @@ export class ProofTreePanelManager {
         bootstrapController,
         proofApplicationService,
         yamlSerializer,
+        exportService,
+        documentIdService,
       } = servicesResult.value;
 
       const panelResult = await ProofTreePanel.createWithServices(
@@ -348,6 +364,8 @@ export class ProofTreePanelManager {
         bootstrapController,
         proofApplicationService,
         yamlSerializer,
+        exportService,
+        documentIdService,
       );
 
       if (panelResult.isErr()) {

@@ -4,8 +4,10 @@ import fc from 'fast-check';
 import { err, ok } from 'neverthrow';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { IExportService } from '../../application/ports/IExportService.js';
 import type { IUIPort, WebviewPanel } from '../../application/ports/IUIPort.js';
 import type { IViewStatePort } from '../../application/ports/IViewStatePort.js';
+import type { IDocumentIdService } from '../../application/services/DocumentIdService.js';
 import type { DocumentQueryService } from '../../application/services/DocumentQueryService.js';
 import type { ProofApplicationService } from '../../application/services/ProofApplicationService.js';
 import type { ProofVisualizationService } from '../../application/services/ProofVisualizationService.js';
@@ -27,6 +29,8 @@ describe('ProofTreePanel Message Handling - Comprehensive Coverage', () => {
   let mockBootstrapController: BootstrapController;
   let mockProofApplicationService: ProofApplicationService;
   let mockYAMLSerializer: YAMLSerializer;
+  let mockExportService: IExportService;
+  let mockDocumentIdService: IDocumentIdService;
   let panel: ProofTreePanel;
 
   // Message handler storage for simulating webview messages
@@ -46,7 +50,7 @@ describe('ProofTreePanel Message Handling - Comprehensive Coverage', () => {
           return { dispose: vi.fn() };
         }),
       },
-      onDidDispose: vi.fn((callback) => {
+      onDidDispose: vi.fn((_callback) => {
         return { dispose: vi.fn() };
       }),
       reveal: vi.fn(),
@@ -80,6 +84,7 @@ describe('ProofTreePanel Message Handling - Comprehensive Coverage', () => {
         supportsWebviews: true,
         supportsThemes: true,
       }),
+      writeFile: vi.fn().mockResolvedValue(ok(undefined)),
     };
 
     mockVisualizationService = {
@@ -226,6 +231,9 @@ describe('ProofTreePanel Message Handling - Comprehensive Coverage', () => {
       createAtomicArgument: vi.fn().mockResolvedValue(ok({ id: 'new-arg-123' })),
       updateAtomicArgument: vi.fn().mockResolvedValue(ok({ id: 'updated-arg-123' })),
       deleteAtomicArgument: vi.fn().mockResolvedValue(ok(undefined)),
+      updateArgumentLabel: vi.fn().mockResolvedValue(ok({ id: 'updated-label' })),
+      moveStatement: vi.fn().mockResolvedValue(ok({ id: 'moved-statement' })),
+      moveTree: vi.fn().mockResolvedValue(ok({ id: 'moved-tree' })),
     } as any;
 
     mockYAMLSerializer = {
@@ -235,6 +243,30 @@ describe('ProofTreePanel Message Handling - Comprehensive Coverage', () => {
       serializeOrderedSets: vi.fn().mockReturnValue({}),
       serializeAtomicArguments: vi.fn().mockReturnValue({}),
       serializeTrees: vi.fn().mockReturnValue({}),
+    } as any;
+
+    mockExportService = {
+      exportDocument: vi
+        .fn()
+        .mockResolvedValue(
+          ok({ filename: 'test.yaml', content: 'test content', mimeType: 'text/yaml' }),
+        ),
+      exportDocumentContent: vi
+        .fn()
+        .mockResolvedValue(
+          ok({ filename: 'test.yaml', content: 'test content', mimeType: 'text/yaml' }),
+        ),
+      saveToFile: vi
+        .fn()
+        .mockResolvedValue(ok({ filePath: '/test/path', savedSuccessfully: true })),
+      getSupportedFormats: vi.fn().mockResolvedValue(ok(['yaml', 'json'])),
+    } as any;
+
+    mockDocumentIdService = {
+      extractFromUri: vi.fn().mockReturnValue(ok('test-document')),
+      validateDocumentId: vi.fn().mockReturnValue(ok('test-document')),
+      generateFallbackId: vi.fn().mockReturnValue('fallback-id'),
+      extractFromUriWithFallback: vi.fn().mockReturnValue(ok('test-document')),
     } as any;
 
     // Set up default mock return values that tests can override
@@ -285,6 +317,8 @@ describe('ProofTreePanel Message Handling - Comprehensive Coverage', () => {
       mockBootstrapController as any,
       mockProofApplicationService as any,
       mockYAMLSerializer as any,
+      mockExportService as any,
+      mockDocumentIdService as any,
     );
 
     expect(result.isOk()).toBe(true);
@@ -424,9 +458,9 @@ describe('ProofTreePanel Message Handling - Comprehensive Coverage', () => {
       }
 
       // Assert
-      expect(mockBootstrapController.createBootstrapArgument).toHaveBeenCalledWith('document');
+      expect(mockBootstrapController.createBootstrapArgument).toHaveBeenCalledWith('test-document');
       expect(mockBootstrapController.populateEmptyArgument).toHaveBeenCalledWith(
-        'document',
+        'test-document',
         'new-arg-123',
         ['All men are mortal', 'Socrates is a man'],
         ['Socrates is mortal'],
@@ -455,7 +489,7 @@ describe('ProofTreePanel Message Handling - Comprehensive Coverage', () => {
 
       // Assert
       expect(mockBootstrapController.populateEmptyArgument).toHaveBeenCalledWith(
-        'document',
+        'test-document',
         'new-arg-123',
         ['Premise 1'],
         ['Conclusion 1'],
@@ -557,7 +591,7 @@ describe('ProofTreePanel Message Handling - Comprehensive Coverage', () => {
 
       // Assert
       expect(mockProofApplicationService.createStatement).toHaveBeenCalledWith({
-        documentId: 'document',
+        documentId: 'test-document',
         content: 'New premise statement',
       });
       expect(mockUIPort.postMessageToWebview).toHaveBeenCalledWith(
@@ -650,7 +684,7 @@ describe('ProofTreePanel Message Handling - Comprehensive Coverage', () => {
 
       // Assert
       expect(mockProofApplicationService.updateStatement).toHaveBeenCalledWith({
-        documentId: 'document',
+        documentId: 'test-document',
         statementId: 'stmt-123',
         content: 'Updated statement content',
       });
@@ -674,7 +708,14 @@ describe('ProofTreePanel Message Handling - Comprehensive Coverage', () => {
       }
 
       // Assert
-      expect(mockUIPort.showInformation).toHaveBeenCalledWith('Label editing not yet implemented');
+      expect(mockProofApplicationService.updateArgumentLabel).toHaveBeenCalledWith({
+        documentId: 'test-document',
+        argumentId: 'node-456',
+        sideLabels: {
+          side: 'Updated label text',
+        },
+      });
+      expect(mockUIPort.showInformation).toHaveBeenCalledWith('Label updated successfully');
     });
 
     it('should validate editContent message structure', async () => {
@@ -727,6 +768,24 @@ describe('ProofTreePanel Message Handling - Comprehensive Coverage', () => {
 
   describe('Drag and Drop Message Handling', () => {
     it('should handle moveStatement messages with proper validation', async () => {
+      // Mock document with ordered sets
+      (mockDocumentQueryService.getDocumentById as any).mockResolvedValueOnce(
+        ok({
+          id: 'test-doc',
+          statements: {
+            'stmt-source': { id: 'stmt-source', content: 'Source statement' },
+            'stmt-target': { id: 'stmt-target', content: 'Target statement' },
+          },
+          orderedSets: {
+            os1: { statementIds: ['stmt-source'] },
+            os2: { statementIds: ['stmt-target'] },
+          },
+          atomicArguments: {},
+          trees: {},
+          nodes: {},
+        }),
+      );
+
       const moveStatementMessage = {
         type: 'moveStatement',
         sourceData: {
@@ -744,12 +803,35 @@ describe('ProofTreePanel Message Handling - Comprehensive Coverage', () => {
       }
 
       // Assert
-      expect(mockUIPort.showInformation).toHaveBeenCalledWith(
-        'Statement movement requested: stmt-source to conclusion section near stmt-target',
-      );
+      expect(mockDocumentQueryService.getDocumentById).toHaveBeenCalledWith('test-document');
+      expect(mockProofApplicationService.moveStatement).toHaveBeenCalledWith({
+        documentId: 'test-document',
+        statementId: 'stmt-source',
+        sourceOrderedSetId: 'os1',
+        targetOrderedSetId: 'os2',
+      });
+      expect(mockUIPort.showInformation).toHaveBeenCalledWith('Statement moved successfully');
     });
 
     it('should handle moveNode messages with coordinate validation', async () => {
+      // Mock document with trees
+      (mockDocumentQueryService.getDocumentById as any).mockResolvedValueOnce(
+        ok({
+          id: 'test-doc',
+          statements: {},
+          orderedSets: {},
+          atomicArguments: {},
+          trees: {
+            tree1: {
+              id: 'tree1',
+              position: { x: 100, y: 100 },
+              rootNodeIds: ['node-123'],
+            },
+          },
+          nodes: {},
+        }),
+      );
+
       const moveNodeMessage = {
         type: 'moveNode',
         nodeId: 'node-123',
@@ -763,9 +845,13 @@ describe('ProofTreePanel Message Handling - Comprehensive Coverage', () => {
       }
 
       // Assert
-      expect(mockUIPort.showInformation).toHaveBeenCalledWith(
-        'Node position update requested: node-123 moved by (150, -75)',
-      );
+      expect(mockDocumentQueryService.getDocumentById).toHaveBeenCalledWith('test-document');
+      expect(mockProofApplicationService.moveTree).toHaveBeenCalledWith({
+        documentId: 'test-document',
+        treeId: 'tree1',
+        position: { x: 250, y: 25 },
+      });
+      expect(mockUIPort.showInformation).toHaveBeenCalledWith('Node position updated successfully');
     });
 
     it('should validate moveStatement message structure', async () => {
@@ -819,6 +905,11 @@ describe('ProofTreePanel Message Handling - Comprehensive Coverage', () => {
 
   describe('Export and Utility Message Handling', () => {
     it('should handle exportProof messages with document retrieval', async () => {
+      // Mock showQuickPick to return a format selection
+      (mockUIPort.showQuickPick as any).mockResolvedValueOnce(
+        ok({ label: 'YAML (.proof)', description: 'Export as YAML proof file' }),
+      );
+
       const exportMessage = { type: 'exportProof' };
 
       // Act
@@ -827,22 +918,35 @@ describe('ProofTreePanel Message Handling - Comprehensive Coverage', () => {
       }
 
       // Assert
-      expect(mockDocumentQueryService.getDocumentById).toHaveBeenCalledWith('document');
+      expect(mockUIPort.showQuickPick).toHaveBeenCalled();
+      expect(mockExportService.saveToFile).toHaveBeenCalledWith('test-document', {
+        format: 'yaml',
+        includeMetadata: true,
+        includeVisualization: false,
+      });
       expect(mockUIPort.showInformation).toHaveBeenCalledWith(
-        'Export data prepared - see details in panel',
+        'Successfully exported proof to /test/path',
       );
       expect(mockUIPort.postMessageToWebview).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
           type: 'exportCompleted',
-          documentId: 'document',
+          format: 'yaml',
+          filePath: '/test/path',
+          success: true,
         }),
       );
     });
 
     it('should handle export errors gracefully', async () => {
-      (mockDocumentQueryService.getDocumentById as any).mockResolvedValueOnce(
-        err(new ValidationError('Document not found')),
+      // Mock showQuickPick to return a format selection
+      (mockUIPort.showQuickPick as any).mockResolvedValueOnce(
+        ok({ label: 'YAML (.proof)', description: 'Export as YAML proof file' }),
+      );
+
+      // Mock export service to return error
+      (mockExportService.saveToFile as any).mockResolvedValueOnce(
+        err(new ValidationError('Export failed')),
       );
 
       const exportMessage = { type: 'exportProof' };
@@ -853,9 +957,7 @@ describe('ProofTreePanel Message Handling - Comprehensive Coverage', () => {
       }
 
       // Assert
-      expect(mockUIPort.showError).toHaveBeenCalledWith(
-        'Failed to load document: Document not found',
-      );
+      expect(mockUIPort.showError).toHaveBeenCalledWith('Export failed: Export failed');
     });
 
     it('should handle showError messages', async () => {
@@ -917,6 +1019,16 @@ describe('ProofTreePanel Message Handling - Comprehensive Coverage', () => {
       const originalHandlers = [...messageHandlers];
       messageHandlers.length = 0;
 
+      // Mock document ID service to return error for empty URI
+      const mockFailingDocumentIdService = {
+        extractFromUri: vi.fn().mockReturnValue(err(new ValidationError('Invalid URI'))),
+        validateDocumentId: vi.fn().mockReturnValue(err(new ValidationError('Invalid URI'))),
+        generateFallbackId: vi.fn().mockReturnValue('fallback-id'),
+        extractFromUriWithFallback: vi
+          .fn()
+          .mockReturnValue(err(new ValidationError('Invalid URI'))),
+      } as any;
+
       // Create panel with invalid URI
       const invalidPanel = await ProofTreePanel.createWithServices(
         '', // invalid URI
@@ -930,6 +1042,8 @@ describe('ProofTreePanel Message Handling - Comprehensive Coverage', () => {
         mockBootstrapController,
         mockProofApplicationService,
         mockYAMLSerializer,
+        mockExportService,
+        mockFailingDocumentIdService,
       );
 
       expect(invalidPanel.isOk()).toBe(true);
@@ -1014,7 +1128,7 @@ describe('ProofTreePanel Message Handling - Comprehensive Coverage', () => {
 
           // Assert - Should always call the service with trimmed content
           expect(mockProofApplicationService.createStatement).toHaveBeenCalledWith({
-            documentId: 'document',
+            documentId: 'test-document',
             content: content.trim(),
           });
         }),
@@ -1034,6 +1148,25 @@ describe('ProofTreePanel Message Handling - Comprehensive Coverage', () => {
           // Reset mocks for each iteration
           vi.clearAllMocks();
 
+          // Mock document with trees for each test
+          (mockDocumentQueryService.getDocumentById as any).mockResolvedValue(
+            ok({
+              id: 'test-doc',
+              statements: {},
+              orderedSets: {},
+              atomicArguments: {},
+              trees: {
+                tree1: {
+                  id: 'tree1',
+                  position: { x: 100, y: 100 },
+                  rootNodeIds: [nodeId], // Use the generated nodeId
+                },
+              },
+              nodes: {},
+            }),
+          );
+          (mockProofApplicationService.moveTree as any).mockResolvedValue(ok({ id: 'moved-tree' }));
+
           const message = { type: 'moveNode', nodeId, deltaX, deltaY };
 
           // Act & Assert - Should not throw regardless of values
@@ -1042,9 +1175,11 @@ describe('ProofTreePanel Message Handling - Comprehensive Coverage', () => {
           }
 
           // Should handle message appropriately
-          expect(mockUIPort.showInformation).toHaveBeenCalledWith(
-            `Node position update requested: ${nodeId} moved by (${deltaX}, ${deltaY})`,
-          );
+          expect(mockProofApplicationService.moveTree).toHaveBeenCalledWith({
+            documentId: 'test-document',
+            treeId: 'tree1',
+            position: { x: 100 + deltaX, y: 100 + deltaY },
+          });
         }),
         { numRuns: 15 },
       );

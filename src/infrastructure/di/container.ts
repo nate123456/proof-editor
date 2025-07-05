@@ -509,20 +509,24 @@ export async function registerApplicationServices(container: ApplicationContaine
     { TreeLayoutService },
     { ProofVisualizationService },
     { DocumentQueryService },
+    { ExportService },
     { ViewStateManager },
     { ViewStateObserver },
     { ConnectionTracker },
     { StatementUsageTracker, StatementUsageEventHandler },
+    { DocumentIdService },
   ] = await Promise.all([
     import('../../application/services/CrossContextOrchestrationService.js'),
     import('../../application/services/ProofApplicationService.js'),
     import('../../application/services/TreeLayoutService.js'),
     import('../../application/services/ProofVisualizationService.js'),
     import('../../application/services/DocumentQueryService.js'),
+    import('../../application/services/ExportService.js'),
     import('../../application/services/ViewStateManager.js'),
     import('../../application/services/ViewStateObserver.js'),
     import('../../application/event-handlers/ConnectionTracker.js'),
     import('../../application/event-handlers/StatementUsageTracker.js'),
+    import('../../application/services/DocumentIdService.js'),
   ]);
 
   // Register core application service with event integration
@@ -551,6 +555,26 @@ export async function registerApplicationServices(container: ApplicationContaine
         c.resolve(TOKENS.ProofFileParser),
       ),
   );
+
+  // Register ExportService with all dependencies
+  container.registerFactory(
+    TOKENS.ExportService,
+    (c) =>
+      new ExportService(
+        c.resolve(TOKENS.DocumentQueryService),
+        c.resolve(TOKENS.ProofVisualizationService),
+        c.resolve(TOKENS.YAMLSerializer),
+        c.resolve(TOKENS.TreeRenderer),
+        c.resolve(TOKENS.IUIPort),
+      ),
+  );
+
+  // Register IExportService interface to ExportService implementation
+  container.registerFactory(TOKENS.IExportService, (c) => c.resolve(TOKENS.ExportService));
+
+  // Register DocumentIdService as singleton
+  container.registerSingleton(TOKENS.DocumentIdService, DocumentIdService);
+  container.registerFactory(TOKENS.IDocumentIdService, (c) => c.resolve(TOKENS.DocumentIdService));
 
   // Register view state management services
   container.registerFactory(

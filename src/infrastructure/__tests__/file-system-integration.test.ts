@@ -54,29 +54,23 @@ vi.mock('vscode', () => ({
     base,
     pattern,
   })),
-  FileSystemError: class extends Error {
+  FileSystemError: class FileSystemError extends Error {
     public code: string;
-    constructor(messageOrUri?: string) {
+    constructor(messageOrUri?: string, code: string = 'UNKNOWN') {
       super(typeof messageOrUri === 'string' ? messageOrUri : 'FileSystemError');
       this.name = 'FileSystemError';
-      this.code = 'UNKNOWN';
+      this.code = code;
     }
-    static FileNotFound(messageOrUri?: string): any {
-      const error = new (class extends Error {
-        public code = 'FileNotFound';
-      })(messageOrUri);
+    static FileNotFound(messageOrUri?: string): FileSystemError {
+      const error = new FileSystemError(messageOrUri, 'FileNotFound');
       return error;
     }
-    static NoPermissions(messageOrUri?: string): any {
-      const error = new (class extends Error {
-        public code = 'NoPermissions';
-      })(messageOrUri);
+    static NoPermissions(messageOrUri?: string): FileSystemError {
+      const error = new FileSystemError(messageOrUri, 'NoPermissions');
       return error;
     }
-    static Unavailable(messageOrUri?: string): any {
-      const error = new (class extends Error {
-        public code = 'Unavailable';
-      })(messageOrUri);
+    static Unavailable(messageOrUri?: string): FileSystemError {
+      const error = new FileSystemError(messageOrUri, 'Unavailable');
       return error;
     }
   },
@@ -301,7 +295,7 @@ trees: []
 
         // Verify file type detection
         const proofFiles = fileInfos.filter((info) => info.name.endsWith('.proof'));
-        expect(proofFiles).toHaveLength(4); // Including .hidden.proof and very long name
+        expect(proofFiles).toHaveLength(5); // Including .hidden.proof, very long name, and symlink
 
         const directories = fileInfos.filter((info) => info.isDirectory);
         expect(directories).toHaveLength(1);

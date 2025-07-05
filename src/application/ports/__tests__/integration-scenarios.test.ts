@@ -195,7 +195,7 @@ function createCoordinatedMocks() {
     },
 
     async showSaveDialog() {
-      return ok('/save/location/document.proof');
+      return ok({ filePath: '/save/location/document.proof', cancelled: false });
     },
 
     showInformation: vi.fn(),
@@ -242,6 +242,10 @@ function createCoordinatedMocks() {
 
     onThemeChange: vi.fn().mockReturnValue({ dispose: vi.fn() }),
 
+    async writeFile(_filePath: string, _content: string | Buffer) {
+      return ok(undefined);
+    },
+
     capabilities() {
       return {
         supportsFileDialogs: true,
@@ -284,7 +288,7 @@ describe('Port Integration Scenarios', () => {
       });
       expect(saveResult.isOk()).toBe(true);
 
-      const savePath = saveResult.isOk() ? saveResult.value : null;
+      const savePath = saveResult.isOk() ? saveResult.value.filePath : null;
       expect(savePath).toBe('/save/location/document.proof');
 
       // Step 2: Create document content with user input

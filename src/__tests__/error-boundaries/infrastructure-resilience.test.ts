@@ -26,6 +26,7 @@ import { VSCodeUIAdapter } from '../../infrastructure/vscode/VSCodeUIAdapter.js'
 
 // Mock VS Code API for infrastructure testing
 vi.mock('vscode', () => ({
+  version: '1.85.0',
   workspace: {
     fs: {
       readFile: vi.fn(),
@@ -105,22 +106,29 @@ describe('Infrastructure Layer Resilience', () => {
 
   describe('Repository Error Boundaries', () => {
     it('should handle YAML serialization failures gracefully', async () => {
-      // Arrange - data that cannot be serialized (mock a ProofDocument with problematic data)
-      const problematicData = {
-        circularRef: {} as any,
-        validData: 'test',
+      // Arrange - mock ProofDocument that will cause serialization failure
+      const problematicDocument = {
+        getVersion: vi.fn(() => {
+          throw new Error('Version access failed');
+        }),
+        getId: vi.fn(() => ({ getValue: () => 'test-id' })),
+        getCreatedAt: vi.fn(() => new Date()),
+        getModifiedAt: vi.fn(() => new Date()),
+        getStatements: vi.fn(() => new Map()),
+        getOrderedSets: vi.fn(() => new Map()),
+        getAtomicArguments: vi.fn(() => new Map()),
+        getTrees: vi.fn(() => new Map()),
       };
-      problematicData.circularRef.self = problematicData.circularRef;
 
       const serializer = new YAMLSerializer();
 
-      // Act - serialization should handle circular references
-      const result = await serializer.serialize(problematicData as any);
+      // Act - serialization should handle internal failures
+      const result = await serializer.serialize(problematicDocument as any);
 
       // Assert - error contained within serializer
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.message).toContain('serialization');
+        expect(result.error.message).toContain('Version access failed');
       }
     });
 
@@ -142,7 +150,10 @@ describe('Infrastructure Layer Resilience', () => {
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
         expect(
-          result.error.message.includes('parse') || result.error.message.includes('invalid'),
+          result.error.message.includes('deserialize') ||
+            result.error.message.includes('parse') ||
+            result.error.message.includes('invalid') ||
+            result.error.message.includes('YAML'),
         ).toBe(true);
       }
     });
@@ -272,16 +283,14 @@ describe('Infrastructure Layer Resilience', () => {
         throw new Error('Webview creation failed');
       });
 
-      // Act - UI adapter should contain webview failures
-      const result = adapter.createWebviewPanel({
-        id: 'test-panel',
-        viewType: 'test',
-        title: 'Test Panel',
-      });
-
-      // Assert - webview panel created (VSCodeUIAdapter.createWebviewPanel returns WebviewPanel, not Result)
-      expect(result).toBeDefined();
-      expect(typeof result).toBe('object');
+      // Act & Assert - UI adapter should propagate webview failures
+      expect(() => {
+        adapter.createWebviewPanel({
+          id: 'test-panel',
+          viewType: 'test',
+          title: 'Test Panel',
+        });
+      }).toThrow('Webview creation failed');
     });
 
     it('should handle workspace folder changes during operations', async () => {

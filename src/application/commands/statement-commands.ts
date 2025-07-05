@@ -14,3 +14,11 @@ export interface DeleteStatementCommand {
   documentId: string;
   statementId: string;
 }
+
+export interface MoveStatementCommand {
+  documentId: string;
+  statementId: string;
+  sourceOrderedSetId: string;
+  targetOrderedSetId: string;
+  targetPosition?: number; // If not provided, append to end
+}

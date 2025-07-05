@@ -16,11 +16,20 @@ export class VSCodeFileSystemAdapter implements IFileSystemPort {
   private readonly storageKey = 'proof-editor.offline-documents';
 
   constructor(private readonly context: vscode.ExtensionContext) {
-    this.loadStoredDocuments();
+    if (context) {
+      this.loadStoredDocuments();
+    }
   }
 
   async readFile(path: string): Promise<Result<string, FileSystemError>> {
     try {
+      if (!vscode.workspace?.fs) {
+        return err({
+          code: 'UNKNOWN',
+          message: 'VS Code workspace.fs is not available',
+          path,
+        });
+      }
       const uri = vscode.Uri.file(path);
       const content = await vscode.workspace.fs.readFile(uri);
       const text = new TextDecoder('utf-8').decode(content);
@@ -32,6 +41,13 @@ export class VSCodeFileSystemAdapter implements IFileSystemPort {
 
   async writeFile(path: string, content: string): Promise<Result<void, FileSystemError>> {
     try {
+      if (!vscode.workspace?.fs) {
+        return err({
+          code: 'UNKNOWN',
+          message: 'VS Code workspace.fs is not available',
+          path,
+        });
+      }
       const uri = vscode.Uri.file(path);
       const buffer = new TextEncoder().encode(content);
       await vscode.workspace.fs.writeFile(uri, buffer);
@@ -43,6 +59,13 @@ export class VSCodeFileSystemAdapter implements IFileSystemPort {
 
   async exists(path: string): Promise<Result<boolean, FileSystemError>> {
     try {
+      if (!vscode.workspace?.fs) {
+        return err({
+          code: 'UNKNOWN',
+          message: 'VS Code workspace.fs is not available',
+          path,
+        });
+      }
       const uri = vscode.Uri.file(path);
       const stat = await vscode.workspace.fs.stat(uri);
       return ok(stat !== undefined);
@@ -56,6 +79,13 @@ export class VSCodeFileSystemAdapter implements IFileSystemPort {
 
   async delete(path: string): Promise<Result<void, FileSystemError>> {
     try {
+      if (!vscode.workspace?.fs) {
+        return err({
+          code: 'UNKNOWN',
+          message: 'VS Code workspace.fs is not available',
+          path,
+        });
+      }
       const uri = vscode.Uri.file(path);
       await vscode.workspace.fs.delete(uri, { recursive: false, useTrash: true });
       return ok(undefined);
@@ -66,6 +96,13 @@ export class VSCodeFileSystemAdapter implements IFileSystemPort {
 
   async readDirectory(path: string): Promise<Result<FileInfo[], FileSystemError>> {
     try {
+      if (!vscode.workspace?.fs) {
+        return err({
+          code: 'UNKNOWN',
+          message: 'VS Code workspace.fs is not available',
+          path,
+        });
+      }
       const uri = vscode.Uri.file(path);
       const entries = await vscode.workspace.fs.readDirectory(uri);
 
@@ -92,6 +129,13 @@ export class VSCodeFileSystemAdapter implements IFileSystemPort {
 
   async createDirectory(path: string): Promise<Result<void, FileSystemError>> {
     try {
+      if (!vscode.workspace?.fs) {
+        return err({
+          code: 'UNKNOWN',
+          message: 'VS Code workspace.fs is not available',
+          path,
+        });
+      }
       const uri = vscode.Uri.file(path);
       await vscode.workspace.fs.createDirectory(uri);
       return ok(undefined);
@@ -101,6 +145,15 @@ export class VSCodeFileSystemAdapter implements IFileSystemPort {
   }
 
   watch(path: string, callback: (event: FileChangeEvent) => void): Disposable {
+    if (!vscode.workspace?.createFileSystemWatcher) {
+      // Return a no-op disposable if workspace is not available
+      return {
+        dispose: () => {
+          // No-op: workspace watcher not available
+        },
+      };
+    }
+
     const uri = vscode.Uri.file(path);
     const watcher = vscode.workspace.createFileSystemWatcher(
       new vscode.RelativePattern(uri, '**/*'),
@@ -196,19 +249,35 @@ export class VSCodeFileSystemAdapter implements IFileSystemPort {
   }
 
   private loadStoredDocuments(): void {
-    const stored =
-      this.context.globalState?.get<Record<string, StoredDocument>>(this.storageKey, {}) || {};
-    this.storedDocuments.clear();
-    Object.entries(stored).forEach(([id, doc]) => {
-      // Convert stored dates back to Date objects
-      doc.metadata.modifiedAt = new Date(doc.metadata.modifiedAt);
-      this.storedDocuments.set(id, doc);
-    });
+    try {
+      if (!this.context?.globalState) {
+        // Handle case where context or globalState is undefined
+        this.storedDocuments.clear();
+        return;
+      }
+
+      const stored =
+        this.context.globalState.get<Record<string, StoredDocument>>(this.storageKey, {}) || {};
+      this.storedDocuments.clear();
+      Object.entries(stored).forEach(([id, doc]) => {
+        // Convert stored dates back to Date objects
+        doc.metadata.modifiedAt = new Date(doc.metadata.modifiedAt);
+        this.storedDocuments.set(id, doc);
+      });
+    } catch (_error) {
+      // Handle corrupted storage gracefully
+      this.storedDocuments.clear();
+    }
   }
 
   private async saveStoredDocuments(): Promise<void> {
+    if (!this.context?.globalState) {
+      // Handle case where context or globalState is undefined
+      return;
+    }
+
     const toStore = Object.fromEntries(this.storedDocuments.entries());
-    await this.context.globalState?.update(this.storageKey, toStore);
+    await this.context.globalState.update(this.storageKey, toStore);
   }
 
   private mapError(error: unknown, path?: string): FileSystemError {

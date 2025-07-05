@@ -142,7 +142,9 @@ export class VSCodeUIAdapter implements IUIPort {
     }
   }
 
-  async showSaveDialog(options: SaveDialogOptions): Promise<Result<string | null, UIError>> {
+  async showSaveDialog(
+    options: SaveDialogOptions,
+  ): Promise<Result<{ filePath: string; cancelled: boolean }, UIError>> {
     try {
       const saveDialogOptions: vscode.SaveDialogOptions = {};
 
@@ -155,7 +157,10 @@ export class VSCodeUIAdapter implements IUIPort {
 
       const result = await vscode.window.showSaveDialog(saveDialogOptions);
 
-      return ok(result ? result.fsPath : null);
+      return ok({
+        filePath: result ? result.fsPath : '',
+        cancelled: !result,
+      });
     } catch (error) {
       return err({
         code: 'PLATFORM_ERROR',
@@ -324,6 +329,20 @@ export class VSCodeUIAdapter implements IUIPort {
     return {
       dispose: () => disposable.dispose(),
     };
+  }
+
+  async writeFile(filePath: string, content: string | Buffer): Promise<Result<void, UIError>> {
+    try {
+      const uri = vscode.Uri.file(filePath);
+      const data = typeof content === 'string' ? Buffer.from(content, 'utf8') : content;
+      await vscode.workspace.fs.writeFile(uri, data);
+      return ok(undefined);
+    } catch (error) {
+      return err({
+        code: 'PLATFORM_ERROR',
+        message: error instanceof Error ? error.message : 'Failed to write file',
+      });
+    }
   }
 
   capabilities(): UICapabilities {

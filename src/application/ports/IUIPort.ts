@@ -9,7 +9,12 @@ export interface IUIPort {
   ): Promise<Result<T | null, UIError>>;
   showConfirmation(options: ConfirmationOptions): Promise<Result<boolean, UIError>>;
   showOpenDialog(options: OpenDialogOptions): Promise<Result<string[] | null, UIError>>;
-  showSaveDialog(options: SaveDialogOptions): Promise<Result<string | null, UIError>>;
+  showSaveDialog(
+    options: SaveDialogOptions,
+  ): Promise<Result<{ filePath: string; cancelled: boolean }, UIError>>;
+
+  // File operations
+  writeFile(filePath: string, content: string | Buffer): Promise<Result<void, UIError>>;
 
   // Notifications
   showInformation(message: string, ...actions: NotificationAction[]): void;
@@ -92,6 +97,7 @@ export interface OpenDialogOptions {
 
 export interface SaveDialogOptions {
   defaultUri?: string;
+  defaultFilename?: string;
   filters?: FileFilter[];
   saveLabel?: string;
   title?: string;

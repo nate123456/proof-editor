@@ -101,6 +101,7 @@ describe('Unhandled Promise Rejection Detection', () => {
         showConfirmation: vi.fn(),
         showOpenDialog: vi.fn(),
         showSaveDialog: vi.fn(),
+        writeFile: vi.fn(),
         showInformation: vi.fn(),
         showWarning: vi.fn(),
         showError: vi.fn(),

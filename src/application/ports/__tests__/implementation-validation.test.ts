@@ -433,7 +433,7 @@ function createValidationMocks() {
         throw new Error('showSaveDialog expects options object');
       }
 
-      return ok('/mock/save/path.proof');
+      return ok({ filePath: '/mock/save/path.proof', cancelled: false });
     },
 
     showInformation(message: string, ...actions) {
@@ -593,6 +593,20 @@ function createValidationMocks() {
           logCall('UI', 'onThemeChange.dispose', []);
         }),
       };
+    },
+
+    async writeFile(filePath, content) {
+      logCall('UI', 'writeFile', [filePath, content]);
+
+      if (typeof filePath !== 'string') {
+        throw new Error('writeFile expects string filePath');
+      }
+
+      if (typeof content !== 'string' && !Buffer.isBuffer(content)) {
+        throw new Error('writeFile expects string or Buffer content');
+      }
+
+      return ok(undefined);
     },
 
     capabilities(): UICapabilities {
@@ -908,8 +922,8 @@ describe('Port Implementation Validation', () => {
 
       // Simulate a save workflow
       const saveDialog = await uiPort.showSaveDialog({ title: 'Save File' });
-      if (saveDialog.isOk() && saveDialog.value) {
-        await fileSystemPort.writeFile(saveDialog.value, 'content');
+      if (saveDialog.isOk() && saveDialog.value && !saveDialog.value.cancelled) {
+        await fileSystemPort.writeFile(saveDialog.value.filePath, 'content');
         uiPort.showInformation('File saved successfully');
       }
 

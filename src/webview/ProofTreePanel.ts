@@ -1,7 +1,10 @@
 import { err, ok, type Result } from 'neverthrow';
 import type { CreateStatementCommand } from '../application/commands/statement-commands.js';
+import type { IExportService } from '../application/ports/IExportService.js';
 import type { IUIPort, WebviewPanel } from '../application/ports/IUIPort.js';
 import type { IViewStatePort } from '../application/ports/IViewStatePort.js';
+import type { DocumentDTO } from '../application/queries/document-queries.js';
+import type { IDocumentIdService } from '../application/services/DocumentIdService.js';
 import type { DocumentQueryService } from '../application/services/DocumentQueryService.js';
 import { DocumentViewStateManager } from '../application/services/DocumentViewStateManager.js';
 import type { ProofApplicationService } from '../application/services/ProofApplicationService.js';
@@ -29,6 +32,8 @@ export class ProofTreePanel {
   private readonly bootstrapController: BootstrapController;
   private readonly proofApplicationService: ProofApplicationService;
   private readonly yamlSerializer: YAMLSerializer;
+  private readonly exportService: IExportService;
+  private readonly documentIdService: IDocumentIdService;
 
   private constructor(
     panelId: string,
@@ -43,6 +48,8 @@ export class ProofTreePanel {
     bootstrapController: BootstrapController,
     proofApplicationService: ProofApplicationService,
     yamlSerializer: YAMLSerializer,
+    exportService: IExportService,
+    documentIdService: IDocumentIdService,
   ) {
     this.panelId = panelId;
     this.documentUri = documentUri;
@@ -56,6 +63,8 @@ export class ProofTreePanel {
     this.bootstrapController = bootstrapController;
     this.proofApplicationService = proofApplicationService;
     this.yamlSerializer = yamlSerializer;
+    this.exportService = exportService;
+    this.documentIdService = documentIdService;
 
     // Set up webview content and event handlers
     this.webviewPanel.webview.html = this.getWebviewContent();
@@ -80,6 +89,8 @@ export class ProofTreePanel {
     bootstrapController: BootstrapController,
     proofApplicationService: ProofApplicationService,
     yamlSerializer: YAMLSerializer,
+    exportService: IExportService,
+    documentIdService: IDocumentIdService,
   ): Promise<Result<ProofTreePanel, ValidationError>> {
     try {
       const panelId = `proof-tree-panel-${Date.now()}`;
@@ -115,6 +126,8 @@ export class ProofTreePanel {
         bootstrapController,
         proofApplicationService,
         yamlSerializer,
+        exportService,
+        documentIdService,
       );
 
       // Process initial content
@@ -1453,6 +1466,24 @@ export class ProofTreePanel {
           }
           
           // =============================================================================
+          // EXPOSE FUNCTIONS TO WINDOW
+          // =============================================================================
+          
+          // Expose functions that need to be accessible from tests or inline handlers
+          window.zoomIn = zoomIn;
+          window.zoomOut = zoomOut;
+          window.resetView = resetView;
+          window.applyZoom = applyZoom;
+          window.showCreateArgumentForm = showCreateArgumentForm;
+          window.createArgument = createArgument;
+          window.showAddStatementForm = showAddStatementForm;
+          window.addStatement = addStatement;
+          window.hideSidebar = hideSidebar;
+          window.exportProof = exportProof;
+          window.updateToolbarState = updateToolbarState;
+          window.initializeInteractiveFeatures = initializeInteractiveFeatures;
+          
+          // =============================================================================
           // INITIALIZATION
           // =============================================================================
           
@@ -1516,6 +1547,153 @@ export class ProofTreePanel {
         // Could add debug logging here in development
       }
     }
+  }
+
+  /**
+   * Validate input for creating arguments
+   */
+  private validateCreateArgumentInput(
+    premises: unknown,
+    conclusions: unknown,
+  ): Result<{ premises: string[]; conclusions: string[] }, ValidationError> {
+    if (!premises || !Array.isArray(premises) || premises.length === 0) {
+      return err(new ValidationError('At least one premise is required'));
+    }
+
+    if (!conclusions || !Array.isArray(conclusions) || conclusions.length === 0) {
+      return err(new ValidationError('At least one conclusion is required'));
+    }
+
+    return ok({ premises, conclusions });
+  }
+
+  /**
+   * Validate statement content input
+   */
+  private validateStatementContent(content: unknown): Result<string, ValidationError> {
+    if (!content || typeof content !== 'string' || content.trim().length === 0) {
+      return err(new ValidationError('Statement content cannot be empty'));
+    }
+
+    return ok(content.trim());
+  }
+
+  /**
+   * Validate edit content metadata
+   */
+  private validateEditContentMetadata(
+    metadata: unknown,
+    newContent: unknown,
+  ): Result<
+    {
+      metadata: {
+        type: 'statement' | 'label';
+        statementId?: string;
+        nodeId?: string;
+        statementType?: 'premise' | 'conclusion';
+        labelType?: string;
+      };
+      newContent: string;
+    },
+    ValidationError
+  > {
+    if (
+      !metadata ||
+      typeof metadata !== 'object' ||
+      !newContent ||
+      typeof newContent !== 'string'
+    ) {
+      return err(new ValidationError('Invalid edit content request'));
+    }
+
+    const meta = metadata as {
+      type?: string;
+      statementId?: string;
+      nodeId?: string;
+      statementType?: string;
+      labelType?: string;
+    };
+
+    if (!meta.type || (meta.type !== 'statement' && meta.type !== 'label')) {
+      return err(new ValidationError('Invalid edit content request'));
+    }
+
+    if (meta.type === 'statement' && !meta.statementId) {
+      return err(new ValidationError('Invalid edit content request'));
+    }
+
+    if (meta.type === 'label' && !meta.nodeId) {
+      return err(new ValidationError('Invalid edit content request'));
+    }
+
+    return ok({
+      metadata: meta as {
+        type: 'statement' | 'label';
+        statementId?: string;
+        nodeId?: string;
+        statementType?: 'premise' | 'conclusion';
+        labelType?: string;
+      },
+      newContent,
+    });
+  }
+
+  /**
+   * Validate move statement input
+   */
+  private validateMoveStatementInput(
+    sourceData: unknown,
+    targetStatementId: unknown,
+    dropType: unknown,
+  ): Result<
+    {
+      sourceData: { statementId: string; statementType: string; nodeId: string };
+      targetStatementId: string;
+      dropType: 'premise' | 'conclusion';
+    },
+    ValidationError
+  > {
+    if (
+      !sourceData ||
+      typeof sourceData !== 'object' ||
+      !targetStatementId ||
+      typeof targetStatementId !== 'string' ||
+      !dropType ||
+      typeof dropType !== 'string'
+    ) {
+      return err(new ValidationError('Invalid move statement request'));
+    }
+
+    const source = sourceData as { statementId?: string; statementType?: string; nodeId?: string };
+    if (!source.statementId || !source.statementType || !source.nodeId) {
+      return err(new ValidationError('Invalid move statement request'));
+    }
+
+    return ok({
+      sourceData: source as { statementId: string; statementType: string; nodeId: string },
+      targetStatementId,
+      dropType: dropType as 'premise' | 'conclusion',
+    });
+  }
+
+  /**
+   * Validate move node input
+   */
+  private validateMoveNodeInput(
+    nodeId: unknown,
+    deltaX: unknown,
+    deltaY: unknown,
+  ): Result<{ nodeId: string; deltaX: number; deltaY: number }, ValidationError> {
+    if (
+      !nodeId ||
+      typeof nodeId !== 'string' ||
+      typeof deltaX !== 'number' ||
+      typeof deltaY !== 'number'
+    ) {
+      return err(new ValidationError('Invalid move node request'));
+    }
+
+    return ok({ nodeId, deltaX, deltaY });
   }
 
   private async handleWebviewMessage(message: unknown): Promise<void> {
@@ -1595,13 +1773,9 @@ export class ProofTreePanel {
       const conclusions = msg.conclusions as string[];
       const ruleName = msg.ruleName as string | undefined;
 
-      if (!premises || !Array.isArray(premises) || premises.length === 0) {
-        this.uiPort.showError('At least one premise is required');
-        return;
-      }
-
-      if (!conclusions || !Array.isArray(conclusions) || conclusions.length === 0) {
-        this.uiPort.showError('At least one conclusion is required');
+      const validationResult = this.validateCreateArgumentInput(premises, conclusions);
+      if (validationResult.isErr()) {
+        this.uiPort.showError(validationResult.error.message);
         return;
       }
 
@@ -1659,8 +1833,9 @@ export class ProofTreePanel {
       const statementType = msg.statementType as 'premise' | 'conclusion';
       const content = msg.content as string;
 
-      if (!content || content.trim().length === 0) {
-        this.uiPort.showError('Statement content cannot be empty');
+      const contentValidation = this.validateStatementContent(content);
+      if (contentValidation.isErr()) {
+        this.uiPort.showError(contentValidation.error.message);
         return;
       }
 
@@ -1674,7 +1849,7 @@ export class ProofTreePanel {
       // Create statement command
       const command: CreateStatementCommand = {
         documentId,
-        content: content.trim(),
+        content: contentValidation.value,
       };
 
       // Execute command through ProofApplicationService
@@ -1716,34 +1891,59 @@ export class ProofTreePanel {
         return;
       }
 
-      // Get document info for summary
-      const documentResult = await this.documentQueryService.getDocumentById(documentId);
-      if (documentResult.isErr()) {
-        this.uiPort.showError(`Failed to load document: ${documentResult.error.message}`);
+      // Show export format selection dialog
+      const formatResult = await this.uiPort.showQuickPick(
+        [
+          { label: 'YAML (.proof)', description: 'Export as YAML proof file' },
+          { label: 'JSON (.json)', description: 'Export as structured JSON data' },
+          { label: 'PDF (.pdf)', description: 'Export as printable PDF document' },
+          { label: 'SVG (.svg)', description: 'Export as vector graphics diagram' },
+        ],
+        {
+          title: 'Select Export Format',
+          placeHolder: 'Choose the format for exporting your proof',
+        },
+      );
+
+      if (formatResult.isErr() || !formatResult.value) {
+        return; // User cancelled
+      }
+
+      // Determine export format from selection
+      const formatMap: Record<string, 'yaml' | 'json' | 'pdf' | 'svg'> = {
+        'YAML (.proof)': 'yaml',
+        'JSON (.json)': 'json',
+        'PDF (.pdf)': 'pdf',
+        'SVG (.svg)': 'svg',
+      };
+
+      const selectedFormat = formatMap[formatResult.value.label];
+      if (!selectedFormat) {
+        this.uiPort.showError('Invalid export format selected');
         return;
       }
 
-      const documentInfo = documentResult.value;
+      // Export and save the document
+      const exportResult = await this.exportService.saveToFile(documentId, {
+        format: selectedFormat,
+        includeMetadata: true,
+        includeVisualization: selectedFormat === 'pdf' || selectedFormat === 'svg',
+      });
 
-      // Create export summary for user feedback
-      const exportSummary = `Document Export Summary:
-- Document ID: ${documentInfo.id}
-- Statements: ${Object.keys(documentInfo.statements).length}
-- Arguments: ${Object.keys(documentInfo.atomicArguments).length}
-- Trees: ${Object.keys(documentInfo.trees).length}
+      if (exportResult.isErr()) {
+        this.uiPort.showError(`Export failed: ${exportResult.error.message}`);
+        return;
+      }
 
-Export functionality is available but requires direct repository access.
-For now, displaying the document structure above.`;
+      // Show success message
+      this.uiPort.showInformation(`Successfully exported proof to ${exportResult.value.filePath}`);
 
-      // Show export information
-      this.uiPort.showInformation('Export data prepared - see details in panel');
-
-      // Post export data to webview
+      // Post export completion message to webview
       this.uiPort.postMessageToWebview(this.panelId, {
         type: 'exportCompleted',
-        summary: exportSummary,
-        documentId,
-        documentData: documentInfo,
+        format: selectedFormat,
+        filePath: exportResult.value.filePath,
+        success: exportResult.value.savedSuccessfully,
       });
     } catch (error) {
       this.uiPort.showError(
@@ -1753,19 +1953,49 @@ For now, displaying the document structure above.`;
   }
 
   private extractDocumentIdFromUri(): string | null {
-    try {
-      // Extract filename from URI and use as document ID
-      const uri = this.documentUri;
-      // Handle both Unix and Windows path separators
-      const parts = uri.split(/[/\\]/);
-      const fileName = parts[parts.length - 1];
-      if (!fileName || fileName.length === 0) {
-        return null;
+    const result = this.documentIdService.extractFromUriWithFallback(this.documentUri);
+    return result.isOk() ? result.value : null;
+  }
+
+  /**
+   * Find which ordered set contains a specific statement
+   */
+  private findOrderedSetForStatement(document: DocumentDTO, statementId: string): string | null {
+    for (const [orderedSetId, orderedSet] of Object.entries(document.orderedSets)) {
+      if (orderedSet.statementIds.includes(statementId)) {
+        return orderedSetId;
       }
-      return fileName.replace('.proof', '');
-    } catch (_error) {
-      return null;
     }
+    return null;
+  }
+
+  /**
+   * Find which tree contains a specific node
+   * Note: This is a simplified implementation that assumes nodeId format includes tree information
+   * In a full implementation, this would query the tree structure or node repository
+   */
+  private findTreeForNode(document: DocumentDTO, nodeId: string): string | null {
+    // For now, we'll use a simple heuristic based on tree root nodes
+    // In a real implementation, this would involve traversing the tree structure
+    for (const [treeId, tree] of Object.entries(document.trees)) {
+      // Check if this node is one of the root nodes
+      if (tree.rootNodeIds.includes(nodeId)) {
+        return treeId;
+      }
+    }
+
+    // If not found in root nodes, we need a different approach
+    // For now, we'll assume the first tree if we can't determine the exact tree
+    const treeIds = Object.keys(document.trees);
+    if (treeIds.length === 1) {
+      const firstTreeId = treeIds[0];
+      return firstTreeId ?? null;
+    }
+
+    // In a more sophisticated implementation, we would:
+    // 1. Query the tree structure service to find which tree contains the node
+    // 2. Or maintain a node-to-tree mapping in the document structure
+    return null;
   }
 
   private async refreshContent(): Promise<void> {
@@ -1811,19 +2041,13 @@ For now, displaying the document structure above.`;
    */
   private async handleEditContent(msg: { [key: string]: unknown }): Promise<void> {
     try {
-      const metadata = msg.metadata as {
-        type: 'statement' | 'label';
-        statementId?: string;
-        nodeId?: string;
-        statementType?: 'premise' | 'conclusion';
-        labelType?: string;
-      };
-      const newContent = msg.newContent as string;
-
-      if (!metadata || !newContent) {
-        this.uiPort.showError('Invalid edit content request');
+      const validationResult = this.validateEditContentMetadata(msg.metadata, msg.newContent);
+      if (validationResult.isErr()) {
+        this.uiPort.showError(validationResult.error.message);
         return;
       }
+
+      const { metadata, newContent } = validationResult.value;
 
       const documentId = this.extractDocumentIdFromUri();
       if (!documentId) {
@@ -1847,8 +2071,20 @@ For now, displaying the document structure above.`;
         this.uiPort.showInformation('Statement updated successfully');
       } else if (metadata.type === 'label' && metadata.nodeId) {
         // Handle side label editing
-        // TODO: Implement updateArgumentLabel method in ProofApplicationService
-        this.uiPort.showInformation('Label editing not yet implemented');
+        const result = await this.proofApplicationService.updateArgumentLabel({
+          documentId,
+          argumentId: metadata.nodeId,
+          sideLabels: {
+            [metadata.labelType || 'left']: newContent,
+          },
+        });
+
+        if (result.isErr()) {
+          this.uiPort.showError(`Failed to update label: ${result.error.message}`);
+          return;
+        }
+
+        this.uiPort.showInformation('Label updated successfully');
       }
 
       // Refresh content to show changes
@@ -1865,18 +2101,17 @@ For now, displaying the document structure above.`;
    */
   private async handleMoveStatement(msg: { [key: string]: unknown }): Promise<void> {
     try {
-      const sourceData = msg.sourceData as {
-        statementId: string;
-        statementType: string;
-        nodeId: string;
-      };
-      const targetStatementId = msg.targetStatementId as string;
-      const dropType = msg.dropType as 'premise' | 'conclusion';
-
-      if (!sourceData || !targetStatementId || !dropType) {
-        this.uiPort.showError('Invalid move statement request');
+      const validationResult = this.validateMoveStatementInput(
+        msg.sourceData,
+        msg.targetStatementId,
+        msg.dropType,
+      );
+      if (validationResult.isErr()) {
+        this.uiPort.showError(validationResult.error.message);
         return;
       }
+
+      const { sourceData, targetStatementId } = validationResult.value;
 
       const documentId = this.extractDocumentIdFromUri();
       if (!documentId) {
@@ -1884,20 +2119,56 @@ For now, displaying the document structure above.`;
         return;
       }
 
-      // For now, show a message that this feature will be implemented
-      // In a full implementation, this would reorganize statements in ordered sets
-      this.uiPort.showInformation(
-        `Statement movement requested: ${sourceData.statementId} to ${dropType} section near ${targetStatementId}`,
+      // Get the current document to find ordered sets
+      const document = await this.documentQueryService.getDocumentById(documentId);
+      if (document.isErr()) {
+        this.uiPort.showError(`Failed to get document: ${document.error.message}`);
+        return;
+      }
+
+      // Find the ordered sets for source and target statements
+      const sourceOrderedSetId = this.findOrderedSetForStatement(
+        document.value,
+        sourceData.statementId,
       );
+      const targetOrderedSetId = this.findOrderedSetForStatement(document.value, targetStatementId);
 
-      // TODO: Implement actual statement movement logic
-      // This would involve:
-      // 1. Removing statement from source ordered set
-      // 2. Adding statement to target ordered set at the correct position
-      // 3. Updating argument connections if needed
-      // 4. Validating the resulting proof structure
+      if (!sourceOrderedSetId) {
+        this.uiPort.showError('Could not find source statement in any ordered set');
+        return;
+      }
 
-      // For demonstration, we'll just refresh the content
+      if (!targetOrderedSetId) {
+        this.uiPort.showError('Could not find target statement in any ordered set');
+        return;
+      }
+
+      // If they're in the same ordered set, we're reordering within the set
+      if (sourceOrderedSetId === targetOrderedSetId) {
+        this.uiPort.showInformation(
+          'Statement reordering within the same ordered set is not yet implemented',
+        );
+        await this.refreshContent();
+        return;
+      }
+
+      // Move the statement between ordered sets
+      const moveResult = await this.proofApplicationService.moveStatement({
+        documentId,
+        statementId: sourceData.statementId,
+        sourceOrderedSetId,
+        targetOrderedSetId,
+        // For now, append to the end of the target set (omit undefined)
+      });
+
+      if (moveResult.isErr()) {
+        this.uiPort.showError(`Failed to move statement: ${moveResult.error.message}`);
+        return;
+      }
+
+      this.uiPort.showInformation('Statement moved successfully');
+
+      // Refresh content to show changes
       await this.refreshContent();
     } catch (error) {
       this.uiPort.showError(
@@ -1911,14 +2182,13 @@ For now, displaying the document structure above.`;
    */
   private async handleMoveNode(msg: { [key: string]: unknown }): Promise<void> {
     try {
-      const nodeId = msg.nodeId as string;
-      const deltaX = msg.deltaX as number;
-      const deltaY = msg.deltaY as number;
-
-      if (!nodeId || typeof deltaX !== 'number' || typeof deltaY !== 'number') {
-        this.uiPort.showError('Invalid move node request');
+      const validationResult = this.validateMoveNodeInput(msg.nodeId, msg.deltaX, msg.deltaY);
+      if (validationResult.isErr()) {
+        this.uiPort.showError(validationResult.error.message);
         return;
       }
+
+      const { nodeId, deltaX, deltaY } = validationResult.value;
 
       const documentId = this.extractDocumentIdFromUri();
       if (!documentId) {
@@ -1926,20 +2196,47 @@ For now, displaying the document structure above.`;
         return;
       }
 
-      // For now, show a message that this feature will be implemented
-      // In a full implementation, this would update tree positioning
-      this.uiPort.showInformation(
-        `Node position update requested: ${nodeId} moved by (${deltaX}, ${deltaY})`,
-      );
+      // Get the current document to find which tree contains the node
+      const document = await this.documentQueryService.getDocumentById(documentId);
+      if (document.isErr()) {
+        this.uiPort.showError(`Failed to get document: ${document.error.message}`);
+        return;
+      }
 
-      // TODO: Implement actual node movement logic
-      // This would involve:
-      // 1. Finding the tree containing the node
-      // 2. Updating the tree's spatial positioning data
-      // 3. Recalculating layout if needed
-      // 4. Saving the new position to view state
+      // Find the tree that contains this node
+      const treeId = this.findTreeForNode(document.value, nodeId);
+      if (!treeId) {
+        this.uiPort.showError('Could not find tree containing the node');
+        return;
+      }
 
-      // For demonstration, we'll just refresh the content
+      const tree = document.value.trees[treeId];
+      if (!tree) {
+        this.uiPort.showError('Tree not found');
+        return;
+      }
+
+      // Calculate new position by adding delta to current position
+      const newPosition = {
+        x: tree.position.x + deltaX,
+        y: tree.position.y + deltaY,
+      };
+
+      // Move the tree to the new position
+      const moveResult = await this.proofApplicationService.moveTree({
+        documentId,
+        treeId,
+        position: newPosition,
+      });
+
+      if (moveResult.isErr()) {
+        this.uiPort.showError(`Failed to move tree: ${moveResult.error.message}`);
+        return;
+      }
+
+      this.uiPort.showInformation('Node position updated successfully');
+
+      // Refresh content to show changes
       await this.refreshContent();
     } catch (error) {
       this.uiPort.showError(

@@ -164,7 +164,13 @@ describe('TreeRenderer (DTO-based)', () => {
       const svg = renderer.generateSVG(visualization);
 
       expect(svg).toContain('...');
-      expect(svg).not.toContain(longContent);
+      // Check that the visible text content is truncated (appears between > and <)
+      expect(svg).toMatch(/>\s*This is a very long st\.\.\.\s*</);
+      // The full content should only appear in data attributes, not in visible text
+      const textContentRegex = new RegExp(
+        `>\\s*${longContent.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*<`,
+      );
+      expect(svg).not.toMatch(textContentRegex);
     });
 
     test('escapes XML special characters', () => {

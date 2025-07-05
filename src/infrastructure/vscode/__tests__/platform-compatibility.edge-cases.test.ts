@@ -21,64 +21,81 @@ import { VSCodeFileSystemAdapter } from '../VSCodeFileSystemAdapter.js';
 import { VSCodeUIAdapter } from '../VSCodeUIAdapter.js';
 
 // Mock VS Code module with platform-specific error scenarios
-vi.mock('vscode', () => ({
-  Uri: {
-    file: vi.fn(),
-    joinPath: vi.fn(),
-    parse: vi.fn(),
-  },
-  workspace: {
-    fs: {
-      readFile: vi.fn(),
-      writeFile: vi.fn(),
-      stat: vi.fn(),
-      delete: vi.fn(),
-      readDirectory: vi.fn(),
-      createDirectory: vi.fn(),
-    },
-    createFileSystemWatcher: vi.fn(),
-    workspaceFolders: undefined,
-  },
-  window: {
-    showInputBox: vi.fn(),
-    showQuickPick: vi.fn(),
-    showInformationMessage: vi.fn(),
-    showWarningMessage: vi.fn(),
-    showErrorMessage: vi.fn(),
-    showOpenDialog: vi.fn(),
-    showSaveDialog: vi.fn(),
-    withProgress: vi.fn(),
-    setStatusBarMessage: vi.fn(),
-    createWebviewPanel: vi.fn(),
-    activeColorTheme: { kind: 1 },
-    onDidChangeActiveColorTheme: vi.fn(),
-  },
-  FileType: { File: 1, Directory: 2 },
-  RelativePattern: vi.fn(),
-  ViewColumn: { One: 1, Two: 2, Three: 3 },
-  ProgressLocation: { Notification: 1, Window: 2 },
-  ColorThemeKind: { Light: 1, Dark: 2, HighContrast: 3 },
-  FileSystemError: class extends Error {
+vi.mock('vscode', () => {
+  const FileSystemError = class extends Error {
     public code: string;
     constructor(messageOrUri?: string) {
       super(typeof messageOrUri === 'string' ? messageOrUri : 'FileSystemError');
       this.name = 'FileSystemError';
       this.code = 'UNKNOWN';
     }
-    static FileNotFound(): any {
-      const error = new (class extends Error {
-        public code = 'FileNotFound';
-      })();
+    static FileNotFound(messageOrUri?: string): any {
+      const error = new FileSystemError(messageOrUri);
+      error.code = 'FileNotFound';
       return error;
     }
-    static NoPermissions(): any {
-      const error = new (class extends Error {
-        public code = 'NoPermissions';
-      })();
+    static NoPermissions(messageOrUri?: string): any {
+      const error = new FileSystemError(messageOrUri);
+      error.code = 'NoPermissions';
       return error;
     }
-  },
-}));
+    static Unavailable(messageOrUri?: string): any {
+      const error = new FileSystemError(messageOrUri);
+      error.code = 'Unavailable';
+      return error;
+    }
+  };
+
+  return {
+    Uri: {
+      file: vi.fn().mockImplementation((path: string) => ({
+        scheme: 'file',
+        path,
+        fsPath: path,
+        toString: () => `file://${path}`,
+      })),
+      joinPath: vi.fn().mockImplementation((base, ...segments) => ({
+        scheme: base.scheme,
+        path: `${base.path}/${segments.join('/')}`,
+        fsPath: `${base.fsPath}/${segments.join('/')}`,
+        toString: () => `file://${base.fsPath}/${segments.join('/')}`,
+      })),
+      parse: vi.fn(),
+    },
+    workspace: {
+      fs: {
+        readFile: vi.fn(),
+        writeFile: vi.fn(),
+        stat: vi.fn(),
+        delete: vi.fn(),
+        readDirectory: vi.fn(),
+        createDirectory: vi.fn(),
+      },
+      createFileSystemWatcher: vi.fn(),
+      workspaceFolders: undefined,
+    },
+    window: {
+      showInputBox: vi.fn(),
+      showQuickPick: vi.fn(),
+      showInformationMessage: vi.fn(),
+      showWarningMessage: vi.fn(),
+      showErrorMessage: vi.fn(),
+      showOpenDialog: vi.fn(),
+      showSaveDialog: vi.fn(),
+      withProgress: vi.fn(),
+      setStatusBarMessage: vi.fn(),
+      createWebviewPanel: vi.fn(),
+      activeColorTheme: { kind: 1 },
+      onDidChangeActiveColorTheme: vi.fn(),
+    },
+    FileType: { File: 1, Directory: 2 },
+    RelativePattern: vi.fn(),
+    ViewColumn: { One: 1, Two: 2, Three: 3 },
+    ProgressLocation: { Notification: 1, Window: 2 },
+    ColorThemeKind: { Light: 1, Dark: 2, HighContrast: 3 },
+    FileSystemError,
+  };
+});
 
 // Platform detection utilities
 const mockPlatform = {

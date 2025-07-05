@@ -55,6 +55,10 @@ export const TOKENS = {
   // Application services
   CrossContextOrchestrationService: 'CrossContextOrchestrationService',
   ProofApplicationService: 'ProofApplicationService',
+  ExportService: 'ExportService',
+  IExportService: 'IExportService',
+  DocumentIdService: 'DocumentIdService',
+  IDocumentIdService: 'IDocumentIdService',
 
   // View layer services
   TreeLayoutService: 'TreeLayoutService',

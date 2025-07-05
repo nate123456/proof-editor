@@ -2,8 +2,10 @@ import 'reflect-metadata';
 
 import { err, ok } from 'neverthrow';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { IExportService } from '../../application/ports/IExportService.js';
 import type { IUIPort } from '../../application/ports/IUIPort.js';
 import type { IViewStatePort } from '../../application/ports/IViewStatePort.js';
+import type { IDocumentIdService } from '../../application/services/DocumentIdService.js';
 import type { DocumentQueryService } from '../../application/services/DocumentQueryService.js';
 import type { ProofApplicationService } from '../../application/services/ProofApplicationService.js';
 import type { ProofVisualizationService } from '../../application/services/ProofVisualizationService.js';
@@ -38,6 +40,8 @@ vi.mock('../../infrastructure/di/tokens.js', () => ({
     BootstrapController: 'BootstrapController',
     ProofApplicationService: 'ProofApplicationService',
     YAMLSerializer: 'YAMLSerializer',
+    IExportService: 'IExportService',
+    IDocumentIdService: 'IDocumentIdService',
   },
 }));
 
@@ -52,6 +56,8 @@ describe('ProofTreePanelManager', () => {
   let mockBootstrapController: BootstrapController;
   let mockProofApplicationService: ProofApplicationService;
   let mockYAMLSerializer: YAMLSerializer;
+  let mockExportService: IExportService;
+  let mockDocumentIdService: IDocumentIdService;
   let mockPanel: ProofTreePanel;
   let mockContainer: any;
 
@@ -83,6 +89,7 @@ describe('ProofTreePanelManager', () => {
       setStatusMessage: vi.fn(),
       getTheme: vi.fn(),
       onThemeChange: vi.fn(),
+      writeFile: vi.fn(),
       capabilities: vi.fn(),
     };
 
@@ -145,6 +152,17 @@ describe('ProofTreePanelManager', () => {
       deserialize: vi.fn(),
     } as any;
 
+    mockExportService = {
+      exportDocument: vi.fn(),
+      saveToFile: vi.fn(),
+    } as any;
+
+    mockDocumentIdService = {
+      extractFromUri: vi.fn(),
+      extractFromUriWithFallback: vi.fn(),
+      validateDocumentId: vi.fn(),
+    } as any;
+
     // Mock panel
     mockPanel = {
       reveal: vi.fn(),
@@ -176,6 +194,10 @@ describe('ProofTreePanelManager', () => {
             return mockProofApplicationService;
           case 'YAMLSerializer':
             return mockYAMLSerializer;
+          case 'IExportService':
+            return mockExportService;
+          case 'IDocumentIdService':
+            return mockDocumentIdService;
           default:
             return {};
         }
@@ -223,6 +245,8 @@ describe('ProofTreePanelManager', () => {
         mockBootstrapController,
         mockProofApplicationService,
         mockYAMLSerializer,
+        mockExportService,
+        mockDocumentIdService,
       );
     });
 
@@ -318,6 +342,8 @@ describe('ProofTreePanelManager', () => {
         mockBootstrapController,
         mockProofApplicationService,
         mockYAMLSerializer,
+        mockExportService,
+        mockDocumentIdService,
       );
 
       expect(result.isOk()).toBe(true);
@@ -334,6 +360,8 @@ describe('ProofTreePanelManager', () => {
         mockBootstrapController,
         mockProofApplicationService,
         mockYAMLSerializer,
+        mockExportService,
+        mockDocumentIdService,
       );
     });
 
@@ -354,6 +382,8 @@ describe('ProofTreePanelManager', () => {
         mockBootstrapController,
         mockProofApplicationService,
         mockYAMLSerializer,
+        mockExportService,
+        mockDocumentIdService,
       );
       expect(result1.isOk()).toBe(true);
 
@@ -373,6 +403,8 @@ describe('ProofTreePanelManager', () => {
         mockBootstrapController,
         mockProofApplicationService,
         mockYAMLSerializer,
+        mockExportService,
+        mockDocumentIdService,
       );
 
       expect(result2.isOk()).toBe(true);
@@ -396,6 +428,8 @@ describe('ProofTreePanelManager', () => {
         mockBootstrapController,
         mockProofApplicationService,
         mockYAMLSerializer,
+        mockExportService,
+        mockDocumentIdService,
       );
 
       expect(result.isErr()).toBe(true);
@@ -419,6 +453,8 @@ describe('ProofTreePanelManager', () => {
         mockBootstrapController,
         mockProofApplicationService,
         mockYAMLSerializer,
+        mockExportService,
+        mockDocumentIdService,
       );
 
       expect(result.isErr()).toBe(true);
@@ -655,6 +691,8 @@ describe('ProofTreePanelManager', () => {
           bootstrapController: mockBootstrapController,
           proofApplicationService: mockProofApplicationService,
           yamlSerializer: mockYAMLSerializer,
+          exportService: mockExportService,
+          documentIdService: mockDocumentIdService,
         });
       }
     });
@@ -720,6 +758,8 @@ describe('ProofTreePanelManager', () => {
         mockBootstrapController,
         mockProofApplicationService,
         mockYAMLSerializer,
+        mockExportService,
+        mockDocumentIdService,
       );
     });
 

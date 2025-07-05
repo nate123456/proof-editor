@@ -100,6 +100,10 @@ function createMockUIPort(): IUIPort {
       return { isOk: () => true, isErr: () => false, value: null } as any;
     },
 
+    async writeFile() {
+      return { isOk: () => true, isErr: () => false, value: undefined } as any;
+    },
+
     showInformation() {
       // Mock notification - no UI in tests
     },

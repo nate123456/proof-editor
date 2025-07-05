@@ -196,9 +196,7 @@ describe('DocumentQueryService', () => {
       if (result.isOk()) {
         expect(result.value.isValid).toBe(false);
         expect(result.value.errors).toHaveLength(1);
-        expect(result.value.errors[0]?.message).toBe(
-          'Parse failed with 1 error(s): Validation failed',
-        );
+        expect(result.value.errors[0]?.message).toBe('Validation failed');
       }
     });
 
@@ -324,9 +322,7 @@ describe('DocumentQueryService', () => {
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
         expect(result.error.errors).toHaveLength(1);
-        expect(result.error.errors[0]?.message).toBe(
-          'Parse failed with 1 error(s): Detailed parse error',
-        );
+        expect(result.error.errors[0]?.message).toBe('Detailed parse error');
         expect(result.error.errors[0]?.severity).toBe('error');
       }
     });

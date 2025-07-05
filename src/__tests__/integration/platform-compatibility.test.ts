@@ -19,6 +19,16 @@ import {
 } from '../../infrastructure/di/container.js';
 import { TOKENS } from '../../infrastructure/di/tokens.js';
 
+// Mock vscode module before any imports that use it
+vi.mock('vscode', () => ({
+  workspace: {},
+  window: {},
+  env: {},
+  commands: {},
+  ViewColumn: { One: 1, Two: 2, Three: 3 },
+  Uri: {},
+}));
+
 // Platform simulation utilities
 interface PlatformEnvironment {
   name: string;
@@ -274,6 +284,14 @@ const createPlatformMocks = (platform: PlatformEnvironment) => {
   };
 };
 
+// Helper function to apply platform-specific mocks
+const applyPlatformMocks = async (platform: PlatformEnvironment) => {
+  const platformMocks = createPlatformMocks(platform);
+  const vscode = await vi.importMock<typeof import('vscode')>('vscode');
+  Object.assign(vscode, platformMocks);
+  return platformMocks;
+};
+
 // Generate test proof content appropriate for platform limitations
 const generatePlatformTestContent = (platform: PlatformEnvironment): string => {
   const complexity = platform.limitations.includes('Resource quotas') ? 'simple' : 'medium';
@@ -383,8 +401,9 @@ describe('Platform Compatibility Integration Tests', () => {
         // Set up platform-specific mocks
         const platformMocks = createPlatformMocks(platform);
 
-        vi.resetModules();
-        vi.mock('vscode', () => platformMocks);
+        // Update the vscode mock with platform-specific configuration
+        const vscode = await vi.importMock<typeof import('vscode')>('vscode');
+        Object.assign(vscode, platformMocks);
 
         // Initialize container with platform-specific configuration
         await initializeContainer();
@@ -424,9 +443,8 @@ describe('Platform Compatibility Integration Tests', () => {
       if (!windowsPlatform) {
         throw new Error('Windows platform not found in test environments');
       }
-      const platformMocks = createPlatformMocks(windowsPlatform);
 
-      vi.mock('vscode', () => platformMocks);
+      await applyPlatformMocks(windowsPlatform);
 
       await initializeContainer();
       container = getContainer();
@@ -456,9 +474,8 @@ describe('Platform Compatibility Integration Tests', () => {
       if (!unixPlatform) {
         throw new Error('Unix platform not found in test environments');
       }
-      const platformMocks = createPlatformMocks(unixPlatform);
 
-      vi.mock('vscode', () => platformMocks);
+      await applyPlatformMocks(unixPlatform);
 
       await initializeContainer();
       container = getContainer();
@@ -488,9 +505,8 @@ describe('Platform Compatibility Integration Tests', () => {
       if (!webPlatform) {
         throw new Error('Web platform not found in test environments');
       }
-      const platformMocks = createPlatformMocks(webPlatform);
 
-      vi.mock('vscode', () => platformMocks);
+      await applyPlatformMocks(webPlatform);
 
       await initializeContainer();
       container = getContainer();
@@ -530,9 +546,8 @@ describe('Platform Compatibility Integration Tests', () => {
       if (!desktopPlatform) {
         throw new Error('Desktop platform with webview support not found');
       }
-      const platformMocks = createPlatformMocks(desktopPlatform);
 
-      vi.mock('vscode', () => platformMocks);
+      await applyPlatformMocks(desktopPlatform);
 
       await initializeContainer();
       container = getContainer();
@@ -566,9 +581,7 @@ describe('Platform Compatibility Integration Tests', () => {
         limitations: ['No webview support'],
       };
 
-      const platformMocks = createPlatformMocks(limitedPlatform);
-
-      vi.mock('vscode', () => platformMocks);
+      await applyPlatformMocks(limitedPlatform);
 
       await initializeContainer();
       container = getContainer();
@@ -603,9 +616,8 @@ describe('Platform Compatibility Integration Tests', () => {
       if (!webPlatform) {
         throw new Error('Platform without file watching not found');
       }
-      const platformMocks = createPlatformMocks(webPlatform);
 
-      vi.mock('vscode', () => platformMocks);
+      await applyPlatformMocks(webPlatform);
 
       await initializeContainer();
       container = getContainer();
@@ -622,9 +634,8 @@ describe('Platform Compatibility Integration Tests', () => {
       if (!codespacePlatform) {
         throw new Error('Platform without workspace trust not found');
       }
-      const platformMocks = createPlatformMocks(codespacePlatform);
 
-      vi.mock('vscode', () => platformMocks);
+      await applyPlatformMocks(codespacePlatform);
 
       await initializeContainer();
       container = getContainer();
@@ -643,9 +654,8 @@ describe('Platform Compatibility Integration Tests', () => {
       if (!oldPlatform) {
         throw new Error('Old VS Code version platform not found');
       }
-      const platformMocks = createPlatformMocks(oldPlatform);
 
-      vi.mock('vscode', () => platformMocks);
+      await applyPlatformMocks(oldPlatform);
 
       await initializeContainer();
       container = getContainer();
@@ -668,9 +678,8 @@ describe('Platform Compatibility Integration Tests', () => {
       if (!remotePlatform) {
         throw new Error('SSH remote platform not found');
       }
-      const platformMocks = createPlatformMocks(remotePlatform);
 
-      vi.mock('vscode', () => platformMocks);
+      await applyPlatformMocks(remotePlatform);
 
       await initializeContainer();
       container = getContainer();
@@ -707,9 +716,8 @@ describe('Platform Compatibility Integration Tests', () => {
       if (!codespacePlatform) {
         throw new Error('Codespaces platform not found');
       }
-      const platformMocks = createPlatformMocks(codespacePlatform);
 
-      vi.mock('vscode', () => platformMocks);
+      await applyPlatformMocks(codespacePlatform);
 
       await initializeContainer();
       container = getContainer();
@@ -731,10 +739,7 @@ describe('Platform Compatibility Integration Tests', () => {
     it('should provide platform-appropriate error messages', async () => {
       for (const platform of PLATFORM_ENVIRONMENTS.slice(0, 3)) {
         // Test a few key platforms
-        const platformMocks = createPlatformMocks(platform);
-
-        vi.resetModules();
-        vi.mock('vscode', () => platformMocks);
+        const platformMocks = await applyPlatformMocks(platform);
 
         await initializeContainer();
         container = getContainer();
@@ -754,14 +759,12 @@ describe('Platform Compatibility Integration Tests', () => {
       if (!webPlatform) {
         throw new Error('Web platform not found');
       }
-      const platformMocks = createPlatformMocks(webPlatform);
 
       // Mock a file system operation failure
+      const platformMocks = await applyPlatformMocks(webPlatform);
       platformMocks.workspace.fs.writeFile = vi
         .fn()
         .mockRejectedValue(new Error('File system not available'));
-
-      vi.mock('vscode', () => platformMocks);
 
       await initializeContainer();
       container = getContainer();
@@ -797,10 +800,7 @@ describe('Platform Compatibility Integration Tests', () => {
       const performanceResults: Record<string, number> = {};
 
       for (const platform of PLATFORM_ENVIRONMENTS) {
-        const platformMocks = createPlatformMocks(platform);
-
-        vi.resetModules();
-        vi.mock('vscode', () => platformMocks);
+        const _platformMocks = await applyPlatformMocks(platform);
 
         const startTime = Date.now();
 
@@ -823,10 +823,7 @@ describe('Platform Compatibility Integration Tests', () => {
       const testResults: Record<string, { success: boolean; time: number }> = {};
 
       for (const platform of PLATFORM_ENVIRONMENTS) {
-        const platformMocks = createPlatformMocks(platform);
-
-        vi.resetModules();
-        vi.mock('vscode', () => platformMocks);
+        await applyPlatformMocks(platform);
 
         await initializeContainer();
         container = getContainer();

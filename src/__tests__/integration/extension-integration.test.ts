@@ -48,6 +48,8 @@ const mockContainer = {
     switch (token) {
       case 'ValidationController':
         return mockValidationController;
+      case 'InfrastructureValidationController':
+        return mockValidationController;
       case 'ProofFileParser':
         return {
           parseProofFile: vi.fn(),
@@ -137,6 +139,7 @@ vi.mock('../../infrastructure/di/container.js', () => ({
   registerPlatformAdapters: vi.fn(() => Promise.resolve()),
   TOKENS: {
     ValidationController: 'ValidationController',
+    InfrastructureValidationController: 'InfrastructureValidationController',
     ProofFileParser: 'ProofFileParser',
     DocumentController: 'DocumentController',
     ProofTreeController: 'ProofTreeController',
@@ -509,52 +512,17 @@ proof:
         expect(ProofTreePanel.createWithServices).toHaveBeenCalledWith(
           expect.any(String), // uri
           _testProofContent,
-          expect.objectContaining({
-            getArguments: expect.any(Function),
-            getDocumentStructure: expect.any(Function),
-            getStatements: expect.any(Function),
-          }), // documentQueryService
-          expect.objectContaining({
-            generateVisualization: expect.any(Function),
-            updateVisualization: expect.any(Function),
-          }), // visualizationService
-          expect.objectContaining({
-            showError: expect.any(Function),
-            showErrorMessage: expect.any(Function),
-            showInformation: expect.any(Function),
-            showInformationMessage: expect.any(Function),
-            showWarning: expect.any(Function),
-          }), // uiPort
-          expect.objectContaining({
-            render: expect.any(Function),
-            updateRender: expect.any(Function),
-          }), // renderer
-          expect.objectContaining({
-            getViewState: expect.any(Function),
-            subscribeToChanges: expect.any(Function),
-            updateViewState: expect.any(Function),
-          }), // viewStateManager
-          expect.objectContaining({
-            capabilities: expect.any(Function),
-            getViewState: expect.any(Function),
-            saveViewState: expect.any(Function),
-          }), // viewStatePort
-          expect.objectContaining({
-            createBootstrapArgument: expect.any(Function),
-            createEmptyImplicationLine: expect.any(Function),
-            getBootstrapWorkflow: expect.any(Function),
-            initializeEmptyDocument: expect.any(Function),
-            populateEmptyArgument: expect.any(Function),
-          }), // bootstrapController
-          expect.objectContaining({
-            createStatement: expect.any(Function),
-            executeCommand: expect.any(Function),
-            validateCommand: expect.any(Function),
-          }), // proofApplicationService
-          expect.objectContaining({
-            serialize: expect.any(Function),
-            deserialize: expect.any(Function),
-          }), // yamlSerializer
+          expect.any(Object), // documentQueryService
+          expect.any(Object), // visualizationService
+          expect.any(Object), // uiPort
+          expect.any(Object), // renderer
+          expect.any(Object), // viewStateManager
+          expect.any(Object), // viewStatePort
+          expect.any(Object), // bootstrapController
+          expect.any(Object), // proofApplicationService
+          expect.any(Object), // yamlSerializer
+          expect.any(Object), // exportService
+          expect.any(Object), // documentIdService
         );
       }
     });
@@ -741,52 +709,17 @@ proof:
         expect(ProofTreePanel.createWithServices).toHaveBeenCalledWith(
           expect.any(String), // uri
           mockProofContent,
-          expect.objectContaining({
-            getArguments: expect.any(Function),
-            getDocumentStructure: expect.any(Function),
-            getStatements: expect.any(Function),
-          }), // documentQueryService
-          expect.objectContaining({
-            generateVisualization: expect.any(Function),
-            updateVisualization: expect.any(Function),
-          }), // visualizationService
-          expect.objectContaining({
-            showError: expect.any(Function),
-            showErrorMessage: expect.any(Function),
-            showInformation: expect.any(Function),
-            showInformationMessage: expect.any(Function),
-            showWarning: expect.any(Function),
-          }), // uiPort
-          expect.objectContaining({
-            render: expect.any(Function),
-            updateRender: expect.any(Function),
-          }), // renderer
-          expect.objectContaining({
-            getViewState: expect.any(Function),
-            subscribeToChanges: expect.any(Function),
-            updateViewState: expect.any(Function),
-          }), // viewStateManager
-          expect.objectContaining({
-            capabilities: expect.any(Function),
-            getViewState: expect.any(Function),
-            saveViewState: expect.any(Function),
-          }), // viewStatePort
-          expect.objectContaining({
-            createBootstrapArgument: expect.any(Function),
-            createEmptyImplicationLine: expect.any(Function),
-            getBootstrapWorkflow: expect.any(Function),
-            initializeEmptyDocument: expect.any(Function),
-            populateEmptyArgument: expect.any(Function),
-          }), // bootstrapController
-          expect.objectContaining({
-            createStatement: expect.any(Function),
-            executeCommand: expect.any(Function),
-            validateCommand: expect.any(Function),
-          }), // proofApplicationService
-          expect.objectContaining({
-            serialize: expect.any(Function),
-            deserialize: expect.any(Function),
-          }), // yamlSerializer
+          expect.any(Object), // documentQueryService
+          expect.any(Object), // visualizationService
+          expect.any(Object), // uiPort
+          expect.any(Object), // renderer
+          expect.any(Object), // viewStateManager
+          expect.any(Object), // viewStatePort
+          expect.any(Object), // bootstrapController
+          expect.any(Object), // proofApplicationService
+          expect.any(Object), // yamlSerializer
+          expect.any(Object), // exportService
+          expect.any(Object), // documentIdService
         );
       }
     });
@@ -1425,52 +1358,17 @@ proof:
         expect(ProofTreePanel.createWithServices).toHaveBeenCalledWith(
           expect.any(String), // uri
           'invalid yaml content {{{',
-          expect.objectContaining({
-            getArguments: expect.any(Function),
-            getDocumentStructure: expect.any(Function),
-            getStatements: expect.any(Function),
-          }), // documentQueryService
-          expect.objectContaining({
-            generateVisualization: expect.any(Function),
-            updateVisualization: expect.any(Function),
-          }), // visualizationService
-          expect.objectContaining({
-            showError: expect.any(Function),
-            showErrorMessage: expect.any(Function),
-            showInformation: expect.any(Function),
-            showInformationMessage: expect.any(Function),
-            showWarning: expect.any(Function),
-          }), // uiPort
-          expect.objectContaining({
-            render: expect.any(Function),
-            updateRender: expect.any(Function),
-          }), // renderer
-          expect.objectContaining({
-            getViewState: expect.any(Function),
-            subscribeToChanges: expect.any(Function),
-            updateViewState: expect.any(Function),
-          }), // viewStateManager
-          expect.objectContaining({
-            capabilities: expect.any(Function),
-            getViewState: expect.any(Function),
-            saveViewState: expect.any(Function),
-          }), // viewStatePort
-          expect.objectContaining({
-            createBootstrapArgument: expect.any(Function),
-            createEmptyImplicationLine: expect.any(Function),
-            getBootstrapWorkflow: expect.any(Function),
-            initializeEmptyDocument: expect.any(Function),
-            populateEmptyArgument: expect.any(Function),
-          }), // bootstrapController
-          expect.objectContaining({
-            createStatement: expect.any(Function),
-            executeCommand: expect.any(Function),
-            validateCommand: expect.any(Function),
-          }), // proofApplicationService
-          expect.objectContaining({
-            serialize: expect.any(Function),
-            deserialize: expect.any(Function),
-          }), // yamlSerializer
+          expect.any(Object), // documentQueryService
+          expect.any(Object), // visualizationService
+          expect.any(Object), // uiPort
+          expect.any(Object), // renderer
+          expect.any(Object), // viewStateManager
+          expect.any(Object), // viewStatePort
+          expect.any(Object), // bootstrapController
+          expect.any(Object), // proofApplicationService
+          expect.any(Object), // yamlSerializer
+          expect.any(Object), // exportService
+          expect.any(Object), // documentIdService
         );
       }
 

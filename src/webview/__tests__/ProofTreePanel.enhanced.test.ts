@@ -4,9 +4,11 @@ import { err, ok } from 'neverthrow';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ValidationApplicationError } from '../../application/dtos/operation-results.js';
 import type { ProofVisualizationDTO } from '../../application/dtos/view-dtos.js';
+import type { IExportService } from '../../application/ports/IExportService.js';
 import type { IUIPort, WebviewPanel } from '../../application/ports/IUIPort.js';
 import type { IViewStatePort } from '../../application/ports/IViewStatePort.js';
 import type { DocumentDTO } from '../../application/queries/document-queries.js';
+import type { IDocumentIdService } from '../../application/services/DocumentIdService.js';
 import type { DocumentQueryService } from '../../application/services/DocumentQueryService.js';
 import type { ProofApplicationService } from '../../application/services/ProofApplicationService.js';
 import type { ProofVisualizationService } from '../../application/services/ProofVisualizationService.js';
@@ -30,6 +32,8 @@ describe('ProofTreePanel Enhanced Integration Tests', () => {
   let _mockBootstrapController: BootstrapController;
   let _mockProofApplicationService: ProofApplicationService;
   let _mockYAMLSerializer: YAMLSerializer;
+  let _mockExportService: IExportService;
+  let _mockDocumentIdService: IDocumentIdService;
 
   const testDocumentDTO: DocumentDTO = {
     id: 'test-doc-1',
@@ -152,6 +156,7 @@ describe('ProofTreePanel Enhanced Integration Tests', () => {
       getTheme: vi.fn(),
       onThemeChange: vi.fn(),
       capabilities: vi.fn(),
+      writeFile: vi.fn().mockResolvedValue(ok(undefined)),
     } as unknown as IUIPort;
 
     // Create mock TreeRenderer
@@ -205,6 +210,32 @@ describe('ProofTreePanel Enhanced Integration Tests', () => {
       deserialize: vi.fn(),
     } as unknown as YAMLSerializer;
 
+    // Create mock ExportService
+    _mockExportService = {
+      exportDocument: vi
+        .fn()
+        .mockResolvedValue(
+          ok({ filename: 'test.yaml', content: 'test content', mimeType: 'text/yaml' }),
+        ),
+      exportDocumentContent: vi
+        .fn()
+        .mockResolvedValue(
+          ok({ filename: 'test.yaml', content: 'test content', mimeType: 'text/yaml' }),
+        ),
+      saveToFile: vi
+        .fn()
+        .mockResolvedValue(ok({ filePath: '/test/path', savedSuccessfully: true })),
+      getSupportedFormats: vi.fn().mockResolvedValue(ok(['yaml', 'json'])),
+    } as unknown as IExportService;
+
+    // Create mock DocumentIdService
+    _mockDocumentIdService = {
+      extractFromUri: vi.fn().mockReturnValue(ok('test-document')),
+      validateDocumentId: vi.fn().mockReturnValue(ok('test-document')),
+      generateFallbackId: vi.fn().mockReturnValue('fallback-id'),
+      extractFromUriWithFallback: vi.fn().mockReturnValue(ok('test-document')),
+    } as unknown as IDocumentIdService;
+
     // Setup default successful service responses (can be overridden in individual tests)
     vi.mocked(mockDocumentQueryService.parseDocumentContent).mockResolvedValue(ok(testDocumentDTO));
     vi.mocked(mockProofVisualizationService.generateVisualization).mockReturnValue(
@@ -218,6 +249,11 @@ describe('ProofTreePanel Enhanced Integration Tests', () => {
     mockContainer.registerInstance(TOKENS.TreeRenderer, mockTreeRenderer);
     mockContainer.registerInstance(TOKENS.ViewStateManager, mockViewStateManager);
     mockContainer.registerInstance(TOKENS.IViewStatePort, mockViewStatePort);
+    mockContainer.registerInstance(TOKENS.BootstrapController, _mockBootstrapController);
+    mockContainer.registerInstance(TOKENS.ProofApplicationService, _mockProofApplicationService);
+    mockContainer.registerInstance(TOKENS.YAMLSerializer, _mockYAMLSerializer);
+    mockContainer.registerInstance(TOKENS.IExportService, _mockExportService);
+    mockContainer.registerInstance(TOKENS.IDocumentIdService, _mockDocumentIdService);
   });
 
   describe('Service Integration', () => {
@@ -236,6 +272,8 @@ describe('ProofTreePanel Enhanced Integration Tests', () => {
         mockContainer.resolve(TOKENS.BootstrapController),
         mockContainer.resolve(TOKENS.ProofApplicationService),
         mockContainer.resolve(TOKENS.YAMLSerializer),
+        _mockExportService,
+        _mockDocumentIdService,
       );
 
       expect(result.isOk()).toBe(true);
@@ -272,6 +310,8 @@ describe('ProofTreePanel Enhanced Integration Tests', () => {
         mockContainer.resolve(TOKENS.BootstrapController),
         mockContainer.resolve(TOKENS.ProofApplicationService),
         mockContainer.resolve(TOKENS.YAMLSerializer),
+        _mockExportService,
+        _mockDocumentIdService,
       );
 
       // Should succeed in creating panel but show error in webview
@@ -305,6 +345,8 @@ describe('ProofTreePanel Enhanced Integration Tests', () => {
         mockContainer.resolve(TOKENS.BootstrapController),
         mockContainer.resolve(TOKENS.ProofApplicationService),
         mockContainer.resolve(TOKENS.YAMLSerializer),
+        _mockExportService,
+        _mockDocumentIdService,
       );
 
       // Should succeed in creating panel but show error in webview
@@ -336,6 +378,8 @@ describe('ProofTreePanel Enhanced Integration Tests', () => {
         mockContainer.resolve(TOKENS.BootstrapController),
         mockContainer.resolve(TOKENS.ProofApplicationService),
         mockContainer.resolve(TOKENS.YAMLSerializer),
+        _mockExportService,
+        _mockDocumentIdService,
       );
 
       expect(result.isOk()).toBe(true);
@@ -379,6 +423,8 @@ describe('ProofTreePanel Enhanced Integration Tests', () => {
         mockContainer.resolve(TOKENS.BootstrapController),
         mockContainer.resolve(TOKENS.ProofApplicationService),
         mockContainer.resolve(TOKENS.YAMLSerializer),
+        _mockExportService,
+        _mockDocumentIdService,
       );
 
       expect(result.isOk()).toBe(true);
@@ -416,6 +462,8 @@ describe('ProofTreePanel Enhanced Integration Tests', () => {
         mockContainer.resolve(TOKENS.BootstrapController),
         mockContainer.resolve(TOKENS.ProofApplicationService),
         mockContainer.resolve(TOKENS.YAMLSerializer),
+        _mockExportService,
+        _mockDocumentIdService,
       );
 
       expect(result.isOk()).toBe(true);
@@ -447,6 +495,8 @@ describe('ProofTreePanel Enhanced Integration Tests', () => {
         mockContainer.resolve(TOKENS.BootstrapController),
         mockContainer.resolve(TOKENS.ProofApplicationService),
         mockContainer.resolve(TOKENS.YAMLSerializer),
+        _mockExportService,
+        _mockDocumentIdService,
       );
 
       // Should not throw even on errors, handles all errors gracefully through Result pattern
@@ -506,6 +556,8 @@ describe('ProofTreePanel Enhanced Integration Tests', () => {
         mockContainer.resolve(TOKENS.BootstrapController),
         mockContainer.resolve(TOKENS.ProofApplicationService),
         mockContainer.resolve(TOKENS.YAMLSerializer),
+        _mockExportService,
+        _mockDocumentIdService,
       );
 
       expect(result.isOk()).toBe(true);
@@ -533,6 +585,8 @@ describe('ProofTreePanel Enhanced Integration Tests', () => {
         mockContainer.resolve(TOKENS.BootstrapController),
         mockContainer.resolve(TOKENS.ProofApplicationService),
         mockContainer.resolve(TOKENS.YAMLSerializer),
+        _mockExportService,
+        _mockDocumentIdService,
       );
 
       // Should handle gracefully without crashing - in this case, the promise rejection

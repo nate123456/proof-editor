@@ -31,6 +31,7 @@ function createMockUIPort(): IUIPort {
     showConfirmation: vi.fn(),
     showOpenDialog: vi.fn(),
     showSaveDialog: vi.fn(),
+    writeFile: vi.fn(),
     showInformation: vi.fn(),
     showWarning: vi.fn(),
     showError: vi.fn(),
@@ -232,8 +233,8 @@ describe('IUIPort Interface Contract', () => {
         title: 'Save As',
       };
 
-      const successResult = ok('/path/to/saved/file.proof');
-      const cancelledResult = ok(null);
+      const successResult = ok({ filePath: '/path/to/saved/file.proof', cancelled: false });
+      const cancelledResult = ok({ filePath: '', cancelled: true });
       const errorResult = err({
         code: 'PLATFORM_ERROR',
         message: 'Cannot save to location',
@@ -246,13 +247,14 @@ describe('IUIPort Interface Contract', () => {
       const result1 = await mockPort.showSaveDialog(options);
       expect(result1.isOk()).toBe(true);
       if (result1.isOk()) {
-        expect(result1.value).toBe('/path/to/saved/file.proof');
+        expect(result1.value.filePath).toBe('/path/to/saved/file.proof');
+        expect(result1.value.cancelled).toBe(false);
       }
 
       const result2 = await mockPort.showSaveDialog(options);
       expect(result2.isOk()).toBe(true);
       if (result2.isOk()) {
-        expect(result2.value).toBeNull();
+        expect(result2.value.cancelled).toBe(true);
       }
 
       const result3 = await mockPort.showSaveDialog(options);
