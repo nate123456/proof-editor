@@ -5,9 +5,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { IUIPort } from '../../application/ports/IUIPort.js';
 import type { IViewStatePort } from '../../application/ports/IViewStatePort.js';
 import type { DocumentQueryService } from '../../application/services/DocumentQueryService.js';
+import type { ProofApplicationService } from '../../application/services/ProofApplicationService.js';
 import type { ProofVisualizationService } from '../../application/services/ProofVisualizationService.js';
 import type { ViewStateManager } from '../../application/services/ViewStateManager.js';
 import { ValidationError } from '../../domain/shared/result.js';
+import type { YAMLSerializer } from '../../infrastructure/repositories/yaml/YAMLSerializer.js';
+import type { BootstrapController } from '../../presentation/controllers/BootstrapController.js';
 import { ProofTreePanel } from '../ProofTreePanel.js';
 import { ProofTreePanelManager } from '../ProofTreePanelManager.js';
 import type { TreeRenderer } from '../TreeRenderer.js';
@@ -32,6 +35,9 @@ vi.mock('../../infrastructure/di/tokens.js', () => ({
     TreeRenderer: 'TreeRenderer',
     ViewStateManager: 'ViewStateManager',
     IViewStatePort: 'IViewStatePort',
+    BootstrapController: 'BootstrapController',
+    ProofApplicationService: 'ProofApplicationService',
+    YAMLSerializer: 'YAMLSerializer',
   },
 }));
 
@@ -43,6 +49,9 @@ describe('ProofTreePanelManager', () => {
   let mockVisualizationService: ProofVisualizationService;
   let mockRenderer: TreeRenderer;
   let mockViewStateManager: ViewStateManager;
+  let mockBootstrapController: BootstrapController;
+  let mockProofApplicationService: ProofApplicationService;
+  let mockYAMLSerializer: YAMLSerializer;
   let mockPanel: ProofTreePanel;
   let mockContainer: any;
 
@@ -121,6 +130,21 @@ describe('ProofTreePanelManager', () => {
       storagePort: {} as any,
     } as any;
 
+    mockBootstrapController = {
+      createBootstrapArgument: vi.fn(),
+      getBootstrapInstructions: vi.fn(),
+    } as any;
+
+    mockProofApplicationService = {
+      processCommand: vi.fn(),
+      getValidationService: vi.fn(),
+    } as any;
+
+    mockYAMLSerializer = {
+      serialize: vi.fn(),
+      deserialize: vi.fn(),
+    } as any;
+
     // Mock panel
     mockPanel = {
       reveal: vi.fn(),
@@ -146,6 +170,12 @@ describe('ProofTreePanelManager', () => {
             return mockViewStateManager;
           case 'IViewStatePort':
             return mockViewStatePort;
+          case 'BootstrapController':
+            return mockBootstrapController;
+          case 'ProofApplicationService':
+            return mockProofApplicationService;
+          case 'YAMLSerializer':
+            return mockYAMLSerializer;
           default:
             return {};
         }
@@ -190,6 +220,9 @@ describe('ProofTreePanelManager', () => {
         mockRenderer,
         mockViewStateManager,
         mockViewStatePort,
+        mockBootstrapController,
+        mockProofApplicationService,
+        mockYAMLSerializer,
       );
     });
 
@@ -282,6 +315,9 @@ describe('ProofTreePanelManager', () => {
         mockRenderer,
         mockViewStateManager,
         mockViewStatePort,
+        mockBootstrapController,
+        mockProofApplicationService,
+        mockYAMLSerializer,
       );
 
       expect(result.isOk()).toBe(true);
@@ -295,6 +331,9 @@ describe('ProofTreePanelManager', () => {
         mockRenderer,
         mockViewStateManager,
         mockViewStatePort,
+        mockBootstrapController,
+        mockProofApplicationService,
+        mockYAMLSerializer,
       );
     });
 
@@ -312,6 +351,9 @@ describe('ProofTreePanelManager', () => {
         mockRenderer,
         mockViewStateManager,
         mockViewStatePort,
+        mockBootstrapController,
+        mockProofApplicationService,
+        mockYAMLSerializer,
       );
       expect(result1.isOk()).toBe(true);
 
@@ -328,6 +370,9 @@ describe('ProofTreePanelManager', () => {
         mockRenderer,
         mockViewStateManager,
         mockViewStatePort,
+        mockBootstrapController,
+        mockProofApplicationService,
+        mockYAMLSerializer,
       );
 
       expect(result2.isOk()).toBe(true);
@@ -348,6 +393,9 @@ describe('ProofTreePanelManager', () => {
         mockRenderer,
         mockViewStateManager,
         mockViewStatePort,
+        mockBootstrapController,
+        mockProofApplicationService,
+        mockYAMLSerializer,
       );
 
       expect(result.isErr()).toBe(true);
@@ -368,6 +416,9 @@ describe('ProofTreePanelManager', () => {
         mockRenderer,
         mockViewStateManager,
         mockViewStatePort,
+        mockBootstrapController,
+        mockProofApplicationService,
+        mockYAMLSerializer,
       );
 
       expect(result.isErr()).toBe(true);
@@ -601,6 +652,9 @@ describe('ProofTreePanelManager', () => {
           renderer: mockRenderer,
           viewStateManager: mockViewStateManager,
           viewStatePort: mockViewStatePort,
+          bootstrapController: mockBootstrapController,
+          proofApplicationService: mockProofApplicationService,
+          yamlSerializer: mockYAMLSerializer,
         });
       }
     });
@@ -663,6 +717,9 @@ describe('ProofTreePanelManager', () => {
         mockRenderer,
         mockViewStateManager,
         mockViewStatePort,
+        mockBootstrapController,
+        mockProofApplicationService,
+        mockYAMLSerializer,
       );
     });
 

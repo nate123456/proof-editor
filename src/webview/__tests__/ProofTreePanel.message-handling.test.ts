@@ -118,7 +118,18 @@ describe('ProofTreePanel Message Handling', () => {
           trees: {},
         }),
       ),
-      getDocumentById: vi.fn(),
+      getDocumentById: vi.fn().mockResolvedValue(
+        ok({
+          id: 'test-doc',
+          version: 1,
+          createdAt: new Date().toISOString(),
+          modifiedAt: new Date().toISOString(),
+          statements: {},
+          orderedSets: {},
+          atomicArguments: {},
+          trees: {},
+        }),
+      ),
       getDocumentWithStats: vi.fn(),
       validateDocumentContent: vi.fn(),
       getDocumentMetadata: vi.fn(),
@@ -204,12 +215,27 @@ describe('ProofTreePanel Message Handling', () => {
     mockBootstrapController = {
       createBootstrapDocument: vi.fn(),
       validateBootstrapData: vi.fn(),
+      createBootstrapArgument: vi.fn().mockResolvedValue(
+        ok({
+          success: true,
+          data: {
+            argumentId: 'test-arg-id',
+          },
+        }),
+      ),
+      populateEmptyArgument: vi.fn().mockResolvedValue(ok(undefined)),
     } as any;
 
     // Create mock ProofApplicationService
     mockProofApplicationService = {
       processCommand: vi.fn(),
       validateProof: vi.fn(),
+      createStatement: vi.fn().mockResolvedValue(
+        ok({
+          id: 'test-statement-id',
+          content: 'Test statement content',
+        }),
+      ),
     } as any;
 
     // Create mock YAMLSerializer
@@ -349,12 +375,12 @@ describe('ProofTreePanel Message Handling', () => {
         ruleName: 'Modus Ponens',
       });
 
-      expect(mockUIPort.showError).toHaveBeenCalledWith(
-        'Command execution not yet implemented in ProofTreePanel',
+      expect(mockUIPort.postMessageToWebview).toHaveBeenCalledWith(
+        'test-panel',
+        expect.objectContaining({
+          type: 'argumentCreated',
+        }),
       );
-      expect(mockUIPort.postMessageToWebview).toHaveBeenCalledWith(expect.any(String), {
-        type: 'argumentCreated',
-      });
     });
 
     it('should validate premises requirement', async () => {
@@ -457,9 +483,7 @@ describe('ProofTreePanel Message Handling', () => {
         content: 'New premise statement',
       });
 
-      expect(mockUIPort.showInformation).toHaveBeenCalledWith(
-        'Adding premise: "New premise statement" - Feature coming soon!',
-      );
+      expect(mockUIPort.showInformation).toHaveBeenCalledWith('Premise added successfully');
     });
 
     it('should handle adding conclusion statement', async () => {
@@ -469,9 +493,7 @@ describe('ProofTreePanel Message Handling', () => {
         content: 'New conclusion statement',
       });
 
-      expect(mockUIPort.showInformation).toHaveBeenCalledWith(
-        'Adding conclusion: "New conclusion statement" - Feature coming soon!',
-      );
+      expect(mockUIPort.showInformation).toHaveBeenCalledWith('Conclusion added successfully');
     });
 
     it('should validate statement content', async () => {
@@ -524,8 +546,8 @@ describe('ProofTreePanel Message Handling', () => {
         type: 'exportProof',
       });
 
-      expect(mockUIPort.showError).toHaveBeenCalledWith(
-        'Export functionality not yet implemented in ProofTreePanel',
+      expect(mockUIPort.showInformation).toHaveBeenCalledWith(
+        'Export data prepared - see details in panel',
       );
     });
 

@@ -321,6 +321,12 @@ export class AtomicArgument {
       return err(new ValidationError('Target argument has no premise set'));
     }
 
+    if (!this.canConnectTo(other)) {
+      return err(
+        new ValidationError('Arguments cannot connect: conclusion set does not match premise set'),
+      );
+    }
+
     if (this.wouldCreateDirectCycle(other)) {
       return err(new ValidationError('Connection would create direct cycle'));
     }

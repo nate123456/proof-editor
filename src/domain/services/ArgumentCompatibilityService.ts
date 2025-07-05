@@ -93,7 +93,7 @@ export class ArgumentCompatibilityService {
       return providers;
     }
 
-    for (const [id, provider] of availableArguments) {
+    for (const [id, provider] of Array.from(availableArguments.entries())) {
       if (id === consumer.getId().getValue()) continue;
 
       const compatibility = this.canConnect(provider, consumer, orderedSets);

@@ -1,4 +1,3 @@
-import { mock } from 'jest-mock-extended';
 import * as yaml from 'js-yaml';
 import { err, ok } from 'neverthrow';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -50,7 +49,7 @@ describe('YAMLDeserializer', () => {
         trees: {},
       };
 
-      const mockDocument = mock<ProofDocument>();
+      const mockDocument = {} as ProofDocument;
 
       (yaml.load as any).mockReturnValue(validDocumentData);
       (ProofDocument.reconstruct as any).mockReturnValue(ok(mockDocument));
@@ -102,7 +101,7 @@ describe('YAMLDeserializer', () => {
         trees: {},
       };
 
-      const mockDocument = mock<ProofDocument>();
+      const mockDocument = {} as ProofDocument;
 
       (yaml.load as any).mockReturnValue(documentDataWithDates);
       (ProofDocument.reconstruct as any).mockReturnValue(ok(mockDocument));
@@ -136,7 +135,7 @@ describe('YAMLDeserializer', () => {
         trees: {},
       };
 
-      const mockDocument = mock<ProofDocument>();
+      const mockDocument = {} as ProofDocument;
 
       (yaml.load as any).mockReturnValue(emptyDocumentData);
       (ProofDocument.reconstruct as any).mockReturnValue(ok(mockDocument));
@@ -572,7 +571,7 @@ describe('YAMLDeserializer', () => {
         },
       };
 
-      const mockDocument = mock<ProofDocument>();
+      const mockDocument = {} as ProofDocument;
 
       (yaml.load as any).mockReturnValue(complexDocumentData);
       (ProofDocument.reconstruct as any).mockReturnValue(ok(mockDocument));

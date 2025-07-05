@@ -38,12 +38,14 @@ function isValidYAMLDocument(data: unknown): data is YAMLDocumentData {
 
   const obj = data as Record<string, unknown>;
 
-  // Check metadata
+  // Check metadata exists
   if (typeof obj.metadata !== 'object' || obj.metadata === null) {
     return false;
   }
 
   const metadata = obj.metadata as Record<string, unknown>;
+
+  // Check ALL required metadata fields (including schema version)
   if (
     typeof metadata.schemaVersion !== 'string' ||
     typeof metadata.id !== 'string' ||
@@ -86,30 +88,22 @@ export class YAMLDeserializer {
     try {
       const rawData = yaml.load(yamlContent);
 
-      if (!isValidYAMLDocument(rawData)) {
-        // Check if it's a schema version issue by looking at the raw data
-        if (typeof rawData === 'object' && rawData !== null) {
-          const obj = rawData as Record<string, unknown>;
-          if (obj.metadata && typeof obj.metadata === 'object' && obj.metadata !== null) {
-            const metadata = obj.metadata as Record<string, unknown>;
-            if (
-              typeof metadata.schemaVersion === 'string' ||
-              metadata.schemaVersion === undefined
-            ) {
-              return err(
-                new ValidationError(`Unsupported schema version: ${metadata.schemaVersion}`),
-              );
-            }
-          } else if (obj.metadata === undefined) {
-            return err(new ValidationError('Unsupported schema version: undefined'));
-          }
+      // Handle special case where metadata is missing entirely
+      if (typeof rawData === 'object' && rawData !== null) {
+        const obj = rawData as Record<string, unknown>;
+        if (obj.metadata === undefined) {
+          return err(new ValidationError('Unsupported schema version: undefined'));
         }
+      }
+
+      // Validate full document structure (includes schema version check)
+      if (!isValidYAMLDocument(rawData)) {
         return err(new ValidationError('Invalid YAML document structure'));
       }
 
       const data = rawData as YAMLDocumentData;
 
-      // Validate schema version
+      // Now check if schema version is supported
       if (data.metadata.schemaVersion !== '1.0.0') {
         return err(
           new ValidationError(`Unsupported schema version: ${data.metadata.schemaVersion}`),

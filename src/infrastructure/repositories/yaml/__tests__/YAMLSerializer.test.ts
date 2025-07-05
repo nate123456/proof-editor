@@ -20,12 +20,20 @@ vi.mock('js-yaml', () => ({
 
 describe('YAMLSerializer', () => {
   let serializer: YAMLSerializer;
-  let mockDocument: ReturnType<typeof mock<ProofDocument>>;
+  let mockDocument: ProofDocument;
 
   beforeEach(() => {
     vi.clearAllMocks();
     serializer = new YAMLSerializer();
-    mockDocument = mock<ProofDocument>();
+    mockDocument = {
+      getId: vi.fn(),
+      getVersion: vi.fn(),
+      getCreatedAt: vi.fn(),
+      getModifiedAt: vi.fn(),
+      getAllStatements: vi.fn(),
+      getAllOrderedSets: vi.fn(),
+      getAllAtomicArguments: vi.fn(),
+    } as unknown as ProofDocument;
   });
 
   describe('serialize', () => {
@@ -38,13 +46,13 @@ describe('YAMLSerializer', () => {
       const createdAt = new Date('2023-01-01T00:00:00.000Z');
       const modifiedAt = new Date('2023-01-02T00:00:00.000Z');
 
-      mockDocument.getId.mockReturnValue(documentId);
-      mockDocument.getVersion.mockReturnValue(1);
-      mockDocument.getCreatedAt.mockReturnValue(createdAt);
-      mockDocument.getModifiedAt.mockReturnValue(modifiedAt);
-      mockDocument.getAllStatements.mockReturnValue([]);
-      mockDocument.getAllOrderedSets.mockReturnValue([]);
-      mockDocument.getAllAtomicArguments.mockReturnValue([]);
+      vi.mocked(mockDocument.getId).mockReturnValue(documentId);
+      vi.mocked(mockDocument.getVersion).mockReturnValue(1);
+      vi.mocked(mockDocument.getCreatedAt).mockReturnValue(createdAt);
+      vi.mocked(mockDocument.getModifiedAt).mockReturnValue(modifiedAt);
+      vi.mocked(mockDocument.getAllStatements).mockReturnValue([]);
+      vi.mocked(mockDocument.getAllOrderedSets).mockReturnValue([]);
+      vi.mocked(mockDocument.getAllAtomicArguments).mockReturnValue([]);
 
       const expectedYamlOutput = 'yaml-output';
       (yaml.dump as any).mockReturnValue(expectedYamlOutput);
@@ -83,8 +91,14 @@ describe('YAMLSerializer', () => {
 
     it('should serialize statements correctly', async () => {
       // Arrange
-      const mockStatement1 = mock<Statement>();
-      const mockStatement2 = mock<Statement>();
+      const mockStatement1 = {
+        getId: vi.fn(),
+        getContent: vi.fn(),
+      } as unknown as Statement;
+      const mockStatement2 = {
+        getId: vi.fn(),
+        getContent: vi.fn(),
+      } as unknown as Statement;
 
       const statementId1Result = StatementId.create('stmt-1');
       const statementId2Result = StatementId.create('stmt-2');
@@ -93,15 +107,15 @@ describe('YAMLSerializer', () => {
       const statementId1 = statementId1Result.value;
       const statementId2 = statementId2Result.value;
 
-      mockStatement1.getId.mockReturnValue(statementId1);
-      mockStatement1.getContent.mockReturnValue('All men are mortal');
+      vi.mocked(mockStatement1.getId).mockReturnValue(statementId1);
+      vi.mocked(mockStatement1.getContent).mockReturnValue('All men are mortal');
 
-      mockStatement2.getId.mockReturnValue(statementId2);
-      mockStatement2.getContent.mockReturnValue('Socrates is a man');
+      vi.mocked(mockStatement2.getId).mockReturnValue(statementId2);
+      vi.mocked(mockStatement2.getContent).mockReturnValue('Socrates is a man');
 
-      mockDocument.getAllStatements.mockReturnValue([mockStatement1, mockStatement2]);
-      mockDocument.getAllOrderedSets.mockReturnValue([]);
-      mockDocument.getAllAtomicArguments.mockReturnValue([]);
+      vi.mocked(mockDocument.getAllStatements).mockReturnValue([mockStatement1, mockStatement2]);
+      vi.mocked(mockDocument.getAllOrderedSets).mockReturnValue([]);
+      vi.mocked(mockDocument.getAllAtomicArguments).mockReturnValue([]);
 
       setupBasicMockDocument(mockDocument);
       (yaml.dump as any).mockReturnValue('yaml-output');
@@ -124,8 +138,14 @@ describe('YAMLSerializer', () => {
 
     it('should serialize ordered sets correctly', async () => {
       // Arrange
-      const mockOrderedSet1 = mock<OrderedSet>();
-      const mockOrderedSet2 = mock<OrderedSet>();
+      const mockOrderedSet1 = {
+        getId: vi.fn(),
+        getStatementIds: vi.fn(),
+      } as unknown as OrderedSet;
+      const mockOrderedSet2 = {
+        getId: vi.fn(),
+        getStatementIds: vi.fn(),
+      } as unknown as OrderedSet;
 
       const orderedSetId1Result = OrderedSetId.create('set-1');
       const orderedSetId2Result = OrderedSetId.create('set-2');
@@ -144,15 +164,15 @@ describe('YAMLSerializer', () => {
       const statementId2 = statementId2Result.value;
       const statementId3 = statementId3Result.value;
 
-      mockOrderedSet1.getId.mockReturnValue(orderedSetId1);
-      mockOrderedSet1.getStatementIds.mockReturnValue([statementId1, statementId2]);
+      vi.mocked(mockOrderedSet1.getId).mockReturnValue(orderedSetId1);
+      vi.mocked(mockOrderedSet1.getStatementIds).mockReturnValue([statementId1, statementId2]);
 
-      mockOrderedSet2.getId.mockReturnValue(orderedSetId2);
-      mockOrderedSet2.getStatementIds.mockReturnValue([statementId3]);
+      vi.mocked(mockOrderedSet2.getId).mockReturnValue(orderedSetId2);
+      vi.mocked(mockOrderedSet2.getStatementIds).mockReturnValue([statementId3]);
 
-      mockDocument.getAllStatements.mockReturnValue([]);
-      mockDocument.getAllOrderedSets.mockReturnValue([mockOrderedSet1, mockOrderedSet2]);
-      mockDocument.getAllAtomicArguments.mockReturnValue([]);
+      vi.mocked(mockDocument.getAllStatements).mockReturnValue([]);
+      vi.mocked(mockDocument.getAllOrderedSets).mockReturnValue([mockOrderedSet1, mockOrderedSet2]);
+      vi.mocked(mockDocument.getAllAtomicArguments).mockReturnValue([]);
 
       setupBasicMockDocument(mockDocument);
       (yaml.dump as any).mockReturnValue('yaml-output');
@@ -175,7 +195,12 @@ describe('YAMLSerializer', () => {
 
     it('should serialize atomic arguments with premises and conclusions', async () => {
       // Arrange
-      const mockArgument = mock<AtomicArgument>();
+      const mockArgument = {
+        getId: vi.fn(),
+        getPremiseSet: vi.fn(),
+        getConclusionSet: vi.fn(),
+        getSideLabels: vi.fn(),
+      } as unknown as AtomicArgument;
       const argumentIdResult = AtomicArgumentId.create('arg-1');
       const premiseSetIdResult = OrderedSetId.create('set-premises');
       const conclusionSetIdResult = OrderedSetId.create('set-conclusions');
@@ -186,14 +211,14 @@ describe('YAMLSerializer', () => {
       const premiseSetId = premiseSetIdResult.value;
       const conclusionSetId = conclusionSetIdResult.value;
 
-      mockArgument.getId.mockReturnValue(argumentId);
-      mockArgument.getPremiseSet.mockReturnValue(premiseSetId);
-      mockArgument.getConclusionSet.mockReturnValue(conclusionSetId);
-      mockArgument.getSideLabels.mockReturnValue(null);
+      vi.mocked(mockArgument.getId).mockReturnValue(argumentId);
+      vi.mocked(mockArgument.getPremiseSet).mockReturnValue(premiseSetId);
+      vi.mocked(mockArgument.getConclusionSet).mockReturnValue(conclusionSetId);
+      vi.mocked(mockArgument.getSideLabels).mockReturnValue({});
 
-      mockDocument.getAllStatements.mockReturnValue([]);
-      mockDocument.getAllOrderedSets.mockReturnValue([]);
-      mockDocument.getAllAtomicArguments.mockReturnValue([mockArgument]);
+      vi.mocked(mockDocument.getAllStatements).mockReturnValue([]);
+      vi.mocked(mockDocument.getAllOrderedSets).mockReturnValue([]);
+      vi.mocked(mockDocument.getAllAtomicArguments).mockReturnValue([mockArgument]);
 
       setupBasicMockDocument(mockDocument);
       (yaml.dump as any).mockReturnValue('yaml-output');
@@ -218,19 +243,24 @@ describe('YAMLSerializer', () => {
 
     it('should serialize atomic arguments with side labels', async () => {
       // Arrange
-      const mockArgument = mock<AtomicArgument>();
+      const mockArgument = {
+        getId: vi.fn(),
+        getPremiseSet: vi.fn(),
+        getConclusionSet: vi.fn(),
+        getSideLabels: vi.fn(),
+      } as unknown as AtomicArgument;
       const argumentIdResult = AtomicArgumentId.create('arg-1');
       if (argumentIdResult.isErr()) throw argumentIdResult.error;
       const argumentId = argumentIdResult.value;
 
-      mockArgument.getId.mockReturnValue(argumentId);
-      mockArgument.getPremiseSet.mockReturnValue(null);
-      mockArgument.getConclusionSet.mockReturnValue(null);
-      mockArgument.getSideLabels.mockReturnValue({ left: 'Modus Ponens' });
+      vi.mocked(mockArgument.getId).mockReturnValue(argumentId);
+      vi.mocked(mockArgument.getPremiseSet).mockReturnValue(null);
+      vi.mocked(mockArgument.getConclusionSet).mockReturnValue(null);
+      vi.mocked(mockArgument.getSideLabels).mockReturnValue({ left: 'Modus Ponens' });
 
-      mockDocument.getAllStatements.mockReturnValue([]);
-      mockDocument.getAllOrderedSets.mockReturnValue([]);
-      mockDocument.getAllAtomicArguments.mockReturnValue([mockArgument]);
+      vi.mocked(mockDocument.getAllStatements).mockReturnValue([]);
+      vi.mocked(mockDocument.getAllOrderedSets).mockReturnValue([]);
+      vi.mocked(mockDocument.getAllAtomicArguments).mockReturnValue([mockArgument]);
 
       setupBasicMockDocument(mockDocument);
       (yaml.dump as any).mockReturnValue('yaml-output');
@@ -256,19 +286,24 @@ describe('YAMLSerializer', () => {
 
     it('should handle atomic arguments with null premise/conclusion sets', async () => {
       // Arrange
-      const mockArgument = mock<AtomicArgument>();
+      const mockArgument = {
+        getId: vi.fn(),
+        getPremiseSet: vi.fn(),
+        getConclusionSet: vi.fn(),
+        getSideLabels: vi.fn(),
+      } as unknown as AtomicArgument;
       const argumentIdResult = AtomicArgumentId.create('arg-bootstrap');
       if (argumentIdResult.isErr()) throw argumentIdResult.error;
       const argumentId = argumentIdResult.value;
 
-      mockArgument.getId.mockReturnValue(argumentId);
-      mockArgument.getPremiseSet.mockReturnValue(null);
-      mockArgument.getConclusionSet.mockReturnValue(null);
-      mockArgument.getSideLabels.mockReturnValue(null);
+      vi.mocked(mockArgument.getId).mockReturnValue(argumentId);
+      vi.mocked(mockArgument.getPremiseSet).mockReturnValue(null);
+      vi.mocked(mockArgument.getConclusionSet).mockReturnValue(null);
+      vi.mocked(mockArgument.getSideLabels).mockReturnValue({});
 
-      mockDocument.getAllStatements.mockReturnValue([]);
-      mockDocument.getAllOrderedSets.mockReturnValue([]);
-      mockDocument.getAllAtomicArguments.mockReturnValue([mockArgument]);
+      vi.mocked(mockDocument.getAllStatements).mockReturnValue([]);
+      vi.mocked(mockDocument.getAllOrderedSets).mockReturnValue([]);
+      vi.mocked(mockDocument.getAllAtomicArguments).mockReturnValue([mockArgument]);
 
       setupBasicMockDocument(mockDocument);
       (yaml.dump as any).mockReturnValue('yaml-output');
@@ -293,9 +328,9 @@ describe('YAMLSerializer', () => {
 
     it('should serialize empty trees collection', async () => {
       // Arrange
-      mockDocument.getAllStatements.mockReturnValue([]);
-      mockDocument.getAllOrderedSets.mockReturnValue([]);
-      mockDocument.getAllAtomicArguments.mockReturnValue([]);
+      vi.mocked(mockDocument.getAllStatements).mockReturnValue([]);
+      vi.mocked(mockDocument.getAllOrderedSets).mockReturnValue([]);
+      vi.mocked(mockDocument.getAllAtomicArguments).mockReturnValue([]);
 
       setupBasicMockDocument(mockDocument);
       (yaml.dump as any).mockReturnValue('yaml-output');
@@ -316,9 +351,9 @@ describe('YAMLSerializer', () => {
     it('should handle yaml.dump throwing an error', async () => {
       // Arrange
       setupBasicMockDocument(mockDocument);
-      mockDocument.getAllStatements.mockReturnValue([]);
-      mockDocument.getAllOrderedSets.mockReturnValue([]);
-      mockDocument.getAllAtomicArguments.mockReturnValue([]);
+      vi.mocked(mockDocument.getAllStatements).mockReturnValue([]);
+      vi.mocked(mockDocument.getAllOrderedSets).mockReturnValue([]);
+      vi.mocked(mockDocument.getAllAtomicArguments).mockReturnValue([]);
 
       const yamlError = new Error('YAML serialization failed');
       (yaml.dump as any).mockImplementation(() => {
@@ -340,9 +375,9 @@ describe('YAMLSerializer', () => {
     it('should handle non-Error exceptions from yaml.dump', async () => {
       // Arrange
       setupBasicMockDocument(mockDocument);
-      mockDocument.getAllStatements.mockReturnValue([]);
-      mockDocument.getAllOrderedSets.mockReturnValue([]);
-      mockDocument.getAllAtomicArguments.mockReturnValue([]);
+      vi.mocked(mockDocument.getAllStatements).mockReturnValue([]);
+      vi.mocked(mockDocument.getAllOrderedSets).mockReturnValue([]);
+      vi.mocked(mockDocument.getAllAtomicArguments).mockReturnValue([]);
 
       const yamlError = 'String error from YAML';
       (yaml.dump as any).mockImplementation(() => {
@@ -366,9 +401,9 @@ describe('YAMLSerializer', () => {
     it('should properly serialize empty document with all empty collections', async () => {
       // Arrange
       setupBasicMockDocument(mockDocument);
-      mockDocument.getAllStatements.mockReturnValue([]);
-      mockDocument.getAllOrderedSets.mockReturnValue([]);
-      mockDocument.getAllAtomicArguments.mockReturnValue([]);
+      vi.mocked(mockDocument.getAllStatements).mockReturnValue([]);
+      vi.mocked(mockDocument.getAllOrderedSets).mockReturnValue([]);
+      vi.mocked(mockDocument.getAllAtomicArguments).mockReturnValue([]);
 
       (yaml.dump as any).mockReturnValue('empty-document-yaml');
 
@@ -393,9 +428,9 @@ describe('YAMLSerializer', () => {
 
       // Arrange
       setupBasicMockDocument(mockDocument);
-      mockDocument.getAllStatements.mockReturnValue([]);
-      mockDocument.getAllOrderedSets.mockReturnValue([]);
-      mockDocument.getAllAtomicArguments.mockReturnValue([]);
+      vi.mocked(mockDocument.getAllStatements).mockReturnValue([]);
+      vi.mocked(mockDocument.getAllOrderedSets).mockReturnValue([]);
+      vi.mocked(mockDocument.getAllAtomicArguments).mockReturnValue([]);
 
       (yaml.dump as any).mockReturnValue('bootstrap-yaml');
 
@@ -417,8 +452,14 @@ describe('YAMLSerializer', () => {
     it('should serialize document with statements, ordered sets, and atomic arguments', async () => {
       // Arrange
       // Create statements
-      const statement1 = mock<Statement>();
-      const statement2 = mock<Statement>();
+      const statement1 = {
+        getId: vi.fn(),
+        getContent: vi.fn(),
+      } as unknown as Statement;
+      const statement2 = {
+        getId: vi.fn(),
+        getContent: vi.fn(),
+      } as unknown as Statement;
       const statementId1Result = StatementId.create('stmt-1');
       const statementId2Result = StatementId.create('stmt-2');
       if (statementId1Result.isErr()) throw statementId1Result.error;
@@ -426,32 +467,40 @@ describe('YAMLSerializer', () => {
       const statementId1 = statementId1Result.value;
       const statementId2 = statementId2Result.value;
 
-      statement1.getId.mockReturnValue(statementId1);
-      statement1.getContent.mockReturnValue('All men are mortal');
-      statement2.getId.mockReturnValue(statementId2);
-      statement2.getContent.mockReturnValue('Socrates is a man');
+      vi.mocked(statement1.getId).mockReturnValue(statementId1);
+      vi.mocked(statement1.getContent).mockReturnValue('All men are mortal');
+      vi.mocked(statement2.getId).mockReturnValue(statementId2);
+      vi.mocked(statement2.getContent).mockReturnValue('Socrates is a man');
 
       // Create ordered sets
-      const orderedSet = mock<OrderedSet>();
+      const orderedSet = {
+        getId: vi.fn(),
+        getStatementIds: vi.fn(),
+      } as unknown as OrderedSet;
       const orderedSetIdResult = OrderedSetId.create('set-1');
       if (orderedSetIdResult.isErr()) throw orderedSetIdResult.error;
       const orderedSetId = orderedSetIdResult.value;
-      orderedSet.getId.mockReturnValue(orderedSetId);
-      orderedSet.getStatementIds.mockReturnValue([statementId1, statementId2]);
+      vi.mocked(orderedSet.getId).mockReturnValue(orderedSetId);
+      vi.mocked(orderedSet.getStatementIds).mockReturnValue([statementId1, statementId2]);
 
       // Create atomic argument
-      const argument = mock<AtomicArgument>();
+      const argument = {
+        getId: vi.fn(),
+        getPremiseSet: vi.fn(),
+        getConclusionSet: vi.fn(),
+        getSideLabels: vi.fn(),
+      } as unknown as AtomicArgument;
       const argumentIdResult = AtomicArgumentId.create('arg-1');
       if (argumentIdResult.isErr()) throw argumentIdResult.error;
       const argumentId = argumentIdResult.value;
-      argument.getId.mockReturnValue(argumentId);
-      argument.getPremiseSet.mockReturnValue(orderedSetId);
-      argument.getConclusionSet.mockReturnValue(null);
-      argument.getSideLabels.mockReturnValue({ left: 'Premise Set' });
+      vi.mocked(argument.getId).mockReturnValue(argumentId);
+      vi.mocked(argument.getPremiseSet).mockReturnValue(orderedSetId);
+      vi.mocked(argument.getConclusionSet).mockReturnValue(null);
+      vi.mocked(argument.getSideLabels).mockReturnValue({ left: 'Premise Set' });
 
-      mockDocument.getAllStatements.mockReturnValue([statement1, statement2]);
-      mockDocument.getAllOrderedSets.mockReturnValue([orderedSet]);
-      mockDocument.getAllAtomicArguments.mockReturnValue([argument]);
+      vi.mocked(mockDocument.getAllStatements).mockReturnValue([statement1, statement2]);
+      vi.mocked(mockDocument.getAllOrderedSets).mockReturnValue([orderedSet]);
+      vi.mocked(mockDocument.getAllAtomicArguments).mockReturnValue([argument]);
 
       setupBasicMockDocument(mockDocument);
       (yaml.dump as any).mockReturnValue('complex-document-yaml');
@@ -487,9 +536,9 @@ describe('YAMLSerializer', () => {
     it('should use correct YAML formatting options', async () => {
       // Arrange
       setupBasicMockDocument(mockDocument);
-      mockDocument.getAllStatements.mockReturnValue([]);
-      mockDocument.getAllOrderedSets.mockReturnValue([]);
-      mockDocument.getAllAtomicArguments.mockReturnValue([]);
+      vi.mocked(mockDocument.getAllStatements).mockReturnValue([]);
+      vi.mocked(mockDocument.getAllOrderedSets).mockReturnValue([]);
+      vi.mocked(mockDocument.getAllAtomicArguments).mockReturnValue([]);
 
       (yaml.dump as any).mockReturnValue('formatted-yaml');
 
@@ -510,9 +559,9 @@ describe('YAMLSerializer', () => {
     it('should include correct schema version in metadata', async () => {
       // Arrange
       setupBasicMockDocument(mockDocument);
-      mockDocument.getAllStatements.mockReturnValue([]);
-      mockDocument.getAllOrderedSets.mockReturnValue([]);
-      mockDocument.getAllAtomicArguments.mockReturnValue([]);
+      vi.mocked(mockDocument.getAllStatements).mockReturnValue([]);
+      vi.mocked(mockDocument.getAllOrderedSets).mockReturnValue([]);
+      vi.mocked(mockDocument.getAllAtomicArguments).mockReturnValue([]);
 
       (yaml.dump as any).mockReturnValue('versioned-yaml');
 
@@ -533,14 +582,14 @@ describe('YAMLSerializer', () => {
   });
 
   // Helper function to set up basic mock document properties
-  function setupBasicMockDocument(mockDoc: ReturnType<typeof mock<ProofDocument>>): void {
+  function setupBasicMockDocument(mockDoc: ProofDocument): void {
     const documentIdResult = ProofDocumentId.create('test-doc-id');
     if (documentIdResult.isErr()) throw documentIdResult.error;
     const documentId = documentIdResult.value;
 
-    mockDoc.getId.mockReturnValue(documentId);
-    mockDoc.getVersion.mockReturnValue(1);
-    mockDoc.getCreatedAt.mockReturnValue(new Date('2023-01-01T00:00:00.000Z'));
-    mockDoc.getModifiedAt.mockReturnValue(new Date('2023-01-01T00:00:00.000Z'));
+    vi.mocked(mockDoc.getId).mockReturnValue(documentId);
+    vi.mocked(mockDoc.getVersion).mockReturnValue(1);
+    vi.mocked(mockDoc.getCreatedAt).mockReturnValue(new Date('2023-01-01T00:00:00.000Z'));
+    vi.mocked(mockDoc.getModifiedAt).mockReturnValue(new Date('2023-01-01T00:00:00.000Z'));
   }
 });

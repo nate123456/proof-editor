@@ -638,9 +638,9 @@ describe('Error Handling', () => {
   describe('dynamic import failures', () => {
     it('should handle failed dynamic imports in registerDomainServices', async () => {
       // Arrange
-      vi.mocked(
-        import('../../../domain/services/ConnectionResolutionService.js'),
-      ).mockRejectedValue(new Error('Import failed'));
+      vi.doMock('../../../domain/services/ConnectionResolutionService.js', () => {
+        throw new Error('Import failed');
+      });
 
       // Act & Assert
       await expect(registerDomainServices(container)).rejects.toThrow();
@@ -648,9 +648,9 @@ describe('Error Handling', () => {
 
     it('should handle failed dynamic imports in registerInfrastructureServices', async () => {
       // Arrange
-      vi.mocked(import('../../../parser/ProofFileParser.js')).mockRejectedValue(
-        new Error('Import failed'),
-      );
+      vi.doMock('../../../parser/ProofFileParser.js', () => {
+        throw new Error('Import failed');
+      });
 
       // Act & Assert
       await expect(registerInfrastructureServices(container)).rejects.toThrow();

@@ -8,13 +8,31 @@ vi.mock('../yaml/YAMLProofDocumentRepository.js', () => ({
   YAMLProofDocumentRepository: vi.fn(),
 }));
 
+// Helper function to create a complete mock IFileSystemPort
+function createMockFileSystem(): IFileSystemPort {
+  return {
+    readFile: vi.fn(),
+    writeFile: vi.fn(),
+    exists: vi.fn(),
+    delete: vi.fn(),
+    readDirectory: vi.fn(),
+    createDirectory: vi.fn(),
+    watch: vi.fn(),
+    getStoredDocument: vi.fn(),
+    storeDocument: vi.fn(),
+    deleteStoredDocument: vi.fn(),
+    listStoredDocuments: vi.fn(),
+    capabilities: vi.fn(),
+  };
+}
+
 describe('RepositoryFactory', () => {
-  let mockFileSystem: Partial<IFileSystemPort>;
+  let mockFileSystem: IFileSystemPort;
   const basePath = '/test/documents';
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockFileSystem = {};
+    mockFileSystem = createMockFileSystem();
   });
 
   describe('createProofDocumentRepository', () => {
@@ -153,8 +171,8 @@ describe('RepositoryFactory', () => {
   describe('dependency injection compatibility', () => {
     it('should work with different IFileSystemPort implementations', () => {
       // Arrange
-      const mockFileSystem1 = { readFile: vi.fn(), writeFile: vi.fn() };
-      const mockFileSystem2 = { readFile: vi.fn(), writeFile: vi.fn() };
+      const mockFileSystem1 = createMockFileSystem();
+      const mockFileSystem2 = createMockFileSystem();
       const mockRepository = {
         findById: vi.fn(),
         save: vi.fn(),

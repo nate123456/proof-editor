@@ -16,10 +16,16 @@ export interface ProofCreationData {
 }
 
 export class ConsistencyError extends Error {
+  public override readonly cause?: Error | undefined;
+
   constructor(message: string, cause?: Error) {
     super(message);
     this.name = 'ConsistencyError';
     this.cause = cause;
+  }
+
+  override toString(): string {
+    return `${this.name}: ${this.message}`;
   }
 }
 
@@ -183,6 +189,18 @@ export class ProofAggregate {
       return err(new ValidationError('Arguments must have complete premise/conclusion sets'));
     }
 
+    // Check if the sets are empty (bootstrap case)
+    const sourceConclusionSet = this.orderedSets.get(sourceConclusionSetId);
+    const targetPremiseSet = this.orderedSets.get(targetPremiseSetId);
+
+    if (!sourceConclusionSet || !targetPremiseSet) {
+      return err(new ValidationError('Referenced ordered sets not found'));
+    }
+
+    if (sourceConclusionSet.isEmpty() || targetPremiseSet.isEmpty()) {
+      return err(new ValidationError('Arguments must have complete premise/conclusion sets'));
+    }
+
     targetArgument.setPremiseSetRef(sourceConclusionSetId);
 
     const oldPremiseSet = this.orderedSets.get(targetPremiseSetId);
@@ -266,10 +284,10 @@ export class ProofAggregate {
   }
 
   private validateStatementUsage(): Result<void, ValidationError> {
-    for (const [statementId, statement] of this.statements) {
+    for (const [statementId, statement] of Array.from(this.statements.entries())) {
       let actualUsageCount = 0;
 
-      for (const orderedSet of this.orderedSets.values()) {
+      for (const orderedSet of Array.from(this.orderedSets.values())) {
         if (orderedSet.containsStatement(statementId)) {
           actualUsageCount++;
         }
@@ -288,14 +306,14 @@ export class ProofAggregate {
   }
 
   private validateArgumentConnections(): Result<void, ValidationError> {
-    for (const argument of this.argumentsMap.values()) {
+    for (const argument of Array.from(this.argumentsMap.values())) {
       const premiseSet = argument.getPremiseSet();
       const conclusionSet = argument.getConclusionSet();
 
       if (premiseSet) {
         // Check if the ordered set exists by comparing ID values
         let found = false;
-        for (const [osId, _os] of this.orderedSets) {
+        for (const [osId, _os] of Array.from(this.orderedSets.entries())) {
           if (osId.getValue() === premiseSet.getValue()) {
             found = true;
             break;
@@ -313,7 +331,7 @@ export class ProofAggregate {
       if (conclusionSet) {
         // Check if the ordered set exists by comparing ID values
         let found = false;
-        for (const [osId, _os] of this.orderedSets) {
+        for (const [osId, _os] of Array.from(this.orderedSets.entries())) {
           if (osId.getValue() === conclusionSet.getValue()) {
             found = true;
             break;

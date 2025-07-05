@@ -55,7 +55,7 @@ export class ConnectionRegistry {
     const connections: Connection[] = [];
     const targetId = argumentId.getValue();
 
-    for (const connectionList of this.connections.values()) {
+    for (const connectionList of Array.from(this.connections.values())) {
       for (const connection of connectionList) {
         if (connection.to.getValue() === targetId) {
           connections.push(connection);
@@ -103,7 +103,7 @@ export class ConnectionRegistry {
     this.connections.delete(argIdValue);
 
     // Remove connections to this argument
-    for (const [key, connectionList] of this.connections.entries()) {
+    for (const [key, connectionList] of Array.from(this.connections.entries())) {
       const filtered = connectionList.filter((conn) => conn.to.getValue() !== argIdValue);
       if (filtered.length === 0) {
         this.connections.delete(key);
@@ -150,7 +150,7 @@ export class ConnectionRegistry {
     }
 
     const results: AtomicArgumentId[] = [];
-    for (const id of component) {
+    for (const id of Array.from(component)) {
       const result = AtomicArgumentId.fromString(id);
       if (result.isErr()) {
         return err(result.error);
@@ -172,7 +172,7 @@ export class ConnectionRegistry {
    */
   getConnectionCount(): number {
     let count = 0;
-    for (const connectionList of this.connections.values()) {
+    for (const connectionList of Array.from(this.connections.values())) {
       count += connectionList.length;
     }
     return count;

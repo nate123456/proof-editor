@@ -633,11 +633,16 @@ describe('ProofVisualizationService - Enhanced Coverage', () => {
       const overrides: Partial<ProofVisualizationConfig> = {
         layout: {
           nodeWidth: 300,
-          // Other layout properties should use defaults
+          nodeHeight: 120,
+          verticalSpacing: 180,
+          horizontalSpacing: 280,
+          treeSpacing: 150,
+          canvasMargin: 50,
         },
         performance: {
           enableVirtualization: false,
-          // Other performance properties should use defaults
+          maxTreesRendered: 50,
+          maxNodesPerTree: 1000,
         },
         // Visual config not provided - should use all defaults
       };
@@ -665,17 +670,23 @@ describe('ProofVisualizationService - Enhanced Coverage', () => {
         layout: {
           nodeWidth: 400,
           nodeHeight: 200,
+          verticalSpacing: 180,
+          horizontalSpacing: 280,
+          treeSpacing: 150,
+          canvasMargin: 50,
         },
         performance: {
           maxTreesRendered: 100,
+          maxNodesPerTree: 1000,
+          enableVirtualization: true,
         },
       });
 
       expect(config.layout.nodeWidth).toBe(400);
       expect(config.layout.nodeHeight).toBe(200);
-      expect(config.layout.verticalSpacing).toBe(180); // Default preserved
+      expect(config.layout.verticalSpacing).toBe(180); // From config override
       expect(config.performance.maxTreesRendered).toBe(100);
-      expect(config.performance.maxNodesPerTree).toBe(100); // Default preserved
+      expect(config.performance.maxNodesPerTree).toBe(1000); // From config override
       expect(config.visual.showConnectionLabels).toBe(false); // Default preserved
     });
   });

@@ -344,7 +344,7 @@ describe('Enhanced Result Module Coverage', () => {
       const contextWithSpecialTypes = {
         field: 'special',
         symbol: symbolKey,
-        bigint: BigInt(123456789012345678901234567890n),
+        bigint: BigInt('123456789012345678901234567890'),
         date: new Date(),
         regex: /test-pattern/gi,
       };
@@ -353,7 +353,7 @@ describe('Enhanced Result Module Coverage', () => {
 
       expect(error.context?.field).toBe('special');
       expect(error.context?.symbol).toBe(symbolKey);
-      expect(error.context?.bigint).toBe(BigInt(123456789012345678901234567890n));
+      expect(error.context?.bigint).toBe(BigInt('123456789012345678901234567890'));
       expect(error.context?.date).toBeInstanceOf(Date);
       expect(error.context?.regex).toBeInstanceOf(RegExp);
     });

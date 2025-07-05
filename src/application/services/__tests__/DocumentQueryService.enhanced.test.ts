@@ -4,6 +4,7 @@ import { ProofAggregate } from '../../../domain/aggregates/ProofAggregate.js';
 import type { ProofDocument } from '../../../domain/aggregates/ProofDocument.js';
 import type { IProofDocumentRepository } from '../../../domain/repositories/IProofDocumentRepository.js';
 import { ValidationError } from '../../../domain/shared/result.js';
+import { ParseFailureError } from '../../../parser/ParseError.js';
 import type { ProofFileParser } from '../../../parser/ProofFileParser.js';
 import { ValidationApplicationError } from '../../dtos/operation-results.js';
 import { DocumentQueryService } from '../DocumentQueryService.js';
@@ -166,7 +167,11 @@ describe('DocumentQueryService - Enhanced Coverage', () => {
   describe('parseDocumentContent edge cases', () => {
     test('handles empty content', async () => {
       vi.mocked(mockParser.parseProofFile).mockReturnValue(
-        err(new ValidationError('Empty content cannot be parsed')),
+        err(
+          new ParseFailureError([
+            { type: 'yaml-syntax' as any, message: 'Empty content cannot be parsed' },
+          ]),
+        ),
       );
 
       const result = await service.parseDocumentContent('');
@@ -188,7 +193,9 @@ arguments:
       `;
 
       vi.mocked(mockParser.parseProofFile).mockReturnValue(
-        err(new ValidationError('Invalid YAML format')),
+        err(
+          new ParseFailureError([{ type: 'yaml-syntax' as any, message: 'Invalid YAML format' }]),
+        ),
       );
 
       const result = await service.parseDocumentContent(malformedContent);
@@ -218,7 +225,11 @@ arguments:
       const largeContent = `statements:\n${'x'.repeat(10000000)}`; // 10MB content
 
       vi.mocked(mockParser.parseProofFile).mockReturnValue(
-        err(new ValidationError('Content too large to parse')),
+        err(
+          new ParseFailureError([
+            { type: 'invalid-structure' as any, message: 'Content too large to parse' },
+          ]),
+        ),
       );
 
       const result = await service.parseDocumentContent(largeContent);
@@ -278,7 +289,11 @@ trees:
 
     test('returns errors for invalid content', async () => {
       vi.mocked(mockParser.parseProofFile).mockReturnValue(
-        err(new ValidationError('Missing required field: statements')),
+        err(
+          new ParseFailureError([
+            { type: 'invalid-structure' as any, message: 'Missing required field: statements' },
+          ]),
+        ),
       );
 
       const result = await service.validateDocumentContent('invalid content');
@@ -309,7 +324,11 @@ trees:
 
     test('handles null or undefined content', async () => {
       vi.mocked(mockParser.parseProofFile).mockReturnValue(
-        err(new ValidationError('Content cannot be null or undefined')),
+        err(
+          new ParseFailureError([
+            { type: 'invalid-structure' as any, message: 'Content cannot be null or undefined' },
+          ]),
+        ),
       );
 
       const result = await service.validateDocumentContent(null as any);
@@ -461,7 +480,9 @@ trees:
 
     test('returns detailed errors for parse failure', async () => {
       vi.mocked(mockParser.parseProofFile).mockReturnValue(
-        err(new ValidationError('Syntax error in YAML')),
+        err(
+          new ParseFailureError([{ type: 'yaml-syntax' as any, message: 'Syntax error in YAML' }]),
+        ),
       );
 
       const result = await service.parseWithDetailedErrors('invalid content');
@@ -742,7 +763,7 @@ function createComplexMockParsedProofDocument(): import('../../../parser/ProofDo
       {
         getPremiseSet: () => ({ getValue: () => 'os1' }),
         getConclusionSet: () => ({ getValue: () => 'os2' }),
-        getSideLabels: () => undefined,
+        getSideLabels: (): undefined => undefined,
         getId: () => ({ getValue: () => 'arg1' }),
       },
     ],
@@ -751,7 +772,7 @@ function createComplexMockParsedProofDocument(): import('../../../parser/ProofDo
       {
         getPremiseSet: () => ({ getValue: () => 'os2' }),
         getConclusionSet: () => null,
-        getSideLabels: () => undefined,
+        getSideLabels: (): undefined => undefined,
         getId: () => ({ getValue: () => 'arg2' }),
       },
     ],

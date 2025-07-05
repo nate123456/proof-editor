@@ -51,8 +51,8 @@ describe('TreeRenderer (DTO-based)', () => {
       const svg = renderer.generateSVG(visualization);
 
       expect(svg).toContain('<svg');
-      expect(svg).toContain('class="argument-node"');
-      expect(svg).toContain('class="implication-line"');
+      expect(svg).toContain('argument-node');
+      expect(svg).toContain('implication-line');
       expect(svg).toContain('Premise 1');
       expect(svg).toContain('Conclusion 1');
     });
@@ -89,7 +89,7 @@ describe('TreeRenderer (DTO-based)', () => {
 
       const svg = renderer.generateSVG(visualization);
 
-      expect(svg).toContain('class="connection-line"');
+      expect(svg).toContain('connection-line');
       expect(svg).toContain('x1="100"');
       expect(svg).toContain('y1="100"');
       expect(svg).toContain('x2="200"');
@@ -114,7 +114,7 @@ describe('TreeRenderer (DTO-based)', () => {
 
       const svg = renderer.generateSVG(visualization);
 
-      expect(svg).toContain('class="side-label"');
+      expect(svg).toContain('side-label');
       expect(svg).toContain('Modus Ponens');
     });
 
@@ -302,7 +302,7 @@ describe('TreeRenderer (DTO-based)', () => {
       expect(svg).toContain('Socrates is mortal');
       expect(svg).toContain('Universal Instantiation');
       expect(svg).toContain('Modus Ponens');
-      expect(svg).toContain('class="connection-line"');
+      expect(svg).toContain('connection-line');
     });
   });
 
@@ -355,9 +355,9 @@ describe('TreeRenderer (DTO-based)', () => {
       const svg = renderer.generateSVG(visualization);
 
       expect(svg).toContain('class="argument-node-group"');
-      expect(svg).toContain('class="argument-node"');
-      expect(svg).toContain('class="implication-line"');
-      expect(svg).toContain('class="statement-text"');
+      expect(svg).toContain('argument-node');
+      expect(svg).toContain('implication-line');
+      expect(svg).toContain('statement-text');
     });
   });
 

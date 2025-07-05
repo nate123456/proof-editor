@@ -46,7 +46,8 @@ export class TreeRenderer {
     return `
       <svg width="${visualization.totalDimensions.width}" 
            height="${visualization.totalDimensions.height}" 
-           xmlns="http://www.w3.org/2000/svg">
+           xmlns="http://www.w3.org/2000/svg"
+           class="proof-tree-svg">
         <defs>
           <marker id="arrowhead" markerWidth="10" markerHeight="7" 
                   refX="9" refY="3.5" orient="auto">
@@ -106,6 +107,8 @@ export class TreeRenderer {
       y + 15,
       width - 20,
       premisesHeight - 10,
+      'premise',
+      node.id,
     );
 
     const conclusionsSvg = this.renderStatements(
@@ -114,26 +117,48 @@ export class TreeRenderer {
       y + premisesHeight + 15,
       width - 20,
       conclusionsHeight - 10,
+      'conclusion',
+      node.id,
     );
 
     const sideLabelSvg = node.sideLabel
       ? `<text x="${x + width + 10}" y="${y + height / 2}" 
-               class="side-label">${this.escapeXml(node.sideLabel)}</text>`
+               class="side-label editable-label" 
+               data-node-id="${node.id}"
+               data-label-type="side">${this.escapeXml(node.sideLabel)}</text>`
       : '';
 
     return `
-      <g class="argument-node-group">
+      <g class="argument-node-group" 
+         data-node-id="${node.id}" 
+         data-argument-id="${node.argument.id}">
         <rect x="${x}" y="${y}" width="${width}" height="${height}" 
-              class="argument-node" />
+              class="argument-node interactive-node" 
+              data-node-id="${node.id}" />
         
-        ${premisesSvg}
+        <!-- Premises section -->
+        <g class="premise-section" data-node-id="${node.id}">
+          ${premisesSvg}
+        </g>
         
+        <!-- Implication line -->
         <line x1="${x + 10}" y1="${y + premisesHeight + 5}" 
               x2="${x + width - 10}" y2="${y + premisesHeight + 5}" 
               class="implication-line" />
         
-        ${conclusionsSvg}
+        <!-- Conclusions section -->
+        <g class="conclusion-section" data-node-id="${node.id}">
+          ${conclusionsSvg}
+        </g>
+        
         ${sideLabelSvg}
+        
+        <!-- Drag handle -->
+        <rect x="${x + width - 15}" y="${y + 5}" width="10" height="10" 
+              class="drag-handle" 
+              data-node-id="${node.id}" 
+              fill="var(--vscode-descriptionForeground)" 
+              opacity="0.3" />
       </g>
     `;
   }
@@ -144,10 +169,15 @@ export class TreeRenderer {
     y: number,
     width: number,
     height: number,
+    statementType: 'premise' | 'conclusion',
+    nodeId: string,
   ): string {
     if (statements.length === 0) {
       return `<text x="${x + width / 2}" y="${y + height / 2}" 
-                    class="statement-text" style="font-style: italic;">
+                    class="statement-text empty-statement" 
+                    data-node-id="${nodeId}" 
+                    data-statement-type="${statementType}" 
+                    style="font-style: italic;">
                 (empty)
               </text>`;
     }
@@ -159,9 +189,40 @@ export class TreeRenderer {
         const textY = y + (index + 0.7) * lineHeight;
         const content = this.truncateText(statement.content, width / 8);
 
-        return `<text x="${x + width / 2}" y="${textY}" class="statement-text">
-                  ${this.escapeXml(content)}
-                </text>`;
+        return `
+          <g class="statement-group" 
+             data-statement-id="${this.escapeXml(statement.id)}" 
+             data-node-id="${nodeId}" 
+             data-statement-type="${statementType}" 
+             data-statement-index="${index}">
+            
+            <!-- Interactive background for click-to-edit -->
+            <rect x="${x}" y="${textY - lineHeight / 2}" 
+                  width="${width}" height="${lineHeight}" 
+                  class="statement-background" 
+                  fill="transparent" 
+                  data-statement-id="${this.escapeXml(statement.id)}" />
+            
+            <!-- Statement text -->
+            <text x="${x + width / 2}" y="${textY}" 
+                  class="statement-text editable-statement" 
+                  data-statement-id="${this.escapeXml(statement.id)}" 
+                  data-node-id="${nodeId}" 
+                  data-statement-type="${statementType}" 
+                  data-original-content="${this.escapeXml(statement.content)}">
+              ${this.escapeXml(content)}
+            </text>
+            
+            <!-- Drop zone indicator (initially hidden) -->
+            <rect x="${x - 5}" y="${textY - lineHeight / 2}" 
+                  width="${width + 10}" height="${lineHeight}" 
+                  class="drop-zone" 
+                  fill="var(--vscode-button-background)" 
+                  opacity="0" 
+                  data-statement-id="${this.escapeXml(statement.id)}" 
+                  data-drop-type="${statementType}" />
+          </g>
+        `;
       })
       .join('\n');
   }
@@ -169,9 +230,28 @@ export class TreeRenderer {
   private renderConnection(connection: ConnectionDTO): string {
     const { coordinates } = connection;
 
-    return `<line x1="${coordinates.startX}" y1="${coordinates.startY}" 
-                  x2="${coordinates.endX}" y2="${coordinates.endY}" 
-                  class="connection-line" />`;
+    return `
+      <g class="connection-group" 
+         data-from-node="${connection.fromNodeId}" 
+         data-to-node="${connection.toNodeId}" 
+         data-from-position="${connection.fromPosition}" 
+         data-to-position="${connection.toPosition}">
+        
+        <!-- Connection line -->
+        <line x1="${coordinates.startX}" y1="${coordinates.startY}" 
+              x2="${coordinates.endX}" y2="${coordinates.endY}" 
+              class="connection-line interactive-connection" 
+              data-connection-id="${connection.fromNodeId}-${connection.toNodeId}" />
+        
+        <!-- Invisible wider line for easier hover/click -->
+        <line x1="${coordinates.startX}" y1="${coordinates.startY}" 
+              x2="${coordinates.endX}" y2="${coordinates.endY}" 
+              class="connection-hit-area" 
+              stroke="transparent" 
+              stroke-width="10" 
+              data-connection-id="${connection.fromNodeId}-${connection.toNodeId}" />
+      </g>
+    `;
   }
 
   private truncateText(text: string, maxLength: number): string {

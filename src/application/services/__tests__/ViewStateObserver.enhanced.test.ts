@@ -90,13 +90,13 @@ describe('ViewStateObserver - Enhanced Coverage', () => {
         const selectionEvent: ViewStateChangeEvent = {
           type: 'selection-changed',
           timestamp: Date.now(),
-          data: { selectedNodeIds: ['node1'] },
+          newState: { selectedNodeIds: ['node1'] } as any,
         };
 
         const viewportEvent: ViewStateChangeEvent = {
           type: 'viewport-changed',
           timestamp: Date.now(),
-          data: { x: 100, y: 200, zoom: 1.5 },
+          newState: { x: 100, y: 200, zoom: 1.5 } as any,
         };
 
         registeredCallback(selectionEvent);
@@ -155,13 +155,13 @@ describe('ViewStateObserver - Enhanced Coverage', () => {
         const viewportEvent: ViewStateChangeEvent = {
           type: 'viewport-changed',
           timestamp: Date.now(),
-          data: { x: 100, y: 200, zoom: 1.5 },
+          newState: { x: 100, y: 200, zoom: 1.5 } as any,
         };
 
         const selectionEvent: ViewStateChangeEvent = {
           type: 'selection-changed',
           timestamp: Date.now(),
-          data: { selectedNodeIds: ['node1'] },
+          newState: { selectedNodeIds: ['node1'] } as any,
         };
 
         registeredCallback(viewportEvent);
@@ -187,13 +187,13 @@ describe('ViewStateObserver - Enhanced Coverage', () => {
         const panelEvent: ViewStateChangeEvent = {
           type: 'panel-changed',
           timestamp: Date.now(),
-          data: { panelType: 'properties', isVisible: true },
+          newState: { panelType: 'properties', isVisible: true } as any,
         };
 
         const themeEvent: ViewStateChangeEvent = {
           type: 'theme-changed',
           timestamp: Date.now(),
-          data: { theme: 'dark' },
+          newState: { theme: 'dark' } as any,
         };
 
         registeredCallback(panelEvent);
@@ -219,13 +219,13 @@ describe('ViewStateObserver - Enhanced Coverage', () => {
         const themeEvent: ViewStateChangeEvent = {
           type: 'theme-changed',
           timestamp: Date.now(),
-          data: { theme: 'dark' },
+          newState: { theme: 'dark' } as any,
         };
 
         const panelEvent: ViewStateChangeEvent = {
           type: 'panel-changed',
           timestamp: Date.now(),
-          data: { panelType: 'properties', isVisible: true },
+          newState: { panelType: 'properties', isVisible: true } as any,
         };
 
         registeredCallback(themeEvent);
@@ -434,7 +434,7 @@ describe('ViewStateObserver - Enhanced Coverage', () => {
       observer.subscribeToSelectionChanges('observer1', callback);
 
       // Mock the Symbol.iterator to throw
-      vi.spyOn((observer as any).subscriptions, Symbol.iterator).mockImplementation(() => {
+      vi.spyOn((observer as any).subscriptions, Symbol.iterator as any).mockImplementation(() => {
         throw new Error('Iterator failed');
       });
 
@@ -594,7 +594,7 @@ describe('ViewStateObserver - Enhanced Coverage', () => {
         const eventWithUndefinedType = {
           type: undefined,
           timestamp: Date.now(),
-          data: {},
+          newState: {} as any,
         } as any;
 
         expect(() => registeredCallback(eventWithUndefinedType)).not.toThrow();
@@ -617,7 +617,7 @@ describe('ViewStateObserver - Enhanced Coverage', () => {
         const event: ViewStateChangeEvent = {
           type: 'selection-changed',
           timestamp: Date.now(),
-          data: { selectedNodeIds: ['node1'] },
+          newState: { selectedNodeIds: ['node1'] } as any,
         };
 
         // The exception should not prevent the filtering logic from working

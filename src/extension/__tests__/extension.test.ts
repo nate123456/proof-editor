@@ -148,6 +148,8 @@ const mockDocumentController = {
   handleDocumentClosed: vi.fn(async (_document: { fileName: string }) => {
     // Mock document close handling
   }),
+  setPanelManager: vi.fn(),
+  setViewStatePort: vi.fn(),
 };
 
 const mockProofTreeController = {
@@ -242,6 +244,19 @@ const mockContainer = {
         };
       case 'IFileSystemPort':
         return mockFileSystemPort;
+      case 'ProofApplicationService':
+        return {
+          createArgument: vi.fn().mockResolvedValue({ isOk: () => true, value: {} }),
+          getDocuments: vi.fn().mockResolvedValue({ isOk: () => true, value: [] }),
+          processCommand: vi.fn().mockResolvedValue({ isOk: () => true }),
+        };
+      case 'YAMLSerializer':
+        return {
+          serialize: vi.fn().mockReturnValue('mock yaml'),
+          deserialize: vi.fn().mockReturnValue({ isOk: () => true, value: {} }),
+          serializeDocument: vi.fn().mockReturnValue('mock document yaml'),
+          deserializeDocument: vi.fn().mockReturnValue({ isOk: () => true, value: {} }),
+        };
       default:
         return {};
     }
@@ -269,6 +284,8 @@ vi.mock('../../infrastructure/di/container.js', () => ({
     IUIPort: 'IUIPort',
     IPlatformPort: 'IPlatformPort',
     IFileSystemPort: 'IFileSystemPort',
+    ProofApplicationService: 'ProofApplicationService',
+    YAMLSerializer: 'YAMLSerializer',
   },
 }));
 
@@ -286,6 +303,8 @@ vi.mock('../../infrastructure/di/tokens.js', () => ({
     IUIPort: 'IUIPort',
     IPlatformPort: 'IPlatformPort',
     IFileSystemPort: 'IFileSystemPort',
+    ProofApplicationService: 'ProofApplicationService',
+    YAMLSerializer: 'YAMLSerializer',
   },
 }));
 
@@ -541,7 +560,7 @@ describe('Extension', () => {
       await activate(mockContext);
 
       expect(mockContainer.resolve).toHaveBeenCalledWith('ValidationController');
-      expect(mockContext.subscriptions).toHaveLength(12); // controller + 6 commands + 4 event handlers + 1 file watcher
+      expect(mockContext.subscriptions).toHaveLength(14); // controller + 8 commands + 4 event handlers + 1 file watcher
     });
 
     it('should register showTree command', async () => {
@@ -565,8 +584,8 @@ describe('Extension', () => {
     it('should add all disposables to context subscriptions', async () => {
       await activate(mockContext);
 
-      // Should have: ValidationController + showTreeCommand + 5 bootstrap commands + 4 event handlers + 1 file watcher
-      expect(mockContext.subscriptions).toHaveLength(12);
+      // Should have: ValidationController + showTreeCommand + 7 bootstrap commands + 4 event handlers + 1 file watcher
+      expect(mockContext.subscriptions).toHaveLength(14);
     });
 
     it('should check for existing proof files', async () => {
@@ -588,12 +607,45 @@ describe('Extension', () => {
       expect(ProofTreePanel.createWithServices).toHaveBeenCalledWith(
         expect.any(String), // uri
         'mock proof content',
-        expect.any(Object), // documentQueryService
-        expect.any(Object), // visualizationService
-        expect.any(Object), // uiPort
-        expect.any(Object), // renderer
-        expect.any(Object), // viewStateManager
-        expect.any(Object), // viewStatePort
+        expect.objectContaining({
+          getDocumentStructure: expect.any(Function),
+          getArguments: expect.any(Function),
+          getStatements: expect.any(Function),
+        }), // documentQueryService
+        expect.objectContaining({
+          generateVisualization: expect.any(Function),
+          updateVisualization: expect.any(Function),
+        }), // visualizationService
+        expect.objectContaining({
+          createWebviewPanel: expect.any(Function),
+          showError: expect.any(Function),
+          showInformation: expect.any(Function),
+          showQuickPick: expect.any(Function),
+          showWarning: expect.any(Function),
+        }), // uiPort
+        expect.objectContaining({
+          render: expect.any(Function),
+          updateRender: expect.any(Function),
+        }), // renderer
+        expect.objectContaining({
+          getViewState: expect.any(Function),
+          subscribeToChanges: expect.any(Function),
+          updateViewState: expect.any(Function),
+        }), // viewStateManager
+        expect.objectContaining({
+          capabilities: expect.any(Function),
+          getViewState: expect.any(Function),
+          saveViewState: expect.any(Function),
+        }), // viewStatePort
+        expect.objectContaining({
+          createBootstrapArgument: expect.any(Function),
+          createEmptyImplicationLine: expect.any(Function),
+          getBootstrapWorkflow: expect.any(Function),
+          initializeEmptyDocument: expect.any(Function),
+          populateEmptyArgument: expect.any(Function),
+        }), // bootstrapController
+        expect.any(Object), // proofApplicationService
+        expect.any(Object), // yamlSerializer
       );
     });
 
@@ -648,12 +700,45 @@ describe('Extension', () => {
       expect(ProofTreePanel.createWithServices).toHaveBeenCalledWith(
         expect.any(String), // uri
         'mock proof content',
-        expect.any(Object), // documentQueryService
-        expect.any(Object), // visualizationService
-        expect.any(Object), // uiPort
-        expect.any(Object), // renderer
-        expect.any(Object), // viewStateManager
-        expect.any(Object), // viewStatePort
+        expect.objectContaining({
+          getDocumentStructure: expect.any(Function),
+          getArguments: expect.any(Function),
+          getStatements: expect.any(Function),
+        }), // documentQueryService
+        expect.objectContaining({
+          generateVisualization: expect.any(Function),
+          updateVisualization: expect.any(Function),
+        }), // visualizationService
+        expect.objectContaining({
+          createWebviewPanel: expect.any(Function),
+          showError: expect.any(Function),
+          showInformation: expect.any(Function),
+          showQuickPick: expect.any(Function),
+          showWarning: expect.any(Function),
+        }), // uiPort
+        expect.objectContaining({
+          render: expect.any(Function),
+          updateRender: expect.any(Function),
+        }), // renderer
+        expect.objectContaining({
+          getViewState: expect.any(Function),
+          subscribeToChanges: expect.any(Function),
+          updateViewState: expect.any(Function),
+        }), // viewStateManager
+        expect.objectContaining({
+          capabilities: expect.any(Function),
+          getViewState: expect.any(Function),
+          saveViewState: expect.any(Function),
+        }), // viewStatePort
+        expect.objectContaining({
+          createBootstrapArgument: expect.any(Function),
+          createEmptyImplicationLine: expect.any(Function),
+          getBootstrapWorkflow: expect.any(Function),
+          initializeEmptyDocument: expect.any(Function),
+          populateEmptyArgument: expect.any(Function),
+        }), // bootstrapController
+        expect.any(Object), // proofApplicationService
+        expect.any(Object), // yamlSerializer
       );
     });
 
@@ -717,12 +802,45 @@ describe('Extension', () => {
       expect(ProofTreePanel.createWithServices).toHaveBeenCalledWith(
         expect.any(String), // uri
         'mock proof content',
-        expect.any(Object), // documentQueryService
-        expect.any(Object), // visualizationService
-        expect.any(Object), // uiPort
-        expect.any(Object), // renderer
-        expect.any(Object), // viewStateManager
-        expect.any(Object), // viewStatePort
+        expect.objectContaining({
+          getDocumentStructure: expect.any(Function),
+          getArguments: expect.any(Function),
+          getStatements: expect.any(Function),
+        }), // documentQueryService
+        expect.objectContaining({
+          generateVisualization: expect.any(Function),
+          updateVisualization: expect.any(Function),
+        }), // visualizationService
+        expect.objectContaining({
+          createWebviewPanel: expect.any(Function),
+          showError: expect.any(Function),
+          showInformation: expect.any(Function),
+          showQuickPick: expect.any(Function),
+          showWarning: expect.any(Function),
+        }), // uiPort
+        expect.objectContaining({
+          render: expect.any(Function),
+          updateRender: expect.any(Function),
+        }), // renderer
+        expect.objectContaining({
+          getViewState: expect.any(Function),
+          subscribeToChanges: expect.any(Function),
+          updateViewState: expect.any(Function),
+        }), // viewStateManager
+        expect.objectContaining({
+          capabilities: expect.any(Function),
+          getViewState: expect.any(Function),
+          saveViewState: expect.any(Function),
+        }), // viewStatePort
+        expect.objectContaining({
+          createBootstrapArgument: expect.any(Function),
+          createEmptyImplicationLine: expect.any(Function),
+          getBootstrapWorkflow: expect.any(Function),
+          initializeEmptyDocument: expect.any(Function),
+          populateEmptyArgument: expect.any(Function),
+        }), // bootstrapController
+        expect.any(Object), // proofApplicationService
+        expect.any(Object), // yamlSerializer
       );
       expect(mockValidationController.validateDocumentImmediate).toHaveBeenCalledWith({
         uri: mockTextDocument.uri.toString(),
@@ -787,12 +905,45 @@ describe('Extension', () => {
       expect(ProofTreePanel.createWithServices).toHaveBeenCalledWith(
         expect.any(String), // uri
         'mock proof content',
-        expect.any(Object), // documentQueryService
-        expect.any(Object), // visualizationService
-        expect.any(Object), // uiPort
-        expect.any(Object), // renderer
-        expect.any(Object), // viewStateManager
-        expect.any(Object), // viewStatePort
+        expect.objectContaining({
+          getDocumentStructure: expect.any(Function),
+          getArguments: expect.any(Function),
+          getStatements: expect.any(Function),
+        }), // documentQueryService
+        expect.objectContaining({
+          generateVisualization: expect.any(Function),
+          updateVisualization: expect.any(Function),
+        }), // visualizationService
+        expect.objectContaining({
+          createWebviewPanel: expect.any(Function),
+          showError: expect.any(Function),
+          showInformation: expect.any(Function),
+          showQuickPick: expect.any(Function),
+          showWarning: expect.any(Function),
+        }), // uiPort
+        expect.objectContaining({
+          render: expect.any(Function),
+          updateRender: expect.any(Function),
+        }), // renderer
+        expect.objectContaining({
+          getViewState: expect.any(Function),
+          subscribeToChanges: expect.any(Function),
+          updateViewState: expect.any(Function),
+        }), // viewStateManager
+        expect.objectContaining({
+          capabilities: expect.any(Function),
+          getViewState: expect.any(Function),
+          saveViewState: expect.any(Function),
+        }), // viewStatePort
+        expect.objectContaining({
+          createBootstrapArgument: expect.any(Function),
+          createEmptyImplicationLine: expect.any(Function),
+          getBootstrapWorkflow: expect.any(Function),
+          initializeEmptyDocument: expect.any(Function),
+          populateEmptyArgument: expect.any(Function),
+        }), // bootstrapController
+        expect.any(Object), // proofApplicationService
+        expect.any(Object), // yamlSerializer
       );
       expect(mockValidationController.validateDocumentDebounced).toHaveBeenCalledWith({
         uri: mockTextDocument.uri.toString(),
@@ -827,12 +978,45 @@ describe('Extension', () => {
       expect(ProofTreePanel.createWithServices).toHaveBeenCalledWith(
         expect.any(String), // uri
         'mock proof content',
-        expect.any(Object), // documentQueryService
-        expect.any(Object), // visualizationService
-        expect.any(Object), // uiPort
-        expect.any(Object), // renderer
-        expect.any(Object), // viewStateManager
-        expect.any(Object), // viewStatePort
+        expect.objectContaining({
+          getDocumentStructure: expect.any(Function),
+          getArguments: expect.any(Function),
+          getStatements: expect.any(Function),
+        }), // documentQueryService
+        expect.objectContaining({
+          generateVisualization: expect.any(Function),
+          updateVisualization: expect.any(Function),
+        }), // visualizationService
+        expect.objectContaining({
+          createWebviewPanel: expect.any(Function),
+          showError: expect.any(Function),
+          showInformation: expect.any(Function),
+          showQuickPick: expect.any(Function),
+          showWarning: expect.any(Function),
+        }), // uiPort
+        expect.objectContaining({
+          render: expect.any(Function),
+          updateRender: expect.any(Function),
+        }), // renderer
+        expect.objectContaining({
+          getViewState: expect.any(Function),
+          subscribeToChanges: expect.any(Function),
+          updateViewState: expect.any(Function),
+        }), // viewStateManager
+        expect.objectContaining({
+          capabilities: expect.any(Function),
+          getViewState: expect.any(Function),
+          saveViewState: expect.any(Function),
+        }), // viewStatePort
+        expect.objectContaining({
+          createBootstrapArgument: expect.any(Function),
+          createEmptyImplicationLine: expect.any(Function),
+          getBootstrapWorkflow: expect.any(Function),
+          initializeEmptyDocument: expect.any(Function),
+          populateEmptyArgument: expect.any(Function),
+        }), // bootstrapController
+        expect.any(Object), // proofApplicationService
+        expect.any(Object), // yamlSerializer
       );
       expect(mockValidationController.validateDocumentImmediate).toHaveBeenCalledWith({
         uri: mockTextDocument.uri.toString(),
@@ -946,7 +1130,7 @@ describe('Extension', () => {
 
       // Should show error via UI port instead of throwing
       expect(mockUIPort.showError).toHaveBeenCalledWith(
-        'Failed to display proof tree visualization',
+        expect.stringContaining('Failed to display proof tree'),
       );
     });
 
@@ -975,7 +1159,7 @@ describe('Extension', () => {
 
       // Should show error via UI port instead of throwing
       expect(mockUIPort.showError).toHaveBeenCalledWith(
-        'Failed to display proof tree visualization',
+        expect.stringContaining('Failed to display proof tree'),
       );
     });
   });
@@ -1129,7 +1313,7 @@ describe('Extension', () => {
 
       // Should show error via UI port
       expect(mockUIPort.showError).toHaveBeenCalledWith(
-        'Failed to display proof tree visualization',
+        expect.stringContaining('Failed to display proof tree'),
       );
     });
 
@@ -1160,7 +1344,7 @@ describe('Extension', () => {
 
       // Should show error via UI port
       expect(mockUIPort.showError).toHaveBeenCalledWith(
-        'Failed to display proof tree visualization',
+        expect.stringContaining('Failed to display proof tree'),
       );
     });
 
@@ -1198,12 +1382,54 @@ describe('Extension', () => {
       expect(ProofTreePanel.createWithServices).toHaveBeenCalledWith(
         expect.any(String), // uri
         largeContent,
-        expect.any(Object), // documentQueryService
-        expect.any(Object), // visualizationService
-        expect.any(Object), // uiPort
-        expect.any(Object), // renderer
-        expect.any(Object), // viewStateManager
-        expect.any(Object), // viewStatePort
+        expect.objectContaining({
+          getDocumentStructure: expect.any(Function),
+          getArguments: expect.any(Function),
+          getStatements: expect.any(Function),
+        }), // documentQueryService
+        expect.objectContaining({
+          generateVisualization: expect.any(Function),
+          updateVisualization: expect.any(Function),
+        }), // visualizationService
+        expect.objectContaining({
+          createWebviewPanel: expect.any(Function),
+          showError: expect.any(Function),
+          showInformation: expect.any(Function),
+          showQuickPick: expect.any(Function),
+          showWarning: expect.any(Function),
+        }), // uiPort
+        expect.objectContaining({
+          render: expect.any(Function),
+          updateRender: expect.any(Function),
+        }), // renderer
+        expect.objectContaining({
+          getViewState: expect.any(Function),
+          subscribeToChanges: expect.any(Function),
+          updateViewState: expect.any(Function),
+        }), // viewStateManager
+        expect.objectContaining({
+          capabilities: expect.any(Function),
+          getViewState: expect.any(Function),
+          saveViewState: expect.any(Function),
+        }), // viewStatePort
+        expect.objectContaining({
+          createBootstrapArgument: expect.any(Function),
+          createEmptyImplicationLine: expect.any(Function),
+          getBootstrapWorkflow: expect.any(Function),
+          initializeEmptyDocument: expect.any(Function),
+          populateEmptyArgument: expect.any(Function),
+        }), // bootstrapController
+        expect.objectContaining({
+          createArgument: expect.any(Function),
+          getDocuments: expect.any(Function),
+          processCommand: expect.any(Function),
+        }), // proofApplicationService
+        expect.objectContaining({
+          deserialize: expect.any(Function),
+          deserializeDocument: expect.any(Function),
+          serialize: expect.any(Function),
+          serializeDocument: expect.any(Function),
+        }), // yamlSerializer
       );
       expect(mockValidationController.validateDocumentImmediate).toHaveBeenCalledWith({
         uri: largeDocument.uri.toString(),
@@ -1308,7 +1534,7 @@ describe('Extension', () => {
 
       // Should show error via UI port instead of throwing
       expect(mockUIPort.showError).toHaveBeenCalledWith(
-        'Failed to display proof tree visualization',
+        expect.stringContaining('Failed to display proof tree'),
       );
     });
 
@@ -2702,7 +2928,7 @@ describe('Extension', () => {
 
         // Should handle errors gracefully and show error message
         expect(mockUIPort.showError).toHaveBeenCalledWith(
-          'Failed to display proof tree visualization',
+          expect.stringContaining('Failed to display proof tree'),
         );
       });
     });
@@ -3004,7 +3230,7 @@ describe('Extension', () => {
         await commandHandler();
 
         expect(mockUIPort.showError).toHaveBeenCalledWith(
-          'Failed to display proof tree visualization',
+          expect.stringContaining('Failed to display proof tree'),
         );
       });
 
@@ -3346,8 +3572,8 @@ describe('Extension', () => {
     it('should add all event handlers to subscriptions', async () => {
       await activate(mockContext);
 
-      // Should have 12 items: ValidationController + showTreeCommand + 5 bootstrap commands + 4 event handlers + 1 file watcher
-      expect(mockContext.subscriptions).toHaveLength(12);
+      // Should have 14 items: ValidationController + showTreeCommand + 7 bootstrap commands + 4 event handlers + 1 file watcher
+      expect(mockContext.subscriptions).toHaveLength(14);
     });
 
     it('should handle subscription disposal gracefully', async () => {

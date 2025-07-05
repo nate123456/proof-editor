@@ -374,56 +374,88 @@ describe('CycleDetectionService', () => {
   test('wouldCreateCycle handles visited node prevention', () => {
     const service = new CycleDetectionService();
 
-    // Create complex diamond pattern to test visited node logic
-    const statements = [];
-    for (let i = 0; i < 4; i++) {
-      const stmtResult = Statement.create(`Statement ${i}`);
-      expect(stmtResult.isOk()).toBe(true);
-      if (stmtResult.isOk()) {
-        statements.push(stmtResult.value);
-      }
+    // Create statements for diamond pattern
+    const stmt1Result = Statement.create('Statement A');
+    const stmt2Result = Statement.create('Statement B');
+    const stmt3Result = Statement.create('Statement C');
+    const stmt4Result = Statement.create('Statement D');
+
+    expect(stmt1Result.isOk()).toBe(true);
+    expect(stmt2Result.isOk()).toBe(true);
+    expect(stmt3Result.isOk()).toBe(true);
+    expect(stmt4Result.isOk()).toBe(true);
+
+    if (!stmt1Result.isOk() || !stmt2Result.isOk() || !stmt3Result.isOk() || !stmt4Result.isOk()) {
+      throw new Error('Failed to create statements');
     }
 
-    expect(statements).toHaveLength(4);
+    const stmt1 = stmt1Result.value;
+    const stmt2 = stmt2Result.value;
+    const stmt3 = stmt3Result.value;
+    const stmt4 = stmt4Result.value;
 
-    const sets = [];
-    for (const stmt of statements) {
-      const setResult = OrderedSet.create([stmt.getId()]);
-      expect(setResult.isOk()).toBe(true);
-      if (setResult.isOk()) {
-        sets.push(setResult.value);
-      }
+    // Create ordered sets
+    const setAResult = OrderedSet.create([stmt1.getId()]);
+    const setBResult = OrderedSet.create([stmt2.getId()]);
+    const setCResult = OrderedSet.create([stmt3.getId()]);
+    const setDResult = OrderedSet.create([stmt4.getId()]);
+
+    expect(setAResult.isOk()).toBe(true);
+    expect(setBResult.isOk()).toBe(true);
+    expect(setCResult.isOk()).toBe(true);
+    expect(setDResult.isOk()).toBe(true);
+
+    if (!setAResult.isOk() || !setBResult.isOk() || !setCResult.isOk() || !setDResult.isOk()) {
+      throw new Error('Failed to create ordered sets');
     }
 
-    expect(sets).toHaveLength(4);
+    const setA = setAResult.value;
+    const setB = setBResult.value;
+    const setC = setCResult.value;
+    const setD = setDResult.value;
 
     // Create diamond pattern: A->B, A->C, B->D, C->D
-    const argAB = AtomicArgument.createComplete(sets[0]?.getId(), sets[1]?.getId());
-    const argAC = AtomicArgument.createComplete(sets[0]?.getId(), sets[2]?.getId());
-    const argBD = AtomicArgument.createComplete(sets[1]?.getId(), sets[3]?.getId());
-    const argCD = AtomicArgument.createComplete(sets[2]?.getId(), sets[3]?.getId());
+    const argAB = AtomicArgument.createComplete(setA.getId(), setB.getId());
+    const argAC = AtomicArgument.createComplete(setA.getId(), setC.getId());
+    const argBD = AtomicArgument.createComplete(setB.getId(), setD.getId());
+    const argCD = AtomicArgument.createComplete(setC.getId(), setD.getId());
 
-    const argumentMap = new Map([
+    const _argumentMap = new Map([
       [argAB.getId().getValue(), argAB],
       [argAC.getId().getValue(), argAC],
       [argBD.getId().getValue(), argBD],
       [argCD.getId().getValue(), argCD],
     ]);
 
-    // Test connecting D back to A (should not create simple cycle)
-    const argDA = AtomicArgument.createComplete(sets[3]?.getId(), sets[0]?.getId());
+    // Test connecting D back to A, then checking if A->B would create a cycle
+    // First add D->A to the argument map
+    const argDA = AtomicArgument.createComplete(setD.getId(), setA.getId());
+    const extendedArgumentMap = new Map([
+      [argAB.getId().getValue(), argAB],
+      [argAC.getId().getValue(), argAC],
+      [argBD.getId().getValue(), argBD],
+      [argCD.getId().getValue(), argCD],
+      [argDA.getId().getValue(), argDA],
+    ]);
 
-    const result = service.wouldCreateCycle(argDA, argAB, argumentMap);
+    // Now test if connecting A->B would create a cycle (it should, since D->A->B->D)
+    const result = service.wouldCreateCycle(argAB, argBD, extendedArgumentMap);
 
-    // This creates a cycle: A->B->D->A or A->C->D->A
+    // This creates a cycle: A->B->D->A
     expect(result.hasCycle).toBe(true);
   });
 
   test('findAllCycles handles invalid AtomicArgumentId creation', () => {
     const service = new CycleDetectionService();
 
-    // Create argument map with invalid ID that would fail AtomicArgumentId.create()
-    const argumentMap = new Map([['invalid-id-format', {} as AtomicArgument]]);
+    // Create a mock argument that would cause AtomicArgumentId.create() to fail
+    const mockArgument = {
+      getId: () => ({ getValue: () => 'invalid-id-format' }),
+      getPremiseSet: () => null,
+      getConclusionSet: () => null,
+    } as unknown as AtomicArgument;
+
+    const argumentMap = new Map([['invalid-id-format', mockArgument]]);
 
     // Should handle invalid ID gracefully
     const cycles = service.findAllCycles(argumentMap);

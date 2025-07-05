@@ -113,7 +113,7 @@ export class EventBus implements IEventBus {
 
       // Get all handlers for this event type
       const typeHandlers = this.subscriptions.get(event.eventType) || new Set();
-      const allHandlers = [...typeHandlers, ...this.globalSubscriptions];
+      const allHandlers = [...Array.from(typeHandlers), ...Array.from(this.globalSubscriptions)];
 
       if (allHandlers.length === 0) {
         if (this.config.enableLogging) {

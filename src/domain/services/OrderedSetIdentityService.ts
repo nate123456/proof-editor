@@ -55,26 +55,27 @@ export class OrderedSetIdentityService {
     startArgumentId: AtomicArgumentId,
   ): ConnectionPath[] {
     const paths: ConnectionPath[] = [];
-    const visited = new Set<string>();
 
     const traverse = (
       currentId: AtomicArgumentId,
       path: AtomicArgumentId[],
       sharedSets: OrderedSetId[],
+      visited: Set<string>,
     ) => {
       if (visited.has(currentId.getValue())) {
         return; // Prevent cycles
       }
 
-      visited.add(currentId.getValue());
       const current = argumentMap.get(currentId.getValue());
       if (!current) return;
 
       const conclusionSet = current.getConclusionSet();
       if (!conclusionSet) {
-        visited.delete(currentId.getValue());
         return;
       }
+
+      const newVisited = new Set(visited);
+      newVisited.add(currentId.getValue());
 
       // Find all arguments that use this conclusion as premise
       for (const [id, arg] of argumentMap) {
@@ -91,15 +92,13 @@ export class OrderedSetIdentityService {
             length: newPath.length,
           });
 
-          // Continue traversing
-          traverse(arg.getId(), newPath, newSharedSets);
+          // Continue traversing with updated visited set
+          traverse(arg.getId(), newPath, newSharedSets, newVisited);
         }
       }
-
-      visited.delete(currentId.getValue());
     };
 
-    traverse(startArgumentId, [startArgumentId], []);
+    traverse(startArgumentId, [startArgumentId], [], new Set<string>());
     return paths;
   }
 

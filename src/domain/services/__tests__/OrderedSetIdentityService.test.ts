@@ -359,7 +359,10 @@ describe('OrderedSetIdentityService', () => {
 
       if (setResult.isOk()) {
         const set = setResult.value;
-        const arg1 = AtomicArgument.createComplete(undefined, set.getId());
+        const premiseSetResult = OrderedSet.create([]);
+        if (premiseSetResult.isErr()) return;
+        const premiseSet = premiseSetResult.value;
+        const arg1 = AtomicArgument.createComplete(premiseSet.getId(), set.getId());
 
         // Empty map - argument not found
         const paths = service.analyzeConnectionPaths(new Map(), arg1.getId());

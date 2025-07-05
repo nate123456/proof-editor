@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 
 import { err, ok } from 'neverthrow';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { IUIPort, WebviewPanel } from '../../application/ports/IUIPort.js';
 import type { IViewStatePort } from '../../application/ports/IViewStatePort.js';
 import type { DocumentQueryService } from '../../application/services/DocumentQueryService.js';
@@ -187,18 +187,16 @@ describe('ProofTreePanel View State Management', () => {
     };
 
     mockBootstrapController = {
-      createBootstrapDocument: vi.fn(),
-      validateBootstrapData: vi.fn(),
+      createBootstrapArgument: vi.fn(),
     };
 
     mockProofApplicationService = {
-      processCommand: vi.fn(),
-      validateProof: vi.fn(),
+      createStatement: vi.fn(),
+      createAtomicArgument: vi.fn(),
     };
 
     mockYAMLSerializer = {
       serialize: vi.fn(),
-      deserialize: vi.fn(),
     };
   });
 

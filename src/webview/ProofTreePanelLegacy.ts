@@ -1,92 +1,123 @@
-import { err, ok, type Result } from 'neverthrow';
 import * as vscode from 'vscode';
-import type { IUIPort, WebviewPanel } from '../application/ports/IUIPort.js';
-import type { IViewStatePort } from '../application/ports/IViewStatePort.js';
 import type { DocumentQueryService } from '../application/services/DocumentQueryService.js';
-import type { ProofApplicationService } from '../application/services/ProofApplicationService.js';
 import type { ProofVisualizationService } from '../application/services/ProofVisualizationService.js';
-import type { ViewStateManager } from '../application/services/ViewStateManager.js';
-import { ValidationError } from '../domain/shared/result.js';
 import { getContainer } from '../infrastructure/di/container.js';
 import { TOKENS } from '../infrastructure/di/tokens.js';
-import type { YAMLSerializer } from '../infrastructure/repositories/yaml/YAMLSerializer.js';
-import type { BootstrapController } from '../presentation/controllers/BootstrapController.js';
-import { ProofTreePanel } from './ProofTreePanel.js';
 import type { TreeRenderer } from './TreeRenderer.js';
 
 /**
- * Legacy VS Code compatibility layer for ProofTreePanel
+ * Legacy ProofTreePanel implementation for backward compatibility
  *
- * This module provides backward compatibility with the original VS Code-specific
- * API while maintaining platform abstraction in the core ProofTreePanel class.
- *
- * @deprecated Use ProofTreePanel.createWithServices() with proper dependency injection
+ * This class provides a singleton-style interface for managing proof tree panels
+ * in VS Code. It maintains a single static instance and provides static methods
+ * for creating, showing, and updating panels.
  */
-// biome-ignore lint/complexity/noStaticOnlyClass: Legacy compatibility layer needs static methods
 export class ProofTreePanelLegacy {
-  private static currentPanel: ProofTreePanel | undefined;
+  private static currentPanel: ProofTreePanelLegacy | undefined;
   private static creationPromise: Promise<void> | undefined;
+  private static lastCreationError: Error | undefined;
+
+  private readonly panel: vscode.WebviewPanel;
+  private readonly extensionUri: vscode.Uri;
+  private readonly documentQueryService: DocumentQueryService;
+  private readonly visualizationService: ProofVisualizationService;
+  private readonly renderer: TreeRenderer;
+
+  private constructor(
+    panel: vscode.WebviewPanel,
+    extensionUri: vscode.Uri,
+    documentQueryService: DocumentQueryService,
+    visualizationService: ProofVisualizationService,
+    renderer: TreeRenderer,
+  ) {
+    this.panel = panel;
+    this.extensionUri = extensionUri;
+    this.documentQueryService = documentQueryService;
+    this.visualizationService = visualizationService;
+    this.renderer = renderer;
+
+    // Set up panel lifecycle
+    this.panel.onDidDispose(() => {
+      ProofTreePanelLegacy.currentPanel = undefined;
+      ProofTreePanelLegacy.creationPromise = undefined;
+    });
+
+    // Set up initial HTML content
+    this.panel.webview.html = this.getWebviewContent();
+  }
 
   /**
-   * Test helper method to wait for panel creation to complete
-   * @internal
+   * Create or show the proof tree panel
    */
-  public static async waitForCreation(): Promise<void> {
+  static createOrShow(extensionUri: vscode.Uri, content: string): void {
+    if (ProofTreePanelLegacy.currentPanel) {
+      // Panel already exists, just reveal it
+      ProofTreePanelLegacy.currentPanel.panel.reveal();
+      // Update content
+      ProofTreePanelLegacy.updateContentIfExists(content);
+      return;
+    }
+
+    // Create new panel
+    ProofTreePanelLegacy.creationPromise = ProofTreePanelLegacy.createNewPanel(
+      extensionUri,
+      content,
+    );
+  }
+
+  /**
+   * Update content if a panel exists
+   */
+  static updateContentIfExists(content: string): void {
+    if (!ProofTreePanelLegacy.currentPanel) {
+      return;
+    }
+
+    // Process content asynchronously
+    ProofTreePanelLegacy.currentPanel.updateContent(content);
+  }
+
+  /**
+   * Check if a current panel exists
+   */
+  static hasCurrentPanel(): boolean {
+    return ProofTreePanelLegacy.currentPanel !== undefined;
+  }
+
+  /**
+   * Wait for panel creation to complete
+   */
+  static async waitForCreation(): Promise<void> {
     if (ProofTreePanelLegacy.creationPromise) {
       await ProofTreePanelLegacy.creationPromise;
     }
   }
 
   /**
-   * Test helper method to check if panel exists
-   * @internal
+   * Get last creation error
    */
-  public static hasCurrentPanel(): boolean {
-    return ProofTreePanelLegacy.currentPanel !== undefined;
-  }
-
-  /**
-   * Test helper method to get last creation error
-   * @internal
-   */
-  public static getLastCreationError(): string | undefined {
+  static getLastCreationError(): Error | undefined {
     return ProofTreePanelLegacy.lastCreationError;
   }
 
-  private static lastCreationError: string | undefined;
-
-  /**
-   * Safe DI resolution for legacy mode
-   * @private
-   */
-  private static safeLegacyResolve(): Result<
-    {
-      documentQueryService: DocumentQueryService;
-      visualizationService: ProofVisualizationService;
-      renderer: TreeRenderer;
-      viewStateManager: ViewStateManager;
-      viewStatePort: IViewStatePort;
-    },
-    ValidationError
-  > {
+  private static async createNewPanel(extensionUri: vscode.Uri, content: string): Promise<void> {
     try {
+      ProofTreePanelLegacy.lastCreationError = undefined;
+
+      // Create webview panel
+      const panel = vscode.window.createWebviewPanel(
+        'proofTreeVisualization',
+        'Proof Tree Visualization',
+        vscode.ViewColumn.One,
+        {
+          enableScripts: true,
+          retainContextWhenHidden: true,
+          localResourceRoots: [extensionUri],
+        },
+      );
+
+      // Resolve dependencies
       const container = getContainer();
-
-      // Check all required services are registered
-      const requiredTokens = [
-        TOKENS.DocumentQueryService,
-        TOKENS.ProofVisualizationService,
-        TOKENS.TreeRenderer,
-        TOKENS.ViewStateManager,
-        TOKENS.IViewStatePort,
-      ];
-
-      for (const token of requiredTokens) {
-        if (!container.isRegistered(token)) {
-          return err(new ValidationError(`Required service ${token} not registered`));
-        }
-      }
-
       const documentQueryService = container.resolve<DocumentQueryService>(
         TOKENS.DocumentQueryService,
       );
@@ -94,252 +125,151 @@ export class ProofTreePanelLegacy {
         TOKENS.ProofVisualizationService,
       );
       const renderer = container.resolve<TreeRenderer>(TOKENS.TreeRenderer);
-      const viewStateManager = container.resolve<ViewStateManager>(TOKENS.ViewStateManager);
-      const viewStatePort = container.resolve<IViewStatePort>(TOKENS.IViewStatePort);
-      const bootstrapController = container.resolve<BootstrapController>(
-        TOKENS.BootstrapController,
-      );
-      const proofApplicationService = container.resolve<ProofApplicationService>(
-        TOKENS.ProofApplicationService,
-      );
-      const yamlSerializer = container.resolve<YAMLSerializer>(TOKENS.YAMLSerializer);
 
-      return ok({
+      // Create panel instance
+      ProofTreePanelLegacy.currentPanel = new ProofTreePanelLegacy(
+        panel,
+        extensionUri,
         documentQueryService,
         visualizationService,
         renderer,
-        viewStateManager,
-        viewStatePort,
-        bootstrapController,
-        proofApplicationService,
-        yamlSerializer,
+      );
+
+      // Update content
+      await ProofTreePanelLegacy.currentPanel.updateContent(content);
+    } catch (error) {
+      ProofTreePanelLegacy.lastCreationError =
+        error instanceof Error ? error : new Error(String(error));
+      ProofTreePanelLegacy.currentPanel = undefined;
+    }
+  }
+
+  private async updateContent(content: string): Promise<void> {
+    try {
+      // Parse content
+      const parseResult = await this.documentQueryService.parseDocumentContent(content);
+      if (parseResult.isErr()) {
+        this.showError([{ message: parseResult.error.message }]);
+        return;
+      }
+
+      // Generate visualization
+      const visualizationResult = this.visualizationService.generateVisualization(
+        parseResult.value,
+      );
+      if (visualizationResult.isErr()) {
+        this.showError([{ message: visualizationResult.error.message }]);
+        return;
+      }
+
+      // Render SVG
+      const svgContent = this.renderer.generateSVG(visualizationResult.value);
+
+      // Update webview
+      this.panel.webview.postMessage({
+        type: 'updateTree',
+        content: svgContent,
       });
     } catch (error) {
-      return err(
-        new ValidationError(
-          `Failed to resolve legacy dependencies: ${error instanceof Error ? error.message : String(error)}`,
-        ),
-      );
+      this.showError([{ message: error instanceof Error ? error.message : String(error) }]);
     }
   }
 
-  /**
-   * Legacy method for backward compatibility with VS Code extension
-   * @deprecated Use ProofTreePanel.createWithServices for proper dependency injection
-   */
-  public static createOrShow(extensionUri: vscode.Uri, content: string): void {
-    const column = vscode.window.activeTextEditor
-      ? vscode.window.activeTextEditor.viewColumn
-      : undefined;
+  private showError(errors: readonly { message: string; line?: number; section?: string }[]): void {
+    const errorMessages = errors
+      .map((error) => `${error.section ? `[${error.section}] ` : ''}${error.message}`)
+      .join('\n');
 
-    // If panel exists, reveal it and update content
-    if (ProofTreePanelLegacy.currentPanel) {
-      ProofTreePanelLegacy.currentPanel.reveal();
-      // Note: Legacy method doesn't handle Result pattern properly
-      ProofTreePanelLegacy.currentPanel.updateContent(content).catch((_error) => {
-        // Legacy mode error handling - errors are swallowed
-      });
-      return;
-    }
+    const errorContent = `
+      <div class="error-container">
+        <h3>Parse Errors</h3>
+        <pre class="error-text">${this.escapeHtml(errorMessages)}</pre>
+      </div>
+    `;
 
-    // If a panel is currently being created, wait for it and then reveal
-    if (ProofTreePanelLegacy.creationPromise) {
-      ProofTreePanelLegacy.creationPromise.then(() => {
-        if (ProofTreePanelLegacy.currentPanel) {
-          ProofTreePanelLegacy.currentPanel.reveal();
-          ProofTreePanelLegacy.currentPanel.updateContent(content).catch((_error) => {
-            // Legacy mode error handling - errors are swallowed
+    this.panel.webview.postMessage({
+      type: 'showError',
+      content: errorContent,
+    });
+  }
+
+  private escapeHtml(text: string): string {
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#x27;');
+  }
+
+  private getWebviewContent(): string {
+    return `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Proof Tree Visualization</title>
+        <style>
+          body {
+            background-color: var(--vscode-editor-background);
+            color: var(--vscode-editor-foreground);
+            font-family: var(--vscode-editor-font-family);
+            margin: 0;
+            padding: 20px;
+          }
+          
+          .tree-container {
+            width: 100%;
+            height: 100vh;
+            overflow: auto;
+          }
+          
+          .error-container {
+            background-color: var(--vscode-inputValidation-errorBackground);
+            border: 1px solid var(--vscode-inputValidation-errorBorder);
+            color: var(--vscode-errorForeground);
+            padding: 16px;
+            border-radius: 4px;
+            margin: 16px 0;
+          }
+          
+          .error-text {
+            margin: 8px 0 0 0;
+            font-family: var(--vscode-editor-font-family);
+            white-space: pre-wrap;
+          }
+          
+          h3 {
+            margin: 0 0 8px 0;
+            color: var(--vscode-errorForeground);
+          }
+        </style>
+      </head>
+      <body>
+        <div id="tree-container" class="tree-container">
+          <p>Loading proof tree...</p>
+        </div>
+        
+        <script>
+          const vscode = acquireVsCodeApi();
+          
+          window.addEventListener('message', event => {
+            const message = event.data;
+            const container = document.getElementById('tree-container');
+            
+            switch (message.type) {
+              case 'updateTree':
+                container.innerHTML = message.content;
+                break;
+              case 'showError':
+                container.innerHTML = message.content;
+                break;
+            }
           });
-        }
-      });
-      return;
-    }
-
-    // Use safe DI resolution for legacy compatibility
-    const servicesResult = ProofTreePanelLegacy.safeLegacyResolve();
-    if (servicesResult.isErr()) {
-      vscode.window.showErrorMessage(
-        `Failed to initialize proof tree panel: ${servicesResult.error.message}`,
-      );
-      return;
-    }
-
-    const {
-      documentQueryService,
-      visualizationService,
-      renderer,
-      viewStateManager,
-      viewStatePort: _viewStatePort,
-      bootstrapController,
-      proofApplicationService,
-      yamlSerializer,
-    } = servicesResult.value;
-
-    // Create VS Code webview panel directly (legacy mode)
-    const panel = vscode.window.createWebviewPanel(
-      'proofTreeVisualization',
-      'Proof Tree Visualization',
-      column ?? vscode.ViewColumn.One,
-      {
-        enableScripts: true,
-        retainContextWhenHidden: true,
-        localResourceRoots: [extensionUri],
-      },
-    );
-
-    // Create legacy webview panel adapter with proper HTML forwarding
-    const legacyWebviewPanel: WebviewPanel = {
-      id: `legacy-panel-${Date.now()}`,
-      webview: {
-        get html() {
-          return panel.webview.html;
-        },
-        set html(value: string) {
-          panel.webview.html = value;
-        },
-        onDidReceiveMessage: (callback) => panel.webview.onDidReceiveMessage(callback),
-      },
-      onDidDispose: (callback) => panel.onDidDispose(callback),
-      reveal: (viewColumn, preserveFocus) => panel.reveal(viewColumn, preserveFocus),
-      dispose: () => panel.dispose(),
-    };
-
-    // Create legacy webview adapter for IUIPort
-    const legacyUIPort: IUIPort = {
-      createWebviewPanel: () => {
-        // Return the legacy webview panel that forwards to VS Code
-        return legacyWebviewPanel;
-      },
-      postMessageToWebview: (_panelId: string, message) => {
-        panel.webview.postMessage(message);
-      },
-      showInformation: vscode.window.showInformationMessage,
-      showWarning: vscode.window.showWarningMessage,
-      showError: vscode.window.showErrorMessage,
-      showInputBox: async () =>
-        err({ code: 'NOT_SUPPORTED', message: 'Not supported in legacy mode' }),
-      showQuickPick: async () =>
-        err({ code: 'NOT_SUPPORTED', message: 'Not supported in legacy mode' }),
-      showConfirmation: async () =>
-        err({ code: 'NOT_SUPPORTED', message: 'Not supported in legacy mode' }),
-      showOpenDialog: async () =>
-        err({ code: 'NOT_SUPPORTED', message: 'Not supported in legacy mode' }),
-      showSaveDialog: async () =>
-        err({ code: 'NOT_SUPPORTED', message: 'Not supported in legacy mode' }),
-      showProgress: async () => {
-        throw new ValidationError('Progress not supported in legacy mode');
-      },
-      setStatusMessage: () => ({
-        dispose: () => {
-          /* No-op disposable */
-        },
-      }),
-      getTheme: () => ({
-        kind: 'dark' as const,
-        colors: {},
-        fonts: { default: '', monospace: '', size: 14 },
-      }),
-      onThemeChange: () => ({
-        dispose: () => {
-          /* No-op disposable */
-        },
-      }),
-      capabilities: () => ({
-        supportsFileDialogs: false,
-        supportsNotificationActions: false,
-        supportsProgress: false,
-        supportsStatusBar: false,
-        supportsWebviews: true,
-        supportsThemes: false,
-      }),
-    };
-
-    // Track panel creation promise for proper async handling
-    ProofTreePanelLegacy.creationPromise = ProofTreePanel.createWithServices(
-      'legacy-document',
-      content,
-      documentQueryService,
-      visualizationService,
-      legacyUIPort,
-      renderer,
-      viewStateManager,
-      _viewStatePort,
-    )
-      .then((result) => {
-        if (result.isOk()) {
-          ProofTreePanelLegacy.currentPanel = result.value;
-          ProofTreePanelLegacy.lastCreationError = undefined;
-
-          // Set up disposal handling
-          ProofTreePanelLegacy.currentPanel.onDidDispose(() => {
-            ProofTreePanelLegacy.currentPanel = undefined;
-            ProofTreePanelLegacy.creationPromise = undefined;
-          });
-        } else {
-          ProofTreePanelLegacy.lastCreationError = result.error.message;
-          vscode.window.showErrorMessage(
-            `Failed to create proof tree panel: ${result.error.message}`,
-          );
-        }
-      })
-      .catch((error) => {
-        ProofTreePanelLegacy.lastCreationError = `Unexpected error: ${error}`;
-        vscode.window.showErrorMessage(`Failed to create proof tree panel: ${error}`);
-      })
-      .finally(() => {
-        // Clear creation promise when done (success or failure)
-        ProofTreePanelLegacy.creationPromise = undefined;
-      });
+        </script>
+      </body>
+      </html>
+    `;
   }
-
-  /**
-   * Legacy method for backward compatibility
-   * @deprecated Use updateContent directly on panel instance
-   */
-  public static updateContentIfExists(content: string): void {
-    if (ProofTreePanelLegacy.currentPanel) {
-      ProofTreePanelLegacy.currentPanel.updateContent(content).catch((_error) => {
-        // Legacy mode error handling - errors are swallowed
-      });
-    } else if (ProofTreePanelLegacy.creationPromise) {
-      // If panel is being created, wait for it then update
-      ProofTreePanelLegacy.creationPromise.then(() => {
-        if (ProofTreePanelLegacy.currentPanel) {
-          ProofTreePanelLegacy.currentPanel.updateContent(content).catch((_error) => {
-            // Legacy mode error handling - errors are swallowed
-          });
-        }
-      });
-    }
-  }
-}
-
-/**
- * Legacy compatibility - maintains the original API
- * @deprecated Use ProofTreePanelManager.getInstance().createOrShowPanel() instead
- */
-export function createOrShowProofTreePanel(
-  extensionUri: vscode.Uri,
-  content: string,
-  documentUri?: string,
-): void {
-  // For compatibility, use the legacy single-panel approach if no document URI is provided
-  if (!documentUri) {
-    ProofTreePanelLegacy.createOrShow(extensionUri, content);
-    return;
-  }
-
-  // Use the modern multi-panel manager for document-specific panels
-  // Note: This would require creating a proper UIPort from the VS Code context
-  // For now, fallback to legacy mode
-  ProofTreePanelLegacy.createOrShow(extensionUri, content);
-}
-
-/**
- * Legacy compatibility for content updates
- * @deprecated Use ProofTreePanelManager.getInstance().updateContentForDocument() instead
- */
-export function updateProofTreePanelContent(content: string, _documentUri?: string): void {
-  // For compatibility, use the legacy single-panel approach
-  ProofTreePanelLegacy.updateContentIfExists(content);
 }

@@ -196,10 +196,8 @@ export class VSCodeFileSystemAdapter implements IFileSystemPort {
   }
 
   private loadStoredDocuments(): void {
-    const stored = this.context.globalState.get<Record<string, StoredDocument>>(
-      this.storageKey,
-      {},
-    );
+    const stored =
+      this.context.globalState?.get<Record<string, StoredDocument>>(this.storageKey, {}) || {};
     this.storedDocuments.clear();
     Object.entries(stored).forEach(([id, doc]) => {
       // Convert stored dates back to Date objects
@@ -210,7 +208,7 @@ export class VSCodeFileSystemAdapter implements IFileSystemPort {
 
   private async saveStoredDocuments(): Promise<void> {
     const toStore = Object.fromEntries(this.storedDocuments.entries());
-    await this.context.globalState.update(this.storageKey, toStore);
+    await this.context.globalState?.update(this.storageKey, toStore);
   }
 
   private mapError(error: unknown, path?: string): FileSystemError {

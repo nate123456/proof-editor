@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, test } from 'vitest';
-import type { DomainEvent } from '../../../domain/events/base-event.js';
+import { DomainEvent } from '../../../domain/events/base-event.js';
 import { OrderedSetBecameShared } from '../../../domain/events/proof-document-events.js';
-import { Timestamp } from '../../../domain/shared/value-objects.js';
 import { ConnectionTracker } from '../ConnectionTracker.js';
 
 describe('ConnectionTracker - Enhanced Coverage', () => {

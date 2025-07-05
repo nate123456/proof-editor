@@ -1,8 +1,10 @@
+import 'reflect-metadata';
 import * as vscode from 'vscode';
 import type { IFileSystemPort } from '../application/ports/IFileSystemPort.js';
 import type { IUIPort } from '../application/ports/IUIPort.js';
 import type { IViewStatePort } from '../application/ports/IViewStatePort.js';
 import type { DocumentQueryService } from '../application/services/DocumentQueryService.js';
+import type { ProofApplicationService } from '../application/services/ProofApplicationService.js';
 import type { ProofVisualizationService } from '../application/services/ProofVisualizationService.js';
 import type { ViewStateManager } from '../application/services/ViewStateManager.js';
 import {
@@ -12,6 +14,7 @@ import {
   registerPlatformAdapters,
 } from '../infrastructure/di/container.js';
 import { TOKENS } from '../infrastructure/di/tokens.js';
+import type { YAMLSerializer } from '../infrastructure/repositories/yaml/YAMLSerializer.js';
 import type { BootstrapController } from '../presentation/controllers/BootstrapController.js';
 import type { DocumentController } from '../presentation/controllers/DocumentController.js';
 import type { ProofTreeController } from '../presentation/controllers/ProofTreeController.js';
@@ -36,7 +39,12 @@ export async function activate(context: vscode.ExtensionContext) {
 
   container.registerFactory(
     TOKENS.DocumentController,
-    (c) => new DocumentControllerImpl(c.resolve(TOKENS.IUIPort), c.resolve(TOKENS.IPlatformPort)),
+    (c) =>
+      new DocumentControllerImpl(
+        c.resolve(TOKENS.IUIPort),
+        c.resolve(TOKENS.IPlatformPort),
+        c.resolve(TOKENS.IFileSystemPort),
+      ),
   );
 
   container.registerFactory(
@@ -50,6 +58,14 @@ export async function activate(context: vscode.ExtensionContext) {
   const validationController = container.resolve<ValidationController>(TOKENS.ValidationController);
   const bootstrapController = container.resolve<BootstrapController>(TOKENS.BootstrapController);
 
+  // Wire up document controller with panel manager and view state port
+  const { ProofTreePanelManager } = await import('../webview/ProofTreePanelManager.js');
+  const panelManager = ProofTreePanelManager.getInstance();
+  const viewStatePort = container.resolve<IViewStatePort>(TOKENS.IViewStatePort);
+
+  documentController.setPanelManager(panelManager);
+  documentController.setViewStatePort(viewStatePort);
+
   // Register command to show proof tree visualization
   const showTreeCommand = vscode.commands.registerCommand('proofEditor.showTree', async () => {
     const activeEditor = vscode.window.activeTextEditor;
@@ -60,6 +76,33 @@ export async function activate(context: vscode.ExtensionContext) {
       uiPort.showWarning('Please open a .proof file to view the tree visualization.');
     }
   });
+
+  // Register undo/redo commands for proof operations
+  const undoProofOperationCommand = vscode.commands.registerCommand(
+    'proofEditor.undo',
+    async () => {
+      const activeEditor = vscode.window.activeTextEditor;
+      if (activeEditor && activeEditor.document.languageId === 'proof') {
+        await handleUndoProofOperation(activeEditor, container);
+      } else {
+        // Fallback to standard VS Code undo
+        await vscode.commands.executeCommand('undo');
+      }
+    },
+  );
+
+  const redoProofOperationCommand = vscode.commands.registerCommand(
+    'proofEditor.redo',
+    async () => {
+      const activeEditor = vscode.window.activeTextEditor;
+      if (activeEditor && activeEditor.document.languageId === 'proof') {
+        await handleRedoProofOperation(activeEditor, container);
+      } else {
+        // Fallback to standard VS Code redo
+        await vscode.commands.executeCommand('redo');
+      }
+    },
+  );
 
   // Register bootstrap commands
   const _createBootstrapDocumentCommand = vscode.commands.registerCommand(
@@ -395,7 +438,11 @@ metadata:
   const onOpenDisposable = vscode.workspace.onDidOpenTextDocument(
     async (document: vscode.TextDocument) => {
       if (document.languageId === 'proof') {
-        await documentController.handleDocumentOpened(document);
+        await documentController.handleDocumentOpened({
+          fileName: document.fileName,
+          uri: document.uri.toString(),
+          getText: () => document.getText(),
+        });
         const editor = vscode.window.visibleTextEditors.find((e) => e.document === document);
         if (editor) {
           await showProofTreeForDocument(editor, container);
@@ -420,7 +467,12 @@ metadata:
   // Update tree and validate when proof file content changes
   const onChangeDisposable = vscode.workspace.onDidChangeTextDocument(async (event) => {
     if (event.document.languageId === 'proof') {
-      await documentController.handleDocumentChanged(event.document);
+      await documentController.handleDocumentChanged({
+        fileName: event.document.fileName,
+        uri: event.document.uri.toString(),
+        getText: () => event.document.getText(),
+        isDirty: event.document.isDirty,
+      });
       const editor = vscode.window.visibleTextEditors.find((e) => e.document === event.document);
       if (editor) {
         await showProofTreeForDocument(editor, container);
@@ -444,7 +496,11 @@ metadata:
   // Handle active editor changes
   const onEditorChangeDisposable = vscode.window.onDidChangeActiveTextEditor(async (editor) => {
     if (editor && editor.document.languageId === 'proof') {
-      await documentController.handleDocumentOpened(editor.document);
+      await documentController.handleDocumentOpened({
+        fileName: editor.document.fileName,
+        uri: editor.document.uri.toString(),
+        getText: () => editor.document.getText(),
+      });
       await showProofTreeForDocument(editor, container);
       try {
         const documentInfo = {
@@ -462,16 +518,28 @@ metadata:
     }
   });
 
-  // Clean up diagnostics when documents are closed
+  // Clean up diagnostics and panels when documents are closed
   const onCloseDisposable = vscode.workspace.onDidCloseTextDocument(async (document) => {
     if (document.languageId === 'proof') {
-      await documentController.handleDocumentClosed(document);
+      await documentController.handleDocumentClosed({
+        fileName: document.fileName,
+        uri: document.uri.toString(),
+      });
       const documentInfo = {
         uri: document.uri.toString(),
         content: document.getText(),
         languageId: document.languageId,
       };
       validationController.clearDocumentValidation(documentInfo);
+
+      // Close associated proof tree panel
+      try {
+        const { ProofTreePanelManager } = await import('../webview/ProofTreePanelManager.js');
+        const panelManager = ProofTreePanelManager.getInstance();
+        panelManager.closePanelForDocument(document.uri.toString());
+      } catch (_error) {
+        // Silent failure on panel cleanup
+      }
     }
   });
 
@@ -481,6 +549,8 @@ metadata:
   context.subscriptions.push(
     validationController,
     showTreeCommand,
+    undoProofOperationCommand,
+    redoProofOperationCommand,
     _createBootstrapDocumentCommand,
     _createBootstrapArgumentCommand,
     _populateEmptyArgumentCommand,
@@ -502,14 +572,14 @@ export function deactivate() {
 }
 
 /**
- * Helper function to show proof tree panel using the proper services
+ * Helper function to show proof tree panel using the panel manager
  */
 async function showProofTreeForDocument(
   editor: vscode.TextEditor,
   container: ApplicationContainer,
 ): Promise<void> {
   try {
-    const { ProofTreePanel } = await import('../webview/ProofTreePanel.js');
+    const { ProofTreePanelManager } = await import('../webview/ProofTreePanelManager.js');
 
     // Get required services from container
     const documentQueryService = container.resolve<DocumentQueryService>(
@@ -523,11 +593,14 @@ async function showProofTreeForDocument(
     const viewStateManager = container.resolve<ViewStateManager>(TOKENS.ViewStateManager);
     const viewStatePort = container.resolve<IViewStatePort>(TOKENS.IViewStatePort);
     const bootstrapController = container.resolve<BootstrapController>(TOKENS.BootstrapController);
-    const proofApplicationService = container.resolve(TOKENS.ProofApplicationService);
-    const yamlSerializer = container.resolve(TOKENS.YAMLSerializer);
+    const proofApplicationService = container.resolve<ProofApplicationService>(
+      TOKENS.ProofApplicationService,
+    );
+    const yamlSerializer = container.resolve<YAMLSerializer>(TOKENS.YAMLSerializer);
 
-    // Create or update proof tree panel
-    const createResult = await ProofTreePanel.createWithServices(
+    // Use panel manager for multi-document support
+    const panelManager = ProofTreePanelManager.getInstance();
+    const createResult = await panelManager.createPanelWithServices(
       editor.document.uri.toString(),
       editor.document.getText(),
       documentQueryService,
@@ -543,6 +616,19 @@ async function showProofTreeForDocument(
 
     if (createResult.isErr()) {
       uiPort.showError(`Failed to display proof tree: ${createResult.error.message}`);
+      return;
+    }
+
+    // Associate panel with document in controller for lifecycle coordination
+    const documentController = container.resolve<DocumentController>(TOKENS.DocumentController);
+    const associateResult = await documentController.associatePanelWithDocument(
+      editor.document.uri.toString(),
+      `proof-tree-panel-${Date.now()}`,
+    );
+
+    if (associateResult.isErr()) {
+      // Panel created but association failed - not critical, just log
+      uiPort.showWarning(`Panel association failed: ${associateResult.error.message}`);
     }
   } catch (_error) {
     const uiPort = container.resolve<IUIPort>(TOKENS.IUIPort);
@@ -559,7 +645,11 @@ async function checkForExistingProofFiles(
   );
 
   for (const document of proofDocuments) {
-    await documentController.handleDocumentOpened(document);
+    await documentController.handleDocumentOpened({
+      fileName: document.fileName,
+      uri: document.uri.toString(),
+      getText: () => document.getText(),
+    });
     const editor = vscode.window.visibleTextEditors.find((e) => e.document === document);
     if (editor) {
       const container = getContainer();
@@ -611,45 +701,156 @@ async function autoSaveProofDocument(
 }
 
 /**
- * Set up file watching for proof documents
+ * Set up enhanced file watching for proof documents with conflict resolution
  */
 function setupFileWatching(container: ApplicationContainer): vscode.Disposable[] {
   const disposables: vscode.Disposable[] = [];
   const fileSystemPort = container.resolve<IFileSystemPort>(TOKENS.IFileSystemPort);
+  const uiPort = container.resolve<IUIPort>(TOKENS.IUIPort);
 
   // Watch for file changes in workspace
   if (fileSystemPort.capabilities().canWatch) {
     const watcher = vscode.workspace.createFileSystemWatcher('**/*.proof');
 
     watcher.onDidChange(async (uri) => {
-      // File changed externally - could trigger reload or conflict resolution
+      // File changed externally - handle conflict resolution
+      await handleExternalFileChange(uri, container);
+    });
 
-      // Check if file is currently open in editor
-      const openEditor = vscode.window.visibleTextEditors.find(
-        (editor) => editor.document.uri.fsPath === uri.fsPath,
+    watcher.onDidCreate(async (uri) => {
+      // New proof file created - notify user and offer to open
+      const fileName = uri.fsPath.split('/').pop() || uri.fsPath;
+      const action = await vscode.window.showInformationMessage(
+        `New proof file detected: ${fileName}`,
+        'Open File',
+        'Dismiss',
       );
 
-      if (openEditor && !openEditor.document.isDirty) {
-        // Refresh the proof tree panel if open
-        const container = getContainer();
-        await showProofTreeForDocument(openEditor, container);
+      if (action === 'Open File') {
+        const document = await vscode.workspace.openTextDocument(uri);
+        await vscode.window.showTextDocument(document);
       }
     });
 
-    watcher.onDidCreate(async (_uri) => {
-      // New proof file created - could auto-open or add to recent files
-    });
-
     watcher.onDidDelete(async (uri) => {
-      // Proof file deleted - clean up any stored document metadata
+      // Proof file deleted - clean up and close associated panels
       const documentId = uri.fsPath;
       await fileSystemPort.deleteStoredDocument(documentId);
+
+      // Close associated proof tree panel
+      try {
+        const { ProofTreePanelManager } = await import('../webview/ProofTreePanelManager.js');
+        const panelManager = ProofTreePanelManager.getInstance();
+        panelManager.closePanelForDocument(uri.toString());
+      } catch (_error) {
+        // Silent failure on panel cleanup
+      }
+
+      // Notify user
+      const fileName = uri.fsPath.split('/').pop() || uri.fsPath;
+      uiPort.showWarning(`Proof file was deleted: ${fileName}`);
     });
 
     disposables.push(watcher);
   }
 
   return disposables;
+}
+
+/**
+ * Handle external file changes with conflict resolution
+ */
+async function handleExternalFileChange(
+  uri: vscode.Uri,
+  container: ApplicationContainer,
+): Promise<void> {
+  try {
+    const uiPort = container.resolve<IUIPort>(TOKENS.IUIPort);
+
+    // Check if file is currently open in editor
+    const openEditor = vscode.window.visibleTextEditors.find(
+      (editor) => editor.document.uri.fsPath === uri.fsPath,
+    );
+
+    if (!openEditor) {
+      // File not open - no conflict, just update cached content if any
+      return;
+    }
+
+    const document = openEditor.document;
+    const isDirty = document.isDirty;
+
+    if (!isDirty) {
+      // No local changes - safe to refresh
+      await refreshDocumentContent(openEditor, container);
+      uiPort.showInformation('Document refreshed with external changes');
+      return;
+    }
+
+    // Conflict: file changed externally and has local changes
+    const fileName = uri.fsPath.split('/').pop() || uri.fsPath;
+    const action = await vscode.window.showWarningMessage(
+      `File ${fileName} has been changed externally and has unsaved local changes.`,
+      'Reload from Disk (Lose Changes)',
+      'Keep Local Changes',
+      'Compare Changes',
+    );
+
+    switch (action) {
+      case 'Reload from Disk (Lose Changes)':
+        // Force reload - this will lose local changes
+        await vscode.commands.executeCommand('workbench.action.files.revert', uri);
+        await refreshDocumentContent(openEditor, container);
+        uiPort.showInformation('Document reloaded from disk');
+        break;
+
+      case 'Compare Changes':
+        // Open diff view to compare changes
+        await vscode.commands.executeCommand(
+          'vscode.diff',
+          uri,
+          document.uri,
+          `${fileName} (External) ↔ ${fileName} (Local)`,
+        );
+        break;
+
+      default:
+        // Do nothing - keep local changes
+        uiPort.showInformation('Keeping local changes. Save to overwrite external changes.');
+        break;
+    }
+  } catch (error) {
+    const uiPort = container.resolve<IUIPort>(TOKENS.IUIPort);
+    uiPort.showError(
+      `Failed to handle external file change: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+}
+
+/**
+ * Refresh document content and associated panels
+ */
+async function refreshDocumentContent(
+  editor: vscode.TextEditor,
+  container: ApplicationContainer,
+): Promise<void> {
+  try {
+    // Update proof tree panel with new content
+    await showProofTreeForDocument(editor, container);
+
+    // Trigger validation on the updated content
+    const validationController = container.resolve<ValidationController>(
+      TOKENS.ValidationController,
+    );
+    const documentInfo = {
+      uri: editor.document.uri.toString(),
+      content: editor.document.getText(),
+      languageId: editor.document.languageId,
+    };
+    validationController.validateDocumentImmediate(documentInfo);
+  } catch (_error) {
+    // Silent failure on refresh to avoid cascading errors
+  }
 }
 
 /**
@@ -816,6 +1017,66 @@ async function showAdvancedFeatures(container: ApplicationContainer): Promise<vo
   }
 
   await finishTutorial(container);
+}
+
+/**
+ * Handle undo operation for proof documents
+ */
+async function handleUndoProofOperation(
+  editor: vscode.TextEditor,
+  container: ApplicationContainer,
+): Promise<void> {
+  try {
+    // First, try to use VS Code's built-in undo
+    await vscode.commands.executeCommand('undo');
+
+    // Then refresh the proof tree panel to reflect the changes
+    await showProofTreeForDocument(editor, container);
+
+    // Validate the document after undo
+    const validationController = container.resolve<ValidationController>(
+      TOKENS.ValidationController,
+    );
+    const documentInfo = {
+      uri: editor.document.uri.toString(),
+      content: editor.document.getText(),
+      languageId: editor.document.languageId,
+    };
+    validationController.validateDocumentImmediate(documentInfo);
+  } catch (error) {
+    const uiPort = container.resolve<IUIPort>(TOKENS.IUIPort);
+    uiPort.showError(`Undo failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+/**
+ * Handle redo operation for proof documents
+ */
+async function handleRedoProofOperation(
+  editor: vscode.TextEditor,
+  container: ApplicationContainer,
+): Promise<void> {
+  try {
+    // First, try to use VS Code's built-in redo
+    await vscode.commands.executeCommand('redo');
+
+    // Then refresh the proof tree panel to reflect the changes
+    await showProofTreeForDocument(editor, container);
+
+    // Validate the document after redo
+    const validationController = container.resolve<ValidationController>(
+      TOKENS.ValidationController,
+    );
+    const documentInfo = {
+      uri: editor.document.uri.toString(),
+      content: editor.document.getText(),
+      languageId: editor.document.languageId,
+    };
+    validationController.validateDocumentImmediate(documentInfo);
+  } catch (error) {
+    const uiPort = container.resolve<IUIPort>(TOKENS.IUIPort);
+    uiPort.showError(`Redo failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
 }
 
 /**

@@ -36,7 +36,7 @@ export function validateStatementUsage(
   try {
     // Count total set references in arguments
     let totalSetReferences = 0;
-    for (const argument of argumentsMap.values()) {
+    for (const argument of Array.from(argumentsMap.values())) {
       if (argument.getPremiseSet()) {
         totalSetReferences++;
       }
@@ -47,7 +47,7 @@ export function validateStatementUsage(
 
     // Calculate total usage across all statements
     let totalStatementUsage = 0;
-    for (const statement of statements.values()) {
+    for (const statement of Array.from(statements.values())) {
       totalStatementUsage += statement.getUsageCount();
     }
 
@@ -63,7 +63,7 @@ export function validateStatementUsage(
 
     // Check for orphaned statements - statements with 0 usage when there are arguments in system
     // When nodes are present, statement usage validation is more relaxed
-    for (const [statementId, statement] of statements) {
+    for (const [statementId, statement] of Array.from(statements.entries())) {
       if (statement.getUsageCount() === 0 && argumentsMap.size > 0 && !hasNodes) {
         return err(
           new ConsistencyError('Orphaned statement detected', {
@@ -86,10 +86,10 @@ export function validateArgumentConnections(
   try {
     const connectionGraph = new Map<AtomicArgumentId, AtomicArgumentId[]>();
 
-    for (const [argumentId, argument] of argumentsMap) {
+    for (const [argumentId, argument] of Array.from(argumentsMap.entries())) {
       connectionGraph.set(argumentId, []);
 
-      for (const [otherArgumentId, otherArgument] of argumentsMap) {
+      for (const [otherArgumentId, otherArgument] of Array.from(argumentsMap.entries())) {
         if (argumentId.equals(otherArgumentId)) {
           continue;
         }
@@ -109,7 +109,7 @@ export function validateArgumentConnections(
       );
     }
 
-    for (const argument of argumentsMap.values()) {
+    for (const argument of Array.from(argumentsMap.values())) {
       const premiseSetId = argument.getPremiseSet();
       const conclusionSetId = argument.getConclusionSet();
 
@@ -136,7 +136,7 @@ export function validateTreeStructure(
     const parentChildMap = new Map<NodeId, NodeId[]>();
     const childParentMap = new Map<NodeId, NodeId>();
 
-    for (const [nodeId, node] of nodes) {
+    for (const [nodeId, node] of Array.from(nodes.entries())) {
       if (node.isRoot()) {
         continue;
       }
@@ -175,7 +175,7 @@ export function validateTreeStructure(
       );
     }
 
-    for (const [nodeId, node] of nodes) {
+    for (const [nodeId, node] of Array.from(nodes.entries())) {
       if (node.isChild()) {
         const position = node.getPremisePosition();
         if (position !== null && position < 0) {
@@ -277,7 +277,7 @@ function detectArgumentCycles(connectionGraph: Map<AtomicArgumentId, AtomicArgum
     recursionStack.delete(nodeId);
   };
 
-  for (const [nodeId] of connectionGraph) {
+  for (const [nodeId] of Array.from(connectionGraph.entries())) {
     if (!visited.has(nodeId)) {
       detectCycleFromNode(nodeId, [nodeId]);
     }
@@ -321,7 +321,7 @@ function detectTreeCycles(parentChildMap: Map<NodeId, NodeId[]>): {
     recursionStack.delete(nodeId);
   };
 
-  for (const [nodeId] of parentChildMap) {
+  for (const [nodeId] of Array.from(parentChildMap.entries())) {
     if (!visited.has(nodeId)) {
       detectCycleFromNode(nodeId, [nodeId]);
     }

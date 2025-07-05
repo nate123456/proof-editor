@@ -290,7 +290,7 @@ export class ProofTreeAggregate {
       recursionStack.delete(nodeKey);
     };
 
-    for (const [nodeId] of this.nodes) {
+    for (const [nodeId] of Array.from(this.nodes.entries())) {
       const nodeKey = nodeId.getValue();
       if (!visited.has(nodeKey)) {
         detectCycleFromNode(nodeId, [nodeId]);
@@ -346,7 +346,7 @@ export class ProofTreeAggregate {
   }
 
   private validateNodeReferences(): Result<void, ValidationError> {
-    for (const node of this.nodes.values()) {
+    for (const node of Array.from(this.nodes.values())) {
       const argumentExists = this.proofAggregate.getArguments().has(node.getArgumentId());
       if (!argumentExists) {
         return err(
@@ -372,7 +372,7 @@ export class ProofTreeAggregate {
   }
 
   private validateAttachments(): Result<void, ValidationError> {
-    for (const node of this.nodes.values()) {
+    for (const node of Array.from(this.nodes.values())) {
       if (node.isChild()) {
         const position = node.getPremisePosition();
         if (position !== null && position < 0) {
@@ -404,7 +404,7 @@ export class ProofTreeAggregate {
     this.parentToChildrenMap.clear();
     this.childToParentMap.clear();
 
-    for (const node of this.nodes.values()) {
+    for (const node of Array.from(this.nodes.values())) {
       if (node.isChild()) {
         const parentId = node.getParentNodeId();
         if (parentId) {

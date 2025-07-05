@@ -378,7 +378,7 @@ describe('TreeRenderer', () => {
       expect(result).toContain('Second premise statement');
       expect(result).toContain('Third premise statement');
       expect(result).toContain('Conclusion statement');
-      expect(result).toContain('class="statement-text"');
+      expect(result).toContain('statement-text');
     });
   });
 
@@ -481,7 +481,7 @@ describe('TreeRenderer', () => {
 
       const result = renderer.generateSVG(mockVisualizationDTO);
 
-      expect(result).toContain('class="connection-line"');
+      expect(result).toContain('connection-line');
       expect(result).toContain('<line');
       expect(result).toContain('x1=');
       expect(result).toContain('y1=');
@@ -1106,7 +1106,7 @@ describe('TreeRenderer', () => {
       expect(result).toContain('Final conclusion');
       expect(result).toContain('Rule 1');
       expect(result).toContain('Rule 2');
-      expect(result).toContain('class="connection-line"');
+      expect(result).toContain('connection-line');
     });
   });
 
@@ -1168,7 +1168,7 @@ describe('TreeRenderer', () => {
       const result = renderer.generateSVG(mockVisualizationDTO);
 
       expect(result).toContain('Rule Name');
-      expect(result).toContain('class="side-label"');
+      expect(result).toContain('side-label');
     });
 
     it('should handle missing side labels gracefully', () => {

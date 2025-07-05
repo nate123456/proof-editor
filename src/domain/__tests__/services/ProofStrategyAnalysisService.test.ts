@@ -1,5 +1,5 @@
 import fc from 'fast-check';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 import { ProofStrategyAnalysisService } from '../../services/ProofStrategyAnalysisService.js';
 

@@ -2,11 +2,14 @@ import { err, ok, type Result } from 'neverthrow';
 import type { IUIPort } from '../application/ports/IUIPort.js';
 import type { IViewStatePort } from '../application/ports/IViewStatePort.js';
 import type { DocumentQueryService } from '../application/services/DocumentQueryService.js';
+import type { ProofApplicationService } from '../application/services/ProofApplicationService.js';
 import type { ProofVisualizationService } from '../application/services/ProofVisualizationService.js';
 import type { ViewStateManager } from '../application/services/ViewStateManager.js';
 import { ValidationError } from '../domain/shared/result.js';
 import { getContainer } from '../infrastructure/di/container.js';
 import { TOKENS } from '../infrastructure/di/tokens.js';
+import type { YAMLSerializer } from '../infrastructure/repositories/yaml/YAMLSerializer.js';
+import type { BootstrapController } from '../presentation/controllers/BootstrapController.js';
 import { ProofTreePanel } from './ProofTreePanel.js';
 import type { TreeRenderer } from './TreeRenderer.js';
 
@@ -73,6 +76,9 @@ export class ProofTreePanelManager {
     renderer: TreeRenderer,
     viewStateManager: ViewStateManager,
     viewStatePort: IViewStatePort,
+    bootstrapController: BootstrapController,
+    proofApplicationService: ProofApplicationService,
+    yamlSerializer: YAMLSerializer,
   ): Promise<Result<ProofTreePanel, ValidationError>> {
     try {
       const existingPanel = this.panels.get(documentUri);
@@ -94,6 +100,9 @@ export class ProofTreePanelManager {
         renderer,
         viewStateManager,
         viewStatePort,
+        bootstrapController,
+        proofApplicationService,
+        yamlSerializer,
       );
 
       if (panelResult.isErr()) {
@@ -241,6 +250,9 @@ export class ProofTreePanelManager {
       renderer: TreeRenderer;
       viewStateManager: ViewStateManager;
       viewStatePort: IViewStatePort;
+      bootstrapController: BootstrapController;
+      proofApplicationService: ProofApplicationService;
+      yamlSerializer: YAMLSerializer;
     },
     ValidationError
   > {
@@ -254,6 +266,9 @@ export class ProofTreePanelManager {
         TOKENS.TreeRenderer,
         TOKENS.ViewStateManager,
         TOKENS.IViewStatePort,
+        TOKENS.BootstrapController,
+        TOKENS.ProofApplicationService,
+        TOKENS.YAMLSerializer,
       ];
 
       for (const token of requiredTokens) {
@@ -271,6 +286,13 @@ export class ProofTreePanelManager {
       const renderer = container.resolve<TreeRenderer>(TOKENS.TreeRenderer);
       const viewStateManager = container.resolve<ViewStateManager>(TOKENS.ViewStateManager);
       const viewStatePort = container.resolve<IViewStatePort>(TOKENS.IViewStatePort);
+      const bootstrapController = container.resolve<BootstrapController>(
+        TOKENS.BootstrapController,
+      );
+      const proofApplicationService = container.resolve<ProofApplicationService>(
+        TOKENS.ProofApplicationService,
+      );
+      const yamlSerializer = container.resolve<YAMLSerializer>(TOKENS.YAMLSerializer);
 
       return ok({
         documentQueryService,
@@ -278,6 +300,9 @@ export class ProofTreePanelManager {
         renderer,
         viewStateManager,
         viewStatePort,
+        bootstrapController,
+        proofApplicationService,
+        yamlSerializer,
       });
     } catch (error) {
       return err(
@@ -306,6 +331,9 @@ export class ProofTreePanelManager {
         renderer,
         viewStateManager,
         viewStatePort,
+        bootstrapController,
+        proofApplicationService,
+        yamlSerializer,
       } = servicesResult.value;
 
       const panelResult = await ProofTreePanel.createWithServices(
@@ -317,6 +345,9 @@ export class ProofTreePanelManager {
         renderer,
         viewStateManager,
         viewStatePort,
+        bootstrapController,
+        proofApplicationService,
+        yamlSerializer,
       );
 
       if (panelResult.isErr()) {

@@ -295,6 +295,16 @@ export class ProofTreePanel {
             filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.1));
           }
           
+          .interactive-node {
+            cursor: pointer;
+            transition: stroke-width 0.2s ease;
+          }
+          
+          .interactive-node:hover {
+            stroke: var(--vscode-textLink-foreground);
+            stroke-width: 2;
+          }
+          
           .statement-text {
             font-size: 12px;
             fill: var(--vscode-editor-foreground);
@@ -302,11 +312,37 @@ export class ProofTreePanel {
             font-family: var(--vscode-editor-font-family);
           }
           
+          .editable-statement {
+            cursor: text;
+            transition: fill 0.2s ease;
+          }
+          
+          .editable-statement:hover {
+            fill: var(--vscode-textLink-foreground);
+          }
+          
+          .statement-background {
+            transition: fill 0.2s ease;
+          }
+          
+          .statement-background:hover {
+            fill: var(--vscode-button-secondaryBackground);
+            opacity: 0.3;
+          }
+          
           .side-label {
             font-size: 10px;
             fill: var(--vscode-descriptionForeground);
             text-anchor: start;
             font-style: italic;
+          }
+          
+          .editable-label {
+            cursor: text;
+          }
+          
+          .editable-label:hover {
+            fill: var(--vscode-textLink-foreground);
           }
           
           .implication-line {
@@ -319,6 +355,16 @@ export class ProofTreePanel {
             stroke-width: 2;
             marker-end: url(#arrowhead);
             stroke-dasharray: 5,5;
+            transition: stroke-width 0.2s ease;
+          }
+          
+          .interactive-connection:hover {
+            stroke: var(--vscode-textLink-activeForeground);
+            stroke-width: 3;
+          }
+          
+          .connection-hit-area {
+            cursor: pointer;
           }
           
           .premise-section {
@@ -340,6 +386,85 @@ export class ProofTreePanel {
           .empty-argument:hover {
             stroke: var(--vscode-textLink-activeForeground);
             stroke-width: 3;
+          }
+          
+          /* Drag and Drop Styles */
+          .drag-handle {
+            cursor: grab;
+            transition: opacity 0.2s ease;
+          }
+          
+          .drag-handle:hover {
+            opacity: 0.6 !important;
+          }
+          
+          .dragging {
+            opacity: 0.5;
+            cursor: grabbing;
+          }
+          
+          .drop-zone {
+            transition: opacity 0.2s ease;
+            pointer-events: none;
+          }
+          
+          .drop-zone.active {
+            opacity: 0.3 !important;
+            stroke: var(--vscode-button-background);
+            stroke-width: 2;
+            stroke-dasharray: 5,5;
+          }
+          
+          .drop-zone.valid {
+            fill: var(--vscode-gitDecoration-addedResourceForeground) !important;
+          }
+          
+          .drop-zone.invalid {
+            fill: var(--vscode-errorForeground) !important;
+          }
+          
+          /* Connection Highlights */
+          .connection-highlighted {
+            stroke: var(--vscode-textLink-activeForeground) !important;
+            stroke-width: 4 !important;
+            filter: drop-shadow(0 0 3px var(--vscode-textLink-activeForeground));
+          }
+          
+          .statement-highlighted {
+            fill: var(--vscode-textLink-activeForeground) !important;
+            filter: drop-shadow(0 0 2px var(--vscode-textLink-activeForeground));
+          }
+          
+          /* Editing States */
+          .editing-active {
+            outline: 2px solid var(--vscode-focusBorder);
+            outline-offset: 2px;
+            background: var(--vscode-input-background);
+          }
+          
+          .proof-tree-svg {
+            user-select: none;
+          }
+          
+          /* Inline Editor */
+          .inline-editor {
+            position: absolute;
+            background: var(--vscode-input-background);
+            border: 1px solid var(--vscode-input-border);
+            border-radius: 2px;
+            padding: 4px 8px;
+            font-family: var(--vscode-editor-font-family);
+            font-size: 12px;
+            color: var(--vscode-input-foreground);
+            z-index: 1000;
+            min-width: 100px;
+            resize: none;
+            overflow: hidden;
+          }
+          
+          .inline-editor:focus {
+            outline: 1px solid var(--vscode-focusBorder);
+            border-color: var(--vscode-focusBorder);
           }
         </style>
       </head>
@@ -493,6 +618,8 @@ export class ProofTreePanel {
                   overlay.style.display = 'none';
                   hasArguments = true;
                   updateToolbarState();
+                  // Initialize interactive features after content update
+                  initializeInteractiveFeatures();
                 }
                 break;
               case 'showError':
@@ -662,6 +789,673 @@ export class ProofTreePanel {
             console.log('Success:', message);
           }
           
+          // =============================================================================
+          // ENHANCED INTERACTIVE FEATURES
+          // =============================================================================
+          
+          // State for interactive features
+          let currentEditor = null;
+          let dragState = {
+            isDragging: false,
+            element: null,
+            startX: 0,
+            startY: 0,
+            type: null // 'statement' or 'node'
+          };
+          
+          /**
+           * Initialize all interactive features after content update
+           */
+          function initializeInteractiveFeatures() {
+            try {
+              setupInlineEditing();
+              setupDragAndDrop();
+              setupHoverHighlights();
+              setupConnectionHighlights();
+            } catch (error) {
+              console.warn('Error initializing interactive features:', error);
+            }
+          }
+          
+          // =============================================================================
+          // INLINE EDITING FUNCTIONALITY
+          // =============================================================================
+          
+          /**
+           * Set up click-to-edit functionality for statements and labels
+           */
+          function setupInlineEditing() {
+            // Statement editing
+            document.querySelectorAll('.editable-statement').forEach(element => {
+              element.addEventListener('click', handleStatementEdit);
+            });
+            
+            // Side label editing
+            document.querySelectorAll('.editable-label').forEach(element => {
+              element.addEventListener('click', handleLabelEdit);
+            });
+            
+            // Close editor on outside clicks
+            document.addEventListener('click', handleOutsideClick);
+            
+            // Handle escape key to cancel editing
+            document.addEventListener('keydown', handleEditingKeydown);
+          }
+          
+          /**
+           * Handle statement text editing
+           */
+          function handleStatementEdit(event) {
+            event.stopPropagation();
+            
+            if (currentEditor) {
+              finishEditing();
+            }
+            
+            const element = event.target;
+            const statementId = element.getAttribute('data-statement-id');
+            const originalContent = element.getAttribute('data-original-content');
+            const nodeId = element.getAttribute('data-node-id');
+            const statementType = element.getAttribute('data-statement-type');
+            
+            if (!statementId || !originalContent) return;
+            
+            startInlineEdit(element, originalContent, {
+              type: 'statement',
+              statementId,
+              nodeId,
+              statementType
+            });
+          }
+          
+          /**
+           * Handle side label editing
+           */
+          function handleLabelEdit(event) {
+            event.stopPropagation();
+            
+            if (currentEditor) {
+              finishEditing();
+            }
+            
+            const element = event.target;
+            const nodeId = element.getAttribute('data-node-id');
+            const labelType = element.getAttribute('data-label-type');
+            const originalContent = element.textContent.trim();
+            
+            if (!nodeId || !labelType) return;
+            
+            startInlineEdit(element, originalContent, {
+              type: 'label',
+              nodeId,
+              labelType
+            });
+          }
+          
+          /**
+           * Start inline editing for an element
+           */
+          function startInlineEdit(targetElement, originalContent, metadata) {
+            // Get position relative to tree container
+            const container = document.getElementById('tree-container');
+            const containerRect = container.getBoundingClientRect();
+            const elementRect = targetElement.getBoundingClientRect();
+            
+            // Create textarea for editing
+            const editor = document.createElement('textarea');
+            editor.className = 'inline-editor';
+            editor.value = originalContent;
+            
+            // Position the editor
+            editor.style.left = (elementRect.left - containerRect.left + container.scrollLeft) + 'px';
+            editor.style.top = (elementRect.top - containerRect.top + container.scrollTop) + 'px';
+            editor.style.width = Math.max(elementRect.width, 100) + 'px';
+            
+            // Add to container
+            container.appendChild(editor);
+            
+            // Store current editing state
+            currentEditor = {
+              element: editor,
+              target: targetElement,
+              originalContent,
+              metadata
+            };
+            
+            // Focus and select content
+            editor.focus();
+            editor.select();
+            
+            // Adjust height to content
+            adjustEditorHeight(editor);
+            
+            // Handle input changes
+            editor.addEventListener('input', () => adjustEditorHeight(editor));
+            editor.addEventListener('keydown', handleEditorKeydown);
+            
+            // Mark target as being edited
+            targetElement.classList.add('editing-active');
+          }
+          
+          /**
+           * Adjust editor height to fit content
+           */
+          function adjustEditorHeight(editor) {
+            editor.style.height = 'auto';
+            editor.style.height = Math.max(editor.scrollHeight, 20) + 'px';
+          }
+          
+          /**
+           * Handle keydown events in editor
+           */
+          function handleEditorKeydown(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+              event.preventDefault();
+              finishEditing(true);
+            } else if (event.key === 'Escape') {
+              event.preventDefault();
+              finishEditing(false);
+            }
+          }
+          
+          /**
+           * Handle global keydown events during editing
+           */
+          function handleEditingKeydown(event) {
+            if (currentEditor && event.key === 'Escape') {
+              event.preventDefault();
+              finishEditing(false);
+            }
+          }
+          
+          /**
+           * Handle clicks outside the editor
+           */
+          function handleOutsideClick(event) {
+            if (currentEditor && !currentEditor.element.contains(event.target)) {
+              finishEditing(true);
+            }
+          }
+          
+          /**
+           * Finish editing and save/cancel changes
+           */
+          function finishEditing(save = true) {
+            if (!currentEditor) return;
+            
+            const { element, target, originalContent, metadata } = currentEditor;
+            
+            if (save && element.value.trim() !== originalContent) {
+              // Save the changes
+              saveEditedContent(element.value.trim(), metadata);
+            }
+            
+            // Clean up
+            target.classList.remove('editing-active');
+            element.remove();
+            currentEditor = null;
+          }
+          
+          /**
+           * Save edited content back to the model
+           */
+          function saveEditedContent(newContent, metadata) {
+            vscode.postMessage({
+              type: 'editContent',
+              metadata,
+              newContent
+            });
+          }
+          
+          // =============================================================================
+          // DRAG AND DROP FUNCTIONALITY
+          // =============================================================================
+          
+          /**
+           * Set up drag and drop functionality
+           */
+          function setupDragAndDrop() {
+            // Make statements draggable
+            document.querySelectorAll('.statement-group').forEach(setupStatementDrag);
+            
+            // Make nodes draggable via drag handles
+            document.querySelectorAll('.drag-handle').forEach(setupNodeDrag);
+            
+            // Set up drop zones
+            document.querySelectorAll('.drop-zone').forEach(setupDropZone);
+            
+            // Global drag event handlers
+            document.addEventListener('dragover', handleDragOver);
+            document.addEventListener('drop', handleDrop);
+          }
+          
+          /**
+           * Set up dragging for statement elements
+           */
+          function setupStatementDrag(element) {
+            element.draggable = true;
+            element.addEventListener('dragstart', handleStatementDragStart);
+            element.addEventListener('dragend', handleDragEnd);
+          }
+          
+          /**
+           * Set up dragging for node drag handles
+           */
+          function setupNodeDrag(handle) {
+            handle.addEventListener('mousedown', handleNodeDragStart);
+          }
+          
+          /**
+           * Set up drop zones
+           */
+          function setupDropZone(zone) {
+            zone.addEventListener('dragenter', handleDragEnter);
+            zone.addEventListener('dragleave', handleDragLeave);
+          }
+          
+          /**
+           * Handle start of statement drag
+           */
+          function handleStatementDragStart(event) {
+            const element = event.currentTarget;
+            const statementId = element.getAttribute('data-statement-id');
+            const statementType = element.getAttribute('data-statement-type');
+            const nodeId = element.getAttribute('data-node-id');
+            
+            dragState = {
+              isDragging: true,
+              element,
+              type: 'statement',
+              data: { statementId, statementType, nodeId }
+            };
+            
+            // Set drag data
+            event.dataTransfer.setData('text/plain', JSON.stringify(dragState.data));
+            event.dataTransfer.effectAllowed = 'move';
+            
+            // Add visual feedback
+            element.classList.add('dragging');
+            
+            // Show drop zones
+            showCompatibleDropZones(statementType);
+          }
+          
+          /**
+           * Handle start of node drag (via drag handle)
+           */
+          function handleNodeDragStart(event) {
+            event.preventDefault();
+            
+            const handle = event.currentTarget;
+            const nodeId = handle.getAttribute('data-node-id');
+            const nodeElement = document.querySelector(\`[data-node-id="\${nodeId}"].argument-node-group\`);
+            
+            if (!nodeElement) return;
+            
+            dragState = {
+              isDragging: true,
+              element: nodeElement,
+              type: 'node',
+              startX: event.clientX,
+              startY: event.clientY,
+              data: { nodeId }
+            };
+            
+            // Add visual feedback
+            nodeElement.classList.add('dragging');
+            
+            // Add mouse move and up listeners
+            document.addEventListener('mousemove', handleNodeDrag);
+            document.addEventListener('mouseup', handleNodeDragEnd);
+          }
+          
+          /**
+           * Handle node dragging (mouse move)
+           */
+          function handleNodeDrag(event) {
+            if (!dragState.isDragging || dragState.type !== 'node') return;
+            
+            const deltaX = event.clientX - dragState.startX;
+            const deltaY = event.clientY - dragState.startY;
+            
+            // Update visual position (this is just visual feedback)
+            dragState.element.style.transform = \`translate(\${deltaX}px, \${deltaY}px)\`;
+          }
+          
+          /**
+           * Handle end of node drag
+           */
+          function handleNodeDragEnd(event) {
+            if (!dragState.isDragging || dragState.type !== 'node') return;
+            
+            // Calculate final position
+            const deltaX = event.clientX - dragState.startX;
+            const deltaY = event.clientY - dragState.startY;
+            
+            // Send position update to backend
+            if (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5) {
+              vscode.postMessage({
+                type: 'moveNode',
+                nodeId: dragState.data.nodeId,
+                deltaX,
+                deltaY
+              });
+            }
+            
+            // Clean up
+            dragState.element.classList.remove('dragging');
+            dragState.element.style.transform = '';
+            document.removeEventListener('mousemove', handleNodeDrag);
+            document.removeEventListener('mouseup', handleNodeDragEnd);
+            
+            dragState = { isDragging: false, element: null, type: null };
+          }
+          
+          /**
+           * Handle drag over (required for drop to work)
+           */
+          function handleDragOver(event) {
+            if (dragState.isDragging && dragState.type === 'statement') {
+              event.preventDefault();
+              event.dataTransfer.dropEffect = 'move';
+            }
+          }
+          
+          /**
+           * Handle drop
+           */
+          function handleDrop(event) {
+            if (!dragState.isDragging || dragState.type !== 'statement') return;
+            
+            event.preventDefault();
+            const dropZone = event.target.closest('.drop-zone');
+            
+            if (dropZone) {
+              const dropType = dropZone.getAttribute('data-drop-type');
+              const targetStatementId = dropZone.getAttribute('data-statement-id');
+              
+              // Send move statement message
+              vscode.postMessage({
+                type: 'moveStatement',
+                sourceData: dragState.data,
+                targetStatementId,
+                dropType
+              });
+            }
+            
+            handleDragEnd();
+          }
+          
+          /**
+           * Handle drag enter on drop zones
+           */
+          function handleDragEnter(event) {
+            if (dragState.isDragging && dragState.type === 'statement') {
+              const zone = event.currentTarget;
+              zone.classList.add('active');
+              
+              // Determine if this is a valid drop
+              const dropType = zone.getAttribute('data-drop-type');
+              const isValid = isValidDrop(dragState.data.statementType, dropType);
+              zone.classList.add(isValid ? 'valid' : 'invalid');
+            }
+          }
+          
+          /**
+           * Handle drag leave on drop zones
+           */
+          function handleDragLeave(event) {
+            const zone = event.currentTarget;
+            zone.classList.remove('active', 'valid', 'invalid');
+          }
+          
+          /**
+           * Handle end of drag
+           */
+          function handleDragEnd(event) {
+            if (dragState.element) {
+              dragState.element.classList.remove('dragging');
+            }
+            
+            // Hide all drop zones
+            document.querySelectorAll('.drop-zone').forEach(zone => {
+              zone.classList.remove('active', 'valid', 'invalid');
+              zone.style.pointerEvents = 'none';
+            });
+            
+            dragState = { isDragging: false, element: null, type: null };
+          }
+          
+          /**
+           * Show compatible drop zones for the given statement type
+           */
+          function showCompatibleDropZones(statementType) {
+            document.querySelectorAll('.drop-zone').forEach(zone => {
+              zone.style.pointerEvents = 'auto';
+              zone.style.opacity = '0.1';
+            });
+          }
+          
+          /**
+           * Check if a drop is valid
+           */
+          function isValidDrop(sourceType, targetType) {
+            // Premises can be dropped on premise zones, conclusions on conclusion zones
+            return sourceType === targetType;
+          }
+          
+          // =============================================================================
+          // HOVER HIGHLIGHTS AND VISUAL FEEDBACK
+          // =============================================================================
+          
+          /**
+           * Set up hover highlight effects
+           */
+          function setupHoverHighlights() {
+            // Statement hover effects
+            document.querySelectorAll('.statement-group').forEach(setupStatementHover);
+            
+            // Connection hover effects
+            document.querySelectorAll('.connection-group').forEach(setupConnectionHover);
+            
+            // Node hover effects
+            document.querySelectorAll('.argument-node-group').forEach(setupNodeHover);
+          }
+          
+          /**
+           * Set up hover effects for statements
+           */
+          function setupStatementHover(element) {
+            element.addEventListener('mouseenter', handleStatementHover);
+            element.addEventListener('mouseleave', handleStatementLeave);
+          }
+          
+          /**
+           * Set up hover effects for connections
+           */
+          function setupConnectionHover(element) {
+            element.addEventListener('mouseenter', handleConnectionHover);
+            element.addEventListener('mouseleave', handleConnectionLeave);
+          }
+          
+          /**
+           * Set up hover effects for nodes
+           */
+          function setupNodeHover(element) {
+            element.addEventListener('mouseenter', handleNodeHover);
+            element.addEventListener('mouseleave', handleNodeLeave);
+          }
+          
+          /**
+           * Handle statement hover - highlight related statements
+           */
+          function handleStatementHover(event) {
+            const element = event.currentTarget;
+            const statementId = element.getAttribute('data-statement-id');
+            
+            if (statementId) {
+              // Highlight all instances of this statement
+              document.querySelectorAll(\`[data-statement-id="\${statementId}"] .statement-text\`).forEach(text => {
+                text.classList.add('statement-highlighted');
+              });
+              
+              // Show tooltip with statement metadata
+              showStatementTooltip(element, statementId);
+            }
+          }
+          
+          /**
+           * Handle statement leave
+           */
+          function handleStatementLeave(event) {
+            // Remove all statement highlights
+            document.querySelectorAll('.statement-highlighted').forEach(element => {
+              element.classList.remove('statement-highlighted');
+            });
+            
+            hideTooltip();
+          }
+          
+          /**
+           * Handle connection hover - highlight connection path
+           */
+          function handleConnectionHover(event) {
+            const element = event.currentTarget;
+            const fromNode = element.getAttribute('data-from-node');
+            const toNode = element.getAttribute('data-to-node');
+            
+            // Highlight the connection
+            element.querySelector('.connection-line').classList.add('connection-highlighted');
+            
+            // Highlight connected nodes
+            if (fromNode) {
+              const fromElement = document.querySelector(\`[data-node-id="\${fromNode}"].argument-node\`);
+              if (fromElement) fromElement.classList.add('interactive-node');
+            }
+            
+            if (toNode) {
+              const toElement = document.querySelector(\`[data-node-id="\${toNode}"].argument-node\`);
+              if (toElement) toElement.classList.add('interactive-node');
+            }
+            
+            // Show connection tooltip
+            showConnectionTooltip(element, fromNode, toNode);
+          }
+          
+          /**
+           * Handle connection leave
+           */
+          function handleConnectionLeave(event) {
+            // Remove connection highlights
+            document.querySelectorAll('.connection-highlighted').forEach(element => {
+              element.classList.remove('connection-highlighted');
+            });
+            
+            hideTooltip();
+          }
+          
+          /**
+           * Handle node hover
+           */
+          function handleNodeHover(event) {
+            const element = event.currentTarget;
+            const nodeId = element.getAttribute('data-node-id');
+            const argumentId = element.getAttribute('data-argument-id');
+            
+            // Show node tooltip
+            showNodeTooltip(element, nodeId, argumentId);
+          }
+          
+          /**
+           * Handle node leave
+           */
+          function handleNodeLeave(event) {
+            hideTooltip();
+          }
+          
+          // =============================================================================
+          // CONNECTION HIGHLIGHTING
+          // =============================================================================
+          
+          /**
+           * Set up connection path highlighting
+           */
+          function setupConnectionHighlights() {
+            // This will highlight connection paths when hovering over statements
+            // that are connected across multiple arguments
+          }
+          
+          // =============================================================================
+          // TOOLTIP SYSTEM
+          // =============================================================================
+          
+          let currentTooltip = null;
+          
+          /**
+           * Show statement tooltip
+           */
+          function showStatementTooltip(element, statementId) {
+            const tooltip = createTooltip(\`Statement: \${statementId}\`);
+            positionTooltip(tooltip, element);
+          }
+          
+          /**
+           * Show connection tooltip
+           */
+          function showConnectionTooltip(element, fromNode, toNode) {
+            const tooltip = createTooltip(\`Connection: \${fromNode} → \${toNode}\`);
+            positionTooltip(tooltip, element);
+          }
+          
+          /**
+           * Show node tooltip
+           */
+          function showNodeTooltip(element, nodeId, argumentId) {
+            const tooltip = createTooltip(\`Node: \${nodeId} (Argument: \${argumentId})\`);
+            positionTooltip(tooltip, element);
+          }
+          
+          /**
+           * Create tooltip element
+           */
+          function createTooltip(text) {
+            const tooltip = document.createElement('div');
+            tooltip.className = 'absolute bg-vscode-editor-background border border-vscode-panel-border rounded px-2 py-1 text-xs text-vscode-editor-foreground z-50 pointer-events-none';
+            tooltip.textContent = text;
+            tooltip.style.backgroundColor = 'var(--vscode-editor-background)';
+            tooltip.style.borderColor = 'var(--vscode-panel-border)';
+            tooltip.style.color = 'var(--vscode-editor-foreground)';
+            
+            currentTooltip = tooltip;
+            document.body.appendChild(tooltip);
+            
+            return tooltip;
+          }
+          
+          /**
+           * Position tooltip relative to element
+           */
+          function positionTooltip(tooltip, element) {
+            const rect = element.getBoundingClientRect();
+            tooltip.style.left = (rect.left + rect.width / 2) + 'px';
+            tooltip.style.top = (rect.bottom + 5) + 'px';
+            tooltip.style.transform = 'translateX(-50%)';
+          }
+          
+          /**
+           * Hide current tooltip
+           */
+          function hideTooltip() {
+            if (currentTooltip) {
+              currentTooltip.remove();
+              currentTooltip = null;
+            }
+          }
+          
+          // =============================================================================
+          // INITIALIZATION
+          // =============================================================================
+          
           // Initialize
           updateToolbarState();
         </script>
@@ -772,6 +1566,18 @@ export class ProofTreePanel {
         case 'showError': {
           const errorMessage = msg.message as string;
           this.uiPort.showError(errorMessage);
+          break;
+        }
+        case 'editContent': {
+          await this.handleEditContent(msg);
+          break;
+        }
+        case 'moveStatement': {
+          await this.handleMoveStatement(msg);
+          break;
+        }
+        case 'moveNode': {
+          await this.handleMoveNode(msg);
           break;
         }
       }
@@ -997,6 +1803,148 @@ For now, displaying the document structure above.`;
       });
     } catch (_error) {
       // Ignore refresh errors to avoid disrupting user experience
+    }
+  }
+
+  /**
+   * Handle content editing from inline editor
+   */
+  private async handleEditContent(msg: { [key: string]: unknown }): Promise<void> {
+    try {
+      const metadata = msg.metadata as {
+        type: 'statement' | 'label';
+        statementId?: string;
+        nodeId?: string;
+        statementType?: 'premise' | 'conclusion';
+        labelType?: string;
+      };
+      const newContent = msg.newContent as string;
+
+      if (!metadata || !newContent) {
+        this.uiPort.showError('Invalid edit content request');
+        return;
+      }
+
+      const documentId = this.extractDocumentIdFromUri();
+      if (!documentId) {
+        this.uiPort.showError('Could not determine document ID');
+        return;
+      }
+
+      if (metadata.type === 'statement' && metadata.statementId) {
+        // Handle statement content editing
+        const result = await this.proofApplicationService.updateStatement({
+          documentId,
+          statementId: metadata.statementId,
+          content: newContent,
+        });
+
+        if (result.isErr()) {
+          this.uiPort.showError(`Failed to update statement: ${result.error.message}`);
+          return;
+        }
+
+        this.uiPort.showInformation('Statement updated successfully');
+      } else if (metadata.type === 'label' && metadata.nodeId) {
+        // Handle side label editing
+        // TODO: Implement updateArgumentLabel method in ProofApplicationService
+        this.uiPort.showInformation('Label editing not yet implemented');
+      }
+
+      // Refresh content to show changes
+      await this.refreshContent();
+    } catch (error) {
+      this.uiPort.showError(
+        `Failed to edit content: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
+  /**
+   * Handle statement movement via drag and drop
+   */
+  private async handleMoveStatement(msg: { [key: string]: unknown }): Promise<void> {
+    try {
+      const sourceData = msg.sourceData as {
+        statementId: string;
+        statementType: string;
+        nodeId: string;
+      };
+      const targetStatementId = msg.targetStatementId as string;
+      const dropType = msg.dropType as 'premise' | 'conclusion';
+
+      if (!sourceData || !targetStatementId || !dropType) {
+        this.uiPort.showError('Invalid move statement request');
+        return;
+      }
+
+      const documentId = this.extractDocumentIdFromUri();
+      if (!documentId) {
+        this.uiPort.showError('Could not determine document ID');
+        return;
+      }
+
+      // For now, show a message that this feature will be implemented
+      // In a full implementation, this would reorganize statements in ordered sets
+      this.uiPort.showInformation(
+        `Statement movement requested: ${sourceData.statementId} to ${dropType} section near ${targetStatementId}`,
+      );
+
+      // TODO: Implement actual statement movement logic
+      // This would involve:
+      // 1. Removing statement from source ordered set
+      // 2. Adding statement to target ordered set at the correct position
+      // 3. Updating argument connections if needed
+      // 4. Validating the resulting proof structure
+
+      // For demonstration, we'll just refresh the content
+      await this.refreshContent();
+    } catch (error) {
+      this.uiPort.showError(
+        `Failed to move statement: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
+  /**
+   * Handle node movement via drag handles
+   */
+  private async handleMoveNode(msg: { [key: string]: unknown }): Promise<void> {
+    try {
+      const nodeId = msg.nodeId as string;
+      const deltaX = msg.deltaX as number;
+      const deltaY = msg.deltaY as number;
+
+      if (!nodeId || typeof deltaX !== 'number' || typeof deltaY !== 'number') {
+        this.uiPort.showError('Invalid move node request');
+        return;
+      }
+
+      const documentId = this.extractDocumentIdFromUri();
+      if (!documentId) {
+        this.uiPort.showError('Could not determine document ID');
+        return;
+      }
+
+      // For now, show a message that this feature will be implemented
+      // In a full implementation, this would update tree positioning
+      this.uiPort.showInformation(
+        `Node position update requested: ${nodeId} moved by (${deltaX}, ${deltaY})`,
+      );
+
+      // TODO: Implement actual node movement logic
+      // This would involve:
+      // 1. Finding the tree containing the node
+      // 2. Updating the tree's spatial positioning data
+      // 3. Recalculating layout if needed
+      // 4. Saving the new position to view state
+
+      // For demonstration, we'll just refresh the content
+      await this.refreshContent();
+    } catch (error) {
+      this.uiPort.showError(
+        `Failed to move node: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 

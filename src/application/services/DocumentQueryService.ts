@@ -149,12 +149,11 @@ export class DocumentQueryService {
       const error = parseResult.error;
       return ok({
         isValid: false,
-        errors: [
-          {
-            message: error.message,
-            // Don't set optional properties to undefined - omit them instead
-          },
-        ],
+        errors: error.errors.map((err) => ({
+          message: err.message,
+          ...(err.line !== undefined && { line: err.line }),
+          ...(err.section !== undefined && { section: err.section }),
+        })),
       });
     } catch (error) {
       return err(
@@ -339,13 +338,13 @@ export class DocumentQueryService {
       // Convert parse error to detailed error format
       const error = parseResult.error;
       return err({
-        errors: [
-          {
-            message: error.message,
-            severity: 'error' as const,
-            // Don't set optional properties to undefined - omit them instead
-          },
-        ],
+        errors: error.errors.map((err) => ({
+          message: err.message,
+          severity: 'error' as const,
+          ...(err.line !== undefined && { line: err.line }),
+          ...(err.column !== undefined && { column: err.column }),
+          ...(err.section !== undefined && { section: err.section }),
+        })),
         // Don't set optional properties to undefined - omit them instead
       });
     } catch (error) {
