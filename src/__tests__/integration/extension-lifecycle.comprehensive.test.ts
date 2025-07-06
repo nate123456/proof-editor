@@ -81,16 +81,36 @@ trees:
     offset: { x: 0, y: 0 }
 `;
 
-  const mockWebviewPanel = {
-    webview: {
-      html: '',
-      onDidReceiveMessage: vi.fn(),
-      postMessage: vi.fn(),
-    },
-    onDidDispose: vi.fn(),
-    reveal: vi.fn(),
-    dispose: vi.fn(),
+  const createMockWebviewPanel = () => {
+    const disposalCallbacks: Array<() => void> = [];
+
+    return {
+      webview: {
+        html: '',
+        onDidReceiveMessage: vi.fn(),
+        postMessage: vi.fn(),
+      },
+      onDidDispose: vi.fn().mockImplementation((callback: () => void) => {
+        disposalCallbacks.push(callback);
+        return { dispose: vi.fn() };
+      }),
+      reveal: vi.fn(),
+      dispose: vi.fn().mockImplementation(() => {
+        // Trigger all disposal callbacks when dispose is called
+        disposalCallbacks.forEach((callback) => {
+          try {
+            callback();
+          } catch (error) {
+            // Ignore callback errors in tests
+            console.warn('Disposal callback error in test:', error);
+          }
+        });
+        return Promise.resolve();
+      }),
+    };
   };
+
+  const mockWebviewPanel = createMockWebviewPanel();
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -169,7 +189,7 @@ trees:
       showError: vi.fn(),
       showProgress: vi.fn().mockResolvedValue(undefined),
       setStatusMessage: vi.fn().mockReturnValue({ dispose: vi.fn() }),
-      createWebviewPanel: vi.fn().mockReturnValue(mockWebviewPanel),
+      createWebviewPanel: vi.fn().mockImplementation(() => createMockWebviewPanel()),
       postMessageToWebview: vi.fn(),
       getTheme: vi.fn().mockReturnValue({
         kind: 'light' as const,
@@ -945,9 +965,14 @@ trees:
       const errors: Error[] = [];
 
       // Create panel that will error during disposal
-      mockWebviewPanel.dispose = vi.fn().mockImplementation(() => {
-        throw new Error('Webview disposal error');
+      const disposalError = new Error('Webview disposal error');
+      const errorWebviewPanel = createMockWebviewPanel();
+      errorWebviewPanel.dispose = vi.fn().mockImplementation(() => {
+        throw disposalError;
       });
+
+      // Override the UI port to return the error panel for this test
+      mockUIPort.createWebviewPanel = vi.fn().mockReturnValue(errorWebviewPanel);
 
       const panelResult = await ProofTreePanel.createWithServices(
         '/workspace/error-panel.proof',
@@ -968,16 +993,13 @@ trees:
       if (panelResult.isOk()) {
         const panel = panelResult.value;
 
-        try {
-          shutdownSteps.push('shutdown-initiated');
-          panel.dispose();
-          shutdownSteps.push('panel-disposed');
-        } catch (error) {
-          errors.push(error as Error);
-          shutdownSteps.push('disposal-error-caught');
-        }
+        shutdownSteps.push('shutdown-initiated');
 
-        // Cleanup should continue despite errors
+        // Panel disposal should now handle errors gracefully
+        panel.dispose();
+        shutdownSteps.push('panel-disposed-gracefully');
+
+        // Cleanup should continue despite underlying errors
         try {
           const closeResult = panelManager.closePanelForDocument('test-document.proof');
           if (closeResult.isOk()) {
@@ -989,8 +1011,9 @@ trees:
       }
 
       expect(shutdownSteps).toContain('shutdown-initiated');
-      expect(shutdownSteps).toContain('disposal-error-caught');
-      expect(errors.length).toBeGreaterThan(0);
+      expect(shutdownSteps).toContain('panel-disposed-gracefully');
+      // Disposal errors should be handled gracefully, not thrown
+      expect(errorWebviewPanel.dispose).toHaveBeenCalled();
     });
   });
 
@@ -999,39 +1022,41 @@ trees:
       const concurrentOperations = 15;
       const operationResults: Array<{ success: boolean; duration: number }> = [];
 
-      const operations = Array.from({ length: concurrentOperations }, async (_, i) => {
-        const startTime = performance.now();
+      const operations = Array.from({ length: concurrentOperations }, (_, i) => {
+        return (async () => {
+          const startTime = performance.now();
 
-        try {
-          const panelResult = await ProofTreePanel.createWithServices(
-            `/workspace/concurrent-${i}.proof`,
-            validProofContent,
-            mockDocumentQueryService,
-            mockVisualizationService,
-            mockUIPort,
-            mockRenderer,
-            mockViewStateManager,
-            mockViewStatePort,
-            mockBootstrapController,
-            mockProofApplicationService,
-            mockYAMLSerializer,
-            mockExportService,
-            mockDocumentIdService,
-          );
+          try {
+            const panelResult = await ProofTreePanel.createWithServices(
+              `/workspace/concurrent-${i}.proof`,
+              validProofContent,
+              mockDocumentQueryService,
+              mockVisualizationService,
+              mockUIPort,
+              mockRenderer,
+              mockViewStateManager,
+              mockViewStatePort,
+              mockBootstrapController,
+              mockProofApplicationService,
+              mockYAMLSerializer,
+              mockExportService,
+              mockDocumentIdService,
+            );
 
-          const endTime = performance.now();
-          const duration = endTime - startTime;
+            const endTime = performance.now();
+            const duration = endTime - startTime;
 
-          if (panelResult.isOk()) {
-            // Panel is already managed through createPanelWithServices
-            panelResult.value.dispose();
+            if (panelResult.isOk()) {
+              // Panel is already managed through createPanelWithServices
+              panelResult.value.dispose();
+            }
+
+            operationResults.push({ success: panelResult.isOk(), duration });
+          } catch (_error) {
+            const endTime = performance.now();
+            operationResults.push({ success: false, duration: endTime - startTime });
           }
-
-          operationResults.push({ success: panelResult.isOk(), duration });
-        } catch (_error) {
-          const endTime = performance.now();
-          operationResults.push({ success: false, duration: endTime - startTime });
-        }
+        })();
       });
 
       await Promise.all(operations);

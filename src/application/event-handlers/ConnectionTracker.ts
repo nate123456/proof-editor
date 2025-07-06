@@ -14,12 +14,18 @@ export class ConnectionTracker implements DomainEventHandler<OrderedSetBecameSha
   handle(event: OrderedSetBecameShared): void {
     const connections = new Set<string>();
     for (const usage of event.eventData.usages) {
-      const [argumentId] = usage.split(':');
+      // Usage is now an AtomicArgumentId, get its string value
+      const argumentId = typeof usage === 'string' ? usage : usage.getValue();
       if (argumentId) {
         connections.add(argumentId);
       }
     }
-    this.sharedSets.set(event.eventData.orderedSetId, connections);
+    this.sharedSets.set(
+      typeof event.eventData.orderedSetId === 'string'
+        ? event.eventData.orderedSetId
+        : event.eventData.orderedSetId.getValue(),
+      connections,
+    );
   }
 
   /**

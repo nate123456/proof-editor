@@ -54,6 +54,23 @@ describe('VSCodeUIAdapter Error Boundary', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
+    // Reset VS Code mock to default state
+    const mockVscode = vi.mocked(vscode);
+    mockVscode.window = {
+      showInputBox: vi.fn(),
+      showQuickPick: vi.fn(),
+      showInformationMessage: vi.fn(),
+      showWarningMessage: vi.fn(),
+      showErrorMessage: vi.fn(),
+      showOpenDialog: vi.fn(),
+      showSaveDialog: vi.fn(),
+      withProgress: vi.fn(),
+      setStatusBarMessage: vi.fn(),
+      createWebviewPanel: vi.fn(),
+      activeColorTheme: { kind: 1 },
+      onDidChangeActiveColorTheme: vi.fn(),
+    };
+
     mockContext = {
       subscriptions: [],
       extensionUri: { fsPath: '/test/extension' } as vscode.Uri,
@@ -86,41 +103,57 @@ describe('VSCodeUIAdapter Error Boundary', () => {
     });
 
     it('should handle vscode.window being undefined', async () => {
-      // Simulate VS Code window API unavailability
+      // Create a new adapter instance with undefined window
+      const adapterWithoutWindow = new VSCodeUIAdapter(mockContext);
+
+      // Temporarily set window to undefined for this test
+      const originalWindow = vscode.window;
       (vscode as any).window = undefined;
 
-      const result = await adapter.showInputBox({ prompt: 'Test' });
+      try {
+        const result = await adapterWithoutWindow.showInputBox({ prompt: 'Test' });
 
-      expect(result.isErr()).toBe(true);
-      if (result.isErr()) {
-        expect(result.error.code).toBe('PLATFORM_ERROR');
+        expect(result.isErr()).toBe(true);
+        if (result.isErr()) {
+          expect(result.error.code).toBe('PLATFORM_ERROR');
+        }
+      } finally {
+        // Restore window for other tests
+        (vscode as any).window = originalWindow;
       }
     });
 
     it('should handle vscode.window methods throwing errors', async () => {
-      vi.mocked(vscode.window.showInputBox).mockImplementation(() => {
+      // Only mock for this specific test
+      const mockShowInputBox = vi.fn().mockImplementation(() => {
         throw new Error('Window method unavailable');
       });
 
-      const result = await adapter.showInputBox({ prompt: 'Test' });
+      const originalShowInputBox = vscode.window.showInputBox;
+      (vscode.window as any).showInputBox = mockShowInputBox;
 
-      expect(result.isErr()).toBe(true);
-      if (result.isErr()) {
-        expect(result.error.code).toBe('PLATFORM_ERROR');
-        expect(result.error.message).toContain('Window method unavailable');
+      try {
+        const result = await adapter.showInputBox({ prompt: 'Test' });
+
+        expect(result.isErr()).toBe(true);
+        if (result.isErr()) {
+          expect(result.error.code).toBe('PLATFORM_ERROR');
+          expect(result.error.message).toContain('Window method unavailable');
+        }
+      } finally {
+        // Restore original method
+        (vscode.window as any).showInputBox = originalShowInputBox;
       }
     });
 
     it('should handle extension context disposal during operations', async () => {
-      // Start operation, then simulate context disposal
-      const inputPromise = adapter.showInputBox({ prompt: 'Test' });
+      // Mock the showInputBox to reject with context disposal error
+      vi.mocked(vscode.window.showInputBox).mockRejectedValue(new Error('Context disposed'));
 
       // Context gets disposed
       (mockContext as any).subscriptions = [];
 
-      vi.mocked(vscode.window.showInputBox).mockRejectedValue(new Error('Context disposed'));
-
-      const result = await inputPromise;
+      const result = await adapter.showInputBox({ prompt: 'Test' });
       expect(result.isErr()).toBe(true);
     });
 

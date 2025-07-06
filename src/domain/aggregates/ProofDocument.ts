@@ -17,7 +17,10 @@ import {
 } from '../events/proof-document-events.js';
 import { ValidationError } from '../shared/result.js';
 import {
+  ArgumentRole,
   AtomicArgumentId,
+  ConnectionInconsistencyType,
+  CycleSeverity,
   OrderedSetId,
   ProofDocumentId,
   StatementId,
@@ -27,8 +30,8 @@ import {
 export interface SharedOrderedSet {
   orderedSet: OrderedSet;
   usages: Array<{
-    argumentId: string;
-    role: 'premise' | 'conclusion';
+    argumentId: AtomicArgumentId;
+    role: ArgumentRole;
   }>;
 }
 
@@ -48,11 +51,11 @@ export interface ConnectionValidationResult {
 
 export interface ArgumentCycle {
   path: AtomicArgumentId[];
-  severity: 'low' | 'medium' | 'high';
+  severity: CycleSeverity;
 }
 
 export interface ConnectionInconsistency {
-  type: 'missing_premise' | 'dangling_conclusion' | 'type_mismatch';
+  type: ConnectionInconsistencyType;
   argumentId: AtomicArgumentId;
   details: string;
 }
@@ -65,10 +68,10 @@ export interface DocumentStats {
 }
 
 export class ProofDocument extends AggregateRoot {
-  private statements: Map<string, Statement> = new Map();
-  private orderedSets: Map<string, OrderedSet> = new Map();
-  private orderedSetRegistry: Map<string, Set<string>> = new Map(); // Tracks usage
-  private atomicArguments: Map<string, AtomicArgument> = new Map();
+  private statements: Map<StatementId, Statement> = new Map();
+  private orderedSets: Map<OrderedSetId, OrderedSet> = new Map();
+  private orderedSetRegistry: Map<OrderedSetId, Set<AtomicArgumentId>> = new Map(); // Tracks usage
+  private atomicArguments: Map<AtomicArgumentId, AtomicArgument> = new Map();
   private version: number = 0;
   private modifiedAt: Date;
 
@@ -83,9 +86,7 @@ export class ProofDocument extends AggregateRoot {
   static create(): ProofDocument {
     const doc = new ProofDocument(ProofDocumentId.generate(), new Date());
 
-    doc.addDomainEvent(
-      new ProofDocumentCreated(doc.id.getValue(), { createdAt: doc.createdAt.getTime() }),
-    );
+    doc.addDomainEvent(new ProofDocumentCreated(doc.id, { createdAt: doc.createdAt.getTime() }));
 
     return doc;
   }
@@ -93,9 +94,7 @@ export class ProofDocument extends AggregateRoot {
   static createBootstrap(id: ProofDocumentId): Result<ProofDocument, ValidationError> {
     const doc = new ProofDocument(id, new Date());
 
-    doc.addDomainEvent(
-      new ProofDocumentCreated(doc.id.getValue(), { createdAt: doc.createdAt.getTime() }),
-    );
+    doc.addDomainEvent(new ProofDocumentCreated(doc.id, { createdAt: doc.createdAt.getTime() }));
 
     return ok(doc);
   }
@@ -144,7 +143,7 @@ export class ProofDocument extends AggregateRoot {
         return err(statement.error);
       }
 
-      doc.statements.set(statementIdResult.value.getValue(), statement.value);
+      doc.statements.set(statementIdResult.value, statement.value);
     }
 
     // Reconstruct ordered sets
@@ -173,8 +172,8 @@ export class ProofDocument extends AggregateRoot {
         return err(orderedSet.error);
       }
 
-      doc.orderedSets.set(orderedSetIdResult.value.getValue(), orderedSet.value);
-      doc.orderedSetRegistry.set(orderedSetIdResult.value.getValue(), new Set());
+      doc.orderedSets.set(orderedSetIdResult.value, orderedSet.value);
+      doc.orderedSetRegistry.set(orderedSetIdResult.value, new Set());
     }
 
     // Reconstruct atomic arguments
@@ -209,14 +208,22 @@ export class ProofDocument extends AggregateRoot {
         }
       }
 
-      doc.atomicArguments.set(argumentIdResult.value.getValue(), argument.value);
+      doc.atomicArguments.set(argumentIdResult.value, argument.value);
 
       // Register usage
       if (validPremiseSetId) {
-        doc.registerOrderedSetUsage(validPremiseSetId, argumentIdResult.value, 'premise');
+        doc.registerOrderedSetUsage(
+          validPremiseSetId,
+          argumentIdResult.value,
+          ArgumentRole.PREMISE,
+        );
       }
       if (validConclusionSetId) {
-        doc.registerOrderedSetUsage(validConclusionSetId, argumentIdResult.value, 'conclusion');
+        doc.registerOrderedSetUsage(
+          validConclusionSetId,
+          argumentIdResult.value,
+          ArgumentRole.CONCLUSION,
+        );
       }
     }
 
@@ -233,13 +240,13 @@ export class ProofDocument extends AggregateRoot {
       return err(statement.error);
     }
 
-    this.statements.set(statement.value.getId().getValue(), statement.value);
+    this.statements.set(statement.value.getId(), statement.value);
     this.incrementVersion();
 
     this.addDomainEvent(
-      new StatementCreated(this.id.getValue(), {
-        statementId: statement.value.getId().getValue(),
-        content: statement.value.getContent(),
+      new StatementCreated(this.id, {
+        statementId: statement.value.getId(),
+        content: statement.value.getContentObject(),
       }),
     );
 
@@ -247,7 +254,7 @@ export class ProofDocument extends AggregateRoot {
   }
 
   updateStatement(id: StatementId, content: string): Result<Statement, ValidationError> {
-    const existing = this.statements.get(id.getValue());
+    const existing = this.statements.get(id);
     if (!existing) {
       return err(new ValidationError('Statement not found'));
     }
@@ -257,7 +264,7 @@ export class ProofDocument extends AggregateRoot {
       return err(new ValidationError('Cannot update statement that is in use'));
     }
 
-    const oldContent = existing.getContent();
+    const oldContent = existing.getContentObject();
     const updateResult = existing.updateContent(content);
     if (updateResult.isErr()) {
       return err(updateResult.error);
@@ -266,10 +273,10 @@ export class ProofDocument extends AggregateRoot {
     this.incrementVersion();
 
     this.addDomainEvent(
-      new StatementUpdated(this.id.getValue(), {
-        statementId: id.getValue(),
+      new StatementUpdated(this.id, {
+        statementId: id,
         oldContent,
-        newContent: content,
+        newContent: existing.getContentObject(),
       }),
     );
 
@@ -277,7 +284,7 @@ export class ProofDocument extends AggregateRoot {
   }
 
   deleteStatement(id: StatementId): Result<void, ValidationError> {
-    const existing = this.statements.get(id.getValue());
+    const existing = this.statements.get(id);
     if (!existing) {
       return err(new ValidationError('Statement not found'));
     }
@@ -286,13 +293,13 @@ export class ProofDocument extends AggregateRoot {
       return err(new ValidationError('Cannot delete statement that is in use'));
     }
 
-    this.statements.delete(id.getValue());
+    this.statements.delete(id);
     this.incrementVersion();
 
     this.addDomainEvent(
-      new StatementDeleted(this.id.getValue(), {
-        statementId: id.getValue(),
-        content: existing.getContent(),
+      new StatementDeleted(this.id, {
+        statementId: id,
+        content: existing.getContentObject(),
       }),
     );
 
@@ -303,7 +310,7 @@ export class ProofDocument extends AggregateRoot {
   createOrderedSet(statementIds: StatementId[]): Result<OrderedSet, ValidationError> {
     // Validate all statements exist
     for (const stmtId of statementIds) {
-      if (!this.statements.has(stmtId.getValue())) {
+      if (!this.statements.has(stmtId)) {
         return err(new ValidationError(`Statement ${stmtId.getValue()} not found`));
       }
     }
@@ -319,14 +326,14 @@ export class ProofDocument extends AggregateRoot {
       return err(orderedSet.error);
     }
 
-    this.orderedSets.set(orderedSet.value.getId().getValue(), orderedSet.value);
-    this.orderedSetRegistry.set(orderedSet.value.getId().getValue(), new Set());
+    this.orderedSets.set(orderedSet.value.getId(), orderedSet.value);
+    this.orderedSetRegistry.set(orderedSet.value.getId(), new Set());
     this.incrementVersion();
 
     this.addDomainEvent(
-      new OrderedSetCreated(this.id.getValue(), {
-        orderedSetId: orderedSet.value.getId().getValue(),
-        statementIds: statementIds.map((id) => id.getValue()),
+      new OrderedSetCreated(this.id, {
+        orderedSetId: orderedSet.value.getId(),
+        statementIds: statementIds,
       }),
     );
 
@@ -334,7 +341,7 @@ export class ProofDocument extends AggregateRoot {
   }
 
   deleteOrderedSet(id: OrderedSetId): Result<void, ValidationError> {
-    const existing = this.orderedSets.get(id.getValue());
+    const existing = this.orderedSets.get(id);
     if (!existing) {
       return err(new ValidationError('OrderedSet not found'));
     }
@@ -345,14 +352,14 @@ export class ProofDocument extends AggregateRoot {
       );
     }
 
-    this.orderedSets.delete(id.getValue());
-    this.orderedSetRegistry.delete(id.getValue());
+    this.orderedSets.delete(id);
+    this.orderedSetRegistry.delete(id);
     this.incrementVersion();
 
     this.addDomainEvent(
-      new OrderedSetDeleted(this.id.getValue(), {
-        orderedSetId: id.getValue(),
-        statementIds: existing.getStatementIds().map((id) => id.getValue()),
+      new OrderedSetDeleted(this.id, {
+        orderedSetId: id,
+        statementIds: existing.getStatementIds(),
       }),
     );
 
@@ -365,10 +372,10 @@ export class ProofDocument extends AggregateRoot {
     conclusionSet: OrderedSet | null,
   ): Result<AtomicArgument, ValidationError> {
     // Validate OrderedSets belong to this document
-    if (premiseSet && !this.orderedSets.has(premiseSet.getId().getValue())) {
+    if (premiseSet && !this.orderedSets.has(premiseSet.getId())) {
       return err(new ValidationError('Premise OrderedSet not in document'));
     }
-    if (conclusionSet && !this.orderedSets.has(conclusionSet.getId().getValue())) {
+    if (conclusionSet && !this.orderedSets.has(conclusionSet.getId())) {
       return err(new ValidationError('Conclusion OrderedSet not in document'));
     }
 
@@ -380,23 +387,31 @@ export class ProofDocument extends AggregateRoot {
       return err(argument.error);
     }
 
-    this.atomicArguments.set(argument.value.getId().getValue(), argument.value);
+    this.atomicArguments.set(argument.value.getId(), argument.value);
 
     // Register OrderedSet usage - this tracks connections!
     if (premiseSet) {
-      this.registerOrderedSetUsage(premiseSet.getId(), argument.value.getId(), 'premise');
+      this.registerOrderedSetUsage(
+        premiseSet.getId(),
+        argument.value.getId(),
+        ArgumentRole.PREMISE,
+      );
     }
     if (conclusionSet) {
-      this.registerOrderedSetUsage(conclusionSet.getId(), argument.value.getId(), 'conclusion');
+      this.registerOrderedSetUsage(
+        conclusionSet.getId(),
+        argument.value.getId(),
+        ArgumentRole.CONCLUSION,
+      );
     }
 
     this.incrementVersion();
 
     this.addDomainEvent(
-      new AtomicArgumentCreated(this.id.getValue(), {
-        argumentId: argument.value.getId().getValue(),
-        premiseSetId: premiseSet?.getId().getValue() || null,
-        conclusionSetId: conclusionSet?.getId().getValue() || null,
+      new AtomicArgumentCreated(this.id, {
+        argumentId: argument.value.getId(),
+        premiseSetId: premiseSet?.getId() || null,
+        conclusionSetId: conclusionSet?.getId() || null,
       }),
     );
 
@@ -408,16 +423,16 @@ export class ProofDocument extends AggregateRoot {
     premiseSet: OrderedSet | null,
     conclusionSet: OrderedSet | null,
   ): Result<AtomicArgument, ValidationError> {
-    const existing = this.atomicArguments.get(argumentId.getValue());
+    const existing = this.atomicArguments.get(argumentId);
     if (!existing) {
       return err(new ValidationError('Atomic argument not found'));
     }
 
     // Validate OrderedSets belong to this document
-    if (premiseSet && !this.orderedSets.has(premiseSet.getId().getValue())) {
+    if (premiseSet && !this.orderedSets.has(premiseSet.getId())) {
       return err(new ValidationError('Premise OrderedSet not in document'));
     }
-    if (conclusionSet && !this.orderedSets.has(conclusionSet.getId().getValue())) {
+    if (conclusionSet && !this.orderedSets.has(conclusionSet.getId())) {
       return err(new ValidationError('Conclusion OrderedSet not in document'));
     }
 
@@ -426,10 +441,10 @@ export class ProofDocument extends AggregateRoot {
     const oldConclusionSetId = existing.getConclusionSet();
 
     if (oldPremiseSetId) {
-      this.unregisterOrderedSetUsage(oldPremiseSetId, argumentId, 'premise');
+      this.unregisterOrderedSetUsage(oldPremiseSetId, argumentId, ArgumentRole.PREMISE);
     }
     if (oldConclusionSetId) {
-      this.unregisterOrderedSetUsage(oldConclusionSetId, argumentId, 'conclusion');
+      this.unregisterOrderedSetUsage(oldConclusionSetId, argumentId, ArgumentRole.CONCLUSION);
     }
 
     // Update the argument
@@ -438,19 +453,19 @@ export class ProofDocument extends AggregateRoot {
 
     // Register new usage
     if (premiseSet) {
-      this.registerOrderedSetUsage(premiseSet.getId(), argumentId, 'premise');
+      this.registerOrderedSetUsage(premiseSet.getId(), argumentId, ArgumentRole.PREMISE);
     }
     if (conclusionSet) {
-      this.registerOrderedSetUsage(conclusionSet.getId(), argumentId, 'conclusion');
+      this.registerOrderedSetUsage(conclusionSet.getId(), argumentId, ArgumentRole.CONCLUSION);
     }
 
     this.incrementVersion();
 
     this.addDomainEvent(
-      new AtomicArgumentUpdated(this.id.getValue(), {
-        argumentId: argumentId.getValue(),
-        premiseSetId: premiseSet?.getId().getValue() || null,
-        conclusionSetId: conclusionSet?.getId().getValue() || null,
+      new AtomicArgumentUpdated(this.id, {
+        argumentId: argumentId,
+        premiseSetId: premiseSet?.getId() || null,
+        conclusionSetId: conclusionSet?.getId() || null,
       }),
     );
 
@@ -458,7 +473,7 @@ export class ProofDocument extends AggregateRoot {
   }
 
   deleteAtomicArgument(id: AtomicArgumentId): Result<void, ValidationError> {
-    const existing = this.atomicArguments.get(id.getValue());
+    const existing = this.atomicArguments.get(id);
     if (!existing) {
       return err(new ValidationError('Atomic argument not found'));
     }
@@ -468,20 +483,20 @@ export class ProofDocument extends AggregateRoot {
     const conclusionSetId = existing.getConclusionSet();
 
     if (premiseSetId) {
-      this.unregisterOrderedSetUsage(premiseSetId, id, 'premise');
+      this.unregisterOrderedSetUsage(premiseSetId, id, ArgumentRole.PREMISE);
     }
     if (conclusionSetId) {
-      this.unregisterOrderedSetUsage(conclusionSetId, id, 'conclusion');
+      this.unregisterOrderedSetUsage(conclusionSetId, id, ArgumentRole.CONCLUSION);
     }
 
-    this.atomicArguments.delete(id.getValue());
+    this.atomicArguments.delete(id);
     this.incrementVersion();
 
     this.addDomainEvent(
-      new AtomicArgumentDeleted(this.id.getValue(), {
-        argumentId: id.getValue(),
-        premiseSetId: premiseSetId?.getValue() || null,
-        conclusionSetId: conclusionSetId?.getValue() || null,
+      new AtomicArgumentDeleted(this.id, {
+        argumentId: id,
+        premiseSetId: premiseSetId || null,
+        conclusionSetId: conclusionSetId || null,
       }),
     );
 
@@ -491,7 +506,7 @@ export class ProofDocument extends AggregateRoot {
   // Connection discovery operations
   findConnectionsForArgument(argumentId: AtomicArgumentId): ArgumentConnection[] {
     const connections: ArgumentConnection[] = [];
-    const argument = this.atomicArguments.get(argumentId.getValue());
+    const argument = this.atomicArguments.get(argumentId);
     if (!argument) return connections;
 
     // Find arguments that can provide premises
@@ -586,21 +601,20 @@ export class ProofDocument extends AggregateRoot {
   private registerOrderedSetUsage(
     setId: OrderedSetId,
     argumentId: AtomicArgumentId,
-    role: 'premise' | 'conclusion',
+    _role: ArgumentRole,
   ): void {
-    const registry = this.orderedSetRegistry.get(setId.getValue());
+    const registry = this.orderedSetRegistry.get(setId);
     if (!registry) return;
 
-    const usage = `${argumentId.getValue()}:${role}`;
     const wasShared = registry.size > 1;
-    registry.add(usage);
+    registry.add(argumentId);
     const isNowShared = registry.size > 1;
 
     // Emit event when OrderedSet becomes shared
     if (!wasShared && isNowShared) {
       this.addDomainEvent(
-        new OrderedSetBecameShared(this.id.getValue(), {
-          orderedSetId: setId.getValue(),
+        new OrderedSetBecameShared(this.id, {
+          orderedSetId: setId,
           usages: Array.from(registry),
         }),
       );
@@ -610,13 +624,12 @@ export class ProofDocument extends AggregateRoot {
   private unregisterOrderedSetUsage(
     setId: OrderedSetId,
     argumentId: AtomicArgumentId,
-    role: 'premise' | 'conclusion',
+    _role: ArgumentRole,
   ): void {
-    const registry = this.orderedSetRegistry.get(setId.getValue());
+    const registry = this.orderedSetRegistry.get(setId);
     if (!registry) return;
 
-    const usage = `${argumentId.getValue()}:${role}`;
-    registry.delete(usage);
+    registry.delete(argumentId);
   }
 
   private isStatementInUse(statementId: StatementId): boolean {
@@ -655,11 +668,11 @@ export class ProofDocument extends AggregateRoot {
   private detectCycles(): ArgumentCycle[] {
     // Basic cycle detection - could be enhanced with proper graph algorithms
     const cycles: ArgumentCycle[] = [];
-    const visited = new Set<string>();
-    const recursionStack = new Set<string>();
+    const visited = new Set<AtomicArgumentId>();
+    const recursionStack = new Set<AtomicArgumentId>();
 
     for (const argument of Array.from(this.atomicArguments.values())) {
-      if (!visited.has(argument.getId().getValue())) {
+      if (!visited.has(argument.getId())) {
         this.detectCyclesHelper(argument.getId(), visited, recursionStack, [], cycles);
       }
     }
@@ -669,29 +682,27 @@ export class ProofDocument extends AggregateRoot {
 
   private detectCyclesHelper(
     argumentId: AtomicArgumentId,
-    visited: Set<string>,
-    recursionStack: Set<string>,
+    visited: Set<AtomicArgumentId>,
+    recursionStack: Set<AtomicArgumentId>,
     path: AtomicArgumentId[],
     cycles: ArgumentCycle[],
   ): void {
-    const argIdStr = argumentId.getValue();
-    visited.add(argIdStr);
-    recursionStack.add(argIdStr);
+    visited.add(argumentId);
+    recursionStack.add(argumentId);
     path.push(argumentId);
 
     const connections = this.findConnectionsForArgument(argumentId);
     for (const connection of connections) {
       if (connection.type === 'provides') {
-        const nextArgIdStr = connection.toId.getValue();
-        if (!visited.has(nextArgIdStr)) {
+        if (!visited.has(connection.toId)) {
           this.detectCyclesHelper(connection.toId, visited, recursionStack, path, cycles);
-        } else if (recursionStack.has(nextArgIdStr)) {
+        } else if (recursionStack.has(connection.toId)) {
           // Found a cycle
-          const cycleStartIndex = path.findIndex((id) => id.getValue() === nextArgIdStr);
+          const cycleStartIndex = path.findIndex((id) => id.equals(connection.toId));
           if (cycleStartIndex >= 0) {
             cycles.push({
               path: path.slice(cycleStartIndex),
-              severity: 'medium',
+              severity: CycleSeverity.MEDIUM,
             });
           }
         }
@@ -699,7 +710,7 @@ export class ProofDocument extends AggregateRoot {
     }
 
     path.pop();
-    recursionStack.delete(argIdStr);
+    recursionStack.delete(argumentId);
   }
 
   private findOrphanedArguments(): AtomicArgumentId[] {
@@ -720,10 +731,10 @@ export class ProofDocument extends AggregateRoot {
       // Check for missing premises
       const premiseSetId = arg.getPremiseSet();
       if (premiseSetId) {
-        const premiseSet = this.orderedSets.get(premiseSetId.getValue());
+        const premiseSet = this.orderedSets.get(premiseSetId);
         if (premiseSet?.isEmpty()) {
           inconsistencies.push({
-            type: 'missing_premise',
+            type: ConnectionInconsistencyType.MISSING_PREMISE,
             argumentId: arg.getId(),
             details: 'Argument has empty premise set',
           });
@@ -736,7 +747,7 @@ export class ProofDocument extends AggregateRoot {
         const consumers = this.findArgumentsConsumingOrderedSet(conclusionSetId);
         if (consumers.length === 0) {
           inconsistencies.push({
-            type: 'dangling_conclusion',
+            type: ConnectionInconsistencyType.DANGLING_CONCLUSION,
             argumentId: arg.getId(),
             details: 'Conclusion set is not consumed by any other argument',
           });

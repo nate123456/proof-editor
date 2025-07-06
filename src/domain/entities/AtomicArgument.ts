@@ -1,26 +1,33 @@
 import { err, ok, type Result } from 'neverthrow';
 
 import { ValidationError } from '../shared/result.js';
-import { AtomicArgumentId, type OrderedSetId } from '../shared/value-objects.js';
+import { AtomicArgumentId } from '../shared/value-objects.js';
+import type { Statement } from './Statement.js';
 
 export interface SideLabels {
   left?: string;
   right?: string;
 }
 
+export interface StatementConnection {
+  statement: Statement;
+  fromConclusionPosition: number;
+  toPremisePosition: number;
+}
+
 export class AtomicArgument {
   private constructor(
     private readonly id: AtomicArgumentId,
-    private premiseSet: OrderedSetId | null,
-    private conclusionSet: OrderedSetId | null,
+    private premises: Statement[],
+    private conclusions: Statement[],
     private readonly createdAt: number,
     private modifiedAt: number,
     private sideLabels: SideLabels = {},
   ) {}
 
   static create(
-    premiseSet?: OrderedSetId,
-    conclusionSet?: OrderedSetId,
+    premises: Statement[] = [],
+    conclusions: Statement[] = [],
     sideLabels: SideLabels = {},
   ): Result<AtomicArgument, ValidationError> {
     const now = Date.now();
@@ -28,8 +35,8 @@ export class AtomicArgument {
     return ok(
       new AtomicArgument(
         AtomicArgumentId.generate(),
-        premiseSet ?? null,
-        conclusionSet ?? null,
+        [...premises],
+        [...conclusions],
         now,
         now,
         sideLabels,
@@ -37,44 +44,58 @@ export class AtomicArgument {
     );
   }
 
-  static createComplete(
-    premiseSet: OrderedSetId,
-    conclusionSet: OrderedSetId,
-    sideLabels: SideLabels = {},
-  ): AtomicArgument {
+  static createBootstrap(): AtomicArgument {
     const now = Date.now();
-
-    return new AtomicArgument(
-      AtomicArgumentId.generate(),
-      premiseSet,
-      conclusionSet,
-      now,
-      now,
-      sideLabels,
-    );
+    return new AtomicArgument(AtomicArgumentId.generate(), [], [], now, now, {});
   }
 
   static reconstruct(
     id: AtomicArgumentId,
-    premiseSet: OrderedSetId | null,
-    conclusionSet: OrderedSetId | null,
+    premises: Statement[],
+    conclusions: Statement[],
     createdAt: number,
     modifiedAt: number,
     sideLabels: SideLabels = {},
   ): Result<AtomicArgument, ValidationError> {
-    return ok(new AtomicArgument(id, premiseSet, conclusionSet, createdAt, modifiedAt, sideLabels));
+    if (createdAt < 0 || modifiedAt < 0) {
+      return err(new ValidationError('Negative timestamp values are not allowed'));
+    }
+
+    if (modifiedAt < createdAt) {
+      return err(new ValidationError('modified timestamp cannot be before created timestamp'));
+    }
+
+    return ok(
+      new AtomicArgument(id, [...premises], [...conclusions], createdAt, modifiedAt, sideLabels),
+    );
   }
 
   getId(): AtomicArgumentId {
     return this.id;
   }
 
-  getPremiseSet(): OrderedSetId | null {
-    return this.premiseSet;
+  getPremises(): readonly Statement[] {
+    return [...this.premises];
   }
 
-  getConclusionSet(): OrderedSetId | null {
-    return this.conclusionSet;
+  getConclusions(): readonly Statement[] {
+    return [...this.conclusions];
+  }
+
+  getPremiseAt(index: number): Statement | undefined {
+    return this.premises[index];
+  }
+
+  getConclusionAt(index: number): Statement | undefined {
+    return this.conclusions[index];
+  }
+
+  getPremiseCount(): number {
+    return this.premises.length;
+  }
+
+  getConclusionCount(): number {
+    return this.conclusions.length;
   }
 
   getCreatedAt(): number {
@@ -89,22 +110,64 @@ export class AtomicArgument {
     return { ...this.sideLabels };
   }
 
-  setPremiseSetRef(orderedSetRef: OrderedSetId | null): void {
-    if (this.premiseSet === orderedSetRef) {
-      return;
-    }
-
-    this.premiseSet = orderedSetRef;
+  addPremise(statement: Statement): Result<void, ValidationError> {
+    this.premises.push(statement);
     this.modifiedAt = Date.now();
+    return ok(undefined);
   }
 
-  setConclusionSetRef(orderedSetRef: OrderedSetId | null): void {
-    if (this.conclusionSet === orderedSetRef) {
-      return;
+  addConclusion(statement: Statement): Result<void, ValidationError> {
+    this.conclusions.push(statement);
+    this.modifiedAt = Date.now();
+    return ok(undefined);
+  }
+
+  setPremiseAt(index: number, statement: Statement): Result<void, ValidationError> {
+    if (index < 0 || index >= this.premises.length) {
+      return err(new ValidationError('Invalid premise position'));
     }
 
-    this.conclusionSet = orderedSetRef;
+    this.premises[index] = statement;
     this.modifiedAt = Date.now();
+    return ok(undefined);
+  }
+
+  setConclusionAt(index: number, statement: Statement): Result<void, ValidationError> {
+    if (index < 0 || index >= this.conclusions.length) {
+      return err(new ValidationError('Invalid conclusion position'));
+    }
+
+    this.conclusions[index] = statement;
+    this.modifiedAt = Date.now();
+    return ok(undefined);
+  }
+
+  removePremiseAt(index: number): Result<Statement, ValidationError> {
+    if (index < 0 || index >= this.premises.length) {
+      return err(new ValidationError('Invalid premise position'));
+    }
+
+    const removed = this.premises.splice(index, 1)[0];
+    if (!removed) {
+      return err(new ValidationError('Failed to remove premise'));
+    }
+
+    this.modifiedAt = Date.now();
+    return ok(removed);
+  }
+
+  removeConclusionAt(index: number): Result<Statement, ValidationError> {
+    if (index < 0 || index >= this.conclusions.length) {
+      return err(new ValidationError('Invalid conclusion position'));
+    }
+
+    const removed = this.conclusions.splice(index, 1)[0];
+    if (!removed) {
+      return err(new ValidationError('Failed to remove conclusion'));
+    }
+
+    this.modifiedAt = Date.now();
+    return ok(removed);
   }
 
   updateSideLabels(newSideLabels: SideLabels): Result<void, ValidationError> {
@@ -133,122 +196,106 @@ export class AtomicArgument {
     return ok(undefined);
   }
 
-  hasPremiseSet(): boolean {
-    return this.premiseSet !== null;
+  findConnectionsTo(other: AtomicArgument): StatementConnection[] {
+    const connections: StatementConnection[] = [];
+
+    this.conclusions.forEach((conclusion, fromPos) => {
+      other.premises.forEach((premise, toPos) => {
+        if (conclusion.equals(premise)) {
+          connections.push({
+            statement: conclusion,
+            fromConclusionPosition: fromPos,
+            toPremisePosition: toPos,
+          });
+        }
+      });
+    });
+
+    return connections;
   }
 
-  hasConclusionSet(): boolean {
-    return this.conclusionSet !== null;
+  canConnectAt(conclusionIndex: number, other: AtomicArgument, premiseIndex: number): boolean {
+    const conclusion = this.conclusions[conclusionIndex];
+    const premise = other.premises[premiseIndex];
+
+    return conclusion !== undefined && premise !== undefined && conclusion.equals(premise);
   }
 
-  hasEmptyPremiseSet(): boolean {
-    return this.premiseSet === null;
-  }
+  connectConclusionToPremise(
+    conclusionIndex: number,
+    targetArg: AtomicArgument,
+    premiseIndex: number,
+    sharedStatement: Statement,
+  ): Result<void, ValidationError> {
+    if (conclusionIndex < 0 || conclusionIndex >= this.conclusions.length) {
+      return err(new ValidationError('Invalid conclusion position'));
+    }
 
-  hasEmptyConclusionSet(): boolean {
-    return this.conclusionSet === null;
-  }
+    if (premiseIndex < 0 || premiseIndex >= targetArg.premises.length) {
+      return err(new ValidationError('Invalid premise position'));
+    }
 
-  /**
-   * CRITICAL: Check if this argument can connect to the premise of another.
-   * Connection exists when conclusion OrderedSet object IS the same object as premise OrderedSet.
-   * This uses object identity (===), not content equality.
-   */
-  canConnectToPremiseOf(other: AtomicArgument): boolean {
-    return (
-      this.conclusionSet !== null &&
-      other.premiseSet !== null &&
-      this.conclusionSet.equals(other.premiseSet)
-    );
-  }
+    this.conclusions[conclusionIndex] = sharedStatement;
+    targetArg.premises[premiseIndex] = sharedStatement;
 
-  /**
-   * CRITICAL: Check if this argument can connect to the conclusion of another.
-   * Connection exists when premise OrderedSet object IS the same object as conclusion OrderedSet.
-   * This uses object identity (===), not content equality.
-   */
-  canConnectToConclusionOf(other: AtomicArgument): boolean {
-    return (
-      this.premiseSet !== null &&
-      other.conclusionSet !== null &&
-      this.premiseSet.equals(other.conclusionSet)
-    );
+    this.modifiedAt = Date.now();
+    targetArg.modifiedAt = Date.now();
+
+    return ok(undefined);
   }
 
   isDirectlyConnectedTo(other: AtomicArgument): boolean {
-    return this.canConnectToPremiseOf(other) || this.canConnectToConclusionOf(other);
+    return this.findConnectionsTo(other).length > 0 || other.findConnectionsTo(this).length > 0;
   }
 
-  /**
-   * CRITICAL: Check if this argument shares any OrderedSet object with another.
-   * Uses object identity (===), not content equality.
-   */
-  sharesOrderedSetWith(other: AtomicArgument): boolean {
-    if (this.premiseSet && other.premiseSet && this.premiseSet.equals(other.premiseSet)) {
-      return true;
+  sharesStatementWith(other: AtomicArgument): boolean {
+    for (const premise of this.premises) {
+      if (
+        other.premises.some((p) => p.equals(premise)) ||
+        other.conclusions.some((c) => c.equals(premise))
+      ) {
+        return true;
+      }
     }
 
-    if (
-      this.conclusionSet &&
-      other.conclusionSet &&
-      this.conclusionSet.equals(other.conclusionSet)
-    ) {
-      return true;
+    for (const conclusion of this.conclusions) {
+      if (
+        other.premises.some((p) => p.equals(conclusion)) ||
+        other.conclusions.some((c) => c.equals(conclusion))
+      ) {
+        return true;
+      }
     }
 
-    return this.isDirectlyConnectedTo(other);
+    return false;
   }
 
-  createBranchFromConclusion(): Result<AtomicArgument, ValidationError> {
-    if (!this.conclusionSet) {
-      return err(new ValidationError('Cannot branch from argument without conclusion set'));
+  createBranchFromConclusion(conclusionIndex: number): Result<AtomicArgument, ValidationError> {
+    const conclusion = this.conclusions[conclusionIndex];
+    if (!conclusion) {
+      return err(new ValidationError('Invalid conclusion index for branching'));
     }
 
-    return AtomicArgument.create(this.conclusionSet);
+    return AtomicArgument.create([conclusion]);
   }
 
-  createBranchToPremise(): Result<AtomicArgument, ValidationError> {
-    if (!this.premiseSet) {
-      return err(new ValidationError('Cannot branch to argument without premise set'));
+  createBranchToPremise(premiseIndex: number): Result<AtomicArgument, ValidationError> {
+    const premise = this.premises[premiseIndex];
+    if (!premise) {
+      return err(new ValidationError('Invalid premise index for branching'));
     }
 
-    return AtomicArgument.create(undefined, this.premiseSet);
+    return AtomicArgument.create([], [premise]);
   }
 
-  createChildArgument(): Result<AtomicArgument, ValidationError> {
-    if (!this.conclusionSet) {
-      return err(new ValidationError('Cannot create child argument without conclusion set'));
-    }
-
-    return AtomicArgument.create(this.conclusionSet);
-  }
-
-  /**
-   * Create a bootstrap atomic argument with no premises or conclusions.
-   * This bypasses all validation for the initial empty state.
-   */
-  static createBootstrap(): AtomicArgument {
-    const now = Date.now();
-    return new AtomicArgument(AtomicArgumentId.generate(), null, null, now, now, {});
-  }
-
-  /**
-   * Check if this is a bootstrap argument (empty premises and conclusions).
-   */
   isBootstrapArgument(): boolean {
-    return this.premiseSet === null && this.conclusionSet === null;
+    return this.premises.length === 0 && this.conclusions.length === 0;
   }
 
-  /**
-   * An alias for isBootstrapArgument for clarity.
-   */
   isBootstrap(): boolean {
     return this.isBootstrapArgument();
   }
 
-  /**
-   * Check if this argument can be populated (must be in bootstrap state).
-   */
   canPopulate(): boolean {
     return this.isBootstrap();
   }
@@ -273,39 +320,17 @@ export class AtomicArgument {
     return this.hasLeftSideLabel() || this.hasRightSideLabel();
   }
 
-  equals(other: AtomicArgument): boolean {
+  equals(other: AtomicArgument | null | undefined): boolean {
+    if (other === null || other === undefined) return false;
     return this.id.equals(other.id);
   }
 
   isComplete(): boolean {
-    return this.premiseSet !== null && this.conclusionSet !== null;
+    return this.premises.length > 0 && this.conclusions.length > 0;
   }
 
   isEmpty(): boolean {
-    return this.premiseSet === null && this.conclusionSet === null;
-  }
-
-  /**
-   * CRITICAL: Check if this argument can connect to another using object identity.
-   * Connection exists when conclusion OrderedSet object IS the same object as premise OrderedSet.
-   */
-  canConnectTo(other: AtomicArgument): boolean {
-    if (!this.conclusionSet || !other.premiseSet) {
-      return false;
-    }
-    return this.conclusionSet.equals(other.premiseSet);
-  }
-
-  wouldCreateDirectCycle(other: AtomicArgument): boolean {
-    if (!this.canConnectTo(other)) {
-      return false;
-    }
-
-    return other.canConnectTo(this);
-  }
-
-  sharesSetWith(other: AtomicArgument): boolean {
-    return this.sharesOrderedSetWith(other);
+    return this.premises.length === 0 && this.conclusions.length === 0;
   }
 
   validateConnectionSafety(other: AtomicArgument): Result<boolean, ValidationError> {
@@ -313,21 +338,21 @@ export class AtomicArgument {
       return err(new ValidationError('Cannot connect argument to itself'));
     }
 
-    if (!this.conclusionSet) {
-      return err(new ValidationError('Source argument has no conclusion set'));
+    if (this.conclusions.length === 0) {
+      return err(new ValidationError('Source argument has no conclusions'));
     }
 
-    if (!other.premiseSet) {
-      return err(new ValidationError('Target argument has no premise set'));
+    if (other.premises.length === 0) {
+      return err(new ValidationError('Target argument has no premises'));
     }
 
-    if (!this.canConnectTo(other)) {
-      return err(
-        new ValidationError('Arguments cannot connect: conclusion set does not match premise set'),
-      );
+    const connections = this.findConnectionsTo(other);
+    if (connections.length === 0) {
+      return err(new ValidationError('Arguments cannot connect: no matching statements'));
     }
 
-    if (this.wouldCreateDirectCycle(other)) {
+    const reverseConnections = other.findConnectionsTo(this);
+    if (reverseConnections.length > 0) {
       return err(new ValidationError('Connection would create direct cycle'));
     }
 
@@ -335,8 +360,12 @@ export class AtomicArgument {
   }
 
   toString(): string {
-    const premiseRef = this.premiseSet?.getValue() ?? 'empty';
-    const conclusionRef = this.conclusionSet?.getValue() ?? 'empty';
-    return `${premiseRef} → ${conclusionRef}`;
+    const premiseCount = this.premises.length;
+    const conclusionCount = this.conclusions.length;
+    const status = this.isBootstrapArgument() ? ' (bootstrap)' : '';
+    const sideLabels = this.hasSideLabels()
+      ? ` [${this.sideLabels.left || ''}|${this.sideLabels.right || ''}]`
+      : '';
+    return `AtomicArgument(${this.id.getValue()}): premises(${premiseCount}) → conclusions(${conclusionCount})${status}${sideLabels}`;
   }
 }

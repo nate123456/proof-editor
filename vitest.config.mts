@@ -15,11 +15,23 @@ export default defineConfig({
     environment: 'node',
     setupFiles: ['src/domain/__tests__/test-setup.ts'],
     
-    // Use forks to prevent hanging processes
+    // Performance optimizations - using forks to prevent hanging processes
+    // Using forks pool to avoid ES module memory leaks in worker threads
     pool: 'forks',
+    poolOptions: {
+      forks: {
+        singleFork: true, // Single fork for better memory management
+        execArgv: [
+          '--max-old-space-size=2048', // 2GB memory limit to prevent OOM errors
+        ],
+      },
+    },
     
-    // Add hanging-process reporter for debugging
-    reporters: ['default', 'hanging-process'],
+    // Standard reporter only - hanging-process reporter is ineffective
+    reporters: ['default'],
+    
+    // Enable memory logging for debugging potential leaks
+    logHeapUsage: true,
     exclude: [
       '**/node_modules/**',
       '**/dist/**',

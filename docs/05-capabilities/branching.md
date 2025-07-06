@@ -193,9 +193,9 @@ Users can create "upstream" flows - selecting a premise that needs a statement b
 ## Platform-Specific Interactions
 
 ### Desktop (VS Code)
-- Hover effects highlight branchable ordered sets
+- Hover effects highlight branchable statements
 - Keyboard shortcuts for quick branching
-- Multi-select for branching from multiple ordered sets simultaneously
+- Multi-select for branching from multiple statements simultaneously
 
 ### Mobile/Tablet
 - Touch targets sized appropriately (minimum 44x44 points)
@@ -203,8 +203,8 @@ Users can create "upstream" flows - selecting a premise that needs a statement b
 - Drag-and-drop for visual positioning after branch
 
 ### Accessibility
-- Screen reader announces "Branchable ordered set" on focus
-- Keyboard navigation between ordered sets
+- Screen reader announces "Branchable statement" on focus
+- Keyboard navigation between statements
 - Clear audio feedback when branch connection is created
 
 ## Implementation Notes
@@ -212,11 +212,11 @@ Users can create "upstream" flows - selecting a premise that needs a statement b
 The branching mechanism creates both logical connections AND tree structure:
 
 **Logical Connections**:
-- Branching creates new AtomicArgumentEntity with shared OrderedSetEntity reference IDs
-- No copying of content - references point to the same objects
-- Statement reuse is independent - same statement strings can appear in unconnected ordered sets
-- Connection = shared reference, not shared content
-- Changes to shared OrderedSetEntity affect all referencing atomic arguments
+- Branching creates new AtomicArgumentEntity with Statement arrays containing the same Statement IDs
+- No copying of content - references point to the same Statement objects
+- Statement reuse is independent - same statements can appear in unconnected arguments
+- Connection = shared Statement identity at positions, not shared content
+- Changes to Statements affect all referencing atomic arguments
 
 **Tree Structure**:
 - Each branch creates a new Node with parent reference and position

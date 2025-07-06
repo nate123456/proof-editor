@@ -2,7 +2,13 @@ import type { AtomicArgument } from '../entities/AtomicArgument';
 import type { RepositoryError } from '../errors/DomainErrors';
 import type { ComplexityLevel, QueryOptions } from '../shared/repository-types.js';
 import type { Result } from '../shared/result.js';
-import type { AtomicArgumentId, OrderedSetId, StatementId } from '../shared/value-objects.js';
+import type {
+  AtomicArgumentId,
+  OrderedSetId,
+  StatementContent,
+  StatementId,
+  ValidationStatus,
+} from '../shared/value-objects.js';
 
 export interface IAtomicArgumentRepository {
   save(argument: AtomicArgument): Promise<Result<void, RepositoryError>>;
@@ -21,7 +27,7 @@ export interface IAtomicArgumentRepository {
     options?: QueryOptions,
   ): Promise<AtomicArgument[]>;
   findArgumentsWithConclusion(
-    conclusion: string,
+    conclusion: StatementContent,
     options?: QueryOptions,
   ): Promise<AtomicArgument[]>;
   findArgumentChains(
@@ -30,7 +36,7 @@ export interface IAtomicArgumentRepository {
   ): Promise<AtomicArgument[]>;
   findCircularDependencies(): Promise<AtomicArgument[][]>;
   findArgumentsByValidationStatus(
-    isValid: boolean,
+    status: ValidationStatus,
     options?: QueryOptions,
   ): Promise<AtomicArgument[]>;
   findMostReferencedArguments(options?: QueryOptions): Promise<AtomicArgument[]>;

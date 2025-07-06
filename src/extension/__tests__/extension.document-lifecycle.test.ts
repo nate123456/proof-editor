@@ -167,6 +167,9 @@ describe('Extension Document Lifecycle Integration Tests', () => {
       handleDocumentOpened: vi.fn().mockResolvedValue(ok(undefined)),
       handleDocumentChanged: vi.fn().mockResolvedValue(ok(undefined)),
       handleDocumentClosed: vi.fn().mockResolvedValue(ok(undefined)),
+      setPanelManager: vi.fn(),
+      setViewStatePort: vi.fn(),
+      associatePanelWithDocument: vi.fn().mockResolvedValue(ok(undefined)),
       dispose: vi.fn(),
     };
 

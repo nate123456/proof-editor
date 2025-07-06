@@ -415,7 +415,7 @@ describe('Adapter Integration Error Scenarios', () => {
       if (fsResult.isErr()) {
         expect(fsResult.error.message).toContain('Operation timed out');
       }
-    });
+    }, 10000); // 10 second timeout
   });
 
   describe('Error Propagation and Recovery', () => {

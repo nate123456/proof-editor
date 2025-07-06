@@ -30,6 +30,13 @@ export class VSCodeFileSystemAdapter implements IFileSystemPort {
           path,
         });
       }
+      if (!vscode.Uri?.file) {
+        return err({
+          code: 'UNKNOWN',
+          message: 'VS Code Uri.file is not available',
+          path,
+        });
+      }
       const uri = vscode.Uri.file(path);
       const content = await vscode.workspace.fs.readFile(uri);
       const text = new TextDecoder('utf-8').decode(content);
@@ -183,7 +190,13 @@ export class VSCodeFileSystemAdapter implements IFileSystemPort {
 
     return {
       dispose: () => {
-        disposables.forEach((d) => d.dispose());
+        disposables.forEach((d) => {
+          try {
+            d.dispose();
+          } catch {
+            // Handle disposal errors gracefully
+          }
+        });
       },
     };
   }

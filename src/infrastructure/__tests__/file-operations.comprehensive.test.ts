@@ -128,7 +128,9 @@ trees:
       const documentPath = '/workspace/test-document.proof';
 
       // Step 1: Check if document exists (should not)
-      vi.mocked(vscode.workspace.fs.stat).mockRejectedValue(new Error('File not found'));
+      vi.mocked(vscode.workspace.fs.stat).mockRejectedValue(
+        vscode.FileSystemError.FileNotFound('File not found'),
+      );
 
       const existsResult = await adapter.exists(documentPath);
       expect(existsResult.isOk()).toBe(true);

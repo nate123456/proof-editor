@@ -27,6 +27,18 @@ vi.mock('vscode', () => ({
   commands: {},
   ViewColumn: { One: 1, Two: 2, Three: 3 },
   Uri: {},
+  languages: {
+    createDiagnosticCollection: vi.fn(() => ({
+      set: vi.fn(),
+      delete: vi.fn(),
+      clear: vi.fn(),
+      dispose: vi.fn(),
+    })),
+    registerDocumentSymbolProvider: vi.fn(() => ({ dispose: vi.fn() })),
+    registerDefinitionProvider: vi.fn(() => ({ dispose: vi.fn() })),
+    registerHoverProvider: vi.fn(() => ({ dispose: vi.fn() })),
+    registerCompletionItemProvider: vi.fn(() => ({ dispose: vi.fn() })),
+  },
 }));
 
 // Platform simulation utilities

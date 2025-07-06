@@ -240,6 +240,18 @@ describe('Performance and Resilience Integration Tests', () => {
       },
       ViewColumn: { One: 1, Two: 2 },
       Uri: { file: vi.fn(), parse: vi.fn() },
+      languages: {
+        createDiagnosticCollection: vi.fn(() => ({
+          set: vi.fn(),
+          delete: vi.fn(),
+          clear: vi.fn(),
+          dispose: vi.fn(),
+        })),
+        registerDocumentSymbolProvider: vi.fn(() => ({ dispose: vi.fn() })),
+        registerDefinitionProvider: vi.fn(() => ({ dispose: vi.fn() })),
+        registerHoverProvider: vi.fn(() => ({ dispose: vi.fn() })),
+        registerCompletionItemProvider: vi.fn(() => ({ dispose: vi.fn() })),
+      },
     }));
   });
 

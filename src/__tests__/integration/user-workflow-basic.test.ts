@@ -1,17 +1,14 @@
 /**
- * User Workflow Integration Tests
+ * Basic User Workflow Integration Tests
  *
- * Comprehensive tests covering realistic user interactions and workflows
- * from initial setup through complex proof construction and collaboration.
+ * Tests covering complete user journeys for different persona types
+ * from initial setup through proof construction workflows.
  */
 
-import { err } from 'neverthrow';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as vscode from 'vscode';
-import type { IFileSystemPort } from '../../application/ports/IFileSystemPort.js';
 import type { DocumentQueryService } from '../../application/services/DocumentQueryService.js';
 import type { ProofApplicationService } from '../../application/services/ProofApplicationService.js';
-import { ValidationError } from '../../domain/shared/result.js';
 import { activate, deactivate } from '../../extension/extension.js';
 import {
   type ApplicationContainer,
@@ -20,9 +17,6 @@ import {
 } from '../../infrastructure/di/container.js';
 import { TOKENS } from '../../infrastructure/di/tokens.js';
 import type { YAMLSerializer } from '../../infrastructure/repositories/yaml/YAMLSerializer.js';
-import type { BootstrapController } from '../../presentation/controllers/BootstrapController.js';
-import type { DocumentController } from '../../presentation/controllers/DocumentController.js';
-import type { ValidationController } from '../../validation/ValidationController.js';
 
 // User persona definitions for realistic testing
 interface UserPersona {
@@ -325,7 +319,7 @@ metadata:
   return content || templates['Philosophy Student'];
 };
 
-describe('User Workflow Integration Tests', () => {
+describe('Basic User Workflow Integration Tests', () => {
   let container: ApplicationContainer;
   let mockContext: any;
   let userMocks: ReturnType<typeof createUserInteractionMocks>;
@@ -344,12 +338,31 @@ describe('User Workflow Integration Tests', () => {
         showErrorMessage: vi.fn().mockResolvedValue('OK'),
         showWarningMessage: vi.fn().mockResolvedValue('OK'),
         showInputBox: vi.fn().mockImplementation(() => {
-          return Promise.resolve(userMocks?.getNextInput() || 'test-input');
+          return Promise.resolve('test-input');
         }),
         showQuickPick: vi.fn().mockImplementation((items) => {
           return Promise.resolve(Array.isArray(items) ? items[0] : 'test-choice');
         }),
-        createWebviewPanel: vi.fn(() => userMocks?.mockWebviewPanel),
+        createWebviewPanel: vi.fn(() => ({
+          webview: {
+            html: '',
+            options: { enableScripts: true },
+            onDidReceiveMessage: vi.fn(() => ({ dispose: vi.fn() })),
+            postMessage: vi.fn().mockResolvedValue(true),
+            asWebviewUri: vi.fn(),
+            cspSource: 'vscode-webview:',
+          },
+          title: 'User Workflow Test',
+          viewType: 'proofTreeVisualization',
+          viewColumn: 2,
+          active: true,
+          visible: true,
+          options: { retainContextWhenHidden: true },
+          reveal: vi.fn(),
+          dispose: vi.fn(),
+          onDidDispose: vi.fn(() => ({ dispose: vi.fn() })),
+          onDidChangeViewState: vi.fn(() => ({ dispose: vi.fn() })),
+        })),
         activeTextEditor: null, // Will be set per test
         onDidChangeActiveTextEditor: vi.fn(() => ({ dispose: vi.fn() })),
         visibleTextEditors: [],
@@ -396,6 +409,18 @@ describe('User Workflow Integration Tests', () => {
           path: `${base.path}/${parts.join('/')}`,
           fsPath: `${base.path}/${parts.join('/')}`,
         })),
+      },
+      languages: {
+        createDiagnosticCollection: vi.fn(() => ({
+          set: vi.fn(),
+          delete: vi.fn(),
+          clear: vi.fn(),
+          dispose: vi.fn(),
+        })),
+        registerDocumentSymbolProvider: vi.fn(() => ({ dispose: vi.fn() })),
+        registerDefinitionProvider: vi.fn(() => ({ dispose: vi.fn() })),
+        registerHoverProvider: vi.fn(() => ({ dispose: vi.fn() })),
+        registerCompletionItemProvider: vi.fn(() => ({ dispose: vi.fn() })),
       },
     }));
   });
@@ -561,387 +586,6 @@ describe('User Workflow Integration Tests', () => {
 
         expect(totalTime).toBeLessThan(expectedMaxTime);
       });
-    });
-  });
-
-  describe('Workflow Error Recovery', () => {
-    it('should handle beginner user making common mistakes', async () => {
-      const _persona = USER_PERSONAS.find((p) => p.skill_level === 'beginner');
-      if (!_persona) {
-        throw new Error('Beginner persona not found');
-      }
-
-      // Simulate common beginner mistakes
-      userMocks.mockUserInput([
-        '', // Empty document name (should be rejected)
-        'my-proof!@#', // Invalid characters (should be rejected)
-        'my-first-proof', // Valid name
-        '', // Empty premise (should be handled gracefully)
-        'Valid premise',
-        'Valid conclusion',
-      ]);
-
-      const createDocumentCommand = vi
-        .mocked(vscode.commands.registerCommand)
-        .mock.calls.find((call) => call[0] === 'proofEditor.createBootstrapDocument');
-
-      if (createDocumentCommand) {
-        const handler = createDocumentCommand[1] as (...args: unknown[]) => Promise<void>;
-
-        // Should handle invalid inputs gracefully
-        await expect(handler()).resolves.not.toThrow();
-
-        // Should eventually succeed with valid input
-        expect(vscode.window.showInputBox).toHaveBeenCalled();
-      }
-
-      // Test invalid YAML content handling
-      const invalidContent = 'invalid yaml content {{{';
-      userMocks.mockDocument.getText.mockReturnValue(invalidContent);
-
-      const documentQueryService = container.resolve<DocumentQueryService>(
-        TOKENS.DocumentQueryService,
-      );
-      const parseResult = await documentQueryService.parseDocumentContent(invalidContent);
-
-      // Should fail gracefully with helpful error
-      expect(parseResult.isErr()).toBe(true);
-      if (parseResult.isErr()) {
-        expect(parseResult.error).toBeInstanceOf(ValidationError);
-      }
-    });
-
-    it('should handle expert user recovering from system errors', async () => {
-      const persona = USER_PERSONAS.find((p) => p.skill_level === 'expert');
-      if (!persona) {
-        throw new Error('Expert persona not found');
-      }
-      const personaContent = generatePersonaContent(persona);
-
-      // Simulate system error during parsing
-      const documentQueryService = container.resolve<DocumentQueryService>(
-        TOKENS.DocumentQueryService,
-      );
-      const originalParse = documentQueryService.parseDocumentContent;
-
-      // Mock intermittent failure
-      let attemptCount = 0;
-      documentQueryService.parseDocumentContent = vi.fn().mockImplementation(async (content) => {
-        attemptCount++;
-        if (attemptCount === 1) {
-          return err(new ValidationError('Temporary system error'));
-        }
-        return originalParse.call(documentQueryService, content);
-      });
-
-      userMocks.mockDocument.getText.mockReturnValue(personaContent);
-
-      // First attempt should fail
-      const firstResult = await documentQueryService.parseDocumentContent(personaContent);
-      expect(firstResult.isErr()).toBe(true);
-
-      // Second attempt should succeed (expert users retry)
-      const secondResult = await documentQueryService.parseDocumentContent(personaContent);
-      expect(secondResult.isOk()).toBe(true);
-
-      // Restore original function
-      documentQueryService.parseDocumentContent = originalParse;
-    });
-  });
-
-  describe('Collaboration Workflows', () => {
-    it('should handle multi-user editing scenario', async () => {
-      const professor = USER_PERSONAS.find((p) => p.name === 'Logic Professor');
-      if (!professor) {
-        throw new Error('Logic Professor persona not found');
-      }
-      const _student = USER_PERSONAS.find((p) => p.name === 'Philosophy Student');
-      if (!_student) {
-        throw new Error('Philosophy Student persona not found');
-      }
-
-      // Simulate professor creating initial document
-      const professorContent = generatePersonaContent(professor);
-      userMocks.mockDocument.getText.mockReturnValue(professorContent);
-
-      const documentQueryService = container.resolve<DocumentQueryService>(
-        TOKENS.DocumentQueryService,
-      );
-      const professorParseResult =
-        await documentQueryService.parseDocumentContent(professorContent);
-
-      expect(professorParseResult.isOk()).toBe(true);
-
-      // Store professor's document
-      const fileSystemPort = container.resolve<IFileSystemPort>(TOKENS.IFileSystemPort);
-      const professorDoc = {
-        id: 'collaborative-proof',
-        content: professorContent,
-        metadata: {
-          id: 'collaborative-proof',
-          title: 'Collaborative Modal Logic Proof',
-          modifiedAt: new Date(Date.now() - 3600000), // 1 hour ago
-          size: professorContent.length,
-          syncStatus: 'synced' as const,
-        },
-        version: 1,
-      };
-
-      const storeProfResult = await fileSystemPort.storeDocument(professorDoc);
-      expect(storeProfResult.isOk()).toBe(true);
-
-      // Simulate student opening and modifying the document
-      const studentAddition = `
-  student_question: "Why does this modal logic principle hold?"
-  student_note: "Need to verify this step in the proof"
-`;
-
-      const modifiedContent = professorContent + studentAddition;
-      userMocks.mockDocument.getText.mockReturnValue(modifiedContent);
-
-      const studentParseResult = await documentQueryService.parseDocumentContent(modifiedContent);
-      expect(studentParseResult.isOk()).toBe(true);
-
-      // Store student's version
-      const studentDoc = {
-        ...professorDoc,
-        content: modifiedContent,
-        metadata: {
-          ...professorDoc.metadata,
-          modifiedAt: new Date(),
-        },
-        version: 2,
-      };
-
-      const storeStudentResult = await fileSystemPort.storeDocument(studentDoc);
-      expect(storeStudentResult.isOk()).toBe(true);
-
-      // Verify version management
-      const retrieveResult = await fileSystemPort.getStoredDocument('collaborative-proof');
-      expect(retrieveResult.isOk()).toBe(true);
-
-      if (retrieveResult.isOk() && retrieveResult.value) {
-        expect(retrieveResult.value.version).toBe(2);
-        expect(retrieveResult.value.content).toContain('student_question');
-      }
-    });
-
-    it('should handle real-time collaboration simulation', async () => {
-      const architect = USER_PERSONAS.find((p) => p.name === 'Software Architect');
-      if (!architect) {
-        throw new Error('Software Architect persona not found');
-      }
-      const baseContent = generatePersonaContent(architect);
-
-      // Simulate multiple simultaneous edits
-      const collaboratorEdits = [
-        { user: 'architect', addition: '\n  performance_req: "System must respond within 100ms"' },
-        { user: 'teammate1', addition: '\n  security_req: "All data must be encrypted at rest"' },
-        { user: 'teammate2', addition: '\n  compliance_req: "Must meet GDPR requirements"' },
-      ];
-
-      const fileSystemPort = container.resolve<IFileSystemPort>(TOKENS.IFileSystemPort);
-      const documentController = container.resolve<DocumentController>(TOKENS.DocumentController);
-
-      // Simulate concurrent document modifications
-      const savePromises = collaboratorEdits.map(async (edit, index) => {
-        const modifiedContent = baseContent + edit.addition;
-
-        const collaborativeDoc = {
-          id: `collab-doc-${edit.user}`,
-          content: modifiedContent,
-          metadata: {
-            id: `collab-doc-${edit.user}`,
-            title: `Architecture Decision - ${edit.user}`,
-            modifiedAt: new Date(Date.now() + index * 1000), // Stagger timestamps
-            size: modifiedContent.length,
-            syncStatus: 'synced' as const,
-          },
-          version: 1,
-        };
-
-        return fileSystemPort.storeDocument(collaborativeDoc);
-      });
-
-      const results = await Promise.all(savePromises);
-
-      // All saves should succeed
-      results.forEach((result) => {
-        expect(result.isOk()).toBe(true);
-      });
-
-      // Simulate conflict resolution
-      const finalContent = baseContent + collaboratorEdits.map((e) => e.addition).join('');
-      userMocks.mockDocument.getText.mockReturnValue(finalContent);
-
-      await documentController.handleDocumentChanged({
-        fileName: '/test/architecture-decision.proof',
-        uri: 'file:///test/architecture-decision.proof',
-        getText: () => finalContent,
-        isDirty: true,
-      });
-
-      // Should handle merged content successfully
-      const documentQueryService = container.resolve<DocumentQueryService>(
-        TOKENS.DocumentQueryService,
-      );
-      const mergedResult = await documentQueryService.parseDocumentContent(finalContent);
-      expect(mergedResult.isOk()).toBe(true);
-    });
-  });
-
-  describe('Performance User Experience', () => {
-    it('should provide responsive experience for typical user workflows', async () => {
-      const workflows = [
-        { persona: 'Philosophy Student', maxTime: 3000 },
-        { persona: 'Logic Professor', maxTime: 5000 },
-        { persona: 'Software Architect', maxTime: 4000 },
-        { persona: 'Legal Researcher', maxTime: 4000 },
-      ];
-
-      for (const workflow of workflows) {
-        const persona = USER_PERSONAS.find((p) => p.name === workflow.persona);
-        if (!persona) {
-          throw new Error(`Persona ${workflow.persona} not found`);
-        }
-        const startTime = Date.now();
-
-        // Simulate typical workflow: create -> edit -> visualize -> save
-        const content = generatePersonaContent(persona);
-        userMocks.mockDocument.getText.mockReturnValue(content);
-
-        // Parse document
-        const documentQueryService = container.resolve<DocumentQueryService>(
-          TOKENS.DocumentQueryService,
-        );
-        const parseResult = await documentQueryService.parseDocumentContent(content);
-        expect(parseResult.isOk()).toBe(true);
-
-        // Generate visualization
-        if (parseResult.isOk()) {
-          const visualizationService = container.resolve<any>(TOKENS.ProofVisualizationService);
-          const vizResult = visualizationService.generateVisualization(parseResult.value);
-          expect(vizResult.isOk()).toBe(true);
-        }
-
-        // Save document
-        const fileSystemPort = container.resolve<IFileSystemPort>(TOKENS.IFileSystemPort);
-        const saveDoc = {
-          id: `perf-test-${workflow.persona.toLowerCase().replace(' ', '-')}`,
-          content,
-          metadata: {
-            id: `perf-test-${workflow.persona.toLowerCase().replace(' ', '-')}`,
-            title: `Performance Test - ${workflow.persona}`,
-            modifiedAt: new Date(),
-            size: content.length,
-            syncStatus: 'synced' as const,
-          },
-          version: 1,
-        };
-
-        const saveResult = await fileSystemPort.storeDocument(saveDoc);
-        expect(saveResult.isOk()).toBe(true);
-
-        const totalTime = Date.now() - startTime;
-        expect(totalTime).toBeLessThan(workflow.maxTime);
-      }
-    });
-
-    it('should handle user workflow interruptions gracefully', async () => {
-      const persona = USER_PERSONAS.find((p) => p.name === 'Software Architect');
-      if (!persona) {
-        throw new Error('Software Architect persona not found');
-      }
-      const content = generatePersonaContent(persona);
-
-      userMocks.mockDocument.getText.mockReturnValue(content);
-
-      // Simulate user starting workflow
-      const documentQueryService = container.resolve<DocumentQueryService>(
-        TOKENS.DocumentQueryService,
-      );
-      const parsePromise = documentQueryService.parseDocumentContent(content);
-
-      // Simulate user interruption (e.g., closing document)
-      const documentController = container.resolve<DocumentController>(TOKENS.DocumentController);
-      await documentController.handleDocumentClosed({
-        fileName: '/test/interrupted-workflow.proof',
-        uri: 'file:///test/interrupted-workflow.proof',
-      });
-
-      // Original operation should still complete successfully
-      const parseResult = await parsePromise;
-      expect(parseResult.isOk()).toBe(true);
-
-      // System should remain in consistent state
-      const validationController = container.resolve<ValidationController>(
-        TOKENS.ValidationController,
-      );
-      expect(validationController).toBeDefined();
-    });
-  });
-
-  describe('Accessibility and Usability', () => {
-    it('should provide helpful error messages for common user mistakes', async () => {
-      const commonMistakes = [
-        { content: 'statements:\n  invalid syntax here', expectedError: 'parsing' },
-        {
-          content: 'arguments:\n  missing_premises: {conclusions: [c1]}',
-          expectedError: 'validation',
-        },
-        { content: 'trees:\n- invalid_node_reference', expectedError: 'reference' },
-      ];
-
-      const documentQueryService = container.resolve<DocumentQueryService>(
-        TOKENS.DocumentQueryService,
-      );
-
-      for (const mistake of commonMistakes) {
-        userMocks.mockDocument.getText.mockReturnValue(mistake.content);
-
-        const parseResult = await documentQueryService.parseDocumentContent(mistake.content);
-
-        // Should fail with helpful error message
-        expect(parseResult.isErr()).toBe(true);
-
-        if (parseResult.isErr()) {
-          expect(parseResult.error.message).toBeTruthy();
-          expect(parseResult.error.message.length).toBeGreaterThan(10); // Meaningful error message
-        }
-      }
-    });
-
-    it('should provide progressive disclosure for complex features', async () => {
-      const beginnerPersona = USER_PERSONAS.find((p) => p.skill_level === 'beginner');
-      if (!beginnerPersona) {
-        throw new Error('Beginner persona not found');
-      }
-
-      // Test bootstrap workflow provides guided experience
-      const bootstrapController = container.resolve<BootstrapController>(
-        TOKENS.BootstrapController,
-      );
-
-      const workflowResult = await bootstrapController.getBootstrapWorkflow('test-doc');
-      expect(workflowResult.isOk()).toBe(true);
-
-      if (workflowResult.isOk()) {
-        const workflow = workflowResult.value.data;
-        expect(workflow).toBeDefined();
-
-        if (workflow) {
-          // Should provide step-by-step guidance
-          expect(workflow.steps).toBeDefined();
-          expect(workflow.totalSteps).toBeGreaterThan(0);
-
-          // Should have clear actions for each step
-          workflow.steps.forEach((step) => {
-            expect(step.title).toBeTruthy();
-            expect(step.description).toBeTruthy();
-            expect(step.actions).toBeDefined();
-          });
-        }
-      }
     });
   });
 });

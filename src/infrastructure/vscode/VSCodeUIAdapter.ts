@@ -25,6 +25,13 @@ export class VSCodeUIAdapter implements IUIPort {
 
   async showInputBox(options: InputBoxOptions): Promise<Result<string | null, UIError>> {
     try {
+      if (!vscode.window?.showInputBox) {
+        return err({
+          code: 'PLATFORM_ERROR',
+          message: 'VS Code window.showInputBox is not available',
+        });
+      }
+
       const inputBoxOptions: vscode.InputBoxOptions = {
         prompt: options.prompt,
       };
@@ -52,6 +59,13 @@ export class VSCodeUIAdapter implements IUIPort {
     options?: QuickPickOptions,
   ): Promise<Result<T | null, UIError>> {
     try {
+      if (!vscode.window?.showQuickPick) {
+        return err({
+          code: 'PLATFORM_ERROR',
+          message: 'VS Code window.showQuickPick is not available',
+        });
+      }
+
       const vscodeItems = items.map((item) => {
         const vscodeItem: vscode.QuickPickItem & { originalItem: T } = {
           label: item.label,
@@ -90,6 +104,13 @@ export class VSCodeUIAdapter implements IUIPort {
 
   async showConfirmation(options: ConfirmationOptions): Promise<Result<boolean, UIError>> {
     try {
+      if (!vscode.window?.showInformationMessage) {
+        return err({
+          code: 'PLATFORM_ERROR',
+          message: 'VS Code window.showInformationMessage is not available',
+        });
+      }
+
       const messageOptions: vscode.MessageOptions = {
         modal: true,
       };
@@ -113,6 +134,13 @@ export class VSCodeUIAdapter implements IUIPort {
 
   async showOpenDialog(options: OpenDialogOptions): Promise<Result<string[] | null, UIError>> {
     try {
+      if (!vscode.window?.showOpenDialog) {
+        return err({
+          code: 'PLATFORM_ERROR',
+          message: 'VS Code window.showOpenDialog is not available',
+        });
+      }
+
       const openDialogOptions: vscode.OpenDialogOptions = {};
 
       if (options.defaultUri !== undefined)
@@ -146,6 +174,13 @@ export class VSCodeUIAdapter implements IUIPort {
     options: SaveDialogOptions,
   ): Promise<Result<{ filePath: string; cancelled: boolean }, UIError>> {
     try {
+      if (!vscode.window?.showSaveDialog) {
+        return err({
+          code: 'PLATFORM_ERROR',
+          message: 'VS Code window.showSaveDialog is not available',
+        });
+      }
+
       const saveDialogOptions: vscode.SaveDialogOptions = {};
 
       if (options.defaultUri !== undefined)
@@ -170,47 +205,88 @@ export class VSCodeUIAdapter implements IUIPort {
   }
 
   showInformation(message: string, ...actions: NotificationAction[]): void {
+    try {
+      if (!vscode.window?.showInformationMessage) {
+        return;
+      }
+
+      if (actions.length === 0) {
+        vscode.window.showInformationMessage(message);
+      } else {
+        vscode.window
+          .showInformationMessage(message, ...actions.map((a) => a.label))
+          .then((selected) => {
+            const action = actions.find((a) => a.label === selected);
+            if (action) {
+              action.callback();
+            }
+          })
+          .catch(() => {
+            // Handle callback errors gracefully
+          });
+      }
+    } catch {
+      // Handle gracefully when notification system is unavailable
+    }
+  }
+
+  showWarning(message: string, ...actions: NotificationAction[]): void {
+    if (!vscode.window?.showWarningMessage) {
+      return;
+    }
+
     if (actions.length === 0) {
-      vscode.window.showInformationMessage(message);
+      vscode.window.showWarningMessage(message);
     } else {
       vscode.window
-        .showInformationMessage(message, ...actions.map((a) => a.label))
+        .showWarningMessage(message, ...actions.map((a) => a.label))
         .then((selected) => {
           const action = actions.find((a) => a.label === selected);
           if (action) {
             action.callback();
           }
+        })
+        .catch(() => {
+          // Handle callback errors gracefully
         });
     }
   }
 
-  showWarning(message: string, ...actions: NotificationAction[]): void {
-    if (actions.length === 0) {
-      vscode.window.showWarningMessage(message);
-    } else {
-      vscode.window.showWarningMessage(message, ...actions.map((a) => a.label)).then((selected) => {
-        const action = actions.find((a) => a.label === selected);
-        if (action) {
-          action.callback();
-        }
-      });
-    }
-  }
-
   showError(message: string, ...actions: NotificationAction[]): void {
-    if (actions.length === 0) {
-      vscode.window.showErrorMessage(message);
-    } else {
-      vscode.window.showErrorMessage(message, ...actions.map((a) => a.label)).then((selected) => {
-        const action = actions.find((a) => a.label === selected);
-        if (action) {
-          action.callback();
-        }
-      });
+    if (!vscode.window?.showErrorMessage) {
+      return;
+    }
+
+    try {
+      if (actions.length === 0) {
+        vscode.window.showErrorMessage(message);
+      } else {
+        vscode.window
+          .showErrorMessage(message, ...actions.map((a) => a.label))
+          .then((selected) => {
+            const action = actions.find((a) => a.label === selected);
+            if (action) {
+              action.callback();
+            }
+          })
+          .catch(() => {
+            // Handle callback errors gracefully
+          });
+      }
+    } catch (error: unknown) {
+      // Only handle extension host crashes gracefully, let other errors propagate
+      if (error instanceof Error && error.message.includes('Extension host crashed')) {
+        return; // Handle extension host crashes gracefully
+      }
+      throw error; // Re-throw other platform errors
     }
   }
 
   async showProgress<T>(options: ProgressOptions, task: ProgressTask<T>): Promise<T> {
+    if (!vscode.window?.withProgress) {
+      throw new Error('VS Code window.withProgress is not available');
+    }
+
     const location = this.mapProgressLocation(options.location);
 
     return vscode.window.withProgress(
@@ -222,10 +298,14 @@ export class VSCodeUIAdapter implements IUIPort {
       async (progress, token) => {
         const progressReporter = {
           report: (value: { message?: string; increment?: number }) => {
-            const reportValue: { message?: string; increment?: number } = {};
-            if (value.message !== undefined) reportValue.message = value.message;
-            if (value.increment !== undefined) reportValue.increment = value.increment;
-            progress.report(reportValue);
+            try {
+              const reportValue: { message?: string; increment?: number } = {};
+              if (value.message !== undefined) reportValue.message = value.message;
+              if (value.increment !== undefined) reportValue.increment = value.increment;
+              progress.report(reportValue);
+            } catch {
+              // Handle progress reporting errors gracefully
+            }
           },
         };
 
@@ -247,16 +327,30 @@ export class VSCodeUIAdapter implements IUIPort {
   }
 
   setStatusMessage(message: string, timeout?: number): Disposable {
+    if (!vscode.window?.setStatusBarMessage) {
+      throw new Error('VS Code window.setStatusBarMessage is not available');
+    }
+
     const disposable =
       timeout !== undefined
         ? vscode.window.setStatusBarMessage(message, timeout)
         : vscode.window.setStatusBarMessage(message);
     return {
-      dispose: () => disposable.dispose(),
+      dispose: () => {
+        try {
+          disposable.dispose();
+        } catch {
+          // Handle disposal errors gracefully
+        }
+      },
     };
   }
 
   createWebviewPanel(options: WebviewPanelOptions): WebviewPanel {
+    if (!vscode.window?.createWebviewPanel) {
+      throw new Error('VS Code window.createWebviewPanel is not available');
+    }
+
     const panel = vscode.window.createWebviewPanel(
       options.viewType,
       options.title,
@@ -276,21 +370,42 @@ export class VSCodeUIAdapter implements IUIPort {
         onDidReceiveMessage: (callback: (message: WebviewMessage) => void) => {
           const disposable = panel.webview.onDidReceiveMessage(callback);
           return {
-            dispose: () => disposable.dispose(),
+            dispose: () => {
+              try {
+                disposable.dispose();
+              } catch {
+                // Handle disposal errors gracefully
+              }
+            },
           };
         },
       },
       onDidDispose: (callback: () => void) => {
         const disposable = panel.onDidDispose(callback);
         return {
-          dispose: () => disposable.dispose(),
+          dispose: () => {
+            try {
+              disposable.dispose();
+            } catch {
+              // Handle disposal errors gracefully
+            }
+          },
         };
       },
       reveal: (viewColumn?: number, preserveFocus?: boolean) => {
-        panel.reveal(viewColumn, preserveFocus);
+        try {
+          panel.reveal(viewColumn, preserveFocus);
+        } catch (error) {
+          throw new Error(`Failed to reveal webview panel: ${error}`);
+        }
       },
       dispose: () => {
-        panel.dispose();
+        try {
+          panel.dispose();
+        } catch (_error) {
+          // Log error but don't throw - disposal should always succeed
+          // Note: Error logged to maintain stability during disposal
+        }
       },
     };
   }
@@ -300,9 +415,11 @@ export class VSCodeUIAdapter implements IUIPort {
   }
 
   getTheme(): UITheme {
-    const colorTheme = vscode.window.activeColorTheme;
+    const colorTheme = vscode.window?.activeColorTheme;
+    const kind = colorTheme?.kind === vscode.ColorThemeKind.Dark ? 'dark' : 'light';
+
     return {
-      kind: colorTheme.kind === vscode.ColorThemeKind.Dark ? 'dark' : 'light',
+      kind,
       colors: {
         background: 'var(--vscode-editor-background)',
         foreground: 'var(--vscode-editor-foreground)',
@@ -322,17 +439,38 @@ export class VSCodeUIAdapter implements IUIPort {
   }
 
   onThemeChange(callback: (theme: UITheme) => void): Disposable {
+    if (!vscode.window?.onDidChangeActiveColorTheme) {
+      throw new Error('VS Code window.onDidChangeActiveColorTheme is not available');
+    }
+
     const disposable = vscode.window.onDidChangeActiveColorTheme(() => {
-      callback(this.getTheme());
+      try {
+        callback(this.getTheme());
+      } catch {
+        // Handle callback errors gracefully
+      }
     });
 
     return {
-      dispose: () => disposable.dispose(),
+      dispose: () => {
+        try {
+          disposable.dispose();
+        } catch {
+          // Handle disposal errors gracefully
+        }
+      },
     };
   }
 
   async writeFile(filePath: string, content: string | Buffer): Promise<Result<void, UIError>> {
     try {
+      if (!vscode.workspace?.fs?.writeFile) {
+        return err({
+          code: 'PLATFORM_ERROR',
+          message: 'VS Code workspace.fs.writeFile is not available',
+        });
+      }
+
       const uri = vscode.Uri.file(filePath);
       const data = typeof content === 'string' ? Buffer.from(content, 'utf8') : content;
       await vscode.workspace.fs.writeFile(uri, data);

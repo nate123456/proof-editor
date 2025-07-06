@@ -1,39 +1,18 @@
-/**
- * Comprehensive tests for ConnectionResolutionService
- *
- * Tests all public methods, connection resolution logic, shared reference detection,
- * argument connection validation, and error handling scenarios.
- *
- * Note: This service is deprecated and provides compatibility wrappers.
- * Most functionality has been moved to TreeEntity.
- */
-
 import fc from 'fast-check';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { AtomicArgument } from '../../entities/AtomicArgument.js';
-import { ProcessingError } from '../../errors/DomainErrors.js';
+import { AtomicArgument } from '../../entities/AtomicArgument.js';
+import { Statement } from '../../entities/Statement.js';
 import type { IAtomicArgumentRepository } from '../../repositories/IAtomicArgumentRepository.js';
-import type { IOrderedSetRepository } from '../../repositories/IOrderedSetRepository.js';
-import {
-  ArgumentTreeStructure,
-  ConnectionIntegrityIssue,
-  ConnectionIntegrityReport,
-  ConnectionMap,
-  ConnectionResolutionService,
-  OrderedSetReference,
-  PathCompleteArgument,
-} from '../../services/ConnectionResolutionService.js';
-import { AtomicArgumentId, type OrderedSetId } from '../../shared/value-objects.js';
-import { atomicArgumentIdFactory, orderedSetIdFactory } from '../factories/index.js';
+import type { IStatementRepository } from '../../repositories/IStatementRepository.js';
+import { ConnectionResolutionService } from '../../services/ConnectionResolutionService.js';
 
 describe('ConnectionResolutionService', () => {
   let service: ConnectionResolutionService;
   let mockAtomicArgumentRepo: IAtomicArgumentRepository;
-  let mockOrderedSetRepo: IOrderedSetRepository;
+  let mockStatementRepo: IStatementRepository;
 
   beforeEach(() => {
-    // Create mocked repositories using Vitest
     mockAtomicArgumentRepo = {
       save: vi.fn(),
       findById: vi.fn(),
@@ -51,612 +30,461 @@ describe('ConnectionResolutionService', () => {
       findOrphanedArguments: vi.fn(),
     };
 
-    mockOrderedSetRepo = {
+    mockStatementRepo = {
       save: vi.fn(),
       findById: vi.fn(),
+      findByContent: vi.fn(),
       findAll: vi.fn(),
       delete: vi.fn(),
-      findOrderedSetsBySize: vi.fn(),
-      findOrderedSetsContaining: vi.fn(),
-      findSharedOrderedSets: vi.fn(),
-      findOrderedSetsByPattern: vi.fn(),
-      findUnusedOrderedSets: vi.fn(),
-      findOrderedSetsByReferenceCount: vi.fn(),
-      findSimilarOrderedSets: vi.fn(),
-      findEmptyOrderedSets: vi.fn(),
+      findStatementsByPattern: vi.fn(),
+      findFrequentlyUsedStatements: vi.fn(),
+      findByLogicalStructure: vi.fn(),
+      findStatementsByUsageCount: vi.fn(),
+      findRelatedStatements: vi.fn(),
+      searchStatementsByKeywords: vi.fn(),
+      findStatementsInProof: vi.fn(),
+      getStatementUsageMetrics: vi.fn(),
+      findUnusedStatements: vi.fn(),
     };
 
-    service = new ConnectionResolutionService(mockAtomicArgumentRepo, mockOrderedSetRepo);
+    service = new ConnectionResolutionService(mockAtomicArgumentRepo, mockStatementRepo);
   });
 
-  describe('findBasicConnections', () => {
-    describe('successful connection resolution', () => {
-      it('should find basic connections for an argument with parents and children', async () => {
-        // Arrange
-        const argumentId = atomicArgumentIdFactory.build();
-        const premiseSetId = orderedSetIdFactory.build();
-        const conclusionSetId = orderedSetIdFactory.build();
+  describe('findArgumentsConnectedToPremises', () => {
+    it('should find arguments whose conclusions match the given arguments premises', async () => {
+      const statement1 = Statement.create('All humans are mortal');
+      const statement2 = Statement.create('Socrates is human');
+      const statement3 = Statement.create('Therefore, Socrates is mortal');
 
-        const targetArgument = createMockAtomicArgument(argumentId, premiseSetId, conclusionSetId);
-        const parentArgument = createMockAtomicArgument(
-          atomicArgumentIdFactory.build(),
-          orderedSetIdFactory.build(),
-          premiseSetId, // Parent's conclusion matches target's premise
-        );
-        const childArgument = createMockAtomicArgument(
-          atomicArgumentIdFactory.build(),
-          conclusionSetId, // Child's premise matches target's conclusion
-          orderedSetIdFactory.build(),
-        );
+      if (statement1.isErr() || statement2.isErr() || statement3.isErr()) {
+        throw new Error('Failed to create statements');
+      }
 
-        vi.mocked(mockAtomicArgumentRepo.findById).mockResolvedValue(targetArgument);
-        vi.mocked(mockAtomicArgumentRepo.findAll).mockResolvedValue([
-          targetArgument,
-          parentArgument,
-          childArgument,
-        ]);
+      const targetArg = AtomicArgument.create(
+        [statement1.value, statement2.value],
+        [statement3.value],
+      );
+      const sourceArg = AtomicArgument.create([], [statement1.value]);
 
-        // Act
-        const result = await service.findBasicConnections(argumentId);
+      if (targetArg.isErr() || sourceArg.isErr()) {
+        throw new Error('Failed to create arguments');
+      }
 
-        // Assert
-        expect(result.isOk()).toBe(true);
-        if (result.isOk()) {
-          const connectionMap = result.value;
-          expect(connectionMap.getCentralArgumentId()).toBe(argumentId);
-          expect(connectionMap.getParents()).toHaveLength(1);
-          expect(connectionMap.getChildren()).toHaveLength(1);
-          expect(connectionMap.getParents()[0]).toBe(parentArgument);
-          expect(connectionMap.getChildren()[0]).toBe(childArgument);
-        }
-      });
+      vi.mocked(mockAtomicArgumentRepo.findAll).mockResolvedValue([
+        targetArg.value,
+        sourceArg.value,
+      ]);
 
-      it('should find connections with multiple parents and children', async () => {
-        // Arrange
-        const argumentId = atomicArgumentIdFactory.build();
-        const premiseSetId = orderedSetIdFactory.build();
-        const conclusionSetId = orderedSetIdFactory.build();
+      const result = await service.findArgumentsConnectedToPremises(targetArg.value);
 
-        const targetArgument = createMockAtomicArgument(argumentId, premiseSetId, conclusionSetId);
-
-        // Multiple parents with same conclusion set
-        const parent1 = createMockAtomicArgument(
-          atomicArgumentIdFactory.build(),
-          orderedSetIdFactory.build(),
-          premiseSetId,
-        );
-        const parent2 = createMockAtomicArgument(
-          atomicArgumentIdFactory.build(),
-          orderedSetIdFactory.build(),
-          premiseSetId,
-        );
-
-        // Multiple children with same premise set
-        const child1 = createMockAtomicArgument(
-          atomicArgumentIdFactory.build(),
-          conclusionSetId,
-          orderedSetIdFactory.build(),
-        );
-        const child2 = createMockAtomicArgument(
-          atomicArgumentIdFactory.build(),
-          conclusionSetId,
-          orderedSetIdFactory.build(),
-        );
-
-        vi.mocked(mockAtomicArgumentRepo.findById).mockResolvedValue(targetArgument);
-        vi.mocked(mockAtomicArgumentRepo.findAll).mockResolvedValue([
-          targetArgument,
-          parent1,
-          parent2,
-          child1,
-          child2,
-        ]);
-
-        // Act
-        const result = await service.findBasicConnections(argumentId);
-
-        // Assert
-        expect(result.isOk()).toBe(true);
-        if (result.isOk()) {
-          const connectionMap = result.value;
-          expect(connectionMap.getParents()).toHaveLength(2);
-          expect(connectionMap.getChildren()).toHaveLength(2);
-        }
-      });
-
-      it('should handle argument with no premise set reference', async () => {
-        // Arrange
-        const argumentId = atomicArgumentIdFactory.build();
-        const conclusionSetId = orderedSetIdFactory.build();
-
-        const targetArgument = createMockAtomicArgument(argumentId, null, conclusionSetId);
-        const childArgument = createMockAtomicArgument(
-          atomicArgumentIdFactory.build(),
-          conclusionSetId,
-          orderedSetIdFactory.build(),
-        );
-
-        vi.mocked(mockAtomicArgumentRepo.findById).mockResolvedValue(targetArgument);
-        vi.mocked(mockAtomicArgumentRepo.findAll).mockResolvedValue([
-          targetArgument,
-          childArgument,
-        ]);
-
-        // Act
-        const result = await service.findBasicConnections(argumentId);
-
-        // Assert
-        expect(result.isOk()).toBe(true);
-        if (result.isOk()) {
-          const connectionMap = result.value;
-          expect(connectionMap.getParents()).toHaveLength(0);
-          expect(connectionMap.getChildren()).toHaveLength(1);
-        }
-      });
-
-      it('should handle argument with no conclusion set reference', async () => {
-        // Arrange
-        const argumentId = atomicArgumentIdFactory.build();
-        const premiseSetId = orderedSetIdFactory.build();
-
-        const targetArgument = createMockAtomicArgument(argumentId, premiseSetId, null);
-        const parentArgument = createMockAtomicArgument(
-          atomicArgumentIdFactory.build(),
-          orderedSetIdFactory.build(),
-          premiseSetId,
-        );
-
-        vi.mocked(mockAtomicArgumentRepo.findById).mockResolvedValue(targetArgument);
-        vi.mocked(mockAtomicArgumentRepo.findAll).mockResolvedValue([
-          targetArgument,
-          parentArgument,
-        ]);
-
-        // Act
-        const result = await service.findBasicConnections(argumentId);
-
-        // Assert
-        expect(result.isOk()).toBe(true);
-        if (result.isOk()) {
-          const connectionMap = result.value;
-          expect(connectionMap.getParents()).toHaveLength(1);
-          expect(connectionMap.getChildren()).toHaveLength(0);
-        }
-      });
-
-      it('should handle argument with no connections', async () => {
-        // Arrange
-        const argumentId = atomicArgumentIdFactory.build();
-        const targetArgument = createMockAtomicArgument(argumentId, null, null);
-
-        vi.mocked(mockAtomicArgumentRepo.findById).mockResolvedValue(targetArgument);
-        vi.mocked(mockAtomicArgumentRepo.findAll).mockResolvedValue([targetArgument]);
-
-        // Act
-        const result = await service.findBasicConnections(argumentId);
-
-        // Assert
-        expect(result.isOk()).toBe(true);
-        if (result.isOk()) {
-          const connectionMap = result.value;
-          expect(connectionMap.getParents()).toHaveLength(0);
-          expect(connectionMap.getChildren()).toHaveLength(0);
-        }
-      });
-
-      it('should exclude self from connections', async () => {
-        // Arrange - Create argument that could connect to itself
-        const argumentId = atomicArgumentIdFactory.build();
-        const orderedSetId = orderedSetIdFactory.build();
-
-        const targetArgument = createMockAtomicArgument(argumentId, orderedSetId, orderedSetId);
-
-        vi.mocked(mockAtomicArgumentRepo.findById).mockResolvedValue(targetArgument);
-        vi.mocked(mockAtomicArgumentRepo.findAll).mockResolvedValue([targetArgument]);
-
-        // Act
-        const result = await service.findBasicConnections(argumentId);
-
-        // Assert
-        expect(result.isOk()).toBe(true);
-        if (result.isOk()) {
-          const connectionMap = result.value;
-          expect(connectionMap.getParents()).toHaveLength(0);
-          expect(connectionMap.getChildren()).toHaveLength(0);
-        }
-      });
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        expect(result.value).toHaveLength(1);
+        expect(result.value[0].connectedArgument).toBe(sourceArg.value);
+        expect(result.value[0].statement).toBe(statement1.value);
+        expect(result.value[0].fromPosition).toBe(0);
+        expect(result.value[0].toPosition).toBe(0);
+        expect(result.value[0].direction).toBe('incoming');
+      }
     });
 
-    describe('error handling', () => {
-      it('should return error when argument not found', async () => {
-        // Arrange
-        const argumentId = atomicArgumentIdFactory.build();
-        vi.mocked(mockAtomicArgumentRepo.findById).mockResolvedValue(null);
+    it('should return empty array when argument has no premises', async () => {
+      const statement = Statement.create('Initial statement');
+      if (statement.isErr()) throw new Error('Failed to create statement');
 
-        // Act
-        const result = await service.findBasicConnections(argumentId);
+      const arg = AtomicArgument.create([], [statement.value]);
+      if (arg.isErr()) throw new Error('Failed to create argument');
 
-        // Assert
-        expect(result.isErr()).toBe(true);
-        if (result.isErr()) {
-          expect(result.error).toBeInstanceOf(ProcessingError);
-          expect(result.error.message).toBe('Argument not found');
-        }
-      });
+      vi.mocked(mockAtomicArgumentRepo.findAll).mockResolvedValue([arg.value]);
 
-      it('should handle repository failures gracefully', async () => {
-        // Arrange
-        const argumentId = atomicArgumentIdFactory.build();
-        const repositoryError = new Error('Database connection failed');
-        vi.mocked(mockAtomicArgumentRepo.findById).mockRejectedValue(repositoryError);
+      const result = await service.findArgumentsConnectedToPremises(arg.value);
 
-        // Act & Assert
-        await expect(service.findBasicConnections(argumentId)).rejects.toThrow(
-          'Database connection failed',
-        );
-      });
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        expect(result.value).toHaveLength(0);
+      }
     });
 
-    describe('property-based testing', () => {
-      it('should maintain connection symmetry', async () => {
-        await fc.assert(
-          fc.asyncProperty(
-            fc
-              .array(
-                fc.string({ minLength: 1 }).filter((s) => s.trim().length > 0),
-                { minLength: 2, maxLength: 10 },
-              )
-              .filter((strings) => new Set(strings).size >= 2), // Ensure at least 2 unique strings
-            async (argumentIdStrings) => {
-              // Arrange - Create arguments with shared ordered sets
-              const argumentIds = argumentIdStrings.map((str) => AtomicArgumentId.fromString(str));
-              const sharedOrderedSetId = orderedSetIdFactory.build();
+    it('should handle multiple connections at different positions', async () => {
+      const s1 = Statement.create('P1');
+      const s2 = Statement.create('P2');
+      const s3 = Statement.create('C1');
 
-              const testArguments = argumentIds.map((idResult, index) => {
-                if (idResult.isErr()) throw idResult.error;
-                const id = idResult.value;
-                if (index % 2 === 0) {
-                  return createMockAtomicArgument(id, null, sharedOrderedSetId);
-                } else {
-                  return createMockAtomicArgument(id, sharedOrderedSetId, null);
-                }
-              });
+      if (s1.isErr() || s2.isErr() || s3.isErr()) {
+        throw new Error('Failed to create statements');
+      }
 
-              vi.mocked(mockAtomicArgumentRepo.findById).mockResolvedValue(
-                testArguments[0] ?? null,
-              );
-              vi.mocked(mockAtomicArgumentRepo.findAll).mockResolvedValue(testArguments);
+      const targetArg = AtomicArgument.create([s1.value, s2.value], [s3.value]);
+      const sourceArg1 = AtomicArgument.create([], [s1.value]);
+      const sourceArg2 = AtomicArgument.create([], [s2.value]);
 
-              // Act
-              const firstArgumentIdResult = argumentIds[0];
-              if (!firstArgumentIdResult || firstArgumentIdResult.isErr()) return;
-              const firstArgumentId = firstArgumentIdResult.value;
-              const result = await service.findBasicConnections(firstArgumentId);
+      if (targetArg.isErr() || sourceArg1.isErr() || sourceArg2.isErr()) {
+        throw new Error('Failed to create arguments');
+      }
 
-              // Assert - Connection should be consistent
-              expect(result.isOk()).toBe(true);
-              if (result.isOk()) {
-                const connectionMap = result.value;
-                const parentCount = connectionMap.getParents().length;
-                const childCount = connectionMap.getChildren().length;
+      vi.mocked(mockAtomicArgumentRepo.findAll).mockResolvedValue([
+        targetArg.value,
+        sourceArg1.value,
+        sourceArg2.value,
+      ]);
 
-                // At least one connection should exist if we have multiple unique arguments
-                expect(parentCount + childCount).toBeGreaterThan(0);
+      const result = await service.findArgumentsConnectedToPremises(targetArg.value);
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        expect(result.value).toHaveLength(2);
+        const connection1 = result.value.find((c) => c.toPosition === 0);
+        const connection2 = result.value.find((c) => c.toPosition === 1);
+        expect(connection1?.statement).toBe(s1.value);
+        expect(connection2?.statement).toBe(s2.value);
+      }
+    });
+  });
+
+  describe('findArgumentsConnectedToConclusions', () => {
+    it('should find arguments whose premises match the given arguments conclusions', async () => {
+      const statement1 = Statement.create('All humans are mortal');
+      const statement2 = Statement.create('Socrates is human');
+      const statement3 = Statement.create('Therefore, Socrates is mortal');
+
+      if (statement1.isErr() || statement2.isErr() || statement3.isErr()) {
+        throw new Error('Failed to create statements');
+      }
+
+      const sourceArg = AtomicArgument.create(
+        [statement1.value, statement2.value],
+        [statement3.value],
+      );
+      const targetArg = AtomicArgument.create([statement3.value], []);
+
+      if (sourceArg.isErr() || targetArg.isErr()) {
+        throw new Error('Failed to create arguments');
+      }
+
+      vi.mocked(mockAtomicArgumentRepo.findAll).mockResolvedValue([
+        sourceArg.value,
+        targetArg.value,
+      ]);
+
+      const result = await service.findArgumentsConnectedToConclusions(sourceArg.value);
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        expect(result.value).toHaveLength(1);
+        expect(result.value[0].connectedArgument).toBe(targetArg.value);
+        expect(result.value[0].statement).toBe(statement3.value);
+        expect(result.value[0].fromPosition).toBe(0);
+        expect(result.value[0].toPosition).toBe(0);
+        expect(result.value[0].direction).toBe('outgoing');
+      }
+    });
+
+    it('should return empty array when argument has no conclusions', async () => {
+      const statement = Statement.create('Initial statement');
+      if (statement.isErr()) throw new Error('Failed to create statement');
+
+      const arg = AtomicArgument.create([statement.value], []);
+      if (arg.isErr()) throw new Error('Failed to create argument');
+
+      vi.mocked(mockAtomicArgumentRepo.findAll).mockResolvedValue([arg.value]);
+
+      const result = await service.findArgumentsConnectedToConclusions(arg.value);
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        expect(result.value).toHaveLength(0);
+      }
+    });
+  });
+
+  describe('findAllConnectionsForArgument', () => {
+    it('should return both incoming and outgoing connections', async () => {
+      const s1 = Statement.create('P1');
+      const s2 = Statement.create('C1');
+      const s3 = Statement.create('C2');
+
+      if (s1.isErr() || s2.isErr() || s3.isErr()) {
+        throw new Error('Failed to create statements');
+      }
+
+      const centerArg = AtomicArgument.create([s1.value], [s2.value, s3.value]);
+      const sourceArg = AtomicArgument.create([], [s1.value]);
+      const targetArg = AtomicArgument.create([s2.value], []);
+
+      if (centerArg.isErr() || sourceArg.isErr() || targetArg.isErr()) {
+        throw new Error('Failed to create arguments');
+      }
+
+      vi.mocked(mockAtomicArgumentRepo.findAll).mockResolvedValue([
+        centerArg.value,
+        sourceArg.value,
+        targetArg.value,
+      ]);
+
+      const result = await service.findAllConnectionsForArgument(centerArg.value);
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        expect(result.value.incomingConnections).toHaveLength(1);
+        expect(result.value.outgoingConnections).toHaveLength(1);
+        expect(result.value.incomingConnections[0].direction).toBe('incoming');
+        expect(result.value.outgoingConnections[0].direction).toBe('outgoing');
+      }
+    });
+  });
+
+  describe('canArgumentsConnect', () => {
+    it('should return true when source conclusions match target premises', async () => {
+      const sharedStatement = Statement.create('Shared statement');
+      if (sharedStatement.isErr()) throw new Error('Failed to create statement');
+
+      const sourceArg = AtomicArgument.create([], [sharedStatement.value]);
+      const targetArg = AtomicArgument.create([sharedStatement.value], []);
+
+      if (sourceArg.isErr() || targetArg.isErr()) {
+        throw new Error('Failed to create arguments');
+      }
+
+      const result = await service.canArgumentsConnect(sourceArg.value, targetArg.value);
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        expect(result.value).toBe(true);
+      }
+    });
+
+    it('should return false when arguments cannot connect', async () => {
+      const s1 = Statement.create('Statement 1');
+      const s2 = Statement.create('Statement 2');
+
+      if (s1.isErr() || s2.isErr()) {
+        throw new Error('Failed to create statements');
+      }
+
+      const sourceArg = AtomicArgument.create([], [s1.value]);
+      const targetArg = AtomicArgument.create([s2.value], []);
+
+      if (sourceArg.isErr() || targetArg.isErr()) {
+        throw new Error('Failed to create arguments');
+      }
+
+      const result = await service.canArgumentsConnect(sourceArg.value, targetArg.value);
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        expect(result.value).toBe(false);
+      }
+    });
+
+    it('should return false when comparing argument to itself', async () => {
+      const arg = AtomicArgument.create([], []);
+      if (arg.isErr()) throw new Error('Failed to create argument');
+
+      const result = await service.canArgumentsConnect(arg.value, arg.value);
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        expect(result.value).toBe(false);
+      }
+    });
+
+    it('should return false when source has no conclusions', async () => {
+      const statement = Statement.create('Statement');
+      if (statement.isErr()) throw new Error('Failed to create statement');
+
+      const sourceArg = AtomicArgument.create([statement.value], []);
+      const targetArg = AtomicArgument.create([statement.value], []);
+
+      if (sourceArg.isErr() || targetArg.isErr()) {
+        throw new Error('Failed to create arguments');
+      }
+
+      const result = await service.canArgumentsConnect(sourceArg.value, targetArg.value);
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        expect(result.value).toBe(false);
+      }
+    });
+
+    it('should return false when target has no premises', async () => {
+      const statement = Statement.create('Statement');
+      if (statement.isErr()) throw new Error('Failed to create statement');
+
+      const sourceArg = AtomicArgument.create([], [statement.value]);
+      const targetArg = AtomicArgument.create([], [statement.value]);
+
+      if (sourceArg.isErr() || targetArg.isErr()) {
+        throw new Error('Failed to create arguments');
+      }
+
+      const result = await service.canArgumentsConnect(sourceArg.value, targetArg.value);
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        expect(result.value).toBe(false);
+      }
+    });
+  });
+
+  describe('findArgumentsConnectedToStatement', () => {
+    it('should find all arguments that contain the given statement', async () => {
+      const targetStatement = Statement.create('Target statement');
+      const otherStatement = Statement.create('Other statement');
+
+      if (targetStatement.isErr() || otherStatement.isErr()) {
+        throw new Error('Failed to create statements');
+      }
+
+      const arg1 = AtomicArgument.create([targetStatement.value], [otherStatement.value]);
+      const arg2 = AtomicArgument.create([otherStatement.value], [targetStatement.value]);
+      const arg3 = AtomicArgument.create([otherStatement.value], []);
+
+      if (arg1.isErr() || arg2.isErr() || arg3.isErr()) {
+        throw new Error('Failed to create arguments');
+      }
+
+      vi.mocked(mockAtomicArgumentRepo.findAll).mockResolvedValue([
+        arg1.value,
+        arg2.value,
+        arg3.value,
+      ]);
+
+      const result = await service.findArgumentsConnectedToStatement(targetStatement.value);
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        expect(result.value).toHaveLength(2);
+        expect(result.value).toContain(arg1.value);
+        expect(result.value).toContain(arg2.value);
+        expect(result.value).not.toContain(arg3.value);
+      }
+    });
+  });
+
+  describe('findStatementConnectionsInArgument', () => {
+    it('should find all positions where statement appears in argument', async () => {
+      const targetStatement = Statement.create('Target statement');
+      const otherStatement = Statement.create('Other statement');
+
+      if (targetStatement.isErr() || otherStatement.isErr()) {
+        throw new Error('Failed to create statements');
+      }
+
+      const arg = AtomicArgument.create(
+        [targetStatement.value, otherStatement.value, targetStatement.value],
+        [targetStatement.value, otherStatement.value],
+      );
+
+      if (arg.isErr()) throw new Error('Failed to create argument');
+
+      const result = await service.findStatementConnectionsInArgument(
+        arg.value,
+        targetStatement.value,
+      );
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        expect(result.value.premisePositions).toEqual([0, 2]);
+        expect(result.value.conclusionPositions).toEqual([0]);
+      }
+    });
+
+    it('should return empty arrays when statement not found', async () => {
+      const targetStatement = Statement.create('Target statement');
+      const otherStatement = Statement.create('Other statement');
+
+      if (targetStatement.isErr() || otherStatement.isErr()) {
+        throw new Error('Failed to create statements');
+      }
+
+      const arg = AtomicArgument.create([otherStatement.value], [otherStatement.value]);
+
+      if (arg.isErr()) throw new Error('Failed to create argument');
+
+      const result = await service.findStatementConnectionsInArgument(
+        arg.value,
+        targetStatement.value,
+      );
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        expect(result.value.premisePositions).toEqual([]);
+        expect(result.value.conclusionPositions).toEqual([]);
+      }
+    });
+  });
+
+  describe('validateArgumentConnections', () => {
+    it('should validate connections and detect issues', async () => {
+      const statement = Statement.create('Statement');
+      if (statement.isErr()) throw new Error('Failed to create statement');
+
+      const isolatedArg = AtomicArgument.create([statement.value], [statement.value]);
+      if (isolatedArg.isErr()) throw new Error('Failed to create argument');
+
+      vi.mocked(mockAtomicArgumentRepo.findAll).mockResolvedValue([isolatedArg.value]);
+
+      const result = await service.validateArgumentConnections(isolatedArg.value);
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        expect(result.value.incomingConnectionCount).toBe(0);
+        expect(result.value.outgoingConnectionCount).toBe(0);
+        expect(result.value.issues).toHaveLength(1);
+        expect(result.value.issues[0].type).toBe('isolated');
+        expect(result.value.issues[0].severity).toBe('warning');
+        expect(result.value.isValid).toBe(true);
+      }
+    });
+
+    it('should not flag bootstrap arguments as isolated', async () => {
+      const bootstrapArg = AtomicArgument.createBootstrap();
+      vi.mocked(mockAtomicArgumentRepo.findAll).mockResolvedValue([bootstrapArg]);
+
+      const result = await service.validateArgumentConnections(bootstrapArg);
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        expect(result.value.issues).toHaveLength(0);
+        expect(result.value.isValid).toBe(true);
+      }
+    });
+  });
+
+  describe('property-based testing', () => {
+    it('should maintain connection symmetry', async () => {
+      await fc.assert(
+        fc.asyncProperty(
+          fc.string({ minLength: 1 }),
+          fc.string({ minLength: 1 }),
+          async (content1, content2) => {
+            const s1 = Statement.create(content1);
+            const s2 = Statement.create(content2);
+
+            if (s1.isErr() || s2.isErr()) return;
+
+            const arg1 = AtomicArgument.create([], [s1.value]);
+            const arg2 = AtomicArgument.create([s1.value], [s2.value]);
+
+            if (arg1.isErr() || arg2.isErr()) return;
+
+            vi.mocked(mockAtomicArgumentRepo.findAll).mockResolvedValue([arg1.value, arg2.value]);
+
+            const canConnect = await service.canArgumentsConnect(arg1.value, arg2.value);
+            const connections = await service.findArgumentsConnectedToConclusions(arg1.value);
+
+            expect(canConnect.isOk()).toBe(true);
+            expect(connections.isOk()).toBe(true);
+
+            if (canConnect.isOk() && connections.isOk()) {
+              if (canConnect.value) {
+                expect(connections.value.length).toBeGreaterThan(0);
               }
-            },
-          ),
-        );
-      });
-    });
-  });
-
-  describe('findDirectConnections (deprecated compatibility wrapper)', () => {
-    it('should delegate to findBasicConnections', async () => {
-      // Arrange
-      const argumentId = atomicArgumentIdFactory.build();
-      const targetArgument = createMockAtomicArgument(argumentId, null, null);
-
-      vi.mocked(mockAtomicArgumentRepo.findById).mockResolvedValue(targetArgument);
-      vi.mocked(mockAtomicArgumentRepo.findAll).mockResolvedValue([targetArgument]);
-
-      // Act
-      const result = await service.findDirectConnections(argumentId);
-
-      // Assert
-      expect(result.isOk()).toBe(true);
-      expect(mockAtomicArgumentRepo.findById).toHaveBeenCalledWith(argumentId);
-    });
-  });
-
-  describe('findArgumentTree (deprecated compatibility method)', () => {
-    it('should return minimal structure for compatibility', () => {
-      // Arrange
-      const argumentId = atomicArgumentIdFactory.build();
-
-      // Act
-      const result = service.findArgumentTree(argumentId);
-
-      // Assert
-      expect(result.isOk()).toBe(true);
-      if (result.isOk()) {
-        const structure = result.value;
-        expect(structure.getAllArguments()).toEqual([argumentId]);
-        expect(structure.getArgumentCount()).toBe(1);
-      }
-    });
-  });
-
-  describe('findPathCompleteArgument (deprecated compatibility method)', () => {
-    it('should return simplified path complete argument', () => {
-      // Arrange
-      const startId = atomicArgumentIdFactory.build();
-      const endId = atomicArgumentIdFactory.build();
-
-      // Act
-      const result = service.findPathCompleteArgument(startId, endId);
-
-      // Assert
-      expect(result.isOk()).toBe(true);
-      if (result.isOk()) {
-        const pathComplete = result.value;
-        expect(pathComplete.getAllArguments()).toEqual([startId, endId]);
-        expect(pathComplete.getAllPaths()).toEqual([[startId, endId]]);
-      }
-    });
-  });
-
-  describe('edge cases and complex connection patterns', () => {
-    it('should handle circular connection patterns', async () => {
-      // Arrange - Create circular connection A→B→C→A
-      const argA = atomicArgumentIdFactory.build();
-      const argB = atomicArgumentIdFactory.build();
-      const argC = atomicArgumentIdFactory.build();
-
-      const setAB = orderedSetIdFactory.build();
-      const setBC = orderedSetIdFactory.build();
-      const setCA = orderedSetIdFactory.build();
-
-      const argumentA = createMockAtomicArgument(argA, setCA, setAB);
-      const argumentB = createMockAtomicArgument(argB, setAB, setBC);
-      const argumentC = createMockAtomicArgument(argC, setBC, setCA);
-
-      vi.mocked(mockAtomicArgumentRepo.findById).mockResolvedValue(argumentA);
-      vi.mocked(mockAtomicArgumentRepo.findAll).mockResolvedValue([
-        argumentA,
-        argumentB,
-        argumentC,
-      ]);
-
-      // Act
-      const result = await service.findBasicConnections(argA);
-
-      // Assert
-      expect(result.isOk()).toBe(true);
-      if (result.isOk()) {
-        const connectionMap = result.value;
-        expect(connectionMap.getParents()).toHaveLength(1);
-        expect(connectionMap.getChildren()).toHaveLength(1);
-        expect(connectionMap.getParents()[0]).toBe(argumentC);
-        expect(connectionMap.getChildren()[0]).toBe(argumentB);
-      }
-    });
-
-    it('should handle disconnected argument clusters', async () => {
-      // Arrange - Create two separate clusters
-      const cluster1Set = orderedSetIdFactory.build();
-      const cluster2Set = orderedSetIdFactory.build();
-
-      const targetArg = atomicArgumentIdFactory.build();
-      const cluster1Arg = atomicArgumentIdFactory.build();
-      const cluster2Arg = atomicArgumentIdFactory.build();
-
-      const targetArgument = createMockAtomicArgument(targetArg, cluster1Set, null);
-      const cluster1Argument = createMockAtomicArgument(cluster1Arg, null, cluster1Set);
-      const cluster2Argument = createMockAtomicArgument(cluster2Arg, null, cluster2Set);
-
-      vi.mocked(mockAtomicArgumentRepo.findById).mockResolvedValue(targetArgument);
-      vi.mocked(mockAtomicArgumentRepo.findAll).mockResolvedValue([
-        targetArgument,
-        cluster1Argument,
-        cluster2Argument,
-      ]);
-
-      // Act
-      const result = await service.findBasicConnections(targetArg);
-
-      // Assert
-      expect(result.isOk()).toBe(true);
-      if (result.isOk()) {
-        const connectionMap = result.value;
-        expect(connectionMap.getParents()).toHaveLength(1);
-        expect(connectionMap.getChildren()).toHaveLength(0);
-        expect(connectionMap.getParents()[0]).toBe(cluster1Argument);
-      }
+            }
+          },
+        ),
+      );
     });
   });
 });
-
-describe('ConnectionMap', () => {
-  it('should store and retrieve connection data correctly', () => {
-    // Arrange
-    const centralId = atomicArgumentIdFactory.build();
-    const parentArg = createMockAtomicArgument(
-      atomicArgumentIdFactory.build(),
-      null,
-      orderedSetIdFactory.build(),
-    );
-    const childArg = createMockAtomicArgument(
-      atomicArgumentIdFactory.build(),
-      orderedSetIdFactory.build(),
-      null,
-    );
-
-    // Act
-    const connectionMap = new ConnectionMap(centralId, [parentArg], [childArg]);
-
-    // Assert
-    expect(connectionMap.getCentralArgumentId()).toBe(centralId);
-    expect(connectionMap.getParents()).toEqual([parentArg]);
-    expect(connectionMap.getChildren()).toEqual([childArg]);
-  });
-
-  it('should return readonly arrays to prevent mutation', () => {
-    // Arrange
-    const centralId = atomicArgumentIdFactory.build();
-    const parents = [createMockAtomicArgument(atomicArgumentIdFactory.build(), null, null)];
-    const children = [createMockAtomicArgument(atomicArgumentIdFactory.build(), null, null)];
-
-    const connectionMap = new ConnectionMap(centralId, parents, children);
-
-    // Act
-    const retrievedParents = connectionMap.getParents();
-    const retrievedChildren = connectionMap.getChildren();
-
-    // Assert
-    expect(retrievedParents).toEqual(parents);
-    expect(retrievedChildren).toEqual(children);
-
-    // Verify readonly nature (TypeScript compile-time check)
-    expect(Array.isArray(retrievedParents)).toBe(true);
-    expect(Array.isArray(retrievedChildren)).toBe(true);
-  });
-});
-
-describe('ArgumentTreeStructure', () => {
-  it('should manage argument collections correctly', () => {
-    // Arrange
-    const argumentIds = [
-      atomicArgumentIdFactory.build(),
-      atomicArgumentIdFactory.build(),
-      atomicArgumentIdFactory.build(),
-    ];
-
-    // Act
-    const structure = new ArgumentTreeStructure(argumentIds);
-
-    // Assert
-    expect(structure.getAllArguments()).toEqual(argumentIds);
-    expect(structure.getArgumentCount()).toBe(3);
-  });
-
-  it('should handle empty argument collections', () => {
-    // Arrange & Act
-    const structure = new ArgumentTreeStructure([]);
-
-    // Assert
-    expect(structure.getAllArguments()).toEqual([]);
-    expect(structure.getArgumentCount()).toBe(0);
-  });
-});
-
-describe('PathCompleteArgument', () => {
-  it('should store arguments and paths correctly', () => {
-    // Arrange
-    const argumentIds = [atomicArgumentIdFactory.build(), atomicArgumentIdFactory.build()];
-    const secondArgument = argumentIds[1];
-    if (!secondArgument) throw new Error('Missing second argument');
-    const paths = [argumentIds, [secondArgument]];
-
-    // Act
-    const pathComplete = new PathCompleteArgument(argumentIds, paths);
-
-    // Assert
-    expect(pathComplete.getAllArguments()).toEqual(argumentIds);
-    expect(pathComplete.getAllPaths()).toEqual(paths);
-  });
-});
-
-describe('OrderedSetReference', () => {
-  it('should create ordered set reference with correct properties', () => {
-    // Arrange
-    const argumentId = atomicArgumentIdFactory.build();
-    const orderedSetId = orderedSetIdFactory.build();
-    const referenceType = 'premise';
-
-    // Act
-    const reference = new OrderedSetReference(argumentId, referenceType, orderedSetId);
-
-    // Assert
-    expect(reference.argumentId).toBe(argumentId);
-    expect(reference.referenceType).toBe(referenceType);
-    expect(reference.orderedSetId).toBe(orderedSetId);
-  });
-
-  it('should handle conclusion reference type', () => {
-    // Arrange
-    const argumentId = atomicArgumentIdFactory.build();
-    const orderedSetId = orderedSetIdFactory.build();
-    const referenceType = 'conclusion';
-
-    // Act
-    const reference = new OrderedSetReference(argumentId, referenceType, orderedSetId);
-
-    // Assert
-    expect(reference.referenceType).toBe('conclusion');
-  });
-});
-
-describe('ConnectionIntegrityReport', () => {
-  it('should detect issues correctly', () => {
-    // Arrange
-    const argumentId = atomicArgumentIdFactory.build();
-    const issues = [
-      new ConnectionIntegrityIssue('missing_reference', 'Premise set reference is null'),
-      new ConnectionIntegrityIssue('dangling_connection', 'No matching conclusion found'),
-    ];
-
-    // Act
-    const report = new ConnectionIntegrityReport(argumentId, issues);
-
-    // Assert
-    expect(report.argumentId).toBe(argumentId);
-    expect(report.issues).toEqual(issues);
-    expect(report.hasIssues()).toBe(true);
-  });
-
-  it('should handle reports with no issues', () => {
-    // Arrange
-    const argumentId = atomicArgumentIdFactory.build();
-
-    // Act
-    const report = new ConnectionIntegrityReport(argumentId, []);
-
-    // Assert
-    expect(report.hasIssues()).toBe(false);
-    expect(report.issues).toHaveLength(0);
-  });
-});
-
-describe('ConnectionIntegrityIssue', () => {
-  it('should store issue details correctly', () => {
-    // Arrange
-    const type = 'validation_error';
-    const description = 'Invalid connection detected';
-
-    // Act
-    const issue = new ConnectionIntegrityIssue(type, description);
-
-    // Assert
-    expect(issue.type).toBe(type);
-    expect(issue.description).toBe(description);
-  });
-});
-
-// Helper function to create mock AtomicArgument
-function createMockAtomicArgument(
-  id: AtomicArgumentId,
-  premiseSetRef: OrderedSetId | null,
-  conclusionSetRef: OrderedSetId | null,
-): AtomicArgument {
-  return {
-    getId: vi.fn(() => id),
-    getPremiseSet: vi.fn(() => premiseSetRef),
-    getConclusionSet: vi.fn(() => conclusionSetRef),
-    getCreatedAt: vi.fn(() => Date.now()),
-    getModifiedAt: vi.fn(() => Date.now()),
-    getSideLabels: vi.fn(() => ({})),
-    setPremiseSetRef: vi.fn(),
-    setConclusionSetRef: vi.fn(),
-    setSideLabels: vi.fn(),
-  } as unknown as AtomicArgument;
-}

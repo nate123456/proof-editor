@@ -457,7 +457,25 @@ export class Tree {
     return ok(report);
   }
 
-  validateStructuralIntegrity(): Result<void, ValidationError> {
+  validateStructuralIntegrity(
+    graphService?: IGraphTraversalService,
+  ): Result<void, ValidationError> {
+    // Basic validation
+    const basicValidation = this.validateBasicStructure();
+    if (basicValidation.isErr()) {
+      return basicValidation;
+    }
+
+    // Enhanced validation with graph service
+    if (graphService) {
+      // Graph service can provide more sophisticated validation
+      // For now, just use basic validation
+    }
+
+    return ok(undefined);
+  }
+
+  private validateBasicStructure(): Result<void, ValidationError> {
     for (const nodeId of Array.from(this.nodeIds)) {
       const node = this.getNode(nodeId);
       if (!node) {

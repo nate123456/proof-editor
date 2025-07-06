@@ -55,12 +55,23 @@ export async function activate(context: vscode.ExtensionContext) {
   );
 
   // Get controllers and validation controller from DI container
-  const documentController = container.resolve<DocumentController>(TOKENS.DocumentController);
-  const proofTreeController = container.resolve<ProofTreeController>(TOKENS.ProofTreeController);
-  const validationController = container.resolve<ValidationController>(
-    TOKENS.InfrastructureValidationController,
-  );
-  const bootstrapController = container.resolve<BootstrapController>(TOKENS.BootstrapController);
+  let documentController: DocumentController;
+  let proofTreeController: ProofTreeController;
+  let validationController: ValidationController;
+  let bootstrapController: BootstrapController;
+
+  try {
+    documentController = container.resolve<DocumentController>(TOKENS.DocumentController);
+    proofTreeController = container.resolve<ProofTreeController>(TOKENS.ProofTreeController);
+    validationController = container.resolve<ValidationController>(
+      TOKENS.InfrastructureValidationController,
+    );
+    bootstrapController = container.resolve<BootstrapController>(TOKENS.BootstrapController);
+  } catch (error) {
+    throw new Error(
+      `Failed to resolve required services: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
 
   // Wire up document controller with panel manager and view state port
   const { ProofTreePanelManager } = await import('../webview/ProofTreePanelManager.js');

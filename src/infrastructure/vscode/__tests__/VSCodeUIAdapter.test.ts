@@ -247,11 +247,11 @@ describe('VSCodeUIAdapter', () => {
 
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
-        expect(result.value).toBe('/path/to/save.txt');
+        expect(result.value).toEqual({ filePath: '/path/to/save.txt', cancelled: false });
       }
     });
 
-    test('returns null when cancelled', async () => {
+    test('returns cancelled result when cancelled', async () => {
       const vscode = await import('vscode');
       vi.mocked(vscode.window.showSaveDialog).mockResolvedValue(undefined);
 

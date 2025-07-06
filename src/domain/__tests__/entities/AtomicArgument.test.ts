@@ -262,17 +262,21 @@ describe('AtomicArgument Entity', () => {
           fc.property(
             fc.option(orderedSetIdArbitrary),
             fc.option(orderedSetIdArbitrary),
-            fc.nat(),
-            fc.nat(),
+            fc.integer({ min: Date.now() - 365 * 24 * 60 * 60 * 1000, max: Date.now() }),
+            fc.integer({ min: Date.now() - 365 * 24 * 60 * 60 * 1000, max: Date.now() }),
             validSideLabelsArbitrary,
             (premiseRef, conclusionRef, createdAt, modifiedAt, sideLabels) => {
+              // Ensure modifiedAt >= createdAt
+              const normalizedCreatedAt = Math.min(createdAt, modifiedAt);
+              const normalizedModifiedAt = Math.max(createdAt, modifiedAt);
+
               const id = atomicArgumentIdFactory.build();
               const result = AtomicArgument.reconstruct(
                 id,
                 premiseRef === null ? null : premiseRef,
                 conclusionRef === null ? null : conclusionRef,
-                createdAt,
-                modifiedAt,
+                normalizedCreatedAt,
+                normalizedModifiedAt,
                 sideLabels,
               );
 
@@ -282,8 +286,8 @@ describe('AtomicArgument Entity', () => {
                 expect(argument.getId()).toBe(id);
                 expect(argument.getPremiseSet()).toBe(premiseRef ?? null);
                 expect(argument.getConclusionSet()).toBe(conclusionRef ?? null);
-                expect(argument.getCreatedAt()).toBe(createdAt);
-                expect(argument.getModifiedAt()).toBe(modifiedAt);
+                expect(argument.getCreatedAt()).toBe(normalizedCreatedAt);
+                expect(argument.getModifiedAt()).toBe(normalizedModifiedAt);
               }
             },
           ),
@@ -1526,12 +1530,12 @@ describe('AtomicArgument Entity', () => {
         const modifiedAt = FIXED_TIMESTAMP - 1000;
 
         const result = AtomicArgument.reconstruct(id, null, null, createdAt, modifiedAt);
-        expect(result.isOk()).toBe(true);
+        expect(result.isErr()).toBe(true);
 
-        if (result.isOk()) {
-          const argument = result.value;
-          expect(argument.getCreatedAt()).toBe(createdAt);
-          expect(argument.getModifiedAt()).toBe(modifiedAt);
+        if (result.isErr()) {
+          expect(result.error.message).toContain(
+            'modified timestamp cannot be before created timestamp',
+          );
         }
       });
     });

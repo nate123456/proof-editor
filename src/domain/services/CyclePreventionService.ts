@@ -6,13 +6,10 @@ import { StructureError } from '../errors/DomainErrors';
 import type { IAtomicArgumentRepository } from '../repositories/IAtomicArgumentRepository';
 import type { ITreeRepository } from '../repositories/ITreeRepository';
 import type { AtomicArgumentId, NodeId, TreeId } from '../shared/value-objects.js';
-import type { ConnectionResolutionService } from './ConnectionResolutionService';
-
 export class CyclePreventionService {
   constructor(
     private readonly atomicArgumentRepo: IAtomicArgumentRepository,
     private readonly treeRepo: ITreeRepository,
-    private readonly connectionService: ConnectionResolutionService,
   ) {}
 
   async validateLogicalCyclePrevention(

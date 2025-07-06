@@ -56,6 +56,18 @@ class MockWorkspace {
   public onDidSaveTextDocument = vi.fn(() => mockEventEmitter());
   public onDidChangeConfiguration = vi.fn(() => mockEventEmitter());
   public getConfiguration = vi.fn();
+
+  // Add file system support
+  public fs = {
+    readFile: vi.fn().mockResolvedValue(new Uint8Array()),
+    writeFile: vi.fn().mockResolvedValue(undefined),
+    delete: vi.fn().mockResolvedValue(undefined),
+    createDirectory: vi.fn().mockResolvedValue(undefined),
+    readDirectory: vi.fn().mockResolvedValue([]),
+    stat: vi.fn().mockResolvedValue({ type: 1, ctime: 0, mtime: 0, size: 0 }),
+    copy: vi.fn().mockResolvedValue(undefined),
+    rename: vi.fn().mockResolvedValue(undefined),
+  };
 }
 
 const mockWorkspace = new MockWorkspace();
@@ -107,6 +119,12 @@ export class Uri {
   }
 
   static parse(value: string): Uri {
+    // Simple URI parsing for testing - handles file:// and plain paths
+    if (value.startsWith('file://')) {
+      const path = value.substring(7);
+      return new Uri('file', '', path, '', '');
+    }
+    // Assume file scheme for plain paths
     return new Uri('file', '', value, '', '');
   }
 

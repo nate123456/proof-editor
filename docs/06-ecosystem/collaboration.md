@@ -19,7 +19,7 @@ When concurrent edits create logical conflicts, the system provides analysis and
 **Conflict Analysis**:
 - **Statement Flow Disruption**: Identify where edits break statement flow between argument templates
 - **Tree Structure Impact**: Show how resolution affects positioning and parent-child relationships
-- **Connection Consistency**: Verify shared ordered sets maintain identity across tree instances
+- **Connection Consistency**: Verify Statement identity connections maintain consistency across tree instances
 - **Template Instance Conflicts**: Detect when same argument template has conflicting instances
 - **Positional Attachment**: Analyze conflicts in premise slot assignments
 - **Visual Comparison**: Side-by-side view of conflicting logical structures
@@ -88,7 +88,7 @@ When concurrent edits create conflicts in the underlying proof files:
 1. **Conflict Notification**: Users see "Sync conflict detected" notification within 10 seconds
 2. **Visual Conflict Interface**: Side-by-side comparison showing:
    - "Your version" (local changes) vs "Their version" (remote changes)
-   - Highlighting of specific atomic arguments, ordered sets, and tree nodes in conflict
+   - Highlighting of specific atomic arguments, statements, and tree nodes in conflict
    - Clear indication of affected statement flow paths and tree structure
    - Position-specific conflicts (which premise slots are affected)
 3. **Resolution Options**:
@@ -100,7 +100,7 @@ When concurrent edits create conflicts in the underlying proof files:
 4. **Validation Feedback**: Immediate validation of chosen resolution with statement flow verification
 5. **Confirmation**: Clear indication that conflict is resolved, flow maintained, and sync completed
 
-**Conceptual Scope**: V1 focuses on atomic argument, ordered set, and tree positioning conflicts. Complex logical validation conflicts are flagged for manual review.
+**Conceptual Scope**: V1 focuses on atomic argument, statement, and tree positioning conflicts. Complex logical validation conflicts are flagged for manual review.
 
 ```typescript
 interface BasicProvenanceSystem {
@@ -116,7 +116,7 @@ interface BasicProvenanceSystem {
 
 interface AttributionInfo {
   elementId: string;
-  elementType: 'atomic_argument' | 'ordered_set';
+  elementType: 'atomic_argument' | 'statement';
   
   // Basic authorship
   originalAuthor: Author;
@@ -129,7 +129,7 @@ interface AttributionInfo {
 ```
 
 **Basic Authorship Tracking**:
-- **Original Creation**: Who first created each atomic argument or ordered set
+- **Original Creation**: Who first created each atomic argument or statement
 - **Modification History**: Standard file-level version control through Git integration
 - **Source Attribution**: Track which language packages provided specific rules or axioms
 

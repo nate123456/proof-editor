@@ -34,6 +34,7 @@ export class ProofTreePanel {
   private readonly yamlSerializer: YAMLSerializer;
   private readonly exportService: IExportService;
   private readonly documentIdService: IDocumentIdService;
+  private isDisposed: boolean = false;
 
   private constructor(
     panelId: string,
@@ -68,7 +69,11 @@ export class ProofTreePanel {
 
     // Set up webview content and event handlers
     this.webviewPanel.webview.html = this.getWebviewContent();
-    this.webviewPanel.onDidDispose(() => this.dispose());
+    this.webviewPanel.onDidDispose(() => {
+      if (!this.isDisposed) {
+        this.handleDisposal();
+      }
+    });
 
     // Initialize view state persistence
     this.initializeViewState();
@@ -650,6 +655,11 @@ export class ProofTreePanel {
                 updateToolbarState();
                 showSuccessMessage('Argument created successfully!');
                 break;
+              case 'branchCreated':
+                showSuccessMessage('Branch created successfully!');
+                // Re-initialize interactive features after content update
+                initializeInteractiveFeatures();
+                break;
               case 'restoreViewportState':
               case 'restorePanelState':
               case 'restoreSelectionState':
@@ -825,6 +835,7 @@ export class ProofTreePanel {
               setupDragAndDrop();
               setupHoverHighlights();
               setupConnectionHighlights();
+              setupBranchingInteractions();
             } catch (error) {
               console.warn('Error initializing interactive features:', error);
             }
@@ -1399,6 +1410,177 @@ export class ProofTreePanel {
           }
           
           // =============================================================================
+          // BRANCHING INTERACTIONS
+          // =============================================================================
+          
+          /**
+           * Set up text selection and branching functionality
+           */
+          function setupBranchingInteractions() {
+            // Add context menu for text selection
+            document.querySelectorAll('.statement-text').forEach(setupStatementBranching);
+          }
+          
+          /**
+           * Set up branching interactions for a statement element
+           */
+          function setupStatementBranching(element) {
+            element.addEventListener('contextmenu', handleStatementContextMenu);
+            element.addEventListener('mouseup', handleStatementSelection);
+          }
+          
+          /**
+           * Handle right-click context menu on statements
+           */
+          function handleStatementContextMenu(event) {
+            event.preventDefault();
+            const selection = window.getSelection();
+            const selectedText = selection.toString().trim();
+            
+            if (!selectedText) {
+              return;
+            }
+            
+            const element = event.currentTarget;
+            const argumentId = element.getAttribute('data-argument-id');
+            const statementType = element.getAttribute('data-statement-type');
+            
+            if (!argumentId || !statementType) {
+              return;
+            }
+            
+            showBranchingContextMenu(event.pageX, event.pageY, {
+              argumentId,
+              selectedText,
+              statementType
+            });
+          }
+          
+          /**
+           * Handle text selection for potential branching
+           */
+          function handleStatementSelection(event) {
+            const selection = window.getSelection();
+            const selectedText = selection.toString().trim();
+            
+            if (!selectedText) {
+              hideBranchingTooltip();
+              return;
+            }
+            
+            const element = event.currentTarget;
+            const argumentId = element.getAttribute('data-argument-id');
+            const statementType = element.getAttribute('data-statement-type');
+            
+            if (!argumentId || !statementType) {
+              return;
+            }
+            
+            showBranchingTooltip(event.pageX, event.pageY, {
+              argumentId,
+              selectedText,
+              statementType
+            });
+          }
+          
+          /**
+           * Show context menu for branching options
+           */
+          function showBranchingContextMenu(x, y, branchData) {
+            hideBranchingContextMenu();
+            
+            const menu = document.createElement('div');
+            menu.id = 'branching-context-menu';
+            menu.className = 'absolute bg-vscode-editor-background border border-vscode-panel-border rounded shadow-lg z-50 p-2';
+            menu.style.left = x + 'px';
+            menu.style.top = y + 'px';
+            
+            const branchType = branchData.statementType === 'premise' ? 'backward' : 'forward';
+            const branchLabel = branchData.statementType === 'premise' 
+              ? 'Create Supporting Argument' 
+              : 'Create Following Argument';
+            
+            menu.innerHTML = \`
+              <div class="text-xs text-vscode-description-fg mb-2">Selected: "\${branchData.selectedText}"</div>
+              <button onclick="createBranch('\${branchData.argumentId}', '\${branchData.selectedText}', '\${branchData.statementType}')" 
+                      class="w-full text-left bg-vscode-button-bg text-vscode-button-fg hover:bg-vscode-button-hover border-none px-2 py-1 rounded text-xs cursor-pointer">
+                \${branchLabel}
+              </button>
+              <button onclick="hideBranchingContextMenu()" 
+                      class="w-full text-left bg-vscode-button-secondary-bg text-vscode-button-secondary-fg hover:bg-vscode-button-secondary-hover border-none px-2 py-1 rounded text-xs cursor-pointer mt-1">
+                Cancel
+              </button>
+            \`;
+            
+            document.body.appendChild(menu);
+            
+            // Close menu on outside click
+            document.addEventListener('click', function closeMenu(e) {
+              if (!menu.contains(e.target)) {
+                hideBranchingContextMenu();
+                document.removeEventListener('click', closeMenu);
+              }
+            });
+          }
+          
+          /**
+           * Show tooltip for quick branching
+           */
+          function showBranchingTooltip(x, y, branchData) {
+            hideBranchingTooltip();
+            
+            const tooltip = document.createElement('div');
+            tooltip.id = 'branching-tooltip';
+            tooltip.className = 'absolute bg-vscode-editor-background border border-vscode-panel-border rounded px-2 py-1 text-xs text-vscode-editor-foreground z-40 pointer-events-none';
+            tooltip.style.left = (x + 10) + 'px';
+            tooltip.style.top = (y - 30) + 'px';
+            
+            const branchType = branchData.statementType === 'premise' ? 'backward' : 'forward';
+            tooltip.textContent = \`Right-click to create \${branchType} branch\`;
+            
+            document.body.appendChild(tooltip);
+            
+            // Auto-hide after 3 seconds
+            setTimeout(hideBranchingTooltip, 3000);
+          }
+          
+          /**
+           * Hide context menu
+           */
+          function hideBranchingContextMenu() {
+            const menu = document.getElementById('branching-context-menu');
+            if (menu) {
+              menu.remove();
+            }
+          }
+          
+          /**
+           * Hide tooltip
+           */
+          function hideBranchingTooltip() {
+            const tooltip = document.getElementById('branching-tooltip');
+            if (tooltip) {
+              tooltip.remove();
+            }
+          }
+          
+          /**
+           * Create a branch from selected text
+           */
+          function createBranch(sourceArgumentId, selectedText, position) {
+            hideBranchingContextMenu();
+            
+            vscode.postMessage({
+              type: 'createBranchFromSelection',
+              sourceArgumentId,
+              selectedText,
+              position
+            });
+            
+            showSuccessMessage('Creating branch...');
+          }
+          
+          // =============================================================================
           // TOOLTIP SYSTEM
           // =============================================================================
           
@@ -1482,6 +1664,8 @@ export class ProofTreePanel {
           window.exportProof = exportProof;
           window.updateToolbarState = updateToolbarState;
           window.initializeInteractiveFeatures = initializeInteractiveFeatures;
+          window.createBranch = createBranch;
+          window.hideBranchingContextMenu = hideBranchingContextMenu;
           
           // =============================================================================
           // INITIALIZATION
@@ -1696,9 +1880,54 @@ export class ProofTreePanel {
     return ok({ nodeId, deltaX, deltaY });
   }
 
+  /**
+   * Validate branch creation input
+   */
+  private validateBranchInput(
+    sourceArgumentId: unknown,
+    selectedText: unknown,
+    position: unknown,
+  ): Result<
+    {
+      sourceArgumentId: string;
+      selectedText: string;
+      position: 'premise' | 'conclusion';
+    },
+    ValidationError
+  > {
+    if (
+      !sourceArgumentId ||
+      typeof sourceArgumentId !== 'string' ||
+      !selectedText ||
+      typeof selectedText !== 'string' ||
+      !position ||
+      typeof position !== 'string'
+    ) {
+      return err(new ValidationError('Invalid branch creation request'));
+    }
+
+    if (position !== 'premise' && position !== 'conclusion') {
+      return err(new ValidationError('Position must be premise or conclusion'));
+    }
+
+    return ok({
+      sourceArgumentId,
+      selectedText,
+      position: position as 'premise' | 'conclusion',
+    });
+  }
+
   private async handleWebviewMessage(message: unknown): Promise<void> {
     try {
-      const msg = message as { type: string; [key: string]: unknown };
+      if (!message || typeof message !== 'object') {
+        return;
+      }
+
+      const msg = message as { type?: string; [key: string]: unknown };
+
+      if (!msg.type) {
+        return;
+      }
 
       switch (msg.type) {
         case 'viewportChanged': {
@@ -1756,6 +1985,10 @@ export class ProofTreePanel {
         }
         case 'moveNode': {
           await this.handleMoveNode(msg);
+          break;
+        }
+        case 'createBranchFromSelection': {
+          await this.handleCreateBranchFromSelection(msg);
           break;
         }
       }
@@ -2246,6 +2479,68 @@ export class ProofTreePanel {
   }
 
   /**
+   * Handle branching from selected text
+   */
+  private async handleCreateBranchFromSelection(msg: { [key: string]: unknown }): Promise<void> {
+    try {
+      const validationResult = this.validateBranchInput(
+        msg.sourceArgumentId,
+        msg.selectedText,
+        msg.position,
+      );
+      if (validationResult.isErr()) {
+        this.uiPort.showError(validationResult.error.message);
+        return;
+      }
+
+      const { sourceArgumentId, selectedText, position } = validationResult.value;
+
+      const documentId = this.extractDocumentIdFromUri();
+      if (!documentId) {
+        this.uiPort.showError('Could not determine document ID');
+        return;
+      }
+
+      // Create the branch through application service
+      const branchResult = await this.proofApplicationService.createBranchFromSelection({
+        documentId,
+        sourceArgumentId,
+        selectedText,
+        position,
+      });
+
+      if (branchResult.isErr()) {
+        this.uiPort.showError(`Failed to create branch: ${branchResult.error.message}`);
+        return;
+      }
+
+      const newArgument = branchResult.value;
+
+      // Notify webview of successful branch creation
+      this.uiPort.postMessageToWebview(this.panelId, {
+        type: 'branchCreated',
+        newArgumentId: newArgument.id,
+        sourceArgumentId,
+        selectedText,
+        position,
+        premises: newArgument.premises,
+        conclusions: newArgument.conclusions,
+      });
+
+      this.uiPort.showInformation(
+        `Successfully created ${position === 'conclusion' ? 'forward' : 'backward'} branch`,
+      );
+
+      // Refresh content to show the new branch
+      await this.refreshContent();
+    } catch (error) {
+      this.uiPort.showError(
+        `Failed to create branch: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
+  /**
    * Reveal this panel (bring to front)
    */
   reveal(viewColumn?: number, preserveFocus?: boolean): void {
@@ -2274,9 +2569,60 @@ export class ProofTreePanel {
   }
 
   /**
+   * Save current view state before disposal
+   */
+  private async saveCurrentViewState(): Promise<void> {
+    try {
+      // Save current viewport state if available
+      const viewportState = {
+        zoom: 1.0,
+        pan: { x: 0, y: 0 },
+        center: { x: 0, y: 0 },
+      };
+      await this.viewStateManager.updateViewportState(viewportState);
+    } catch (_error) {
+      // Ignore state saving errors during disposal
+      // Note: Viewport state save failure during disposal is non-critical
+    }
+  }
+
+  /**
+   * Handle internal disposal logic without triggering webview disposal
+   */
+  private handleDisposal(): void {
+    if (this.isDisposed) {
+      return;
+    }
+
+    this.isDisposed = true;
+
+    // Perform cleanup operations here
+    try {
+      // Save any pending state before disposal (async, but don't wait)
+      this.saveCurrentViewState().catch(() => {
+        // Ignore async errors during disposal
+      });
+    } catch (_error) {
+      // Log error but don't prevent disposal
+      // Note: View state save error during disposal is non-critical
+    }
+  }
+
+  /**
    * Dispose of this panel
    */
   dispose(): void {
-    this.webviewPanel.dispose();
+    if (this.isDisposed) {
+      return;
+    }
+
+    this.handleDisposal();
+
+    try {
+      this.webviewPanel.dispose();
+    } catch (_error) {
+      // Log error but consider panel disposed
+      // Note: Panel disposal error is non-critical, panel considered disposed
+    }
   }
 }

@@ -21,7 +21,10 @@ import type {
   MoveStatementCommand,
   UpdateStatementCommand,
 } from '../commands/statement-commands.js';
-import type { MoveTreeCommand } from '../commands/tree-commands.js';
+import type {
+  CreateBranchFromSelectionCommand,
+  MoveTreeCommand,
+} from '../commands/tree-commands.js';
 import { atomicArgumentToDTO } from '../mappers/AtomicArgumentMapper.js';
 import { statementToDTO } from '../mappers/StatementMapper.js';
 import type { AtomicArgumentDTO } from '../queries/shared-types.js';
@@ -509,5 +512,105 @@ export class ProofApplicationService {
         'Tree movement not yet implemented - trees are managed by ProofTreeAggregate',
       ),
     );
+  }
+
+  /**
+   * Creates a new argument by branching from selected text in an existing argument
+   */
+  async createBranchFromSelection(
+    command: CreateBranchFromSelectionCommand,
+  ): Promise<Result<AtomicArgumentDTO, ValidationError>> {
+    // Load aggregate
+    const documentIdResult = ProofDocumentId.create(command.documentId);
+    if (documentIdResult.isErr()) {
+      return err(documentIdResult.error);
+    }
+
+    const document = await this.repository.findById(documentIdResult.value);
+    if (!document) {
+      return err(new ValidationError('Document not found'));
+    }
+
+    // Parse source argument ID
+    const sourceArgumentIdResult = AtomicArgumentId.create(command.sourceArgumentId);
+    if (sourceArgumentIdResult.isErr()) {
+      return err(sourceArgumentIdResult.error);
+    }
+
+    // Get source argument
+    const sourceArgument = document.getArgument(sourceArgumentIdResult.value);
+    if (!sourceArgument) {
+      return err(new ValidationError('Source argument not found'));
+    }
+
+    // Find the Statement that contains the selected text
+    const matchingStatement = this.findStatementContainingText(
+      sourceArgument,
+      command.selectedText,
+      command.position,
+    );
+    if (matchingStatement.isErr()) {
+      return err(matchingStatement.error);
+    }
+
+    // Create new argument based on branch type
+    let newArgument: Result<
+      import('../../domain/entities/AtomicArgument.js').AtomicArgument,
+      ValidationError
+    >;
+
+    if (command.position === 'conclusion') {
+      // Branch from conclusion: new argument has the statement as premise
+      newArgument = sourceArgument.createBranchFromConclusion(matchingStatement.value.index);
+    } else {
+      // Branch to premise: new argument has the statement as conclusion
+      newArgument = sourceArgument.createBranchToPremise(matchingStatement.value.index);
+    }
+
+    if (newArgument.isErr()) {
+      return err(newArgument.error);
+    }
+
+    // Add the new argument to the document
+    const addResult = document.addArgument(newArgument.value);
+    if (addResult.isErr()) {
+      return err(addResult.error);
+    }
+
+    // Save aggregate
+    const saveResult = await this.repository.save(document);
+    if (saveResult.isErr()) {
+      return err(saveResult.error);
+    }
+
+    // Publish domain events
+    const events = document.getUncommittedEvents();
+    await this.eventBus.publish(events);
+    document.markEventsAsCommitted();
+
+    return ok(atomicArgumentToDTO(newArgument.value));
+  }
+
+  /**
+   * Find Statement in argument that contains the selected text
+   */
+  private findStatementContainingText(
+    argument: import('../../domain/entities/AtomicArgument.js').AtomicArgument,
+    selectedText: string,
+    position: 'premise' | 'conclusion',
+  ): Result<
+    { statement: import('../../domain/entities/Statement.js').Statement; index: number },
+    ValidationError
+  > {
+    const statements = position === 'premise' ? argument.getPremises() : argument.getConclusions();
+
+    for (let i = 0; i < statements.length; i++) {
+      const statement = statements[i];
+      if (statement?.getContent().includes(selectedText)) {
+        return ok({ statement, index: i });
+      }
+    }
+
+    return err(new ValidationError(`Selected text "${selectedText}" not found in ${position}s`));
   }
 }

@@ -41,15 +41,16 @@ Output statements: ["P", "Q"]
 
 ```
 Processing Unit A:
-  Input container:   ["P₁", "P₂"]
-  Output container:  ["C₁", "C₂"] ← Statements flow out here
+  Input array:   ["P₁", "P₂"]  (premises[0], premises[1])
+  Output array:  ["C₁", "C₂"]  (conclusions[0], conclusions[1])
                          ↓ FLOW
 Processing Unit B:        ↓ 
-  Input container:   ["C₁", "C₂"] ← Same statements flow in here
-  Output container:  ["C₃"]
+  Input array:   ["C₁", "C₂"]  (premises[0], premises[1])
+  Output array:  ["C₃"]       (conclusions[0])
 
-Physical Reality: Statements "C₁" and "C₂" flow from A's output 
-container directly into B's input container (same physical container)
+Physical Reality: Statement "C₁" flows from A.conclusions[0] 
+to B.premises[0] via Statement identity. Statement "C₂" flows 
+from A.conclusions[1] to B.premises[1] via Statement identity.
 ```
 
 ## Statement Flow Trees vs Logical Connections
@@ -70,16 +71,16 @@ trees:
   - offset: {x: 100, y: 200}
     nodes:
       n1: {unit: *unit1}           # Root processor using unit1
-      n2: {n1: *unit2, on: 0}      # Child feeding "A" statement to n1's slot 0
-      n3: {n1: *unit3, on: 1}      # Child feeding "B" statement to n1's slot 1
+      n2: {n1: *unit2, on: 0}      # Child providing Statement "A" to n1's premises[0]
+      n3: {n1: *unit3, on: 1}      # Child providing Statement "B" to n1's premises[1]
       n4: {n3: *unit2, on: 1}      # SAME unit2 template, different physical location!
 ```
 
 **Physical Understanding**: 
 - n2 and n4 are different physical processors but use the SAME processing template (unit2)
 - Tree structure is about WHERE processors are placed and HOW statements flow between them
-- Children feed their output statements upward to their parents' input slots
-- Statements physically flow bottom-up through the tree structure
+- Children feed their output statements upward to their parents' premise array positions
+- Statements physically flow bottom-up through positional connections
 
 ## Complete Statement Flow Network Example
 
@@ -101,4 +102,4 @@ Given processing units connected through statement flow:
 - {"P"→"Q", "S"→"U"} - Missing Q→S flow connector
 - {"P"→"Q", "T"→"U"} - No physical flow path exists
 
-**The Complete Flow Network**: All 7 processing units form one maximal statement flow network logically, but the physical tree STRUCTURE depends on how processing units are positioned and connected in space
+**The Complete Flow Network**: All 7 processing units form one maximal statement flow network logically, but the physical tree STRUCTURE depends on how processing units are positioned and connected through Statement identity at specific positions

@@ -8,8 +8,9 @@ This document provides implementation-level specifications for how the Proof Edi
 
 Proof Editor implements **statement-centered building blocks** where:
 - **Statements** are reusable text entities with unique IDs (fundamental building blocks)
-- **Ordered sets** collect statement IDs for premise/conclusion groupings
-- **Atomic arguments** relate premise ordered sets to conclusion ordered sets
+- **Statement arrays** collect statement references for premise/conclusion groupings
+- **Atomic arguments** contain premise and conclusion Statement arrays
+- **Connections** exist when AtomicArg1.conclusions[i] equals AtomicArg2.premises[j] via Statement identity
 - **Trees** have physical properties affecting spatial layout and visualization
 
 ## Core Data Structures with Statement Building Blocks
@@ -35,38 +36,29 @@ interface StatementEntity {
 ```
 **Key insight**: Statements are the fundamental building blocks that get reused across different ordered sets. Same statement content can appear in multiple ordered sets without creating connections - connections require shared ordered set object references.
 
-### OrderedSetEntity with Statement ID References
-**Purpose**: Data structure representing an ordered collection of statement IDs with uniqueness constraint. OrderedSetEntity objects serve as the connection mechanism - when multiple atomic arguments reference the same OrderedSetEntity, they are connected.
-**Domain concept**: Implements the [Ordered Set](../03-concepts/key-terms.md#ordered-set) concept with statement building blocks.
-```typescript
-interface OrderedSetEntity {
-  id: string;              // Unique identifier (UUID)
-  statementIds: string[];  // Ordered array of statement IDs (references to StatementEntity)
-  
-  metadata: {
-    createdAt: number;
-    modifiedAt: number;
-    authorId?: string;           // ID of the human author who created this ordered set
-    sourcePackageId?: string;    // Language package that introduced this content
-    references?: string[];       // External references or citations
-    referencedBy: {        // Which atomic arguments reference this set
-      asPremise: string[];    // Atomic argument IDs using this as premise
-      asConclusion: string[]; // Atomic argument IDs using this as conclusion
-    };
-  };
-}
+### DEPRECATED: OrderedSetEntity (Removed)
+**MIGRATION NOTE**: The OrderedSetEntity approach has been removed. AtomicArguments now contain Statement arrays directly.
 
-```
-**Critical**: When atomic arguments share the SAME OrderedSetEntity (by reference), a connection exists. The `statementIds` array contains references to StatementEntity objects that can be reused across different ordered sets. Connections are about shared ordered set object references, not about statement content.
+**OLD MODEL** (Deprecated):
+- AtomicArguments referenced OrderedSetEntity objects
+- Connections through shared OrderedSetEntity references
+- Complex indirection through container objects
+
+**NEW MODEL** (Current):
+- AtomicArguments contain Statement arrays directly
+- Connections through Statement identity at specific positions  
+- Direct positional relationships: AtomicArg1.conclusions[i] = AtomicArg2.premises[j]
+
+**For SDK developers**: Do NOT implement OrderedSetEntity. Use Statement arrays in AtomicArguments.
 
 ### AtomicArgumentEntity
-**Purpose**: Data structure that stores the information defining an atomic argument relation between premise and conclusion ordered sets.
+**Purpose**: Data structure that stores the information defining an atomic argument with premise and conclusion Statement arrays.
 **Domain concept**: Implements the [Atomic Argument](../03-concepts/key-terms.md#atomic-argument) concept.
 ```typescript
 interface AtomicArgumentEntity {
   id: string;                    // Unique identifier (UUID)
-  premiseSetRef: string | null;  // Reference to OrderedSetEntity (may be null for empty set)
-  conclusionSetRef: string | null; // Reference to OrderedSetEntity (may be null for empty set)
+  premises: string[];            // Array of Statement IDs (ordered, no duplicates)
+  conclusions: string[];         // Array of Statement IDs (ordered, no duplicates)
   
   metadata?: {
     sideLabels?: {
@@ -82,15 +74,15 @@ interface AtomicArgumentEntity {
 }
 
 ```
-**Key insight**: Atomic arguments reference OrderedSetEntity objects. Connections exist implicitly when atomic arguments share the SAME ordered set reference. The implication line (stroke) is the focusable UI element for creating connections.
+**Key insight**: Atomic arguments contain Statement arrays directly. Connections exist when AtomicArg1.conclusions[i] equals AtomicArg2.premises[j] via Statement identity. The implication line (stroke) is the focusable UI element for creating connections.
 
-**Statement reuse**: The atomic argument stores references to OrderedSetEntity objects, which contain arrays of statement IDs. The same statement (by ID) can appear in multiple different OrderedSetEntity objects without creating connections - connections require shared ordered set object references, not shared statement content.
+**Statement reuse**: The atomic argument stores arrays of Statement IDs directly. The same Statement can appear in multiple different atomic arguments without creating connections - connections require Statement identity at specific positions, not just shared Statement content.
 
 
 ### Argument (Computed Concept)
 **Purpose**: Algorithm output representing a path-complete subset of atomic arguments.
 **Domain concept**: Implements the [Argument](../03-concepts/key-terms.md#argument) concept.
-**Implementation**: Computed on-demand by analyzing shared ordered set references.
+**Implementation**: Computed on-demand by analyzing Statement identity at positions.
 
 ```typescript
 // Not a stored entity - computed by discovering connections through shared ordered sets
@@ -98,10 +90,10 @@ function computeArgument(
   startId: string,
   endId: string,
   atomicArguments: Map<string, AtomicArgumentEntity>,
-  orderedSets: Map<string, OrderedSetEntity>
+  statements: Map<string, StatementEntity>
 ): Set<string> {
   // Returns all atomic argument IDs in path-complete subset
-  // by traversing implicit connections via shared ordered set references
+  // by traversing connections via Statement identity at positions
 }
 ```
 
@@ -237,17 +229,17 @@ interface LanguageLayer {
 
 ## Key Implementation Concepts
 
-### Ordered Set-Based Connection Model
+### Statement-Level Positional Connection Model
 For the conceptual definition of connections, see [Key Terms](../03-concepts/key-terms.md#connections).
 
-**Implementation approach**: Connections exist implicitly through shared ordered set references between atomic arguments.
+**Implementation approach**: Connections exist when AtomicArg1.conclusions[i] equals AtomicArg2.premises[j] via Statement identity.
 **Benefits**: 
-- Clear object identity (reference equality, not value equality)
-- Shared state (modifications affect all referencing arguments)
-- No ambiguity (same contents but different objects don't connect)
-- Simple detection (just check reference equality)
-- Statement reuse (same statement strings can appear in different ordered sets)
-- Branching mechanism (conclusion ordered set becomes premise ordered set via shared reference)
+- Clear positional semantics (premises[0], conclusions[1], etc.)
+- Direct relationships (no container indirection)
+- Statement identity (same Statement object, not content matching)
+- Simple detection (check Statement identity at positions)
+- Statement reuse (same Statement can appear in multiple arguments)
+- Branching mechanism (Statement from parent.conclusions[i] flows to child.premises[j])
 
 ### Intentional Construction
 **What it means**: Every connection represents an explicit user decision.
@@ -262,15 +254,14 @@ For the conceptual definition of connections, see [Key Terms](../03-concepts/key
 ### Computed vs Stored
 **Stored (Empirical)**:
 - Statements (reusable text building blocks with unique IDs)
-- Ordered sets (collections of statement ID references)
-- Atomic arguments (templates that reference ordered set IDs)
+- Atomic arguments (templates with Statement arrays)
 - Nodes (instances with parent-child relationships)
 - Trees (with document positions and physical properties)
 - Position overrides (user adjusts node positions)
 - Documents (user manages)
 
 **Computed (Derived)**:
-- Logical connections (from shared ordered set references)
+- Logical connections (from Statement identity at positions)
 - Arguments (from connection traversal)
 - Argument trees (maximal connected components)
 - Node positions (from tree structure + layout + physical properties)
@@ -282,26 +273,26 @@ For the conceptual definition of connections, see [Key Terms](../03-concepts/key
 ## Implementation Philosophy
 
 ### What This Implementation Does
-- **Enables intentional relationships**: Users create connections by sharing ordered set references
+- **Enables intentional relationships**: Users create connections through Statement identity at positions
 - **Simplifies data model**: No separate connection entities needed
-- **Clear identity**: Reference equality makes connections unambiguous
-- **Shared state**: Changes to ordered sets propagate to all users
-- **Supports statement reuse**: Same statements (by ID) can appear in multiple ordered sets
-- **Separates connection from content**: Connection is about shared object references, not matching statement content
-- **Statement building blocks**: Statements are reusable entities that can be referenced by multiple ordered sets
+- **Clear identity**: Statement identity makes connections unambiguous
+- **Direct relationships**: No container indirection, direct Statement arrays
+- **Supports statement reuse**: Same Statements can appear in multiple atomic arguments
+- **Separates connection from content**: Connection is about Statement identity at positions, not matching content
+- **Statement building blocks**: Statements are reusable entities that can appear in multiple argument arrays
 
 ### What This Implementation Doesn't Do
 - **No string matching**: Same text doesn't create connections
-- **No automatic linking**: Users explicitly share ordered set references
-- **No complex algorithms**: Connections found through simple ID matching
+- **No automatic linking**: Users explicitly establish Statement identity at positions
+- **No complex algorithms**: Connections found through Statement identity checks
 - **No philosophical claims**: Just engineering
-- **No content-based connections**: Connections require shared object references, not matching content
-- **No statement identity confusion**: Statements are building blocks that can be reused, but connections require shared ordered set references
+- **No content-based connections**: Connections require Statement identity at positions, not matching content
+- **No statement identity confusion**: Statements are building blocks that can be reused, connections require identity at specific positions
 
 ## Critical Distinctions
 
 ### Connection ≠ Value Equality
-A connection is NOT "these ordered sets have the same contents". It's "these atomic arguments share the SAME ordered set object".
+A connection is NOT "these Statement arrays have the same contents". It's "AtomicArg1.conclusions[i] and AtomicArg2.premises[j] reference the SAME Statement object".
 
 ### Tree ≠ Hierarchy
 Trees emerge from connections, they're not imposed. Multiple atomic arguments can reference the same ordered set (the system uses a graph structure internally).
@@ -392,68 +383,85 @@ function addNodeToTree(
 ```typescript
 function branchFromConclusion(
   parentId: string,
+  conclusionIndex: number,
   atomicArguments: Map<string, AtomicArgumentEntity>
 ): AtomicArgumentEntity {
-  // 1. Get conclusion ordered set reference from parent
+  // 1. Get specific Statement from parent's conclusion array
   const parent = atomicArguments.get(parentId);
-  const conclusionSetRef = parent.conclusionSetRef;
+  const sharedStatement = parent.conclusions[conclusionIndex];
   
-  // 2. Create child using the SAME ordered set reference as premise
+  // 2. Create child with shared Statement as premise
   const child = {
     id: generateId(),
-    premiseSetRef: conclusionSetRef,  // SAME OBJECT REFERENCE!
-    conclusionSetRef: null,  // User will create new ordered set
+    premises: [sharedStatement],  // SAME STATEMENT IDENTITY!
+    conclusions: [],  // User will add conclusions
     metadata: { createdAt: Date.now() }
   };
   
-  // 3. Connection now exists implicitly because both atomic arguments
-  //    reference the SAME ordered set object
+  // 3. Connection exists because:
+  //    parent.conclusions[conclusionIndex] === child.premises[0]
   
   return child;
 }
 ```
 
-### Discovering Connections Through Shared Ordered Sets
+### Discovering Connections Through Statement Identity
 ```typescript
 function getChildren(
   atomicArgumentId: string,
   atomicArguments: Map<string, AtomicArgumentEntity>
-): AtomicArgumentEntity[] {
+): {child: AtomicArgumentEntity, fromPos: number, toPos: number}[] {
   const parent = atomicArguments.get(atomicArgumentId);
-  const children = [];
+  const connections = [];
   
-  // Simple reference equality check
+  // Check Statement identity at positions
   for (const [id, arg] of atomicArguments) {
-    if (id !== atomicArgumentId && 
-        arg.premiseSetRef === parent.conclusionSetRef && 
-        parent.conclusionSetRef !== null) {
-      children.push(arg);
+    if (id !== atomicArgumentId) {
+      // Check each parent conclusion against each child premise
+      for (let i = 0; i < parent.conclusions.length; i++) {
+        for (let j = 0; j < arg.premises.length; j++) {
+          if (parent.conclusions[i] === arg.premises[j]) {
+            connections.push({
+              child: arg,
+              fromPos: i,  // parent.conclusions[i]
+              toPos: j     // child.premises[j]
+            });
+          }
+        }
+      }
     }
   }
   
-  return children;
+  return connections;
 }
 
-// More efficient with OrderedSet entity tracking:
+// More efficient with Statement indexing:
 function getChildrenEfficient(
   atomicArgumentId: string,
   atomicArguments: Map<string, AtomicArgumentEntity>,
-  orderedSets: Map<string, OrderedSetEntity>
-): AtomicArgumentEntity[] {
+  statementIndex: Map<string, {conclusionOf: {argId: string, pos: number}[], premiseOf: {argId: string, pos: number}[]}>
+): {child: AtomicArgumentEntity, fromPos: number, toPos: number}[] {
   const parent = atomicArguments.get(atomicArgumentId);
-  if (!parent.conclusionSetRef) return [];
+  const connections = [];
   
-  const conclusionSet = orderedSets.get(parent.conclusionSetRef);
-  const children = [];
-  
-  // Use OrderedSet metadata for efficient lookup
-  for (const childId of conclusionSet.metadata.referencedBy.asPremise) {
-    if (childId !== atomicArgumentId) {
-      children.push(atomicArguments.get(childId));
+  // Use Statement index for efficient lookup
+  for (let i = 0; i < parent.conclusions.length; i++) {
+    const statementId = parent.conclusions[i];
+    const index = statementIndex.get(statementId);
+    
+    // Find all arguments that use this Statement as premise
+    for (const {argId, pos} of index.premiseOf) {
+      if (argId !== atomicArgumentId) {
+        connections.push({
+          child: atomicArguments.get(argId),
+          fromPos: i,
+          toPos: pos
+        });
+      }
     }
   }
   
-  return children;
+  return connections;
 }
 ```
 

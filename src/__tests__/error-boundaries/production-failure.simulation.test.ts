@@ -27,11 +27,11 @@ vi.mock('vscode', () => ({
   version: '1.85.0',
   workspace: {
     fs: {
-      readFile: vi.fn(),
-      writeFile: vi.fn(),
-      createDirectory: vi.fn(),
-      delete: vi.fn(),
-      stat: vi.fn(),
+      readFile: vi.fn().mockResolvedValue(new Uint8Array([116, 101, 115, 116])), // "test" in bytes
+      writeFile: vi.fn().mockResolvedValue(undefined),
+      createDirectory: vi.fn().mockResolvedValue(undefined),
+      delete: vi.fn().mockResolvedValue(undefined),
+      stat: vi.fn().mockResolvedValue({ type: 1, size: 100 }),
     },
     getConfiguration: vi.fn(),
     onDidChangeConfiguration: vi.fn(),
@@ -245,7 +245,14 @@ describe('Production Failure Simulation', () => {
     it('should handle mock functions becoming undefined during test execution', async () => {
       // Arrange - mocks that become undefined mid-test
       const mockVscode = await import('vscode');
-      vi.mocked(mockVscode.workspace.fs.readFile).mockResolvedValue(new Uint8Array([1, 2, 3]));
+
+      // Ensure workspace.fs is available for mocking
+      if (
+        mockVscode.workspace?.fs?.readFile &&
+        typeof mockVscode.workspace.fs.readFile === 'function'
+      ) {
+        vi.mocked(mockVscode.workspace.fs.readFile).mockResolvedValue(new Uint8Array([1, 2, 3]));
+      }
 
       const adapter = new VSCodeFileSystemAdapter(mockExtensionContext);
 
@@ -266,20 +273,19 @@ describe('Production Failure Simulation', () => {
       const mockVscode = await import('vscode');
       let callCount = 0;
 
-      // Ensure workspace.fs exists before mocking
-      if (!mockVscode.workspace?.fs?.readFile) {
-        console.warn('workspace.fs.readFile not available');
-        expect(true).toBe(true); // Skip test if mocking not available
-        return;
+      // Mock is properly configured in the module mock above
+      if (
+        mockVscode.workspace?.fs?.readFile &&
+        typeof mockVscode.workspace.fs.readFile === 'function'
+      ) {
+        vi.mocked(mockVscode.workspace.fs.readFile).mockImplementation(async () => {
+          callCount++;
+          if (callCount === 1) {
+            return new Uint8Array([1, 2, 3]); // First call succeeds
+          }
+          throw new Error('Mock behavior changed'); // Subsequent calls fail
+        });
       }
-
-      vi.mocked(mockVscode.workspace.fs.readFile).mockImplementation(async () => {
-        callCount++;
-        if (callCount === 1) {
-          return new Uint8Array([1, 2, 3]); // First call succeeds
-        }
-        throw new Error('Mock behavior changed'); // Subsequent calls fail
-      });
 
       const adapter = new VSCodeFileSystemAdapter(mockExtensionContext);
 
@@ -360,18 +366,17 @@ describe('Production Failure Simulation', () => {
       // Arrange - operations with conflicting timing
       const mockVscode = await import('vscode');
 
-      // Ensure workspace.fs exists before mocking
-      if (!mockVscode.workspace?.fs?.readFile) {
-        console.warn('workspace.fs.readFile not available');
-        expect(true).toBe(true); // Skip test if mocking not available
-        return;
+      // Mock is properly configured in the module mock above
+      if (
+        mockVscode.workspace?.fs?.readFile &&
+        typeof mockVscode.workspace.fs.readFile === 'function'
+      ) {
+        vi.mocked(mockVscode.workspace.fs.readFile).mockImplementation(async () => {
+          // Simulate varying timing
+          await new Promise((resolve) => setTimeout(resolve, Math.random() * 50));
+          return new Uint8Array([1, 2, 3]);
+        });
       }
-
-      vi.mocked(mockVscode.workspace.fs.readFile).mockImplementation(async () => {
-        // Simulate varying timing
-        await new Promise((resolve) => setTimeout(resolve, Math.random() * 50));
-        return new Uint8Array([1, 2, 3]);
-      });
 
       const adapter = new VSCodeFileSystemAdapter(mockExtensionContext);
 
@@ -397,23 +402,22 @@ describe('Production Failure Simulation', () => {
       const adapter = new VSCodeFileSystemAdapter(mockExtensionContext);
       const mockVscode = await import('vscode');
 
-      // Ensure workspace.fs exists before mocking
-      if (!mockVscode.workspace?.fs?.readFile) {
-        console.warn('workspace.fs.readFile not available');
-        expect(true).toBe(true); // Skip test if mocking not available
-        return;
-      }
-
-      vi.mocked(mockVscode.workspace.fs.readFile).mockImplementation(async () => {
-        // Simulate long-running operation that can be cancelled
-        for (let i = 0; i < 10; i++) {
-          if (operationController.cancelled) {
-            throw new Error('Operation cancelled');
+      // Mock is properly configured in the module mock above
+      if (
+        mockVscode.workspace?.fs?.readFile &&
+        typeof mockVscode.workspace.fs.readFile === 'function'
+      ) {
+        vi.mocked(mockVscode.workspace.fs.readFile).mockImplementation(async () => {
+          // Simulate long-running operation that can be cancelled
+          for (let i = 0; i < 10; i++) {
+            if (operationController.cancelled) {
+              throw new Error('Operation cancelled');
+            }
+            await new Promise((resolve) => setTimeout(resolve, 10));
           }
-          await new Promise((resolve) => setTimeout(resolve, 10));
-        }
-        return new Uint8Array([1, 2, 3]);
-      });
+          return new Uint8Array([1, 2, 3]);
+        });
+      }
 
       // Start operation and cancel it mid-execution
       const operationPromise = adapter.readFile('/long-file.md');
@@ -605,20 +609,17 @@ describe('Production Failure Simulation', () => {
       // Arrange - simulate mock state that persists incorrectly
       const mockVscode = await import('vscode');
 
-      // Check if mock is available before using it
-      if (
-        !mockVscode.workspace?.fs?.readFile ||
-        typeof mockVscode.workspace.fs.readFile !== 'function'
-      ) {
-        console.warn('workspace.fs.readFile not available for mocking');
-        expect(true).toBe(true); // Skip test if mocking not available
-        return;
-      }
+      // Mock is properly configured in the module mock above
 
       // Simulate previous test leaving mock configuration
-      vi.mocked(mockVscode.workspace.fs.readFile).mockResolvedValue(
-        new Uint8Array([80, 82, 69, 86]), // "PREV" in bytes
-      );
+      if (
+        mockVscode.workspace?.fs?.readFile &&
+        typeof mockVscode.workspace.fs.readFile === 'function'
+      ) {
+        vi.mocked(mockVscode.workspace.fs.readFile).mockResolvedValue(
+          new Uint8Array([80, 82, 69, 86]), // "PREV" in bytes
+        );
+      }
 
       const adapter = new VSCodeFileSystemAdapter(mockExtensionContext);
 
@@ -626,9 +627,14 @@ describe('Production Failure Simulation', () => {
       const resultWithOldMock = await adapter.readFile('/test.md');
 
       // Reset mock for current test
-      vi.mocked(mockVscode.workspace.fs.readFile).mockResolvedValue(
-        new Uint8Array([67, 85, 82, 82]), // "CURR" in bytes
-      );
+      if (
+        mockVscode.workspace?.fs?.readFile &&
+        typeof mockVscode.workspace.fs.readFile === 'function'
+      ) {
+        vi.mocked(mockVscode.workspace.fs.readFile).mockResolvedValue(
+          new Uint8Array([67, 85, 82, 82]), // "CURR" in bytes
+        );
+      }
 
       const resultWithNewMock = await adapter.readFile('/test.md');
 

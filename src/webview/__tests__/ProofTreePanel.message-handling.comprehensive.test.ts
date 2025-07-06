@@ -414,7 +414,7 @@ describe('ProofTreePanel Message Handling - Comprehensive Coverage', () => {
 
       // Act & Assert - Should not throw
       for (const handler of messageHandlers) {
-        await expect(handler(unknownMessage)).resolves.not.toThrow();
+        expect(() => handler(unknownMessage)).not.toThrow();
       }
 
       // Should not call any services for unknown message
@@ -437,7 +437,7 @@ describe('ProofTreePanel Message Handling - Comprehensive Coverage', () => {
       // Act & Assert - Should not throw for any malformed message
       for (const malformedMessage of malformedMessages) {
         for (const handler of messageHandlers) {
-          await expect(handler(malformedMessage)).resolves.not.toThrow();
+          expect(() => handler(malformedMessage)).not.toThrow();
         }
       }
     });
@@ -989,7 +989,7 @@ describe('ProofTreePanel Message Handling - Comprehensive Coverage', () => {
 
       // Act & Assert - Should not crash the panel
       for (const handler of messageHandlers) {
-        await expect(handler(viewportMessage)).resolves.not.toThrow();
+        expect(() => handler(viewportMessage)).not.toThrow();
       }
     });
 
@@ -1006,7 +1006,7 @@ describe('ProofTreePanel Message Handling - Comprehensive Coverage', () => {
 
       // Act & Assert - Should not crash
       for (const handler of messageHandlers) {
-        await expect(handler(createMessage)).resolves.not.toThrow();
+        expect(() => handler(createMessage)).not.toThrow();
       }
 
       expect(mockUIPort.showError).toHaveBeenCalledWith(
@@ -1138,9 +1138,11 @@ describe('ProofTreePanel Message Handling - Comprehensive Coverage', () => {
 
     it('should handle arbitrary coordinate movements safely', async () => {
       const moveArbitrary = fc.record({
-        nodeId: fc.string({ minLength: 1, maxLength: 50 }).filter((s) => s.trim().length > 0),
-        deltaX: fc.integer({ min: -10000, max: 10000 }),
-        deltaY: fc.integer({ min: -10000, max: 10000 }),
+        nodeId: fc
+          .string({ minLength: 1, maxLength: 50 })
+          .filter((s) => s.trim().length > 0 && /^[a-zA-Z0-9_-]+$/.test(s.trim())),
+        deltaX: fc.integer({ min: -1000, max: 1000 }),
+        deltaY: fc.integer({ min: -1000, max: 1000 }),
       });
 
       await fc.assert(

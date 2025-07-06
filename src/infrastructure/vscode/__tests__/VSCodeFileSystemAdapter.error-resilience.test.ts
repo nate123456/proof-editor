@@ -89,9 +89,33 @@ describe('VSCodeFileSystemAdapter Error Resilience', () => {
 
     // Reset VS Code workspace state
     const mockVscode = vi.mocked(vscode);
-    if (mockVscode.workspace) {
-      (mockVscode.workspace as any).workspaceFolders = undefined;
-    }
+    mockVscode.workspace = {
+      fs: {
+        readFile: vi.fn(),
+        writeFile: vi.fn(),
+        stat: vi.fn(),
+        delete: vi.fn(),
+        readDirectory: vi.fn(),
+        createDirectory: vi.fn(),
+      },
+      createFileSystemWatcher: vi.fn(),
+      workspaceFolders: undefined,
+    };
+
+    mockVscode.Uri = {
+      file: vi.fn().mockImplementation((path: string) => ({
+        scheme: 'file',
+        path,
+        fsPath: path,
+        toString: () => `file://${path}`,
+      })),
+      joinPath: vi.fn().mockImplementation((base, ...segments) => ({
+        scheme: base.scheme,
+        path: `${base.path}/${segments.join('/')}`,
+        fsPath: `${base.fsPath}/${segments.join('/')}`,
+        toString: () => `file://${base.fsPath}/${segments.join('/')}`,
+      })),
+    };
 
     mockGlobalState = {
       get: vi.fn().mockReturnValue({}),
@@ -218,41 +242,64 @@ describe('VSCodeFileSystemAdapter Error Resilience', () => {
     });
 
     it('should handle vscode.Uri.file throwing errors', async () => {
-      vi.mocked(vscode.Uri.file).mockImplementation(() => {
-        throw new Error('Uri.file not available');
-      });
+      // Temporarily remove Uri.file for this test
+      const originalUriFile = vscode.Uri.file;
+      (vscode.Uri as any).file = undefined;
 
-      const result = await adapter.readFile('/test/file.txt');
+      try {
+        const result = await adapter.readFile('/test/file.txt');
 
-      expect(result.isErr()).toBe(true);
-      if (result.isErr()) {
-        expect(result.error.code).toBe('UNKNOWN');
-        expect(result.error.message).toContain('Uri.file not available');
+        expect(result.isErr()).toBe(true);
+        if (result.isErr()) {
+          expect(result.error.code).toBe('UNKNOWN');
+          expect(result.error.message).toContain('Uri.file is not available');
+        }
+      } finally {
+        // Restore Uri.file
+        (vscode.Uri as any).file = originalUriFile;
       }
     });
 
     it('should handle workspace.fs methods throwing unexpected errors', async () => {
-      vi.mocked(vscode.workspace.fs.readFile).mockImplementation(() => {
+      // Only mock for this specific test
+      const mockReadFile = vi.fn().mockImplementation(() => {
         throw new Error('Method not implemented');
       });
 
-      const result = await adapter.readFile('/test/file.txt');
+      const originalReadFile = vscode.workspace.fs.readFile;
+      (vscode.workspace.fs as any).readFile = mockReadFile;
 
-      expect(result.isErr()).toBe(true);
-      if (result.isErr()) {
-        expect(result.error.code).toBe('UNKNOWN');
-        expect(result.error.message).toBe('Method not implemented');
+      try {
+        const result = await adapter.readFile('/test/file.txt');
+
+        expect(result.isErr()).toBe(true);
+        if (result.isErr()) {
+          expect(result.error.code).toBe('UNKNOWN');
+          expect(result.error.message).toBe('Method not implemented');
+        }
+      } finally {
+        // Restore original method
+        (vscode.workspace.fs as any).readFile = originalReadFile;
       }
     });
 
     it('should handle workspace.fs methods returning invalid types', async () => {
-      vi.mocked(vscode.workspace.fs.readFile).mockResolvedValue(null as any);
+      // Only mock for this specific test
+      const mockReadFile = vi.fn().mockResolvedValue(null as any);
 
-      const result = await adapter.readFile('/test/file.txt');
+      const originalReadFile = vscode.workspace.fs.readFile;
+      (vscode.workspace.fs as any).readFile = mockReadFile;
 
-      expect(result.isErr()).toBe(true);
-      if (result.isErr()) {
-        expect(result.error.code).toBe('UNKNOWN');
+      try {
+        const result = await adapter.readFile('/test/file.txt');
+
+        expect(result.isErr()).toBe(true);
+        if (result.isErr()) {
+          expect(result.error.code).toBe('UNKNOWN');
+        }
+      } finally {
+        // Restore original method
+        (vscode.workspace.fs as any).readFile = originalReadFile;
       }
     });
   });

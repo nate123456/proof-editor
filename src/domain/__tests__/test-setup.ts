@@ -50,13 +50,13 @@ expect.extend({
     const pass =
       received != null &&
       typeof received.getId === 'function' &&
-      typeof received.getPremiseSet === 'function' &&
-      typeof received.getConclusionSet === 'function';
+      typeof received.getPremises === 'function' &&
+      typeof received.getConclusions === 'function';
 
     return {
       pass,
       message: () =>
-        `Expected ${String(received)} to be a valid AtomicArgument with proper references`,
+        `Expected ${String(received)} to be a valid AtomicArgument with proper methods`,
     };
   },
 
@@ -68,22 +68,19 @@ expect.extend({
       };
     }
 
-    // Check if arguments form valid connection chain
+    // Check if arguments form valid connection chain using Statement-level connections
     let validConnections = true;
     for (let i = 0; i < received.length - 1; i++) {
       const current = received[i];
       const next = received[i + 1];
 
-      const currentConclusion = current?.getConclusionSet();
-      const nextPremise = next?.getPremiseSet();
+      if (!current || !next) {
+        validConnections = false;
+        break;
+      }
 
-      if (
-        !current ||
-        !next ||
-        !currentConclusion ||
-        !nextPremise ||
-        !currentConclusion.equals(nextPremise)
-      ) {
+      const connections = current.findConnectionsTo(next);
+      if (connections.length === 0) {
         validConnections = false;
         break;
       }
@@ -94,7 +91,7 @@ expect.extend({
       message: () =>
         validConnections
           ? `Expected arguments to NOT have valid connections`
-          : `Expected arguments to have valid connections (conclusion → premise)`,
+          : `Expected arguments to have valid connections (statement-level)`,
     };
   },
 

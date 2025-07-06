@@ -23,10 +23,10 @@ Domain concepts exist independently of implementation. A statement IS a building
 
 | Domain Concept | Implementation | Layer | Purpose |
 |----------------|----------------|-------|---------|
-| Statement | String content | [CORE] | Fundamental building blocks that flow through system |
-| Processing unit | AtomicArgumentEntity | [CORE] | Transform input statements to output statements |
-| Statement flow | **Shared ordered set *object references*** | [CORE] | Statements moving from outputs to inputs |
-| Flow container | OrderedSetEntity | [CORE] | Store statements, enable flow when shared |
+| Statement | String content with unique ID | [CORE] | Fundamental building blocks that flow through system |
+| Processing unit | AtomicArgumentEntity with Statement arrays | [CORE] | Transform input statements to output statements |
+| Statement flow | **Statement identity at specific positions** | [CORE] | Statements moving from outputs to inputs |
+| Connection | AtomicArg1.conclusions[i] = AtomicArg2.premises[j] | [CORE] | Same Statement object at specific positions |
 | Node | NodeEntity | [CORE] | Physical instance of processing unit in tree |
 | Tree position | TreeEntity with x,y coordinates | [CORE] | Spatial location of flow network |
 | Attachment | Parent-child relationship with position | [CORE] | How statements flow between nodes |
@@ -44,9 +44,9 @@ Domain concepts exist independently of implementation. A statement IS a building
 
 | User Says | System Does | Layer |
 |-----------|-------------|-------|
-| "Create a processing unit" | Instantiate AtomicArgumentEntity with input/output containers | [CORE] |
+| "Create a processing unit" | Instantiate AtomicArgumentEntity with Statement arrays | [CORE] |
 | "Add to tree" | Create NodeEntity at specific position in physical tree | [CORE] |
-| "Connect these units" | Enable statement flow by sharing OrderedSetEntity containers | [CORE] |
+| "Connect these units" | Enable statement flow by sharing Statement objects at positions | [CORE] |
 | "Show the complete flow network" | Traverse graph for maximal statement flow system | [CORE] |
 | "Save my document" | Persist flow networks via platform file system | [PLATFORM] |
 | "Validate my proof" | Run language server analysis on statement flows | [LSP] |
@@ -85,15 +85,15 @@ Domain-Driven Design requires strict separation between different contexts:
 
 ### "Connections are just string matching"
 **Wrong thinking**: If statement text matches, flow is automatically created.  
-**Right thinking**: Statement flow exists when processing units share the SAME container object (by reference). When users create flow, they're establishing that statements from one unit's output container physically flow into another unit's input container.
+**Right thinking**: Statement flow exists when AtomicArgument1.conclusions[i] equals AtomicArgument2.premises[j] via Statement identity. When users create flow, they're establishing that the same Statement object appears at specific positions in different atomic arguments.
 
 ### "Statement reuse creates flow"
-**Wrong thinking**: If the same statement appears in multiple containers, they're automatically connected.
-**Right thinking**: Statement reuse is independent of flow. The same statement string can appear in many different OrderedSetEntity *container objects* without creating any flow paths. Flow requires shared *container references*, not shared statement content.
+**Wrong thinking**: If the same statement appears in multiple arrays, they're automatically connected.
+**Right thinking**: Statement reuse is independent of flow. The same statement can appear in many different AtomicArgument arrays without creating any flow paths. Flow requires the same Statement object at specific positions, not just shared statement content.
 
 ### "Text matching creates flow"
-**Wrong thinking**: If the same statement appears in multiple containers, flow is automatically created.
-**Right thinking**: Statement reuse is independent of flow. The same statement string can appear in many different OrderedSetEntity *container objects* without creating any flow paths. Flow requires shared *container references*, not shared statement content. The file format uses string matching and YAML anchors *solely as deserialization mechanisms to reconstruct these shared container references at runtime; they do not define the underlying physical flow model*.
+**Wrong thinking**: If the same statement appears in multiple arrays, flow is automatically created.
+**Right thinking**: Statement reuse is independent of flow. The same statement can appear in many different AtomicArgument arrays without creating any flow paths. Flow requires Statement identity at specific positions. The file format uses string matching and YAML anchors *solely as deserialization mechanisms to reconstruct these Statement identity relationships at runtime; they do not define the underlying physical flow model*.
 
 ### "Everything should be technically accurate"
 **Wrong thinking**: User docs should mention graphs, entities, indices.  
@@ -105,10 +105,10 @@ Domain-Driven Design requires strict separation between different contexts:
 - **Tree structure is explicit** [CORE]: Node parent-child relationships form proper trees
 - **Processing units are templates** [CORE]: Can be instantiated multiple times as different nodes
 - **Position determines structure** [CORE]: Tree structure comes from node attachments, not flow connections
-- **Statement flow is implicit** [CORE]: Exists through shared container references, not separate entities
-- **Reference equality matters** [CORE]: Same container object (===), not value equality
+- **Statement flow is positional** [CORE]: Exists through Statement identity at specific array positions
+- **Statement identity matters** [CORE]: Same Statement object (===), not value equality
 - **Flow systems are computed** [CORE]: Not stored as entities
-- **Statement reuse** [CORE]: Same statement strings can appear in multiple containers without flow
-- **Flow vs content separation** [CORE]: Flow is about shared container references, not matching statement content
+- **Statement reuse** [CORE]: Same statement strings can appear in multiple arrays without flow
+- **Flow vs content separation** [CORE]: Flow is about Statement identity at positions, not matching content
 - **Semantic neutrality** [LSP]: Platform manipulates strings; language layers provide meaning
 - **Platform abstraction** [PLATFORM]: Core logic works identically across all platforms

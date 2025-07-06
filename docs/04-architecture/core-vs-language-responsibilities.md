@@ -25,8 +25,8 @@ Platform capabilities are sufficient for all requirements. The real architectura
 |---------|---------|-------------------|----------------|-------|
 | **Data Storage** |
 | YAML file reading/writing | | ✓ | | Proof Editor handles .proof files |
-| Ordered set entities (id, items) | | ✓ | | Core manages ordered set identity |
-| Ordered set reference tracking | | ✓ | | Core tracks statement flow connections |
+| Statement entities (id, content) | | ✓ | | Core manages statement identity |
+| Statement array management | | ✓ | | Core tracks premise/conclusion arrays |
 | Atomic argument data structure | | ✓ | | Core manages argument templates |
 | Atomic argument metadata | | ✓ | | Core handles rule names, timestamps, etc. |
 | Tree positions in document | | ✓ | | Core manages spatial organization |
@@ -34,26 +34,26 @@ Platform capabilities are sufficient for all requirements. The real architectura
 | Validation state per atomic argument | ✓ | | | Platform stores validation results |
 | Version history tracking | ✓ | | | Platform manages document versions |
 | Statement flow tracking | | ✓ | | Core manages physical statement movement |
-| **Ordered Set Management** |
-| Ordered set creation | | ✓ | | Core creates ordered set entities |
-| Ordered set content editing | | ✓ | | Core updates ordered set items |
-| Ordered set reference tracking | | ✓ | | Core maintains statement flow references |
-| Ordered set ID generation | | ✓ | | Core ensures unique IDs |
-| Order preservation | | ✓ | | Core maintains item order |
-| Statement flow connections | | ✓ | | Core manages physical connections between sets |
+| **Statement Array Management** |
+| Statement creation | | ✓ | | Core creates statement entities |
+| Statement content editing | | ✓ | | Core updates statement content |
+| Statement array tracking | | ✓ | | Core maintains premise/conclusion arrays |
+| Statement ID generation | | ✓ | | Core ensures unique IDs |
+| Order preservation | | ✓ | | Core maintains array order |
+| Statement flow connections | | ✓ | | Core manages positional connections |
 | **Visual Rendering** |
 | Canvas management (pan/zoom) | ✓ | | Platform provides viewport |
 | Mini-map rendering | ✓ | | Platform provides document overview |
 | Auto-fit view | ✓ | | Platform fits content to viewport |
 | Atomic argument selection | ✓ | | Platform handles selection state |
-| Ordered set highlighting | ✓ | | Platform shows ordered set usage |
+| Statement highlighting | ✓ | | Platform shows statement usage |
 | Physical tree layout | | ✓ | | Core calculates spatial positioning |
 | Statement flow visualization | | ✓ | | Core determines flow representation |
 | Drawing atomic arguments | | ✓ | JavaScript execution environment defines visual style |
 | Implication line style | | ✓ | User JavaScript code chooses lines, turnstiles, etc. |
 | Premise/conclusion visual arrangement | | ✓ | User JavaScript code decides layout |
 | Side label rendering | | ✓ | User JavaScript code determines position/style |
-| Connection visualization | | ✓ | User JavaScript code draws lines between shared ordered sets |
+| Connection visualization | | ✓ | User JavaScript code draws lines between connected statements |
 | Text formatting within atomic arguments | | ✓ | User JavaScript code handles symbols, wrapping |
 | Validation visual indicators | ✓ | | Platform renders colored borders |
 | What to highlight as errors | | ✓ | Language identifies problems |
@@ -66,10 +66,10 @@ Platform capabilities are sufficient for all requirements. The real architectura
 | Branch from conclusion | | ✓ | | Core creates statement flow connections |
 | Create independent atomic argument | | ✓ | | Core creates unconnected arguments |
 | Navigate between atomic arguments | | ✓ | | Core handles spatial navigation |
-| Navigate to ordered set usage | | ✓ | | Core jumps through statement flow |
+| Navigate to statement usage | | ✓ | | Core jumps through statement flow |
 | Tree position dragging | | ✓ | | Core moves tree spatial positions |
 | Atomic argument deletion | | ✓ | | Core removes from statement flow |
-| Ordered set deletion rules | | ✓ | User JavaScript code decides if unused ordered sets can be deleted |
+| Statement deletion rules | | ✓ | User JavaScript code decides if unused statements can be deleted |
 | Valid branching locations | | ✓ | User JavaScript code defines where new arguments can be created |
 | Context menu options | | ✓ | User JavaScript code provides domain actions |
 | **Text Editing** |
@@ -79,7 +79,7 @@ Platform capabilities are sufficient for all requirements. The real architectura
 | Symbol palette UI | ✓ | | Platform provides palette interface |
 | Symbol palette contents | | ✓ | User JavaScript code defines available symbols |
 | **Logic & Validation** |
-| Ordered set content parsing | | ✓ | User JavaScript code understands logical notation |
+| Statement content parsing | | ✓ | User JavaScript code understands logical notation |
 | Inference rule validation | | ✓ | User JavaScript code checks validity |
 | Real-time validation infrastructure | ✓ | | Platform triggers JavaScript execution via LSP |
 | Validation timing | ✓ | | Platform decides when to execute user JavaScript |
@@ -100,7 +100,7 @@ Platform capabilities are sufficient for all requirements. The real architectura
 | **File Format** |
 | YAML schema definition | ✓ | | Platform defines structure |
 | Serialization/deserialization | ✓ | | Platform handles I/O |
-| Ordered set persistence | ✓ | | Platform saves ordered set table |
+| Statement persistence | ✓ | | Platform saves statement table |
 | Custom metadata fields | | ✓ | Language LSP adds domain fields |
 | Version migration | ✓ | | Platform updates old files |
 | Export infrastructure | ✓ | | Platform provides export system |
@@ -152,11 +152,11 @@ Platform capabilities are sufficient for all requirements. The real architectura
 ## Key Architectural Changes with Statement Flow Model
 
 ### Statement Flow-Based Architecture
-- **Ordered sets** are first-class entities managed by Core, with IDs and ordered items
-- **Atomic arguments** reference ordered set IDs for statement flow connections
-- **Connections** are implicit through shared ordered set references (same object identity)
+- **Statements** are first-class entities managed by Core, with IDs and content
+- **Atomic arguments** contain Statement arrays directly for premise/conclusion connections
+- **Connections** exist when AtomicArg1.conclusions[i] equals AtomicArg2.premises[j] via Statement identity
 - **Physical tree structure** managed by Core with spatial positioning and layout
-- No separate connections table needed - identity sharing creates connections
+- No separate connections table needed - Statement identity at positions creates connections
 
 ### Statement Flow Management
 - **Physical flow**: Core tracks actual statement movement between atomic arguments
@@ -165,16 +165,16 @@ Platform capabilities are sufficient for all requirements. The real architectura
 - **Independent creation**: Core creates unconnected arguments with new ordered sets
 
 ### Data Flow
-1. User types statements → Core creates/updates ordered set
-2. Ordered set gets unique ID → Core manages statement flow references  
-3. Atomic arguments reference ordered set IDs → Core maintains physical relationships
-4. Shared ordered sets create implicit connections → Core determines spatial flow
+1. User types statements → Core creates/updates Statement entities
+2. Statement gets unique ID → Core manages statement identity references  
+3. Atomic arguments contain Statement arrays → Core maintains physical relationships
+4. Shared Statements create implicit connections → Core determines spatial flow
 5. Core provides spatial structure → Platform renders via spatial interaction APIs
 6. Core sends logical structure to Language LSP → LSP provides validation and intelligence
 
 ## Design Principles
 
-1. **Core manages statement flow** - Ordered sets, physical connections, spatial structure
+1. **Core manages statement flow** - Statement arrays, positional connections, spatial structure
 2. **Platform provides interaction APIs** - Spatial input, rendering, file operations
 3. **Language LSP provides semantic meaning** - What's valid, how to display logically  
 4. **Core is logic-agnostic** - Manages physical structure without understanding meaning
@@ -198,22 +198,21 @@ For detailed LSP integration specifications, see [LSP Integration](./language/ls
 ```mermaid
 erDiagram
     Document ||--o{ Tree : contains
-    Document ||--o{ OrderedSet : contains
+    Document ||--o{ Statement : contains
     Tree ||--o{ AtomicArgument : contains
-    AtomicArgument }o--|| OrderedSet : "references as premise set"
-    AtomicArgument }o--|| OrderedSet : "references as conclusion set"
+    AtomicArgument ||--o{ Statement : "references in arrays"
     
-    OrderedSet {
+    Statement {
         string id PK
-        string[] items
+        string content
         datetime created
         datetime modified
     }
     
     AtomicArgument {
         string id PK
-        string premiseSetRef FK
-        string conclusionSetRef FK
+        string[] premises "Statement IDs"
+        string[] conclusions "Statement IDs"
         string rule
         string sideLabel
         number relativeX
@@ -237,7 +236,7 @@ erDiagram
     }
 ```
 
-The key insight: Connections are not stored - they're derived from shared ordered set references (same object).
+The key insight: Connections are not stored - they're derived from Statement identity at positions (AtomicArg1.conclusions[i] = AtomicArg2.premises[j]).
 
 ## Key Platform Features We Leverage Through Abstraction
 

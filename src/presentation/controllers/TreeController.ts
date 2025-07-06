@@ -19,6 +19,7 @@ import type {
   TreeStructureDTO,
 } from '../../application/queries/tree-queries.js';
 import type { CrossContextOrchestrationService } from '../../application/services/CrossContextOrchestrationService.js';
+import type { ProofApplicationService } from '../../application/services/ProofApplicationService.js';
 import { TOKENS } from '../../infrastructure/di/tokens.js';
 import type { IController, ViewResponse } from './IController.js';
 
@@ -126,6 +127,8 @@ export class TreeController implements IController {
     private readonly platform: IPlatformPort,
     @inject(TOKENS.IUIPort)
     private readonly ui: IUIPort,
+    @inject(TOKENS.ProofApplicationService)
+    private readonly proofApplicationService: ProofApplicationService,
   ) {}
 
   async initialize(): Promise<Result<void, ValidationApplicationError>> {
@@ -462,18 +465,28 @@ export class TreeController implements IController {
         command.newTreeId = newTreeId.trim();
       }
 
-      // Mock implementation
+      // Execute real branching through application service
+      const branchResult = await this.proofApplicationService.createBranchFromSelection(command);
+      if (branchResult.isErr()) {
+        return err(new ValidationApplicationError(branchResult.error.message));
+      }
+
+      const newArgument = branchResult.value;
+
+      // Create view DTO from result
       const branchCreationViewDTO: BranchCreationViewDTO = {
-        newNodeId: `node-${Date.now()}`,
+        newNodeId: `node-${newArgument.id}`,
         branchPoint: {
           sourceArgumentId: command.sourceArgumentId,
           position: command.position,
           selectedText: command.selectedText,
         },
-        createdStatements: [`stmt-${Date.now()}`],
+        createdStatements: [
+          ...newArgument.premises.map((p) => p.id),
+          ...newArgument.conclusions.map((c) => c.id),
+        ],
         success: true,
-        ...(command.newTreeId && { newTreeId: command.newTreeId }),
-        ...(!command.newTreeId && { newTreeId: `tree-${Date.now()}` }),
+        newTreeId: command.newTreeId || `tree-${Date.now()}`,
       };
 
       return ok({

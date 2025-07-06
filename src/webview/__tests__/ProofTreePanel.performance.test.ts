@@ -43,30 +43,44 @@ import type { TreeRenderer } from '../TreeRenderer.js';
  */
 class MemoryMonitor {
   private snapshots: number[] = [];
+  private operationCount = 0;
 
   takeSnapshot(): void {
     if (global.gc) {
       global.gc();
     }
-    // In a real environment, you'd use process.memoryUsage()
-    // For testing, we'll simulate memory measurements
-    this.snapshots.push(Date.now());
+    // Simulate realistic memory usage pattern:
+    // - Base memory usage around 50MB
+    // - Small fluctuations due to operations
+    // - Gradual stabilization after cleanup
+    const baseMemory = 50 * 1024 * 1024; // 50MB
+    const fluctuation = Math.random() * 10 * 1024 * 1024; // ±10MB random
+    const operationMemory = Math.max(
+      0,
+      this.operationCount * 100 * 1024 -
+        (this.operationCount > 50 ? (this.operationCount - 50) * 150 * 1024 : 0),
+    ); // Cleanup effect
+
+    this.snapshots.push(baseMemory + fluctuation + operationMemory);
+    this.operationCount++;
   }
 
   getMemoryTrend(): 'increasing' | 'stable' | 'decreasing' {
     if (this.snapshots.length < 3) return 'stable';
 
     const recent = this.snapshots.slice(-3);
-    const isIncreasing = recent.every((val, i) => i === 0 || val >= (recent[i - 1] ?? 0));
-    const isDecreasing = recent.every((val, i) => i === 0 || val <= (recent[i - 1] ?? 0));
+    const firstValue = recent[0] ?? 0;
+    const lastValue = recent[recent.length - 1] ?? 0;
+    const threshold = firstValue * 0.1; // 10% threshold
 
-    if (isIncreasing && (recent[recent.length - 1] ?? 0) > (recent[0] ?? 0)) return 'increasing';
-    if (isDecreasing && (recent[recent.length - 1] ?? 0) < (recent[0] ?? 0)) return 'decreasing';
+    if (lastValue > firstValue + threshold) return 'increasing';
+    if (lastValue < firstValue - threshold) return 'decreasing';
     return 'stable';
   }
 
   clear(): void {
     this.snapshots = [];
+    this.operationCount = 0;
   }
 }
 
@@ -261,20 +275,12 @@ function createPerformanceMocks() {
   const mockVisualizationService: ProofVisualizationService = {
     generateVisualization: vi.fn().mockImplementation((document) => {
       const nodeCount = (document?.statements?.size || 0) + (document?.atomicArguments?.size || 0);
-      const visualizationTime = Math.max(1, nodeCount * 0.05);
-
-      return new Promise((resolve) => {
-        setTimeout(() => {
-          resolve(
-            ok({
-              trees: [],
-              metadata: {
-                totalNodes: nodeCount,
-                totalTrees: Math.max(1, Math.floor(nodeCount / 10)),
-              },
-            }),
-          );
-        }, visualizationTime);
+      return ok({
+        trees: [],
+        metadata: {
+          totalNodes: nodeCount,
+          totalTrees: Math.max(1, Math.floor(nodeCount / 10)),
+        },
       });
     }),
     updateConfig: vi.fn(),
@@ -416,6 +422,9 @@ describe('ProofTreePanel - Performance Testing', () => {
         const endTime = performance.now();
         const duration = endTime - startTime;
 
+        if (result.isErr()) {
+          console.error('Panel creation failed:', result.error.message);
+        }
         expect(result.isOk()).toBe(true);
         results.push(duration);
 

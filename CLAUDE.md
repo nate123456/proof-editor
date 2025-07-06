@@ -699,3 +699,5 @@ RESULT PATTERN ONLY, NO ERROR THROWING.
 Iterating but don't know what to do? cleanup code, find misalignments with dev principles, add test cases that improve the coverage, add integration tests, inspect the code base for misalignmet with core project features. 
 
 UNSAFE UNWRAP IS NOT ACCEPTABLE USE THE RESULT PATTERN.
+
+IN PROOFS, ATOMIC ARGUMENTS CONNECT THROUGH STATEMENT REFs NOT ORDERED SETS; CONNECTION OCCURS THROUGH AN ITEM IN THE PREMISE <-> CONCLUSION.

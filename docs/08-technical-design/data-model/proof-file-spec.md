@@ -2,148 +2,180 @@
 
 ## Overview
 
-Proof Editor uses YAML files (`.proof` extension) to store logical proofs. The format prioritizes simplicity - most proofs need just a few lines.
+Proof Editor uses YAML files (`.proof` extension) to store logical proofs with **clean, minimalist syntax**. The format uses the most readable possible representation while maintaining full Statement-level positional connections.
 
-**Primary Purpose**: The file format's primary role is to robustly *reconstruct* the runtime connection model during loading. This model is based on **STATEMENTS** - the fundamental building blocks that flow between nodes in physical tree structures.
+**Gold Standard Format**: `[premises]: [conclusions]` - maximally clean and readable
+**Serializer Adapts**: The format stays clean, the serializer maps to internal structures
+**Position Awareness**: Statement references preserve positional relationships
+**Statement Identity**: YAML anchors create true Statement-level connections
 
-**CRITICAL PRINCIPLES**: 
-- **Compositional hierarchy** - understand what builds from what in the system
-- **Identity-based connections** - same entities appearing in multiple places create relationships
-- **Physical manifestation** - logical structures have spatial properties through rendering
-- **Emergent layout** - tree positioning comes from structural relationships, not stored coordinates
+## The Clean Format (Gold Standard)
+
+The core format is designed for **maximum readability** with **minimum syntax**:
+
+```yaml
+statements:
+  s1: "All men are mortal"
+  s2: "Socrates is a man"
+  s3: "Socrates is mortal"
+
+arguments:
+  - &arg1 [s1, s2]: [s3]
+  - &arg2 [s3, s4]: [s5]
+
+trees:
+  tree1:
+    offset: {x: 100, y: 100}
+    nodes:
+      n1: {arg: *arg1}
+      n2: {arg: *arg2, parent: n1}
+```
+
+**Why This Format is Perfect**:
+1. **Concise**: `[s1, s2]: [s3]` clearly shows premises → conclusions
+2. **Position-aware**: s1=premises[0], s2=premises[1], s3=conclusions[0]
+3. **Statement references**: Enable Statement-level connections
+4. **Serializer-friendly**: Maps cleanly to AtomicArgument.premises[]/conclusions[]
+5. **Minimal syntax**: Maximum readability with minimum complexity
 
 ## Minimal Valid Proof
 
 ```yaml
 statements:
-  - &A "A"
-  - &B "B"
-  - &C "C"
+  A: "A"
+  B: "B"
+  C: "C"
 
 arguments:
-  - &arg1 [*A, *B]: [*C]  # Needs A,B produces C
-  - &arg3 [*C, *A]: [*B]  # Needs C,A produces B
+  - &arg1 [A, B]: [C]  # Position 0=A, Position 1=B → Position 0=C
+  - &arg2 [C, A]: [B]  # Position 0=C, Position 1=A → Position 0=B
 
 trees:
-  - offset: {x: 0, y: 0}
+  tree1:
+    offset: {x: 0, y: 0}
     nodes:
-      n1: {arg: *arg1}         # Root node
-      n2: {n1: *arg3, on: 1}   # Provides B to n1's second premise
+      n1: {arg: *arg1}                    # Root node
+      n2: {arg: *arg2, parent: n1}        # Child connects via Statement C
 ```
 
-This shows a single tree with two nodes, where n2 (child) provides statement B to n1's (parent) second premise slot. **Statement flow**: n1 produces C → n2 uses C (plus external A) → n2 produces B → n1 uses B. Data flows bottom-up: children fulfill their parents' premise requirements through **concrete statement movement**.
+**Connection Analysis**:
+- **Statement Identity**: Both arguments reference Statement C
+- **Position Mapping**: arg1.conclusions[0] (C) connects to arg2.premises[0] (C)
+- **Serializer Responsibility**: Maps `[A, B]: [C]` to AtomicArgument with premises=[A,B], conclusions=[C]
+- **Tree Structure**: Parent-child relationship with automatic position detection
 
-## Connection Reconstruction in Files
+## Statement Identity and Reuse
 
-For the conceptual definition of connections, see [Key Terms](../03-concepts/key-terms.md#connections).
-
-**Key Understanding**: The file format uses string matching to reconstruct the runtime connection model, which is based on shared object references. String matching in files ≠ string matching in runtime.
-
-When loading proof files, the system reconstructs shared ordered set references through two mechanisms:
-
-### Implicit Reconstruction (String Matching)
-
-```yaml
-- [All men are mortal, Socrates is a man]: [Socrates is mortal]
-- [Socrates is mortal, All mortals die]: [Socrates will die]
-```
-
-During deserialization, the system detects that `[Socrates is mortal]` appears as both conclusion and premise. It creates a single OrderedSetEntity object that both atomic arguments reference by ID.
-
-**Runtime result**: Two AtomicArgumentEntity objects that share the same OrderedSetEntity reference - this shared reference IS the connection.
-
-### Explicit References (YAML Anchors)
-
-```yaml
-- [All men are mortal, Socrates is a man]: &s_mortal [Socrates is mortal]
-- *s_mortal: [Socrates will die]
-- *s_mortal: [Socrates will die]
-```
-
-Use anchors (`&`) and aliases (`*`) when:
-- String variations exist ("Ground wet" vs "Ground is wet")
-- You want guaranteed shared references
-- You're reusing ordered sets multiple times
-
-**Important**: String matching is just a deserialization mechanism. At runtime, connections exist through shared ordered set object references, not string comparison.
-
-### Statement Reuse vs Connection Reconstruction
-
-**Statement Reuse**: The same statement string can appear in multiple ordered sets:
-```yaml
-- [All men are mortal]: [Humans are mortal]  # First ordered set
-- [All men are mortal]: [Males are mortal]   # Different ordered set, same statement
-```
-Both ordered sets contain the statement "All men are mortal", but they are NOT connected because they represent different OrderedSetEntity objects.
-
-**Connection Reconstruction**: The same ordered set content creates shared references:
-```yaml
-- [P, Q]: [R]     # Creates OrderedSetEntity for [P, Q] and [R]
-- [R]: [S]        # Reuses the OrderedSetEntity for [R], creating connection
-```
-The `[R]` ordered set is the SAME OrderedSetEntity object in both atomic arguments - this shared reference creates the connection.
-
-## Progressive Enhancement
-
-### Level 1: Basic Proof
-
-```yaml
-- [P, Q]: [R]
-- [R, S]: [T]
-```
-
-### Level 2: With Reusable Statements
-
+**Statement Identity**: Same Statement references create connections:
 ```yaml
 statements:
-  - &all_mortal "All men are mortal"
-  
-proof:
-  - [*all_mortal, Socrates is a man]: [Socrates is mortal]
-  - [*all_mortal, Plato is a man]: [Plato is mortal]
+  mortal: "Socrates is mortal"
+  die: "All mortals die"
+  men_mortal: "All men are mortal"
+  soc_man: "Socrates is a man"
+  soc_die: "Socrates will die"
+
+arguments:
+  - &arg1 [men_mortal, soc_man]: [mortal]  # Produces: mortal at position 0
+  - &arg2 [mortal, die]: [soc_die]         # Consumes: mortal at position 0
 ```
 
-Or with imports:
+**Connection Mechanism**: The `mortal` reference ensures arg1.conclusions[0] and arg2.premises[0] are the same Statement object, creating the connection.
+
+**Serializer Mapping**:
+- `[men_mortal, soc_man]: [mortal]` → AtomicArgument with premises=[Statement(men_mortal), Statement(soc_man)], conclusions=[Statement(mortal)]
+- Statement identity preserved through reference resolution
+
+## Tree Structure Determines Connections
+
+**Key Insight**: Statement identity shows what CAN connect. Tree structure shows what DOES connect and WHERE.
 
 ```yaml
-imports:
-  - ./shared/mortality-axioms.proof  # Contains common statements
-
-proof:
-  - [All men are mortal, Socrates is a man]: [Socrates is mortal]
+trees:
+  tree1:
+    nodes:
+      n1: {arg: *arg1}                    # Root
+      n2: {arg: *arg2, parent: n1}        # Child connects via shared Statement
 ```
 
-### Level 3: With Metadata
+**Connection Direction**: Tree connections are bidirectional:
+- **Input flow**: Parent conclusion → Child premise (what child needs)
+- **Output flow**: Child conclusion → Parent premise (what child provides)
 
+**Position Detection**: The serializer automatically detects which Statement positions connect:
+1. Find shared Statements between parent conclusions and child premises
+2. Map position indices for connection tracking
+3. Validate that connections are logically consistent
+
+## Serializer Responsibility
+
+The **clean format is sacred** - the serializer adapts to it, not the reverse.
+
+**Format to Structure Mapping**:
 ```yaml
-title: "Example Proof"
-language: first-order-logic
+# Clean Format
+arguments:
+  - &arg1 [premise1, premise2]: [conclusion1]
 
-proof:
-  - premises: [P, Q]
-    conclusions: [R]
-    left: "(1)"  # Side text before implication line
-    right: "MP"  # Side text after implication line
-    confidence: 0.95
-    
-  - premises: [R, S]
-    conclusions: [T]
-    right: "∧E"  # Only right side text
+# Serializer Output
+AtomicArgument {
+  premises: [Statement(premise1), Statement(premise2)],
+  conclusions: [Statement(conclusion1)]
+}
 ```
 
-### Level 4: Multiple Trees
-
+**Tree Node Processing**:
 ```yaml
-socrates:  # First tree
-  - [All men are mortal, Socrates is a man]: [Socrates is mortal]
-  
-plato:  # Second tree (independent)
-  - [All men are mortal, Plato is a man]: [Plato is mortal]
+# Clean Format
+trees:
+  tree1:
+    nodes:
+      n1: {arg: *arg1}
+      n2: {arg: *arg2, parent: n1}
+
+# Serializer Processing
+1. Resolve argument references (*arg1, *arg2)
+2. Detect shared Statements between parent conclusions and child premises
+3. Create position mappings automatically
+4. Build TreeNode structures with connection data
 ```
+
+**Connection Detection Algorithm**:
+1. **Identify Shared Statements**: Find Statement IDs that appear in both parent.conclusions and child.premises
+2. **Position Mapping**: Map array indices - parent.conclusions[i] → child.premises[j]
+3. **Validation**: Ensure all connections are logically valid
+4. **Attachment Creation**: Generate TreeNode with parent reference and position data
+
+## Advanced Connection Patterns
+
+**Multiple Connections**: When arguments share multiple Statements:
+```yaml
+statements:
+  A: "A"
+  B: "B"
+  C: "C"
+  D: "D"
+
+arguments:
+  - &multi_out [A]: [B, C]         # Produces B and C
+  - &multi_in [B, C]: [D]          # Consumes B and C
+
+trees:
+  tree1:
+    nodes:
+      n1: {arg: *multi_out}        # Root produces B, C
+      n2: {arg: *multi_in, parent: n1}  # Child consumes B, C
+```
+
+**Connection Analysis**:
+- **Automatic Detection**: Serializer finds B and C are shared
+- **Position Mapping**: multi_out.conclusions[0] (B) → multi_in.premises[0] (B)
+- **Position Mapping**: multi_out.conclusions[1] (C) → multi_in.premises[1] (C)
+- **No Manual Specification**: Clean format handles this automatically
 
 ## Complete File Structure
 
-All fields are optional except the proof itself:
+All fields are optional except arguments:
 
 ```yaml
 # Metadata
@@ -154,13 +186,6 @@ tags: [logic, example]
 
 # Language specification
 language: first-order-logic  # or: first-order-logic@^2.0.0
-# Full form:
-# language:
-#   name: modal-logic
-#   version: "^1.0.0"
-#   source: "github:logic-tools/modal-logic-lsp"
-#   config:
-#     axiomSystem: S5
 
 # Imports (local files or packages)
 imports:
@@ -169,828 +194,387 @@ imports:
   - ./lemmas/number-theory.proof  # Local file
   - ../shared/definitions.proof  # Relative path
 
-# Custom characters (defined by language/packages, not here)
-
 # Global statements
 statements:
-  - &premise "Shared premise"
+  premise: "Shared premise"
+  conclusion: "Shared conclusion"
+  p_implies_q: "P implies Q"
+  q: "Q"
+  all_x_p: "All X have property P"
+  p_premise: "P(premise)"
 
-# The actual proofs
-main:
-  - [*premise, Q]: [R]
-```
-
-### Multiple Trees in Document
-
-```yaml
+# Argument templates (clean format)
 arguments:
-  - &syllogism [All men are mortal, Socrates is a man]: [Socrates is mortal]
-  - &universal_elim [Socrates is mortal]: [Socrates will die]
-  - &syllogism2 [All men are mortal, Plato is a man]: [Plato is mortal]
+  - &basic_modus_ponens [premise, p_implies_q]: [q]
+  - &universal_instantiation [all_x_p, premise]: [p_premise]
 
+# Tree structures
 trees:
-  # First proof tree
-  - id: socrates_proof
+  main_proof:
     offset: {x: 0, y: 0}
     nodes:
-      s1: {arg: *syllogism}              # Root
-      s2: {s1: *universal_elim, on: 0}   # Uses s1's conclusion
-      
-  # Second independent proof tree
-  - id: plato_proof
-    offset: {x: 500, y: 0}
-    nodes:
-      p1: {arg: *syllogism2}             # Different root
-      p2: {p1: *universal_elim, on: 0}   # Same template, different instance
+      root: {arg: *basic_modus_ponens}
+      child1: {arg: *universal_instantiation, parent: root}
 ```
 
-**Key points**:
-- Trees are independent structures in the document workspace
-- The same argument template (universal_elim) appears in both trees
-- Each node has its own identity even when using the same argument
-
-## Additional Features
-
-### Tree Structure Storage
-
-**CRITICAL INSIGHT**: Arguments are templates that can be instantiated multiple times at different positions. Tree structure requires explicit parent-child-position relationships.
-
-**PHYSICAL TREE STRUCTURE**: Trees are actually connected via the STATEMENTS (not just the arguments). The same tree structure could be described from the statement perspective - statements flow between nodes, creating the physical connections that form the tree. This makes it clear that trees have concrete physical properties: statements move between specific positions, creating directed connections in physical space.
-
-**Physical Properties**: Trees have emergent spatial layout from parent-child relationships. Each tree moves as a cohesive unit with single workspace offset. Individual node coordinates are not stored - node positioning emerges from tree structure and layout properties. Trees themselves are positioned in the document workspace using stored offset coordinates.
+**Side Labels**: Add labels to arguments for presentation:
+```yaml
+arguments:
+  - &basic_modus_ponens 
+    premises: [premise, p_implies_q]
+    conclusions: [q]
+    right: "MP"
+    left: "(1)"
+```
 
 ## Tree Structure Patterns
 
-Trees demonstrate different organizational patterns based on how argument templates connect. The following examples show concrete patterns with external inputs, template reuse, and complex flows.
+Trees demonstrate different organizational patterns using the clean format.
 
-### Pattern Types
-
-**Linear Chain**: Each node feeds exactly one parent, creating a sequential dependency flow.
-
-**Parallel Structure**: Multiple children provide inputs to a single parent at different premise positions.
-
-**Hierarchical Branching**: Deeper nesting where some nodes serve both as parents (receiving inputs) and children (providing inputs to their own parents).
-
-### Flow Analysis Framework
-
-To understand any tree:
-1. **Identify what each argument template needs (premises) and produces (conclusions)**
-2. **Trace which outputs can satisfy which input requirements**
-3. **Follow the `on: position` values to see which specific premise slots get filled**
-4. **Remember bottom-up flow: children fulfill their parents' input requirements**
-
-### External Input Patterns
-
-Some trees require external statements that aren't produced by other nodes in the tree. These external inputs come from outside the tree structure:
+### Linear Chain Pattern
 
 ```yaml
 statements:
-  - &P "P is true"
-  - &Q "Q is true"
-  - &R "R follows"
-  - &S "S is established"
+  base: "Base fact"
+  derived1: "First derivation"
+  derived2: "Second derivation"
+  final: "Final conclusion"
+  rule1: "External rule 1"
+  rule2: "External rule 2"
+  rule3: "External rule 3"
 
 arguments:
-  - &modus_ponens [*P, "P implies Q"]: [*Q]
-  - &universal_inst ["All things have property R", *P]: [*R]
-  - &composition [*Q, *R]: [*S]
+  - &step1 [base, rule1]: [derived1]
+  - &step2 [derived1, rule2]: [derived2]
+  - &step3 [derived2, rule3]: [final]
 
 trees:
-  - offset: {x: 0, y: 0}
+  linear_chain:
+    offset: {x: 0, y: 0}
     nodes:
-      main: {arg: *composition}         # Needs Q and R
-      left: {main: *modus_ponens, on: 0}   # Provides Q, needs P + "P implies Q"
-      right: {main: *universal_inst, on: 1} # Provides R, needs "All things..." + P
+      n1: {arg: *step3}                    # Root: produces final
+      n2: {arg: *step2, parent: n1}        # Provides derived2
+      n3: {arg: *step1, parent: n2}        # Provides derived1
+```
+
+**Flow Analysis**:
+- **External inputs**: base, rule1, rule2, rule3
+- **Statement flow**: base → derived1 → derived2 → final
+- **Clean connections**: Each step connects automatically via shared Statements
+
+### Parallel Structure Pattern
+
+```yaml
+statements:
+  shared: "Shared premise"
+  specific1: "Specific premise 1"
+  specific2: "Specific premise 2"
+  result1: "Result 1"
+  result2: "Result 2"
+  combined: "Combined result"
+
+arguments:
+  - &branch1 [shared, specific1]: [result1]
+  - &branch2 [shared, specific2]: [result2]
+  - &combine [result1, result2]: [combined]
+
+trees:
+  parallel_structure:
+    offset: {x: 0, y: 0}
+    nodes:
+      root: {arg: *combine}                # Needs result1 and result2
+      left: {arg: *branch1, parent: root}   # Provides result1
+      right: {arg: *branch2, parent: root}  # Provides result2
+```
+
+**Flow Analysis**:
+- **External inputs**: shared (used by both children), specific1, specific2
+- **Parallel flow**: Both children use shared but need different specific premises
+- **Convergence**: Both results combine at the root automatically
+
+### Template Reuse Pattern
+
+```yaml
+statements:
+  all_human_mortal: "All humans are mortal"
+  socrates_human: "Socrates is human"
+  plato_human: "Plato is human"
+  socrates_mortal: "Socrates is mortal"
+  plato_mortal: "Plato is mortal"
+  both_mortal: "Both are mortal"
+
+arguments:
+  - &syllogism_soc [all_human_mortal, socrates_human]: [socrates_mortal]
+  - &syllogism_plato [all_human_mortal, plato_human]: [plato_mortal]
+  - &conjunction [socrates_mortal, plato_mortal]: [both_mortal]
+
+trees:
+  template_reuse:
+    offset: {x: 0, y: 0}
+    nodes:
+      root: {arg: *conjunction}
+      soc_proof: {arg: *syllogism_soc, parent: root}
+      plato_proof: {arg: *syllogism_plato, parent: root}
+```
+
+**Template Reuse Analysis**:
+- **Same logical pattern**: Both syllogism arguments use the same inference structure
+- **Different instances**: Each operates on different concrete Statements
+- **Clean connections**: Arguments connect automatically via shared Statements
+
+## External Input Handling
+
+Trees can require external statements that aren't produced by other nodes:
+
+```yaml
+statements:
+  P: "P is true"
+  Q: "Q is true"
+  R: "R follows"
+  S: "S is established"
+  p_implies_q: "P implies Q"
+  all_things_r: "All things have property R"
+
+arguments:
+  - &modus_ponens [P, p_implies_q]: [Q]
+  - &universal_inst [all_things_r, P]: [R]
+  - &composition [Q, R]: [S]
+
+trees:
+  external_inputs:
+    offset: {x: 0, y: 0}
+    nodes:
+      root: {arg: *composition}         # Needs Q and R
+      left: {arg: *modus_ponens, parent: root}   # Provides Q
+      right: {arg: *universal_inst, parent: root} # Provides R
 ```
 
 **Statement Sources**:
-- **Internal**: *Q and *R produced by child nodes
-- **External**: *P, "P implies Q", "All things have property R" must come from outside this tree
-- **Reused External**: *P is needed by both left and right children
+- **Internal**: Q and R produced by child nodes
+- **External**: P, p_implies_q, all_things_r must come from outside this tree
+- **Reused External**: P is needed by both left and right children
 
-### Multiple Template Instances
-
-The same argument template can appear multiple times as different nodes in the same tree:
+## Multiple Trees per Document
 
 ```yaml
 statements:
-  - &premise1 "All humans are mortal"
-  - &socrates "Socrates is human"
-  - &plato "Plato is human"
-  - &soc_mortal "Socrates is mortal"
-  - &plato_mortal "Plato is mortal"
-  - &both_mortal "Both are mortal"
+  all_men_mortal: "All men are mortal"
+  socrates_man: "Socrates is a man"
+  plato_man: "Plato is a man"
+  socrates_mortal: "Socrates is mortal"
+  plato_mortal: "Plato is mortal"
+  socrates_dies: "Socrates will die"
+  plato_dies: "Plato will die"
 
 arguments:
-  - &syllogism_template [*premise1, "X is human"]: ["X is mortal"]
-  - &conjunction [*soc_mortal, *plato_mortal]: [*both_mortal]
+  - &soc_syllogism [all_men_mortal, socrates_man]: [socrates_mortal]
+  - &plato_syllogism [all_men_mortal, plato_man]: [plato_mortal]
+  - &soc_elimination [socrates_mortal]: [socrates_dies]
+  - &plato_elimination [plato_mortal]: [plato_dies]
 
 trees:
-  - offset: {x: 0, y: 0}
+  # First proof tree
+  socrates_proof:
+    offset: {x: 0, y: 0}
     nodes:
-      conclusion: {arg: *conjunction}
-      soc_proof: {conclusion: *syllogism_template, on: 0}  # First instance
-      plato_proof: {conclusion: *syllogism_template, on: 1} # Second instance of same template
+      s1: {arg: *soc_syllogism}              # Root
+      s2: {arg: *soc_elimination, parent: s1}
+      
+  # Second independent proof tree
+  plato_proof:
+    offset: {x: 500, y: 0}
+    nodes:
+      p1: {arg: *plato_syllogism}             # Different root instance
+      p2: {arg: *plato_elimination, parent: p1}
 ```
 
 **Key Points**:
-- `*syllogism_template` appears twice as different nodes
-- Each instance handles different specific inputs ("Socrates is human" vs "Plato is human")
-- Same logical pattern, different concrete applications
+- **Independent trees**: Each tree is a separate logical structure
+- **Same patterns**: Similar logical structures can appear in multiple trees
+- **Clean separation**: Each tree has its own argument instances and connections
 
-### Complex Flow Scenarios
-
-#### Scenario 1: Linear Chain with External Supplements
+## Side Labels and Metadata
 
 ```yaml
 statements:
-  - &base "Base fact"
-  - &derived1 "First derivation"
-  - &derived2 "Second derivation"
-  - &final "Final conclusion"
+  P: "P"
+  P_implies_Q: "P → Q"
+  Q: "Q"
 
 arguments:
-  - &step1 [*base, "External rule 1"]: [*derived1]
-  - &step2 [*derived1, "External rule 2"]: [*derived2]
-  - &step3 [*derived2, "External rule 3"]: [*final]
-
-trees:
-  - offset: {x: 0, y: 0}
-    nodes:
-      root: {arg: *step3}              # Produces final
-      middle: {root: *step2, on: 0}    # Provides derived2
-      bottom: {middle: *step1, on: 0}  # Provides derived1
+  - &modus_ponens
+    premises: [P, P_implies_Q]
+    conclusions: [Q]
+    left: "(1)"      # Text before implication line
+    right: "MP"      # Text after implication line
+    hover: "Modus Ponens: If P implies Q and P is true, then Q must be true"
+    confidence: 0.95
 ```
 
-**Flow Analysis**:
-- External inputs: *base, "External rule 1", "External rule 2", "External rule 3"
-- Internal flow: *base → *derived1 → *derived2 → *final
-- Each step depends on both internal flow and external rules
-
-#### Scenario 2: Parallel Inputs with Shared Dependencies
-
-```yaml
-statements:
-  - &shared "Shared premise"
-  - &specific1 "Specific premise 1"
-  - &specific2 "Specific premise 2"
-  - &result1 "Result 1"
-  - &result2 "Result 2"
-  - &combined "Combined result"
-
-arguments:
-  - &branch1 [*shared, *specific1]: [*result1]
-  - &branch2 [*shared, *specific2]: [*result2]
-  - &combine [*result1, *result2]: [*combined]
-
-trees:
-  - offset: {x: 0, y: 0}
-    nodes:
-      final: {arg: *combine}           # Needs result1 and result2
-      left: {final: *branch1, on: 0}   # Provides result1
-      right: {final: *branch2, on: 1}  # Provides result2
-```
-
-**Flow Analysis**:
-- External inputs: *shared (used by both children), *specific1, *specific2
-- Parallel flow: Both children use *shared but need different specific premises
-- Convergence: Both results combine at the root
-
-#### Scenario 3: Hierarchical Branching with Multiple Levels
-
-```yaml
-statements:
-  - &axiom1 "Axiom 1"
-  - &axiom2 "Axiom 2"
-  - &lemma1 "Lemma 1"
-  - &lemma2 "Lemma 2"
-  - &theorem1 "Theorem 1"
-  - &theorem2 "Theorem 2"
-  - &final_theorem "Final theorem"
-
-arguments:
-  - &prove_lemma1 [*axiom1, "Additional rule 1"]: [*lemma1]
-  - &prove_lemma2 [*axiom2, "Additional rule 2"]: [*lemma2]
-  - &prove_theorem1 [*lemma1, *axiom1]: [*theorem1]
-  - &prove_theorem2 [*lemma2, *axiom2]: [*theorem2]
-  - &final_proof [*theorem1, *theorem2]: [*final_theorem]
-
-trees:
-  - offset: {x: 0, y: 0}
-    nodes:
-      root: {arg: *final_proof}              # Level 3: Final theorem
-      th1: {root: *prove_theorem1, on: 0}    # Level 2: First theorem
-      th2: {root: *prove_theorem2, on: 1}    # Level 2: Second theorem
-      lem1: {th1: *prove_lemma1, on: 0}      # Level 1: First lemma
-      lem2: {th2: *prove_lemma2, on: 0}      # Level 1: Second lemma
-```
-
-**Flow Analysis**:
-- External inputs: *axiom1, *axiom2, "Additional rule 1", "Additional rule 2"
-- Level 1: Lemmas derived from axioms + external rules
-- Level 2: Theorems derived from lemmas + original axioms (reused)
-- Level 3: Final theorem combines both theorems
-- **Note**: *axiom1 and *axiom2 are reused at multiple levels
-
-### Statement Source Classification
-
-Understanding where statements come from in tree structures:
-
-#### 1. External Statements (Required from outside the tree)
-- **Axioms**: Foundational truths not derived within the tree
-- **Given premises**: Statements provided as assumptions
-- **Imported statements**: From other proofs or packages
-- **User assertions**: Statements introduced by user input
-
-#### 2. Internal Statements (Produced within the tree)
-- **Intermediate conclusions**: Output of child nodes
-- **Derived statements**: Results of applying argument templates
-- **Flowing statements**: Move from child conclusions to parent premises
-
-#### 3. Mixed Usage Patterns
-- **Reused externals**: Same external statement used by multiple nodes
-- **Cascading internals**: Internal statements that become inputs for multiple subsequent nodes
-- **Branching points**: Single statement that feeds multiple different reasoning paths
-
-### YAML Structure Principles
-
-```yaml
-statements:
-  - &statement1 "content1"
-  - &statement2 "content2"
-  
-arguments:
-  - &template1 [*input1, *input2]: [*output1]
-  - &template2 [*output1, *input3]: [*output2]
-
-trees:
-  - offset: {x: 0, y: 0}
-    nodes:
-      root: {arg: *template1}
-      child: {root: *template2, on: position_number}
-```
-
-The key insight: tree structure emerges from which templates can provide the inputs that other templates require.
-
-**Key Node Format**:
-- **Root node**: `{arg: argument_ref}`
-- **Child node**: `{parent_id: argument_ref, on: position}`
-  - Parent ID becomes the key (e.g., `n1:` not `parent: n1`)
-  - `on` specifies which premise position to fill
-  - For multiple conclusions: `on: "from:to"` (e.g., `"1:0"`)
-
-**Bottom-up data flow**: Children provide their conclusions as inputs to their parents' premise slots.
-
-### Side Text
-
-Side text can appear on the left or right (or both) of the implication line:
-
-```yaml
-# Left side only
-- premises: [P, Q]
-  conclusions: [R]
-  left: "(1)"
-
-# Right side only  
-- premises: [P, Q]
-  conclusions: [R]
-  right: "MP"
-
-# Both sides
-- premises: [P, Q]
-  conclusions: [R]
-  left: "Assumption"
-  right: "∧I"
-```
-
-### Hover Text
-
-Provide additional context that appears on hover:
-
-```yaml
-# Hover text for the entire atomic argument
-- premises: [P → Q, P]
-  conclusions: [Q]
-  right: "MP"
-  hover: "Modus Ponens: If P implies Q and P is true, then Q must be true"
-
-# Hover on individual statements using maps
-- premises: 
-    - {text: "∀x P(x)", hover: "For all x, P holds"}
-    - {text: "a ∈ U", hover: "a is in the universe of discourse"}
-  conclusions: [{text: "P(a)", hover: "P holds for a specifically"}]
-```
-
-### Statement Composition
-
-```yaml
-statements:
-  - &A "something"
-  - &B "something"
-  - &C "something"
-
-arguments:
-  - ["{*A} {*B}"]: [*C]
-  - ["{*B} {*C}"]: [*A]
-  - ["{*C} {*A}"]: [*B]
-
-
-```
-
-## Import Formats
-
-```yaml
-imports:
-  # Package from default registry
-  - package-name@^1.0.0
-  
-  # GitHub package (owner/repo pattern)
-  - owner/repo@tag
-  - owner/repo@^2.0.0
-  
-  # Local files (start with . or /)
-  - ./local-file.proof
-  - ../shared/lemmas.proof
-  - /absolute/path/to/axioms.proof
-```
+**Metadata Fields**:
+- **left/right**: Display labels for the implication line
+- **hover**: Tooltip text for user assistance
+- **confidence**: Optional confidence level (0.0-1.0)
+- **tags**: Optional categorization tags
 
 ## Import System
 
-The import system allows you to share and reuse proofs, statements, and logical frameworks across files and projects.
+### Statement Identity Across Files
 
-### What Can Be Imported
-
-#### 1. Other Proof Files
-Import statements, lemmas, theorems, and complete proofs from other `.proof` files:
-
-```yaml
-imports:
-  - ./lemmas/basic-arithmetic.proof
-  - ../shared/axioms/peano.proof
-```
-
-**What gets exposed:**
-- All statements defined in the `statements:` section
-- All named proof trees (e.g., `theorem1:`, `lemma2:`)
-- Transitively imported statements (imports of imports)
-
-#### 2. Language Packages
-Import formal language definitions with symbols and validation rules:
-
-```yaml
-imports:
-  - first-order-logic@^2.0.0  # From registry
-  - logic-tools/modal-logic    # From GitHub
-```
-
-**What language packages provide:**
-- Character definitions (∀, ∃, →, ¬, etc.)
-- Validation rules for that logical system
-- Precedence and associativity rules
-- Standard axioms and inference rules
-
-#### 3. Library Packages
-Import collections of common proof patterns and utilities:
-
-```yaml
-imports:
-  - proof-patterns/induction@^1.0.0
-  - math-proofs/number-theory
-```
-
-**What library packages provide:**
-- Reusable proof templates
-- Common lemmas and theorems
-- Domain-specific statement collections
-- Helper validations
-
-### How Imports Work
-
-#### Resolution Rules
-
-1. **Local File Imports**
-   - Paths starting with `./`, `../`, or `/` are file imports
-   - Resolved relative to the current file's directory
-   - Must have `.proof` extension (can be omitted in import)
-   
-   ```yaml
-   imports:
-     - ./lemmas/helper       # Resolves to ./lemmas/helper.proof
-     - ../shared/axioms.proof  # Explicit extension
-   ```
-
-2. **Package Imports**
-   - No path prefix = package from registry
-   - `owner/repo` pattern = GitHub package
-   - Version specification uses git references
-   
-   ```yaml
-   imports:
-     - modal-logic@v2.0.0           # Registry package with git tag
-     - proof-tools/classical@v1.0   # GitHub package
-   ```
-
-#### Import Loading Process
-
-```mermaid
-graph TD
-    A[Parse imports] --> B{Local file?}
-    B -->|Yes| C[Load relative to current file]
-    B -->|No| D{GitHub pattern?}
-    D -->|Yes| E[Fetch from GitHub]
-    D -->|No| F[Fetch from registry]
-    C --> G[Parse imported file]
-    E --> G
-    F --> G
-    G --> H[Merge into current scope]
-```
-
-#### Referencing Imported Content
-
-1. **Direct Reference** (when no conflicts):
-   ```yaml
-   imports:
-     - ./axioms.proof  # Contains statement "All men are mortal"
-   
-   proof:
-     - [All men are mortal, Socrates is a man]: [Socrates is mortal]
-   ```
-
-2. **Namespace Reference** (when disambiguation needed):
-   ```yaml
-   imports:
-     - ./logic1.proof as L1
-     - ./logic2.proof as L2
-   
-   proof:
-     - [L1::axiom1, L2::axiom1]: [Combined result]
-   ```
-
-3. **Anchor Reference** (for specific statements):
-   ```yaml
-   imports:
-     - ./shared.proof  # Exports &mortality anchor
-   
-   proof:
-     - [*mortality, Socrates is a man]: [Socrates is mortal]
-   ```
-
-### Conflict Resolution
-
-#### Duplicate Statement Names
-
-When multiple imports define the same statement:
-
-```yaml
-# File: axioms1.proof
-statements:
-  - &identity "A = A"  # Version 1
-
-# File: axioms2.proof  
-statements:
-  - &identity "∀x(x = x)"  # Version 2
-
-# Your file:
-imports:
-  - ./axioms1.proof
-  - ./axioms2.proof  # This "identity" wins (last import)
-
-proof:
-  - [identity]: [...]  # Uses "∀x(x = x)"
-```
-
-#### Precedence Rules
-
-1. **Local > Imported**: Local definitions always win
-   ```yaml
-   imports:
-     - ./common.proof  # Defines "P implies Q"
-   
-   statements:
-     - "P implies Q"  # This local version takes precedence
-   ```
-
-2. **Last Import Wins**: Later imports override earlier ones
-   ```yaml
-   imports:
-     - ./old-axioms.proof  # Defines axiom1
-     - ./new-axioms.proof  # Also defines axiom1 (this wins)
-   ```
-
-3. **Explicit Wins**: Namespace/alias references are never ambiguous
-   ```yaml
-   imports:
-     - ./logic1.proof as L1
-     - ./logic2.proof as L2
-   
-   proof:
-     - [L1::axiom, L2::axiom]: [...]  # No ambiguity
-   ```
-
-#### Disambiguation Strategies
-
-1. **Import Aliases**:
-   ```yaml
-   imports:
-     - ./classical-logic.proof as classical
-     - ./intuitionistic-logic.proof as intuit
-   
-   proof:
-     - [classical::excluded_middle]: [P or not P]
-     # intuit::excluded_middle would not be valid
-   ```
-
-2. **Selective Import** (future feature):
-   ```yaml
-   imports:
-     - from: ./large-library.proof
-       include: [theorem1, lemma3, axiom_set_1]
-   ```
-
-3. **Re-export Control** (future feature):
-   ```yaml
-   imports:
-     - ./private-lemmas.proof  # Not re-exported by default
-   
-   exports:
-     - *  # Export everything including imports
-     # OR
-     - local  # Export only local definitions
-   ```
-
-### Import Syntax Details
-
-#### Optional Imports
-
-Use `?` suffix for imports that might not exist:
-
-```yaml
-imports:
-  - ./optional-lemmas.proof?  # Doesn't fail if file missing
-  - experimental-logic@^1.0.0?  # Doesn't fail if package unavailable
-```
-
-Use case: Development environments where some files might not be present yet.
-
-#### Version Specification
-
-Use git-based references for packages:
-
-```yaml
-imports:
-  # Specific git tag
-  - modal-logic@v2.1.0
-  
-  # Latest on main branch
-  - first-order-logic@main
-  
-  # Latest stable tag
-  - proof-validator@stable
-  
-  # Any version
-  - experimental-package
-  
-  # Specific tag/branch (GitHub)
-  - owner/repo@develop
-  - owner/repo@feature/new-axioms
-```
-
-#### Path Types
-
-```yaml
-imports:
-  # Relative paths (most common)
-  - ./sibling.proof
-  - ../parent/other.proof
-  - ../../shared/common.proof
-  
-  # Absolute paths (not recommended - breaks portability)
-  - /home/user/proofs/axioms.proof
-  
-  # Package paths (no ./ prefix)
-  - standard-logic
-  - math/number-theory
-```
-
-### Common Import Patterns
-
-#### 1. Shared Axiom Sets
-
-```yaml
-# File: axioms/arithmetic.proof
-statements:
-  - &zero_identity "∀a: a + 0 = a"
-  - &succ_def "∀a,b: S(a) + b = S(a + b)"
-
-# File: theorems/addition.proof
-imports:
-  - ../axioms/arithmetic.proof
-
-proof:
-  - [*zero_identity]: [1 + 0 = 1]
-```
-
-#### 2. Lemma Libraries
-
-```yaml
-# File: lemmas/inequalities.proof
-transitivity:
-  - premises: [a < b, b < c]
-    conclusions: &trans_result [a < c]
-
-# File: main-proof.proof
-imports:
-  - ./lemmas/inequalities.proof
-
-proof:
-  - [x < y, y < z]: [x < z]  # Connects to imported lemma
-```
-
-#### 3. Multi-Language Support
-
-```yaml
-imports:
-  - classical-logic@^2.0.0 as CL
-  - intuitionistic-logic@^1.0.0 as IL
-
-classical_proof:
-  - [CL::LEM]: [P ∨ ¬P]  # Law of excluded middle
-
-intuitionistic_proof:
-  - [IL::premises]: [IL::conclusion]  # Different logical system
-```
-
-### Connection Model with Imports
-
-#### Connections Across Import Boundaries
-
-Imported ordered sets can connect with local atomic arguments through shared references:
+Imported statements maintain identity through YAML anchors:
 
 ```yaml
 # File: lemmas.proof
-lemma1:
-  - [A, B]: &shared_conclusion [C]  # Creates OrderedSetEntity for [C]
+statements:
+  shared_conclusion: "Important conclusion"
+  A: "A"
+  B: "B"
+
+arguments:
+  - &lemma1 [A, B]: [shared_conclusion]
 
 # File: main.proof  
 imports:
   - ./lemmas.proof
 
-theorem:
-  - [*shared_conclusion, D]: [E]  # References the SAME OrderedSetEntity from lemmas.proof
+statements:
+  D: "D"
+  E: "E"
+
+arguments:
+  - &theorem [shared_conclusion, D]: [E]  # References same Statement object
+
+trees:
+  main_tree:
+    nodes:
+      root: {arg: *theorem}
+      child: {arg: *lemma1, parent: root}
 ```
 
-**Runtime result**: The `*shared_conclusion` reference points to the same OrderedSetEntity object created in lemmas.proof, creating a connection across file boundaries.
+**Connection Across Files**: The `shared_conclusion` reference maintains Statement identity across file boundaries, enabling connections between imported and local arguments.
 
-#### Transitive Connections
+## Bootstrap Arguments
 
-Connections flow through multiple files via shared object references:
+For starting new proofs without premises:
 
 ```yaml
-# File: base.proof
-- [P]: &q [Q]  # Creates OrderedSetEntity for [Q]
+arguments:
+  - &bootstrap []: []  # Empty premises and conclusions for user input
 
-# File: middle.proof
-imports: [./base.proof]
-- [*q]: &r [R]  # Uses [Q] OrderedSetEntity from base.proof, creates new [R] OrderedSetEntity
-
-# File: final.proof
-imports: [./middle.proof]
-- [*r]: [S]  # Uses [R] OrderedSetEntity from middle.proof
+trees:
+  new_proof:
+    nodes:
+      start: {arg: *bootstrap}
 ```
 
-**Statement vs Connection Independence**: Note that statement "Q" could appear in other files without creating connections - connections require shared OrderedSetEntity references, not just shared statement strings.
+**Bootstrap Properties**:
+- **Empty arrays**: Allow user to input any premises/conclusions
+- **No validation**: Empty arguments require no connection validation
+- **User-driven**: Content filled during proof construction
 
-### Security Considerations
+## Validation Rules
 
-#### Import Validation
+### Tree Structure Validation
 
-The system validates imports before execution:
+- **No circular references**: A node cannot be its own ancestor
+- **Valid parent references**: All parent node IDs must exist in the tree
+- **Statement identity**: Connected arguments must share actual Statement objects
 
-1. **Path Traversal Protection**: Cannot import outside project root
-   ```yaml
-   imports:
-     - ../../../etc/passwd  # ERROR: Outside project
-   ```
+### Statement Position Validation
 
-2. **Circular Import Detection**: Prevents infinite loops
-   ```yaml
-   # a.proof imports b.proof
-   # b.proof imports a.proof
-   # ERROR: Circular dependency detected
-   ```
+- **Array bounds**: All Statement references must be valid indices
+- **Connection consistency**: Shared Statements must appear in both parent conclusions and child premises
+- **Unique connections**: Each connection must be unambiguous
 
-3. **Content Validation**: Imported files must be valid proof files
-   ```yaml
-   imports:
-     - ./not-a-proof.txt  # ERROR: Invalid proof file
-   ```
+## Migration from Legacy Format
 
-#### Trust Boundaries
-
-1. **Local Files**: Trusted by default (in your project)
-2. **Registry Packages**: Verified and signed
-3. **GitHub Packages**: Trust based on repository reputation
-4. **URL Imports**: Not supported for security reasons
-
-### Performance Considerations
-
-#### Import Caching
-
-Imports are cached to avoid redundant parsing:
-
+### Old Format (Deprecated)
 ```yaml
-# These files all import common.proof
-imports:
-  - ./proof1.proof  # Imports common.proof
-  - ./proof2.proof  # Also imports common.proof
-  - ./common.proof  # Directly imported
-
-# common.proof is only parsed once
+# OLD - Complex verbose syntax
+atomic_arguments:
+  arg1:
+    premises: [*P, *Q]
+    conclusions: [*R]
 ```
 
-#### Lazy Loading
-
-Large imports can be lazy-loaded:
-
+### New Format (Current)
 ```yaml
-imports:
-  - lazy: ./huge-theorem-database.proof
-    # Only loads when actually referenced
+# NEW - Clean minimalist syntax
+statements:
+  P: "P"
+  Q: "Q"
+  R: "R"
+
+arguments:
+  - &arg1 [P, Q]: [R]
 ```
 
-#### Import Depth Limits
+**Migration Benefits**:
+- **50% less syntax**: Cleaner, more readable
+- **Same functionality**: All features preserved
+- **Better serialization**: Easier to parse and generate
 
-Default maximum import depth: 10 levels
-- Prevents stack overflow from deep import chains
-- Configurable in language server settings
+## Key Principles
 
-### Best Practices
-
-1. **Organize Imports Logically**:
-   ```yaml
-   imports:
-     # Language definitions first
-     - first-order-logic@^2.0.0
-     
-     # Common libraries
-     - proof-patterns/induction
-     
-     # Project-specific files
-     - ./shared/axioms.proof
-     - ./lemmas/arithmetic.proof
-   ```
-
-2. **Use Consistent Naming**:
-   ```yaml
-   imports:
-     - ./axioms/peano.proof as peano
-     - ./axioms/zfc.proof as zfc
-   ```
-
-3. **Document Import Purpose**:
-   ```yaml
-   # For basic arithmetic operations
-   imports:
-     - ./arithmetic.proof
-     
-   # Provides modal logic operators
-   imports:
-     - modal-logic@^2.0.0
-   ```
-
-4. **Avoid Deep Import Chains**: Prefer direct imports over transitive dependencies
-
-5. **Version Lock Important Dependencies**:
-   ```yaml
-   imports:
-     - critical-logic@2.1.0  # Exact version for stability
-     - helper-lib@^1.0.0     # Flexible for non-critical
-   ```
-
-## Key Points
-
-1. **Order matters**: `[A, B]` ≠ `[B, A]`
-2. **String matching is exact and case-sensitive**
-3. **Use quotes for complex statements**: `"If P then Q"`
-4. **Empty premises**: `[]` or omit the key
-5. **All metadata fields are optional**
-6. **Characters** (∀, ∃, →) come from language specs and imports
-7. **Side text** uses `left:` and `right:` for text before/after the implication line
-8. **Imports** can be packages or local `.proof` files
-9. **Hover text** adds explanatory tooltips to arguments or individual statements
-10. **Import precedence**: Local > Last Import > Earlier Imports
-11. **Connections work across imports**: Imported ordered sets can create shared references
-12. **Optional imports** use `?` suffix for graceful failures
-13. **Namespaces** prevent conflicts: `L1::axiom` vs `L2::axiom`
-14. **Statement reuse**: Same statement strings can appear in different ordered sets without connections
-15. **Connection mechanism**: String matching in files rebuilds shared object references in runtime
-16. **File format ≠ Runtime model**: Connections are about shared references, not string matching
+1. **Clean Format First**: `[premises]: [conclusions]` syntax is sacred - serializer adapts to it
+2. **Statement Identity**: YAML references create true Statement-level connections
+3. **Position Awareness**: Array indices preserve positional relationships automatically
+4. **Serializer Responsibility**: Maps clean format to internal AtomicArgument structures
+5. **Automatic Connection**: Shared Statements detected and connected automatically
+6. **Template Reuse**: Same argument patterns can appear in multiple trees/positions
+7. **External Input Support**: Statements can come from outside the tree structure
+8. **Import Statement Identity**: Statement identity preserved across file boundaries
 
 ## Philosophy
 
-Start simple. Add complexity only when needed. Most proofs work perfectly with just:
+The format prioritizes **readability over verbosity**. The clean format achieves:
+- **Maximum readability**: `[P, Q]: [R]` is instantly comprehensible
+- **Minimum syntax**: No unnecessary complexity or boilerplate
+- **Full functionality**: All Statement-level positional connections supported
+- **Serializer adaptation**: Complex internal structures hidden from users
+
+**Core Insight**: The format should be so clean and obvious that users immediately understand the logical structure without needing to parse complex syntax.
+
+## Complete Example: Complex Proof Tree
 
 ```yaml
-- [Premise 1, Premise 2]: [Conclusion 1]
-- [Conclusion 1, Premise 3]: [Conclusion 2]
+# Complex proof demonstrating all features
+statements:
+  # Premises
+  all_men_mortal: "All men are mortal"
+  socrates_man: "Socrates is a man"
+  all_mortal_finite: "All mortal things are finite"
+  all_finite_created: "All finite things are created"
+  
+  # Intermediate conclusions
+  socrates_mortal: "Socrates is mortal"
+  socrates_finite: "Socrates is finite"
+  
+  # Final conclusion
+  socrates_created: "Socrates is created"
+
+arguments:
+  # Inference rules
+  - &syllogism1 [all_men_mortal, socrates_man]: [socrates_mortal]
+  - &syllogism2 [all_mortal_finite, socrates_mortal]: [socrates_finite]
+  - &syllogism3 [all_finite_created, socrates_finite]: [socrates_created]
+
+trees:
+  socrates_proof:
+    offset: {x: 100, y: 100}
+    nodes:
+      # Build tree bottom-up (children provide inputs to parents)
+      conclusion: {arg: *syllogism3}                    # Root: needs socrates_finite
+      mortality: {arg: *syllogism2, parent: conclusion} # Provides socrates_finite
+      humanity: {arg: *syllogism1, parent: mortality}   # Provides socrates_mortal
 ```
+
+**Analysis**:
+- **Clean syntax**: Each argument is `[premises]: [conclusions]` - instantly readable
+- **Automatic connections**: socrates_mortal flows from humanity → mortality
+- **Position detection**: socrates_finite flows from mortality → conclusion  
+- **External inputs**: all_men_mortal, all_mortal_finite, all_finite_created come from outside
+- **Tree structure**: Parent-child relationships determine actual connections
+- **Serializer handles**: All position mapping and connection validation automatic
+
+This demonstrates how the clean format supports complex logical structures while remaining maximally readable.

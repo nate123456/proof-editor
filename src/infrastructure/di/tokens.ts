@@ -26,6 +26,7 @@ export const TOKENS = {
   StatementFlowService: 'StatementFlowService',
   StatementProcessingService: 'StatementProcessingService',
   TreeStructureService: 'TreeStructureService',
+  IGraphTraversalService: 'IGraphTraversalService',
 
   // Transaction services
   IProofTransactionService: 'IProofTransactionService',

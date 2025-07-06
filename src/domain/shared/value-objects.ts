@@ -24,6 +24,9 @@ export abstract class ValueObject<T> {
   constructor(protected readonly value: T) {}
 
   equals(other: ValueObject<T>): boolean {
+    if (other === null || other === undefined) {
+      return false;
+    }
     return this.value === other.value;
   }
 
@@ -778,4 +781,31 @@ export class ProofDocumentId extends ValueObject<BrandedProofDocumentId> {
   static fromString(value: string): Result<ProofDocumentId, ValidationError> {
     return ProofDocumentId.create(value);
   }
+}
+
+// Domain Enums - Strong typing for business logic primitives
+
+export enum ArgumentRole {
+  PREMISE = 'premise',
+  CONCLUSION = 'conclusion',
+}
+
+export enum ValidationStatus {
+  VALID = 'valid',
+  INVALID = 'invalid',
+  PENDING = 'pending',
+  NOT_VALIDATED = 'not_validated',
+}
+
+export enum ConnectionInconsistencyType {
+  MISSING_PREMISE = 'missing_premise',
+  DANGLING_CONCLUSION = 'dangling_conclusion',
+  TYPE_MISMATCH = 'type_mismatch',
+  CIRCULAR_DEPENDENCY = 'circular_dependency',
+}
+
+export enum CycleSeverity {
+  LOW = 'low',
+  MEDIUM = 'medium',
+  HIGH = 'high',
 }

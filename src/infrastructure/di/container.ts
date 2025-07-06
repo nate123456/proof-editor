@@ -282,6 +282,17 @@ export async function registerDomainServices(container: ApplicationContainer): P
 
   container.registerFactory(TOKENS.TreeStructureService, () => new TreeStructureService());
 
+  // Register graph traversal service
+  const { ProofGraphAdapter } = await import('../graph/ProofGraphAdapter.js');
+  container.registerFactory(
+    TOKENS.IGraphTraversalService,
+    (c) =>
+      new ProofGraphAdapter(
+        c.resolve(TOKENS.INodeRepository),
+        c.resolve(TOKENS.IAtomicArgumentRepository),
+      ),
+  );
+
   // Register transaction services with default config
   container.registerFactory(TOKENS.ProofTransactionService, () => new ProofTransactionService());
 

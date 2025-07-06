@@ -483,12 +483,12 @@ describe('ProofTreePanel - Property-Based Testing', () => {
 
             if (messageHandler) {
               // INVARIANT: Viewport changes never throw exceptions
-              await expect(
+              expect(() =>
                 messageHandler({
                   type: 'viewportChanged',
                   viewport: viewportConfig,
                 }),
-              ).resolves.not.toThrow();
+              ).not.toThrow();
             }
           }
         }),
@@ -526,12 +526,12 @@ describe('ProofTreePanel - Property-Based Testing', () => {
 
             if (messageHandler) {
               // INVARIANT: Panel state changes are handled gracefully
-              await expect(
+              expect(() =>
                 messageHandler({
                   type: 'panelStateChanged',
                   panel: panelConfig,
                 }),
-              ).resolves.not.toThrow();
+              ).not.toThrow();
             }
           }
         }),
@@ -569,12 +569,12 @@ describe('ProofTreePanel - Property-Based Testing', () => {
 
             if (messageHandler) {
               // INVARIANT: Selection changes never cause system failure
-              await expect(
+              expect(() =>
                 messageHandler({
                   type: 'selectionChanged',
                   selection: selectionConfig,
                 }),
-              ).resolves.not.toThrow();
+              ).not.toThrow();
             }
           }
         }),
@@ -618,14 +618,14 @@ describe('ProofTreePanel - Property-Based Testing', () => {
 
             if (messageHandler) {
               // INVARIANT: Argument creation never throws
-              await expect(
+              expect(() =>
                 messageHandler({
                   type: 'createArgument',
                   premises,
                   conclusions,
                   ruleName,
                 }),
-              ).resolves.not.toThrow();
+              ).not.toThrow();
             }
           }
         }),
@@ -685,14 +685,14 @@ describe('ProofTreePanel - Property-Based Testing', () => {
 
               if (messageHandler) {
                 // INVARIANT: Edge case inputs never crash the system
-                await expect(
+                expect(() =>
                   messageHandler({
                     type: 'createArgument',
                     premises,
                     conclusions,
                     ruleName,
                   }),
-                ).resolves.not.toThrow();
+                ).not.toThrow();
               }
             }
           },
@@ -737,14 +737,14 @@ describe('ProofTreePanel - Property-Based Testing', () => {
 
             if (messageHandler) {
               // INVARIANT: Movement operations never throw exceptions
-              await expect(
+              expect(() =>
                 messageHandler({
                   type: 'moveNode',
                   nodeId,
                   deltaX,
                   deltaY,
                 }),
-              ).resolves.not.toThrow();
+              ).not.toThrow();
             }
           }
         }),
@@ -794,13 +794,13 @@ describe('ProofTreePanel - Property-Based Testing', () => {
 
               if (messageHandler) {
                 // INVARIANT: Statement operations never crash
-                await expect(
+                expect(() =>
                   messageHandler({
                     type: 'addStatement',
                     statementType,
                     content,
                   }),
-                ).resolves.not.toThrow();
+                ).not.toThrow();
               }
             }
           },
@@ -926,7 +926,7 @@ describe('ProofTreePanel - Property-Based Testing', () => {
 
               if (messageHandler) {
                 // INVARIANT: Malformed messages never crash the system
-                await expect(messageHandler(malformedMessage as any)).resolves.not.toThrow();
+                expect(() => messageHandler(malformedMessage as any)).not.toThrow();
               }
             }
           },

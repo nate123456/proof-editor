@@ -6,9 +6,9 @@ For all domain definitions, see [Key Terms](../03-concepts/key-terms.md).
 
 Proof Editor implements a **statement-centered building block model** where:
 - **Statements** are the fundamental building blocks (reusable text with unique IDs)
-- **Ordered sets** collect statements for premise/conclusion groupings
-- **Atomic arguments** relate premise ordered sets to conclusion ordered sets
-- **Connections** exist through shared ordered set object references
+- **Statement arrays** collect statements for premise/conclusion groupings
+- **Atomic arguments** contain premise and conclusion Statement arrays directly
+- **Connections** exist when AtomicArg1.conclusions[i] equals AtomicArg2.premises[j] via Statement identity
 - **Trees** have physical properties affecting statement flow and spatial positioning
 
 ## From File Format to Runtime Model: Reconstructing Connections
@@ -39,9 +39,9 @@ proof:
         - statements: [s4]
 ```
 
-### Runtime Model: Statement-Based Object References
+### Runtime Model: Statement-Based Positional Connections
 ```typescript
-// Runtime - statement building blocks with connection model
+// Runtime - statement building blocks with positional connection model
 const statements = new Map([
   ['s1', new StatementEntity('s1', "All men are mortal")],
   ['s2', new StatementEntity('s2', "Socrates is a man")],
@@ -49,31 +49,29 @@ const statements = new Map([
   ['s4', new StatementEntity('s4', "Socrates will die")]
 ]);
 
-const sharedOrderedSet = new OrderedSetEntity(['s3']); // Contains statement ID
-
 const arg1 = new AtomicArgumentEntity({
-  premiseOrderedSet: new OrderedSetEntity(['s1', 's2']),  // Statement IDs
-  conclusionOrderedSet: sharedOrderedSet  // Reference to same object
+  premises: ['s1', 's2'],     // Statement IDs in premise array
+  conclusions: ['s3']         // Statement IDs in conclusion array
 });
 
 const arg2 = new AtomicArgumentEntity({
-  premiseOrderedSet: sharedOrderedSet,    // Reference to same object
-  conclusionOrderedSet: new OrderedSetEntity(['s4'])
+  premises: ['s3'],           // Same Statement ID as arg1.conclusions[0]
+  conclusions: ['s4']
 });
 
-// Connection exists because arg1.conclusionOrderedSet === arg2.premiseOrderedSet
-// Statements are reusable building blocks referenced by ID
+// Connection exists because arg1.conclusions[0] === arg2.premises[0] (both 's3')
+// Statements are reusable building blocks at specific positions
 ```
 
 ### Key Insight: Statements as Building Blocks ≠ Connection Model
 
-The file format uses statement IDs and YAML anchors to **reconstruct** the runtime object-reference-based connection model during loading. Statements are reusable building blocks with unique IDs - the true connections exist only as shared OrderedSetEntity object references in memory.
+The file format uses statement IDs and YAML anchors to **reconstruct** the runtime positional connection model during loading. Statements are reusable building blocks with unique IDs - the true connections exist when the same Statement object appears at specific positions in different atomic arguments.
 
-**Critical Understanding**: The `.proof` file's statement references describe how to rebuild the runtime connections, but the connections themselves are the shared `OrderedSetEntity` objects that contain statement IDs, not the statement content itself.
+**Critical Understanding**: The `.proof` file's statement references describe how to rebuild the runtime connections, but the connections themselves are Statement identity relationships at specific array positions, not the statement content itself.
 
-## Core Principle: Ordered Set-Based Connections
+## Core Principle: Statement-Level Positional Connections
 
-Connections exist through shared ordered set objects. When atomic arguments share the SAME ordered set reference, they are connected.
+Connections exist through Statement identity at specific positions. When AtomicArg1.conclusions[i] equals AtomicArg2.premises[j] via Statement identity, they are connected.
 
 ## Data Structure
 
@@ -84,15 +82,10 @@ erDiagram
         string content "reusable text content"
         json metadata
     }
-    ORDERED_SET {
-        string id PK
-        string[] statement_ids "ordered array of statement IDs"
-        json metadata
-    }
     ATOMIC_ARGUMENT {
         string id PK
-        string premise_set_ref FK
-        string conclusion_set_ref FK
+        string[] premises "ordered array of Statement IDs"
+        string[] conclusions "ordered array of Statement IDs"
         json metadata
     }
     NODE {
@@ -116,15 +109,14 @@ erDiagram
         json metadata
     }
     
-    STATEMENT ||--o{ ORDERED_SET : "referenced by ID"
-    ORDERED_SET ||--o{ ATOMIC_ARGUMENT : "referenced as premise/conclusion"
+    STATEMENT ||--o{ ATOMIC_ARGUMENT : "referenced in arrays"
     ATOMIC_ARGUMENT ||--o{ NODE : "instantiated as"
     NODE ||--o{ NODE : "parent-child"
     TREE ||--o{ NODE : "contains"
     DOCUMENT ||--o{ TREE : "contains"
 ```
 
-No CONNECTION table needed - logical connections emerge from shared ordered set references.
+No CONNECTION table needed - logical connections emerge from Statement identity at positions.
 Tree structure is explicit through NODE parent-child relationships.
 
 ## Statement Flow Mechanics
@@ -220,11 +212,11 @@ interface FlowBottleneck {
 
 ## Implementation Notes
 
-- **Ordered Sets**: Entities with IDs, contain ordered arrays of statement strings
-- **Atomic Arguments**: Reference OrderedSet IDs (nullable) - serve as templates AND statement processors
+- **Statement Arrays**: Ordered collections directly in AtomicArgument entities
+- **Atomic Arguments**: Contain Statement arrays directly - serve as templates AND statement processors
 - **Nodes**: Instances of atomic arguments positioned in trees with parent-child relationships AND statement flow capabilities
 - **Trees**: Explicit structures with positions in document workspace AND statement processing networks
-- **Connections**: No separate entities - discovered through shared ordered set references AND statement flow pathways
+- **Connections**: No separate entities - discovered through Statement identity at positions AND statement flow pathways
 - **Arguments**: Computed by traversing logical connections (not tree structure) AND statement flow analysis
 - **Statement Flow**: Physical mechanism where statements move through processing nodes in spatial tree networks
 
@@ -238,7 +230,7 @@ interface FlowBottleneck {
 
 ## Key Operations
 
-**Creating Connections**: New atomic argument's premise set reference = parent's conclusion set reference (same object) AND establish statement flow pipeline
+**Creating Connections**: New atomic argument's premises[j] = parent's conclusions[i] (same Statement ID) AND establish statement flow pipeline
 
 **Creating Tree Structure**: 
 1. Create node instance with argument reference
@@ -247,7 +239,7 @@ interface FlowBottleneck {
 4. Initialize statement flow interfaces for the node
 5. Establish spatial positioning for statement routing
 
-**Discovering Connections**: Check reference equality between atomic arguments' ordered sets AND trace statement flow pathways
+**Discovering Connections**: Check Statement identity at positions between atomic arguments AND trace statement flow pathways
 
 **Building Trees**: Follow parent-child relationships between nodes AND construct statement processing networks
 
@@ -267,8 +259,7 @@ interface FlowBottleneck {
 
 **Stored**: 
 - Statements (reusable text building blocks with unique IDs)
-- Ordered sets (collections of statement ID references)
-- Atomic arguments (templates with premise/conclusion ordered set references)
+- Atomic arguments (templates with premise/conclusion Statement arrays)
 - Nodes (instances with parent-child relationships)
 - Trees (with document positions and physical properties)
 - Documents
@@ -276,7 +267,7 @@ interface FlowBottleneck {
 - Tree physical properties (affecting statement flow and spatial behavior)
 
 **Computed**: 
-- Logical connections (from shared ordered set references)
+- Logical connections (from Statement identity at positions)
 - Arguments (path-complete sets)
 - Node positions (from tree structure and layout algorithm)
 - Statement content display (from statement ID lookups)
@@ -293,13 +284,9 @@ Stored data:
     s2: {id: "s2", content: "A→B"},
     s3: {id: "s3", content: "B"}
   }
-- OrderedSets: {
-    os1: {id: "os1", statementIds: ["s1", "s2"]},
-    os2: {id: "os2", statementIds: ["s3"]}
-  }
 - AtomicArgument aa1: {
-    premiseSetRef: "os1",
-    conclusionSetRef: "os2"
+    premises: ["s1", "s2"],
+    conclusions: ["s3"]
   }
 
 Step 2: Branch operation creates new atomic argument with statement building blocks
@@ -307,19 +294,16 @@ New data added:
 - Statements: {
     s4: {id: "s4", content: "C"}     // New statement building block
   }
-- OrderedSets: {
-    os3: {id: "os3", statementIds: ["s4"]}
-  }
 - AtomicArgument aa2: {
-    premiseSetRef: "os2",      ← SAME reference as aa1's conclusion!
-    conclusionSetRef: "os3"
+    premises: ["s3"],        ← SAME Statement ID as aa1's conclusions[0]!
+    conclusions: ["s4"]
   }
 
 The connection is implicit through shared statement building blocks: 
-- aa1.conclusionSetRef === aa2.premiseSetRef (both are "os2")
-- They share the SAME ordered set object containing statement ID "s3"
-- Statement s3 ("B") creates the logical connection
-- Therefore aa1 → aa2 connection exists through shared statement building block.
+- aa1.conclusions[0] === aa2.premises[0] (both are "s3")
+- They share the SAME Statement object at specific positions
+- Statement s3 ("B") creates the logical connection at positions
+- Therefore aa1 → aa2 connection exists through shared Statement identity.
 
 Step 3: Physical tree properties affect layout and visualization
 Tree data added:

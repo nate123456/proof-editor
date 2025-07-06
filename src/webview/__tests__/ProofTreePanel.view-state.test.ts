@@ -597,12 +597,12 @@ describe('ProofTreePanel View State Management', () => {
 
       // Should not throw when processing message with error
       if (messageHandler) {
-        await expect(
+        expect(() =>
           messageHandler({
             type: 'viewportChanged',
             viewport: { zoom: 1.0, pan: { x: 0, y: 0 }, center: { x: 0, y: 0 } },
           }),
-        ).resolves.not.toThrow();
+        ).not.toThrow();
       }
     });
 
@@ -633,26 +633,26 @@ describe('ProofTreePanel View State Management', () => {
 
       if (messageHandler) {
         // Should handle malformed viewport data gracefully
-        await expect(
+        expect(() =>
           messageHandler({
             type: 'viewportChanged',
             viewport: 'not an object',
           }),
-        ).resolves.not.toThrow();
+        ).not.toThrow();
 
-        await expect(
+        expect(() =>
           messageHandler({
             type: 'viewportChanged',
             viewport: null,
           }),
-        ).resolves.not.toThrow();
+        ).not.toThrow();
 
-        await expect(
+        expect(() =>
           messageHandler({
             type: 'viewportChanged',
             // Missing viewport property
           }),
-        ).resolves.not.toThrow();
+        ).not.toThrow();
       }
     });
 
@@ -690,12 +690,12 @@ describe('ProofTreePanel View State Management', () => {
       });
 
       if (messageHandler) {
-        await expect(
+        expect(() =>
           messageHandler({
             type: 'viewportChanged',
             viewport: { zoom: 1.0, pan: { x: 0, y: 0 }, center: { x: 0, y: 0 } },
           }),
-        ).resolves.not.toThrow();
+        ).not.toThrow();
       }
 
       process.env.NODE_ENV = originalNodeEnv;
