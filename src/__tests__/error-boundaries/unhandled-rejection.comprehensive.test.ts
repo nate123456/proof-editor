@@ -14,13 +14,14 @@
  */
 
 import { err, ok, type Result } from 'neverthrow';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { IFileSystemPort } from '../../application/ports/IFileSystemPort.js';
 import type { IPlatformPort } from '../../application/ports/IPlatformPort.js';
 import type { IUIPort } from '../../application/ports/IUIPort.js';
 import { DocumentQueryService } from '../../application/services/DocumentQueryService.js';
 import { ProofApplicationService } from '../../application/services/ProofApplicationService.js';
+import { DocumentContent } from '../../domain/shared/value-objects/index.js';
 
 /**
  * Global unhandled rejection tracker for test validation
@@ -130,7 +131,6 @@ describe('Unhandled Promise Rejection Detection', () => {
         exists: vi.fn(),
         delete: vi.fn(),
         findAll: vi.fn(),
-        nextIdentity: vi.fn(),
       };
       const mockParser = {
         parse: vi.fn(),
@@ -168,7 +168,6 @@ describe('Unhandled Promise Rejection Detection', () => {
           exists: vi.fn(),
           delete: vi.fn(),
           findAll: vi.fn(),
-          nextIdentity: vi.fn(),
         } as any,
         mockParser as any,
       );
@@ -204,10 +203,17 @@ describe('Unhandled Promise Rejection Detection', () => {
 
     it('should handle Promise.all() scenarios with partial failures', async () => {
       // Arrange - some operations succeed, some fail
+      const content1 = DocumentContent.create('file1 content');
+      const content3 = DocumentContent.create('file3 content');
+
+      if (content1.isErr() || content3.isErr()) {
+        throw new Error('Failed to create test DocumentContent');
+      }
+
       vi.mocked(mockFileSystemPort.readFile)
-        .mockResolvedValueOnce(ok('file1 content'))
+        .mockResolvedValueOnce(ok(content1.value))
         .mockRejectedValueOnce(new Error('file2 error'))
-        .mockResolvedValueOnce(ok('file3 content'));
+        .mockResolvedValueOnce(ok(content3.value));
 
       // Act - service should handle partial failures gracefully
       const files = ['/file1.md', '/file2.md', '/file3.md'];

@@ -15,13 +15,8 @@ export interface StatementUpdatedEventData {
 
 export interface AtomicArgumentEventData {
   argumentId: string;
-  premiseSetId: string | null;
-  conclusionSetId: string | null;
-}
-
-export interface OrderedSetSharedEventData {
-  orderedSetId: string;
-  usages: string[];
+  premiseIds: string[];
+  conclusionIds: string[];
 }
 
 // Application layer event types that presentation layer can safely use
@@ -36,7 +31,6 @@ export type StatementCreatedEvent = ApplicationEvent<StatementEventData>;
 export type StatementUpdatedEvent = ApplicationEvent<StatementUpdatedEventData>;
 export type StatementDeletedEvent = ApplicationEvent<StatementEventData>;
 export type AtomicArgumentCreatedEvent = ApplicationEvent<AtomicArgumentEventData>;
-export type OrderedSetBecameSharedEvent = ApplicationEvent<OrderedSetSharedEventData>;
 
 // Event mapping utilities for converting domain events to application events
 export function mapToApplicationEvent<T>(domainEvent: {

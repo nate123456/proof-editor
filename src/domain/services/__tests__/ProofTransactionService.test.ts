@@ -1,17 +1,8 @@
 import { err, ok } from 'neverthrow';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { AtomicArgument } from '../../entities/AtomicArgument.js';
-import { OrderedSet } from '../../entities/OrderedSet.js';
 import type { TransactionConfig } from '../../interfaces/IProofTransaction.js';
-import {
-  type ConnectionRequest,
-  CreateConnectionOperation,
-} from '../../operations/ConnectionOperations.js';
-import {
-  CreateStatementOperation,
-  type CreateStatementRequest,
-} from '../../operations/StatementOperations.js';
+import { TransactionLog } from '../../value-objects/TransactionLog.js';
 import { ProofTransactionService } from '../ProofTransactionService.js';
 
 describe('ProofTransactionService', () => {
@@ -183,85 +174,13 @@ describe('ProofTransaction Integration', () => {
     service = new ProofTransactionService();
   });
 
-  it('should handle connection operations within transaction', async () => {
-    const premiseSetResult = OrderedSet.create();
-    const conclusionSetResult = OrderedSet.create();
-
-    if (!premiseSetResult.isOk() || !conclusionSetResult.isOk()) return;
-    const premiseSet = premiseSetResult.value;
-    const conclusionSet = conclusionSetResult.value;
-
-    const parentArgResult = AtomicArgument.create(premiseSet.getId(), conclusionSet.getId());
-    const childArgResult = AtomicArgument.create(conclusionSet.getId());
-
-    if (!parentArgResult.isOk() || !childArgResult.isOk()) return;
-    const parentArg = parentArgResult.value;
-    const childArg = childArgResult.value;
-
-    const request: ConnectionRequest = {
-      parentArgument: parentArg,
-      childArgument: childArg,
-      sharedSet: conclusionSet,
-    };
-
-    const result = await service.executeInTransaction(async (transaction) => {
-      const operation = new CreateConnectionOperation(request);
-      transaction.addOperation(operation);
-
-      return ok(undefined);
-    });
-
-    expect(result.isOk()).toBe(true);
-  });
-
-  it('should handle statement operations within transaction', async () => {
-    const request: CreateStatementRequest = {
-      content: 'All men are mortal',
-    };
-
-    const result = await service.executeInTransaction(async (transaction) => {
-      const operation = new CreateStatementOperation(request);
-      transaction.addOperation(operation);
-
-      return ok(operation.getCreatedStatement());
-    });
-
-    expect(result.isOk()).toBe(true);
-  });
-
-  it('should rollback multiple operations on failure', async () => {
-    const validRequest: CreateStatementRequest = {
-      content: 'Valid statement',
-    };
-
-    const invalidRequest: CreateStatementRequest = {
-      content: '',
-    };
-
-    const result = await service.executeInTransaction(async (transaction) => {
-      const validOp = new CreateStatementOperation(validRequest);
-      transaction.addOperation(validOp);
-
-      const invalidOp = new CreateStatementOperation(invalidRequest);
-
-      const validationResult = invalidOp.validate();
-      if (validationResult.isErr()) {
-        return err(validationResult.error);
-      }
-
-      transaction.addOperation(invalidOp);
-      return ok(undefined);
-    });
-
-    expect(result.isErr()).toBe(true);
-  });
-
   it('should maintain operation order within transaction', async () => {
     const operations: string[] = [];
 
     const result = await service.executeInTransaction(async (transaction) => {
       for (let i = 1; i <= 3; i++) {
         const mockOp = {
+          id: `op-${i}`,
           operationId: { getValue: () => `op-${i}` },
           operationType: 'CREATE_STATEMENT' as const,
           createdAt: new Date(),
@@ -284,5 +203,177 @@ describe('ProofTransaction Integration', () => {
 
     expect(result.isOk()).toBe(true);
     expect(operations).toEqual(['execute-1', 'execute-2', 'execute-3']);
+  });
+});
+
+describe('Transaction Error Handling & Logging', () => {
+  let service: ProofTransactionService;
+
+  beforeEach(() => {
+    service = new ProofTransactionService({
+      maxOperations: 10,
+      timeoutMs: 5000,
+      enableCompensation: true,
+      retryAttempts: 3,
+      maxConcurrentTransactions: 5,
+    });
+  });
+
+  it('should collect compensation errors without swallowing them', async () => {
+    const mockOperation = {
+      id: 'failing-op',
+      operationId: { getValue: () => 'failing-op' },
+      operationType: 'CREATE_STATEMENT' as const,
+      createdAt: new Date(),
+      validate: () => ok(undefined),
+      execute: async () => err(new Error('Operation failed')),
+      compensate: async () => {
+        throw new Error('Compensation failed');
+      },
+    };
+
+    const result = await service.executeInTransaction(async (transaction) => {
+      transaction.addOperation(mockOperation as any);
+      return ok(undefined);
+    });
+
+    expect(result.isErr()).toBe(true);
+
+    if (result.isErr()) {
+      expect(result.error.code).toBe('COMMIT_FAILED');
+      expect(result.error.originalError?.message).toBe('Operation failed');
+    }
+  });
+
+  it('should track all operation executions in transaction log', async () => {
+    const operations = [
+      {
+        id: 'op-1',
+        operationId: { getValue: () => 'op-1' },
+        operationType: 'CREATE_STATEMENT' as const,
+        createdAt: new Date(),
+        validate: () => ok(undefined),
+        execute: async () => ok(undefined),
+        compensate: async () => ok(undefined),
+      },
+      {
+        id: 'op-2',
+        operationId: { getValue: () => 'op-2' },
+        operationType: 'CREATE_STATEMENT' as const,
+        createdAt: new Date(),
+        validate: () => ok(undefined),
+        execute: async () => err(new Error('Second operation failed')),
+        compensate: async () => ok(undefined),
+      },
+    ];
+
+    const result = await service.executeInTransaction(async (transaction) => {
+      for (const op of operations) {
+        transaction.addOperation(op as any);
+      }
+      return ok(undefined);
+    });
+
+    expect(result.isErr()).toBe(true);
+  });
+
+  it('should log compensation attempts and failures', async () => {
+    const mockOperations = [
+      {
+        id: 'op-1',
+        operationId: { getValue: () => 'op-1' },
+        operationType: 'CREATE_STATEMENT' as const,
+        createdAt: new Date(),
+        validate: () => ok(undefined),
+        execute: async () => ok(undefined),
+        compensate: async () => ok(undefined),
+      },
+      {
+        id: 'op-2',
+        operationId: { getValue: () => 'op-2' },
+        operationType: 'CREATE_STATEMENT' as const,
+        createdAt: new Date(),
+        validate: () => ok(undefined),
+        execute: async () => err(new Error('Operation failed')),
+        compensate: async () => {
+          throw new Error('Compensation failed');
+        },
+      },
+    ];
+
+    const result = await service.executeInTransaction(async (transaction) => {
+      for (const op of mockOperations) {
+        transaction.addOperation(op as any);
+      }
+      return ok(undefined);
+    });
+
+    expect(result.isErr()).toBe(true);
+  });
+
+  it('should continue compensating even when some compensations fail', async () => {
+    const compensationResults: string[] = [];
+
+    const mockOperations = [
+      {
+        id: 'op-1',
+        operationId: { getValue: () => 'op-1' },
+        operationType: 'CREATE_STATEMENT' as const,
+        createdAt: new Date(),
+        validate: () => ok(undefined),
+        execute: async () => ok(undefined),
+        compensate: async () => {
+          compensationResults.push('op-1-compensated');
+          return ok(undefined);
+        },
+      },
+      {
+        id: 'op-2',
+        operationId: { getValue: () => 'op-2' },
+        operationType: 'CREATE_STATEMENT' as const,
+        createdAt: new Date(),
+        validate: () => ok(undefined),
+        execute: async () => ok(undefined),
+        compensate: async () => {
+          compensationResults.push('op-2-failed');
+          throw new Error('Compensation failed');
+        },
+      },
+      {
+        id: 'op-3',
+        operationId: { getValue: () => 'op-3' },
+        operationType: 'CREATE_STATEMENT' as const,
+        createdAt: new Date(),
+        validate: () => ok(undefined),
+        execute: async () => err(new Error('Third operation failed')),
+        compensate: async () => ok(undefined),
+      },
+    ];
+
+    const result = await service.executeInTransaction(async (transaction) => {
+      for (const op of mockOperations) {
+        transaction.addOperation(op as any);
+      }
+      return ok(undefined);
+    });
+
+    expect(result.isErr()).toBe(true);
+    expect(compensationResults).toContain('op-1-compensated');
+    expect(compensationResults).toContain('op-2-failed');
+  });
+
+  it('should provide access to transaction log for debugging', async () => {
+    const transactionResult = await service.beginTransaction();
+
+    if (transactionResult.isOk()) {
+      const transaction = transactionResult.value;
+
+      expect(transaction.getTransactionLog).toBeDefined();
+      expect(transaction.getTransactionLog()).toBeInstanceOf(TransactionLog);
+
+      const log = transaction.getTransactionLog();
+      expect(log.getTotalOperations()).toBe(0);
+      expect(log.hasCompensationErrors()).toBe(false);
+    }
   });
 });

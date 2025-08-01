@@ -119,8 +119,8 @@ describe('Tree Structure Queries', () => {
             isRoot: true,
             argument: {
               id: 'arg_root',
-              premiseSetId: 'set_premise',
-              conclusionSetId: 'set_conclusion',
+              premiseIds: 'set_premise',
+              conclusionIds: 'set_conclusion',
               sideLabels: {
                 left: 'Modus Ponens',
                 right: 'Rule 1',
@@ -580,8 +580,8 @@ describe('Tree Structure Queries', () => {
           isRoot: false,
           argument: {
             id: 'arg_branch_1',
-            premiseSetId: 'set_premise_1',
-            conclusionSetId: 'set_conclusion_1',
+            premiseIds: 'set_premise_1',
+            conclusionIds: 'set_conclusion_1',
             sideLabels: {
               left: 'Branch Rule 1',
               right: 'Ref 1',

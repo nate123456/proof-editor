@@ -33,7 +33,7 @@ import {
   TreeId,
   ValueObject,
   Version,
-} from '../../shared/value-objects.js';
+} from '../../shared/value-objects/index.js';
 
 // Property-based test generators for domain values
 const validIdArbitrary = fc
@@ -534,7 +534,7 @@ describe('Version', () => {
           expect(version.isOk()).toBe(true);
 
           if (version.isOk()) {
-            const next = version.value.nextVersion();
+            const next = version.value.increment();
             expect(next.getValue()).toBe(startVersion + 1);
           }
         }),

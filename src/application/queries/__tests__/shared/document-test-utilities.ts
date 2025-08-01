@@ -120,8 +120,8 @@ export function createComplexDocumentDTO(documentId: string): DocumentDTO {
         `arg_${i}`,
         {
           id: `arg_${i}`,
-          premiseSetId: `set_premise_${i}`,
-          conclusionSetId: `set_conclusion_${i}`,
+          premiseIds: `set_premise_${i}`,
+          conclusionIds: `set_conclusion_${i}`,
           sideLabels: {
             left: `Rule ${i}`,
             right: `Reference ${i}`,

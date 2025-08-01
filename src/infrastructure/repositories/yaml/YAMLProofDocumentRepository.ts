@@ -2,8 +2,9 @@ import { err, ok, type Result } from 'neverthrow';
 import type { IFileSystemPort } from '../../../application/ports/IFileSystemPort.js';
 import { ProofDocument } from '../../../domain/aggregates/ProofDocument.js';
 import type { IProofDocumentRepository } from '../../../domain/repositories/IProofDocumentRepository.js';
+import type { IIdentityService } from '../../../domain/services/IIdentityService.js';
 import { ValidationError } from '../../../domain/shared/result.js';
-import { ProofDocumentId } from '../../../domain/shared/value-objects.js';
+import { ProofDocumentId } from '../../../domain/shared/value-objects/index.js';
 import { YAMLDeserializer } from './YAMLDeserializer.js';
 import { YAMLSerializer } from './YAMLSerializer.js';
 
@@ -111,10 +112,6 @@ export class YAMLProofDocumentRepository implements IProofDocumentRepository {
     return documents;
   }
 
-  nextIdentity(): ProofDocumentId {
-    return ProofDocumentId.generate();
-  }
-
   async findByDateRange(from: Date, to: Date): Promise<ProofDocument[]> {
     const allDocs = await this.findAll();
     // Filter by date range using document creation/modification dates
@@ -131,8 +128,10 @@ export class YAMLProofDocumentRepository implements IProofDocumentRepository {
   }
 
   // Bootstrap-first design support
-  async createBootstrapDocument(): Promise<Result<ProofDocument, ValidationError>> {
-    const id = this.nextIdentity();
+  async createBootstrapDocument(
+    identityService: IIdentityService,
+  ): Promise<Result<ProofDocument, ValidationError>> {
+    const id = identityService.generateProofDocumentId();
     return this.createBootstrapDocumentWithId(id);
   }
 

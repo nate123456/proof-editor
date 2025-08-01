@@ -3,7 +3,6 @@ export const TOKENS = {
   // Core repository interfaces
   IAtomicArgumentRepository: 'IAtomicArgumentRepository',
   INodeRepository: 'INodeRepository',
-  IOrderedSetRepository: 'IOrderedSetRepository',
   IStatementRepository: 'IStatementRepository',
   ITreeRepository: 'ITreeRepository',
 
@@ -27,6 +26,7 @@ export const TOKENS = {
   StatementProcessingService: 'StatementProcessingService',
   TreeStructureService: 'TreeStructureService',
   IGraphTraversalService: 'IGraphTraversalService',
+  IIdentityService: 'IIdentityService',
 
   // Transaction services
   IProofTransactionService: 'IProofTransactionService',
@@ -52,6 +52,11 @@ export const TOKENS = {
   CRDTTransformationService: 'CRDTTransformationService',
   ConflictResolutionService: 'ConflictResolutionService',
   OperationCoordinationService: 'OperationCoordinationService',
+  OperationTransformationService: 'OperationTransformationService',
+  ConflictDetectionService: 'ConflictDetectionService',
+  OperationCompositionService: 'OperationCompositionService',
+  OperationComplexityAnalyzer: 'OperationComplexityAnalyzer',
+  OperationFactory: 'OperationFactory',
 
   // Application services
   CrossContextOrchestrationService: 'CrossContextOrchestrationService',
@@ -65,6 +70,7 @@ export const TOKENS = {
   TreeLayoutService: 'TreeLayoutService',
   ProofVisualizationService: 'ProofVisualizationService',
   DocumentQueryService: 'DocumentQueryService',
+  ProofTreeQueryService: 'ProofTreeQueryService',
 
   // Event handlers
   ConnectionTracker: 'ConnectionTracker',

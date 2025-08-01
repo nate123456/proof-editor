@@ -115,7 +115,6 @@ describe('DI Container', () => {
     it('should have all required repository tokens', () => {
       expect(TOKENS.IAtomicArgumentRepository).toBe('IAtomicArgumentRepository');
       expect(TOKENS.INodeRepository).toBe('INodeRepository');
-      expect(TOKENS.IOrderedSetRepository).toBe('IOrderedSetRepository');
       expect(TOKENS.IStatementRepository).toBe('IStatementRepository');
       expect(TOKENS.ITreeRepository).toBe('ITreeRepository');
     });
@@ -143,7 +142,6 @@ describe('DI Container', () => {
 
       // Mock repository dependencies
       container.registerInstance(TOKENS.IAtomicArgumentRepository, {});
-      container.registerInstance(TOKENS.IOrderedSetRepository, {});
       container.registerInstance(TOKENS.IStatementRepository, {});
       container.registerInstance(TOKENS.ITreeRepository, {});
       container.registerInstance(TOKENS.IProofTransactionService, {});
@@ -398,8 +396,9 @@ describe('DI Container', () => {
 
       // Verify that the mocked repositories are available for use
       expect(mocks.statementRepo).toBeDefined();
-      expect(mocks.orderedSetRepo).toBeDefined();
       expect(mocks.atomicArgumentRepo).toBeDefined();
+      expect(mocks.nodeRepo).toBeDefined();
+      expect(mocks.treeRepo).toBeDefined();
     });
 
     it.skip('should create singleton instances', async () => {
@@ -410,6 +409,36 @@ describe('DI Container', () => {
       const service2 = resolve(TOKENS.StatementFlowService);
 
       expect(service1).toBe(service2); // Same instance
+    });
+
+    it('should register ProofTreeQueryService with IGraphTraversalService dependency', async () => {
+      const container = createTestContainer();
+      const { registerApplicationServices, registerDomainServices } = await import(
+        '../../infrastructure/di/container.js'
+      );
+
+      // Register required mocks
+      container.registerInstance(TOKENS.ITreeRepository, vi.fn());
+      container.registerInstance(TOKENS.INodeRepository, vi.fn());
+      container.registerInstance(TOKENS.IAtomicArgumentRepository, vi.fn());
+
+      // Register services
+      await registerDomainServices(container);
+      await registerApplicationServices(container);
+
+      // Verify ProofTreeQueryService is registered
+      expect(container.isRegistered(TOKENS.ProofTreeQueryService)).toBe(true);
+
+      // Verify IGraphTraversalService is registered
+      expect(container.isRegistered(TOKENS.IGraphTraversalService)).toBe(true);
+
+      // Verify ProofTreeQueryService can be resolved (with IGraphTraversalService dependency)
+      const queryService = container.resolve(TOKENS.ProofTreeQueryService);
+      expect(queryService).toBeDefined();
+
+      // Verify IGraphTraversalService can be resolved independently
+      const graphService = container.resolve(TOKENS.IGraphTraversalService);
+      expect(graphService).toBeDefined();
     });
   });
 });

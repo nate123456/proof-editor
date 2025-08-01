@@ -631,8 +631,8 @@ describe('View State DTOs', () => {
       // Arrange
       const mockArgument: AtomicArgumentDTO = {
         id: 'arg1',
-        premiseSetId: 'premise-set-1',
-        conclusionSetId: 'conclusion-set-1',
+        premiseIds: ['premise-1'],
+        conclusionIds: ['conclusion-1'],
       };
       const mockPremises: StatementDTO[] = [
         {
@@ -678,8 +678,8 @@ describe('View State DTOs', () => {
       // Arrange
       const mockArgument: AtomicArgumentDTO = {
         id: 'arg1',
-        premiseSetId: null,
-        conclusionSetId: null,
+        premiseIds: [],
+        conclusionIds: [],
       };
       const mockPremises: StatementDTO[] = [
         {
@@ -808,8 +808,8 @@ describe('View State DTOs', () => {
         dimensions: { width: 200, height: 100 },
         argument: {
           id: 'arg1',
-          premiseSetId: 'premise-set-1',
-          conclusionSetId: 'conclusion-set-1',
+          premiseIds: ['s1', 's2'],
+          conclusionIds: ['s3'],
         },
         premises: [],
         conclusions: [],
@@ -820,8 +820,8 @@ describe('View State DTOs', () => {
         dimensions: { width: 200 }, // Missing height
         argument: {
           id: 'arg1',
-          premiseSetId: 'premise-set-1',
-          conclusionSetId: 'conclusion-set-1',
+          premiseIds: ['s1', 's2'],
+          conclusionIds: ['s3'],
         },
         premises: [],
         conclusions: [],

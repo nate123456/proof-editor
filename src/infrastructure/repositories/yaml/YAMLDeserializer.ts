@@ -1,7 +1,23 @@
 import * as yaml from 'js-yaml';
-import { err, type Result } from 'neverthrow';
-import { ProofDocument } from '../../../domain/aggregates/ProofDocument.js';
+import { err, ok, type Result } from 'neverthrow';
+import {
+  type AtomicArgumentReconstructData,
+  ProofDocument,
+  type ProofDocumentReconstructData,
+  type ProofTreeReconstructData,
+} from '../../../domain/aggregates/ProofDocument.js';
 import { ValidationError } from '../../../domain/shared/result.js';
+import {
+  AtomicArgumentId,
+  NodeId,
+  Position2D,
+  ProofDocumentId,
+  ProofTreeId,
+  SideLabel,
+  StatementContent,
+  StatementId,
+  Version,
+} from '../../../domain/shared/value-objects/index.js';
 
 // Type guard for the expected YAML structure
 interface YAMLDocumentData {
@@ -84,6 +100,139 @@ function isValidYAMLDocument(data: unknown): data is YAMLDocumentData {
 }
 
 export class YAMLDeserializer {
+  private convertToValueObjects(
+    data: YAMLDocumentData,
+  ): Result<ProofDocumentReconstructData, ValidationError> {
+    // Convert document ID
+    const idResult = ProofDocumentId.create(data.metadata.id);
+    if (idResult.isErr()) {
+      return err(idResult.error);
+    }
+
+    // Convert version
+    const versionResult = Version.create(data.version);
+    if (versionResult.isErr()) {
+      return err(versionResult.error);
+    }
+
+    // Convert dates
+    const createdAt =
+      data.metadata.createdAt instanceof Date
+        ? data.metadata.createdAt
+        : new Date(data.metadata.createdAt);
+    const modifiedAt =
+      data.metadata.modifiedAt instanceof Date
+        ? data.metadata.modifiedAt
+        : new Date(data.metadata.modifiedAt);
+
+    // Convert statements
+    const statements = new Map<StatementId, StatementContent>();
+    for (const [id, content] of Object.entries(data.statements)) {
+      const statementIdResult = StatementId.create(id);
+      if (statementIdResult.isErr()) {
+        return err(statementIdResult.error);
+      }
+
+      const contentResult = StatementContent.create(content);
+      if (contentResult.isErr()) {
+        return err(contentResult.error);
+      }
+
+      statements.set(statementIdResult.value, contentResult.value);
+    }
+
+    // Convert atomic arguments
+    const atomicArguments = new Map<AtomicArgumentId, AtomicArgumentReconstructData>();
+    for (const [id, argData] of Object.entries(data.atomicArguments)) {
+      const argumentIdResult = AtomicArgumentId.create(id);
+      if (argumentIdResult.isErr()) {
+        return err(argumentIdResult.error);
+      }
+
+      // Handle the old format with orderedSets
+      const premiseIds: StatementId[] = [];
+      const conclusionIds: StatementId[] = [];
+
+      // The old format has premises/conclusions as ordered set IDs
+      // We need to look up the statements in those ordered sets
+      if (argData.premises && data.orderedSets[argData.premises]) {
+        for (const stmtId of data.orderedSets[argData.premises]) {
+          const stmtIdResult = StatementId.create(stmtId);
+          if (stmtIdResult.isErr()) {
+            return err(stmtIdResult.error);
+          }
+          premiseIds.push(stmtIdResult.value);
+        }
+      }
+
+      if (argData.conclusions && data.orderedSets[argData.conclusions]) {
+        for (const stmtId of data.orderedSets[argData.conclusions]) {
+          const stmtIdResult = StatementId.create(stmtId);
+          if (stmtIdResult.isErr()) {
+            return err(stmtIdResult.error);
+          }
+          conclusionIds.push(stmtIdResult.value);
+        }
+      }
+
+      // Convert side labels if present
+      const sideLabels: { left?: SideLabel; right?: SideLabel } = {};
+      if (argData.sideLabel) {
+        // Old format had a single sideLabel field
+        const labelResult = SideLabel.create(argData.sideLabel);
+        if (labelResult.isErr()) {
+          return err(labelResult.error);
+        }
+        sideLabels.left = labelResult.value;
+      }
+
+      atomicArguments.set(argumentIdResult.value, {
+        premiseIds,
+        conclusionIds,
+        sideLabels,
+      });
+    }
+
+    // Convert trees
+    const trees = new Map<ProofTreeId, ProofTreeReconstructData>();
+    for (const [id, treeData] of Object.entries(data.trees)) {
+      const treeIdResult = ProofTreeId.create(id);
+      if (treeIdResult.isErr()) {
+        return err(treeIdResult.error);
+      }
+
+      const offsetResult = Position2D.create(treeData.offset.x, treeData.offset.y);
+      if (offsetResult.isErr()) {
+        return err(offsetResult.error);
+      }
+
+      // Convert node IDs
+      const nodes = new Map<NodeId, unknown>();
+      for (const [nodeId, nodeData] of Object.entries(treeData.nodes)) {
+        const nodeIdResult = NodeId.create(nodeId);
+        if (nodeIdResult.isErr()) {
+          return err(nodeIdResult.error);
+        }
+        nodes.set(nodeIdResult.value, nodeData);
+      }
+
+      trees.set(treeIdResult.value, {
+        offset: offsetResult.value,
+        nodes,
+      });
+    }
+
+    return ok({
+      id: idResult.value,
+      version: versionResult.value,
+      createdAt,
+      modifiedAt,
+      statements,
+      atomicArguments,
+      trees,
+    });
+  }
+
   async deserialize(yamlContent: string): Promise<Result<ProofDocument, ValidationError>> {
     try {
       const rawData = yaml.load(yamlContent);
@@ -110,25 +259,14 @@ export class YAMLDeserializer {
         );
       }
 
-      // Use ProofDocument.reconstruct factory method
-      const documentResult = ProofDocument.reconstruct({
-        id: data.metadata.id,
-        version: data.version,
-        createdAt:
-          data.metadata.createdAt instanceof Date
-            ? data.metadata.createdAt
-            : new Date(data.metadata.createdAt),
-        modifiedAt:
-          data.metadata.modifiedAt instanceof Date
-            ? data.metadata.modifiedAt
-            : new Date(data.metadata.modifiedAt),
-        statements: data.statements,
-        orderedSets: data.orderedSets,
-        atomicArguments: data.atomicArguments,
-        trees: data.trees,
-      });
+      // Convert primitive types to value objects
+      const conversionResult = this.convertToValueObjects(data);
+      if (conversionResult.isErr()) {
+        return err(conversionResult.error);
+      }
 
-      return documentResult;
+      // Use ProofDocument.reconstruct with value objects
+      return ProofDocument.reconstruct(conversionResult.value);
     } catch (error) {
       return err(
         new ValidationError(

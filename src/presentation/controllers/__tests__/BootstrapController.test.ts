@@ -6,7 +6,7 @@ import type { DocumentOrchestrationService } from '../../../application/services
 import type { ProofApplicationService } from '../../../application/services/ProofApplicationService.js';
 import { ProofDocument } from '../../../domain/aggregates/ProofDocument.js';
 import type { IProofDocumentRepository } from '../../../domain/repositories/IProofDocumentRepository.js';
-import { ProofDocumentId } from '../../../domain/shared/value-objects.js';
+import { ProofDocumentId } from '../../../domain/shared/value-objects/index.js';
 import { BootstrapController } from '../BootstrapController.js';
 
 describe('BootstrapController', () => {
@@ -42,7 +42,6 @@ describe('BootstrapController', () => {
       delete: vi.fn().mockResolvedValue(ok(undefined)),
       exists: vi.fn().mockResolvedValue(false),
       findAll: vi.fn(),
-      nextIdentity: vi.fn(),
       findByDateRange: vi.fn(),
       count: vi.fn(),
       createBootstrapDocument: vi.fn(),

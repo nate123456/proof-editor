@@ -2,7 +2,9 @@ import 'reflect-metadata';
 
 import { ok } from 'neverthrow';
 import { container, type DependencyContainer } from 'tsyringe';
-
+import { NodeSDKValidator } from '../adapters/NodeSDKValidator.js';
+import { PackageFileSystemAdapter } from '../adapters/PackageFileSystemAdapter.js';
+import { VSCodeFileSystemAdapter } from '../vscode/VSCodeFileSystemAdapter.js';
 import { TOKENS, type TokenType } from './tokens.js';
 
 // Export TOKENS for easy access
@@ -115,15 +117,6 @@ export async function registerRepositoryImplementations(
     nextIdentity: () => ({ getValue: () => `stmt-${Date.now()}` }),
   }));
 
-  container.registerFactory(TOKENS.IOrderedSetRepository, () => ({
-    findById: async () => null,
-    save: async () => ok(undefined),
-    exists: async () => false,
-    delete: async () => ok(undefined),
-    findAll: async () => [],
-    nextIdentity: () => ({ getValue: () => `set-${Date.now()}` }),
-  }));
-
   container.registerFactory(TOKENS.ITreeRepository, () => ({
     findById: async () => null,
     save: async () => ok(undefined),
@@ -231,13 +224,16 @@ export async function registerDomainServices(container: ApplicationContainer): P
     import('../../domain/services/ProofTransactionService.js'),
   ]);
 
+  // Import IdentityService separately
+  const { IdentityService } = await import('../services/IdentityService.js');
+
   // Register domain services as singletons using factory functions for type safety
   container.registerFactory(
     TOKENS.ConnectionResolutionService,
     (c) =>
       new ConnectionResolutionService(
         c.resolve(TOKENS.IAtomicArgumentRepository),
-        c.resolve(TOKENS.IOrderedSetRepository),
+        c.resolve(TOKENS.IStatementRepository),
       ),
   );
 
@@ -275,7 +271,6 @@ export async function registerDomainServices(container: ApplicationContainer): P
     (c) =>
       new StatementProcessingService(
         c.resolve(TOKENS.IStatementRepository),
-        c.resolve(TOKENS.IOrderedSetRepository),
         c.resolve(TOKENS.IAtomicArgumentRepository),
       ),
   );
@@ -298,20 +293,16 @@ export async function registerDomainServices(container: ApplicationContainer): P
 
   container.registerFactory(TOKENS.IProofTransactionService, () => new ProofTransactionService());
 
-  // Register package ecosystem infrastructure interfaces
-  // TODO: Replace with actual implementations
-  container.registerFactory(TOKENS.IPackageFileSystem, () => ({
-    fileExists: async () => true,
-    readFile: async () => ok(''),
-    listFiles: async () => ok([]),
-    isExecutable: async () => false,
-  }));
+  // Register IdentityService as singleton
+  container.registerSingleton(TOKENS.IIdentityService, IdentityService);
 
-  container.registerFactory(TOKENS.ISDKValidator, () => ({
-    validateInterface: async () => ok({ name: 'mock', version: '1.0.0', methods: [] }),
-    listImplementedInterfaces: async () => ok([]),
-    checkVersionCompatibility: () => ok(true),
-  }));
+  // Register package ecosystem infrastructure interfaces
+  container.registerFactory(TOKENS.IFileSystemPort, () => new VSCodeFileSystemAdapter());
+  container.registerFactory(
+    TOKENS.IPackageFileSystem,
+    (c) => new PackageFileSystemAdapter(c.resolve(TOKENS.IFileSystemPort)),
+  );
+  container.registerSingleton(TOKENS.ISDKValidator, NodeSDKValidator);
 
   container.registerFactory('IGitRefProvider', () => ({
     resolveRefToCommit: async () => ok({ commit: 'mock-commit', actualRef: 'mock-ref' }),
@@ -423,16 +414,57 @@ export async function registerContextServices(container: ApplicationContainer): 
     { EducationalFeedbackService },
     { LogicValidationService },
     { PatternRecognitionService },
+    { ProofPatternAnalyzer },
+    { ArgumentStructureAnalyzer },
+    { MistakeDetector },
+    { PatternMatcher },
+    { LogicalStructureHelper },
+    { PatternSuggestionHelper },
   ] = await Promise.all([
     import('../../contexts/language-intelligence/domain/services/EducationalFeedbackService.js'),
     import('../../contexts/language-intelligence/domain/services/LogicValidationService.js'),
     import('../../contexts/language-intelligence/domain/services/PatternRecognitionService.js'),
+    import(
+      '../../contexts/language-intelligence/domain/services/analyzers/ProofPatternAnalyzer.js'
+    ),
+    import(
+      '../../contexts/language-intelligence/domain/services/analyzers/ArgumentStructureAnalyzer.js'
+    ),
+    import('../../contexts/language-intelligence/domain/services/detectors/MistakeDetector.js'),
+    import('../../contexts/language-intelligence/domain/services/matchers/PatternMatcher.js'),
+    import(
+      '../../contexts/language-intelligence/domain/services/helpers/LogicalStructureHelper.js'
+    ),
+    import(
+      '../../contexts/language-intelligence/domain/services/helpers/PatternSuggestionHelper.js'
+    ),
   ]);
 
   // Register language intelligence services as singletons
   container.registerSingleton(TOKENS.EducationalFeedbackService, EducationalFeedbackService);
   container.registerSingleton(TOKENS.LogicValidationService, LogicValidationService);
-  container.registerSingleton(TOKENS.PatternRecognitionService, PatternRecognitionService);
+
+  // Register specialized pattern recognition services
+  container.registerSingleton('ProofPatternAnalyzer', ProofPatternAnalyzer);
+  container.registerSingleton('ArgumentStructureAnalyzer', ArgumentStructureAnalyzer);
+  container.registerSingleton('MistakeDetector', MistakeDetector);
+  container.registerSingleton('PatternMatcher', PatternMatcher);
+  container.registerSingleton('LogicalStructureHelper', LogicalStructureHelper);
+  container.registerSingleton('PatternSuggestionHelper', PatternSuggestionHelper);
+
+  // Register PatternRecognitionService with its dependencies
+  container.registerFactory(
+    TOKENS.PatternRecognitionService,
+    (c) =>
+      new PatternRecognitionService(
+        c.resolve('ProofPatternAnalyzer'),
+        c.resolve('ArgumentStructureAnalyzer'),
+        c.resolve('MistakeDetector'),
+        c.resolve('PatternMatcher'),
+        c.resolve('LogicalStructureHelper'),
+        c.resolve('PatternSuggestionHelper'),
+      ),
+  );
 
   // Use dynamic imports for package ecosystem services
   const [
@@ -499,16 +531,34 @@ export async function registerContextServices(container: ApplicationContainer): 
     { ConflictResolutionService },
     { CRDTTransformationService },
     { OperationCoordinationService },
+    { OperationTransformationService },
+    { ConflictDetectionService },
+    { OperationCompositionService },
+    { OperationComplexityAnalyzer },
+    { OperationFactory },
   ] = await Promise.all([
     import('../../contexts/synchronization/domain/services/ConflictResolutionService.js'),
     import('../../contexts/synchronization/domain/services/CRDTTransformationService.js'),
     import('../../contexts/synchronization/domain/services/OperationCoordinationService.js'),
+    import('../../contexts/synchronization/domain/services/OperationTransformationService.js'),
+    import('../../contexts/synchronization/domain/services/ConflictDetectionService.js'),
+    import('../../contexts/synchronization/domain/services/OperationCompositionService.js'),
+    import('../../contexts/synchronization/domain/services/OperationComplexityAnalyzer.js'),
+    import('../../contexts/synchronization/domain/factories/OperationFactory.js'),
   ]);
 
   // Register synchronization services as singletons
   container.registerSingleton(TOKENS.ConflictResolutionService, ConflictResolutionService);
   container.registerSingleton(TOKENS.CRDTTransformationService, CRDTTransformationService);
   container.registerSingleton(TOKENS.OperationCoordinationService, OperationCoordinationService);
+  container.registerSingleton(
+    TOKENS.OperationTransformationService,
+    OperationTransformationService,
+  );
+  container.registerSingleton(TOKENS.ConflictDetectionService, ConflictDetectionService);
+  container.registerSingleton(TOKENS.OperationCompositionService, OperationCompositionService);
+  container.registerSingleton(TOKENS.OperationComplexityAnalyzer, OperationComplexityAnalyzer);
+  container.registerSingleton(TOKENS.OperationFactory, OperationFactory);
 }
 
 // Helper function to register application services
@@ -526,6 +576,7 @@ export async function registerApplicationServices(container: ApplicationContaine
     { ConnectionTracker },
     { StatementUsageTracker, StatementUsageEventHandler },
     { DocumentIdService },
+    { ProofTreeQueryService },
   ] = await Promise.all([
     import('../../application/services/CrossContextOrchestrationService.js'),
     import('../../application/services/ProofApplicationService.js'),
@@ -538,6 +589,7 @@ export async function registerApplicationServices(container: ApplicationContaine
     import('../../application/event-handlers/ConnectionTracker.js'),
     import('../../application/event-handlers/StatementUsageTracker.js'),
     import('../../application/services/DocumentIdService.js'),
+    import('../../application/queries/ProofTreeQueryService.js'),
   ]);
 
   // Register core application service with event integration
@@ -564,6 +616,17 @@ export async function registerApplicationServices(container: ApplicationContaine
       new DocumentQueryService(
         c.resolve(TOKENS.IProofDocumentRepository),
         c.resolve(TOKENS.ProofFileParser),
+      ),
+  );
+
+  container.registerFactory(
+    TOKENS.ProofTreeQueryService,
+    (c) =>
+      new ProofTreeQueryService(
+        c.resolve(TOKENS.ITreeRepository),
+        c.resolve(TOKENS.INodeRepository),
+        c.resolve(TOKENS.IAtomicArgumentRepository),
+        c.resolve(TOKENS.IGraphTraversalService),
       ),
   );
 

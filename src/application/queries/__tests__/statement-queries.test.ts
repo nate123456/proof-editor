@@ -13,7 +13,7 @@ import {
   statementFactory,
 } from '../../../domain/__tests__/factories/index.js';
 import { Statement } from '../../../domain/entities/Statement.js';
-import { StatementId } from '../../../domain/shared/value-objects.js';
+import { StatementId } from '../../../domain/shared/value-objects/index.js';
 import { statementToDTO } from '../../mappers/StatementMapper.js';
 import type {
   GetStatementQuery,

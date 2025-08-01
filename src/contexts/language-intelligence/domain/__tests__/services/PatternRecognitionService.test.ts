@@ -20,6 +20,12 @@ import { Diagnostic } from '../../entities/Diagnostic';
 import type { InferenceRule } from '../../entities/InferenceRule';
 import type { LanguagePackage } from '../../entities/LanguagePackage';
 import type { ValidationResult } from '../../entities/ValidationResult';
+import { ArgumentStructureAnalyzer } from '../../services/analyzers/ArgumentStructureAnalyzer';
+import { ProofPatternAnalyzer } from '../../services/analyzers/ProofPatternAnalyzer';
+import { MistakeDetector } from '../../services/detectors/MistakeDetector';
+import { LogicalStructureHelper } from '../../services/helpers/LogicalStructureHelper';
+import { PatternSuggestionHelper } from '../../services/helpers/PatternSuggestionHelper';
+import { PatternMatcher } from '../../services/matchers/PatternMatcher';
 import { PatternRecognitionService } from '../../services/PatternRecognitionService';
 import { DiagnosticSeverity } from '../../value-objects/DiagnosticSeverity';
 
@@ -107,7 +113,21 @@ describe('PatternRecognitionService', () => {
   let mockLanguagePackage: LanguagePackage;
 
   beforeEach(() => {
-    service = new PatternRecognitionService();
+    const proofAnalyzer = new ProofPatternAnalyzer();
+    const argumentAnalyzer = new ArgumentStructureAnalyzer();
+    const mistakeDetector = new MistakeDetector();
+    const patternMatcher = new PatternMatcher();
+    const logicalHelper = new LogicalStructureHelper();
+    const suggestionHelper = new PatternSuggestionHelper();
+
+    service = new PatternRecognitionService(
+      proofAnalyzer,
+      argumentAnalyzer,
+      mistakeDetector,
+      patternMatcher,
+      logicalHelper,
+      suggestionHelper,
+    );
     mockLanguagePackage = createMockLanguagePackage();
   });
 

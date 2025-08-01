@@ -67,8 +67,8 @@ describe('ProofTreePanel Enhanced Integration Tests', () => {
     atomicArguments: {
       arg1: {
         id: 'arg1',
-        premiseSetId: 'os1',
-        conclusionSetId: 'os2',
+        premiseIds: 'os1',
+        conclusionIds: 'os2',
         sideLabels: { left: 'Modus Ponens' },
       },
     },

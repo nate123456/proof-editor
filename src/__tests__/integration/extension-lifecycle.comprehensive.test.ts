@@ -13,6 +13,7 @@ import type { ProofApplicationService } from '../../application/services/ProofAp
 import type { ProofVisualizationService } from '../../application/services/ProofVisualizationService.js';
 import type { ViewStateManager } from '../../application/services/ViewStateManager.js';
 import { ValidationError } from '../../domain/shared/result.js';
+import { FilePath } from '../../domain/shared/value-objects/index.js';
 import { DomainEventBus } from '../../infrastructure/events/DomainEventBus.js';
 import { EventBus } from '../../infrastructure/events/EventBus.js';
 import type { YAMLSerializer } from '../../infrastructure/repositories/yaml/YAMLSerializer.js';
@@ -394,9 +395,14 @@ trees:
 
       try {
         // Simulate file system check
-        const result = await mockFileSystemPort.readFile('/workspace');
-        if (result.isErr()) {
-          activationErrors.push(new Error(result.error.message));
+        const workspacePath = FilePath.create('/workspace');
+        if (workspacePath.isOk()) {
+          const result = await mockFileSystemPort.readFile(workspacePath.value);
+          if (result.isErr()) {
+            activationErrors.push(new Error(result.error.message.getValue()));
+          }
+        } else {
+          activationErrors.push(new Error('Invalid workspace path'));
         }
       } catch (error) {
         activationErrors.push(error as Error);
@@ -899,7 +905,10 @@ trees:
         return watcher;
       });
 
-      mockFileSystemPort.watch?.('/workspace/test.proof', vi.fn());
+      const testPath = FilePath.create('/workspace/test.proof');
+      if (testPath.isOk()) {
+        mockFileSystemPort.watch?.(testPath.value, vi.fn());
+      }
 
       // Add command disposables
       const commandDisposable = {

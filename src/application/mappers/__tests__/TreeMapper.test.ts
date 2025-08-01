@@ -7,7 +7,7 @@ import {
   treeIdFactory,
 } from '../../../domain/__tests__/factories/index.js';
 import { Tree } from '../../../domain/entities/Tree.js';
-import { PhysicalProperties, Position2D } from '../../../domain/shared/value-objects.js';
+import { PhysicalProperties, Position2D } from '../../../domain/shared/value-objects/index.js';
 import type { TreeDTO } from '../../queries/shared-types.js';
 import { treesToDomains, treesToDTOs, treeToDomain, treeToDTO } from '../TreeMapper.js';
 

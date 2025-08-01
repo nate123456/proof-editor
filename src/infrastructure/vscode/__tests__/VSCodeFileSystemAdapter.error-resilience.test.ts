@@ -543,10 +543,10 @@ describe('VSCodeFileSystemAdapter Error Resilience', () => {
     });
 
     it('should handle CPU throttling during intensive operations', async () => {
-      // Simulate slow response due to CPU throttling
+      // Simulate slow response due to CPU throttling (reduced timeout for test)
       vi.mocked(vscode.workspace.fs.readDirectory).mockImplementation(() => {
         return new Promise((resolve) => {
-          setTimeout(() => resolve([]), 10000); // 10 second delay
+          setTimeout(() => resolve([]), 1000); // 1 second delay (down from 10)
         });
       });
 
@@ -555,8 +555,8 @@ describe('VSCodeFileSystemAdapter Error Resilience', () => {
       const duration = Date.now() - startTime;
 
       expect(result.isOk()).toBe(true);
-      expect(duration).toBeGreaterThan(5000); // Should handle slow operations
-    });
+      expect(duration).toBeGreaterThan(800); // Should handle slow operations
+    }, 3000); // 3 second timeout
 
     it('should handle disk I/O bottlenecks gracefully', async () => {
       let callCount = 0;

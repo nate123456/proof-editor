@@ -1,5 +1,15 @@
 import { err, ok, type Result } from 'neverthrow';
 
+import type { ConflictInfo } from '../services/ConflictDetectionService';
+import type {
+  IOperationComplexityAnalyzer,
+  TransformationComplexity,
+} from '../services/OperationComplexityAnalyzer';
+import type {
+  IOperationTransformationService,
+  TransformationPriority,
+  TransformationType,
+} from '../services/OperationTransformationService';
 import { ConflictType } from '../value-objects/ConflictType';
 import { DeviceId } from '../value-objects/DeviceId';
 import { LogicalTimestamp } from '../value-objects/LogicalTimestamp';
@@ -8,24 +18,6 @@ import { OperationPayload } from '../value-objects/OperationPayload';
 import { OperationType, type OperationTypeValue } from '../value-objects/OperationType';
 import type { IOperation } from './shared-types';
 import { VectorClock } from './VectorClock';
-
-export type TransformationType =
-  | 'OPERATIONAL_TRANSFORM'
-  | 'LAST_WRITER_WINS'
-  | 'POSITION_ADJUSTMENT'
-  | 'CONTENT_MERGE'
-  | 'STRUCTURAL_REORDER';
-
-export type TransformationPriority = 'HIGH' | 'MEDIUM' | 'LOW';
-
-export type TransformationComplexity = 'SIMPLE' | 'MODERATE' | 'COMPLEX' | 'INTRACTABLE';
-
-export interface TransformationContext {
-  readonly sourceOperation: Operation;
-  readonly targetOperation: Operation;
-  readonly transformationType: TransformationType;
-  readonly priority: TransformationPriority;
-}
 
 export class Operation implements IOperation {
   private constructor(
@@ -37,6 +29,8 @@ export class Operation implements IOperation {
     private readonly vectorClock: VectorClock,
     private readonly timestamp: LogicalTimestamp,
     private readonly parentOperationId?: OperationId,
+    private readonly transformationService?: IOperationTransformationService,
+    private readonly complexityAnalyzer?: IOperationComplexityAnalyzer,
   ) {}
 
   static create(
@@ -47,6 +41,28 @@ export class Operation implements IOperation {
     payload: OperationPayload,
     vectorClock: VectorClock,
     parentOperationId?: OperationId,
+  ): Result<Operation, Error> {
+    return Operation.createWithServices(
+      id,
+      deviceId,
+      operationType,
+      targetPath,
+      payload,
+      vectorClock,
+      parentOperationId,
+    );
+  }
+
+  static createWithServices(
+    id: OperationId,
+    deviceId: DeviceId,
+    operationType: OperationType,
+    targetPath: string,
+    payload: OperationPayload,
+    vectorClock: VectorClock,
+    parentOperationId?: OperationId,
+    transformationService?: IOperationTransformationService,
+    complexityAnalyzer?: IOperationComplexityAnalyzer,
   ): Result<Operation, Error> {
     // Operation ID is already validated by OperationId value object
 
@@ -69,6 +85,8 @@ export class Operation implements IOperation {
         vectorClock,
         timestampResult.value,
         parentOperationId,
+        transformationService,
+        complexityAnalyzer,
       ),
     );
   }
@@ -155,13 +173,63 @@ export class Operation implements IOperation {
       );
     }
 
+    // Use transformation service if available
+    if (this.transformationService) {
+      const transformationType = this.transformationService.determineTransformationType(
+        this,
+        otherOperation,
+      );
+      const priority = this.transformationService.calculateTransformationPriority(
+        this,
+        otherOperation,
+      );
+
+      const context = {
+        sourceOperation: this,
+        targetOperation: otherOperation,
+        transformationType,
+        priority,
+      };
+
+      const transformedSelfResult = this.transformationService.executeTransformation(this, context);
+      if (transformedSelfResult.isErr()) {
+        return err(transformedSelfResult.error);
+      }
+
+      const reverseContext = {
+        sourceOperation: otherOperation,
+        targetOperation: this,
+        transformationType,
+        priority: this.transformationService.calculateTransformationPriority(otherOperation, this),
+      };
+
+      const transformedOtherResult = this.transformationService.executeTransformation(
+        otherOperation,
+        reverseContext,
+      );
+      if (transformedOtherResult.isErr()) {
+        return err(transformedOtherResult.error);
+      }
+
+      // Cast results back to Operation type (simplified for this refactoring)
+      return ok([
+        transformedSelfResult.value as Operation,
+        transformedOtherResult.value as Operation,
+      ]);
+    }
+
+    // Fallback to original implementation if no service available
+    return this.legacyTransformWith(otherOperation);
+  }
+
+  private legacyTransformWith(otherOperation: IOperation): Result<[Operation, Operation], Error> {
     // Check if otherOperation is an instance of Operation for transformation
     if (!(otherOperation instanceof Operation)) {
       return err(new Error('Cannot transform with non-Operation instance'));
     }
 
     const transformationType = this.determineTransformationType(otherOperation);
-    const context: TransformationContext = {
+    const context = {
       sourceOperation: this,
       targetOperation: otherOperation,
       transformationType,
@@ -173,7 +241,7 @@ export class Operation implements IOperation {
       return err(transformedSelfResult.error);
     }
 
-    const reverseContext: TransformationContext = {
+    const reverseContext = {
       sourceOperation: otherOperation,
       targetOperation: this,
       transformationType,
@@ -206,15 +274,7 @@ export class Operation implements IOperation {
    * Detects if this operation conflicts with another operation
    * Returns conflict information without creating a Conflict instance to avoid circular dependency
    */
-  detectConflictWith(otherOperation: IOperation): Result<
-    {
-      id: string;
-      conflictType: ConflictType;
-      targetPath: string;
-      operations: [IOperation, IOperation];
-    } | null,
-    Error
-  > {
+  detectConflictWith(otherOperation: IOperation): Result<ConflictInfo | null, Error> {
     if (this.targetPath !== otherOperation.getTargetPath()) {
       return ok(null);
     }
@@ -259,11 +319,25 @@ export class Operation implements IOperation {
     }, ok(this));
   }
 
-  static transformOperationSequence(operations: IOperation[]): Result<IOperation[], Error> {
+  static transformOperationSequence(
+    operations: IOperation[],
+    transformationService?: IOperationTransformationService,
+  ): Result<IOperation[], Error> {
     if (operations.length <= 1) {
       return ok(operations);
     }
 
+    // Use service if available, otherwise fallback to legacy method
+    if (transformationService) {
+      return transformationService.transformOperationSequence(operations);
+    }
+
+    return Operation.legacyTransformOperationSequence(operations);
+  }
+
+  private static legacyTransformOperationSequence(
+    operations: IOperation[],
+  ): Result<IOperation[], Error> {
     try {
       const sortedOps = Operation.sortOperationsByDependency(operations);
       const transformedOps: IOperation[] = [];
@@ -298,7 +372,21 @@ export class Operation implements IOperation {
     }
   }
 
-  static calculateTransformationComplexity(operations: IOperation[]): TransformationComplexity {
+  static calculateTransformationComplexity(
+    operations: IOperation[],
+    complexityAnalyzer?: IOperationComplexityAnalyzer,
+  ): TransformationComplexity {
+    // Use service if available, otherwise fallback to legacy method
+    if (complexityAnalyzer) {
+      return complexityAnalyzer.calculateComplexity(operations);
+    }
+
+    return Operation.legacyCalculateTransformationComplexity(operations);
+  }
+
+  private static legacyCalculateTransformationComplexity(
+    operations: IOperation[],
+  ): TransformationComplexity {
     if (operations.length <= 2) {
       return 'SIMPLE';
     }
@@ -448,7 +536,12 @@ export class Operation implements IOperation {
     return newState;
   }
 
-  private executeTransformation(context: TransformationContext): Result<Operation, Error> {
+  private executeTransformation(context: {
+    sourceOperation: Operation;
+    targetOperation: Operation;
+    transformationType: TransformationType;
+    priority: TransformationPriority;
+  }): Result<Operation, Error> {
     switch (context.transformationType) {
       case 'OPERATIONAL_TRANSFORM':
         return this.performOperationalTransform(context);
@@ -472,7 +565,12 @@ export class Operation implements IOperation {
     }
   }
 
-  private performOperationalTransform(context: TransformationContext): Result<Operation, Error> {
+  // Legacy transformation methods - kept for backward compatibility
+  private performOperationalTransform(context: {
+    targetOperation: Operation;
+    transformationType: TransformationType;
+    priority: TransformationPriority;
+  }): Result<Operation, Error> {
     const { targetOperation } = context;
 
     if (this.hasCausalDependencyOn(targetOperation)) {
@@ -493,7 +591,11 @@ export class Operation implements IOperation {
     );
   }
 
-  private performPositionAdjustment(context: TransformationContext): Result<Operation, Error> {
+  private performPositionAdjustment(context: {
+    targetOperation: Operation;
+    transformationType: TransformationType;
+    priority: TransformationPriority;
+  }): Result<Operation, Error> {
     const { targetOperation } = context;
 
     if (this.operationType.getValue() !== 'UPDATE_TREE_POSITION') {
@@ -526,7 +628,11 @@ export class Operation implements IOperation {
     );
   }
 
-  private performContentMerge(context: TransformationContext): Result<Operation, Error> {
+  private performContentMerge(context: {
+    targetOperation: Operation;
+    transformationType: TransformationType;
+    priority: TransformationPriority;
+  }): Result<Operation, Error> {
     const { targetOperation } = context;
 
     if (!this.isSemanticOperation() || !targetOperation.isSemanticOperation()) {
@@ -552,7 +658,11 @@ export class Operation implements IOperation {
     );
   }
 
-  private performStructuralReorder(context: TransformationContext): Result<Operation, Error> {
+  private performStructuralReorder(context: {
+    targetOperation: Operation;
+    transformationType: TransformationType;
+    priority: TransformationPriority;
+  }): Result<Operation, Error> {
     const { targetOperation } = context;
 
     // For structural operations, maintain the operation but adjust internal references
@@ -579,7 +689,11 @@ export class Operation implements IOperation {
     return ok(this);
   }
 
-  private performLastWriterWins(context: TransformationContext): Result<Operation, Error> {
+  private performLastWriterWins(context: {
+    targetOperation: Operation;
+    transformationType: TransformationType;
+    priority: TransformationPriority;
+  }): Result<Operation, Error> {
     const { targetOperation } = context;
 
     if (this.vectorClock.happensAfter(targetOperation.vectorClock)) {
@@ -590,7 +704,7 @@ export class Operation implements IOperation {
     }
   }
 
-  private determineTransformationType(otherOperation: Operation): TransformationType {
+  private determineTransformationType(otherOperation: IOperation): TransformationType {
     if (
       this.operationType.getValue() === 'UPDATE_TREE_POSITION' ||
       otherOperation.operationType.getValue() === 'UPDATE_TREE_POSITION'
@@ -613,7 +727,7 @@ export class Operation implements IOperation {
     return 'LAST_WRITER_WINS';
   }
 
-  private calculateTransformationPriority(otherOperation: Operation): TransformationPriority {
+  private calculateTransformationPriority(otherOperation: IOperation): TransformationPriority {
     if (this.isSemanticOperation() || otherOperation.isSemanticOperation()) {
       return 'HIGH';
     }
@@ -708,19 +822,19 @@ export class Operation implements IOperation {
     return sourcePayload;
   }
 
-  private requiresReferenceAdjustment(otherOperation: Operation): boolean {
+  private requiresReferenceAdjustment(otherOperation: IOperation): boolean {
     return (
-      otherOperation.operationType.isCreation() &&
-      this.targetPath.includes(otherOperation.targetPath)
+      otherOperation.getOperationType().isCreation() &&
+      this.targetPath.includes(otherOperation.getTargetPath())
     );
   }
 
-  private adjustStructuralReferences(payload: unknown, referencingOperation: Operation): unknown {
+  private adjustStructuralReferences(payload: unknown, referencingOperation: IOperation): unknown {
     // Simple reference adjustment - in a real implementation, this would be more sophisticated
     if (typeof payload === 'object' && payload !== null) {
       return {
         ...(payload as Record<string, unknown>),
-        adjustedFor: referencingOperation.id,
+        adjustedFor: referencingOperation.getId(),
         adjustedAt: new Date().toISOString(),
       };
     }
@@ -802,6 +916,15 @@ export class Operation implements IOperation {
   }
 
   getComplexity(): TransformationComplexity {
+    // Use service if available, otherwise fallback to legacy method
+    if (this.complexityAnalyzer) {
+      return this.complexityAnalyzer.getOperationComplexity(this);
+    }
+
+    return this.legacyGetComplexity();
+  }
+
+  private legacyGetComplexity(): TransformationComplexity {
     const size = this.getSize();
     const isStructural = this.isStructuralOperation();
     const isSemantic = this.isSemanticOperation();
@@ -817,9 +940,9 @@ export class Operation implements IOperation {
     return 'SIMPLE';
   }
 
-  compose(otherOperation: Operation): Result<Operation, Error> {
+  compose(otherOperation: IOperation): Result<Operation, Error> {
     // Can only compose operations from the same device
-    if (!this.deviceId.equals(otherOperation.deviceId)) {
+    if (!this.deviceId.equals(otherOperation.getDeviceId())) {
       return err(new Error('Cannot compose operations from different devices'));
     }
 
@@ -831,7 +954,7 @@ export class Operation implements IOperation {
     // Create a new composed operation
     const composedData = this.composePayloads(
       this.payload.getData(),
-      otherOperation.payload.getData(),
+      otherOperation.getPayload().getData(),
     );
 
     const composedPayloadResult = OperationPayload.create(
@@ -859,9 +982,9 @@ export class Operation implements IOperation {
     );
   }
 
-  private canComposeWith(otherOperation: Operation): boolean {
+  private canComposeWith(otherOperation: IOperation): boolean {
     // Only compose operations of the same type
-    if (!this.operationType.equals(otherOperation.operationType)) {
+    if (!this.operationType.equals(otherOperation.getOperationType())) {
       return false;
     }
 
@@ -914,7 +1037,11 @@ export class Operation implements IOperation {
     };
   }
 
-  static fromJSON(json: Record<string, unknown>): Result<Operation, Error> {
+  static fromJSON(
+    json: Record<string, unknown>,
+    transformationService?: IOperationTransformationService,
+    complexityAnalyzer?: IOperationComplexityAnalyzer,
+  ): Result<Operation, Error> {
     try {
       // Extract and validate required fields
       const id = json.id as string;
@@ -972,7 +1099,7 @@ export class Operation implements IOperation {
         parentOpId = parentOpIdResult.value;
       }
 
-      return Operation.create(
+      return Operation.createWithServices(
         operationIdResult.value,
         deviceIdResult.value,
         operationTypeResult.value,
@@ -980,13 +1107,15 @@ export class Operation implements IOperation {
         payloadResult.value,
         vectorClockResult.value,
         parentOpId,
+        transformationService,
+        complexityAnalyzer,
       );
     } catch (error) {
       return err(error instanceof Error ? error : new Error('Failed to deserialize operation'));
     }
   }
 
-  equals(other: Operation): boolean {
-    return this.id.getValue() === other.id.getValue();
+  equals(other: IOperation): boolean {
+    return this.id.getValue() === other.getId().getValue();
   }
 }

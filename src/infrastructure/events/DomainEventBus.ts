@@ -196,8 +196,13 @@ export class DomainEventBus implements IDomainEventBus {
     this.metrics.totalHandlerFailures += failedResults.length;
 
     if (failedResults.length > 0) {
-      // TODO: Implement error handling for failed event handlers
-      // Could log errors, retry, or emit failure events
+      failedResults.forEach((result) => {
+        if (result.status === 'rejected') {
+          const error = result.reason;
+          // biome-ignore lint/suspicious/noConsole: Domain event bus error logging infrastructure
+          console.error(`[DomainEventBus] Handler failed for event ${event.eventType}:`, error);
+        }
+      });
     }
   }
 

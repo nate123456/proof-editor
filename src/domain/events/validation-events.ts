@@ -3,7 +3,7 @@ import type {
   DocumentId,
   // StatementId,
   TreeId,
-} from '../shared/value-objects.js';
+} from '../shared/value-objects/index.js';
 import { DomainEvent } from './base-event.js';
 
 export class ValidationCompleted extends DomainEvent {

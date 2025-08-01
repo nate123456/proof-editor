@@ -43,7 +43,6 @@ import {
 } from '../../contexts/synchronization/domain/value-objects/OperationType.js';
 // Core Domain
 import { AtomicArgument } from '../../domain/entities/AtomicArgument.js';
-import { OrderedSet } from '../../domain/entities/OrderedSet.js';
 import { Statement } from '../../domain/entities/Statement.js';
 
 /**
@@ -143,39 +142,29 @@ export function createStatement(content?: string): Statement {
 }
 
 /**
- * Creates an ordered set from statements or statement contents
+ * Creates a list of statements from statements or statement contents
  */
-export function createOrderedSet(items: (Statement | string)[]): OrderedSet {
-  const statements = items.map((item) => (typeof item === 'string' ? createStatement(item) : item));
-  const statementIds = statements.map((stmt) => stmt.getId());
-  const result = OrderedSet.create(statementIds);
-  if (result.isErr()) {
-    throw new Error(`Failed to create ordered set: ${result.error.message}`);
-  }
-  return result.value;
+export function createStatementList(items: (Statement | string)[]): Statement[] {
+  return items.map((item) => (typeof item === 'string' ? createStatement(item) : item));
 }
 
 /**
- * Creates an atomic argument with premise and conclusion sets
+ * Creates an atomic argument with premise and conclusion statements
  */
 export function createAtomicArgument(
   premises: (Statement | string)[],
   conclusions: (Statement | string)[],
 ): AtomicArgument {
   _argumentCounter++;
-  const premiseSet = createOrderedSet(premises);
-  const conclusionSet = createOrderedSet(conclusions);
+  const premiseStatements = createStatementList(premises);
+  const conclusionStatements = createStatementList(conclusions);
 
-  const result = AtomicArgument.create(premiseSet.getId(), conclusionSet.getId());
+  const result = AtomicArgument.create(premiseStatements, conclusionStatements);
   if (result.isErr()) {
     throw new Error(`Failed to create atomic argument: ${result.error.message}`);
   }
 
-  const argument = result.value;
-  premiseSet.addAtomicArgumentReference(argument.getId(), 'premise');
-  conclusionSet.addAtomicArgumentReference(argument.getId(), 'conclusion');
-
-  return argument;
+  return result.value;
 }
 
 /**
@@ -862,7 +851,7 @@ export function createMockServiceResponses() {
 // Export factory objects to maintain backward compatibility
 export const CoreDomainFactory = {
   createStatement,
-  createOrderedSet,
+  createStatementList,
   createAtomicArgument,
   createProofScenario,
 };

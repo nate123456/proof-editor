@@ -12,7 +12,7 @@ import {
   statementFactory,
 } from '../../../domain/__tests__/factories/index.js';
 import { ProofAggregate } from '../../../domain/aggregates/ProofAggregate.js';
-import { ProofId } from '../../../domain/shared/value-objects.js';
+import { ProofId } from '../../../domain/shared/value-objects/index.js';
 import {
   type BootstrapInstructionsDTO,
   type BootstrapStatusDTO,

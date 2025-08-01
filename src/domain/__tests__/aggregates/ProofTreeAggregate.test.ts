@@ -8,49 +8,38 @@ import {
   Attachment,
   type NodeId,
   Position2D,
-} from '../../shared/value-objects.js';
+} from '../../shared/value-objects/index.js';
 
 describe('ProofTreeAggregate', () => {
   describe('createNew', () => {
     it('should create empty tree aggregate successfully', () => {
-      const proofResult = ProofAggregate.createNew();
-      expect(proofResult.isOk()).toBe(true);
+      const treeResult = ProofTreeAggregate.createNew();
 
-      if (proofResult.isOk()) {
-        const proof = proofResult.value;
-        const treeResult = ProofTreeAggregate.createNew(proof);
-
-        expect(treeResult.isOk()).toBe(true);
-        if (treeResult.isOk()) {
-          const tree = treeResult.value;
-          expect(tree.getNodes().size).toBe(0);
-          expect(tree.getVersion()).toBe(1);
-          expect(tree.getProofAggregate()).toBe(proof);
-        }
+      expect(treeResult.isOk()).toBe(true);
+      if (treeResult.isOk()) {
+        const tree = treeResult.value;
+        const queryService = tree.createQueryService();
+        expect(queryService.getNodes().size).toBe(0);
+        expect(queryService.getVersion()).toBe(1);
       }
     });
 
     it('should create tree with custom spatial layout', () => {
-      const proofResult = ProofAggregate.createNew();
-      expect(proofResult.isOk()).toBe(true);
+      const customPosition = Position2D.create(100, 200);
+      expect(customPosition.isOk()).toBe(true);
 
-      if (proofResult.isOk()) {
-        const proof = proofResult.value;
-        const customPosition = Position2D.create(100, 200);
-        expect(customPosition.isOk()).toBe(true);
+      if (customPosition.isOk()) {
+        const layout = { offset: customPosition.value, scale: 1.5 };
+        const treeResult = ProofTreeAggregate.createNew(layout);
 
-        if (customPosition.isOk()) {
-          const layout = { offset: customPosition.value, scale: 1.5 };
-          const treeResult = ProofTreeAggregate.createNew(proof, layout);
-
-          expect(treeResult.isOk()).toBe(true);
-          if (treeResult.isOk()) {
-            const tree = treeResult.value;
-            const spatialLayout = tree.getSpatialLayout();
-            expect(spatialLayout.offset.getX()).toBe(100);
-            expect(spatialLayout.offset.getY()).toBe(200);
-            expect(spatialLayout.scale).toBe(1.5);
-          }
+        expect(treeResult.isOk()).toBe(true);
+        if (treeResult.isOk()) {
+          const tree = treeResult.value;
+          const queryService = tree.createQueryService();
+          const spatialLayout = queryService.getSpatialLayout();
+          expect(spatialLayout.offset.x).toBe(100);
+          expect(spatialLayout.offset.y).toBe(200);
+          expect(spatialLayout.scale).toBe(1.5);
         }
       }
     });
@@ -70,18 +59,20 @@ describe('ProofTreeAggregate', () => {
         expect(argumentResult.isOk()).toBe(true);
 
         if (argumentResult.isOk()) {
-          const treeResult = ProofTreeAggregate.createNew(proof);
+          const treeResult = ProofTreeAggregate.createNew();
           expect(treeResult.isOk()).toBe(true);
 
           if (treeResult.isOk()) {
             const tree = treeResult.value;
-            const nodeResult = tree.addNode({ argumentId: argumentResult.value });
+            const argumentIds = new Set([argumentResult.value]);
+            const nodeResult = tree.addNode({ argumentId: argumentResult.value }, argumentIds);
 
             expect(nodeResult.isOk()).toBe(true);
-            expect(tree.getNodes().size).toBe(1);
+            const queryService = tree.createQueryService();
+            expect(queryService.getNodes().size).toBe(1);
 
             if (nodeResult.isOk()) {
-              const node = tree.getNodes().get(nodeResult.value);
+              const node = queryService.getNodes().get(nodeResult.value);
               expect(node?.isRoot()).toBe(true);
               expect(node?.getArgumentId()).toEqual(argumentResult.value);
             }
@@ -104,14 +95,18 @@ describe('ProofTreeAggregate', () => {
         expect(parentArgResult.isOk() && childArgResult.isOk()).toBe(true);
 
         if (parentArgResult.isOk() && childArgResult.isOk()) {
-          const treeResult = ProofTreeAggregate.createNew(proof);
+          const treeResult = ProofTreeAggregate.createNew();
           expect(treeResult.isOk()).toBe(true);
 
           if (treeResult.isOk()) {
             const tree = treeResult.value;
+            const argumentIds = new Set([parentArgResult.value, childArgResult.value]);
 
             // Add parent node first
-            const parentNodeResult = tree.addNode({ argumentId: parentArgResult.value });
+            const parentNodeResult = tree.addNode(
+              { argumentId: parentArgResult.value },
+              argumentIds,
+            );
             expect(parentNodeResult.isOk()).toBe(true);
 
             if (parentNodeResult.isOk()) {
@@ -121,16 +116,20 @@ describe('ProofTreeAggregate', () => {
 
               if (attachmentResult.isOk()) {
                 // Add child node
-                const childNodeResult = tree.addNode({
-                  argumentId: childArgResult.value,
-                  attachment: attachmentResult.value,
-                });
+                const childNodeResult = tree.addNode(
+                  {
+                    argumentId: childArgResult.value,
+                    attachment: attachmentResult.value,
+                  },
+                  argumentIds,
+                );
 
                 expect(childNodeResult.isOk()).toBe(true);
-                expect(tree.getNodes().size).toBe(2);
+                const queryService = tree.createQueryService();
+                expect(queryService.getNodes().size).toBe(2);
 
                 if (childNodeResult.isOk()) {
-                  const childNode = tree.getNodes().get(childNodeResult.value);
+                  const childNode = queryService.getNodes().get(childNodeResult.value);
                   expect(childNode?.isChild()).toBe(true);
                   expect(childNode?.getParentNodeId()).toEqual(parentNodeResult.value);
                 }
@@ -146,8 +145,8 @@ describe('ProofTreeAggregate', () => {
       expect(proofResult.isOk()).toBe(true);
 
       if (proofResult.isOk()) {
-        const proof = proofResult.value;
-        const treeResult = ProofTreeAggregate.createNew(proof);
+        const _proof = proofResult.value;
+        const treeResult = ProofTreeAggregate.createNew();
         expect(treeResult.isOk()).toBe(true);
 
         if (treeResult.isOk()) {
@@ -156,8 +155,9 @@ describe('ProofTreeAggregate', () => {
           // Create a fake argument ID that doesn't exist in the proof
           const fakeArgumentId = AtomicArgumentId.generate();
 
-          // Use a fake argument ID that doesn't exist in the proof
-          const nodeResult = tree.addNode({ argumentId: fakeArgumentId });
+          // Use an empty argument set to simulate the argument not existing in the proof
+          const argumentIds = new Set<AtomicArgumentId>();
+          const nodeResult = tree.addNode({ argumentId: fakeArgumentId }, argumentIds);
 
           expect(nodeResult.isErr()).toBe(true);
           if (nodeResult.isErr()) {
@@ -182,14 +182,18 @@ describe('ProofTreeAggregate', () => {
         expect(parentArgResult.isOk() && childArgResult.isOk()).toBe(true);
 
         if (parentArgResult.isOk() && childArgResult.isOk()) {
-          const treeResult = ProofTreeAggregate.createNew(proof);
+          const treeResult = ProofTreeAggregate.createNew();
           expect(treeResult.isOk()).toBe(true);
 
           if (treeResult.isOk()) {
             const tree = treeResult.value;
+            const argumentIds = new Set([parentArgResult.value, childArgResult.value]);
 
-            const parentNodeResult = tree.addNode({ argumentId: parentArgResult.value });
-            const childNodeResult = tree.addNode({ argumentId: childArgResult.value });
+            const parentNodeResult = tree.addNode(
+              { argumentId: parentArgResult.value },
+              argumentIds,
+            );
+            const childNodeResult = tree.addNode({ argumentId: childArgResult.value }, argumentIds);
 
             expect(parentNodeResult.isOk() && childNodeResult.isOk()).toBe(true);
 
@@ -202,7 +206,8 @@ describe('ProofTreeAggregate', () => {
 
               expect(connectResult.isOk()).toBe(true);
 
-              const childNode = tree.getNodes().get(childNodeResult.value);
+              const queryService = tree.createQueryService();
+              const childNode = queryService.getNodes().get(childNodeResult.value);
               expect(childNode?.isChild()).toBe(true);
               expect(childNode?.getParentNodeId()).toEqual(parentNodeResult.value);
             }
@@ -222,16 +227,18 @@ describe('ProofTreeAggregate', () => {
         expect(childArgResult.isOk()).toBe(true);
 
         if (childArgResult.isOk()) {
-          const treeResult = ProofTreeAggregate.createNew(proof);
+          const treeResult = ProofTreeAggregate.createNew();
           expect(treeResult.isOk()).toBe(true);
 
           if (treeResult.isOk()) {
             const tree = treeResult.value;
-            const childNodeResult = tree.addNode({ argumentId: childArgResult.value });
+            const argumentIds = new Set([childArgResult.value]);
+            const childNodeResult = tree.addNode({ argumentId: childArgResult.value }, argumentIds);
             expect(childNodeResult.isOk()).toBe(true);
 
             if (childNodeResult.isOk()) {
-              const fakeParentId = tree.getId(); // Use tree ID as fake node ID
+              const queryService = tree.createQueryService();
+              const fakeParentId = queryService.getId(); // Use tree ID as fake node ID
               const connectResult = tree.connectNodes(
                 fakeParentId as any,
                 childNodeResult.value,
@@ -260,13 +267,17 @@ describe('ProofTreeAggregate', () => {
         expect(parentArgResult.isOk() && childArgResult.isOk()).toBe(true);
 
         if (parentArgResult.isOk() && childArgResult.isOk()) {
-          const treeResult = ProofTreeAggregate.createNew(proof);
+          const treeResult = ProofTreeAggregate.createNew();
           expect(treeResult.isOk()).toBe(true);
 
           if (treeResult.isOk()) {
             const tree = treeResult.value;
-            const parentNodeResult = tree.addNode({ argumentId: parentArgResult.value });
-            const childNodeResult = tree.addNode({ argumentId: childArgResult.value });
+            const argumentIds = new Set([parentArgResult.value, childArgResult.value]);
+            const parentNodeResult = tree.addNode(
+              { argumentId: parentArgResult.value },
+              argumentIds,
+            );
+            const childNodeResult = tree.addNode({ argumentId: childArgResult.value }, argumentIds);
 
             expect(parentNodeResult.isOk() && childNodeResult.isOk()).toBe(true);
 
@@ -299,19 +310,21 @@ describe('ProofTreeAggregate', () => {
         expect(argumentResult.isOk()).toBe(true);
 
         if (argumentResult.isOk()) {
-          const treeResult = ProofTreeAggregate.createNew(proof);
+          const treeResult = ProofTreeAggregate.createNew();
           expect(treeResult.isOk()).toBe(true);
 
           if (treeResult.isOk()) {
             const tree = treeResult.value;
-            const nodeResult = tree.addNode({ argumentId: argumentResult.value });
+            const argumentIds = new Set([argumentResult.value]);
+            const nodeResult = tree.addNode({ argumentId: argumentResult.value }, argumentIds);
             expect(nodeResult.isOk()).toBe(true);
 
             if (nodeResult.isOk()) {
               const removeResult = tree.removeNode(nodeResult.value);
 
               expect(removeResult.isOk()).toBe(true);
-              expect(tree.getNodes().size).toBe(0);
+              const queryService = tree.createQueryService();
+              expect(queryService.getNodes().size).toBe(0);
             }
           }
         }
@@ -330,13 +343,17 @@ describe('ProofTreeAggregate', () => {
         expect(parentArgResult.isOk() && childArgResult.isOk()).toBe(true);
 
         if (parentArgResult.isOk() && childArgResult.isOk()) {
-          const treeResult = ProofTreeAggregate.createNew(proof);
+          const treeResult = ProofTreeAggregate.createNew();
           expect(treeResult.isOk()).toBe(true);
 
           if (treeResult.isOk()) {
             const tree = treeResult.value;
-            const parentNodeResult = tree.addNode({ argumentId: parentArgResult.value });
-            const childNodeResult = tree.addNode({ argumentId: childArgResult.value });
+            const argumentIds = new Set([parentArgResult.value, childArgResult.value]);
+            const parentNodeResult = tree.addNode(
+              { argumentId: parentArgResult.value },
+              argumentIds,
+            );
+            const childNodeResult = tree.addNode({ argumentId: childArgResult.value }, argumentIds);
 
             expect(parentNodeResult.isOk() && childNodeResult.isOk()).toBe(true);
 
@@ -367,12 +384,13 @@ describe('ProofTreeAggregate', () => {
         expect(argumentResult.isOk()).toBe(true);
 
         if (argumentResult.isOk()) {
-          const treeResult = ProofTreeAggregate.createNew(proof);
+          const treeResult = ProofTreeAggregate.createNew();
           expect(treeResult.isOk()).toBe(true);
 
           if (treeResult.isOk()) {
             const tree = treeResult.value;
-            tree.addNode({ argumentId: argumentResult.value });
+            const argumentIds = new Set([argumentResult.value]);
+            tree.addNode({ argumentId: argumentResult.value }, argumentIds);
 
             const validationResult = tree.validateTreeStructure();
             expect(validationResult.isOk()).toBe(true);
@@ -393,12 +411,13 @@ describe('ProofTreeAggregate', () => {
         expect(argumentResult.isOk()).toBe(true);
 
         if (argumentResult.isOk()) {
-          const treeResult = ProofTreeAggregate.createNew(proof);
+          const treeResult = ProofTreeAggregate.createNew();
           expect(treeResult.isOk()).toBe(true);
 
           if (treeResult.isOk()) {
             const tree = treeResult.value;
-            tree.addNode({ argumentId: argumentResult.value });
+            const argumentIds = new Set([argumentResult.value]);
+            tree.addNode({ argumentId: argumentResult.value }, argumentIds);
 
             const cycleResult = tree.detectCycles();
             expect(cycleResult.hasCycles).toBe(false);
@@ -420,12 +439,13 @@ describe('ProofTreeAggregate', () => {
         expect(argumentResult.isOk()).toBe(true);
 
         if (argumentResult.isOk()) {
-          const treeResult = ProofTreeAggregate.createNew(proof);
+          const treeResult = ProofTreeAggregate.createNew();
           expect(treeResult.isOk()).toBe(true);
 
           if (treeResult.isOk()) {
             const tree = treeResult.value;
-            const nodeResult = tree.addNode({ argumentId: argumentResult.value });
+            const argumentIds = new Set([argumentResult.value]);
+            const nodeResult = tree.addNode({ argumentId: argumentResult.value }, argumentIds);
             expect(nodeResult.isOk()).toBe(true);
 
             if (nodeResult.isOk()) {
@@ -437,7 +457,8 @@ describe('ProofTreeAggregate', () => {
 
                 expect(moveResult.isOk()).toBe(true);
 
-                const layout = tree.getSpatialLayout();
+                const queryService = tree.createQueryService();
+                const layout = queryService.getSpatialLayout();
                 expect(layout.offset.getX()).toBe(50);
                 expect(layout.offset.getY()).toBe(75);
               }
@@ -454,15 +475,15 @@ describe('ProofTreeAggregate', () => {
       expect(proofResult.isOk()).toBe(true);
 
       if (proofResult.isOk()) {
-        const proof = proofResult.value;
-        const treeResult = ProofTreeAggregate.createNew(proof);
+        const _proof = proofResult.value;
+        const treeResult = ProofTreeAggregate.createNew();
         expect(treeResult.isOk()).toBe(true);
 
         if (treeResult.isOk()) {
           const tree = treeResult.value;
           const events = tree.getUncommittedEvents();
 
-          expect(events.length).toBe(0);
+          expect(events.length).toBe(1); // Should have ProofTreeCreated event
         }
       }
     });
@@ -472,8 +493,8 @@ describe('ProofTreeAggregate', () => {
       expect(proofResult.isOk()).toBe(true);
 
       if (proofResult.isOk()) {
-        const proof = proofResult.value;
-        const treeResult = ProofTreeAggregate.createNew(proof);
+        const _proof = proofResult.value;
+        const treeResult = ProofTreeAggregate.createNew();
         expect(treeResult.isOk()).toBe(true);
 
         if (treeResult.isOk()) {
@@ -494,7 +515,7 @@ describe('ProofTreeAggregate', () => {
 
       if (proofResult.isOk()) {
         const proof = proofResult.value;
-        const treeResult = ProofTreeAggregate.createNew(proof);
+        const treeResult = ProofTreeAggregate.createNew();
         expect(treeResult.isOk()).toBe(true);
 
         if (treeResult.isOk()) {
@@ -516,6 +537,7 @@ describe('ProofTreeAggregate', () => {
 
           // Build linear chain: root -> child1 -> child2 -> ... -> childN
           const startTime = Date.now();
+          const argumentIdSet = new Set(argumentIds);
 
           let parentNodeId: NodeId | null = null;
           for (let i = 0; i < depth; i++) {
@@ -529,16 +551,19 @@ describe('ProofTreeAggregate', () => {
 
             if (i === 0) {
               // Root node
-              nodeResult = tree.addNode({ argumentId: currentArgumentId });
+              nodeResult = tree.addNode({ argumentId: currentArgumentId }, argumentIdSet);
             } else if (parentNodeId !== null) {
               // Child node
               const attachmentResult = Attachment.create(parentNodeId, 0);
               expect(attachmentResult.isOk()).toBe(true);
               if (attachmentResult.isOk()) {
-                nodeResult = tree.addNode({
-                  argumentId: currentArgumentId,
-                  attachment: attachmentResult.value,
-                });
+                nodeResult = tree.addNode(
+                  {
+                    argumentId: currentArgumentId,
+                    attachment: attachmentResult.value,
+                  },
+                  argumentIdSet,
+                );
               }
             }
 
@@ -562,7 +587,8 @@ describe('ProofTreeAggregate', () => {
           expect(executionTime).toBeLessThan(2000);
 
           // Verify tree structure
-          expect(tree.getNodes().size).toBe(depth);
+          const queryService = tree.createQueryService();
+          expect(queryService.getNodes().size).toBe(depth);
         }
       }
     });
@@ -573,7 +599,7 @@ describe('ProofTreeAggregate', () => {
 
       if (proofResult.isOk()) {
         const proof = proofResult.value;
-        const treeResult = ProofTreeAggregate.createNew(proof);
+        const treeResult = ProofTreeAggregate.createNew();
         expect(treeResult.isOk()).toBe(true);
 
         if (treeResult.isOk()) {
@@ -585,7 +611,12 @@ describe('ProofTreeAggregate', () => {
           expect(rootArgResult.isOk()).toBe(true);
 
           if (rootArgResult.isOk()) {
-            const rootNodeResult = tree.addNode({ argumentId: rootArgResult.value });
+            // We'll collect all argument IDs as we create them
+            const allArgumentIds = new Set([rootArgResult.value]);
+            const rootNodeResult = tree.addNode(
+              { argumentId: rootArgResult.value },
+              allArgumentIds,
+            );
             expect(rootNodeResult.isOk()).toBe(true);
 
             if (rootNodeResult.isOk()) {
@@ -599,14 +630,18 @@ describe('ProofTreeAggregate', () => {
                 expect(childArgResult.isOk()).toBe(true);
 
                 if (childArgResult.isOk()) {
+                  allArgumentIds.add(childArgResult.value);
                   const attachmentResult = Attachment.create(rootNodeId, i);
                   expect(attachmentResult.isOk()).toBe(true);
 
                   if (attachmentResult.isOk()) {
-                    const childNodeResult = tree.addNode({
-                      argumentId: childArgResult.value,
-                      attachment: attachmentResult.value,
-                    });
+                    const childNodeResult = tree.addNode(
+                      {
+                        argumentId: childArgResult.value,
+                        attachment: attachmentResult.value,
+                      },
+                      allArgumentIds,
+                    );
                     expect(childNodeResult.isOk()).toBe(true);
                   }
                 }
@@ -619,7 +654,8 @@ describe('ProofTreeAggregate', () => {
               expect(executionTime).toBeLessThan(1000);
 
               // Verify tree structure
-              expect(tree.getNodes().size).toBe(childCount + 1); // +1 for root
+              const queryService = tree.createQueryService();
+              expect(queryService.getNodes().size).toBe(childCount + 1); // +1 for root
 
               const validation = tree.validateTreeStructure();
               expect(validation.isOk()).toBe(true);

@@ -1,6 +1,14 @@
 import { err, ok, type Result } from 'neverthrow';
 import { Node } from '../entities/Node.js';
 import type { DomainEvent } from '../events/base-event.js';
+import {
+  NodeAdded,
+  NodeMoved,
+  NodeRemoved,
+  NodesConnected,
+  ProofTreeCreated,
+} from '../events/ProofTreeEvents.js';
+import { ProofTreeAggregateQueryService } from '../queries/ProofTreeAggregateQueryService.js';
 import { ValidationError } from '../shared/result.js';
 import {
   type AtomicArgumentId,
@@ -8,8 +16,7 @@ import {
   type NodeId,
   Position2D,
   ProofTreeId,
-} from '../shared/value-objects.js';
-import type { ProofAggregate } from './ProofAggregate.js';
+} from '../shared/value-objects/index.js';
 
 export interface NodeCreationData {
   argumentId: AtomicArgumentId;
@@ -21,14 +28,6 @@ export interface SpatialLayout {
   scale: number;
 }
 
-export class TreeConsistencyError extends Error {
-  constructor(message: string, cause?: Error) {
-    super(message);
-    this.name = 'TreeConsistencyError';
-    this.cause = cause;
-  }
-}
-
 export interface CycleDetectionResult {
   hasCycles: boolean;
   cycles: NodeId[][];
@@ -37,7 +36,6 @@ export interface CycleDetectionResult {
 export class ProofTreeAggregate {
   private readonly uncommittedEvents: DomainEvent[] = [];
 
-  // Performance optimization: Cache for parent-child relationships
   private readonly parentToChildrenMap: Map<string, Set<NodeId>> = new Map();
   private readonly childToParentMap: Map<NodeId, NodeId> = new Map();
 
@@ -45,7 +43,6 @@ export class ProofTreeAggregate {
     private readonly id: ProofTreeId,
     private readonly nodes: Map<NodeId, Node>,
     private spatialLayout: SpatialLayout,
-    private readonly proofAggregate: ProofAggregate,
     private version: number = 1,
   ) {
     // Initialize parent-child caches
@@ -53,16 +50,21 @@ export class ProofTreeAggregate {
   }
 
   static createNew(
-    proofAggregate: ProofAggregate,
     initialLayout: SpatialLayout = { offset: Position2D.origin(), scale: 1.0 },
   ): Result<ProofTreeAggregate, ValidationError> {
     const nodes = new Map<NodeId, Node>();
+    const treeId = ProofTreeId.generate();
 
-    const tree = new ProofTreeAggregate(
-      ProofTreeId.generate(),
-      nodes,
-      initialLayout,
-      proofAggregate,
+    const tree = new ProofTreeAggregate(treeId, nodes, initialLayout);
+
+    tree.uncommittedEvents.push(
+      new ProofTreeCreated(treeId.getValue(), {
+        treeId,
+        initialLayout: {
+          offset: { x: initialLayout.offset.getX(), y: initialLayout.offset.getY() },
+          scale: initialLayout.scale,
+        },
+      }),
     );
 
     return ok(tree);
@@ -72,12 +74,12 @@ export class ProofTreeAggregate {
     id: ProofTreeId,
     nodes: Map<NodeId, Node>,
     spatialLayout: SpatialLayout,
-    proofAggregate: ProofAggregate,
+    argumentIds: ReadonlySet<AtomicArgumentId>,
     version: number = 1,
   ): Result<ProofTreeAggregate, ValidationError> {
-    const tree = new ProofTreeAggregate(id, nodes, spatialLayout, proofAggregate, version);
+    const tree = new ProofTreeAggregate(id, nodes, spatialLayout, version);
 
-    const validationResult = tree.validateTreeStructure();
+    const validationResult = tree.validateTreeStructure(argumentIds);
     if (validationResult.isErr()) {
       return err(new ValidationError(`Invalid tree structure: ${validationResult.error.message}`));
     }
@@ -85,28 +87,23 @@ export class ProofTreeAggregate {
     return ok(tree);
   }
 
-  getId(): ProofTreeId {
-    return this.id;
+  // Query service factory method
+  createQueryService(): ProofTreeAggregateQueryService {
+    return new ProofTreeAggregateQueryService(
+      this.id,
+      this.version,
+      new Map(this.nodes),
+      { ...this.spatialLayout },
+      new Map(this.parentToChildrenMap),
+      new Map(this.childToParentMap),
+    );
   }
 
-  getVersion(): number {
-    return this.version;
-  }
-
-  getNodes(): ReadonlyMap<NodeId, Node> {
-    return new Map(this.nodes);
-  }
-
-  getSpatialLayout(): Readonly<SpatialLayout> {
-    return { ...this.spatialLayout };
-  }
-
-  getProofAggregate(): ProofAggregate {
-    return this.proofAggregate;
-  }
-
-  addNode(nodeData: NodeCreationData): Result<NodeId, ValidationError> {
-    const argumentExists = this.proofAggregate.getArguments().has(nodeData.argumentId);
+  addNode(
+    nodeData: NodeCreationData,
+    argumentIds: ReadonlySet<AtomicArgumentId>,
+  ): Result<NodeId, ValidationError> {
+    const argumentExists = argumentIds.has(nodeData.argumentId);
     if (!argumentExists) {
       return err(new ValidationError('Cannot add node: argument does not exist in proof'));
     }
@@ -131,9 +128,22 @@ export class ProofTreeAggregate {
     const node = nodeResult.value;
     this.nodes.set(node.getId(), node);
 
-    // Update performance caches
     this.updateCachesForNewNode(node);
     this.incrementVersion();
+
+    this.uncommittedEvents.push(
+      new NodeAdded(this.id.getValue(), {
+        nodeId: node.getId(),
+        argumentId: nodeData.argumentId,
+        ...(nodeData.attachment && {
+          parentNodeId: nodeData.attachment.getParentNodeId(),
+          position: nodeData.attachment.getPremisePosition(),
+          ...(nodeData.attachment.getFromPosition() !== undefined && {
+            fromPosition: nodeData.attachment.getFromPosition() as number,
+          }),
+        }),
+      }),
+    );
 
     return ok(node.getId());
   }
@@ -155,9 +165,15 @@ export class ProofTreeAggregate {
 
     this.nodes.delete(nodeId);
 
-    // Update performance caches
     this.updateCachesForRemovedNode(node);
     this.incrementVersion();
+
+    this.uncommittedEvents.push(
+      new NodeRemoved(this.id.getValue(), {
+        nodeId: node.getId(),
+        argumentId: node.getArgumentId(),
+      }),
+    );
 
     return ok(undefined);
   }
@@ -180,11 +196,6 @@ export class ProofTreeAggregate {
 
     if (!childNode.isRoot()) {
       return err(new ValidationError('Child node is already attached to another parent'));
-    }
-
-    const parentArgument = this.proofAggregate.getArguments().get(parentNode.getArgumentId());
-    if (!parentArgument) {
-      return err(new ValidationError('Parent argument not found in proof'));
     }
 
     if (position < 0) {
@@ -212,9 +223,17 @@ export class ProofTreeAggregate {
       return err(structureValidation.error);
     }
 
-    // Update caches after successful connection
     this.addToParentChildCache(parentId, childId);
     this.incrementVersion();
+
+    this.uncommittedEvents.push(
+      new NodesConnected(this.id.getValue(), {
+        parentNodeId: parentId,
+        childNodeId: childId,
+        position,
+        ...(fromPosition !== undefined && { fromPosition }),
+      }),
+    );
 
     return ok(undefined);
   }
@@ -225,37 +244,49 @@ export class ProofTreeAggregate {
       return err(new ValidationError('Node not found'));
     }
 
+    const previousPosition = {
+      x: this.spatialLayout.offset.getX(),
+      y: this.spatialLayout.offset.getY(),
+    };
     this.spatialLayout.offset = newPosition;
     this.incrementVersion();
+
+    this.uncommittedEvents.push(
+      new NodeMoved(this.id.getValue(), {
+        nodeId,
+        newPosition: { x: newPosition.getX(), y: newPosition.getY() },
+        previousPosition,
+      }),
+    );
 
     return ok(undefined);
   }
 
-  validateTreeStructure(): Result<void, TreeConsistencyError> {
-    try {
-      const nodeValidation = this.validateNodeReferences();
+  validateTreeStructure(
+    argumentIds?: ReadonlySet<AtomicArgumentId>,
+  ): Result<void, ValidationError> {
+    if (argumentIds) {
+      const nodeValidation = this.validateNodeReferences(argumentIds);
       if (nodeValidation.isErr()) {
-        return err(new TreeConsistencyError(nodeValidation.error.message));
+        return err(new ValidationError(nodeValidation.error.message));
       }
-
-      const cycleDetection = this.detectCycles();
-      if (cycleDetection.hasCycles) {
-        return err(
-          new TreeConsistencyError(
-            `Tree contains cycles: ${cycleDetection.cycles.map((cycle) => cycle.map((id) => id.getValue()).join(' -> ')).join(', ')}`,
-          ),
-        );
-      }
-
-      const attachmentValidation = this.validateAttachments();
-      if (attachmentValidation.isErr()) {
-        return err(new TreeConsistencyError(attachmentValidation.error.message));
-      }
-
-      return ok(undefined);
-    } catch (error) {
-      return err(new TreeConsistencyError('Tree validation failed', error as Error));
     }
+
+    const cycleDetection = this.detectCycles();
+    if (cycleDetection.hasCycles) {
+      return err(
+        new ValidationError(
+          `Tree contains cycles: ${cycleDetection.cycles.map((cycle) => cycle.map((id) => id.getValue()).join(' -> ')).join(', ')}`,
+        ),
+      );
+    }
+
+    const attachmentValidation = this.validateAttachments();
+    if (attachmentValidation.isErr()) {
+      return err(new ValidationError(attachmentValidation.error.message));
+    }
+
+    return ok(undefined);
   }
 
   detectCycles(): CycleDetectionResult {
@@ -281,7 +312,6 @@ export class ProofTreeAggregate {
       visited.add(nodeKey);
       recursionStack.add(nodeKey);
 
-      // Use cached children lookup for better performance
       const childIds = this.parentToChildrenMap.get(nodeKey) ?? new Set();
       for (const childId of childIds) {
         detectCycleFromNode(childId, [...path, childId]);
@@ -312,7 +342,6 @@ export class ProofTreeAggregate {
   }
 
   private getChildNodes(parentId: NodeId): Node[] {
-    // Use cache for O(1) lookup instead of O(n) filtering
     const childIds = this.parentToChildrenMap.get(parentId.getValue()) ?? new Set();
     return Array.from(childIds)
       .map((id) => this.nodes.get(id))
@@ -345,9 +374,11 @@ export class ProofTreeAggregate {
     }
   }
 
-  private validateNodeReferences(): Result<void, ValidationError> {
+  private validateNodeReferences(
+    argumentIds: ReadonlySet<AtomicArgumentId>,
+  ): Result<void, ValidationError> {
     for (const node of Array.from(this.nodes.values())) {
-      const argumentExists = this.proofAggregate.getArguments().has(node.getArgumentId());
+      const argumentExists = argumentIds.has(node.getArgumentId());
       if (!argumentExists) {
         return err(
           new ValidationError(
@@ -399,7 +430,6 @@ export class ProofTreeAggregate {
     this.version++;
   }
 
-  // Performance optimization methods
   private rebuildParentChildCache(): void {
     this.parentToChildrenMap.clear();
     this.childToParentMap.clear();

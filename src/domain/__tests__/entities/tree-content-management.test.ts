@@ -289,8 +289,11 @@ describe('Tree Content Management', () => {
         const nodeIds = tree.getNodeIds();
         const originalLength = nodeIds.length;
 
-        // Attempt to modify the returned array
-        nodeIds.push(nodeIdFactory.build());
+        // Verify that the returned array is readonly (immutable)
+        // TypeScript prevents push at compile time, but we can verify at runtime
+        expect(() => {
+          (nodeIds as any).push(nodeIdFactory.build());
+        }).toThrow();
 
         // Tree should be unchanged
         expect(tree.getNodeIds()).toHaveLength(originalLength);

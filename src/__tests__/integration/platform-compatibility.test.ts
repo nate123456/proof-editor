@@ -11,6 +11,17 @@ import type { IFileSystemPort } from '../../application/ports/IFileSystemPort.js
 import type { IPlatformPort } from '../../application/ports/IPlatformPort.js';
 import type { IUIPort } from '../../application/ports/IUIPort.js';
 import { ValidationError } from '../../domain/shared/result.js';
+import {
+  DialogTitle,
+  DocumentContent,
+  DocumentId,
+  DocumentVersion,
+  FileSize,
+  NotificationMessage,
+  Title,
+  ViewType,
+  WebviewId,
+} from '../../domain/shared/value-objects/index.js';
 import { activate } from '../../extension/extension.js';
 import {
   type ApplicationContainer,
@@ -464,17 +475,33 @@ describe('Platform Compatibility Integration Tests', () => {
 
       const fileSystemPort = container.resolve<IFileSystemPort>(TOKENS.IFileSystemPort);
 
+      const contentResult = DocumentContent.create(generatePlatformTestContent(windowsPlatform));
+      const docIdResult = DocumentId.create('windows-test');
+      const titleResult = Title.create('Windows Test');
+      const sizeResult = FileSize.create(1000);
+      const versionResult = DocumentVersion.create(1);
+
+      if (
+        contentResult.isErr() ||
+        docIdResult.isErr() ||
+        titleResult.isErr() ||
+        sizeResult.isErr() ||
+        versionResult.isErr()
+      ) {
+        throw new Error('Failed to create value objects for test document');
+      }
+
       const testDoc = {
-        id: 'windows-test',
-        content: generatePlatformTestContent(windowsPlatform),
+        id: docIdResult.value,
+        content: contentResult.value,
         metadata: {
-          id: 'windows-test',
-          title: 'Windows Test',
+          id: docIdResult.value,
+          title: titleResult.value,
           modifiedAt: new Date(),
-          size: 1000,
+          size: sizeResult.value,
           syncStatus: 'synced' as const,
         },
-        version: 1,
+        version: versionResult.value,
       };
 
       const result = await fileSystemPort.storeDocument(testDoc);
@@ -495,17 +522,33 @@ describe('Platform Compatibility Integration Tests', () => {
 
       const fileSystemPort = container.resolve<IFileSystemPort>(TOKENS.IFileSystemPort);
 
+      const contentResult = DocumentContent.create(generatePlatformTestContent(unixPlatform));
+      const docIdResult = DocumentId.create('unix-test');
+      const titleResult = Title.create('Unix Test');
+      const sizeResult = FileSize.create(1000);
+      const versionResult = DocumentVersion.create(1);
+
+      if (
+        contentResult.isErr() ||
+        docIdResult.isErr() ||
+        titleResult.isErr() ||
+        sizeResult.isErr() ||
+        versionResult.isErr()
+      ) {
+        throw new Error('Failed to create value objects for test document');
+      }
+
       const testDoc = {
-        id: 'unix-test',
-        content: generatePlatformTestContent(unixPlatform),
+        id: docIdResult.value,
+        content: contentResult.value,
         metadata: {
-          id: 'unix-test',
-          title: 'Unix Test',
+          id: docIdResult.value,
+          title: titleResult.value,
           modifiedAt: new Date(),
-          size: 1000,
+          size: sizeResult.value,
           syncStatus: 'synced' as const,
         },
-        version: 1,
+        version: versionResult.value,
       };
 
       const result = await fileSystemPort.storeDocument(testDoc);
@@ -532,17 +575,33 @@ describe('Platform Compatibility Integration Tests', () => {
       expect(capabilities.persistence).toBe('session');
 
       // But should still support basic operations
+      const contentResult = DocumentContent.create(generatePlatformTestContent(webPlatform));
+      const docIdResult = DocumentId.create('web-test');
+      const titleResult = Title.create('Web Test');
+      const sizeResult = FileSize.create(1000);
+      const versionResult = DocumentVersion.create(1);
+
+      if (
+        contentResult.isErr() ||
+        docIdResult.isErr() ||
+        titleResult.isErr() ||
+        sizeResult.isErr() ||
+        versionResult.isErr()
+      ) {
+        throw new Error('Failed to create value objects for test document');
+      }
+
       const testDoc = {
-        id: 'web-test',
-        content: generatePlatformTestContent(webPlatform),
+        id: docIdResult.value,
+        content: contentResult.value,
         metadata: {
-          id: 'web-test',
-          title: 'Web Test',
+          id: docIdResult.value,
+          title: titleResult.value,
           modifiedAt: new Date(),
-          size: 1000,
+          size: sizeResult.value,
           syncStatus: 'synced' as const,
         },
-        version: 1,
+        version: versionResult.value,
       };
 
       const result = await fileSystemPort.storeDocument(testDoc);
@@ -567,10 +626,18 @@ describe('Platform Compatibility Integration Tests', () => {
 
       const uiPort = container.resolve<IUIPort>(TOKENS.IUIPort);
 
+      const idResult = WebviewId.create('test-panel');
+      const titleResult = DialogTitle.create('Test Panel');
+      const viewTypeResult = ViewType.create('test');
+
+      if (idResult.isErr() || titleResult.isErr() || viewTypeResult.isErr()) {
+        throw new Error('Failed to create value objects for webview panel');
+      }
+
       const webviewPanel = uiPort.createWebviewPanel({
-        id: 'test-panel',
-        title: 'Test Panel',
-        viewType: 'test',
+        id: idResult.value,
+        title: titleResult.value,
+        viewType: viewTypeResult.value,
         showOptions: { viewColumn: 1, preserveFocus: false },
         retainContextWhenHidden: true,
         enableScripts: true,
@@ -603,10 +670,18 @@ describe('Platform Compatibility Integration Tests', () => {
 
       // Should either provide fallback or gracefully fail
       try {
+        const idResult = WebviewId.create('test-panel');
+        const titleResult = DialogTitle.create('Test Panel');
+        const viewTypeResult = ViewType.create('test');
+
+        if (idResult.isErr() || titleResult.isErr() || viewTypeResult.isErr()) {
+          throw new Error('Failed to create value objects for webview panel');
+        }
+
         const webviewPanel = uiPort.createWebviewPanel({
-          id: 'test-panel',
-          title: 'Test Panel',
-          viewType: 'test',
+          id: idResult.value,
+          title: titleResult.value,
+          viewType: viewTypeResult.value,
           showOptions: { viewColumn: 1, preserveFocus: false },
           retainContextWhenHidden: true,
           enableScripts: true,
@@ -703,17 +778,33 @@ describe('Platform Compatibility Integration Tests', () => {
       const start = Date.now();
       // Simulate network operation
       const fileSystemPort = container.resolve<IFileSystemPort>(TOKENS.IFileSystemPort);
+      const contentResult = DocumentContent.create(testContent);
+      const docIdResult = DocumentId.create('remote-test');
+      const titleResult = Title.create('Remote Test');
+      const sizeResult = FileSize.create(testContent.length);
+      const versionResult = DocumentVersion.create(1);
+
+      if (
+        contentResult.isErr() ||
+        docIdResult.isErr() ||
+        titleResult.isErr() ||
+        sizeResult.isErr() ||
+        versionResult.isErr()
+      ) {
+        throw new Error('Failed to create value objects for test document');
+      }
+
       const testDoc = {
-        id: 'remote-test',
-        content: testContent,
+        id: docIdResult.value,
+        content: contentResult.value,
         metadata: {
-          id: 'remote-test',
-          title: 'Remote Test',
+          id: docIdResult.value,
+          title: titleResult.value,
           modifiedAt: new Date(),
-          size: testContent.length,
+          size: sizeResult.value,
           syncStatus: 'synced' as const,
         },
-        version: 1,
+        version: versionResult.value,
       };
 
       const result = await fileSystemPort.storeDocument(testDoc);
@@ -760,7 +851,11 @@ describe('Platform Compatibility Integration Tests', () => {
         const uiPort = container.resolve<IUIPort>(TOKENS.IUIPort);
 
         // Test error display
-        uiPort.showError('Test error message');
+        const errorMessage = NotificationMessage.create('Test error message');
+        if (errorMessage.isErr()) {
+          throw new Error('Failed to create notification message');
+        }
+        uiPort.showError(errorMessage.value);
 
         expect(platformMocks.window.showErrorMessage).toHaveBeenCalledWith('Test error message');
       }
@@ -784,17 +879,33 @@ describe('Platform Compatibility Integration Tests', () => {
 
       const fileSystemPort = container.resolve<IFileSystemPort>(TOKENS.IFileSystemPort);
 
+      const contentResult = DocumentContent.create('test content');
+      const docIdResult = DocumentId.create('failure-test');
+      const titleResult = Title.create('Failure Test');
+      const sizeResult = FileSize.create(100);
+      const versionResult = DocumentVersion.create(1);
+
+      if (
+        contentResult.isErr() ||
+        docIdResult.isErr() ||
+        titleResult.isErr() ||
+        sizeResult.isErr() ||
+        versionResult.isErr()
+      ) {
+        throw new Error('Failed to create value objects for test document');
+      }
+
       const testDoc = {
-        id: 'failure-test',
-        content: 'test content',
+        id: docIdResult.value,
+        content: contentResult.value,
         metadata: {
-          id: 'failure-test',
-          title: 'Failure Test',
+          id: docIdResult.value,
+          title: titleResult.value,
           modifiedAt: new Date(),
-          size: 100,
+          size: sizeResult.value,
           syncStatus: 'synced' as const,
         },
-        version: 1,
+        version: versionResult.value,
       };
 
       const result = await fileSystemPort.storeDocument(testDoc);

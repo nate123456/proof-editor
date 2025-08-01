@@ -19,7 +19,6 @@ describe('ProofApplicationService Event Integration', () => {
       delete: vi.fn(),
       exists: vi.fn(),
       findAll: vi.fn(),
-      nextIdentity: vi.fn(),
       findByDateRange: vi.fn(),
       count: vi.fn(),
       createBootstrapDocument: vi.fn(),
@@ -93,8 +92,8 @@ describe('ProofApplicationService Event Integration', () => {
       const result = await service.updateAtomicArgument({
         documentId: '', // Invalid empty ID
         argumentId: 'valid-argument-id',
-        premiseSetId: null,
-        conclusionSetId: null,
+        premiseIds: null,
+        conclusionIds: null,
       });
 
       // Assert
@@ -143,8 +142,8 @@ describe('ProofApplicationService Event Integration', () => {
           service.updateAtomicArgument({
             documentId: validDocumentId,
             argumentId: 'arg1',
-            premiseSetId: null,
-            conclusionSetId: null,
+            premiseIds: null,
+            conclusionIds: null,
           }),
         () => service.deleteAtomicArgument({ documentId: validDocumentId, argumentId: 'arg1' }),
       ];
@@ -191,8 +190,8 @@ describe('ProofApplicationService Event Integration', () => {
           service.updateAtomicArgument({
             documentId,
             argumentId,
-            premiseSetId: null,
-            conclusionSetId: null,
+            premiseIds: null,
+            conclusionIds: null,
           }),
         () => service.deleteAtomicArgument({ documentId, argumentId }),
       ];
@@ -627,8 +626,8 @@ describe('ProofApplicationService Event Integration', () => {
       // Should have AtomicArgumentCreated event
       const argEvents = capturedEvents.filter((e) => e.eventType === 'AtomicArgumentCreated');
       expect(argEvents).toHaveLength(1);
-      expect(argEvents[0]?.eventData.premiseSetId).toBeNull();
-      expect(argEvents[0]?.eventData.conclusionSetId).toBeNull();
+      expect(argEvents[0]?.eventData.premiseIds).toEqual([]);
+      expect(argEvents[0]?.eventData.conclusionIds).toEqual([]);
     });
 
     test('creates OrderedSets and argument with statements', async () => {
@@ -670,8 +669,8 @@ describe('ProofApplicationService Event Integration', () => {
 
       expect(orderedSetEvents).toHaveLength(2); // premise and conclusion sets
       expect(argEvents).toHaveLength(1);
-      expect(argEvents[0]?.eventData.premiseSetId).not.toBeNull();
-      expect(argEvents[0]?.eventData.conclusionSetId).not.toBeNull();
+      expect(argEvents[0]?.eventData.premiseIds).toHaveLength(1);
+      expect(argEvents[0]?.eventData.conclusionIds).toHaveLength(1);
     });
 
     test('creates argument with side labels', async () => {
@@ -942,8 +941,8 @@ describe('ProofApplicationService Event Integration', () => {
       const result = await service.updateAtomicArgument({
         documentId,
         argumentId,
-        premiseSetId: orderedSetId,
-        conclusionSetId: null,
+        premiseIds: orderedSetId,
+        conclusionIds: null,
       });
 
       // Assert
@@ -952,7 +951,7 @@ describe('ProofApplicationService Event Integration', () => {
       // Should have AtomicArgumentUpdated event
       const updateEvents = capturedEvents.filter((e) => e.eventType === 'AtomicArgumentUpdated');
       expect(updateEvents).toHaveLength(1);
-      expect(updateEvents[0]?.eventData.premiseSetId).toBe(orderedSetId);
+      expect(updateEvents[0]?.eventData.premiseIds).toContain(orderedSetId);
     });
 
     test('returns error if argument not found', async () => {
@@ -966,8 +965,8 @@ describe('ProofApplicationService Event Integration', () => {
       const result = await service.updateAtomicArgument({
         documentId,
         argumentId: 'non-existent',
-        premiseSetId: null,
-        conclusionSetId: null,
+        premiseIds: null,
+        conclusionIds: null,
       });
 
       // Assert
@@ -988,8 +987,8 @@ describe('ProofApplicationService Event Integration', () => {
       const result = await service.updateAtomicArgument({
         documentId,
         argumentId: '', // Invalid empty argument ID
-        premiseSetId: null,
-        conclusionSetId: null,
+        premiseIds: null,
+        conclusionIds: null,
       });
 
       // Assert
@@ -1015,8 +1014,8 @@ describe('ProofApplicationService Event Integration', () => {
       const result = await service.updateAtomicArgument({
         documentId,
         argumentId,
-        premiseSetId: 'invalid-format', // Invalid non-UUID format
-        conclusionSetId: null,
+        premiseIds: 'invalid-format', // Invalid non-UUID format
+        conclusionIds: null,
       });
 
       // Assert
@@ -1042,8 +1041,8 @@ describe('ProofApplicationService Event Integration', () => {
       const result = await service.updateAtomicArgument({
         documentId,
         argumentId,
-        premiseSetId: null,
-        conclusionSetId: 'invalid-format', // Invalid non-UUID format
+        premiseIds: null,
+        conclusionIds: 'invalid-format', // Invalid non-UUID format
       });
 
       // Assert
@@ -1069,8 +1068,8 @@ describe('ProofApplicationService Event Integration', () => {
       const result = await service.updateAtomicArgument({
         documentId,
         argumentId,
-        premiseSetId: 'non-existent',
-        conclusionSetId: null,
+        premiseIds: 'non-existent',
+        conclusionIds: null,
       });
 
       // Assert
@@ -1096,8 +1095,8 @@ describe('ProofApplicationService Event Integration', () => {
       const result = await service.updateAtomicArgument({
         documentId,
         argumentId,
-        premiseSetId: null,
-        conclusionSetId: 'non-existent',
+        premiseIds: null,
+        conclusionIds: 'non-existent',
       });
 
       // Assert
@@ -1128,8 +1127,8 @@ describe('ProofApplicationService Event Integration', () => {
       const result = await service.updateAtomicArgument({
         documentId,
         argumentId,
-        premiseSetId: null,
-        conclusionSetId: null,
+        premiseIds: null,
+        conclusionIds: null,
       });
 
       // Assert

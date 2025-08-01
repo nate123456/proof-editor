@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { DocumentId, TreeId } from '../../shared/value-objects.js';
+import type { DocumentId, TreeId } from '../../shared/value-objects/index.js';
 import {
   type ConsistencyResult,
   CustomRuleApplied,

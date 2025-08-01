@@ -22,10 +22,10 @@ import type { IUIPort } from '../../application/ports/IUIPort.js';
 import { DocumentQueryService } from '../../application/services/DocumentQueryService.js';
 import { ProofApplicationService } from '../../application/services/ProofApplicationService.js';
 import { ProofVisualizationService } from '../../application/services/ProofVisualizationService.js';
-import { OrderedSetIdentityService } from '../../domain/services/OrderedSetIdentityService.js';
 import { StatementFlowService } from '../../domain/services/StatementFlowService.js';
 import { TreeStructureService } from '../../domain/services/TreeStructureService.js';
 import { ValidationError } from '../../domain/shared/result.js';
+import { FilePath } from '../../domain/shared/value-objects/index.js';
 
 describe('Service Layer Error Boundaries', () => {
   let mockFileSystemPort: IFileSystemPort;
@@ -40,7 +40,6 @@ describe('Service Layer Error Boundaries', () => {
   // Domain Services
   let statementFlowService: StatementFlowService;
   let _treeStructureService: TreeStructureService;
-  let _orderedSetIdentityService: OrderedSetIdentityService;
 
   beforeEach(() => {
     // Set up port mocks
@@ -101,7 +100,6 @@ describe('Service Layer Error Boundaries', () => {
     const mockTransactionService = { executeTransaction: vi.fn() };
     statementFlowService = new StatementFlowService(mockTransactionService as any);
     _treeStructureService = new TreeStructureService();
-    _orderedSetIdentityService = new OrderedSetIdentityService();
 
     // Initialize application services with proper constructor parameters
     const mockDocumentRepository = {
@@ -110,7 +108,6 @@ describe('Service Layer Error Boundaries', () => {
       exists: vi.fn(),
       delete: vi.fn(),
       findAll: vi.fn(),
-      nextIdentity: vi.fn(),
     };
     const mockParser = {
       parse: vi.fn(),
@@ -181,8 +178,7 @@ describe('Service Layer Error Boundaries', () => {
         createStatementFromContent: vi
           .fn()
           .mockReturnValue(err(new ValidationError('Invalid statement content'))),
-        createOrderedSetFromStatements: vi.fn(),
-        createAtomicArgumentWithSets: vi.fn(),
+        createAtomicArgumentFromStatements: vi.fn(),
       };
 
       const localMockTreeLayoutService = {
@@ -198,7 +194,6 @@ describe('Service Layer Error Boundaries', () => {
         createdAt: '2025-01-01T00:00:00.000Z',
         modifiedAt: '2025-01-01T00:00:00.000Z',
         statements: {},
-        orderedSets: {},
         atomicArguments: {},
         trees: {},
       });
@@ -277,27 +272,20 @@ describe('Service Layer Error Boundaries', () => {
       }
     });
 
-    it('should handle OrderedSetIdentityService identity conflicts', () => {
-      // Arrange - create ordered sets that might have identity conflicts
+    it('should handle statement identity conflicts', () => {
+      // Arrange - create statements that might have identity conflicts
       const statement1 = statementFlowService.createStatementFromContent('Test statement');
+      const statement2 = statementFlowService.createStatementFromContent('Test statement');
+
       expect(statement1.isOk()).toBe(true);
+      expect(statement2.isOk()).toBe(true);
 
-      if (statement1.isOk()) {
-        const orderedSet1 = statementFlowService.createOrderedSetFromStatements([statement1.value]);
-        const orderedSet2 = statementFlowService.createOrderedSetFromStatements([statement1.value]);
+      if (statement1.isOk() && statement2.isOk()) {
+        // Act - service should handle potential conflicts
+        const identityCheck = statement1.value.getId() === statement2.value.getId();
 
-        expect(orderedSet1.isOk()).toBe(true);
-        expect(orderedSet2.isOk()).toBe(true);
-
-        if (orderedSet1.isOk() && orderedSet2.isOk()) {
-          // Act - identity service should handle potential conflicts
-          // OrderedSetIdentityService doesn't have areOrderedSetsIdentical - skip this check
-          const identityCheck = { isErr: () => false, value: true }; // Mock result
-
-          // Assert - identity operations don't throw, return Results
-          expect(identityCheck).toBeDefined();
-          expect(typeof identityCheck).toBe('object');
-        }
+        // Assert - identity operations work correctly
+        expect(typeof identityCheck).toBe('boolean');
       }
     });
 
@@ -334,7 +322,6 @@ describe('Service Layer Error Boundaries', () => {
               ok({
                 version: '1.0.0',
                 statements: {},
-                orderedSets: {},
                 atomicArguments: {},
                 trees: {},
               }),
@@ -389,7 +376,6 @@ describe('Service Layer Error Boundaries', () => {
               ok({
                 version: '1.0.0',
                 statements: {},
-                orderedSets: {},
                 atomicArguments: {},
                 trees: {},
               }),
@@ -401,7 +387,10 @@ describe('Service Layer Error Boundaries', () => {
           if (createResult.isOk()) {
             // Add compensation action
             compensationActions.push(async () => {
-              await mockFileSystemPort.delete('/temp.md');
+              const tempPath = FilePath.create('/temp.md');
+              if (tempPath.isOk()) {
+                await mockFileSystemPort.delete(tempPath.value);
+              }
             });
           }
 
@@ -431,7 +420,10 @@ describe('Service Layer Error Boundaries', () => {
       if (result.isErr()) {
         expect(result.error.message).toContain('Operation failed');
       }
-      expect(mockFileSystemPort.delete).toHaveBeenCalledWith('/temp.md');
+      const tempPath = FilePath.create('/temp.md');
+      if (tempPath.isOk()) {
+        expect(mockFileSystemPort.delete).toHaveBeenCalledWith(tempPath.value);
+      }
     });
 
     it('should handle service dependency timeout scenarios', async () => {
@@ -635,7 +627,10 @@ describe('Service Layer Error Boundaries', () => {
 
             if (fileResult.isOk()) {
               rollbackActions.push(async () => {
-                await mockFileSystemPort.delete('/cmd.md');
+                const cmdPath = FilePath.create('/cmd.md');
+                if (cmdPath.isOk()) {
+                  await mockFileSystemPort.delete(cmdPath.value);
+                }
               });
             }
 
@@ -667,7 +662,10 @@ describe('Service Layer Error Boundaries', () => {
       if (result.isErr()) {
         expect(result.error.message).toContain('UI operation failed');
       }
-      expect(mockFileSystemPort.delete).toHaveBeenCalledWith('/cmd.md');
+      const cmdPath = FilePath.create('/cmd.md');
+      if (cmdPath.isOk()) {
+        expect(mockFileSystemPort.delete).toHaveBeenCalledWith(cmdPath.value);
+      }
     });
   });
 

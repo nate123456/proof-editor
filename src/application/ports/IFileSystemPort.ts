@@ -1,23 +1,35 @@
 import type { Result } from 'neverthrow';
+import type {
+  DocumentContent,
+  DocumentId,
+  DocumentVersion,
+  ErrorCode,
+  ErrorMessage,
+  FileName,
+  FilePath,
+  FileSize,
+  Timestamp,
+  Title,
+} from '../../domain/shared/value-objects/index.js';
 
 export interface IFileSystemPort {
   // Basic file operations
-  readFile(path: string): Promise<Result<string, FileSystemError>>;
-  writeFile(path: string, content: string): Promise<Result<void, FileSystemError>>;
-  exists(path: string): Promise<Result<boolean, FileSystemError>>;
-  delete(path: string): Promise<Result<void, FileSystemError>>;
+  readFile(path: FilePath): Promise<Result<DocumentContent, FileSystemError>>;
+  writeFile(path: FilePath, content: DocumentContent): Promise<Result<void, FileSystemError>>;
+  exists(path: FilePath): Promise<Result<boolean, FileSystemError>>;
+  delete(path: FilePath): Promise<Result<void, FileSystemError>>;
 
   // Directory operations
-  readDirectory(path: string): Promise<Result<FileInfo[], FileSystemError>>;
-  createDirectory(path: string): Promise<Result<void, FileSystemError>>;
+  readDirectory(path: FilePath): Promise<Result<FileInfo[], FileSystemError>>;
+  createDirectory(path: FilePath): Promise<Result<void, FileSystemError>>;
 
   // Watch operations (optional - not all platforms support)
-  watch?(path: string, callback: (event: FileChangeEvent) => void): Disposable;
+  watch?(path: FilePath, callback: (event: FileChangeEvent) => void): Disposable;
 
   // Offline storage operations (for mobile support)
-  getStoredDocument(id: string): Promise<Result<StoredDocument | null, FileSystemError>>;
+  getStoredDocument(id: DocumentId): Promise<Result<StoredDocument | null, FileSystemError>>;
   storeDocument(doc: StoredDocument): Promise<Result<void, FileSystemError>>;
-  deleteStoredDocument(id: string): Promise<Result<void, FileSystemError>>;
+  deleteStoredDocument(id: DocumentId): Promise<Result<void, FileSystemError>>;
   listStoredDocuments(): Promise<Result<DocumentMetadata[], FileSystemError>>;
 
   // Platform capabilities
@@ -25,51 +37,45 @@ export interface IFileSystemPort {
 }
 
 export interface FileInfo {
-  path: string;
-  name: string;
+  path: FilePath;
+  name: FileName;
   isDirectory: boolean;
-  size?: number;
+  size?: FileSize;
   modifiedAt?: Date;
 }
 
 export interface FileChangeEvent {
   type: 'created' | 'changed' | 'deleted';
-  path: string;
+  path: FilePath;
 }
 
 export interface StoredDocument {
-  id: string;
-  content: string;
+  id: DocumentId;
+  content: DocumentContent;
   metadata: DocumentMetadata;
-  version: number;
+  version: DocumentVersion;
 }
 
 export interface DocumentMetadata {
-  id: string;
-  title: string;
-  modifiedAt: Date;
-  size: number;
+  id: DocumentId;
+  title: Title;
+  modifiedAt: Timestamp;
+  size: FileSize;
   syncStatus?: 'local' | 'synced' | 'conflict';
 }
 
 export interface FileSystemCapabilities {
   canWatch: boolean;
   canAccessArbitraryPaths: boolean; // false on mobile
-  maxFileSize?: number;
+  maxFileSize?: FileSize;
   supportsOfflineStorage: boolean;
   persistence: 'memory' | 'session' | 'permanent';
 }
 
 export interface FileSystemError {
-  code:
-    | 'NOT_FOUND'
-    | 'PERMISSION_DENIED'
-    | 'DISK_FULL'
-    | 'INVALID_PATH'
-    | 'QUOTA_EXCEEDED'
-    | 'UNKNOWN';
-  message: string;
-  path?: string;
+  code: ErrorCode;
+  message: ErrorMessage;
+  path?: FilePath;
 }
 
 export interface Disposable {

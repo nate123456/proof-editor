@@ -56,8 +56,8 @@ describe('Document Query Integration Scenarios', () => {
       atomicArguments: {
         arg_1: {
           id: 'arg_1',
-          premiseSetId: 'set_1',
-          conclusionSetId: null,
+          premiseIds: 'set_1',
+          conclusionIds: null,
         },
       },
       trees: {

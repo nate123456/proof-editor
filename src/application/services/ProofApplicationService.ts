@@ -3,11 +3,10 @@ import type { IProofDocumentRepository } from '../../domain/repositories/IProofD
 import { ValidationError } from '../../domain/shared/result.js';
 import {
   AtomicArgumentId,
-  OrderedSetId,
   ProofDocumentId,
   StatementId,
   TreeId,
-} from '../../domain/shared/value-objects.js';
+} from '../../domain/shared/value-objects/index.js';
 import type { EventBus } from '../../infrastructure/events/EventBus.js';
 import type {
   CreateAtomicArgumentCommand,
@@ -179,50 +178,36 @@ export class ProofApplicationService {
       return err(new ValidationError('Document not found'));
     }
 
-    // Create premise set if statement IDs provided
-    let premiseSet = null;
-    if (command.premiseStatementIds.length > 0) {
-      const premiseStatementIds = command.premiseStatementIds.map((id) => StatementId.create(id));
-      for (const result of premiseStatementIds) {
-        if (result.isErr()) {
-          return err(result.error);
-        }
+    // Collect premise statements
+    const premises: Statement[] = [];
+    for (const premiseId of command.premiseStatementIds) {
+      const statementIdResult = StatementId.create(premiseId);
+      if (statementIdResult.isErr()) {
+        return err(statementIdResult.error);
       }
-      const validPremiseIds = premiseStatementIds
-        .map((r) => (r.isOk() ? r.value : null))
-        .filter(Boolean) as StatementId[];
-
-      const premiseSetResult = document.createOrderedSet(validPremiseIds);
-      if (premiseSetResult.isErr()) {
-        return err(premiseSetResult.error);
+      const statement = document.getStatement(statementIdResult.value);
+      if (!statement) {
+        return err(new ValidationError(`Premise statement ${premiseId} not found`));
       }
-      premiseSet = premiseSetResult.value;
+      premises.push(statement);
     }
 
-    // Create conclusion set if statement IDs provided
-    let conclusionSet = null;
-    if (command.conclusionStatementIds.length > 0) {
-      const conclusionStatementIds = command.conclusionStatementIds.map((id) =>
-        StatementId.create(id),
-      );
-      for (const result of conclusionStatementIds) {
-        if (result.isErr()) {
-          return err(result.error);
-        }
+    // Collect conclusion statements
+    const conclusions: Statement[] = [];
+    for (const conclusionId of command.conclusionStatementIds) {
+      const statementIdResult = StatementId.create(conclusionId);
+      if (statementIdResult.isErr()) {
+        return err(statementIdResult.error);
       }
-      const validConclusionIds = conclusionStatementIds
-        .map((r) => (r.isOk() ? r.value : null))
-        .filter(Boolean) as StatementId[];
-
-      const conclusionSetResult = document.createOrderedSet(validConclusionIds);
-      if (conclusionSetResult.isErr()) {
-        return err(conclusionSetResult.error);
+      const statement = document.getStatement(statementIdResult.value);
+      if (!statement) {
+        return err(new ValidationError(`Conclusion statement ${conclusionId} not found`));
       }
-      conclusionSet = conclusionSetResult.value;
+      conclusions.push(statement);
     }
 
     // Execute domain operation
-    const result = document.createAtomicArgument(premiseSet, conclusionSet);
+    const result = document.createAtomicArgument(premises, conclusions);
     if (result.isErr()) {
       return err(result.error);
     }
@@ -272,34 +257,50 @@ export class ProofApplicationService {
       return err(argumentIdResult.error);
     }
 
-    // Get premise and conclusion sets if provided
-    let premiseSet = null;
-    let conclusionSet = null;
-
-    if (command.premiseSetId) {
-      const premiseSetIdResult = OrderedSetId.create(command.premiseSetId);
-      if (premiseSetIdResult.isErr()) {
-        return err(premiseSetIdResult.error);
-      }
-      premiseSet = document.getOrderedSet(premiseSetIdResult.value);
-      if (!premiseSet) {
-        return err(new ValidationError('Premise OrderedSet not found'));
-      }
+    // Get existing argument to preserve unchanged statements
+    const existingArgument = document.getArgument(argumentIdResult.value);
+    if (!existingArgument) {
+      return err(new ValidationError('Atomic argument not found'));
     }
 
-    if (command.conclusionSetId) {
-      const conclusionSetIdResult = OrderedSetId.create(command.conclusionSetId);
-      if (conclusionSetIdResult.isErr()) {
-        return err(conclusionSetIdResult.error);
+    // Collect premise statements (use new ones if provided, otherwise keep existing)
+    const premises: Statement[] = [];
+    if (command.premiseStatementIds !== undefined) {
+      for (const premiseId of command.premiseStatementIds) {
+        const statementIdResult = StatementId.create(premiseId);
+        if (statementIdResult.isErr()) {
+          return err(statementIdResult.error);
+        }
+        const statement = document.getStatement(statementIdResult.value);
+        if (!statement) {
+          return err(new ValidationError(`Premise statement ${premiseId} not found`));
+        }
+        premises.push(statement);
       }
-      conclusionSet = document.getOrderedSet(conclusionSetIdResult.value);
-      if (!conclusionSet) {
-        return err(new ValidationError('Conclusion OrderedSet not found'));
+    } else {
+      premises.push(...existingArgument.getPremises());
+    }
+
+    // Collect conclusion statements (use new ones if provided, otherwise keep existing)
+    const conclusions: Statement[] = [];
+    if (command.conclusionStatementIds !== undefined) {
+      for (const conclusionId of command.conclusionStatementIds) {
+        const statementIdResult = StatementId.create(conclusionId);
+        if (statementIdResult.isErr()) {
+          return err(statementIdResult.error);
+        }
+        const statement = document.getStatement(statementIdResult.value);
+        if (!statement) {
+          return err(new ValidationError(`Conclusion statement ${conclusionId} not found`));
+        }
+        conclusions.push(statement);
       }
+    } else {
+      conclusions.push(...existingArgument.getConclusions());
     }
 
     // Execute domain operation
-    const result = document.updateAtomicArgument(argumentIdResult.value, premiseSet, conclusionSet);
+    const result = document.updateAtomicArgument(argumentIdResult.value, premises, conclusions);
     if (result.isErr()) {
       return err(result.error);
     }
@@ -411,76 +412,15 @@ export class ProofApplicationService {
   }
 
   /**
-   * Moves a statement from one ordered set to another and publishes domain events
+   * @deprecated OrderedSets are no longer used. Statements are now directly referenced in AtomicArguments.
+   * To reorder statements, update the AtomicArgument with a new statement array order.
    */
-  async moveStatement(command: MoveStatementCommand): Promise<Result<void, ValidationError>> {
-    // Load aggregate
-    const documentIdResult = ProofDocumentId.create(command.documentId);
-    if (documentIdResult.isErr()) {
-      return err(documentIdResult.error);
-    }
-
-    const document = await this.repository.findById(documentIdResult.value);
-    if (!document) {
-      return err(new ValidationError('Document not found'));
-    }
-
-    // Parse IDs
-    const statementIdResult = StatementId.create(command.statementId);
-    if (statementIdResult.isErr()) {
-      return err(statementIdResult.error);
-    }
-
-    const sourceOrderedSetIdResult = OrderedSetId.create(command.sourceOrderedSetId);
-    if (sourceOrderedSetIdResult.isErr()) {
-      return err(sourceOrderedSetIdResult.error);
-    }
-
-    const targetOrderedSetIdResult = OrderedSetId.create(command.targetOrderedSetId);
-    if (targetOrderedSetIdResult.isErr()) {
-      return err(targetOrderedSetIdResult.error);
-    }
-
-    // Get the ordered sets
-    const sourceOrderedSet = document.getOrderedSet(sourceOrderedSetIdResult.value);
-    if (!sourceOrderedSet) {
-      return err(new ValidationError('Source ordered set not found'));
-    }
-
-    const targetOrderedSet = document.getOrderedSet(targetOrderedSetIdResult.value);
-    if (!targetOrderedSet) {
-      return err(new ValidationError('Target ordered set not found'));
-    }
-
-    // Remove from source
-    const removeResult = sourceOrderedSet.removeStatement(statementIdResult.value);
-    if (removeResult.isErr()) {
-      return err(removeResult.error);
-    }
-
-    // Add to target at specified position or append at end
-    const addResult =
-      command.targetPosition !== undefined
-        ? targetOrderedSet.insertStatementAt(statementIdResult.value, command.targetPosition)
-        : targetOrderedSet.addStatement(statementIdResult.value);
-    if (addResult.isErr()) {
-      // If adding fails, we need to restore the statement to source
-      sourceOrderedSet.addStatement(statementIdResult.value);
-      return err(addResult.error);
-    }
-
-    // Save aggregate
-    const saveResult = await this.repository.save(document);
-    if (saveResult.isErr()) {
-      return err(saveResult.error);
-    }
-
-    // Publish domain events
-    const events = document.getUncommittedEvents();
-    await this.eventBus.publish(events);
-    document.markEventsAsCommitted();
-
-    return ok(undefined);
+  async moveStatement(_command: MoveStatementCommand): Promise<Result<void, ValidationError>> {
+    return err(
+      new ValidationError(
+        'MoveStatement is deprecated. Use updateAtomicArgument to reorder statements.',
+      ),
+    );
   }
 
   /**

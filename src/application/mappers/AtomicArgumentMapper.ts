@@ -2,7 +2,7 @@ import { err, ok, type Result } from 'neverthrow';
 
 import type { AtomicArgument, SideLabels } from '../../domain/entities/AtomicArgument.js';
 import type { ValidationError } from '../../domain/shared/result.js';
-import { AtomicArgumentId, OrderedSetId } from '../../domain/shared/value-objects.js';
+import { AtomicArgumentId, StatementId } from '../../domain/shared/value-objects/index.js';
 import type { AtomicArgumentDTO } from '../queries/shared-types.js';
 
 /**
@@ -13,8 +13,8 @@ export function atomicArgumentToDTO(argument: AtomicArgument): AtomicArgumentDTO
 
   const dto: AtomicArgumentDTO = {
     id: argument.getId().getValue(),
-    premiseSetId: argument.getPremiseSet()?.getValue() ?? null,
-    conclusionSetId: argument.getConclusionSet()?.getValue() ?? null,
+    premiseIds: argument.getPremises().map((stmt) => stmt.getId().getValue()),
+    conclusionIds: argument.getConclusions().map((stmt) => stmt.getId().getValue()),
   };
 
   if (sideLabels.left || sideLabels.right) {
@@ -35,12 +35,12 @@ export function atomicArgumentsToDTOs(atomicArguments: AtomicArgument[]): Atomic
 }
 
 /**
- * Represents an AtomicArgument with OrderedSetId references for intermediate processing
+ * Represents an AtomicArgument with StatementId references for intermediate processing
  */
 export interface AtomicArgumentReconstructionData {
   id: AtomicArgumentId;
-  premiseSetId: OrderedSetId | null;
-  conclusionSetId: OrderedSetId | null;
+  premiseIds: StatementId[];
+  conclusionIds: StatementId[];
   sideLabels: SideLabels;
 }
 
@@ -56,24 +56,24 @@ export function atomicArgumentFromDTO(
     return err(idResult.error);
   }
 
-  // Validate and create OrderedSetId for premise set (if not null)
-  let premiseSetRef: OrderedSetId | null = null;
-  if (dto.premiseSetId !== null) {
-    const premiseSetIdResult = OrderedSetId.create(dto.premiseSetId);
-    if (premiseSetIdResult.isErr()) {
-      return err(premiseSetIdResult.error);
+  // Validate and create StatementIds for premises
+  const premiseIds: StatementId[] = [];
+  for (const premiseId of dto.premiseIds) {
+    const statementIdResult = StatementId.create(premiseId);
+    if (statementIdResult.isErr()) {
+      return err(statementIdResult.error);
     }
-    premiseSetRef = premiseSetIdResult.value;
+    premiseIds.push(statementIdResult.value);
   }
 
-  // Validate and create OrderedSetId for conclusion set (if not null)
-  let conclusionSetRef: OrderedSetId | null = null;
-  if (dto.conclusionSetId !== null) {
-    const conclusionSetIdResult = OrderedSetId.create(dto.conclusionSetId);
-    if (conclusionSetIdResult.isErr()) {
-      return err(conclusionSetIdResult.error);
+  // Validate and create StatementIds for conclusions
+  const conclusionIds: StatementId[] = [];
+  for (const conclusionId of dto.conclusionIds) {
+    const statementIdResult = StatementId.create(conclusionId);
+    if (statementIdResult.isErr()) {
+      return err(statementIdResult.error);
     }
-    conclusionSetRef = conclusionSetIdResult.value;
+    conclusionIds.push(statementIdResult.value);
   }
 
   // Process side labels, filtering out undefined values
@@ -87,8 +87,8 @@ export function atomicArgumentFromDTO(
 
   return ok({
     id: idResult.value,
-    premiseSetId: premiseSetRef,
-    conclusionSetId: conclusionSetRef,
+    premiseIds,
+    conclusionIds,
     sideLabels,
   });
 }

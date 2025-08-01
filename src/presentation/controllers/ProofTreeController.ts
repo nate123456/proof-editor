@@ -1,7 +1,6 @@
 import { err, ok, type Result } from 'neverthrow';
 import type {
   AtomicArgumentCreatedEvent,
-  OrderedSetBecameSharedEvent,
   StatementCreatedEvent,
   StatementDeletedEvent,
   StatementUpdatedEvent,
@@ -20,7 +19,10 @@ export interface ITreeViewRenderer {
   removeStatement(statementId: string): Promise<void>;
   highlightConnections(connections: Array<{ argumentId: string; role: string }>): Promise<void>;
   refreshTree(): Promise<void>;
-  showConnectionVisualization(orderedSetId: string, connectedArguments: string[]): Promise<void>;
+  showConnectionVisualization(
+    sharedStatementId: string,
+    connectedArguments: string[],
+  ): Promise<void>;
   clearHighlights(): Promise<void>;
 }
 
@@ -120,15 +122,8 @@ export class ProofTreeController {
       }),
     );
 
-    // React to new connections
-    this.subscriptions.push(
-      this.eventBus?.subscribe('OrderedSetBecameShared', async (event) => {
-        const appEvent = this.convertToApplicationEvent(
-          event,
-        ) as unknown as OrderedSetBecameSharedEvent;
-        await this.handleNewConnection(appEvent);
-      }),
-    );
+    // Note: OrderedSetBecameShared events are obsolete in Statement-level paradigm
+    // Connections are now tracked through direct statement references
 
     // React to argument changes
     this.subscriptions.push(
@@ -188,30 +183,28 @@ export class ProofTreeController {
   }
 
   /**
-   * Handle OrderedSetBecameShared events to show connections
+   * Handle statement connections in the new paradigm
    */
-  private async handleNewConnection(event: OrderedSetBecameSharedEvent): Promise<void> {
+  private async handleStatementConnection(
+    statementId: string,
+    connectedArguments: string[],
+  ): Promise<void> {
     try {
       if (!this.viewRenderer) {
         return;
       }
 
       // Highlight shared connections
-      const connections = event.eventData.usages.map((usage) => {
-        const [argumentId, role] = usage.split(':');
-        return { argumentId: argumentId || '', role: role || '' };
+      const connections = connectedArguments.map((argumentId) => {
+        return { argumentId, role: 'statement-connection' };
       });
 
       await this.viewRenderer.highlightConnections(connections);
 
       // Show connection visualization
-      const connectedArguments = connections.map((c) => c.argumentId);
-      await this.viewRenderer.showConnectionVisualization(
-        event.eventData.orderedSetId,
-        connectedArguments,
-      );
+      await this.viewRenderer.showConnectionVisualization(statementId, connectedArguments);
     } catch (_error) {
-      // Error handling OrderedSetBecameShared event
+      // Error handling statement connection visualization
     }
   }
 
@@ -336,12 +329,12 @@ export class MockTreeViewRenderer implements ITreeViewRenderer {
   }
 
   async showConnectionVisualization(
-    orderedSetId: string,
+    sharedStatementId: string,
     connectedArguments: string[],
   ): Promise<void> {
     this.operations.push({
       type: 'showConnectionVisualization',
-      data: { orderedSetId, connectedArguments },
+      data: { sharedStatementId, connectedArguments },
       timestamp: Date.now(),
     });
   }

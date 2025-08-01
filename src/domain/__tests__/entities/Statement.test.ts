@@ -16,7 +16,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Statement } from '../../entities/Statement.js';
 import { ValidationError } from '../../shared/result.js';
-import { StatementId } from '../../shared/value-objects.js';
+import { StatementId } from '../../shared/value-objects/index.js';
 
 // Property-based test generators for Statement domain
 const validContentArbitrary = fc
@@ -279,7 +279,7 @@ describe('Statement Entity', () => {
         expect(result.isErr()).toBe(true);
         if (result.isErr()) {
           expect(result.error).toBeInstanceOf(ValidationError);
-          expect(result.error.message).toContain('Usage count cannot be negative');
+          expect(result.error.message).toContain('Usage count must be a non-negative integer');
         }
       });
     });
@@ -1110,7 +1110,7 @@ describe('Statement Entity', () => {
       const result4 = Statement.reconstruct(id, content, now, now, -1);
       expect(result4.isErr()).toBe(true);
       if (result4.isErr()) {
-        expect(result4.error.message).toContain('Usage count cannot be negative');
+        expect(result4.error.message).toContain('Usage count must be a non-negative integer');
       }
     });
   });
@@ -1486,7 +1486,9 @@ describe('Statement Entity', () => {
         expect(negativeUsageResult.isErr()).toBe(true);
         if (negativeUsageResult.isErr()) {
           expect(negativeUsageResult.error).toBeInstanceOf(ValidationError);
-          expect(negativeUsageResult.error.message).toContain('Usage count cannot be negative');
+          expect(negativeUsageResult.error.message).toContain(
+            'Usage count must be a non-negative integer',
+          );
         }
       });
     });

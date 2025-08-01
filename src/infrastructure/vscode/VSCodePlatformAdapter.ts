@@ -9,6 +9,7 @@ import type {
   PlatformFeature,
   PlatformInfo,
 } from '../../application/ports/IPlatformPort.js';
+import { Dimensions } from '../../domain/shared/value-objects/index.js';
 
 export class VSCodePlatformAdapter implements IPlatformPort {
   constructor(private readonly context: vscode.ExtensionContext) {}
@@ -35,8 +36,7 @@ export class VSCodePlatformAdapter implements IPlatformPort {
 
   getDisplayCapabilities(): DisplayCapabilities {
     return {
-      screenWidth: 1920, // Default - VS Code doesn't expose screen info
-      screenHeight: 1080,
+      screenDimensions: Dimensions.fullHD(), // Default - VS Code doesn't expose screen info
       devicePixelRatio: 1,
       colorDepth: 24,
       isHighContrast: vscode.window.activeColorTheme.kind === vscode.ColorThemeKind.HighContrast,

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { ConnectionRegistry } from '../../entities/ConnectionRegistry.js';
-import { AtomicArgumentId, OrderedSetId } from '../../shared/value-objects.js';
+import { AtomicArgumentId, OrderedSetId } from '../../shared/value-objects/index.js';
 
 describe('ConnectionRegistry', () => {
   let registry: ConnectionRegistry;

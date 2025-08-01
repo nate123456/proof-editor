@@ -70,10 +70,17 @@ describe('ConnectionResolutionService', () => {
         throw new Error('Failed to create arguments');
       }
 
-      vi.mocked(mockAtomicArgumentRepo.findAll).mockResolvedValue([
-        targetArg.value,
-        sourceArg.value,
-      ]);
+      vi.mocked(mockAtomicArgumentRepo.findArgumentsUsingStatement).mockImplementation(
+        async (statementId) => {
+          if (statementId.equals(statement1.value.getId())) {
+            return [targetArg.value, sourceArg.value];
+          }
+          if (statementId.equals(statement2.value.getId())) {
+            return [targetArg.value];
+          }
+          return [];
+        },
+      );
 
       const result = await service.findArgumentsConnectedToPremises(targetArg.value);
 
@@ -95,8 +102,7 @@ describe('ConnectionResolutionService', () => {
       const arg = AtomicArgument.create([], [statement.value]);
       if (arg.isErr()) throw new Error('Failed to create argument');
 
-      vi.mocked(mockAtomicArgumentRepo.findAll).mockResolvedValue([arg.value]);
-
+      // No need to mock findArgumentsUsingStatement since the argument has no premises
       const result = await service.findArgumentsConnectedToPremises(arg.value);
 
       expect(result.isOk()).toBe(true);
@@ -122,11 +128,17 @@ describe('ConnectionResolutionService', () => {
         throw new Error('Failed to create arguments');
       }
 
-      vi.mocked(mockAtomicArgumentRepo.findAll).mockResolvedValue([
-        targetArg.value,
-        sourceArg1.value,
-        sourceArg2.value,
-      ]);
+      vi.mocked(mockAtomicArgumentRepo.findArgumentsUsingStatement).mockImplementation(
+        async (statementId) => {
+          if (statementId.equals(s1.value.getId())) {
+            return [targetArg.value, sourceArg1.value];
+          }
+          if (statementId.equals(s2.value.getId())) {
+            return [targetArg.value, sourceArg2.value];
+          }
+          return [];
+        },
+      );
 
       const result = await service.findArgumentsConnectedToPremises(targetArg.value);
 
@@ -161,10 +173,14 @@ describe('ConnectionResolutionService', () => {
         throw new Error('Failed to create arguments');
       }
 
-      vi.mocked(mockAtomicArgumentRepo.findAll).mockResolvedValue([
-        sourceArg.value,
-        targetArg.value,
-      ]);
+      vi.mocked(mockAtomicArgumentRepo.findArgumentsUsingStatement).mockImplementation(
+        async (statementId) => {
+          if (statementId.equals(statement3.value.getId())) {
+            return [sourceArg.value, targetArg.value];
+          }
+          return [];
+        },
+      );
 
       const result = await service.findArgumentsConnectedToConclusions(sourceArg.value);
 
@@ -186,8 +202,7 @@ describe('ConnectionResolutionService', () => {
       const arg = AtomicArgument.create([statement.value], []);
       if (arg.isErr()) throw new Error('Failed to create argument');
 
-      vi.mocked(mockAtomicArgumentRepo.findAll).mockResolvedValue([arg.value]);
-
+      // No need to mock findArgumentsUsingStatement since the argument has no conclusions
       const result = await service.findArgumentsConnectedToConclusions(arg.value);
 
       expect(result.isOk()).toBe(true);
@@ -215,11 +230,17 @@ describe('ConnectionResolutionService', () => {
         throw new Error('Failed to create arguments');
       }
 
-      vi.mocked(mockAtomicArgumentRepo.findAll).mockResolvedValue([
-        centerArg.value,
-        sourceArg.value,
-        targetArg.value,
-      ]);
+      vi.mocked(mockAtomicArgumentRepo.findArgumentsUsingStatement).mockImplementation(
+        async (statementId) => {
+          if (statementId.equals(s1.value.getId())) {
+            return [centerArg.value, sourceArg.value];
+          }
+          if (statementId.equals(s2.value.getId())) {
+            return [centerArg.value, targetArg.value];
+          }
+          return [];
+        },
+      );
 
       const result = await service.findAllConnectionsForArgument(centerArg.value);
 
@@ -344,11 +365,14 @@ describe('ConnectionResolutionService', () => {
         throw new Error('Failed to create arguments');
       }
 
-      vi.mocked(mockAtomicArgumentRepo.findAll).mockResolvedValue([
-        arg1.value,
-        arg2.value,
-        arg3.value,
-      ]);
+      vi.mocked(mockAtomicArgumentRepo.findArgumentsUsingStatement).mockImplementation(
+        async (statementId) => {
+          if (statementId.equals(targetStatement.value.getId())) {
+            return [arg1.value, arg2.value];
+          }
+          return [];
+        },
+      );
 
       const result = await service.findArgumentsConnectedToStatement(targetStatement.value);
 
@@ -372,8 +396,8 @@ describe('ConnectionResolutionService', () => {
       }
 
       const arg = AtomicArgument.create(
-        [targetStatement.value, otherStatement.value, targetStatement.value],
         [targetStatement.value, otherStatement.value],
+        [targetStatement.value],
       );
 
       if (arg.isErr()) throw new Error('Failed to create argument');
@@ -385,7 +409,7 @@ describe('ConnectionResolutionService', () => {
 
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
-        expect(result.value.premisePositions).toEqual([0, 2]);
+        expect(result.value.premisePositions).toEqual([0]);
         expect(result.value.conclusionPositions).toEqual([0]);
       }
     });
@@ -423,7 +447,14 @@ describe('ConnectionResolutionService', () => {
       const isolatedArg = AtomicArgument.create([statement.value], [statement.value]);
       if (isolatedArg.isErr()) throw new Error('Failed to create argument');
 
-      vi.mocked(mockAtomicArgumentRepo.findAll).mockResolvedValue([isolatedArg.value]);
+      vi.mocked(mockAtomicArgumentRepo.findArgumentsUsingStatement).mockImplementation(
+        async (statementId) => {
+          if (statementId.equals(statement.value.getId())) {
+            return [isolatedArg.value];
+          }
+          return [];
+        },
+      );
 
       const result = await service.validateArgumentConnections(isolatedArg.value);
 
@@ -440,7 +471,7 @@ describe('ConnectionResolutionService', () => {
 
     it('should not flag bootstrap arguments as isolated', async () => {
       const bootstrapArg = AtomicArgument.createBootstrap();
-      vi.mocked(mockAtomicArgumentRepo.findAll).mockResolvedValue([bootstrapArg]);
+      // Bootstrap arg has no statements, so no mock needed for findArgumentsUsingStatement
 
       const result = await service.validateArgumentConnections(bootstrapArg);
 
@@ -469,7 +500,17 @@ describe('ConnectionResolutionService', () => {
 
             if (arg1.isErr() || arg2.isErr()) return;
 
-            vi.mocked(mockAtomicArgumentRepo.findAll).mockResolvedValue([arg1.value, arg2.value]);
+            vi.mocked(mockAtomicArgumentRepo.findArgumentsUsingStatement).mockImplementation(
+              async (statementId) => {
+                if (statementId.equals(s1.value.getId())) {
+                  return [arg1.value, arg2.value];
+                }
+                if (statementId.equals(s2.value.getId())) {
+                  return [arg2.value];
+                }
+                return [];
+              },
+            );
 
             const canConnect = await service.canArgumentsConnect(arg1.value, arg2.value);
             const connections = await service.findArgumentsConnectedToConclusions(arg1.value);

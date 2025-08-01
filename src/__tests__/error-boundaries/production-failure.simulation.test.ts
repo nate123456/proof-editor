@@ -17,6 +17,8 @@ import { err, ok, type Result } from 'neverthrow';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type * as vscode from 'vscode';
 
+import { DialogTitle, ViewType, WebviewId } from '../../domain/shared/value-objects/index.js';
+
 import { ApplicationContainer } from '../../infrastructure/di/container.js';
 import { VSCodeFileSystemAdapter } from '../../infrastructure/vscode/VSCodeFileSystemAdapter.js';
 import { VSCodePlatformAdapter } from '../../infrastructure/vscode/VSCodePlatformAdapter.js';
@@ -214,9 +216,9 @@ describe('Production Failure Simulation', () => {
       // Act - operations should handle undefined subscriptions
       expect(async () => {
         const result = adapter.createWebviewPanel({
-          id: 'test-panel',
-          viewType: 'test',
-          title: 'Test',
+          id: WebviewId.create('test-panel')._unsafeUnwrap(),
+          viewType: ViewType.create('test')._unsafeUnwrap(),
+          title: DialogTitle.create('Test Panel')._unsafeUnwrap(),
         });
         expect(result).toBeDefined();
       }).not.toThrow();
@@ -748,13 +750,13 @@ describe('Production Failure Simulation', () => {
 
       if (writeResult.isErr()) {
         expect(
-          writeResult.error.message.includes('EBUSY') ||
-            writeResult.error.message.includes('locked'),
+          writeResult.error.message.getValue().includes('EBUSY') ||
+            writeResult.error.message.getValue().includes('locked'),
         ).toBe(true);
       }
       if (readResult.isErr()) {
         // Check if error contains expected antivirus-related messages
-        const errorMessage = readResult.error.message.toLowerCase();
+        const errorMessage = readResult.error.message.getValue().toLowerCase();
         const hasAntivirusError =
           errorMessage.includes('eperm') ||
           errorMessage.includes('not permitted') ||
@@ -766,7 +768,7 @@ describe('Production Failure Simulation', () => {
         // In that case, just verify it handled the error gracefully
         expect(readResult.isErr()).toBe(true);
         if (!hasAntivirusError) {
-          console.log('Actual error message:', readResult.error.message);
+          console.log('Actual error message:', readResult.error.message.getValue());
         }
       }
     });

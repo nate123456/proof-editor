@@ -310,8 +310,8 @@ describe('DocumentDTO Structure', () => {
       atomicArguments: {
         arg_1: {
           id: 'arg_1',
-          premiseSetId: 'set_1',
-          conclusionSetId: null,
+          premiseIds: ['stmt_1', 'stmt_2'],
+          conclusionIds: [],
           sideLabels: {
             left: 'Modus Ponens',
             right: 'Classical Logic',
@@ -338,7 +338,7 @@ describe('DocumentDTO Structure', () => {
 
     expect(document.statements.stmt_1?.content).toBe('All men are mortal');
     expect(document.orderedSets.set_1?.statementIds).toEqual(['stmt_1', 'stmt_2']);
-    expect(document.atomicArguments.arg_1?.premiseSetId).toBe('set_1');
+    expect(document.atomicArguments.arg_1?.premiseIds).toEqual(['stmt_1', 'stmt_2']);
     expect(document.trees.tree_1?.nodeCount).toBe(3);
   });
 

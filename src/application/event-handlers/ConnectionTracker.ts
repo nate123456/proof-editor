@@ -1,109 +1,72 @@
 import type { DomainEvent, DomainEventHandler } from '../../domain/events/base-event.js';
-import type { OrderedSetBecameShared } from '../../domain/events/proof-document-events.js';
+import type { AtomicArgumentCreated } from '../../domain/events/proof-construction-events.js';
 
 /**
- * Tracks connections between atomic arguments via shared OrderedSets.
+ * Tracks connections between atomic arguments via shared Statements.
  * This is a read model that gets updated by domain events.
+ * In the Statement-level paradigm, connections are established through Statement identity.
  */
-export class ConnectionTracker implements DomainEventHandler<OrderedSetBecameShared> {
-  private sharedSets = new Map<string, Set<string>>();
+export class ConnectionTracker implements DomainEventHandler<AtomicArgumentCreated> {
+  private argumentStatements = new Map<string, { premises: string[]; conclusions: string[] }>();
 
   /**
-   * Handle OrderedSetBecameShared events to track connections
+   * Handle AtomicArgumentCreated events to track potential connections
    */
-  handle(event: OrderedSetBecameShared): void {
-    const connections = new Set<string>();
-    for (const usage of event.eventData.usages) {
-      // Usage is now an AtomicArgumentId, get its string value
-      const argumentId = typeof usage === 'string' ? usage : usage.getValue();
-      if (argumentId) {
-        connections.add(argumentId);
-      }
-    }
-    this.sharedSets.set(
-      typeof event.eventData.orderedSetId === 'string'
-        ? event.eventData.orderedSetId
-        : event.eventData.orderedSetId.getValue(),
-      connections,
-    );
+  handle(event: AtomicArgumentCreated): void {
+    this.argumentStatements.set(event.argumentId.getValue(), {
+      premises: event.premiseIds.map((id) => id.getValue()),
+      conclusions: event.conclusionIds.map((id) => id.getValue()),
+    });
   }
 
   /**
    * Type guard to determine if this handler can process the event
    */
-  canHandle(event: DomainEvent): event is OrderedSetBecameShared {
-    return event.eventType === 'OrderedSetBecameShared';
+  canHandle(event: DomainEvent): event is AtomicArgumentCreated {
+    return event.eventType === 'AtomicArgumentCreated';
   }
 
   /**
-   * Get all argument IDs that share a specific OrderedSet
-   */
-  getSharedConnections(orderedSetId: string): string[] {
-    return Array.from(this.sharedSets.get(orderedSetId) || []);
-  }
-
-  /**
-   * Get all shared OrderedSet IDs
-   */
-  getAllSharedOrderedSets(): string[] {
-    return Array.from(this.sharedSets.keys());
-  }
-
-  /**
-   * Check if a specific OrderedSet is shared between arguments
-   */
-  isOrderedSetShared(orderedSetId: string): boolean {
-    const connections = this.sharedSets.get(orderedSetId);
-    return connections ? connections.size > 1 : false;
-  }
-
-  /**
-   * Get connection graph data for visualization
-   */
-  getConnectionGraph(): Array<{
-    orderedSetId: string;
-    connectedArguments: string[];
-    connectionCount: number;
-  }> {
-    const graph: Array<{
-      orderedSetId: string;
-      connectedArguments: string[];
-      connectionCount: number;
-    }> = [];
-
-    for (const [orderedSetId, connections] of this.sharedSets.entries()) {
-      graph.push({
-        orderedSetId,
-        connectedArguments: Array.from(connections),
-        connectionCount: connections.size,
-      });
-    }
-
-    return graph;
-  }
-
-  /**
-   * Find all arguments that are connected to a specific argument
+   * Find all arguments that share statements with the given argument
    */
   findConnectedArguments(argumentId: string): Array<{
     argumentId: string;
-    viaOrderedSetId: string;
+    sharedStatements: string[];
+    connectionType: 'premise-to-conclusion' | 'conclusion-to-premise' | 'bidirectional';
   }> {
+    const targetArg = this.argumentStatements.get(argumentId);
+    if (!targetArg) return [];
+
     const connected: Array<{
       argumentId: string;
-      viaOrderedSetId: string;
+      sharedStatements: string[];
+      connectionType: 'premise-to-conclusion' | 'conclusion-to-premise' | 'bidirectional';
     }> = [];
 
-    for (const [orderedSetId, connections] of this.sharedSets.entries()) {
-      if (connections.has(argumentId)) {
-        for (const connectedArg of connections) {
-          if (connectedArg !== argumentId) {
-            connected.push({
-              argumentId: connectedArg,
-              viaOrderedSetId: orderedSetId,
-            });
-          }
-        }
+    for (const [otherArgId, otherArg] of this.argumentStatements.entries()) {
+      if (otherArgId === argumentId) continue;
+
+      const premiseToConclusion = targetArg.conclusions.filter((c) =>
+        otherArg.premises.includes(c),
+      );
+      const conclusionToPremise = targetArg.premises.filter((p) =>
+        otherArg.conclusions.includes(p),
+      );
+
+      if (premiseToConclusion.length > 0 || conclusionToPremise.length > 0) {
+        const allShared = [...premiseToConclusion, ...conclusionToPremise];
+        const connectionType =
+          premiseToConclusion.length > 0 && conclusionToPremise.length > 0
+            ? 'bidirectional'
+            : premiseToConclusion.length > 0
+              ? 'premise-to-conclusion'
+              : 'conclusion-to-premise';
+
+        connected.push({
+          argumentId: otherArgId,
+          sharedStatements: allShared,
+          connectionType,
+        });
       }
     }
 
@@ -111,41 +74,78 @@ export class ConnectionTracker implements DomainEventHandler<OrderedSetBecameSha
   }
 
   /**
+   * Get all arguments that use a specific statement
+   */
+  getArgumentsUsingStatement(statementId: string): Array<{
+    argumentId: string;
+    usage: 'premise' | 'conclusion' | 'both';
+  }> {
+    const users: Array<{
+      argumentId: string;
+      usage: 'premise' | 'conclusion' | 'both';
+    }> = [];
+
+    for (const [argId, arg] of this.argumentStatements.entries()) {
+      const inPremises = arg.premises.includes(statementId);
+      const inConclusions = arg.conclusions.includes(statementId);
+
+      if (inPremises || inConclusions) {
+        users.push({
+          argumentId: argId,
+          usage: inPremises && inConclusions ? 'both' : inPremises ? 'premise' : 'conclusion',
+        });
+      }
+    }
+
+    return users;
+  }
+
+  /**
+   * Check if a statement is shared between multiple arguments
+   */
+  isStatementShared(statementId: string): boolean {
+    return this.getArgumentsUsingStatement(statementId).length > 1;
+  }
+
+  /**
    * Clear all tracked connections (useful for testing)
    */
   clear(): void {
-    this.sharedSets.clear();
+    this.argumentStatements.clear();
   }
 
   /**
    * Get summary statistics about connections
    */
   getConnectionStats(): {
-    totalSharedSets: number;
+    totalArguments: number;
     totalConnectedArguments: number;
-    averageConnectionsPerSet: number;
-    maxConnectionsInSingleSet: number;
+    totalSharedStatements: number;
+    averageConnectionsPerArgument: number;
   } {
-    const totalSharedSets = this.sharedSets.size;
-    let totalConnectedArguments = 0;
-    let maxConnectionsInSingleSet = 0;
+    const totalArguments = this.argumentStatements.size;
+    const connectedArgs = new Set<string>();
+    const sharedStatements = new Set<string>();
 
-    const uniqueArguments = new Set<string>();
+    let totalConnections = 0;
 
-    for (const connections of this.sharedSets.values()) {
-      totalConnectedArguments += connections.size;
-      maxConnectionsInSingleSet = Math.max(maxConnectionsInSingleSet, connections.size);
+    for (const [argId] of this.argumentStatements.entries()) {
+      const connections = this.findConnectedArguments(argId);
+      if (connections.length > 0) {
+        connectedArgs.add(argId);
+        totalConnections += connections.length;
 
-      for (const arg of connections) {
-        uniqueArguments.add(arg);
+        for (const conn of connections) {
+          conn.sharedStatements.forEach((s) => sharedStatements.add(s));
+        }
       }
     }
 
     return {
-      totalSharedSets,
-      totalConnectedArguments: uniqueArguments.size,
-      averageConnectionsPerSet: totalSharedSets > 0 ? totalConnectedArguments / totalSharedSets : 0,
-      maxConnectionsInSingleSet,
+      totalArguments,
+      totalConnectedArguments: connectedArgs.size,
+      totalSharedStatements: sharedStatements.size,
+      averageConnectionsPerArgument: totalArguments > 0 ? totalConnections / totalArguments : 0,
     };
   }
 }

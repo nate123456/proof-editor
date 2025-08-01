@@ -8,7 +8,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { treeFactory } from '../../../domain/__tests__/factories/index.js';
 import { ProofAggregate } from '../../../domain/aggregates/ProofAggregate.js';
-import { ProofId } from '../../../domain/shared/value-objects.js';
+import { ProofId } from '../../../domain/shared/value-objects/index.js';
 import { documentToDTO } from '../../mappers/DocumentMapper.js';
 import type { DocumentDTO, GetDocumentStateQuery } from '../document-queries.js';
 import {

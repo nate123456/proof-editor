@@ -11,12 +11,13 @@ import type { Tree } from '../../../domain/entities/Tree.js';
 import type { IAtomicArgumentRepository } from '../../../domain/repositories/IAtomicArgumentRepository.js';
 import type { INodeRepository } from '../../../domain/repositories/INodeRepository.js';
 import type { ITreeRepository } from '../../../domain/repositories/ITreeRepository.js';
+import type { IGraphTraversalService } from '../../../domain/services/IGraphTraversalService.js';
 import {
   AtomicArgumentId,
   NodeId,
   OrderedSetId,
   TreeId,
-} from '../../../domain/shared/value-objects.js';
+} from '../../../domain/shared/value-objects/index.js';
 
 /**
  * Integration tests demonstrating how graphology works with the existing query system.
@@ -27,16 +28,19 @@ describe('ProofTreeQueryService Integration with Graphology', () => {
   let mockTreeRepository: ITreeRepository;
   let mockNodeRepository: INodeRepository;
   let mockArgumentRepository: IAtomicArgumentRepository;
+  let mockGraphTraversalService: IGraphTraversalService;
 
   beforeEach(() => {
     mockTreeRepository = mock<ITreeRepository>();
     mockNodeRepository = mock<INodeRepository>();
     mockArgumentRepository = mock<IAtomicArgumentRepository>();
+    mockGraphTraversalService = mock<IGraphTraversalService>();
 
     queryService = new ProofTreeQueryService(
       mockTreeRepository,
       mockNodeRepository,
       mockArgumentRepository,
+      mockGraphTraversalService,
     );
   });
 

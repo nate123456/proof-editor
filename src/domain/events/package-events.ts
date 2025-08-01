@@ -1,4 +1,4 @@
-import type { DocumentId, PackageId, Version } from '../shared/value-objects.js';
+import type { DocumentId, PackageId, Version } from '../shared/value-objects/index.js';
 import { DomainEvent } from './base-event.js';
 
 export class PackageInstalled extends DomainEvent {

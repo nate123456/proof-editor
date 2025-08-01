@@ -1,14 +1,14 @@
-import type {
-  AtomicArgumentId,
-  OrderedSetId,
-  ProofDocumentId,
-  StatementContent,
-  StatementId,
-} from '../shared/value-objects.js';
+import {
+  type AtomicArgumentId,
+  EventType,
+  type ProofDocumentId,
+  type StatementContent,
+  type StatementId,
+} from '../shared/value-objects/index.js';
 import { DomainEvent } from './base-event.js';
 
 export class ProofDocumentCreated extends DomainEvent {
-  readonly eventType = 'ProofDocumentCreated';
+  readonly eventType = EventType.PROOF_DOCUMENT_CREATED;
 
   constructor(
     aggregateId: ProofDocumentId,
@@ -21,7 +21,7 @@ export class ProofDocumentCreated extends DomainEvent {
 }
 
 export class StatementCreated extends DomainEvent {
-  readonly eventType = 'StatementCreated';
+  readonly eventType = EventType.STATEMENT_CREATED;
 
   constructor(
     aggregateId: ProofDocumentId,
@@ -35,7 +35,7 @@ export class StatementCreated extends DomainEvent {
 }
 
 export class StatementUpdated extends DomainEvent {
-  readonly eventType = 'StatementUpdated';
+  readonly eventType = EventType.STATEMENT_UPDATED;
 
   constructor(
     aggregateId: ProofDocumentId,
@@ -49,43 +49,15 @@ export class StatementUpdated extends DomainEvent {
   }
 }
 
-export class OrderedSetCreated extends DomainEvent {
-  readonly eventType = 'OrderedSetCreated';
-
-  constructor(
-    aggregateId: ProofDocumentId,
-    public readonly eventData: {
-      orderedSetId: OrderedSetId;
-      statementIds: StatementId[];
-    },
-  ) {
-    super(aggregateId.getValue(), 'ProofDocument');
-  }
-}
-
 export class AtomicArgumentCreated extends DomainEvent {
-  readonly eventType = 'AtomicArgumentCreated';
+  readonly eventType = EventType.ATOMIC_ARGUMENT_CREATED;
 
   constructor(
     aggregateId: ProofDocumentId,
     public readonly eventData: {
       argumentId: AtomicArgumentId;
-      premiseSetId: OrderedSetId | null;
-      conclusionSetId: OrderedSetId | null;
-    },
-  ) {
-    super(aggregateId.getValue(), 'ProofDocument');
-  }
-}
-
-export class OrderedSetBecameShared extends DomainEvent {
-  readonly eventType = 'OrderedSetBecameShared';
-
-  constructor(
-    aggregateId: ProofDocumentId,
-    public readonly eventData: {
-      orderedSetId: OrderedSetId;
-      usages: AtomicArgumentId[];
+      premiseIds: StatementId[];
+      conclusionIds: StatementId[];
     },
   ) {
     super(aggregateId.getValue(), 'ProofDocument');
@@ -93,14 +65,14 @@ export class OrderedSetBecameShared extends DomainEvent {
 }
 
 export class AtomicArgumentUpdated extends DomainEvent {
-  readonly eventType = 'AtomicArgumentUpdated';
+  readonly eventType = EventType.ATOMIC_ARGUMENT_UPDATED;
 
   constructor(
     aggregateId: ProofDocumentId,
     public readonly eventData: {
       argumentId: AtomicArgumentId;
-      premiseSetId: OrderedSetId | null;
-      conclusionSetId: OrderedSetId | null;
+      premiseIds: StatementId[];
+      conclusionIds: StatementId[];
     },
   ) {
     super(aggregateId.getValue(), 'ProofDocument');
@@ -108,7 +80,7 @@ export class AtomicArgumentUpdated extends DomainEvent {
 }
 
 export class StatementDeleted extends DomainEvent {
-  readonly eventType = 'StatementDeleted';
+  readonly eventType = EventType.STATEMENT_DELETED;
 
   constructor(
     aggregateId: ProofDocumentId,
@@ -122,28 +94,14 @@ export class StatementDeleted extends DomainEvent {
 }
 
 export class AtomicArgumentDeleted extends DomainEvent {
-  readonly eventType = 'AtomicArgumentDeleted';
+  readonly eventType = EventType.ATOMIC_ARGUMENT_DELETED;
 
   constructor(
     aggregateId: ProofDocumentId,
     public readonly eventData: {
       argumentId: AtomicArgumentId;
-      premiseSetId: OrderedSetId | null;
-      conclusionSetId: OrderedSetId | null;
-    },
-  ) {
-    super(aggregateId.getValue(), 'ProofDocument');
-  }
-}
-
-export class OrderedSetDeleted extends DomainEvent {
-  readonly eventType = 'OrderedSetDeleted';
-
-  constructor(
-    aggregateId: ProofDocumentId,
-    public readonly eventData: {
-      orderedSetId: OrderedSetId;
-      statementIds: StatementId[];
+      premiseIds: StatementId[];
+      conclusionIds: StatementId[];
     },
   ) {
     super(aggregateId.getValue(), 'ProofDocument');

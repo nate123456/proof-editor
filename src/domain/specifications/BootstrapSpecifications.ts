@@ -7,7 +7,8 @@ import type { ProofAggregate } from '../aggregates/ProofAggregate.js';
 export class CanCreateEmptyArgumentSpec {
   isSatisfiedBy(proofAggregate: ProofAggregate): boolean {
     // Always allow first argument to be empty
-    return proofAggregate.getArguments().size === 0;
+    const queryService = proofAggregate.createQueryService();
+    return queryService.getArguments().size === 0;
   }
 }
 

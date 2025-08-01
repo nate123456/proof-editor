@@ -16,7 +16,7 @@ import type {
   PathCompletenessValidationResult,
   RequiredIntermediateArguments,
 } from '../../domain/services/IPathCompletenessService.js';
-import { AtomicArgumentId } from '../../domain/shared/value-objects.js';
+import { AtomicArgumentId } from '../../domain/shared/value-objects/index.js';
 
 export class GraphPathCompletenessService implements IPathCompletenessService {
   constructor(private readonly atomicArgumentRepo: IAtomicArgumentRepository) {}

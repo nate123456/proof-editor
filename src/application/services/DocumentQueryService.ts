@@ -3,7 +3,7 @@ import { inject, injectable } from 'tsyringe';
 import { ProofAggregate } from '../../domain/aggregates/ProofAggregate.js';
 import type { ProofDocument } from '../../domain/aggregates/ProofDocument.js';
 import type { IProofDocumentRepository } from '../../domain/repositories/IProofDocumentRepository.js';
-import { ProofDocumentId, ProofId } from '../../domain/shared/value-objects.js';
+import { ProofDocumentId, ProofId } from '../../domain/shared/value-objects/index.js';
 import { TOKENS } from '../../infrastructure/di/tokens.js';
 import type { ProofFileParser } from '../../parser/ProofFileParser.js';
 import { ValidationApplicationError } from '../dtos/operation-results.js';
@@ -270,8 +270,8 @@ export class DocumentQueryService {
     for (const [id, argument] of proofDocument.atomicArguments) {
       atomicArgumentDTOs[id] = {
         id: id,
-        premiseSetId: argument.getPremiseSet()?.getValue() || null,
-        conclusionSetId: argument.getConclusionSet()?.getValue() || null,
+        premiseIds: argument.getPremises().map((stmt) => stmt.getId().getValue()),
+        conclusionIds: argument.getConclusions().map((stmt) => stmt.getId().getValue()),
         sideLabels: argument.getSideLabels(),
       };
     }

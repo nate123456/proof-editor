@@ -1,6 +1,6 @@
 import type { Result } from 'neverthrow';
 import type { ProcessingError } from '../errors/DomainErrors.js';
-import type { AtomicArgumentId } from '../shared/value-objects.js';
+import type { AtomicArgumentId } from '../shared/value-objects/index.js';
 
 export interface IPathCompletenessService {
   validatePathCompleteness(

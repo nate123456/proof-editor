@@ -78,9 +78,19 @@ export class EventBus implements IEventBus {
   // Handler execution times for metrics
   private handlerExecutionTimes: number[] = [];
 
+  // Simple logging capability
+  private logEnabled = false;
+
   constructor(private readonly config: EventBusConfig) {
     if (config.enableLogging) {
-      // TODO: Initialize logging mechanism
+      this.logEnabled = true;
+    }
+  }
+
+  private log(message: string): void {
+    if (this.logEnabled && !this.config.testMode) {
+      // biome-ignore lint/suspicious/noConsole: Event bus logging infrastructure
+      console.log(`[EventBus] ${message}`);
     }
   }
 
@@ -96,7 +106,7 @@ export class EventBus implements IEventBus {
   private async publishInternal(events: DomainEvent[]): Promise<void> {
     for (const event of events) {
       if (this.config.enableLogging) {
-        // TODO: Log event publication
+        this.log(`Publishing event: ${event.eventType}`);
       }
 
       // Add to history
@@ -117,7 +127,7 @@ export class EventBus implements IEventBus {
 
       if (allHandlers.length === 0) {
         if (this.config.enableLogging) {
-          // TODO: Log no handlers available for event
+          this.log(`No handlers registered for event type: ${event.eventType}`);
         }
         continue;
       }
@@ -133,7 +143,7 @@ export class EventBus implements IEventBus {
       if (failures.length > 0 && this.config.enableLogging) {
         failures.forEach((f) => {
           if (f.status === 'rejected') {
-            // TODO: Log handler failure details
+            this.log(`Handler failed for event ${event.eventType}: ${f.reason}`);
           }
         });
       }
@@ -150,7 +160,7 @@ export class EventBus implements IEventBus {
     this.metrics.activeSubscriptions++;
 
     if (this.config.enableLogging) {
-      // TODO: Log subscription registration
+      this.log(`Registered handler for event type: ${eventType}`);
     }
 
     // Replay events if enabled
@@ -169,7 +179,7 @@ export class EventBus implements IEventBus {
           this.subscriptions.delete(eventType);
         }
         if (this.config.enableLogging) {
-          // TODO: Log subscription removal
+          this.log(`Unregistered handler for event type: ${eventType}`);
         }
       },
     };
@@ -180,7 +190,7 @@ export class EventBus implements IEventBus {
     this.metrics.activeSubscriptions++;
 
     if (this.config.enableLogging) {
-      // TODO: Log subscription creation
+      this.log('Registered global event handler');
     }
 
     // Replay all events if enabled
@@ -195,7 +205,7 @@ export class EventBus implements IEventBus {
           this.metrics.activeSubscriptions--;
         }
         if (this.config.enableLogging) {
-          // TODO: Log global subscription removal
+          this.log('Unregistered global event handler');
         }
       },
     };
@@ -249,7 +259,7 @@ export class EventBus implements IEventBus {
       this.metrics.totalHandlerFailures++;
 
       if (this.config.enableLogging) {
-        // TODO: Log event publication
+        this.log(`Handler execution failed for event: ${event.eventType}`);
       }
 
       // Don't throw - error isolation
@@ -282,7 +292,7 @@ export class EventBus implements IEventBus {
     const eventsToReplay = this.eventHistory.filter((e) => e.eventType === eventType);
 
     if (this.config.enableLogging && eventsToReplay.length > 0) {
-      // TODO: Log event replay
+      this.log(`Replaying ${eventsToReplay.length} events for event type: ${eventType}`);
     }
 
     for (const event of eventsToReplay) {
@@ -292,7 +302,7 @@ export class EventBus implements IEventBus {
 
   private async replayAllEventsForHandler(handler: EventHandler): Promise<void> {
     if (this.config.enableLogging && this.eventHistory.length > 0) {
-      // TODO: Log event replay for handler
+      this.log(`Replaying ${this.eventHistory.length} events for global handler`);
     }
 
     for (const event of this.eventHistory) {

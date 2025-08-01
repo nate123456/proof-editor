@@ -1,7 +1,14 @@
 import { err, ok, type Result } from 'neverthrow';
 import { Tree } from '../../domain/entities/Tree.js';
 import type { ValidationError } from '../../domain/shared/result.js';
-import { PhysicalProperties, Position2D, TreeId } from '../../domain/shared/value-objects.js';
+import {
+  AlignmentMode,
+  ExpansionDirection,
+  LayoutStyle,
+  PhysicalProperties,
+  Position2D,
+  TreeId,
+} from '../../domain/shared/value-objects/index.js';
 import type { TreeDTO } from '../queries/shared-types.js';
 
 /**
@@ -53,13 +60,13 @@ export function treeToDomain(dto: TreeDTO, documentId: string): Result<Tree, Val
   let physicalProperties: PhysicalProperties;
   if (dto.bounds) {
     const physicalPropsResult = PhysicalProperties.create(
-      'bottom-up', // Default layout style
+      LayoutStyle.bottomUp(), // Default layout style
       20, // Default spacing X
       20, // Default spacing Y
       dto.bounds.width,
       dto.bounds.height,
-      'horizontal', // Default expansion direction
-      'center', // Default alignment mode
+      ExpansionDirection.horizontal(), // Default expansion direction
+      AlignmentMode.center(), // Default alignment mode
     );
     if (physicalPropsResult.isErr()) {
       return err(physicalPropsResult.error);

@@ -500,7 +500,7 @@ function createStatementDTO(id: string, content: string): StatementDTO {
 function createAtomicArgumentDTO(): AtomicArgumentDTO {
   return {
     id: 'test-arg',
-    premiseSetId: 'os1',
-    conclusionSetId: 'os2',
+    premiseIds: 'os1',
+    conclusionIds: 'os2',
   };
 }

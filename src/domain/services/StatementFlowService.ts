@@ -1,5 +1,4 @@
-import { injectable } from 'tsyringe';
-
+import { err, ok, type Result } from 'neverthrow';
 import { AtomicArgument } from '../entities/AtomicArgument.js';
 import { OrderedSet } from '../entities/OrderedSet.js';
 import { Statement } from '../entities/Statement.js';
@@ -17,10 +16,9 @@ import {
   DeleteStatementOperation,
   type DeleteStatementRequest,
 } from '../operations/StatementOperations.js';
-import { err, ok, type Result, ValidationError } from '../shared/result.js';
-import type { AtomicArgumentId, OrderedSetId } from '../shared/value-objects.js';
+import { ValidationError } from '../shared/result.js';
+import type { AtomicArgumentId, OrderedSetId } from '../shared/value-objects/index.js';
 
-@injectable()
 export class StatementFlowService {
   constructor(private readonly transactionService?: IProofTransactionService) {}
   createStatementFromContent(content: string): Result<Statement, ValidationError> {
@@ -40,6 +38,13 @@ export class StatementFlowService {
     orderedSet: OrderedSet,
     statement: Statement,
   ): Result<void, ValidationError> {
+    return orderedSet.addStatement(statement.getId());
+  }
+
+  addStatementToOrderedSetAndIncrementUsage(
+    orderedSet: OrderedSet,
+    statement: Statement,
+  ): Result<void, ValidationError> {
     const addResult = orderedSet.addStatement(statement.getId());
     if (addResult.isOk()) {
       statement.incrementUsage();
@@ -48,6 +53,13 @@ export class StatementFlowService {
   }
 
   removeStatementFromOrderedSet(
+    orderedSet: OrderedSet,
+    statement: Statement,
+  ): Result<void, ValidationError> {
+    return orderedSet.removeStatement(statement.getId());
+  }
+
+  removeStatementFromOrderedSetAndDecrementUsage(
     orderedSet: OrderedSet,
     statement: Statement,
   ): Result<void, ValidationError> {

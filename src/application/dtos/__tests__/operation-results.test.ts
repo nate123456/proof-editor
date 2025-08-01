@@ -479,8 +479,8 @@ describe('CreateArgumentResult', () => {
       argumentId: 'arg_123',
       argument: {
         id: 'arg_123',
-        premiseSetId: 'set_456',
-        conclusionSetId: 'set_789',
+        premiseIds: ['stmt_1', 'stmt_2'],
+        conclusionIds: ['stmt_3'],
         sideLabels: {
           left: 'Modus Ponens',
           right: 'Rule 1',
@@ -490,38 +490,25 @@ describe('CreateArgumentResult', () => {
 
     expect(result.argumentId).toBe('arg_123');
     expect(result.argument.id).toBe('arg_123');
-    expect(result.argument.premiseSetId).toBe('set_456');
-    expect(result.argument.conclusionSetId).toBe('set_789');
-    expect(result.createdOrderedSets).toBeUndefined();
+    expect(result.argument.premiseIds).toEqual(['stmt_1', 'stmt_2']);
+    expect(result.argument.conclusionIds).toEqual(['stmt_3']);
+    // createdOrderedSets removed in Statement-level paradigm
   });
 
-  it('should handle create argument result with created ordered sets', () => {
-    const result: CreateArgumentResult = {
-      argumentId: 'arg_123',
-      argument: {
-        id: 'arg_123',
-        premiseSetId: 'set_456',
-        conclusionSetId: 'set_789',
-      },
-      createdOrderedSets: ['set_456', 'set_789'],
-    };
-
-    expect(result.createdOrderedSets).toEqual(['set_456', 'set_789']);
-    expect(result.createdOrderedSets).toHaveLength(2);
-  });
+  // Test removed - createdOrderedSets property no longer exists in Statement-level paradigm
 
   it('should handle bootstrap argument result', () => {
     const result: CreateArgumentResult = {
       argumentId: 'arg_bootstrap',
       argument: {
         id: 'arg_bootstrap',
-        premiseSetId: null,
-        conclusionSetId: null,
+        premiseIds: [],
+        conclusionIds: [],
       },
     };
 
-    expect(result.argument.premiseSetId).toBeNull();
-    expect(result.argument.conclusionSetId).toBeNull();
+    expect(result.argument.premiseIds).toEqual([]);
+    expect(result.argument.conclusionIds).toEqual([]);
   });
 });
 
@@ -595,13 +582,14 @@ describe('BranchCreationResult', () => {
       },
       newArgument: {
         id: 'arg_new',
-        premiseSetId: 'set_shared',
-        conclusionSetId: 'set_new',
+        premiseIds: ['stmt_shared'],
+        conclusionIds: ['stmt_new'],
       },
       connectionPoint: {
         sourceArgumentId: 'arg_source',
         targetArgumentId: 'arg_new',
-        sharedOrderedSetId: 'set_shared',
+        sharedStatementId: 'stmt_shared',
+        connectionType: 'conclusion-to-premise' as const,
       },
     };
 
@@ -609,7 +597,8 @@ describe('BranchCreationResult', () => {
     expect(result.newArgument.id).toBe('arg_new');
     expect(result.connectionPoint.sourceArgumentId).toBe('arg_source');
     expect(result.connectionPoint.targetArgumentId).toBe('arg_new');
-    expect(result.connectionPoint.sharedOrderedSetId).toBe('set_shared');
+    expect(result.connectionPoint.sharedStatementId).toBe('stmt_shared');
+    expect(result.connectionPoint.connectionType).toBe('conclusion-to-premise');
     expect(result.newTreeId).toBeUndefined();
   });
 
@@ -624,13 +613,14 @@ describe('BranchCreationResult', () => {
       },
       newArgument: {
         id: 'arg_new',
-        premiseSetId: 'set_shared',
-        conclusionSetId: 'set_new',
+        premiseIds: ['stmt_shared'],
+        conclusionIds: ['stmt_new'],
       },
       connectionPoint: {
         sourceArgumentId: 'arg_source',
         targetArgumentId: 'arg_new',
-        sharedOrderedSetId: 'set_shared',
+        sharedStatementId: 'stmt_shared',
+        connectionType: 'conclusion-to-premise' as const,
       },
       newTreeId: 'tree_new',
     };
@@ -795,7 +785,7 @@ describe('BootstrapResult', () => {
     expect(result.createdEntities?.argumentId).toBe('arg_bootstrap');
     expect(result.createdEntities?.treeId).toBe('tree_bootstrap');
     expect(result.createdEntities?.statementIds).toBeUndefined();
-    expect(result.createdEntities?.orderedSetIds).toBeUndefined();
+    // orderedSetIds removed in Statement-level paradigm
   });
 
   it('should handle populating bootstrap result', () => {
@@ -806,14 +796,13 @@ describe('BootstrapResult', () => {
         argumentId: 'arg_bootstrap',
         treeId: 'tree_bootstrap',
         statementIds: ['stmt_1', 'stmt_2', 'stmt_3'],
-        orderedSetIds: ['set_premise', 'set_conclusion'],
       },
       nextSteps: ['Connect arguments', 'Add more statements'],
     };
 
     expect(result.phase).toBe('populating');
     expect(result.createdEntities?.statementIds).toHaveLength(3);
-    expect(result.createdEntities?.orderedSetIds).toHaveLength(2);
+    // orderedSetIds removed in Statement-level paradigm
   });
 
   it('should handle complete bootstrap result', () => {
@@ -824,7 +813,6 @@ describe('BootstrapResult', () => {
         argumentId: 'arg_bootstrap',
         treeId: 'tree_bootstrap',
         statementIds: ['stmt_1', 'stmt_2', 'stmt_3'],
-        orderedSetIds: ['set_premise', 'set_conclusion'],
       },
       nextSteps: ['Continue building your proof', 'Add validation rules'],
     };

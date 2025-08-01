@@ -5,7 +5,7 @@ import type { AtomicArgument } from '../../entities/AtomicArgument.js';
 import type { OrderedSet } from '../../entities/OrderedSet.js';
 import { Statement } from '../../entities/Statement.js';
 import { StatementFlowService } from '../../services/StatementFlowService.js';
-import type { AtomicArgumentId, OrderedSetId } from '../../shared/value-objects.js';
+import type { AtomicArgumentId, OrderedSetId } from '../../shared/value-objects/index.js';
 import {
   createTestStatements,
   statementContentFactory,

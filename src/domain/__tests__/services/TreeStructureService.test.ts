@@ -11,7 +11,7 @@ import {
   type NodeId,
   PhysicalProperties,
   Position2D,
-} from '../../shared/value-objects.js';
+} from '../../shared/value-objects/index.js';
 import {
   atomicArgumentFactory,
   atomicArgumentIdFactory,
@@ -57,7 +57,7 @@ describe('TreeStructureService', () => {
           expect(tree.getPosition()).toEqual(Position2D.origin());
           expect(tree.getPhysicalProperties()).toEqual(PhysicalProperties.default());
           expect(tree.getTitle()).toBeUndefined();
-          expect(tree.containsNode(rootNode.getId())).toBe(true);
+          expect(tree.hasNode(rootNode.getId())).toBe(true);
           expect(tree.getNodeCount()).toBe(1);
           expect(rootNode.isRoot()).toBe(true);
           expect(rootNode.getArgumentId()).toBe(mockAtomicArgument.getId());
@@ -90,7 +90,7 @@ describe('TreeStructureService', () => {
             expect(tree.getPosition()).toEqual(positionResult.value);
             expect(tree.getPhysicalProperties()).toEqual(propertiesResult.value);
             expect(tree.getTitle()).toBe(title);
-            expect(tree.containsNode(rootNode.getId())).toBe(true);
+            expect(tree.hasNode(rootNode.getId())).toBe(true);
             expect(rootNode.isRoot()).toBe(true);
           }
         }
@@ -106,7 +106,7 @@ describe('TreeStructureService', () => {
         expect(result.isErr()).toBe(true);
         if (result.isErr()) {
           expect(result.error).toBeInstanceOf(ValidationError);
-          expect(result.error.message).toContain('Document ID cannot be empty');
+          expect(result.error.message).toContain('DocumentId cannot be empty');
         }
       });
     });
@@ -138,7 +138,7 @@ describe('TreeStructureService', () => {
         if (result.isOk()) {
           const childNode = result.value;
 
-          expect(tree.containsNode(childNode.getId())).toBe(true);
+          expect(tree.hasNode(childNode.getId())).toBe(true);
           expect(tree.getNodeCount()).toBe(2);
           expect(childNode.isChild()).toBe(true);
           expect(childNode.getParentNodeId()).toEqual(parentNode.getId());
@@ -263,9 +263,9 @@ describe('TreeStructureService', () => {
           const removedIds = result.value;
 
           expect(removedIds).toEqual([grandChildNode.getId()]);
-          expect(tree.containsNode(grandChildNode.getId())).toBe(false);
-          expect(tree.containsNode(childNode.getId())).toBe(true);
-          expect(tree.containsNode(rootNode.getId())).toBe(true);
+          expect(tree.hasNode(grandChildNode.getId())).toBe(false);
+          expect(tree.hasNode(childNode.getId())).toBe(true);
+          expect(tree.hasNode(rootNode.getId())).toBe(true);
           expect(tree.getNodeCount()).toBe(2);
         }
       });
@@ -280,9 +280,9 @@ describe('TreeStructureService', () => {
           expect(removedIds).toContain(childNode.getId());
           expect(removedIds).toContain(grandChildNode.getId());
           expect(removedIds).toHaveLength(2);
-          expect(tree.containsNode(childNode.getId())).toBe(false);
-          expect(tree.containsNode(grandChildNode.getId())).toBe(false);
-          expect(tree.containsNode(rootNode.getId())).toBe(true);
+          expect(tree.hasNode(childNode.getId())).toBe(false);
+          expect(tree.hasNode(grandChildNode.getId())).toBe(false);
+          expect(tree.hasNode(rootNode.getId())).toBe(true);
           expect(tree.getNodeCount()).toBe(1);
         }
       });
@@ -648,33 +648,48 @@ describe('TreeStructureService', () => {
     });
 
     it('should find all descendants of root', () => {
-      const descendants = service.findAllDescendantNodes(rootNode.getId(), allNodes);
+      const result = service.findAllDescendantNodes(rootNode.getId(), allNodes);
 
-      expect(descendants).toHaveLength(3);
-      expect(descendants).toContain(childNode1);
-      expect(descendants).toContain(childNode2);
-      expect(descendants).toContain(grandChildNode);
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        const descendants = result.value;
+        expect(descendants).toHaveLength(3);
+        expect(descendants).toContain(childNode1);
+        expect(descendants).toContain(childNode2);
+        expect(descendants).toContain(grandChildNode);
+      }
     });
 
     it('should find descendants of intermediate node', () => {
-      const descendants = service.findAllDescendantNodes(childNode1.getId(), allNodes);
+      const result = service.findAllDescendantNodes(childNode1.getId(), allNodes);
 
-      expect(descendants).toHaveLength(1);
-      expect(descendants[0]).toBe(grandChildNode);
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        const descendants = result.value;
+        expect(descendants).toHaveLength(1);
+        expect(descendants[0]).toBe(grandChildNode);
+      }
     });
 
     it('should return empty array for leaf node', () => {
-      const descendants = service.findAllDescendantNodes(grandChildNode.getId(), allNodes);
+      const result = service.findAllDescendantNodes(grandChildNode.getId(), allNodes);
 
-      expect(descendants).toHaveLength(0);
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        const descendants = result.value;
+        expect(descendants).toHaveLength(0);
+      }
     });
 
     it('should handle cycles gracefully', () => {
       // This test ensures the visited set prevents infinite loops
-      const descendants = service.findAllDescendantNodes(rootNode.getId(), allNodes);
+      const result = service.findAllDescendantNodes(rootNode.getId(), allNodes);
 
       // Should complete without infinite loop
-      expect(descendants.length).toBeGreaterThanOrEqual(0);
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        expect(result.value.length).toBeGreaterThanOrEqual(0);
+      }
     });
   });
 
@@ -908,24 +923,36 @@ describe('TreeStructureService', () => {
     });
 
     it('should return 0 for root node', () => {
-      const depth = service.computeNodeDepth(rootNode.getId(), allNodes);
-      expect(depth).toBe(0);
+      const result = service.computeNodeDepth(rootNode.getId(), allNodes);
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        expect(result.value).toBe(0);
+      }
     });
 
     it('should return 1 for direct child', () => {
-      const depth = service.computeNodeDepth(childNode.getId(), allNodes);
-      expect(depth).toBe(1);
+      const result = service.computeNodeDepth(childNode.getId(), allNodes);
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        expect(result.value).toBe(1);
+      }
     });
 
     it('should return 2 for grandchild', () => {
-      const depth = service.computeNodeDepth(grandChildNode.getId(), allNodes);
-      expect(depth).toBe(2);
+      const result = service.computeNodeDepth(grandChildNode.getId(), allNodes);
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        expect(result.value).toBe(2);
+      }
     });
 
     it('should return 0 for missing node', () => {
       const missingNodeId = nodeIdFactory.build();
-      const depth = service.computeNodeDepth(missingNodeId, allNodes);
-      expect(depth).toBe(0);
+      const result = service.computeNodeDepth(missingNodeId, allNodes);
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        expect(result.value).toBe(0);
+      }
     });
   });
 
@@ -972,10 +999,11 @@ describe('TreeStructureService', () => {
     });
 
     it('should return path from root to target node', () => {
-      const path = service.findNodePathFromRoot(grandChildNode.getId(), allNodes);
+      const result = service.findNodePathFromRoot(grandChildNode.getId(), allNodes);
 
-      expect(path).not.toBeNull();
-      if (path) {
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        const path = result.value;
         expect(path).toHaveLength(3);
         expect(path[0]).toBe(rootNode);
         expect(path[1]).toBe(childNode);
@@ -984,29 +1012,30 @@ describe('TreeStructureService', () => {
     });
 
     it('should return single node path for root', () => {
-      const path = service.findNodePathFromRoot(rootNode.getId(), allNodes);
+      const result = service.findNodePathFromRoot(rootNode.getId(), allNodes);
 
-      expect(path).not.toBeNull();
-      if (path) {
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        const path = result.value;
         expect(path).toHaveLength(1);
         expect(path[0]).toBe(rootNode);
       }
     });
 
-    it('should return null for missing node', () => {
+    it('should return error for missing node', () => {
       const missingNodeId = nodeIdFactory.build();
-      const path = service.findNodePathFromRoot(missingNodeId, allNodes);
+      const result = service.findNodePathFromRoot(missingNodeId, allNodes);
 
-      expect(path).toBeNull();
+      expect(result.isErr()).toBe(true);
     });
 
-    it('should return null when parent chain is broken', () => {
+    it('should return error when parent chain is broken', () => {
       // Remove intermediate node from allNodes to break chain
       allNodes.delete(childNode.getId());
 
-      const path = service.findNodePathFromRoot(grandChildNode.getId(), allNodes);
+      const result = service.findNodePathFromRoot(grandChildNode.getId(), allNodes);
 
-      expect(path).toBeNull();
+      expect(result.isErr()).toBe(true);
     });
   });
 
@@ -1152,7 +1181,7 @@ describe('TreeStructureService', () => {
 
     it('should skip validation for trees that do not support bottom-up flow', () => {
       // Mock tree to not support bottom-up flow
-      vi.spyOn(tree, 'supportsBottomUpFlow').mockReturnValue(false);
+      vi.spyOn(tree, 'canSupportBottomUpFlow').mockReturnValue(false);
 
       const allNodes = new Map([
         [rootNode.getId(), rootNode],
@@ -1214,7 +1243,7 @@ describe('TreeStructureService', () => {
                     allNodes.set(childNode.getId(), childNode);
 
                     // Verify consistency
-                    expect(tree.containsNode(childNode.getId())).toBe(true);
+                    expect(tree.hasNode(childNode.getId())).toBe(true);
                     expect(childNode.getParentNodeId()).toEqual(rootNode.getId());
                   }
                 }
@@ -1326,8 +1355,11 @@ describe('TreeStructureService', () => {
         const rootNodes = service.findRootNodes(tree, emptyNodes);
         expect(rootNodes).toHaveLength(0);
 
-        const descendants = service.findAllDescendantNodes(nodeIdFactory.build(), emptyNodes);
-        expect(descendants).toHaveLength(0);
+        const descendantsResult = service.findAllDescendantNodes(nodeIdFactory.build(), emptyNodes);
+        expect(descendantsResult.isOk()).toBe(true);
+        if (descendantsResult.isOk()) {
+          expect(descendantsResult.value).toHaveLength(0);
+        }
       });
     });
 
@@ -1355,8 +1387,11 @@ describe('TreeStructureService', () => {
             _tree.removeNode(childNode.getId());
 
             // Should handle gracefully
-            const descendants = service.findAllDescendantNodes(rootNode.getId(), allNodes);
-            expect(descendants).toContain(childNode); // Still found in allNodes
+            const descendantsResult = service.findAllDescendantNodes(rootNode.getId(), allNodes);
+            expect(descendantsResult.isOk()).toBe(true);
+            if (descendantsResult.isOk()) {
+              expect(descendantsResult.value).toContain(childNode); // Still found in allNodes
+            }
           }
         }
       });
@@ -1381,10 +1416,16 @@ describe('TreeStructureService', () => {
 
         // Operations should complete in reasonable time
         const start = Date.now();
-        const descendants = service.findAllDescendantNodes(nodeIdFactory.build(), largeNodeMap);
+        const descendantsResult = service.findAllDescendantNodes(
+          nodeIdFactory.build(),
+          largeNodeMap,
+        );
         const end = Date.now();
 
-        expect(descendants).toHaveLength(0);
+        expect(descendantsResult.isOk()).toBe(true);
+        if (descendantsResult.isOk()) {
+          expect(descendantsResult.value).toHaveLength(0);
+        }
         expect(end - start).toBeLessThan(1000); // Should complete in under 1 second
       });
     });

@@ -1,3 +1,4 @@
+import type { Result } from 'neverthrow';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -12,7 +13,7 @@ import {
   SourceLocation,
   type ValidationScope,
 } from '../analysis-types.js';
-import { type Result, ValidationError } from '../result.js';
+import { ValidationError } from '../result.js';
 
 // Helper function to safely unwrap results in tests
 function unwrap<T, E>(result: Result<T, E>): T {

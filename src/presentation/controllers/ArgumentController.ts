@@ -172,8 +172,8 @@ export class ArgumentController implements IController {
   async updateAtomicArgument(
     documentId: string,
     argumentId: string,
-    premiseSetId?: string | null,
-    conclusionSetId?: string | null,
+    premiseIds?: string[] | null,
+    conclusionIds?: string[] | null,
   ): Promise<Result<ViewResponse<ArgumentViewDTO>, ValidationApplicationError>> {
     try {
       if (!documentId || documentId.trim().length === 0) {
@@ -184,10 +184,10 @@ export class ArgumentController implements IController {
         return err(new ValidationApplicationError('Argument ID cannot be empty'));
       }
 
-      if (!premiseSetId && !conclusionSetId) {
+      if (!premiseIds && !conclusionIds) {
         return err(
           new ValidationApplicationError(
-            'At least one of premise set ID or conclusion set ID must be provided',
+            'At least one of premise IDs or conclusion IDs must be provided',
           ),
         );
       }
@@ -195,16 +195,17 @@ export class ArgumentController implements IController {
       const _command: UpdateAtomicArgumentCommand = {
         documentId: documentId.trim(),
         argumentId: argumentId.trim(),
-        premiseSetId: premiseSetId?.trim() || null,
-        conclusionSetId: conclusionSetId?.trim() || null,
+        premiseIds: premiseIds || null,
+        conclusionIds: conclusionIds || null,
       };
 
       // Mock implementation
       const argumentViewDTO: ArgumentViewDTO = {
         id: argumentId.trim(),
-        premiseStatements: premiseSetId ? ['stmt-1', 'stmt-2'] : [],
-        conclusionStatements: conclusionSetId ? ['stmt-3'] : [],
-        isComplete: !!premiseSetId && !!conclusionSetId,
+        premiseStatements: premiseIds || [],
+        conclusionStatements: conclusionIds || [],
+        isComplete:
+          !!(premiseIds && premiseIds.length > 0) && !!(conclusionIds && conclusionIds.length > 0),
         connectionCount: 1,
         lastModified: new Date().toISOString(),
       };
@@ -346,8 +347,8 @@ export class ArgumentController implements IController {
       // Mock implementation
       const mockAtomicArgumentDTO: AtomicArgumentDTO = {
         id: argumentId.trim(),
-        premiseSetId: 'set-1',
-        conclusionSetId: 'set-2',
+        premiseIds: ['stmt-1', 'stmt-2'],
+        conclusionIds: ['stmt-3'],
         sideLabels: {
           left: 'Modus Ponens',
           right: 'Classical Logic',
@@ -389,26 +390,28 @@ export class ArgumentController implements IController {
       const mockArguments: AtomicArgumentDTO[] = [
         {
           id: 'arg-1',
-          premiseSetId: 'set-1',
-          conclusionSetId: 'set-2',
+          premiseIds: ['stmt-1', 'stmt-2'],
+          conclusionIds: ['stmt-3'],
           sideLabels: { left: 'Modus Ponens' },
         },
         {
           id: 'arg-2',
-          premiseSetId: 'set-3',
-          conclusionSetId: null, // Incomplete
+          premiseIds: ['stmt-4'],
+          conclusionIds: [], // Incomplete
         },
         {
           id: 'arg-3',
-          premiseSetId: null,
-          conclusionSetId: 'set-4',
+          premiseIds: [],
+          conclusionIds: ['stmt-5'],
         },
       ];
 
       // Apply filters
       let filteredArguments = mockArguments;
       if (options?.incomplete) {
-        filteredArguments = mockArguments.filter((a) => !a.premiseSetId || !a.conclusionSetId);
+        filteredArguments = mockArguments.filter(
+          (a) => a.premiseIds.length === 0 || a.conclusionIds.length === 0,
+        );
       }
       if (options?.unconnected) {
         // Mock: consider args without connections as unconnected
@@ -417,7 +420,7 @@ export class ArgumentController implements IController {
 
       const viewArguments = filteredArguments.map((a) => this.mapAtomicArgumentToViewDTO(a));
       const incompleteCount = mockArguments.filter(
-        (a) => !a.premiseSetId || !a.conclusionSetId,
+        (a) => a.premiseIds.length === 0 || a.conclusionIds.length === 0,
       ).length;
       const unconnectedCount = 1; // Mock count
 
@@ -550,9 +553,10 @@ export class ArgumentController implements IController {
   private mapAtomicArgumentToViewDTO(atomicArgumentDto: AtomicArgumentDTO): ArgumentViewDTO {
     return {
       id: atomicArgumentDto.id,
-      premiseStatements: atomicArgumentDto.premiseSetId ? ['stmt-1', 'stmt-2'] : [], // Mock data
-      conclusionStatements: atomicArgumentDto.conclusionSetId ? ['stmt-3'] : [], // Mock data
-      isComplete: !!atomicArgumentDto.premiseSetId && !!atomicArgumentDto.conclusionSetId,
+      premiseStatements: atomicArgumentDto.premiseIds, // Use actual premise IDs
+      conclusionStatements: atomicArgumentDto.conclusionIds, // Use actual conclusion IDs
+      isComplete:
+        atomicArgumentDto.premiseIds.length > 0 && atomicArgumentDto.conclusionIds.length > 0,
       connectionCount: 1, // Mock count
       lastModified: new Date().toISOString(),
       ...(atomicArgumentDto.sideLabels && { sideLabels: atomicArgumentDto.sideLabels }),

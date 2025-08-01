@@ -1,40 +1,33 @@
 import { err, ok, type Result } from 'neverthrow';
 import { injectable } from 'tsyringe';
 import { ValidationError } from '../../domain/shared/result.js';
-import type {
-  ConnectionDTO,
-  RenderedNodeDTO,
-  TreeLayoutConfig,
-  TreeLayoutDTO,
-  TreeNodeData,
-  TreeRenderDTO,
+import {
+  type ConnectionDTO,
+  createRenderedNodeDTO,
+  type RenderedNodeDTO,
+  type TreeLayoutDTO,
+  type TreeNodeData,
+  type TreeRenderDTO,
+  TypedTreeLayoutConfig,
 } from '../dtos/view-dtos.js';
-import { createRenderedNodeDTO } from '../dtos/view-dtos.js';
 import type { DocumentDTO } from '../queries/document-queries.js';
 import type { TreeDTO } from '../queries/shared-types.js';
 import type { StatementDTO } from '../queries/statement-queries.js';
 
 @injectable()
 export class TreeLayoutService {
-  private readonly defaultConfig: TreeLayoutConfig = {
-    nodeWidth: 220,
-    nodeHeight: 120,
-    verticalSpacing: 180,
-    horizontalSpacing: 280,
-    treeSpacing: 150,
-    canvasMargin: 50,
-  };
+  private readonly defaultConfig: TypedTreeLayoutConfig = TypedTreeLayoutConfig.default();
 
   /**
    * Calculate layout for all trees in a document
    */
   calculateDocumentLayout(
     document: DocumentDTO,
-    config: Partial<TreeLayoutConfig> = {},
+    config: Partial<TypedTreeLayoutConfig> = {},
   ): Result<TreeRenderDTO[], ValidationError> {
-    const layoutConfig = { ...this.defaultConfig, ...config };
+    const layoutConfig = config instanceof TypedTreeLayoutConfig ? config : this.defaultConfig;
     const layouts: TreeRenderDTO[] = [];
-    let currentY = layoutConfig.canvasMargin;
+    let currentY = layoutConfig.getCanvasMargin().getValue();
 
     try {
       for (const [treeId, treeDTO] of Object.entries(document.trees)) {
@@ -51,7 +44,7 @@ export class TreeLayoutService {
         }
 
         layouts.push(layoutResult.value);
-        currentY += layoutResult.value.bounds.height + layoutConfig.treeSpacing;
+        currentY += layoutResult.value.bounds.height + layoutConfig.getTreeSpacing().getValue();
       }
 
       return ok(layouts);
@@ -71,7 +64,7 @@ export class TreeLayoutService {
     treeId: string,
     treeDTO: TreeDTO,
     document: DocumentDTO,
-    config: TreeLayoutConfig,
+    config: TypedTreeLayoutConfig,
     startY: number,
   ): Result<TreeRenderDTO, ValidationError> {
     try {
@@ -93,14 +86,14 @@ export class TreeLayoutService {
         const argumentDTO = document.atomicArguments[node.argumentId];
         if (!argumentDTO) continue;
 
-        const premises = this.getStatementsForOrderedSet(argumentDTO.premiseSetId, document);
-        const conclusions = this.getStatementsForOrderedSet(argumentDTO.conclusionSetId, document);
+        const premises = this.getStatementsFromIds(argumentDTO.premiseIds, document);
+        const conclusions = this.getStatementsFromIds(argumentDTO.conclusionIds, document);
 
         renderedNodes.push(
           createRenderedNodeDTO(
             nodeId,
             position,
-            { width: config.nodeWidth, height: config.nodeHeight },
+            { width: config.getNodeWidth().getValue(), height: config.getNodeHeight().getValue() },
             argumentDTO,
             premises,
             conclusions,
@@ -180,7 +173,7 @@ export class TreeLayoutService {
 
   private calculateNodePositions(
     nodes: TreeNodeData[],
-    config: TreeLayoutConfig,
+    config: TypedTreeLayoutConfig,
     treeOffset: { x: number; y: number },
   ): Map<string, { x: number; y: number }> {
     const positions = new Map<string, { x: number; y: number }>();
@@ -190,12 +183,12 @@ export class TreeLayoutService {
 
     // Position nodes level by level
     for (const [level, levelNodes] of levels) {
-      const levelWidth = levelNodes.length * config.horizontalSpacing;
+      const levelWidth = levelNodes.length * config.getHorizontalSpacing().getValue();
       const startX = treeOffset.x - levelWidth / 2;
 
       levelNodes.forEach((nodeId, index) => {
-        const x = startX + index * config.horizontalSpacing;
-        const y = treeOffset.y + level * config.verticalSpacing;
+        const x = startX + index * config.getHorizontalSpacing().getValue();
+        const y = treeOffset.y + level * config.getVerticalSpacing().getValue();
         positions.set(nodeId, { x, y });
       });
     }
@@ -241,6 +234,12 @@ export class TreeLayoutService {
     }
 
     return levels;
+  }
+
+  private getStatementsFromIds(statementIds: string[], document: DocumentDTO): StatementDTO[] {
+    if (!statementIds || statementIds.length === 0) return [];
+
+    return statementIds.map((id) => document.statements[id]).filter((stmt) => stmt != null);
   }
 
   private getStatementsForOrderedSet(
@@ -290,7 +289,7 @@ export class TreeLayoutService {
 
   private calculateTreeBounds(
     nodes: RenderedNodeDTO[],
-    config: TreeLayoutConfig,
+    config: TypedTreeLayoutConfig,
   ): { width: number; height: number } {
     if (nodes.length === 0) {
       return { width: 400, height: 200 };
@@ -302,28 +301,34 @@ export class TreeLayoutService {
     const minY = Math.min(...nodes.map((n) => n.position.y));
 
     return {
-      width: maxX - minX + config.canvasMargin * 2,
-      height: maxY - minY + config.canvasMargin * 2,
+      width: maxX - minX + config.getCanvasMargin().getValue() * 2,
+      height: maxY - minY + config.getCanvasMargin().getValue() * 2,
     };
   }
 
   private createEmptyTreeLayout(
     treeId: string,
     treeDTO: TreeDTO,
-    config: TreeLayoutConfig,
+    config: TypedTreeLayoutConfig,
     startY: number,
   ): TreeRenderDTO {
     // Calculate minimum dimensions for empty tree
     // For empty trees, provide a reasonable default size based on node dimensions plus spacing
     // When canvasMargin is customized (larger than default), add both canvasMargin and minimum spacing
-    const isCustomCanvasMargin = config.canvasMargin > 50; // 50 is default
+    const canvasMargin = config.getCanvasMargin().getValue();
+    const nodeWidth = config.getNodeWidth().getValue();
+    const nodeHeight = config.getNodeHeight().getValue();
+    const horizontalSpacing = config.getHorizontalSpacing().getValue();
+    const verticalSpacing = config.getVerticalSpacing().getValue();
+
+    const isCustomCanvasMargin = canvasMargin > 50; // 50 is default
     const width = Math.max(
       400,
       isCustomCanvasMargin
-        ? config.nodeWidth + config.canvasMargin * 2 + 100 // extra spacing for custom margins
-        : config.nodeWidth + config.horizontalSpacing,
+        ? nodeWidth + canvasMargin * 2 + 100 // extra spacing for custom margins
+        : nodeWidth + horizontalSpacing,
     );
-    const height = Math.max(200, config.nodeHeight + config.verticalSpacing);
+    const height = Math.max(200, nodeHeight + verticalSpacing);
 
     return {
       id: treeId,
@@ -340,14 +345,37 @@ export class TreeLayoutService {
   /**
    * Get the default layout configuration
    */
-  getDefaultConfig(): TreeLayoutConfig {
-    return { ...this.defaultConfig };
+  getDefaultConfig(): TypedTreeLayoutConfig {
+    return this.defaultConfig;
   }
 
   /**
-   * Create a custom layout configuration
+   * Create a custom layout configuration with typed overrides
    */
-  createConfig(overrides: Partial<TreeLayoutConfig>): TreeLayoutConfig {
-    return { ...this.defaultConfig, ...overrides };
+  createTypedConfig(
+    config?: Partial<{
+      nodeWidth: number;
+      nodeHeight: number;
+      verticalSpacing: number;
+      horizontalSpacing: number;
+      treeSpacing: number;
+      canvasMargin: number;
+    }>,
+  ): Result<TypedTreeLayoutConfig, ValidationError> {
+    if (!config) {
+      return ok(this.defaultConfig);
+    }
+
+    const defaultRaw = this.defaultConfig.toRaw();
+    const configResult = TypedTreeLayoutConfig.create({
+      nodeWidth: config.nodeWidth ?? defaultRaw.nodeWidth,
+      nodeHeight: config.nodeHeight ?? defaultRaw.nodeHeight,
+      verticalSpacing: config.verticalSpacing ?? defaultRaw.verticalSpacing,
+      horizontalSpacing: config.horizontalSpacing ?? defaultRaw.horizontalSpacing,
+      treeSpacing: config.treeSpacing ?? defaultRaw.treeSpacing,
+      canvasMargin: config.canvasMargin ?? defaultRaw.canvasMargin,
+    });
+
+    return configResult;
   }
 }

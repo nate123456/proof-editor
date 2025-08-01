@@ -224,7 +224,7 @@ describe('Content Value Objects', () => {
 
             if (versionResult.isOk()) {
               const version = versionResult.value;
-              const next = version.nextVersion();
+              const next = version.increment();
               expect(next.getValue()).toBe(value + 1);
             }
           }),

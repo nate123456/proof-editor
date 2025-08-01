@@ -5,7 +5,11 @@ import { Node } from '../../domain/entities/Node.js';
 import { OrderedSet } from '../../domain/entities/OrderedSet.js';
 import { Statement } from '../../domain/entities/Statement.js';
 import { Tree } from '../../domain/entities/Tree.js';
-import { AtomicArgumentId, Position2D, StatementId } from '../../domain/shared/value-objects.js';
+import {
+  AtomicArgumentId,
+  Position2D,
+  StatementId,
+} from '../../domain/shared/value-objects/index.js';
 import type { NodeSpec, ParsedYAMLStructure, ProofDocument } from '../ProofDocument.js';
 
 describe('ProofDocument', () => {

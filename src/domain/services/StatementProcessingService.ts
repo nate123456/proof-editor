@@ -1,79 +1,72 @@
 import { err, ok, type Result } from 'neverthrow';
 import { AtomicArgument } from '../entities/AtomicArgument.js';
-import { OrderedSet } from '../entities/OrderedSet.js';
 import { Statement } from '../entities/Statement.js';
 import { ProcessingError } from '../errors/DomainErrors.js';
 import type { IAtomicArgumentRepository } from '../repositories/IAtomicArgumentRepository';
-import type { IOrderedSetRepository } from '../repositories/IOrderedSetRepository';
 import type { IStatementRepository } from '../repositories/IStatementRepository';
 import type { ValidationError } from '../shared/result.js';
-import type { AtomicArgumentId, StatementId } from '../shared/value-objects.js';
+import type { AtomicArgumentId, StatementId } from '../shared/value-objects/index.js';
 
 export class StatementProcessingService {
-  constructor(
-    private readonly statementRepo: IStatementRepository,
-    private readonly orderedSetRepo: IOrderedSetRepository,
-    private readonly atomicArgumentRepo: IAtomicArgumentRepository,
-  ) {}
-
   async createStatementFlow(
     sourceStatements: string[],
     targetStatements: string[],
+    statementRepo: IStatementRepository,
+    atomicArgumentRepo: IAtomicArgumentRepository,
   ): Promise<Result<AtomicArgument, ProcessingError>> {
-    const premiseStatements = await this.createOrFindStatements(sourceStatements);
+    const premiseStatements = await this.createOrFindStatements(sourceStatements, statementRepo);
     if (premiseStatements.isErr()) return err(premiseStatements.error);
 
-    const conclusionStatements = await this.createOrFindStatements(targetStatements);
+    const conclusionStatements = await this.createOrFindStatements(targetStatements, statementRepo);
     if (conclusionStatements.isErr()) return err(conclusionStatements.error);
 
-    const premiseSetResult = await this.createOrderedSet(premiseStatements.value);
-    if (premiseSetResult.isErr()) return err(premiseSetResult.error);
-
-    const conclusionSetResult = await this.createOrderedSet(conclusionStatements.value);
-    if (conclusionSetResult.isErr()) return err(conclusionSetResult.error);
-
-    const atomicArgument = AtomicArgument.createComplete(
-      premiseSetResult.value.getId(),
-      conclusionSetResult.value.getId(),
+    const atomicArgumentResult = AtomicArgument.create(
+      premiseStatements.value,
+      conclusionStatements.value,
     );
 
-    const saveResult = await this.atomicArgumentRepo.save(atomicArgument);
+    if (atomicArgumentResult.isErr()) {
+      return err(
+        new ProcessingError('Failed to create atomic argument', atomicArgumentResult.error),
+      );
+    }
+
+    const saveResult = await atomicArgumentRepo.save(atomicArgumentResult.value);
     if (saveResult.isErr()) {
       return err(new ProcessingError('Failed to save atomic argument', saveResult.error));
     }
 
-    return ok(atomicArgument);
+    return ok(atomicArgumentResult.value);
   }
 
   async createBranchConnection(
     parentArgumentId: AtomicArgumentId,
+    atomicArgumentRepo: IAtomicArgumentRepository,
+    conclusionIndex: number = 0,
   ): Promise<Result<AtomicArgument, ProcessingError>> {
-    const parent = await this.atomicArgumentRepo.findById(parentArgumentId);
+    const parent = await atomicArgumentRepo.findById(parentArgumentId);
     if (!parent) {
       return err(new ProcessingError('Parent argument not found'));
     }
 
-    if (parent.getConclusionSet() === null) {
-      return err(new ProcessingError('Parent argument has no conclusion to branch from'));
+    const branchResult = parent.createBranchFromConclusion(conclusionIndex);
+    if (branchResult.isErr()) {
+      return err(new ProcessingError(branchResult.error.message, branchResult.error));
     }
 
-    const childArgumentResult = parent.createChildArgument();
-    if (childArgumentResult.isErr()) {
-      return err(new ProcessingError('Failed to create child argument', childArgumentResult.error));
-    }
-
-    const saveResult = await this.atomicArgumentRepo.save(childArgumentResult.value);
+    const saveResult = await atomicArgumentRepo.save(branchResult.value);
     if (saveResult.isErr()) {
       return err(new ProcessingError('Failed to save child argument', saveResult.error));
     }
 
-    return ok(childArgumentResult.value);
+    return ok(branchResult.value);
   }
 
   async validateStatementFlow(
     argumentId: AtomicArgumentId,
+    atomicArgumentRepo: IAtomicArgumentRepository,
   ): Promise<Result<StatementFlowValidationResult, ProcessingError>> {
-    const argument = await this.atomicArgumentRepo.findById(argumentId);
+    const argument = await atomicArgumentRepo.findById(argumentId);
     if (!argument) {
       return err(new ProcessingError('Argument not found'));
     }
@@ -87,16 +80,17 @@ export class StatementProcessingService {
 
   async processStatementReuse(
     statementContent: string,
+    statementRepo: IStatementRepository,
   ): Promise<Result<Statement, ProcessingError>> {
-    const existingStatement = await this.statementRepo.findByContent(statementContent);
+    const existingStatement = await statementRepo.findByContent(statementContent);
 
     if (existingStatement) {
-      existingStatement.incrementUsageCount();
-      const saveResult = await this.statementRepo.save(existingStatement);
+      const updatedStatement = existingStatement.incrementUsage();
+      const saveResult = await statementRepo.save(updatedStatement);
       if (saveResult.isErr()) {
         return err(new ProcessingError('Failed to update statement usage', saveResult.error));
       }
-      return ok(existingStatement);
+      return ok(updatedStatement);
     }
 
     const newStatementResult = Statement.create(statementContent);
@@ -104,7 +98,7 @@ export class StatementProcessingService {
       return err(new ProcessingError('Invalid statement content', newStatementResult.error));
     }
 
-    const saveResult = await this.statementRepo.save(newStatementResult.value);
+    const saveResult = await statementRepo.save(newStatementResult.value);
     if (saveResult.isErr()) {
       return err(new ProcessingError('Failed to save new statement', saveResult.error));
     }
@@ -115,8 +109,9 @@ export class StatementProcessingService {
   async updateStatementContent(
     statementId: StatementId,
     newContent: string,
+    statementRepo: IStatementRepository,
   ): Promise<Result<void, ProcessingError>> {
-    const statement = await this.statementRepo.findById(statementId);
+    const statement = await statementRepo.findById(statementId);
     if (!statement) {
       return err(new ProcessingError('Statement not found'));
     }
@@ -126,7 +121,7 @@ export class StatementProcessingService {
       return err(new ProcessingError('Invalid content update', updateResult.error));
     }
 
-    const saveResult = await this.statementRepo.save(statement);
+    const saveResult = await statementRepo.save(updateResult.value);
     if (saveResult.isErr()) {
       return err(new ProcessingError('Failed to save statement update', saveResult.error));
     }
@@ -136,11 +131,12 @@ export class StatementProcessingService {
 
   private async createOrFindStatements(
     contents: string[],
+    statementRepo: IStatementRepository,
   ): Promise<Result<Statement[], ProcessingError>> {
     const statements: Statement[] = [];
 
     for (const content of contents) {
-      const statementResult = await this.processStatementReuse(content);
+      const statementResult = await this.processStatementReuse(content, statementRepo);
       if (statementResult.isErr()) {
         return err(
           new ProcessingError(`Failed to process statement: ${content}`, statementResult.error),
@@ -150,24 +146,6 @@ export class StatementProcessingService {
     }
 
     return ok(statements);
-  }
-
-  private async createOrderedSet(
-    statements: Statement[],
-  ): Promise<Result<OrderedSet, ProcessingError>> {
-    const statementIds = statements.map((s) => s.getId());
-    const orderedSetResult = OrderedSet.createFromStatements(statementIds);
-
-    if (orderedSetResult.isErr()) {
-      return err(new ProcessingError('Failed to create ordered set', orderedSetResult.error));
-    }
-
-    const saveResult = await this.orderedSetRepo.save(orderedSetResult.value);
-    if (saveResult.isErr()) {
-      return err(new ProcessingError('Failed to save ordered set', saveResult.error));
-    }
-
-    return ok(orderedSetResult.value);
   }
 }
 

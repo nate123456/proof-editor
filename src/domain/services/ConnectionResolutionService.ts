@@ -5,7 +5,7 @@ import type { Statement } from '../entities/Statement';
 import type { ProcessingError } from '../errors/DomainErrors';
 import type { IAtomicArgumentRepository } from '../repositories/IAtomicArgumentRepository';
 import type { IStatementRepository } from '../repositories/IStatementRepository';
-import type { AtomicArgumentId } from '../shared/value-objects.js';
+import type { AtomicArgumentId } from '../shared/value-objects/index.js';
 
 export interface StatementConnection {
   connectedArgument: AtomicArgument;
@@ -36,13 +36,18 @@ export class ConnectionResolutionService {
       return ok(connections);
     }
 
-    const allArguments = await this.atomicArgumentRepo.findAll();
-    const otherArguments = allArguments.filter((arg) => !arg.equals(argument));
+    for (const premise of premises) {
+      const premisePos = premises.indexOf(premise);
+      const argumentsUsingStatement = await this.atomicArgumentRepo.findArgumentsUsingStatement(
+        premise.getId(),
+      );
 
-    for (const otherArg of otherArguments) {
-      const otherConclusions = otherArg.getConclusions();
+      for (const otherArg of argumentsUsingStatement) {
+        if (otherArg.equals(argument)) {
+          continue;
+        }
 
-      premises.forEach((premise, premisePos) => {
+        const otherConclusions = otherArg.getConclusions();
         otherConclusions.forEach((conclusion, conclusionPos) => {
           if (premise.equals(conclusion)) {
             connections.push({
@@ -54,7 +59,7 @@ export class ConnectionResolutionService {
             });
           }
         });
-      });
+      }
     }
 
     return ok(connections);
@@ -70,13 +75,18 @@ export class ConnectionResolutionService {
       return ok(connections);
     }
 
-    const allArguments = await this.atomicArgumentRepo.findAll();
-    const otherArguments = allArguments.filter((arg) => !arg.equals(argument));
+    for (const conclusion of conclusions) {
+      const conclusionPos = conclusions.indexOf(conclusion);
+      const argumentsUsingStatement = await this.atomicArgumentRepo.findArgumentsUsingStatement(
+        conclusion.getId(),
+      );
 
-    for (const otherArg of otherArguments) {
-      const otherPremises = otherArg.getPremises();
+      for (const otherArg of argumentsUsingStatement) {
+        if (otherArg.equals(argument)) {
+          continue;
+        }
 
-      conclusions.forEach((conclusion, conclusionPos) => {
+        const otherPremises = otherArg.getPremises();
         otherPremises.forEach((premise, premisePos) => {
           if (conclusion.equals(premise)) {
             connections.push({
@@ -88,7 +98,7 @@ export class ConnectionResolutionService {
             });
           }
         });
-      });
+      }
     }
 
     return ok(connections);
@@ -142,20 +152,9 @@ export class ConnectionResolutionService {
   async findArgumentsConnectedToStatement(
     statement: Statement,
   ): Promise<Result<AtomicArgument[], ProcessingError>> {
-    const allArguments = await this.atomicArgumentRepo.findAll();
-    const connectedArguments: AtomicArgument[] = [];
-
-    for (const argument of allArguments) {
-      const premises = argument.getPremises();
-      const conclusions = argument.getConclusions();
-
-      const hasStatement =
-        premises.some((p) => p.equals(statement)) || conclusions.some((c) => c.equals(statement));
-
-      if (hasStatement) {
-        connectedArguments.push(argument);
-      }
-    }
+    const connectedArguments = await this.atomicArgumentRepo.findArgumentsUsingStatement(
+      statement.getId(),
+    );
 
     return ok(connectedArguments);
   }
@@ -193,47 +192,66 @@ export class ConnectionResolutionService {
       ProcessingError
     >
   > {
-    const allArguments = await this.atomicArgumentRepo.findAll();
     const connectedPairs: Array<{
       source: AtomicArgument;
       target: AtomicArgument;
       connections: StatementConnection[];
     }> = [];
 
-    for (let i = 0; i < allArguments.length; i++) {
-      for (let j = i + 1; j < allArguments.length; j++) {
-        const sourceArg = allArguments[i];
-        const targetArg = allArguments[j];
+    // Get all statements to find connected arguments efficiently
+    const allStatements = await this.statementRepo.findAll();
+    const processedPairs = new Set<string>();
 
-        const sourceToTargetConnections = sourceArg.findConnectionsTo(targetArg);
-        const targetToSourceConnections = targetArg.findConnectionsTo(sourceArg);
+    for (const statement of allStatements) {
+      const argumentsUsingStatement = await this.atomicArgumentRepo.findArgumentsUsingStatement(
+        statement.getId(),
+      );
 
-        if (sourceToTargetConnections.length > 0) {
-          connectedPairs.push({
-            source: sourceArg,
-            target: targetArg,
-            connections: sourceToTargetConnections.map((conn) => ({
-              connectedArgument: targetArg,
-              statement: conn.statement,
-              fromPosition: conn.fromConclusionPosition,
-              toPosition: conn.toPremisePosition,
-              direction: 'outgoing' as const,
-            })),
-          });
-        }
+      // Find connections between arguments that use the same statement
+      for (let i = 0; i < argumentsUsingStatement.length; i++) {
+        for (let j = i + 1; j < argumentsUsingStatement.length; j++) {
+          const sourceArg = argumentsUsingStatement[i];
+          const targetArg = argumentsUsingStatement[j];
 
-        if (targetToSourceConnections.length > 0) {
-          connectedPairs.push({
-            source: targetArg,
-            target: sourceArg,
-            connections: targetToSourceConnections.map((conn) => ({
-              connectedArgument: sourceArg,
-              statement: conn.statement,
-              fromPosition: conn.fromConclusionPosition,
-              toPosition: conn.toPremisePosition,
-              direction: 'outgoing' as const,
-            })),
-          });
+          const pairKey1 = `${sourceArg.getId().getValue()}-${targetArg.getId().getValue()}`;
+          const pairKey2 = `${targetArg.getId().getValue()}-${sourceArg.getId().getValue()}`;
+
+          if (processedPairs.has(pairKey1) || processedPairs.has(pairKey2)) {
+            continue;
+          }
+
+          const sourceToTargetConnections = sourceArg.findConnectionsTo(targetArg);
+          const targetToSourceConnections = targetArg.findConnectionsTo(sourceArg);
+
+          if (sourceToTargetConnections.length > 0) {
+            connectedPairs.push({
+              source: sourceArg,
+              target: targetArg,
+              connections: sourceToTargetConnections.map((conn) => ({
+                connectedArgument: targetArg,
+                statement: conn.statement,
+                fromPosition: conn.fromConclusionPosition,
+                toPosition: conn.toPremisePosition,
+                direction: 'outgoing' as const,
+              })),
+            });
+            processedPairs.add(pairKey1);
+          }
+
+          if (targetToSourceConnections.length > 0) {
+            connectedPairs.push({
+              source: targetArg,
+              target: sourceArg,
+              connections: targetToSourceConnections.map((conn) => ({
+                connectedArgument: sourceArg,
+                statement: conn.statement,
+                fromPosition: conn.fromConclusionPosition,
+                toPosition: conn.toPremisePosition,
+                direction: 'outgoing' as const,
+              })),
+            });
+            processedPairs.add(pairKey2);
+          }
         }
       }
     }

@@ -1,11 +1,13 @@
+import { Result } from 'neverthrow';
+import type { ValidationError } from '../shared/result.js';
 import type {
   AtomicArgumentId,
   DocumentId,
   NodeId,
-  OrderedSetId,
-  // StatementId,
+  StatementId,
   TreeId,
-} from '../shared/value-objects.js';
+} from '../shared/value-objects/index.js';
+import { NodeDimension, Position2D, Spacing } from '../shared/value-objects/index.js';
 import { DomainEvent } from './base-event.js';
 
 export class AtomicArgumentCreated extends DomainEvent {
@@ -13,8 +15,8 @@ export class AtomicArgumentCreated extends DomainEvent {
 
   constructor(
     public readonly argumentId: AtomicArgumentId,
-    public readonly premiseSetId: OrderedSetId | null,
-    public readonly conclusionSetId: OrderedSetId | null,
+    public readonly premiseIds: StatementId[],
+    public readonly conclusionIds: StatementId[],
     public readonly sideLabels: SideLabels | null,
     public readonly createdBy: string,
   ) {
@@ -24,8 +26,8 @@ export class AtomicArgumentCreated extends DomainEvent {
   get eventData(): Record<string, unknown> {
     return {
       argumentId: this.argumentId.getValue(),
-      premiseSetId: this.premiseSetId?.getValue() ?? null,
-      conclusionSetId: this.conclusionSetId?.getValue() ?? null,
+      premiseIds: this.premiseIds.map((id) => id.getValue()),
+      conclusionIds: this.conclusionIds.map((id) => id.getValue()),
       sideLabels: this.sideLabels,
       createdBy: this.createdBy,
     };
@@ -267,6 +269,127 @@ export interface TreePhysicalProperties {
   alignmentMode: AlignmentMode;
 }
 
+export class TypedTreePosition {
+  private constructor(private readonly position: Position2D) {}
+
+  static create(x: number, y: number): Result<TypedTreePosition, ValidationError> {
+    const positionResult = Position2D.create(x, y);
+    if (positionResult.isErr()) {
+      return positionResult;
+    }
+    return Result.ok(new TypedTreePosition(positionResult.value));
+  }
+
+  static fromPosition2D(position: Position2D): TypedTreePosition {
+    return new TypedTreePosition(position);
+  }
+
+  getPosition(): Position2D {
+    return this.position;
+  }
+
+  toRaw(): TreePosition {
+    return {
+      x: this.position.getX(),
+      y: this.position.getY(),
+    };
+  }
+}
+
+export class TypedTreePhysicalProperties {
+  private constructor(
+    private readonly layoutStyle: LayoutStyle,
+    private readonly spacingX: Spacing,
+    private readonly spacingY: Spacing,
+    private readonly minWidth: NodeDimension,
+    private readonly minHeight: NodeDimension,
+    private readonly expansionDirection: ExpansionDirection,
+    private readonly alignmentMode: AlignmentMode,
+  ) {}
+
+  static create(props: {
+    layoutStyle: LayoutStyle;
+    spacingX: number;
+    spacingY: number;
+    minWidth: number;
+    minHeight: number;
+    expansionDirection: ExpansionDirection;
+    alignmentMode: AlignmentMode;
+  }): Result<TypedTreePhysicalProperties, ValidationError> {
+    const spacingXResult = Spacing.create(props.spacingX);
+    if (spacingXResult.isErr()) {
+      return spacingXResult;
+    }
+
+    const spacingYResult = Spacing.create(props.spacingY);
+    if (spacingYResult.isErr()) {
+      return spacingYResult;
+    }
+
+    const minWidthResult = NodeDimension.create(props.minWidth);
+    if (minWidthResult.isErr()) {
+      return minWidthResult;
+    }
+
+    const minHeightResult = NodeDimension.create(props.minHeight);
+    if (minHeightResult.isErr()) {
+      return minHeightResult;
+    }
+
+    return Result.ok(
+      new TypedTreePhysicalProperties(
+        props.layoutStyle,
+        spacingXResult.value,
+        spacingYResult.value,
+        minWidthResult.value,
+        minHeightResult.value,
+        props.expansionDirection,
+        props.alignmentMode,
+      ),
+    );
+  }
+
+  getLayoutStyle(): LayoutStyle {
+    return this.layoutStyle;
+  }
+
+  getSpacingX(): Spacing {
+    return this.spacingX;
+  }
+
+  getSpacingY(): Spacing {
+    return this.spacingY;
+  }
+
+  getMinWidth(): NodeDimension {
+    return this.minWidth;
+  }
+
+  getMinHeight(): NodeDimension {
+    return this.minHeight;
+  }
+
+  getExpansionDirection(): ExpansionDirection {
+    return this.expansionDirection;
+  }
+
+  getAlignmentMode(): AlignmentMode {
+    return this.alignmentMode;
+  }
+
+  toRaw(): TreePhysicalProperties {
+    return {
+      layoutStyle: this.layoutStyle,
+      spacingX: this.spacingX.getValue(),
+      spacingY: this.spacingY.getValue(),
+      minWidth: this.minWidth.getValue(),
+      minHeight: this.minHeight.getValue(),
+      expansionDirection: this.expansionDirection,
+      alignmentMode: this.alignmentMode,
+    };
+  }
+}
+
 export interface NodeCascadeEffect {
   type: 'child_orphaned' | 'parent_connection_lost' | 'flow_interrupted';
   affectedNodeId: NodeId;
@@ -288,7 +411,9 @@ export interface StructuralChange {
   newPosition: number;
 }
 
-export type LayoutStyle = 'bottom-up' | 'top-down' | 'left-right' | 'right-left';
-export type ExpansionDirection = 'horizontal' | 'vertical' | 'radial';
-export type AlignmentMode = 'left' | 'center' | 'right' | 'justify';
-export type BranchType = 'from_conclusion' | 'independent' | 'from_selected_text';
+import type {
+  AlignmentMode,
+  BranchType,
+  ExpansionDirection,
+  LayoutStyle,
+} from '../shared/value-objects/ui.js';

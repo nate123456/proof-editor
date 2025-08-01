@@ -1,4 +1,4 @@
-import type { AtomicArgumentId, OrderedSetId, StatementId } from '../shared/value-objects.js';
+import type { AtomicArgumentId, StatementId } from '../shared/value-objects/index.js';
 import { DomainEvent } from './base-event.js';
 
 export class StatementFlowEstablished extends DomainEvent {
@@ -8,8 +8,9 @@ export class StatementFlowEstablished extends DomainEvent {
     aggregateId: string,
     public readonly fromArgumentId: AtomicArgumentId,
     public readonly toArgumentId: AtomicArgumentId,
-    public readonly sharedOrderedSetId: OrderedSetId,
-    public readonly statementIds: StatementId[],
+    public readonly sharedStatementId: StatementId,
+    public readonly fromRole: 'premise' | 'conclusion',
+    public readonly toRole: 'premise' | 'conclusion',
   ) {
     super(aggregateId, 'StatementFlow');
   }
@@ -18,8 +19,9 @@ export class StatementFlowEstablished extends DomainEvent {
     return {
       fromArgumentId: this.fromArgumentId.getValue(),
       toArgumentId: this.toArgumentId.getValue(),
-      sharedOrderedSetId: this.sharedOrderedSetId.getValue(),
-      statementIds: this.statementIds.map((id) => id.getValue()),
+      sharedStatementId: this.sharedStatementId.getValue(),
+      fromRole: this.fromRole,
+      toRole: this.toRole,
     };
   }
 }
@@ -31,7 +33,7 @@ export class StatementFlowBroken extends DomainEvent {
     aggregateId: string,
     public readonly fromArgumentId: AtomicArgumentId,
     public readonly toArgumentId: AtomicArgumentId,
-    public readonly previousOrderedSetId: OrderedSetId,
+    public readonly previousStatementId: StatementId,
     public readonly reason: FlowBreakReason,
   ) {
     super(aggregateId, 'StatementFlow');
@@ -41,7 +43,7 @@ export class StatementFlowBroken extends DomainEvent {
     return {
       fromArgumentId: this.fromArgumentId.getValue(),
       toArgumentId: this.toArgumentId.getValue(),
-      previousOrderedSetId: this.previousOrderedSetId.getValue(),
+      previousStatementId: this.previousStatementId.getValue(),
       reason: this.reason,
     };
   }
@@ -74,7 +76,8 @@ export class StatementAddedToFlow extends DomainEvent {
   constructor(
     aggregateId: string,
     public readonly statementId: StatementId,
-    public readonly orderedSetId: OrderedSetId,
+    public readonly argumentId: AtomicArgumentId,
+    public readonly role: 'premise' | 'conclusion',
     public readonly position: number,
     public readonly affectedArguments: AtomicArgumentId[],
   ) {
@@ -84,7 +87,8 @@ export class StatementAddedToFlow extends DomainEvent {
   get eventData(): Record<string, unknown> {
     return {
       statementId: this.statementId.getValue(),
-      orderedSetId: this.orderedSetId.getValue(),
+      argumentId: this.argumentId.getValue(),
+      role: this.role,
       position: this.position,
       affectedArguments: this.affectedArguments.map((id) => id.getValue()),
     };
@@ -97,7 +101,8 @@ export class StatementRemovedFromFlow extends DomainEvent {
   constructor(
     aggregateId: string,
     public readonly statementId: StatementId,
-    public readonly orderedSetId: OrderedSetId,
+    public readonly argumentId: AtomicArgumentId,
+    public readonly role: 'premise' | 'conclusion',
     public readonly previousPosition: number,
     public readonly affectedArguments: AtomicArgumentId[],
   ) {
@@ -107,19 +112,20 @@ export class StatementRemovedFromFlow extends DomainEvent {
   get eventData(): Record<string, unknown> {
     return {
       statementId: this.statementId.getValue(),
-      orderedSetId: this.orderedSetId.getValue(),
+      argumentId: this.argumentId.getValue(),
+      role: this.role,
       previousPosition: this.previousPosition,
       affectedArguments: this.affectedArguments.map((id) => id.getValue()),
     };
   }
 }
 
-export class OrderedSetShared extends DomainEvent {
-  readonly eventType = 'OrderedSetShared';
+export class StatementShared extends DomainEvent {
+  readonly eventType = 'StatementShared';
 
   constructor(
     aggregateId: string,
-    public readonly orderedSetId: OrderedSetId,
+    public readonly statementId: StatementId,
     public readonly sharedBetween: AtomicArgumentId[],
     public readonly shareType: 'premise' | 'conclusion',
   ) {
@@ -128,36 +134,36 @@ export class OrderedSetShared extends DomainEvent {
 
   get eventData(): Record<string, unknown> {
     return {
-      orderedSetId: this.orderedSetId.getValue(),
+      statementId: this.statementId.getValue(),
       sharedBetween: this.sharedBetween.map((id) => id.getValue()),
       shareType: this.shareType,
     };
   }
 }
 
-export class OrderedSetUnshared extends DomainEvent {
-  readonly eventType = 'OrderedSetUnshared';
+export class StatementUnshared extends DomainEvent {
+  readonly eventType = 'StatementUnshared';
 
   constructor(
     aggregateId: string,
-    public readonly orderedSetId: OrderedSetId,
+    public readonly statementId: StatementId,
     public readonly previouslySharedBetween: AtomicArgumentId[],
-    public readonly newOrderedSetIds: OrderedSetId[],
+    public readonly reason: 'explicit_disconnect' | 'argument_modified' | 'argument_deleted',
   ) {
     super(aggregateId, 'StatementFlow');
   }
 
   get eventData(): Record<string, unknown> {
     return {
-      orderedSetId: this.orderedSetId.getValue(),
+      statementId: this.statementId.getValue(),
       previouslySharedBetween: this.previouslySharedBetween.map((id) => id.getValue()),
-      newOrderedSetIds: this.newOrderedSetIds.map((id) => id.getValue()),
+      reason: this.reason,
     };
   }
 }
 
 export type FlowBreakReason =
-  | 'ordered_set_modified'
+  | 'statement_modified'
   | 'argument_deleted'
   | 'explicit_disconnect'
   | 'validation_failure';

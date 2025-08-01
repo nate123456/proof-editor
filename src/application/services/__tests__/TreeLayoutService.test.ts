@@ -344,12 +344,12 @@ function createOrderedSetDTO(id: string, statementIds: string[]): OrderedSetDTO 
 
 function createAtomicArgumentDTO(
   id: string,
-  premiseSetId: string | null,
-  conclusionSetId: string | null,
+  premiseIds: string[],
+  conclusionIds: string[],
 ): AtomicArgumentDTO {
   return {
     id,
-    premiseSetId,
-    conclusionSetId,
+    premiseIds,
+    conclusionIds,
   };
 }

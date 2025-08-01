@@ -1,7 +1,7 @@
 import type { Result } from 'neverthrow';
 import type { AtomicArgument } from '../entities/AtomicArgument.js';
 import type { ProcessingError } from '../errors/DomainErrors.js';
-import type { AtomicArgumentId, OrderedSetId } from '../shared/value-objects.js';
+import type { AtomicArgumentId, OrderedSetId } from '../shared/value-objects/index.js';
 
 export interface ICycleDetectionService {
   wouldCreateCycle(

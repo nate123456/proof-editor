@@ -21,6 +21,7 @@ import { DocumentQueryService } from '../../application/services/DocumentQuerySe
 import { ProofVisualizationService } from '../../application/services/ProofVisualizationService.js';
 import type { StatementFlowService } from '../../domain/services/StatementFlowService.js';
 import type { TreeStructureService } from '../../domain/services/TreeStructureService.js';
+import { DocumentContent } from '../../domain/shared/value-objects/index.js';
 
 /**
  * Memory tracking utilities for testing
@@ -147,7 +148,6 @@ describe('Memory and Resource Error Testing', () => {
       exists: vi.fn(),
       delete: vi.fn(),
       findAll: vi.fn(),
-      nextIdentity: vi.fn(),
     };
     const mockParser = {
       parse: vi.fn(),
@@ -175,7 +175,11 @@ describe('Memory and Resource Error Testing', () => {
       vi.mocked(mockFileSystemPort.readFile).mockImplementation(async () => {
         // Simulate memory pressure during read
         try {
-          return ok(largeContent);
+          const documentContentResult = DocumentContent.create(largeContent);
+          if (documentContentResult.isErr()) {
+            return err(documentContentResult.error as any);
+          }
+          return ok(documentContentResult.value);
         } finally {
           // Simulate cleanup
           memoryTracker.deallocate('large-document');

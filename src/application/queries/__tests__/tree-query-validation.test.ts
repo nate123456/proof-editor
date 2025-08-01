@@ -472,8 +472,8 @@ describe('Tree Query Validation', () => {
             isRoot: true,
             argument: {
               id: 'arg_1',
-              premiseSetId: 'set_1',
-              conclusionSetId: 'set_2',
+              premiseIds: 'set_1',
+              conclusionIds: 'set_2',
             },
           },
         ],

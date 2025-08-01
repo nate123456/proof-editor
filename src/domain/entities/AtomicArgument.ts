@@ -1,42 +1,50 @@
 import { err, ok, type Result } from 'neverthrow';
 
 import { ValidationError } from '../shared/result.js';
-import { AtomicArgumentId } from '../shared/value-objects.js';
+import {
+  AtomicArgumentId,
+  SideLabel,
+  SideLabels,
+  StatementCollection,
+  Timestamp,
+} from '../shared/value-objects/index.js';
 import type { Statement } from './Statement.js';
-
-export interface SideLabels {
-  left?: string;
-  right?: string;
-}
-
-export interface StatementConnection {
-  statement: Statement;
-  fromConclusionPosition: number;
-  toPremisePosition: number;
-}
 
 export class AtomicArgument {
   private constructor(
     private readonly id: AtomicArgumentId,
-    private premises: Statement[],
-    private conclusions: Statement[],
-    private readonly createdAt: number,
-    private modifiedAt: number,
-    private sideLabels: SideLabels = {},
+    private premises: StatementCollection,
+    private conclusions: StatementCollection,
+    private readonly createdAt: Timestamp,
+    private modifiedAt: Timestamp,
+    private sideLabels: SideLabels = SideLabels.empty(),
   ) {}
 
+  /**
+   * @deprecated Use AtomicArgumentFactory.create() instead
+   */
   static create(
     premises: Statement[] = [],
     conclusions: Statement[] = [],
-    sideLabels: SideLabels = {},
+    sideLabels: SideLabels = SideLabels.empty(),
   ): Result<AtomicArgument, ValidationError> {
-    const now = Date.now();
+    const premisesCollectionResult = StatementCollection.create(premises);
+    if (premisesCollectionResult.isErr()) {
+      return err(premisesCollectionResult.error);
+    }
+
+    const conclusionsCollectionResult = StatementCollection.create(conclusions);
+    if (conclusionsCollectionResult.isErr()) {
+      return err(conclusionsCollectionResult.error);
+    }
+
+    const now = Timestamp.now();
 
     return ok(
       new AtomicArgument(
         AtomicArgumentId.generate(),
-        [...premises],
-        [...conclusions],
+        premisesCollectionResult.value,
+        conclusionsCollectionResult.value,
         now,
         now,
         sideLabels,
@@ -44,9 +52,19 @@ export class AtomicArgument {
     );
   }
 
+  /**
+   * @deprecated Use AtomicArgumentFactory.createBootstrap() instead
+   */
   static createBootstrap(): AtomicArgument {
-    const now = Date.now();
-    return new AtomicArgument(AtomicArgumentId.generate(), [], [], now, now, {});
+    const now = Timestamp.now();
+    return new AtomicArgument(
+      AtomicArgumentId.generate(),
+      StatementCollection.empty(),
+      StatementCollection.empty(),
+      now,
+      now,
+      SideLabels.empty(),
+    );
   }
 
   static reconstruct(
@@ -55,241 +73,204 @@ export class AtomicArgument {
     conclusions: Statement[],
     createdAt: number,
     modifiedAt: number,
-    sideLabels: SideLabels = {},
+    sideLabels: { left?: string; right?: string } = {},
   ): Result<AtomicArgument, ValidationError> {
-    if (createdAt < 0 || modifiedAt < 0) {
-      return err(new ValidationError('Negative timestamp values are not allowed'));
+    const timestampCreatedResult = Timestamp.create(createdAt);
+    if (timestampCreatedResult.isErr()) {
+      return err(timestampCreatedResult.error);
     }
 
-    if (modifiedAt < createdAt) {
+    const timestampModifiedResult = Timestamp.create(modifiedAt);
+    if (timestampModifiedResult.isErr()) {
+      return err(timestampModifiedResult.error);
+    }
+
+    if (timestampModifiedResult.value.isBefore(timestampCreatedResult.value)) {
       return err(new ValidationError('modified timestamp cannot be before created timestamp'));
     }
 
+    const sideLabelsResult = SideLabels.fromStrings(sideLabels);
+    if (sideLabelsResult.isErr()) {
+      return err(sideLabelsResult.error);
+    }
+
+    const premisesCollectionResult = StatementCollection.create(premises);
+    if (premisesCollectionResult.isErr()) {
+      return err(premisesCollectionResult.error);
+    }
+
+    const conclusionsCollectionResult = StatementCollection.create(conclusions);
+    if (conclusionsCollectionResult.isErr()) {
+      return err(conclusionsCollectionResult.error);
+    }
+
     return ok(
-      new AtomicArgument(id, [...premises], [...conclusions], createdAt, modifiedAt, sideLabels),
+      new AtomicArgument(
+        id,
+        premisesCollectionResult.value,
+        conclusionsCollectionResult.value,
+        timestampCreatedResult.value,
+        timestampModifiedResult.value,
+        sideLabelsResult.value,
+      ),
     );
+  }
+
+  getPremises(): readonly Statement[] {
+    return this.premises.toArray();
+  }
+
+  getConclusions(): readonly Statement[] {
+    return this.conclusions.toArray();
+  }
+
+  getPremiseAt(index: number): Statement | undefined {
+    return this.premises.getAt(index);
+  }
+
+  getConclusionAt(index: number): Statement | undefined {
+    return this.conclusions.getAt(index);
+  }
+
+  getPremiseCount(): number {
+    return this.premises.size();
+  }
+
+  getConclusionCount(): number {
+    return this.conclusions.size();
   }
 
   getId(): AtomicArgumentId {
     return this.id;
   }
 
-  getPremises(): readonly Statement[] {
-    return [...this.premises];
-  }
-
-  getConclusions(): readonly Statement[] {
-    return [...this.conclusions];
-  }
-
-  getPremiseAt(index: number): Statement | undefined {
-    return this.premises[index];
-  }
-
-  getConclusionAt(index: number): Statement | undefined {
-    return this.conclusions[index];
-  }
-
-  getPremiseCount(): number {
-    return this.premises.length;
-  }
-
-  getConclusionCount(): number {
-    return this.conclusions.length;
-  }
-
   getCreatedAt(): number {
-    return this.createdAt;
+    return this.createdAt.getValue();
   }
 
   getModifiedAt(): number {
-    return this.modifiedAt;
+    return this.modifiedAt.getValue();
   }
 
-  getSideLabels(): SideLabels {
-    return { ...this.sideLabels };
+  getSideLabels(): { left?: string; right?: string } {
+    return this.sideLabels.toStrings();
   }
 
   addPremise(statement: Statement): Result<void, ValidationError> {
-    this.premises.push(statement);
-    this.modifiedAt = Date.now();
+    const result = this.premises.add(statement);
+    if (result.isErr()) {
+      return err(result.error);
+    }
+    this.premises = result.value;
+    this.modifiedAt = Timestamp.now();
     return ok(undefined);
   }
 
   addConclusion(statement: Statement): Result<void, ValidationError> {
-    this.conclusions.push(statement);
-    this.modifiedAt = Date.now();
+    const result = this.conclusions.add(statement);
+    if (result.isErr()) {
+      return err(result.error);
+    }
+    this.conclusions = result.value;
+    this.modifiedAt = Timestamp.now();
     return ok(undefined);
   }
 
   setPremiseAt(index: number, statement: Statement): Result<void, ValidationError> {
-    if (index < 0 || index >= this.premises.length) {
+    const result = this.premises.replace(index, statement);
+    if (result.isErr()) {
       return err(new ValidationError('Invalid premise position'));
     }
-
-    this.premises[index] = statement;
-    this.modifiedAt = Date.now();
+    this.premises = result.value;
+    this.modifiedAt = Timestamp.now();
     return ok(undefined);
   }
 
   setConclusionAt(index: number, statement: Statement): Result<void, ValidationError> {
-    if (index < 0 || index >= this.conclusions.length) {
+    const result = this.conclusions.replace(index, statement);
+    if (result.isErr()) {
       return err(new ValidationError('Invalid conclusion position'));
     }
-
-    this.conclusions[index] = statement;
-    this.modifiedAt = Date.now();
+    this.conclusions = result.value;
+    this.modifiedAt = Timestamp.now();
     return ok(undefined);
   }
 
   removePremiseAt(index: number): Result<Statement, ValidationError> {
-    if (index < 0 || index >= this.premises.length) {
+    const statement = this.premises.getAt(index);
+    if (!statement) {
       return err(new ValidationError('Invalid premise position'));
     }
 
-    const removed = this.premises.splice(index, 1)[0];
-    if (!removed) {
+    const result = this.premises.remove(statement.getId());
+    if (result.isErr()) {
       return err(new ValidationError('Failed to remove premise'));
     }
 
-    this.modifiedAt = Date.now();
-    return ok(removed);
+    this.premises = result.value;
+    this.modifiedAt = Timestamp.now();
+    return ok(statement);
   }
 
   removeConclusionAt(index: number): Result<Statement, ValidationError> {
-    if (index < 0 || index >= this.conclusions.length) {
+    const statement = this.conclusions.getAt(index);
+    if (!statement) {
       return err(new ValidationError('Invalid conclusion position'));
     }
 
-    const removed = this.conclusions.splice(index, 1)[0];
-    if (!removed) {
+    const result = this.conclusions.remove(statement.getId());
+    if (result.isErr()) {
       return err(new ValidationError('Failed to remove conclusion'));
     }
 
-    this.modifiedAt = Date.now();
-    return ok(removed);
+    this.conclusions = result.value;
+    this.modifiedAt = Timestamp.now();
+    return ok(statement);
   }
 
-  updateSideLabels(newSideLabels: SideLabels): Result<void, ValidationError> {
-    this.sideLabels = { ...newSideLabels };
-    this.modifiedAt = Date.now();
+  updateSideLabels(newSideLabels: {
+    left?: string;
+    right?: string;
+  }): Result<void, ValidationError> {
+    const sideLabelsResult = SideLabels.fromStrings(newSideLabels);
+    if (sideLabelsResult.isErr()) {
+      return err(sideLabelsResult.error);
+    }
+    this.sideLabels = sideLabelsResult.value;
+    this.modifiedAt = Timestamp.now();
     return ok(undefined);
   }
 
   setLeftSideLabel(label?: string): Result<void, ValidationError> {
     if (label === undefined) {
-      delete this.sideLabels.left;
+      this.sideLabels = this.sideLabels.withLeft(undefined);
     } else {
-      this.sideLabels.left = label;
+      const labelResult = SideLabel.create(label);
+      if (labelResult.isErr()) {
+        return err(labelResult.error);
+      }
+      this.sideLabels = this.sideLabels.withLeft(labelResult.value);
     }
-    this.modifiedAt = Date.now();
+    this.modifiedAt = Timestamp.now();
     return ok(undefined);
   }
 
   setRightSideLabel(label?: string): Result<void, ValidationError> {
     if (label === undefined) {
-      delete this.sideLabels.right;
+      this.sideLabels = this.sideLabels.withRight(undefined);
     } else {
-      this.sideLabels.right = label;
-    }
-    this.modifiedAt = Date.now();
-    return ok(undefined);
-  }
-
-  findConnectionsTo(other: AtomicArgument): StatementConnection[] {
-    const connections: StatementConnection[] = [];
-
-    this.conclusions.forEach((conclusion, fromPos) => {
-      other.premises.forEach((premise, toPos) => {
-        if (conclusion.equals(premise)) {
-          connections.push({
-            statement: conclusion,
-            fromConclusionPosition: fromPos,
-            toPremisePosition: toPos,
-          });
-        }
-      });
-    });
-
-    return connections;
-  }
-
-  canConnectAt(conclusionIndex: number, other: AtomicArgument, premiseIndex: number): boolean {
-    const conclusion = this.conclusions[conclusionIndex];
-    const premise = other.premises[premiseIndex];
-
-    return conclusion !== undefined && premise !== undefined && conclusion.equals(premise);
-  }
-
-  connectConclusionToPremise(
-    conclusionIndex: number,
-    targetArg: AtomicArgument,
-    premiseIndex: number,
-    sharedStatement: Statement,
-  ): Result<void, ValidationError> {
-    if (conclusionIndex < 0 || conclusionIndex >= this.conclusions.length) {
-      return err(new ValidationError('Invalid conclusion position'));
-    }
-
-    if (premiseIndex < 0 || premiseIndex >= targetArg.premises.length) {
-      return err(new ValidationError('Invalid premise position'));
-    }
-
-    this.conclusions[conclusionIndex] = sharedStatement;
-    targetArg.premises[premiseIndex] = sharedStatement;
-
-    this.modifiedAt = Date.now();
-    targetArg.modifiedAt = Date.now();
-
-    return ok(undefined);
-  }
-
-  isDirectlyConnectedTo(other: AtomicArgument): boolean {
-    return this.findConnectionsTo(other).length > 0 || other.findConnectionsTo(this).length > 0;
-  }
-
-  sharesStatementWith(other: AtomicArgument): boolean {
-    for (const premise of this.premises) {
-      if (
-        other.premises.some((p) => p.equals(premise)) ||
-        other.conclusions.some((c) => c.equals(premise))
-      ) {
-        return true;
+      const labelResult = SideLabel.create(label);
+      if (labelResult.isErr()) {
+        return err(labelResult.error);
       }
+      this.sideLabels = this.sideLabels.withRight(labelResult.value);
     }
-
-    for (const conclusion of this.conclusions) {
-      if (
-        other.premises.some((p) => p.equals(conclusion)) ||
-        other.conclusions.some((c) => c.equals(conclusion))
-      ) {
-        return true;
-      }
-    }
-
-    return false;
-  }
-
-  createBranchFromConclusion(conclusionIndex: number): Result<AtomicArgument, ValidationError> {
-    const conclusion = this.conclusions[conclusionIndex];
-    if (!conclusion) {
-      return err(new ValidationError('Invalid conclusion index for branching'));
-    }
-
-    return AtomicArgument.create([conclusion]);
-  }
-
-  createBranchToPremise(premiseIndex: number): Result<AtomicArgument, ValidationError> {
-    const premise = this.premises[premiseIndex];
-    if (!premise) {
-      return err(new ValidationError('Invalid premise index for branching'));
-    }
-
-    return AtomicArgument.create([], [premise]);
+    this.modifiedAt = Timestamp.now();
+    return ok(undefined);
   }
 
   isBootstrapArgument(): boolean {
-    return this.premises.length === 0 && this.conclusions.length === 0;
+    return this.premises.isEmpty() && this.conclusions.isEmpty();
   }
 
   isBootstrap(): boolean {
@@ -300,72 +281,73 @@ export class AtomicArgument {
     return this.isBootstrap();
   }
 
+  isEmpty(): boolean {
+    return this.premises.isEmpty() && this.conclusions.isEmpty();
+  }
+
   hasLeftSideLabel(): boolean {
-    return (
-      this.sideLabels.left !== undefined &&
-      this.sideLabels.left !== null &&
-      this.sideLabels.left.trim().length > 0
-    );
+    return this.sideLabels.hasLeft();
   }
 
   hasRightSideLabel(): boolean {
-    return (
-      this.sideLabels.right !== undefined &&
-      this.sideLabels.right !== null &&
-      this.sideLabels.right.trim().length > 0
-    );
+    return this.sideLabels.hasRight();
   }
 
   hasSideLabels(): boolean {
-    return this.hasLeftSideLabel() || this.hasRightSideLabel();
+    return this.sideLabels.hasAny();
   }
 
-  equals(other: AtomicArgument | null | undefined): boolean {
+  isEqualTo(other: AtomicArgument | null | undefined): boolean {
     if (other === null || other === undefined) return false;
     return this.id.equals(other.id);
   }
 
+  equals(other: AtomicArgument | null | undefined): boolean {
+    return this.isEqualTo(other);
+  }
+
   isComplete(): boolean {
-    return this.premises.length > 0 && this.conclusions.length > 0;
+    return !this.premises.isEmpty() && !this.conclusions.isEmpty();
   }
 
-  isEmpty(): boolean {
-    return this.premises.length === 0 && this.conclusions.length === 0;
-  }
-
-  validateConnectionSafety(other: AtomicArgument): Result<boolean, ValidationError> {
-    if (this.equals(other)) {
-      return err(new ValidationError('Cannot connect argument to itself'));
-    }
-
-    if (this.conclusions.length === 0) {
-      return err(new ValidationError('Source argument has no conclusions'));
-    }
-
-    if (other.premises.length === 0) {
-      return err(new ValidationError('Target argument has no premises'));
-    }
-
-    const connections = this.findConnectionsTo(other);
-    if (connections.length === 0) {
-      return err(new ValidationError('Arguments cannot connect: no matching statements'));
-    }
-
-    const reverseConnections = other.findConnectionsTo(this);
-    if (reverseConnections.length > 0) {
-      return err(new ValidationError('Connection would create direct cycle'));
-    }
-
-    return ok(true);
+  isDefinition(): boolean {
+    return this.premises.isEmpty();
   }
 
   toString(): string {
-    const premiseCount = this.premises.length;
-    const conclusionCount = this.conclusions.length;
+    const premiseCount = this.premises.size();
+    const conclusionCount = this.conclusions.size();
     const status = this.isBootstrapArgument() ? ' (bootstrap)' : '';
-    const sideLabels = this.hasSideLabels()
-      ? ` [${this.sideLabels.left || ''}|${this.sideLabels.right || ''}]`
-      : '';
+    const sideLabels = this.hasSideLabels() ? ` ${this.sideLabels.toString()}` : '';
     return `AtomicArgument(${this.id.getValue()}): premises(${premiseCount}) → conclusions(${conclusionCount})${status}${sideLabels}`;
+  }
+
+  // Legacy methods for backward compatibility
+  hasPremiseSet(): boolean {
+    return !this.premises.isEmpty();
+  }
+
+  hasConclusionSet(): boolean {
+    return !this.conclusions.isEmpty();
+  }
+
+  createBranchFromConclusion(conclusionIndex: number = 0): Result<AtomicArgument, ValidationError> {
+    const conclusion = this.getConclusionAt(conclusionIndex);
+    if (!conclusion) {
+      return err(new ValidationError('Parent argument has no conclusion to branch from'));
+    }
+
+    return AtomicArgument.create([conclusion], []);
+  }
+
+  static fromFactory(
+    id: AtomicArgumentId,
+    premises: StatementCollection,
+    conclusions: StatementCollection,
+    createdAt: Timestamp,
+    modifiedAt: Timestamp,
+    sideLabels: SideLabels,
+  ): AtomicArgument {
+    return new AtomicArgument(id, premises, conclusions, createdAt, modifiedAt, sideLabels);
   }
 }

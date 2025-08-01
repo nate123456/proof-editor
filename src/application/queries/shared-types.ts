@@ -1,49 +1,46 @@
 /**
  * Shared types for query DTOs to avoid circular dependencies
  */
-
-export interface OrderedSetDTO {
-  id: string;
-  statementIds: string[];
-  usageCount: number;
-  usedBy: Array<{
-    argumentId: string;
-    usage: 'premise' | 'conclusion';
-  }>;
-}
+import {
+  type AtomicArgumentId,
+  Dimensions,
+  ErrorCode,
+  ErrorMessage,
+  ErrorSeverity,
+  NodeCount,
+  type NodeId,
+  Position2D,
+  type SideLabel,
+  type StatementId,
+  type TreeId,
+} from '../../domain/shared/value-objects/index.js';
 
 export interface AtomicArgumentDTO {
-  id: string;
-  premiseSetId: string | null;
-  conclusionSetId: string | null;
+  id: AtomicArgumentId;
+  premiseIds: StatementId[];
+  conclusionIds: StatementId[];
   sideLabels?: {
-    left?: string;
-    right?: string;
+    left?: SideLabel;
+    right?: SideLabel;
   };
 }
 
 export interface TreeDTO {
-  id: string;
-  position: {
-    x: number;
-    y: number;
-  };
-  bounds?: {
-    width: number;
-    height: number;
-  };
-  nodeCount: number;
-  rootNodeIds: string[];
+  id: TreeId;
+  position: Position2D;
+  bounds?: Dimensions;
+  nodeCount: NodeCount;
+  rootNodeIds: NodeId[];
 }
 
 export interface ValidationErrorDTO {
-  code: string;
-  message: string;
-  severity: 'error' | 'warning' | 'info';
+  code: ErrorCode;
+  message: ErrorMessage;
+  severity: ErrorSeverity;
   location?: {
-    treeId?: string;
-    nodeId?: string;
-    argumentId?: string;
+    treeId?: TreeId;
+    nodeId?: NodeId;
+    argumentId?: AtomicArgumentId;
   };
 }
 
@@ -52,47 +49,25 @@ export function isValidUsageType(usage: unknown): usage is 'premise' | 'conclusi
   return typeof usage === 'string' && (usage === 'premise' || usage === 'conclusion');
 }
 
-export function isOrderedSetDTO(obj: unknown): obj is OrderedSetDTO {
-  if (typeof obj !== 'object' || obj === null) {
-    return false;
-  }
-
-  const dto = obj as Record<string, unknown>;
-  return (
-    typeof dto.id === 'string' &&
-    dto.id.length > 0 &&
-    Array.isArray(dto.statementIds) &&
-    dto.statementIds.every((id: unknown) => typeof id === 'string' && id.length > 0) &&
-    typeof dto.usageCount === 'number' &&
-    dto.usageCount >= 0 &&
-    Array.isArray(dto.usedBy) &&
-    dto.usedBy.every(
-      (usage: unknown) =>
-        typeof usage === 'object' &&
-        usage !== null &&
-        'argumentId' in usage &&
-        typeof (usage as Record<string, unknown>).argumentId === 'string' &&
-        'usage' in usage &&
-        isValidUsageType((usage as Record<string, unknown>).usage),
-    )
-  );
-}
-
 export function isAtomicArgumentDTO(obj: unknown): obj is AtomicArgumentDTO {
   if (typeof obj !== 'object' || obj === null) {
     return false;
   }
 
   const dto = obj as Record<string, unknown>;
-  const hasValidId = typeof dto.id === 'string' && dto.id.length > 0;
-  const hasValidPremiseSetId =
-    dto.premiseSetId === null ||
-    (typeof dto.premiseSetId === 'string' && dto.premiseSetId.length > 0);
-  const hasValidConclusionSetId =
-    dto.conclusionSetId === null ||
-    (typeof dto.conclusionSetId === 'string' && dto.conclusionSetId.length > 0);
+  const hasValidId = dto.id && typeof dto.id.getValue === 'function';
+  const hasValidPremiseIds =
+    Array.isArray(dto.premiseIds) &&
+    dto.premiseIds.every(
+      (id: unknown) => id && typeof (id as { getValue?: () => string }).getValue === 'function',
+    );
+  const hasValidConclusionIds =
+    Array.isArray(dto.conclusionIds) &&
+    dto.conclusionIds.every(
+      (id: unknown) => id && typeof (id as { getValue?: () => string }).getValue === 'function',
+    );
 
-  if (!hasValidId || !hasValidPremiseSetId || !hasValidConclusionSetId) {
+  if (!hasValidId || !hasValidPremiseIds || !hasValidConclusionIds) {
     return false;
   }
 
@@ -102,11 +77,19 @@ export function isAtomicArgumentDTO(obj: unknown): obj is AtomicArgumentDTO {
       return false;
     }
 
-    if ('left' in labels && typeof labels.left !== 'string') {
+    if (
+      'left' in labels &&
+      labels.left &&
+      typeof (labels.left as { getValue?: () => string }).getValue !== 'function'
+    ) {
       return false;
     }
 
-    if ('right' in labels && typeof labels.right !== 'string') {
+    if (
+      'right' in labels &&
+      labels.right &&
+      typeof (labels.right as { getValue?: () => string }).getValue !== 'function'
+    ) {
       return false;
     }
   }
@@ -114,32 +97,12 @@ export function isAtomicArgumentDTO(obj: unknown): obj is AtomicArgumentDTO {
   return true;
 }
 
-export function isValidPosition(position: unknown): position is { x: number; y: number } {
-  return (
-    typeof position === 'object' &&
-    position !== null &&
-    'x' in position &&
-    typeof (position as Record<string, unknown>).x === 'number' &&
-    'y' in position &&
-    typeof (position as Record<string, unknown>).y === 'number' &&
-    Number.isFinite((position as Record<string, unknown>).x as number) &&
-    Number.isFinite((position as Record<string, unknown>).y as number)
-  );
+export function isValidPosition(position: unknown): position is Position2D {
+  return position instanceof Position2D;
 }
 
-export function isValidBounds(bounds: unknown): bounds is { width: number; height: number } {
-  return (
-    typeof bounds === 'object' &&
-    bounds !== null &&
-    'width' in bounds &&
-    typeof (bounds as Record<string, unknown>).width === 'number' &&
-    'height' in bounds &&
-    typeof (bounds as Record<string, unknown>).height === 'number' &&
-    ((bounds as Record<string, unknown>).width as number) >= 0 &&
-    ((bounds as Record<string, unknown>).height as number) >= 0 &&
-    Number.isFinite((bounds as Record<string, unknown>).width as number) &&
-    Number.isFinite((bounds as Record<string, unknown>).height as number)
-  );
+export function isValidBounds(bounds: unknown): bounds is Dimensions {
+  return bounds instanceof Dimensions;
 }
 
 export function isTreeDTO(obj: unknown): obj is TreeDTO {
@@ -148,13 +111,14 @@ export function isTreeDTO(obj: unknown): obj is TreeDTO {
   }
 
   const dto = obj as Record<string, unknown>;
-  const hasValidId = typeof dto.id === 'string' && dto.id.length > 0;
+  const hasValidId = dto.id && typeof dto.id.getValue === 'function';
   const hasValidPosition = isValidPosition(dto.position);
-  const hasValidNodeCount =
-    typeof dto.nodeCount === 'number' && dto.nodeCount >= 0 && Number.isInteger(dto.nodeCount);
+  const hasValidNodeCount = dto.nodeCount instanceof NodeCount;
   const hasValidRootNodeIds =
     Array.isArray(dto.rootNodeIds) &&
-    dto.rootNodeIds.every((id: unknown) => typeof id === 'string' && id.length > 0);
+    dto.rootNodeIds.every(
+      (id: unknown) => id && typeof (id as { getValue?: () => string }).getValue === 'function',
+    );
 
   if (!hasValidId || !hasValidPosition || !hasValidNodeCount || !hasValidRootNodeIds) {
     return false;
@@ -167,9 +131,8 @@ export function isTreeDTO(obj: unknown): obj is TreeDTO {
   return true;
 }
 
-export function isValidSeverity(severity: unknown): severity is 'error' | 'warning' | 'info' {
-  const validSeverities = ['error', 'warning', 'info'];
-  return typeof severity === 'string' && validSeverities.includes(severity);
+export function isValidSeverity(severity: unknown): severity is ErrorSeverity {
+  return Object.values(ErrorSeverity).includes(severity as ErrorSeverity);
 }
 
 export function isValidationErrorDTO(obj: unknown): obj is ValidationErrorDTO {
@@ -178,8 +141,8 @@ export function isValidationErrorDTO(obj: unknown): obj is ValidationErrorDTO {
   }
 
   const dto = obj as Record<string, unknown>;
-  const hasValidCode = typeof dto.code === 'string' && dto.code.length > 0;
-  const hasValidMessage = typeof dto.message === 'string' && dto.message.length > 0;
+  const hasValidCode = dto.code instanceof ErrorCode;
+  const hasValidMessage = dto.message instanceof ErrorMessage;
   const hasValidSeverity = isValidSeverity(dto.severity);
 
   if (!hasValidCode || !hasValidMessage || !hasValidSeverity) {
@@ -192,14 +155,26 @@ export function isValidationErrorDTO(obj: unknown): obj is ValidationErrorDTO {
       return false;
     }
 
-    // Check optional location fields
-    if ('treeId' in location && typeof location.treeId !== 'string') {
+    // Check optional location fields - now value objects
+    if (
+      'treeId' in location &&
+      location.treeId &&
+      typeof (location.treeId as { getValue?: () => string }).getValue !== 'function'
+    ) {
       return false;
     }
-    if ('nodeId' in location && typeof location.nodeId !== 'string') {
+    if (
+      'nodeId' in location &&
+      location.nodeId &&
+      typeof (location.nodeId as { getValue?: () => string }).getValue !== 'function'
+    ) {
       return false;
     }
-    if ('argumentId' in location && typeof location.argumentId !== 'string') {
+    if (
+      'argumentId' in location &&
+      location.argumentId &&
+      typeof (location.argumentId as { getValue?: () => string }).getValue !== 'function'
+    ) {
       return false;
     }
   }
@@ -208,69 +183,48 @@ export function isValidationErrorDTO(obj: unknown): obj is ValidationErrorDTO {
 }
 
 // Factory functions
-export function createOrderedSetDTO(
-  id: string,
-  statementIds: string[],
-  usageCount: number,
-  usedBy: Array<{ argumentId: string; usage: 'premise' | 'conclusion' }>,
-): OrderedSetDTO {
-  if (!id || id.trim().length === 0) {
-    throw new Error('OrderedSet ID cannot be empty');
-  }
-
-  if (!Array.isArray(statementIds) || statementIds.some((id) => !id || id.trim().length === 0)) {
-    throw new Error('Statement IDs must be non-empty strings');
-  }
-
-  if (usageCount < 0 || !Number.isInteger(usageCount)) {
-    throw new Error('Usage count must be a non-negative integer');
-  }
-
-  if (!Array.isArray(usedBy) || usedBy.some((usage) => !isValidUsageType(usage.usage))) {
-    throw new Error('Invalid usage information');
-  }
-
-  return {
-    id: id.trim(),
-    statementIds: statementIds.map((id) => id.trim()),
-    usageCount,
-    usedBy,
-  };
-}
 
 export function createAtomicArgumentDTO(
-  id: string,
-  premiseSetId: string | null,
-  conclusionSetId: string | null,
-  sideLabels?: { left?: string; right?: string },
+  id: AtomicArgumentId,
+  premiseIds: StatementId[],
+  conclusionIds: StatementId[],
+  sideLabels?: { left?: SideLabel; right?: SideLabel },
 ): AtomicArgumentDTO {
-  if (!id || id.trim().length === 0) {
+  if (!id) {
     throw new Error('Argument ID cannot be empty');
   }
 
+  if (!Array.isArray(premiseIds)) {
+    throw new Error('Premise IDs must be an array');
+  }
+
+  if (!Array.isArray(conclusionIds) || conclusionIds.length === 0) {
+    throw new Error('Conclusion IDs must be a non-empty array');
+  }
+
   const dto: AtomicArgumentDTO = {
-    id: id.trim(),
-    premiseSetId: premiseSetId?.trim() || null,
-    conclusionSetId: conclusionSetId?.trim() || null,
+    id,
+    premiseIds: [...premiseIds],
+    conclusionIds: [...conclusionIds],
   };
 
   if (sideLabels) {
     dto.sideLabels = {};
-    if (sideLabels.left) dto.sideLabels.left = sideLabels.left.trim();
-    if (sideLabels.right) dto.sideLabels.right = sideLabels.right.trim();
+    if (sideLabels.left) dto.sideLabels.left = sideLabels.left;
+    if (sideLabels.right) dto.sideLabels.right = sideLabels.right;
   }
 
   return dto;
 }
 
 export function createTreeDTO(
-  id: string,
-  position: { x: number; y: number },
-  nodeCount: number,
-  rootNodeIds: string[],
-  bounds?: { width: number; height: number },
+  id: TreeId,
+  position: Position2D,
+  nodeCount: NodeCount,
+  rootNodeIds: NodeId[],
+  bounds?: Dimensions,
 ): TreeDTO {
-  if (!id || id.trim().length === 0) {
+  if (!id) {
     throw new Error('Tree ID cannot be empty');
   }
 
@@ -278,19 +232,19 @@ export function createTreeDTO(
     throw new Error('Invalid position coordinates');
   }
 
-  if (nodeCount < 0 || !Number.isInteger(nodeCount)) {
-    throw new Error('Node count must be a non-negative integer');
+  if (!(nodeCount instanceof NodeCount)) {
+    throw new Error('Node count must be a NodeCount value object');
   }
 
-  if (!Array.isArray(rootNodeIds) || rootNodeIds.some((id) => !id || id.trim().length === 0)) {
-    throw new Error('Root node IDs must be non-empty strings');
+  if (!Array.isArray(rootNodeIds)) {
+    throw new Error('Root node IDs must be an array');
   }
 
   const dto: TreeDTO = {
-    id: id.trim(),
+    id,
     position,
     nodeCount,
-    rootNodeIds: rootNodeIds.map((id) => id.trim()),
+    rootNodeIds: [...rootNodeIds],
   };
 
   if (bounds) {
@@ -304,17 +258,17 @@ export function createTreeDTO(
 }
 
 export function createValidationErrorDTO(
-  code: string,
-  message: string,
-  severity: 'error' | 'warning' | 'info',
-  location?: { treeId?: string; nodeId?: string; argumentId?: string },
+  code: ErrorCode,
+  message: ErrorMessage,
+  severity: ErrorSeverity,
+  location?: { treeId?: TreeId; nodeId?: NodeId; argumentId?: AtomicArgumentId },
 ): ValidationErrorDTO {
-  if (!code || code.trim().length === 0) {
-    throw new Error('Error code cannot be empty');
+  if (!(code instanceof ErrorCode)) {
+    throw new Error('Code must be an ErrorCode value object');
   }
 
-  if (!message || message.trim().length === 0) {
-    throw new Error('Error message cannot be empty');
+  if (!(message instanceof ErrorMessage)) {
+    throw new Error('Message must be an ErrorMessage value object');
   }
 
   if (!isValidSeverity(severity)) {
@@ -322,41 +276,22 @@ export function createValidationErrorDTO(
   }
 
   const dto: ValidationErrorDTO = {
-    code: code.trim(),
-    message: message.trim(),
+    code,
+    message,
     severity,
   };
 
   if (location) {
     dto.location = {};
-    if (location.treeId) dto.location.treeId = location.treeId.trim();
-    if (location.nodeId) dto.location.nodeId = location.nodeId.trim();
-    if (location.argumentId) dto.location.argumentId = location.argumentId.trim();
+    if (location.treeId) dto.location.treeId = location.treeId;
+    if (location.nodeId) dto.location.nodeId = location.nodeId;
+    if (location.argumentId) dto.location.argumentId = location.argumentId;
   }
 
   return dto;
 }
 
 // Validation helpers
-export function validateOrderedSetDTO(dto: unknown): string[] {
-  const errors: string[] = [];
-
-  if (!isOrderedSetDTO(dto)) {
-    errors.push('Invalid OrderedSetDTO structure');
-    return errors;
-  }
-
-  if (dto.usageCount !== dto.usedBy.length) {
-    errors.push('Usage count does not match usedBy array length');
-  }
-
-  const uniqueStatementIds = new Set(dto.statementIds);
-  if (uniqueStatementIds.size !== dto.statementIds.length) {
-    errors.push('Duplicate statement IDs found');
-  }
-
-  return errors;
-}
 
 export function validateAtomicArgumentDTO(dto: unknown): string[] {
   const errors: string[] = [];
@@ -366,8 +301,8 @@ export function validateAtomicArgumentDTO(dto: unknown): string[] {
     return errors;
   }
 
-  if (!dto.premiseSetId && !dto.conclusionSetId) {
-    errors.push('Atomic argument must have at least premise or conclusion set');
+  if (dto.premiseIds.length === 0 && dto.conclusionIds.length === 0) {
+    errors.push('Atomic argument must have at least one premise or conclusion');
   }
 
   return errors;

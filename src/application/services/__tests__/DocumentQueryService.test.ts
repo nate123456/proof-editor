@@ -2,7 +2,7 @@ import { err, ok } from 'neverthrow';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { ProofDocument } from '../../../domain/aggregates/ProofDocument.js';
 import type { IProofDocumentRepository } from '../../../domain/repositories/IProofDocumentRepository.js';
-import { ProofDocumentId } from '../../../domain/shared/value-objects.js';
+import { ProofDocumentId } from '../../../domain/shared/value-objects/index.js';
 import { ParseFailureError } from '../../../parser/ParseError.js';
 import type { ProofDocument as ParserProofDocument } from '../../../parser/ProofDocument.js';
 import type { ProofFileParser } from '../../../parser/ProofFileParser.js';
@@ -21,7 +21,6 @@ describe('DocumentQueryService', () => {
       delete: vi.fn(),
       exists: vi.fn(),
       findAll: vi.fn(),
-      nextIdentity: vi.fn(),
       findByDateRange: vi.fn(),
       count: vi.fn(),
       createBootstrapDocument: vi.fn(),

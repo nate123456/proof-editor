@@ -1,7 +1,7 @@
 import fc from 'fast-check';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ValidationError } from '../../shared/result.js';
-import { AtomicArgumentId } from '../../shared/value-objects.js';
+import { AtomicArgumentId } from '../../shared/value-objects/index.js';
 import { AtomicArgument, type SideLabels } from '../AtomicArgument.js';
 import { Statement } from '../Statement.js';
 

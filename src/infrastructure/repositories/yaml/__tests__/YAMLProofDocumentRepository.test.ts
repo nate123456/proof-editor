@@ -313,16 +313,6 @@ trees: {}
     });
   });
 
-  describe('nextIdentity', () => {
-    test('generates unique document IDs', () => {
-      const id1 = repository.nextIdentity();
-      const id2 = repository.nextIdentity();
-
-      expect(id1.getValue()).toMatch(/^[a-f0-9-]{36}$/);
-      expect(id1.getValue()).not.toBe(id2.getValue());
-    });
-  });
-
   describe('findByDateRange', () => {
     test('filters documents by date range', async () => {
       const doc1 = proofDocumentFactory.build();

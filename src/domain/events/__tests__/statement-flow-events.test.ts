@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import type { AtomicArgumentId, OrderedSetId, StatementId } from '../../shared/value-objects.js';
+import type {
+  AtomicArgumentId,
+  OrderedSetId,
+  StatementId,
+} from '../../shared/value-objects/index.js';
 import {
   type FlowValidationResult,
   OrderedSetShared,

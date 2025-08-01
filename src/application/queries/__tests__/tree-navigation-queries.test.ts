@@ -280,8 +280,8 @@ describe('Tree Navigation Queries', () => {
           isRoot: false,
           argument: {
             id: 'arg_start',
-            premiseSetId: 'set_start_premise',
-            conclusionSetId: 'set_start_conclusion',
+            premiseIds: 'set_start_premise',
+            conclusionIds: 'set_start_conclusion',
             sideLabels: {
               left: 'Start Rule',
               right: 'Ref Start',
@@ -294,8 +294,8 @@ describe('Tree Navigation Queries', () => {
           isRoot: true,
           argument: {
             id: 'arg_end',
-            premiseSetId: 'set_end_premise',
-            conclusionSetId: 'set_end_conclusion',
+            premiseIds: 'set_end_premise',
+            conclusionIds: 'set_end_conclusion',
             sideLabels: {
               left: 'End Rule',
               right: 'Ref End',
@@ -634,8 +634,8 @@ describe('Tree Navigation Queries', () => {
             isRoot: true,
             argument: {
               id: 'arg_detailed_root',
-              premiseSetId: 'set_detailed_premise',
-              conclusionSetId: 'set_detailed_conclusion',
+              premiseIds: 'set_detailed_premise',
+              conclusionIds: 'set_detailed_conclusion',
               sideLabels: {
                 left: 'Main Theorem',
                 right: 'Theorem 1',
@@ -648,8 +648,8 @@ describe('Tree Navigation Queries', () => {
             isRoot: false,
             argument: {
               id: 'arg_detailed_child',
-              premiseSetId: 'set_child_premise',
-              conclusionSetId: 'set_child_conclusion',
+              premiseIds: 'set_child_premise',
+              conclusionIds: 'set_child_conclusion',
               sideLabels: {
                 left: 'Supporting Lemma',
                 right: 'Lemma 2',

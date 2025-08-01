@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { DocumentId, PackageId } from '../../shared/value-objects.js';
-import { Version } from '../../shared/value-objects.js';
+import type { DocumentId, PackageId } from '../../shared/value-objects/index.js';
+import { Version } from '../../shared/value-objects/index.js';
 import {
   type ActivationContext,
   type CleanupResult,

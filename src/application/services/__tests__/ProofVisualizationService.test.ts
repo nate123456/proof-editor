@@ -406,7 +406,7 @@ function createTreeRenderDTO(id: string, overrides: Partial<TreeRenderDTO> = {})
           id: 'n1',
           position: { x: 100, y: 100 },
           dimensions: { width: 200, height: 80 },
-          argument: { id: 'arg1', premiseSetId: null, conclusionSetId: null },
+          argument: { id: 'arg1', premiseIds: null, conclusionIds: null },
           premises: [],
           conclusions: [],
         },

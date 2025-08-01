@@ -1,4 +1,4 @@
-import { Timestamp } from '../shared/value-objects.js';
+import { Timestamp } from '../shared/value-objects/index.js';
 // Testing script-based hook
 
 export abstract class DomainEvent {

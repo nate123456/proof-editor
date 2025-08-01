@@ -32,8 +32,8 @@ describe('Bootstrap and Population Methods', () => {
       const bootstrapArgument = AtomicArgument.createBootstrap();
 
       expect(bootstrapArgument).toBeInstanceOf(AtomicArgument);
-      expect(bootstrapArgument.getPremiseSet()).toBeNull();
-      expect(bootstrapArgument.getConclusionSet()).toBeNull();
+      expect(bootstrapArgument.getPremises()).toEqual([]);
+      expect(bootstrapArgument.getConclusions()).toEqual([]);
       expect(bootstrapArgument.isBootstrapArgument()).toBe(true);
       expect(bootstrapArgument.isBootstrap()).toBe(true);
       expect(bootstrapArgument.isEmpty()).toBe(true);
@@ -72,8 +72,8 @@ describe('Bootstrap and Population Methods', () => {
         expect(viaCreate.isBootstrap()).toBe(true);
 
         // Both should have same state (except ID)
-        expect(bootstrapDirect.getPremiseSet()).toBe(viaCreate.getPremiseSet());
-        expect(bootstrapDirect.getConclusionSet()).toBe(viaCreate.getConclusionSet());
+        expect(bootstrapDirect.getPremises()).toEqual(viaCreate.getPremises());
+        expect(bootstrapDirect.getConclusions()).toEqual(viaCreate.getConclusions());
         expect(bootstrapDirect.isEmpty()).toBe(viaCreate.isEmpty());
         expect(bootstrapDirect.canPopulate()).toBe(viaCreate.canPopulate());
       }

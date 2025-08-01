@@ -4,8 +4,9 @@ import { ProcessingError } from '../../domain/errors/DomainErrors.js';
 import type { IAtomicArgumentRepository } from '../../domain/repositories/IAtomicArgumentRepository.js';
 import type { INodeRepository } from '../../domain/repositories/INodeRepository.js';
 import type { ITreeRepository } from '../../domain/repositories/ITreeRepository.js';
-import { NodeId, TreeId } from '../../domain/shared/value-objects.js';
-import { ProofGraphAdapter } from '../../infrastructure/graph/ProofGraphAdapter.js';
+import type { IGraphTraversalService } from '../../domain/services/IGraphTraversalService.js';
+import { NodeId, TreeId } from '../../domain/shared/value-objects/index.js';
+import { atomicArgumentToDTO } from '../mappers/AtomicArgumentMapper.js';
 import type {
   FindPathBetweenNodesQuery,
   GetSubtreeQuery,
@@ -25,6 +26,7 @@ export class ProofTreeQueryService {
     private readonly treeRepository: ITreeRepository,
     private readonly nodeRepository: INodeRepository,
     private readonly argumentRepository: IAtomicArgumentRepository,
+    private readonly graphTraversalService: IGraphTraversalService,
   ) {}
 
   /**
@@ -40,14 +42,14 @@ export class ProofTreeQueryService {
       return err(new ProcessingError('Invalid tree ID'));
     }
 
-    const tree = await this.treeRepository.findById(treeIdResult.value);
-    if (!tree) {
+    const treeResult = await this.treeRepository.findById(treeIdResult.value);
+    if (treeResult.isErr()) {
       return err(new ProcessingError('Tree not found'));
     }
 
-    // Create graph adapter and build graph
-    const graphAdapter = new ProofGraphAdapter(this.nodeRepository, this.argumentRepository);
-    const buildResult = await graphAdapter.buildGraphFromTree(tree);
+    const tree = treeResult.value;
+    // Build graph from tree
+    const buildResult = await this.graphTraversalService.buildGraphFromTree(tree);
     if (buildResult.isErr()) {
       return err(buildResult.error);
     }
@@ -59,14 +61,23 @@ export class ProofTreeQueryService {
       return err(new ProcessingError('Invalid node ID'));
     }
 
-    const path = graphAdapter.findPath(fromNodeIdResult.value, toNodeIdResult.value);
+    const pathResult = this.graphTraversalService.findPath(
+      fromNodeIdResult.value,
+      toNodeIdResult.value,
+    );
+    if (pathResult.isErr()) {
+      return err(pathResult.error);
+    }
+
+    const path = pathResult.value;
 
     // Convert to DTOs
     const pathDTOs: TreeNodeDTO[] = [];
     for (const nodeId of path) {
-      const node = await this.nodeRepository.findById(nodeId);
-      if (!node) continue;
+      const nodeResult = await this.nodeRepository.findById(nodeId);
+      if (nodeResult.isErr()) continue;
 
+      const node = nodeResult.value;
       const dto: TreeNodeDTO = {
         nodeId: nodeId.getValue(),
         argumentId: node.getArgumentId().getValue(),
@@ -84,19 +95,9 @@ export class ProofTreeQueryService {
 
       // Add argument details if requested
       if (query.includeArguments) {
-        const argument = await this.argumentRepository.findById(node.getArgumentId());
-        if (argument) {
-          dto.argument = {
-            id: argument.getId().getValue(),
-            premiseSetId: argument.getPremiseSet()?.getValue(),
-            conclusionSetId: argument.getConclusionSet()?.getValue(),
-            sideLabels: argument.getSideLabels
-              ? {
-                  left: argument.getSideLabels().getLeft(),
-                  right: argument.getSideLabels().getRight(),
-                }
-              : undefined,
-          };
+        const argumentResult = await this.argumentRepository.findById(node.getArgumentId());
+        if (argumentResult.isOk()) {
+          dto.argument = atomicArgumentToDTO(argumentResult.value);
         }
       }
 
@@ -117,14 +118,14 @@ export class ProofTreeQueryService {
       return err(new ProcessingError('Invalid tree ID'));
     }
 
-    const tree = await this.treeRepository.findById(treeIdResult.value);
-    if (!tree) {
+    const treeResult = await this.treeRepository.findById(treeIdResult.value);
+    if (treeResult.isErr()) {
       return err(new ProcessingError('Tree not found'));
     }
 
-    // Create graph adapter and build graph
-    const graphAdapter = new ProofGraphAdapter(this.nodeRepository, this.argumentRepository);
-    const buildResult = await graphAdapter.buildGraphFromTree(tree);
+    const tree = treeResult.value;
+    // Build graph from tree
+    const buildResult = await this.graphTraversalService.buildGraphFromTree(tree);
     if (buildResult.isErr()) {
       return err(buildResult.error);
     }
@@ -135,16 +136,25 @@ export class ProofTreeQueryService {
       return err(new ProcessingError('Invalid root node ID'));
     }
 
-    const subtreeMap = graphAdapter.getSubtree(rootNodeIdResult.value, query.maxDepth);
+    const subtreeResult = this.graphTraversalService.getSubtree(
+      rootNodeIdResult.value,
+      query.maxDepth,
+    );
+    if (subtreeResult.isErr()) {
+      return err(subtreeResult.error);
+    }
+
+    const subtreeMap = subtreeResult.value;
 
     // Build node DTOs
     const nodes: TreeNodeDTO[] = [];
     const nodeIdToDTO = new Map<string, TreeNodeDTO>();
 
     for (const [_nodeIdStr, { node: nodeId }] of subtreeMap) {
-      const node = await this.nodeRepository.findById(nodeId);
-      if (!node) continue;
+      const nodeResult = await this.nodeRepository.findById(nodeId);
+      if (nodeResult.isErr()) continue;
 
+      const node = nodeResult.value;
       const dto: TreeNodeDTO = {
         nodeId: nodeId.getValue(),
         argumentId: node.getArgumentId().getValue(),
@@ -162,19 +172,9 @@ export class ProofTreeQueryService {
 
       // Add argument details if requested
       if (query.includeArguments) {
-        const argument = await this.argumentRepository.findById(node.getArgumentId());
-        if (argument) {
-          dto.argument = {
-            id: argument.getId().getValue(),
-            premiseSetId: argument.getPremiseSet()?.getValue(),
-            conclusionSetId: argument.getConclusionSet()?.getValue(),
-            sideLabels: argument.getSideLabels
-              ? {
-                  left: argument.getSideLabels().getLeft(),
-                  right: argument.getSideLabels().getRight(),
-                }
-              : undefined,
-          };
+        const argumentResult = await this.argumentRepository.findById(node.getArgumentId());
+        if (argumentResult.isOk()) {
+          dto.argument = atomicArgumentToDTO(argumentResult.value);
         }
       }
 
@@ -185,8 +185,11 @@ export class ProofTreeQueryService {
     // Build connections
     const connections: NodeConnectionDTO[] = [];
     for (const [_nodeIdStr, { node: nodeId }] of subtreeMap) {
-      const node = await this.nodeRepository.findById(nodeId);
-      if (!node || node.isRoot()) continue;
+      const nodeResult = await this.nodeRepository.findById(nodeId);
+      if (nodeResult.isErr()) continue;
+
+      const node = nodeResult.value;
+      if (node.isRoot()) continue;
 
       const parentId = node.getParentNodeId();
       if (!parentId || !nodeIdToDTO.has(parentId.getValue())) continue;
@@ -203,7 +206,12 @@ export class ProofTreeQueryService {
     }
 
     // Calculate metrics
-    const metrics = graphAdapter.getTreeMetrics(query.treeId);
+    const metricsResult = this.graphTraversalService.getTreeMetrics(treeIdResult.value);
+    if (metricsResult.isErr()) {
+      return err(metricsResult.error);
+    }
+
+    const metrics = metricsResult.value;
 
     return ok({
       treeId: query.treeId,
@@ -227,14 +235,14 @@ export class ProofTreeQueryService {
       return err(new ProcessingError('Invalid tree ID'));
     }
 
-    const tree = await this.treeRepository.findById(treeIdResult.value);
-    if (!tree) {
+    const treeResult = await this.treeRepository.findById(treeIdResult.value);
+    if (treeResult.isErr()) {
       return err(new ProcessingError('Tree not found'));
     }
 
-    // Create graph adapter and build graph
-    const graphAdapter = new ProofGraphAdapter(this.nodeRepository, this.argumentRepository);
-    const buildResult = await graphAdapter.buildGraphFromTree(tree);
+    const tree = treeResult.value;
+    // Build graph from tree
+    const buildResult = await this.graphTraversalService.buildGraphFromTree(tree);
     if (buildResult.isErr()) {
       return err(buildResult.error);
     }
@@ -244,9 +252,10 @@ export class ProofTreeQueryService {
     const connections: NodeConnectionDTO[] = [];
 
     for (const nodeId of tree.getNodeIds()) {
-      const node = await this.nodeRepository.findById(nodeId);
-      if (!node) continue;
+      const nodeResult = await this.nodeRepository.findById(nodeId);
+      if (nodeResult.isErr()) continue;
 
+      const node = nodeResult.value;
       const dto: TreeNodeDTO = {
         nodeId: nodeId.getValue(),
         argumentId: node.getArgumentId().getValue(),
@@ -264,19 +273,9 @@ export class ProofTreeQueryService {
 
       // Add argument details if requested
       if (query.includeArguments) {
-        const argument = await this.argumentRepository.findById(node.getArgumentId());
-        if (argument) {
-          dto.argument = {
-            id: argument.getId().getValue(),
-            premiseSetId: argument.getPremiseSet()?.getValue(),
-            conclusionSetId: argument.getConclusionSet()?.getValue(),
-            sideLabels: argument.getSideLabels
-              ? {
-                  left: argument.getSideLabels().getLeft(),
-                  right: argument.getSideLabels().getRight(),
-                }
-              : undefined,
-          };
+        const argumentResult = await this.argumentRepository.findById(node.getArgumentId());
+        if (argumentResult.isOk()) {
+          dto.argument = atomicArgumentToDTO(argumentResult.value);
         }
       }
 
@@ -298,7 +297,12 @@ export class ProofTreeQueryService {
     }
 
     // Calculate metrics
-    const metrics = graphAdapter.getTreeMetrics(query.treeId);
+    const metricsResult = this.graphTraversalService.getTreeMetrics(treeIdResult.value);
+    if (metricsResult.isErr()) {
+      return err(metricsResult.error);
+    }
+
+    const metrics = metricsResult.value;
 
     return ok({
       treeId: query.treeId,

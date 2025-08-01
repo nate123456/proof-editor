@@ -1,5 +1,12 @@
 import { err, ok, type Result } from 'neverthrow';
 import { ValidationError } from '../../domain/shared/result.js';
+import {
+  DocumentId,
+  FilePath,
+  SideLabel,
+  StatementContent,
+  StatementId,
+} from '../../domain/shared/value-objects/index.js';
 import type {
   CreateAtomicArgumentCommand,
   UpdateArgumentSideLabelsCommand,
@@ -32,16 +39,23 @@ export type CommandValidationResult<T> = Result<T, ValidationError>;
 export function validateCreateStatement(cmd: CreateStatementCommand): string[] {
   const errors: string[] = [];
 
-  if (!cmd.documentId?.trim()) {
+  // Validate using value objects
+  if (!cmd.documentId) {
     errors.push('Document ID is required');
+  } else {
+    const docIdResult = DocumentId.create(cmd.documentId);
+    if (docIdResult.isErr()) {
+      errors.push(`Invalid document ID: ${docIdResult.error.message}`);
+    }
   }
 
-  if (!cmd.content?.trim()) {
+  if (!cmd.content) {
     errors.push('Statement content is required');
-  }
-
-  if (cmd.content && cmd.content.length > 10000) {
-    errors.push('Statement content must be less than 10,000 characters');
+  } else {
+    const contentResult = StatementContent.create(cmd.content);
+    if (contentResult.isErr()) {
+      errors.push(`Invalid statement content: ${contentResult.error.message}`);
+    }
   }
 
   return errors;
@@ -50,20 +64,31 @@ export function validateCreateStatement(cmd: CreateStatementCommand): string[] {
 export function validateUpdateStatement(cmd: UpdateStatementCommand): string[] {
   const errors: string[] = [];
 
-  if (!cmd.documentId?.trim()) {
+  if (!cmd.documentId) {
     errors.push('Document ID is required');
+  } else {
+    const docIdResult = DocumentId.create(cmd.documentId);
+    if (docIdResult.isErr()) {
+      errors.push(`Invalid document ID: ${docIdResult.error.message}`);
+    }
   }
 
-  if (!cmd.statementId?.trim()) {
+  if (!cmd.statementId) {
     errors.push('Statement ID is required');
+  } else {
+    const stmtIdResult = StatementId.create(cmd.statementId);
+    if (stmtIdResult.isErr()) {
+      errors.push(`Invalid statement ID: ${stmtIdResult.error.message}`);
+    }
   }
 
   if (cmd.content === undefined || cmd.content === null) {
     errors.push('Statement content is required');
-  }
-
-  if (cmd.content && cmd.content.length > 10000) {
-    errors.push('Statement content must be less than 10,000 characters');
+  } else {
+    const contentResult = StatementContent.create(cmd.content);
+    if (contentResult.isErr()) {
+      errors.push(`Invalid statement content: ${contentResult.error.message}`);
+    }
   }
 
   return errors;
@@ -72,12 +97,22 @@ export function validateUpdateStatement(cmd: UpdateStatementCommand): string[] {
 export function validateDeleteStatement(cmd: DeleteStatementCommand): string[] {
   const errors: string[] = [];
 
-  if (!cmd.documentId?.trim()) {
+  if (!cmd.documentId) {
     errors.push('Document ID is required');
+  } else {
+    const docIdResult = DocumentId.create(cmd.documentId);
+    if (docIdResult.isErr()) {
+      errors.push(`Invalid document ID: ${docIdResult.error.message}`);
+    }
   }
 
-  if (!cmd.statementId?.trim()) {
+  if (!cmd.statementId) {
     errors.push('Statement ID is required');
+  } else {
+    const stmtIdResult = StatementId.create(cmd.statementId);
+    if (stmtIdResult.isErr()) {
+      errors.push(`Invalid statement ID: ${stmtIdResult.error.message}`);
+    }
   }
 
   return errors;
@@ -111,11 +146,17 @@ export function validateCreateAtomicArgument(cmd: CreateAtomicArgumentCommand): 
 
   // Validate side labels if present
   if (cmd.sideLabel) {
-    if (cmd.sideLabel.left && cmd.sideLabel.left.length > 500) {
-      errors.push('Left side label must be less than 500 characters');
+    if (cmd.sideLabel.left) {
+      const leftLabelResult = SideLabel.create(cmd.sideLabel.left);
+      if (leftLabelResult.isErr()) {
+        errors.push(`Invalid left side label: ${leftLabelResult.error.message}`);
+      }
     }
-    if (cmd.sideLabel.right && cmd.sideLabel.right.length > 500) {
-      errors.push('Right side label must be less than 500 characters');
+    if (cmd.sideLabel.right) {
+      const rightLabelResult = SideLabel.create(cmd.sideLabel.right);
+      if (rightLabelResult.isErr()) {
+        errors.push(`Invalid right side label: ${rightLabelResult.error.message}`);
+      }
     }
   }
 
@@ -160,12 +201,17 @@ export function validateCreateDocument(cmd: CreateDocumentCommand): string[] {
 export function validateLoadDocument(cmd: LoadDocumentCommand): string[] {
   const errors: string[] = [];
 
-  if (!cmd.path?.trim()) {
+  if (!cmd.path) {
     errors.push('Document path is required');
-  }
-
-  if (cmd.path && !cmd.path.match(/\.(yaml|yml|json)$/i)) {
-    errors.push('Document path must have .yaml, .yml, or .json extension');
+  } else {
+    const pathResult = FilePath.create(cmd.path);
+    if (pathResult.isErr()) {
+      errors.push(`Invalid document path: ${pathResult.error.message}`);
+    } else {
+      if (!pathResult.value.isYamlFile() && !pathResult.value.isJsonFile()) {
+        errors.push('Document path must have .yaml, .yml, or .json extension');
+      }
+    }
   }
 
   return errors;
@@ -174,12 +220,24 @@ export function validateLoadDocument(cmd: LoadDocumentCommand): string[] {
 export function validateSaveDocument(cmd: SaveDocumentCommand): string[] {
   const errors: string[] = [];
 
-  if (!cmd.documentId?.trim()) {
+  if (!cmd.documentId) {
     errors.push('Document ID is required');
+  } else {
+    const docIdResult = DocumentId.create(cmd.documentId);
+    if (docIdResult.isErr()) {
+      errors.push(`Invalid document ID: ${docIdResult.error.message}`);
+    }
   }
 
-  if (cmd.path && !cmd.path.match(/\.(yaml|yml|json)$/i)) {
-    errors.push('Save path must have .yaml, .yml, or .json extension');
+  if (cmd.path) {
+    const pathResult = FilePath.create(cmd.path);
+    if (pathResult.isErr()) {
+      errors.push(`Invalid save path: ${pathResult.error.message}`);
+    } else {
+      if (!pathResult.value.isYamlFile() && !pathResult.value.isJsonFile()) {
+        errors.push('Save path must have .yaml, .yml, or .json extension');
+      }
+    }
   }
 
   return errors;
@@ -188,12 +246,21 @@ export function validateSaveDocument(cmd: SaveDocumentCommand): string[] {
 export function validateImportDocument(cmd: ImportDocumentCommand): string[] {
   const errors: string[] = [];
 
-  if (!cmd.yamlContent?.trim()) {
+  if (!cmd.yamlContent) {
     errors.push('YAML content is required');
+  } else if (cmd.yamlContent.trim().length === 0) {
+    errors.push('YAML content cannot be empty');
   }
 
-  if (cmd.path && !cmd.path.match(/\.(yaml|yml)$/i)) {
-    errors.push('Import path must have .yaml or .yml extension');
+  if (cmd.path) {
+    const pathResult = FilePath.create(cmd.path);
+    if (pathResult.isErr()) {
+      errors.push(`Invalid import path: ${pathResult.error.message}`);
+    } else {
+      if (!pathResult.value.isYamlFile()) {
+        errors.push('Import path must have .yaml or .yml extension');
+      }
+    }
   }
 
   return errors;
@@ -202,8 +269,13 @@ export function validateImportDocument(cmd: ImportDocumentCommand): string[] {
 export function validateExportDocument(cmd: ExportDocumentCommand): string[] {
   const errors: string[] = [];
 
-  if (!cmd.documentId?.trim()) {
+  if (!cmd.documentId) {
     errors.push('Document ID is required');
+  } else {
+    const docIdResult = DocumentId.create(cmd.documentId);
+    if (docIdResult.isErr()) {
+      errors.push(`Invalid document ID: ${docIdResult.error.message}`);
+    }
   }
 
   if (!cmd.format) {
@@ -218,8 +290,13 @@ export function validateExportDocument(cmd: ExportDocumentCommand): string[] {
 export function validateValidateDocument(cmd: ValidateDocumentCommand): string[] {
   const errors: string[] = [];
 
-  if (!cmd.documentId?.trim()) {
+  if (!cmd.documentId) {
     errors.push('Document ID is required');
+  } else {
+    const docIdResult = DocumentId.create(cmd.documentId);
+    if (docIdResult.isErr()) {
+      errors.push(`Invalid document ID: ${docIdResult.error.message}`);
+    }
   }
 
   return errors;
@@ -298,11 +375,17 @@ export function validatePopulateEmptyArgument(cmd: PopulateEmptyArgumentCommand)
   }
 
   if (cmd.sideLabels) {
-    if (cmd.sideLabels.left && cmd.sideLabels.left.length > 500) {
-      errors.push('Left side label must be less than 500 characters');
+    if (cmd.sideLabels.left) {
+      const leftLabelResult = SideLabel.create(cmd.sideLabels.left);
+      if (leftLabelResult.isErr()) {
+        errors.push(`Invalid left side label: ${leftLabelResult.error.message}`);
+      }
     }
-    if (cmd.sideLabels.right && cmd.sideLabels.right.length > 500) {
-      errors.push('Right side label must be less than 500 characters');
+    if (cmd.sideLabels.right) {
+      const rightLabelResult = SideLabel.create(cmd.sideLabels.right);
+      if (rightLabelResult.isErr()) {
+        errors.push(`Invalid right side label: ${rightLabelResult.error.message}`);
+      }
     }
   }
 

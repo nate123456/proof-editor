@@ -16,7 +16,7 @@
 import { err, ok, type Result } from 'neverthrow';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type * as vscode from 'vscode';
-
+import { DialogTitle, ViewType, WebviewId } from '../../domain/shared/value-objects/index.js';
 import { ApplicationContainer } from '../../infrastructure/di/container.js';
 import { YAMLDeserializer } from '../../infrastructure/repositories/yaml/YAMLDeserializer.js';
 import { YAMLSerializer } from '../../infrastructure/repositories/yaml/YAMLSerializer.js';
@@ -286,9 +286,9 @@ describe('Infrastructure Layer Resilience', () => {
       // Act & Assert - UI adapter should propagate webview failures
       expect(() => {
         adapter.createWebviewPanel({
-          id: 'test-panel',
-          viewType: 'test',
-          title: 'Test Panel',
+          id: WebviewId.create('test-panel')._unsafeUnwrap(),
+          viewType: ViewType.create('test')._unsafeUnwrap(),
+          title: DialogTitle.create('Test Panel')._unsafeUnwrap(),
         });
       }).toThrow('Webview creation failed');
     });
@@ -353,7 +353,8 @@ describe('Infrastructure Layer Resilience', () => {
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
         expect(
-          result.error.message.includes('ENOSPC') || result.error.message.includes('space'),
+          result.error.message.getValue().includes('ENOSPC') ||
+            result.error.message.getValue().includes('space'),
         ).toBe(true);
       }
     });
@@ -374,7 +375,8 @@ describe('Infrastructure Layer Resilience', () => {
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
         expect(
-          result.error.message.includes('EACCES') || result.error.message.includes('permission'),
+          result.error.message.getValue().includes('EACCES') ||
+            result.error.message.getValue().includes('permission'),
         ).toBe(true);
       }
     });

@@ -9,7 +9,7 @@ import {
   type OrderedSetId,
   ProofId,
   StatementId,
-} from '../../shared/value-objects.js';
+} from '../../shared/value-objects/index.js';
 
 describe('ProofAggregate - Enhanced Coverage', () => {
   describe('Edge Cases and Error Conditions', () => {

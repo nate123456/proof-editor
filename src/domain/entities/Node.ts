@@ -1,26 +1,38 @@
-import { err, ok, type Result, ValidationError } from '../shared/result.js';
-import { type AtomicArgumentId, type Attachment, NodeId } from '../shared/value-objects.js';
+import { err, ok, type Result } from 'neverthrow';
+import { ValidationError } from '../shared/result.js';
+import {
+  type AtomicArgumentId,
+  type Attachment,
+  NodeId,
+  Timestamp,
+} from '../shared/value-objects/index.js';
 
 export class Node {
   private constructor(
     private readonly id: NodeId,
     private readonly argumentId: AtomicArgumentId,
     private attachment: Attachment | null,
-    private readonly createdAt: number,
-    private modifiedAt: number,
+    private readonly createdAt: Timestamp,
+    private modifiedAt: Timestamp,
   ) {}
 
+  /**
+   * @deprecated Use NodeFactory.createRoot() instead
+   */
   static createRoot(argumentId: AtomicArgumentId): Result<Node, ValidationError> {
-    const now = Date.now();
+    const now = Timestamp.now();
 
     return ok(new Node(NodeId.generate(), argumentId, null, now, now));
   }
 
+  /**
+   * @deprecated Use NodeFactory.createChild() instead
+   */
   static createChild(
     argumentId: AtomicArgumentId,
     attachment: Attachment,
   ): Result<Node, ValidationError> {
-    const now = Date.now();
+    const now = Timestamp.now();
 
     return ok(new Node(NodeId.generate(), argumentId, attachment, now, now));
   }
@@ -32,7 +44,19 @@ export class Node {
     createdAt: number,
     modifiedAt: number,
   ): Result<Node, ValidationError> {
-    return ok(new Node(id, argumentId, attachment, createdAt, modifiedAt));
+    const createdAtTimestamp = Timestamp.create(createdAt);
+    if (createdAtTimestamp.isErr()) {
+      return err(createdAtTimestamp.error);
+    }
+
+    const modifiedAtTimestamp = Timestamp.create(modifiedAt);
+    if (modifiedAtTimestamp.isErr()) {
+      return err(modifiedAtTimestamp.error);
+    }
+
+    return ok(
+      new Node(id, argumentId, attachment, createdAtTimestamp.value, modifiedAtTimestamp.value),
+    );
   }
 
   getId(): NodeId {
@@ -48,11 +72,11 @@ export class Node {
   }
 
   getCreatedAt(): number {
-    return this.createdAt;
+    return this.createdAt.getValue();
   }
 
   getModifiedAt(): number {
-    return this.modifiedAt;
+    return this.modifiedAt.getValue();
   }
 
   isRoot(): boolean {
@@ -85,7 +109,7 @@ export class Node {
     }
 
     this.attachment = attachment;
-    this.modifiedAt = Date.now();
+    this.modifiedAt = Timestamp.now();
     return ok(undefined);
   }
 
@@ -95,7 +119,7 @@ export class Node {
     }
 
     this.attachment = null;
-    this.modifiedAt = Date.now();
+    this.modifiedAt = Timestamp.now();
     return ok(undefined);
   }
 
@@ -105,7 +129,7 @@ export class Node {
     }
 
     this.attachment = newAttachment;
-    this.modifiedAt = Date.now();
+    this.modifiedAt = Timestamp.now();
     return ok(undefined);
   }
 
@@ -145,5 +169,15 @@ export class Node {
     return fromPos !== undefined
       ? `Child[${this.argumentId.getValue()}→${parentId}:${position}:${fromPos}]`
       : `Child[${this.argumentId.getValue()}→${parentId}:${position}]`;
+  }
+
+  static fromFactory(
+    id: NodeId,
+    argumentId: AtomicArgumentId,
+    attachment: Attachment | null,
+    createdAt: Timestamp,
+    modifiedAt: Timestamp,
+  ): Node {
+    return new Node(id, argumentId, attachment, createdAt, modifiedAt);
   }
 }

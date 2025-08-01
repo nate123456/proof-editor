@@ -13,7 +13,7 @@ import type { DocumentOrchestrationService } from '../../application/services/Do
 import type { ProofApplicationService } from '../../application/services/ProofApplicationService.js';
 import { ProofDocument } from '../../domain/aggregates/ProofDocument.js';
 import type { IProofDocumentRepository } from '../../domain/repositories/IProofDocumentRepository.js';
-import { ProofDocumentId } from '../../domain/shared/value-objects.js';
+import { ProofDocumentId } from '../../domain/shared/value-objects/index.js';
 import { TOKENS } from '../../infrastructure/di/tokens.js';
 import type { IController, ViewResponse } from './IController.js';
 

@@ -1,17 +1,16 @@
-import { injectable } from 'tsyringe';
-
+import { err, ok, type Result } from 'neverthrow';
 import type { AtomicArgument } from '../entities/AtomicArgument.js';
 import { Node } from '../entities/Node.js';
 import { Tree } from '../entities/Tree.js';
-import { err, ok, type Result, ValidationError } from '../shared/result.js';
+import { ValidationError } from '../shared/result.js';
 import {
   Attachment,
+  MaxDepth,
   type NodeId,
   PhysicalProperties,
   Position2D,
-} from '../shared/value-objects.js';
+} from '../shared/value-objects/index.js';
 
-@injectable()
 export class TreeStructureService {
   createTreeWithRootNode(
     documentId: string,
@@ -48,7 +47,7 @@ export class TreeStructureService {
     premisePosition: number,
     fromPosition?: number,
   ): Result<Node, ValidationError> {
-    if (!tree.containsNode(parentNode.getId())) {
+    if (!tree.hasNode(parentNode.getId())) {
       return err(new ValidationError('Parent node must exist in tree'));
     }
 
@@ -76,7 +75,7 @@ export class TreeStructureService {
     nodeToRemove: Node,
     allNodes: Map<NodeId, Node>,
   ): Result<NodeId[], ValidationError> {
-    if (!tree.containsNode(nodeToRemove.getId())) {
+    if (!tree.hasNode(nodeToRemove.getId())) {
       return err(new ValidationError('Node not found in tree'));
     }
 
@@ -107,7 +106,7 @@ export class TreeStructureService {
     newPremisePosition: number,
     newFromPosition?: number,
   ): Result<void, ValidationError> {
-    if (!tree.containsNode(nodeToMove.getId()) || !tree.containsNode(newParentNode.getId())) {
+    if (!tree.hasNode(nodeToMove.getId()) || !tree.hasNode(newParentNode.getId())) {
       return err(new ValidationError('Both nodes must exist in tree'));
     }
 
@@ -152,29 +151,41 @@ export class TreeStructureService {
     return children;
   }
 
-  findAllDescendantNodes(parentNodeId: NodeId, allNodes: Map<NodeId, Node>): Node[] {
+  findAllDescendantNodes(
+    parentNodeId: NodeId,
+    allNodes: Map<NodeId, Node>,
+    maxDepth: MaxDepth = MaxDepth.default(),
+  ): Result<Node[], ValidationError> {
     const descendants: Node[] = [];
-    const toVisit = [parentNodeId];
+    const toVisit: Array<{ nodeId: NodeId; depth: number }> = [{ nodeId: parentNodeId, depth: 0 }];
     const visited = new Set<NodeId>();
 
     while (toVisit.length > 0) {
-      const currentId = toVisit.pop();
-      if (!currentId) continue;
+      const current = toVisit.pop();
+      if (!current) continue;
 
-      if (visited.has(currentId)) {
+      if (maxDepth.isExceeded(current.depth)) {
+        return err(
+          new ValidationError(
+            `Max depth exceeded (${maxDepth.getValue()}) while finding descendants`,
+          ),
+        );
+      }
+
+      if (visited.has(current.nodeId)) {
         continue;
       }
 
-      visited.add(currentId);
+      visited.add(current.nodeId);
 
-      const children = this.findDirectChildNodes(currentId, allNodes);
+      const children = this.findDirectChildNodes(current.nodeId, allNodes);
       for (const child of children) {
         descendants.push(child);
-        toVisit.push(child.getId());
+        toVisit.push({ nodeId: child.getId(), depth: current.depth + 1 });
       }
     }
 
-    return descendants;
+    return ok(descendants);
   }
 
   validateTreeStructuralIntegrity(
@@ -212,29 +223,77 @@ export class TreeStructureService {
     return ok(undefined);
   }
 
-  computeNodeDepth(nodeId: NodeId, allNodes: Map<NodeId, Node>): number {
+  computeNodeDepth(
+    nodeId: NodeId,
+    allNodes: Map<NodeId, Node>,
+    maxDepth: MaxDepth = MaxDepth.default(),
+  ): Result<number, ValidationError> {
+    return this.computeNodeDepthRecursive(nodeId, allNodes, maxDepth, 0, new Set());
+  }
+
+  private computeNodeDepthRecursive(
+    nodeId: NodeId,
+    allNodes: Map<NodeId, Node>,
+    maxDepth: MaxDepth,
+    currentDepth: number,
+    visited: Set<NodeId>,
+  ): Result<number, ValidationError> {
+    if (maxDepth.isExceeded(currentDepth)) {
+      return err(
+        new ValidationError(
+          `Max depth exceeded (${maxDepth.getValue()}) while computing node depth`,
+        ),
+      );
+    }
+
+    if (visited.has(nodeId)) {
+      return err(new ValidationError('Cycle detected in node hierarchy'));
+    }
+
+    visited.add(nodeId);
+
     const node = allNodes.get(nodeId);
     if (!node || node.isRoot()) {
-      return 0;
+      return ok(currentDepth);
     }
 
     const parentId = node.getParentNodeId();
     if (!parentId) {
-      return 0; // If somehow no parent ID, treat as root
+      return ok(currentDepth); // If somehow no parent ID, treat as root
     }
-    return 1 + this.computeNodeDepth(parentId, allNodes);
+
+    return this.computeNodeDepthRecursive(parentId, allNodes, maxDepth, currentDepth + 1, visited);
   }
 
-  findNodePathFromRoot(targetNodeId: NodeId, allNodes: Map<NodeId, Node>): Node[] | null {
+  findNodePathFromRoot(
+    targetNodeId: NodeId,
+    allNodes: Map<NodeId, Node>,
+    maxDepth: MaxDepth = MaxDepth.default(),
+  ): Result<Node[], ValidationError> {
     const target = allNodes.get(targetNodeId);
     if (!target) {
-      return null;
+      return err(new ValidationError(`Target node ${targetNodeId.getValue()} not found`));
     }
 
     const path: Node[] = [];
     let current = target;
+    const visited = new Set<NodeId>();
+    let depth = 0;
 
     while (current) {
+      if (maxDepth.isExceeded(depth)) {
+        return err(
+          new ValidationError(
+            `Max depth exceeded (${maxDepth.getValue()}) while finding path from root`,
+          ),
+        );
+      }
+
+      if (visited.has(current.getId())) {
+        return err(new ValidationError('Cycle detected in node hierarchy'));
+      }
+
+      visited.add(current.getId());
       path.unshift(current);
 
       if (current.isRoot()) {
@@ -243,17 +302,18 @@ export class TreeStructureService {
 
       const parentId = current.getParentNodeId();
       if (!parentId) {
-        return null; // Invalid path
+        return err(new ValidationError('Invalid path: non-root node has no parent'));
       }
       const parent = allNodes.get(parentId);
       if (!parent) {
-        return null;
+        return err(new ValidationError(`Parent node ${parentId.getValue()} not found`));
       }
 
       current = parent;
+      depth++;
     }
 
-    return path;
+    return ok(path);
   }
 
   detectCycles(tree: Tree, allNodes: Map<NodeId, Node>): Result<Node[], ValidationError> {
@@ -320,7 +380,7 @@ export class TreeStructureService {
   }
 
   validateBottomUpFlow(tree: Tree, allNodes: Map<NodeId, Node>): Result<void, ValidationError> {
-    if (!tree.supportsBottomUpFlow()) {
+    if (!tree.canSupportBottomUpFlow()) {
       return ok(undefined);
     }
 

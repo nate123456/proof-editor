@@ -822,8 +822,8 @@ describe('Tree Query DTO Validation Tests', () => {
         isRoot: true,
         argument: {
           id: 'arg_with_details',
-          premiseSetId: 'set_premise',
-          conclusionSetId: 'set_conclusion',
+          premiseIds: ['stmt_1', 'stmt_2'],
+          conclusionIds: ['stmt_3'],
           sideLabels: {
             left: 'Rule Name',
             right: 'Reference',
@@ -832,8 +832,8 @@ describe('Tree Query DTO Validation Tests', () => {
       };
 
       expect(node.argument?.id).toBe('arg_with_details');
-      expect(node.argument?.premiseSetId).toBe('set_premise');
-      expect(node.argument?.conclusionSetId).toBe('set_conclusion');
+      expect(node.argument?.premiseIds).toEqual(['stmt_1', 'stmt_2']);
+      expect(node.argument?.conclusionIds).toEqual(['stmt_3']);
       expect(node.argument?.sideLabels?.left).toBe('Rule Name');
       expect(node.argument?.sideLabels?.right).toBe('Reference');
     });

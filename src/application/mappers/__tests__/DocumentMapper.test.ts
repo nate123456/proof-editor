@@ -432,8 +432,8 @@ describe('DocumentMapper', () => {
         atomicArguments: {
           arg1: {
             id: 'arg1',
-            premiseSetId: 'os1',
-            conclusionSetId: 'os2',
+            premiseIds: ['s1', 's2'],
+            conclusionIds: ['s3'],
             sideLabels: {
               left: 'Modus Ponens',
               right: 'Valid',
@@ -553,8 +553,8 @@ describe('DocumentMapper', () => {
         atomicArguments: {
           arg1: {
             id: 'arg1',
-            premiseSetId: 'nonexistent-os',
-            conclusionSetId: 'os1',
+            premiseIds: ['nonexistent-s1'],
+            conclusionIds: ['s1'],
           },
         },
         trees: {},
@@ -595,8 +595,8 @@ describe('DocumentMapper', () => {
         atomicArguments: {
           arg1: {
             id: 'arg1',
-            premiseSetId: 'os1', // This exists
-            conclusionSetId: 'nonexistent-conclusion-set', // This doesn't exist
+            premiseIds: ['s1'], // This exists
+            conclusionIds: ['nonexistent-s1'], // This doesn't exist
           },
         },
         trees: {},
@@ -681,8 +681,8 @@ describe('DocumentMapper', () => {
         atomicArguments: {
           arg1: {
             id: 'arg1',
-            premiseSetId: 'os1',
-            conclusionSetId: 'os2',
+            premiseIds: ['s1', 's2'],
+            conclusionIds: ['s3'],
             sideLabels: {
               left: 'Syllogism',
               right: 'Valid',
@@ -819,8 +819,8 @@ describe('DocumentMapper', () => {
         atomicArguments: {
           arg1: {
             id: 'arg1',
-            premiseSetId: 'os1',
-            conclusionSetId: 'os1',
+            premiseIds: ['s1'],
+            conclusionIds: ['s1'],
           },
         },
         trees: {},
@@ -984,8 +984,8 @@ describe('DocumentMapper', () => {
         atomicArguments: {
           arg1: {
             id: 'arg1',
-            premiseSetId: 'os1',
-            conclusionSetId: 'os1',
+            premiseIds: ['s1'],
+            conclusionIds: ['s1'],
           },
         },
         trees: {},
@@ -1036,8 +1036,8 @@ describe('DocumentMapper', () => {
         atomicArguments: {
           arg1: {
             id: 'arg1',
-            premiseSetId: 'os1',
-            conclusionSetId: 'os1',
+            premiseIds: ['s1'],
+            conclusionIds: ['s1'],
           },
         },
         trees: {},
@@ -1096,8 +1096,8 @@ describe('DocumentMapper', () => {
         atomicArguments: {
           arg1: {
             id: '', // Invalid ID
-            premiseSetId: null,
-            conclusionSetId: null,
+            premiseIds: null,
+            conclusionIds: null,
           },
         },
         trees: {},
@@ -1138,8 +1138,8 @@ describe('DocumentMapper', () => {
         atomicArguments: {
           arg1: {
             id: 'arg1',
-            premiseSetId: 'os1',
-            conclusionSetId: 'os1', // Same set for premise and conclusion - this may cause reconstruction failure
+            premiseIds: ['s1'],
+            conclusionIds: ['s1'], // Same set for premise and conclusion - this may cause reconstruction failure
             sideLabels: {
               left: 'Invalid',
               right: 'Logic',
@@ -1186,8 +1186,8 @@ describe('DocumentMapper', () => {
         atomicArguments: {
           arg1: {
             id: 'arg1',
-            premiseSetId: 'os1',
-            conclusionSetId: 'os1',
+            premiseIds: ['s1'],
+            conclusionIds: ['s1'],
           },
         },
         trees: {},

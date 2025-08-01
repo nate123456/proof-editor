@@ -1,7 +1,7 @@
 export interface CreateAtomicArgumentCommand {
   documentId: string;
-  premiseStatementIds: string[]; // Will create/find OrderedSet
-  conclusionStatementIds: string[]; // Will create/find OrderedSet
+  premiseStatementIds: string[];
+  conclusionStatementIds: string[];
   sideLabel?: {
     left?: string;
     right?: string;
@@ -11,8 +11,8 @@ export interface CreateAtomicArgumentCommand {
 export interface UpdateAtomicArgumentCommand {
   documentId: string;
   argumentId: string;
-  premiseSetId?: string | null;
-  conclusionSetId?: string | null;
+  premiseStatementIds?: string[];
+  conclusionStatementIds?: string[];
 }
 
 export interface UpdateArgumentSideLabelsCommand {

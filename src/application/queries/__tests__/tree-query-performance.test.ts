@@ -211,8 +211,8 @@ describe('Tree Query Performance', () => {
           isRoot: i === 0,
           argument: {
             id: `arg_${i}`,
-            premiseSetId: `premise_set_${i}`,
-            conclusionSetId: `conclusion_set_${i}`,
+            premiseIds: `premise_set_${i}`,
+            conclusionIds: `conclusion_set_${i}`,
             sideLabels: {
               left: `Rule ${i}`,
               right: `Reference ${i}`,

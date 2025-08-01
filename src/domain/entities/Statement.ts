@@ -1,26 +1,45 @@
 import { err, ok, type Result } from 'neverthrow';
 
-import { ValidationError } from '../shared/result.js';
-import { StatementContent, StatementId } from '../shared/value-objects.js';
+import type { ValidationError } from '../shared/result.js';
+import {
+  StatementContent,
+  StatementId,
+  Timestamp,
+  UsageCount,
+} from '../shared/value-objects/index.js';
 
 export class Statement {
   private constructor(
     private readonly id: StatementId,
     private content: StatementContent,
-    private readonly createdAt: number,
-    private modifiedAt: number,
-    private usageCount = 0,
+    private readonly createdAt: Timestamp,
+    private modifiedAt: Timestamp,
+    private usageCount: UsageCount,
   ) {}
 
+  /**
+   * @deprecated Use StatementFactory.create() instead
+   */
   static create(content: string): Result<Statement, ValidationError> {
     const contentResult = StatementContent.create(content);
     if (contentResult.isErr()) {
       return err(contentResult.error);
     }
 
-    const now = Date.now();
+    const now = Timestamp.now();
 
-    return ok(new Statement(StatementId.generate(), contentResult.value, now, now));
+    return ok(
+      new Statement(StatementId.generate(), contentResult.value, now, now, UsageCount.zero()),
+    );
+  }
+
+  /**
+   * @deprecated Use StatementFactory.createWithContent() instead
+   */
+  static createWithContent(content: StatementContent): Result<Statement, ValidationError> {
+    const now = Timestamp.now();
+
+    return ok(new Statement(StatementId.generate(), content, now, now, UsageCount.zero()));
   }
 
   static reconstruct(
@@ -35,11 +54,30 @@ export class Statement {
       return err(contentResult.error);
     }
 
-    if (usageCount < 0) {
-      return err(new ValidationError('Usage count cannot be negative'));
+    const timestampCreatedResult = Timestamp.create(createdAt);
+    if (timestampCreatedResult.isErr()) {
+      return err(timestampCreatedResult.error);
     }
 
-    return ok(new Statement(id, contentResult.value, createdAt, modifiedAt, usageCount));
+    const timestampModifiedResult = Timestamp.create(modifiedAt);
+    if (timestampModifiedResult.isErr()) {
+      return err(timestampModifiedResult.error);
+    }
+
+    const usageCountResult = UsageCount.create(usageCount);
+    if (usageCountResult.isErr()) {
+      return err(usageCountResult.error);
+    }
+
+    return ok(
+      new Statement(
+        id,
+        contentResult.value,
+        timestampCreatedResult.value,
+        timestampModifiedResult.value,
+        usageCountResult.value,
+      ),
+    );
   }
 
   getId(): StatementId {
@@ -47,62 +85,66 @@ export class Statement {
   }
 
   getContent(): string {
-    return this.content.getValue();
+    return this.content.toString();
   }
 
   getContentObject(): StatementContent {
     return this.content;
   }
 
+  getUsageCount(): number {
+    return this.usageCount.value;
+  }
+
   getCreatedAt(): number {
-    return this.createdAt;
+    return this.createdAt.value;
   }
 
   getModifiedAt(): number {
-    return this.modifiedAt;
+    return this.modifiedAt.value;
   }
 
-  getUsageCount(): number {
-    return this.usageCount;
-  }
-
-  updateContent(newContent: string): Result<void, ValidationError> {
+  updateContent(newContent: string): Result<Statement, ValidationError> {
     const contentResult = StatementContent.create(newContent);
     if (contentResult.isErr()) {
       return err(contentResult.error);
     }
 
     if (contentResult.value.equals(this.content)) {
-      return ok(undefined);
+      return ok(this);
     }
 
-    this.content = contentResult.value;
-    this.modifiedAt = Date.now();
-    return ok(undefined);
+    return ok(
+      new Statement(this.id, contentResult.value, this.createdAt, Timestamp.now(), this.usageCount),
+    );
   }
 
-  incrementUsage(): void {
-    this.usageCount++;
+  incrementUsage(): Statement {
+    return new Statement(
+      this.id,
+      this.content,
+      this.createdAt,
+      this.modifiedAt,
+      this.usageCount.increment(),
+    );
   }
 
-  incrementUsageCount(): void {
-    this.usageCount++;
-  }
-
-  decrementUsage(): Result<void, ValidationError> {
-    if (this.usageCount <= 0) {
-      return err(new ValidationError('Cannot decrement usage count below zero'));
+  decrementUsage(): Result<Statement, ValidationError> {
+    const decrementResult = this.usageCount.decrement();
+    if (decrementResult.isErr()) {
+      return err(decrementResult.error);
     }
 
-    this.usageCount--;
-    return ok(undefined);
+    return ok(
+      new Statement(this.id, this.content, this.createdAt, this.modifiedAt, decrementResult.value),
+    );
   }
 
-  isReferencedInOrderedSets(): boolean {
-    return this.usageCount > 0;
+  isInUse(): boolean {
+    return this.usageCount.isInUse();
   }
 
-  contentEquals(other: Statement): boolean {
+  hasEqualContent(other: Statement): boolean {
     return this.content.equals(other.content);
   }
 
@@ -114,8 +156,8 @@ export class Statement {
     return this.content.toString();
   }
 
-  getWordCount(): number {
-    return this.content.wordCount;
+  hasWords(): boolean {
+    return this.content.wordCount > 0;
   }
 
   hasContent(): boolean {
@@ -128,5 +170,15 @@ export class Statement {
    */
   static createPlaceholder(): Result<Statement, ValidationError> {
     return Statement.create('[Enter text]');
+  }
+
+  static fromFactory(
+    id: StatementId,
+    content: StatementContent,
+    createdAt: Timestamp,
+    modifiedAt: Timestamp,
+    usageCount: UsageCount,
+  ): Statement {
+    return new Statement(id, content, createdAt, modifiedAt, usageCount);
   }
 }

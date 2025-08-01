@@ -1,7 +1,7 @@
 import { err, ok, type Result } from 'neverthrow';
 import { ProcessingError } from '../errors/DomainErrors';
 import type { IAtomicArgumentRepository } from '../repositories/IAtomicArgumentRepository';
-import type { AtomicArgumentId } from '../shared/value-objects.js';
+import type { AtomicArgumentId } from '../shared/value-objects/index.js';
 import type { ConnectionResolutionService } from './ConnectionResolutionService';
 import type {
   ArgumentConnection,

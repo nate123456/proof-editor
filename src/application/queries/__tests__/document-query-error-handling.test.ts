@@ -7,7 +7,7 @@
 
 import { beforeEach, describe, expect, it } from 'vitest';
 import { ValidationError } from '../../../domain/shared/result.js';
-import { ProofId } from '../../../domain/shared/value-objects.js';
+import { ProofId } from '../../../domain/shared/value-objects/index.js';
 import type { DocumentDTO, GetDocumentQuery, GetDocumentStateQuery } from '../document-queries.js';
 import {
   createMockDocumentService,

@@ -7,14 +7,13 @@
 
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
+import { Dimensions, NodeCount, Position2D } from '../../../domain/shared/value-objects/index.js';
 import {
   type AtomicArgumentDTO,
   createAtomicArgumentDTO,
-  createOrderedSetDTO,
   createTreeDTO,
   createValidationErrorDTO,
   isAtomicArgumentDTO,
-  isOrderedSetDTO,
   isTreeDTO,
   isValidationErrorDTO,
   isValidBounds,
@@ -22,211 +21,160 @@ import {
   isValidSeverity,
   // Import executable functions for testing
   isValidUsageType,
-  type OrderedSetDTO,
   type TreeDTO,
   type ValidationErrorDTO,
   validateAtomicArgumentDTO,
-  validateOrderedSetDTO,
   validateTreeDTO,
 } from '../shared-types.js';
 
-describe('OrderedSetDTO', () => {
-  it('should handle basic ordered set', () => {
-    const orderedSet: OrderedSetDTO = {
-      id: 'set_12345',
-      statementIds: ['stmt_1', 'stmt_2', 'stmt_3'],
-      usageCount: 2,
-      usedBy: [
-        {
-          argumentId: 'arg_1',
-          usage: 'premise',
-        },
-        {
-          argumentId: 'arg_2',
-          usage: 'conclusion',
-        },
-      ],
+describe('AtomicArgumentDTO Basic Structure', () => {
+  it('should handle basic atomic argument', () => {
+    const argument: AtomicArgumentDTO = {
+      id: 'arg_12345',
+      premiseIds: ['stmt_1', 'stmt_2', 'stmt_3'],
+      conclusionIds: ['stmt_4', 'stmt_5'],
     };
 
-    expect(orderedSet.id).toBe('set_12345');
-    expect(orderedSet.statementIds).toEqual(['stmt_1', 'stmt_2', 'stmt_3']);
-    expect(orderedSet.usageCount).toBe(2);
-    expect(orderedSet.usedBy).toHaveLength(2);
-    expect(orderedSet.usedBy[0]?.usage).toBe('premise');
-    expect(orderedSet.usedBy[1]?.usage).toBe('conclusion');
+    expect(argument.id).toBe('arg_12345');
+    expect(argument.premiseIds).toEqual(['stmt_1', 'stmt_2', 'stmt_3']);
+    expect(argument.conclusionIds).toEqual(['stmt_4', 'stmt_5']);
   });
 
-  it('should handle empty ordered set', () => {
-    const orderedSet: OrderedSetDTO = {
-      id: 'set_empty',
-      statementIds: [],
-      usageCount: 0,
-      usedBy: [],
+  it('should handle empty atomic argument', () => {
+    const argument: AtomicArgumentDTO = {
+      id: 'arg_empty',
+      premiseIds: [],
+      conclusionIds: [],
     };
 
-    expect(orderedSet.id).toBe('set_empty');
-    expect(orderedSet.statementIds).toEqual([]);
-    expect(orderedSet.usageCount).toBe(0);
-    expect(orderedSet.usedBy).toEqual([]);
+    expect(argument.id).toBe('arg_empty');
+    expect(argument.premiseIds).toEqual([]);
+    expect(argument.conclusionIds).toEqual([]);
   });
 
-  it('should handle single statement ordered set', () => {
-    const orderedSet: OrderedSetDTO = {
-      id: 'set_single',
-      statementIds: ['stmt_only'],
-      usageCount: 1,
-      usedBy: [
-        {
-          argumentId: 'arg_single',
-          usage: 'premise',
-        },
-      ],
+  it('should handle single statement atomic argument', () => {
+    const argument: AtomicArgumentDTO = {
+      id: 'arg_single',
+      premiseIds: ['stmt_only'],
+      conclusionIds: ['stmt_result'],
     };
 
-    expect(orderedSet.statementIds).toHaveLength(1);
-    expect(orderedSet.statementIds[0]).toBe('stmt_only');
-    expect(orderedSet.usedBy).toHaveLength(1);
+    expect(argument.premiseIds).toHaveLength(1);
+    expect(argument.premiseIds[0]).toBe('stmt_only');
+    expect(argument.conclusionIds).toHaveLength(1);
+    expect(argument.conclusionIds[0]).toBe('stmt_result');
   });
 
-  it('should handle ordered set with many statements', () => {
-    const statementIds = Array.from({ length: 20 }, (_, i) => `stmt_${i + 1}`);
+  it('should handle atomic argument with many statements', () => {
+    const premiseIds = Array.from({ length: 10 }, (_, i) => `premise_${i + 1}`);
+    const conclusionIds = Array.from({ length: 10 }, (_, i) => `conclusion_${i + 1}`);
 
-    const orderedSet: OrderedSetDTO = {
-      id: 'set_many',
-      statementIds,
-      usageCount: 5,
-      usedBy: Array.from({ length: 5 }, (_, i) => ({
-        argumentId: `arg_${i + 1}`,
-        usage: i % 2 === 0 ? ('premise' as const) : ('conclusion' as const),
-      })),
+    const argument: AtomicArgumentDTO = {
+      id: 'arg_many',
+      premiseIds,
+      conclusionIds,
     };
 
-    expect(orderedSet.statementIds).toHaveLength(20);
-    expect(orderedSet.usedBy).toHaveLength(5);
-    expect(orderedSet.statementIds[0]).toBe('stmt_1');
-    expect(orderedSet.statementIds[19]).toBe('stmt_20');
+    expect(argument.premiseIds).toHaveLength(10);
+    expect(argument.conclusionIds).toHaveLength(10);
+    expect(argument.premiseIds[0]).toBe('premise_1');
+    expect(argument.premiseIds[9]).toBe('premise_10');
+    expect(argument.conclusionIds[0]).toBe('conclusion_1');
+    expect(argument.conclusionIds[9]).toBe('conclusion_10');
   });
 
-  it('should handle all valid usage types', () => {
-    const usageTypes: Array<'premise' | 'conclusion'> = ['premise', 'conclusion'];
-
-    usageTypes.forEach((usage, index) => {
-      const orderedSet: OrderedSetDTO = {
-        id: `set_${usage}`,
-        statementIds: ['stmt_1'],
-        usageCount: 1,
-        usedBy: [
-          {
-            argumentId: `arg_${index}`,
-            usage,
-          },
-        ],
-      };
-
-      expect(orderedSet.usedBy[0]?.usage).toBe(usage);
-    });
-  });
-
-  it('should handle zero usage count', () => {
-    const orderedSet: OrderedSetDTO = {
-      id: 'set_unused',
-      statementIds: ['stmt_1', 'stmt_2'],
-      usageCount: 0,
-      usedBy: [],
+  it('should handle premise-only atomic argument', () => {
+    const argument: AtomicArgumentDTO = {
+      id: 'arg_premise_only',
+      premiseIds: ['stmt_1', 'stmt_2'],
+      conclusionIds: [],
     };
 
-    expect(orderedSet.usageCount).toBe(0);
-    expect(orderedSet.usedBy).toHaveLength(0);
+    expect(argument.premiseIds).toEqual(['stmt_1', 'stmt_2']);
+    expect(argument.conclusionIds).toEqual([]);
   });
 
-  it('should handle large usage count', () => {
-    const usedBy = Array.from({ length: 100 }, (_, i) => ({
-      argumentId: `arg_${i}`,
-      usage: (i % 2 === 0 ? 'premise' : 'conclusion') as 'premise' | 'conclusion',
-    }));
-
-    const orderedSet: OrderedSetDTO = {
-      id: 'set_heavily_used',
-      statementIds: ['stmt_shared'],
-      usageCount: 100,
-      usedBy,
+  it('should handle conclusion-only atomic argument', () => {
+    const argument: AtomicArgumentDTO = {
+      id: 'arg_conclusion_only',
+      premiseIds: [],
+      conclusionIds: ['stmt_3', 'stmt_4'],
     };
 
-    expect(orderedSet.usageCount).toBe(100);
-    expect(orderedSet.usedBy).toHaveLength(100);
+    expect(argument.premiseIds).toEqual([]);
+    expect(argument.conclusionIds).toEqual(['stmt_3', 'stmt_4']);
+  });
+
+  it('should handle atomic argument with side labels', () => {
+    const argument: AtomicArgumentDTO = {
+      id: 'arg_with_labels',
+      premiseIds: ['stmt_1'],
+      conclusionIds: ['stmt_2'],
+      sideLabels: {
+        left: 'Modus Ponens',
+        right: 'Classical Logic',
+      },
+    };
+
+    expect(argument.sideLabels?.left).toBe('Modus Ponens');
+    expect(argument.sideLabels?.right).toBe('Classical Logic');
   });
 
   it('should handle various ID formats', () => {
     const idFormats = [
-      'set_123',
-      'ordered-set-456',
-      'SET_UPPERCASE',
-      'set.with.dots',
-      'set_with_underscores',
+      'arg_123',
+      'atomic-argument-456',
+      'ARG_UPPERCASE',
+      'arg.with.dots',
+      'arg_with_underscores',
       '550e8400-e29b-41d4-a716-446655440000',
     ];
 
     idFormats.forEach((id) => {
-      const orderedSet: OrderedSetDTO = {
+      const argument: AtomicArgumentDTO = {
         id,
-        statementIds: [],
-        usageCount: 0,
-        usedBy: [],
+        premiseIds: [],
+        conclusionIds: [],
       };
 
-      expect(orderedSet.id).toBe(id);
+      expect(argument.id).toBe(id);
     });
   });
 
-  it('should handle duplicate argument usage', () => {
-    const orderedSet: OrderedSetDTO = {
-      id: 'set_duplicate_usage',
-      statementIds: ['stmt_1'],
-      usageCount: 2,
-      usedBy: [
-        {
-          argumentId: 'arg_same',
-          usage: 'premise',
-        },
-        {
-          argumentId: 'arg_same',
-          usage: 'conclusion',
-        },
-      ],
+  it('should handle duplicate statement IDs in premises', () => {
+    const argument: AtomicArgumentDTO = {
+      id: 'arg_duplicate_premises',
+      premiseIds: ['stmt_1', 'stmt_2', 'stmt_1'], // Duplicate allowed in array
+      conclusionIds: ['stmt_3'],
     };
 
-    expect(orderedSet.usedBy).toHaveLength(2);
-    expect(orderedSet.usedBy[0]?.argumentId).toBe('arg_same');
-    expect(orderedSet.usedBy[1]?.argumentId).toBe('arg_same');
-    expect(orderedSet.usedBy[0]?.usage).toBe('premise');
-    expect(orderedSet.usedBy[1]?.usage).toBe('conclusion');
+    expect(argument.premiseIds).toHaveLength(3);
+    expect(argument.premiseIds[0]).toBe('stmt_1');
+    expect(argument.premiseIds[1]).toBe('stmt_2');
+    expect(argument.premiseIds[2]).toBe('stmt_1');
+    expect(argument.conclusionIds).toEqual(['stmt_3']);
   });
 
   it('should handle special characters in IDs', () => {
-    const orderedSet: OrderedSetDTO = {
-      id: 'set@special#chars',
-      statementIds: ['stmt@special', 'stmt#with%encoding'],
-      usageCount: 1,
-      usedBy: [
-        {
-          argumentId: 'arg@special',
-          usage: 'premise',
-        },
-      ],
+    const argument: AtomicArgumentDTO = {
+      id: 'arg@special#chars',
+      premiseIds: ['stmt@special', 'stmt#with%encoding'],
+      conclusionIds: ['stmt@result'],
     };
 
-    expect(orderedSet.id).toBe('set@special#chars');
-    expect(orderedSet.statementIds[0]).toBe('stmt@special');
-    expect(orderedSet.usedBy[0]?.argumentId).toBe('arg@special');
+    expect(argument.id).toBe('arg@special#chars');
+    expect(argument.premiseIds[0]).toBe('stmt@special');
+    expect(argument.premiseIds[1]).toBe('stmt#with%encoding');
+    expect(argument.conclusionIds[0]).toBe('stmt@result');
   });
 });
 
-describe('AtomicArgumentDTO', () => {
+describe('AtomicArgumentDTO Advanced Features', () => {
   it('should handle complete atomic argument', () => {
     const argument: AtomicArgumentDTO = {
       id: 'arg_12345',
-      premiseSetId: 'set_premise',
-      conclusionSetId: 'set_conclusion',
+      premiseIds: ['stmt_1', 'stmt_2'],
+      conclusionIds: ['stmt_3'],
       sideLabels: {
         left: 'Modus Ponens',
         right: 'Classical Logic Ch. 3',
@@ -234,54 +182,54 @@ describe('AtomicArgumentDTO', () => {
     };
 
     expect(argument.id).toBe('arg_12345');
-    expect(argument.premiseSetId).toBe('set_premise');
-    expect(argument.conclusionSetId).toBe('set_conclusion');
+    expect(argument.premiseIds).toEqual(['stmt_1', 'stmt_2']);
+    expect(argument.conclusionIds).toEqual(['stmt_3']);
     expect(argument.sideLabels?.left).toBe('Modus Ponens');
     expect(argument.sideLabels?.right).toBe('Classical Logic Ch. 3');
   });
 
-  it('should handle argument without premise set', () => {
+  it('should handle argument without premises', () => {
     const argument: AtomicArgumentDTO = {
       id: 'arg_no_premise',
-      premiseSetId: null,
-      conclusionSetId: 'set_conclusion',
+      premiseIds: [],
+      conclusionIds: ['stmt_1', 'stmt_2'],
     };
 
     expect(argument.id).toBe('arg_no_premise');
-    expect(argument.premiseSetId).toBeNull();
-    expect(argument.conclusionSetId).toBe('set_conclusion');
+    expect(argument.premiseIds).toEqual([]);
+    expect(argument.conclusionIds).toEqual(['stmt_1', 'stmt_2']);
     expect(argument.sideLabels).toBeUndefined();
   });
 
-  it('should handle argument without conclusion set', () => {
+  it('should handle argument without conclusions', () => {
     const argument: AtomicArgumentDTO = {
       id: 'arg_no_conclusion',
-      premiseSetId: 'set_premise',
-      conclusionSetId: null,
+      premiseIds: ['stmt_1', 'stmt_2'],
+      conclusionIds: [],
     };
 
     expect(argument.id).toBe('arg_no_conclusion');
-    expect(argument.premiseSetId).toBe('set_premise');
-    expect(argument.conclusionSetId).toBeNull();
+    expect(argument.premiseIds).toEqual(['stmt_1', 'stmt_2']);
+    expect(argument.conclusionIds).toEqual([]);
   });
 
   it('should handle bootstrap argument', () => {
     const argument: AtomicArgumentDTO = {
       id: 'arg_bootstrap',
-      premiseSetId: null,
-      conclusionSetId: null,
+      premiseIds: [],
+      conclusionIds: [],
     };
 
     expect(argument.id).toBe('arg_bootstrap');
-    expect(argument.premiseSetId).toBeNull();
-    expect(argument.conclusionSetId).toBeNull();
+    expect(argument.premiseIds).toEqual([]);
+    expect(argument.conclusionIds).toEqual([]);
   });
 
   it('should handle argument with only left side label', () => {
     const argument: AtomicArgumentDTO = {
       id: 'arg_left_only',
-      premiseSetId: 'set_premise',
-      conclusionSetId: 'set_conclusion',
+      premiseIds: ['stmt_1'],
+      conclusionIds: ['stmt_2'],
       sideLabels: {
         left: 'Inference Rule',
       },
@@ -294,8 +242,8 @@ describe('AtomicArgumentDTO', () => {
   it('should handle argument with only right side label', () => {
     const argument: AtomicArgumentDTO = {
       id: 'arg_right_only',
-      premiseSetId: 'set_premise',
-      conclusionSetId: 'set_conclusion',
+      premiseIds: ['stmt_1'],
+      conclusionIds: ['stmt_2'],
       sideLabels: {
         right: 'Reference Text',
       },
@@ -308,8 +256,8 @@ describe('AtomicArgumentDTO', () => {
   it('should handle argument with empty side labels', () => {
     const argument: AtomicArgumentDTO = {
       id: 'arg_empty_labels',
-      premiseSetId: 'set_premise',
-      conclusionSetId: 'set_conclusion',
+      premiseIds: ['stmt_1'],
+      conclusionIds: ['stmt_2'],
       sideLabels: {},
     };
 
@@ -331,8 +279,8 @@ describe('AtomicArgumentDTO', () => {
     idFormats.forEach((id) => {
       const argument: AtomicArgumentDTO = {
         id,
-        premiseSetId: null,
-        conclusionSetId: null,
+        premiseIds: [],
+        conclusionIds: [],
       };
 
       expect(argument.id).toBe(id);
@@ -351,8 +299,8 @@ describe('AtomicArgumentDTO', () => {
 
     const argument: AtomicArgumentDTO = {
       id: 'arg_long_labels',
-      premiseSetId: 'set_premise',
-      conclusionSetId: 'set_conclusion',
+      premiseIds: ['stmt_1'],
+      conclusionIds: ['stmt_2'],
       sideLabels: {
         left: longLeft,
         right: longRight,
@@ -368,8 +316,8 @@ describe('AtomicArgumentDTO', () => {
   it('should handle special characters in side labels', () => {
     const argument: AtomicArgumentDTO = {
       id: 'arg_special_labels',
-      premiseSetId: 'set_premise',
-      conclusionSetId: 'set_conclusion',
+      premiseIds: ['stmt_1'],
+      conclusionIds: ['stmt_2'],
       sideLabels: {
         left: 'Rule: ∀x (P(x) → Q(x))',
         right: 'Ref: "Logic & Philosophy" pg. 42',
@@ -383,8 +331,8 @@ describe('AtomicArgumentDTO', () => {
   it('should handle empty string side labels', () => {
     const argument: AtomicArgumentDTO = {
       id: 'arg_empty_string_labels',
-      premiseSetId: 'set_premise',
-      conclusionSetId: 'set_conclusion',
+      premiseIds: ['stmt_1'],
+      conclusionIds: ['stmt_2'],
       sideLabels: {
         left: '',
         right: '',
@@ -766,49 +714,56 @@ describe('ValidationErrorDTO', () => {
 });
 
 describe('property-based testing', () => {
-  it('should handle arbitrary ordered set DTOs', () => {
-    fc.assert(
-      fc.property(
-        fc.record({
-          id: fc.string(),
-          statementIds: fc.array(fc.string()),
-          usageCount: fc.nat(),
-          usedBy: fc.array(
-            fc.record({
-              argumentId: fc.string(),
-              usage: fc.constantFrom('premise', 'conclusion'),
-            }),
-          ),
-        }),
-        (params) => {
-          const orderedSet: OrderedSetDTO = params;
-
-          expect(typeof orderedSet.id).toBe('string');
-          expect(Array.isArray(orderedSet.statementIds)).toBe(true);
-          expect(typeof orderedSet.usageCount).toBe('number');
-          expect(orderedSet.usageCount).toBeGreaterThanOrEqual(0);
-          expect(Array.isArray(orderedSet.usedBy)).toBe(true);
-
-          orderedSet.statementIds.forEach((stmtId) => {
-            expect(typeof stmtId).toBe('string');
-          });
-
-          orderedSet.usedBy.forEach((usage) => {
-            expect(typeof usage.argumentId).toBe('string');
-            expect(['premise', 'conclusion']).toContain(usage.usage);
-          });
-        },
-      ),
-    );
-  });
-
   it('should handle arbitrary atomic argument DTOs', () => {
     fc.assert(
       fc.property(
         fc.record({
           id: fc.string(),
-          premiseSetId: fc.option(fc.string(), { nil: null }),
-          conclusionSetId: fc.option(fc.string(), { nil: null }),
+          premiseIds: fc.array(fc.string()),
+          conclusionIds: fc.array(fc.string()),
+          sideLabels: fc.option(
+            fc.record({
+              left: fc.option(fc.string(), { nil: undefined }),
+              right: fc.option(fc.string(), { nil: undefined }),
+            }),
+            { nil: undefined },
+          ),
+        }),
+        (params) => {
+          const argument: AtomicArgumentDTO = params;
+
+          expect(typeof argument.id).toBe('string');
+          expect(Array.isArray(argument.premiseIds)).toBe(true);
+          expect(Array.isArray(argument.conclusionIds)).toBe(true);
+
+          argument.premiseIds.forEach((stmtId) => {
+            expect(typeof stmtId).toBe('string');
+          });
+
+          argument.conclusionIds.forEach((stmtId) => {
+            expect(typeof stmtId).toBe('string');
+          });
+
+          if (argument.sideLabels !== undefined) {
+            if (argument.sideLabels.left !== undefined) {
+              expect(typeof argument.sideLabels.left).toBe('string');
+            }
+            if (argument.sideLabels.right !== undefined) {
+              expect(typeof argument.sideLabels.right).toBe('string');
+            }
+          }
+        },
+      ),
+    );
+  });
+
+  it('should handle arbitrary atomic argument DTOs with comprehensive validation', () => {
+    fc.assert(
+      fc.property(
+        fc.record({
+          id: fc.string(),
+          premiseIds: fc.array(fc.string()),
+          conclusionIds: fc.array(fc.string()),
           sideLabels: fc.option(
             fc.record({
               left: fc.option(fc.string(), { nil: undefined }),
@@ -820,8 +775,8 @@ describe('property-based testing', () => {
         (params) => {
           const argument: AtomicArgumentDTO = {
             id: params.id,
-            premiseSetId: params.premiseSetId,
-            conclusionSetId: params.conclusionSetId,
+            premiseIds: params.premiseIds,
+            conclusionIds: params.conclusionIds,
             ...(params.sideLabels !== undefined && {
               sideLabels: {
                 ...(params.sideLabels.left !== undefined && { left: params.sideLabels.left }),
@@ -831,14 +786,16 @@ describe('property-based testing', () => {
           };
 
           expect(typeof argument.id).toBe('string');
+          expect(Array.isArray(argument.premiseIds)).toBe(true);
+          expect(Array.isArray(argument.conclusionIds)).toBe(true);
 
-          if (argument.premiseSetId !== null) {
-            expect(typeof argument.premiseSetId).toBe('string');
-          }
+          argument.premiseIds.forEach((id) => {
+            expect(typeof id).toBe('string');
+          });
 
-          if (argument.conclusionSetId !== null) {
-            expect(typeof argument.conclusionSetId).toBe('string');
-          }
+          argument.conclusionIds.forEach((id) => {
+            expect(typeof id).toBe('string');
+          });
 
           if (argument.sideLabels !== undefined) {
             if (argument.sideLabels.left !== undefined) {
@@ -957,43 +914,34 @@ describe('property-based testing', () => {
 });
 
 describe('integration scenarios', () => {
-  it('should handle ordered set with multiple argument usages', () => {
-    const orderedSet: OrderedSetDTO = {
-      id: 'set_shared_logic',
-      statementIds: ['stmt_major_premise', 'stmt_minor_premise'],
-      usageCount: 3,
-      usedBy: [
-        {
-          argumentId: 'arg_syllogism_1',
-          usage: 'premise',
-        },
-        {
-          argumentId: 'arg_syllogism_2',
-          usage: 'premise',
-        },
-        {
-          argumentId: 'arg_conclusion_derivation',
-          usage: 'conclusion',
-        },
-      ],
+  it('should handle complex atomic argument structure', () => {
+    const complexArgument: AtomicArgumentDTO = {
+      id: 'arg_complex_logic',
+      premiseIds: ['stmt_major_premise', 'stmt_minor_premise', 'stmt_assumption'],
+      conclusionIds: ['stmt_intermediate_conclusion', 'stmt_derived_result'],
+      sideLabels: {
+        left: 'Complex Syllogism',
+        right: 'Formal Logic Reference',
+      },
     };
 
-    expect(orderedSet.usageCount).toBe(3);
-    expect(orderedSet.usedBy).toHaveLength(3);
-
-    const premiseUsages = orderedSet.usedBy.filter((usage) => usage.usage === 'premise');
-    const conclusionUsages = orderedSet.usedBy.filter((usage) => usage.usage === 'conclusion');
-
-    expect(premiseUsages).toHaveLength(2);
-    expect(conclusionUsages).toHaveLength(1);
+    expect(complexArgument.premiseIds).toHaveLength(3);
+    expect(complexArgument.conclusionIds).toHaveLength(2);
+    expect(complexArgument.premiseIds).toContain('stmt_major_premise');
+    expect(complexArgument.premiseIds).toContain('stmt_minor_premise');
+    expect(complexArgument.premiseIds).toContain('stmt_assumption');
+    expect(complexArgument.conclusionIds).toContain('stmt_intermediate_conclusion');
+    expect(complexArgument.conclusionIds).toContain('stmt_derived_result');
+    expect(complexArgument.sideLabels?.left).toBe('Complex Syllogism');
+    expect(complexArgument.sideLabels?.right).toBe('Formal Logic Reference');
   });
 
   it('should handle complete argument chain structure', () => {
     // First argument: premises → intermediate conclusion
     const arg1: AtomicArgumentDTO = {
       id: 'arg_step_1',
-      premiseSetId: 'set_initial_premises',
-      conclusionSetId: 'set_intermediate_conclusion',
+      premiseIds: ['stmt_p1', 'stmt_p2'],
+      conclusionIds: ['stmt_intermediate'],
       sideLabels: {
         left: 'Modus Ponens',
         right: 'Step 1',
@@ -1003,36 +951,26 @@ describe('integration scenarios', () => {
     // Second argument: intermediate conclusion → final conclusion
     const arg2: AtomicArgumentDTO = {
       id: 'arg_step_2',
-      premiseSetId: 'set_intermediate_conclusion', // Same as arg1's conclusion
-      conclusionSetId: 'set_final_conclusion',
+      premiseIds: ['stmt_intermediate', 'stmt_additional'], // Reuses intermediate from arg1
+      conclusionIds: ['stmt_final'],
       sideLabels: {
         left: 'Universal Instantiation',
         right: 'Step 2',
       },
     };
 
-    // Shared ordered set connecting the arguments
-    const sharedSet: OrderedSetDTO = {
-      id: 'set_intermediate_conclusion',
-      statementIds: ['stmt_intermediate'],
-      usageCount: 2,
-      usedBy: [
-        {
-          argumentId: 'arg_step_1',
-          usage: 'conclusion',
-        },
-        {
-          argumentId: 'arg_step_2',
-          usage: 'premise',
-        },
-      ],
-    };
+    // Verify the chain structure
+    expect(arg1.conclusionIds).toContain('stmt_intermediate');
+    expect(arg2.premiseIds).toContain('stmt_intermediate');
+    expect(arg1.premiseIds).toHaveLength(2);
+    expect(arg1.conclusionIds).toHaveLength(1);
+    expect(arg2.premiseIds).toHaveLength(2);
+    expect(arg2.conclusionIds).toHaveLength(1);
 
-    expect(arg1.conclusionSetId).toBe(arg2.premiseSetId);
-    expect(sharedSet.id).toBe(arg1.conclusionSetId);
-    expect(sharedSet.usedBy).toHaveLength(2);
-    expect(sharedSet.usedBy[0]?.usage).toBe('conclusion');
-    expect(sharedSet.usedBy[1]?.usage).toBe('premise');
+    // Verify shared statement connects the arguments
+    const sharedStatement = 'stmt_intermediate';
+    expect(arg1.conclusionIds).toContain(sharedStatement);
+    expect(arg2.premiseIds).toContain(sharedStatement);
   });
 
   it('should handle tree with complex positioning', () => {
@@ -1089,32 +1027,19 @@ describe('integration scenarios', () => {
     // Bootstrap argument (empty starting point)
     const bootstrapArg: AtomicArgumentDTO = {
       id: 'arg_bootstrap',
-      premiseSetId: null,
-      conclusionSetId: null,
+      premiseIds: [],
+      conclusionIds: [],
     };
 
     // First real argument using external premises
     const firstArg: AtomicArgumentDTO = {
       id: 'arg_first_step',
-      premiseSetId: 'set_axioms',
-      conclusionSetId: 'set_first_conclusion',
+      premiseIds: ['stmt_axiom_1', 'stmt_axiom_2', 'stmt_definition_1'],
+      conclusionIds: ['stmt_first_conclusion'],
       sideLabels: {
         left: 'Axiom Application',
         right: 'Foundation',
       },
-    };
-
-    // Shared axiom set
-    const axiomSet: OrderedSetDTO = {
-      id: 'set_axioms',
-      statementIds: ['stmt_axiom_1', 'stmt_axiom_2', 'stmt_definition_1'],
-      usageCount: 1,
-      usedBy: [
-        {
-          argumentId: 'arg_first_step',
-          usage: 'premise',
-        },
-      ],
     };
 
     // Tree structure containing all arguments
@@ -1126,10 +1051,13 @@ describe('integration scenarios', () => {
       rootNodeIds: ['node_bootstrap', 'node_first_step'],
     };
 
-    expect(bootstrapArg.premiseSetId).toBeNull();
-    expect(bootstrapArg.conclusionSetId).toBeNull();
-    expect(firstArg.premiseSetId).toBe(axiomSet.id);
-    expect(axiomSet.statementIds).toHaveLength(3);
+    expect(bootstrapArg.premiseIds).toEqual([]);
+    expect(bootstrapArg.conclusionIds).toEqual([]);
+    expect(firstArg.premiseIds).toHaveLength(3);
+    expect(firstArg.premiseIds).toContain('stmt_axiom_1');
+    expect(firstArg.premiseIds).toContain('stmt_axiom_2');
+    expect(firstArg.premiseIds).toContain('stmt_definition_1');
+    expect(firstArg.conclusionIds).toEqual(['stmt_first_conclusion']);
     expect(proofTree.rootNodeIds).toContain('node_bootstrap');
     expect(proofTree.rootNodeIds).toContain('node_first_step');
   });
@@ -1243,30 +1171,32 @@ describe('Shared Types Executable Functions', () => {
       });
     });
 
-    describe('isOrderedSetDTO', () => {
-      it('should return true for valid OrderedSetDTO', () => {
+    describe('isAtomicArgumentDTO detailed', () => {
+      it('should return true for valid AtomicArgumentDTO with arrays', () => {
         const validDTO = {
-          id: 'set-123',
-          statementIds: ['stmt-1', 'stmt-2'],
-          usageCount: 1,
-          usedBy: [{ argumentId: 'arg-1', usage: 'premise' }],
+          id: 'arg-123',
+          premiseIds: ['stmt-1', 'stmt-2'],
+          conclusionIds: ['stmt-3'],
         };
-        expect(isOrderedSetDTO(validDTO)).toBe(true);
+        expect(isAtomicArgumentDTO(validDTO)).toBe(true);
       });
 
-      it('should return false for invalid DTOs', () => {
-        expect(isOrderedSetDTO(null)).toBe(false);
-        expect(isOrderedSetDTO({})).toBe(false);
-        expect(isOrderedSetDTO({ id: 'set-123' })).toBe(false);
+      it('should return false for DTOs with old property names', () => {
+        const invalidDTO = {
+          id: 'arg-123',
+          premiseSetId: 'set-1', // Old property name
+          conclusionSetId: 'set-2', // Old property name
+        };
+        expect(isAtomicArgumentDTO(invalidDTO)).toBe(false);
       });
     });
 
-    describe('isAtomicArgumentDTO', () => {
-      it('should return true for valid AtomicArgumentDTO', () => {
+    describe('isAtomicArgumentDTO complete', () => {
+      it('should return true for valid AtomicArgumentDTO with statement arrays', () => {
         const validDTO = {
           id: 'arg-123',
-          premiseSetId: 'set-1',
-          conclusionSetId: 'set-2',
+          premiseIds: ['stmt-1', 'stmt-2'],
+          conclusionIds: ['stmt-3'],
         };
         expect(isAtomicArgumentDTO(validDTO)).toBe(true);
       });
@@ -1317,31 +1247,31 @@ describe('Shared Types Executable Functions', () => {
   });
 
   describe('Factory Functions', () => {
-    describe('createOrderedSetDTO', () => {
-      it('should create valid OrderedSetDTO', () => {
-        const dto = createOrderedSetDTO('set-123', ['stmt-1', 'stmt-2'], 0, []);
-        expect(dto.id).toBe('set-123');
-        expect(dto.statementIds).toEqual(['stmt-1', 'stmt-2']);
-        expect(dto.usageCount).toBe(0);
-        expect(dto.usedBy).toEqual([]);
-        expect(isOrderedSetDTO(dto)).toBe(true);
+    describe('createAtomicArgumentDTO updated', () => {
+      it('should create valid AtomicArgumentDTO with statement arrays', () => {
+        const dto = createAtomicArgumentDTO('arg-123', ['stmt-1', 'stmt-2'], ['stmt-3']);
+        expect(dto.id).toBe('arg-123');
+        expect(dto.premiseIds).toEqual(['stmt-1', 'stmt-2']);
+        expect(dto.conclusionIds).toEqual(['stmt-3']);
+        expect(dto.sideLabels).toBeUndefined();
+        expect(isAtomicArgumentDTO(dto)).toBe(true);
       });
     });
 
-    describe('createAtomicArgumentDTO', () => {
-      it('should create valid AtomicArgumentDTO', () => {
-        const dto = createAtomicArgumentDTO('arg-123', 'set-1', 'set-2');
+    describe('createAtomicArgumentDTO with arrays', () => {
+      it('should create valid AtomicArgumentDTO with statement arrays', () => {
+        const dto = createAtomicArgumentDTO('arg-123', ['stmt-1'], ['stmt-2']);
         expect(dto.id).toBe('arg-123');
-        expect(dto.premiseSetId).toBe('set-1');
-        expect(dto.conclusionSetId).toBe('set-2');
+        expect(dto.premiseIds).toEqual(['stmt-1']);
+        expect(dto.conclusionIds).toEqual(['stmt-2']);
         expect(dto.sideLabels).toBeUndefined();
         expect(isAtomicArgumentDTO(dto)).toBe(true);
       });
 
-      it('should handle null premise/conclusion sets', () => {
-        const dto = createAtomicArgumentDTO('arg-123', null, null);
-        expect(dto.premiseSetId).toBeNull();
-        expect(dto.conclusionSetId).toBeNull();
+      it('should handle empty premise/conclusion arrays', () => {
+        const dto = createAtomicArgumentDTO('arg-123', [], []);
+        expect(dto.premiseIds).toEqual([]);
+        expect(dto.conclusionIds).toEqual([]);
       });
     });
 
@@ -1371,22 +1301,9 @@ describe('Shared Types Executable Functions', () => {
   });
 
   describe('Validation Functions', () => {
-    describe('validateOrderedSetDTO', () => {
-      it('should return empty array for valid DTO', () => {
-        const validDTO = createOrderedSetDTO('set-123', ['stmt-1'], 0, []);
-        const errors = validateOrderedSetDTO(validDTO);
-        expect(errors).toEqual([]);
-      });
-
-      it('should return errors for invalid DTO', () => {
-        const errors = validateOrderedSetDTO({});
-        expect(errors.length).toBeGreaterThan(0);
-      });
-    });
-
     describe('validateAtomicArgumentDTO', () => {
       it('should return empty array for valid DTO', () => {
-        const validDTO = createAtomicArgumentDTO('arg-123', 'set-1', 'set-2');
+        const validDTO = createAtomicArgumentDTO('arg-123', ['premise-1'], ['conclusion-1']);
         const errors = validateAtomicArgumentDTO(validDTO);
         expect(errors).toEqual([]);
       });
@@ -1399,10 +1316,10 @@ describe('Shared Types Executable Functions', () => {
 
     describe('validateTreeDTO', () => {
       it('should return empty array for valid DTO', () => {
-        const validDTO = createTreeDTO('tree-123', { x: 0, y: 0 }, 0, [], {
-          width: 100,
-          height: 200,
-        });
+        const position = Position2D.create(0, 0).value;
+        const nodeCount = NodeCount.create(0).value;
+        const bounds = Dimensions.create(100, 200).value;
+        const validDTO = createTreeDTO('tree-123', position, nodeCount, [], bounds);
         const errors = validateTreeDTO(validDTO);
         expect(errors).toEqual([]);
       });
@@ -1413,10 +1330,12 @@ describe('Shared Types Executable Functions', () => {
       });
 
       it('should detect trees with zero nodes but root node IDs', () => {
+        const position = Position2D.create(0, 0).value;
+        const nodeCount = NodeCount.create(0).value;
         const treeWithZeroNodesButRoots = {
           id: 'tree-inconsistent-1',
-          position: { x: 0, y: 0 },
-          nodeCount: 0,
+          position,
+          nodeCount,
           rootNodeIds: ['node-1', 'node-2'], // Should be empty if nodeCount is 0
         };
 
@@ -1425,10 +1344,12 @@ describe('Shared Types Executable Functions', () => {
       });
 
       it('should detect trees with nodes but no root node IDs', () => {
+        const position = Position2D.create(0, 0).value;
+        const nodeCount = NodeCount.create(5).value;
         const treeWithNodesButNoRoots = {
           id: 'tree-inconsistent-2',
-          position: { x: 0, y: 0 },
-          nodeCount: 5,
+          position,
+          nodeCount,
           rootNodeIds: [], // Should have at least one root if nodeCount > 0
         };
 
@@ -1437,10 +1358,12 @@ describe('Shared Types Executable Functions', () => {
       });
 
       it('should allow valid tree with nodes and roots', () => {
+        const position = Position2D.create(100, 200).value;
+        const nodeCount = NodeCount.create(3).value;
         const validTree = {
           id: 'tree-valid',
-          position: { x: 100, y: 200 },
-          nodeCount: 3,
+          position,
+          nodeCount,
           rootNodeIds: ['root-1'],
         };
 
@@ -1451,77 +1374,34 @@ describe('Shared Types Executable Functions', () => {
   });
 
   describe('Enhanced validation and edge case coverage', () => {
-    describe('validateOrderedSetDTO comprehensive tests', () => {
-      it('should detect usage count mismatch', () => {
-        const dtoWithMismatch = {
-          id: 'set-mismatch',
-          statementIds: ['stmt-1'],
-          usageCount: 5, // Mismatches usedBy array length
-          usedBy: [
-            { argumentId: 'arg-1', usage: 'premise' as const },
-            { argumentId: 'arg-2', usage: 'conclusion' as const },
-          ], // Only 2 items but usageCount is 5
-        };
-
-        const errors = validateOrderedSetDTO(dtoWithMismatch);
-        expect(errors).toContain('Usage count does not match usedBy array length');
-      });
-
-      it('should detect duplicate statement IDs', () => {
-        const dtoWithDuplicates = {
-          id: 'set-duplicates',
-          statementIds: ['stmt-1', 'stmt-2', 'stmt-1'], // Duplicate stmt-1
-          usageCount: 1,
-          usedBy: [{ argumentId: 'arg-1', usage: 'premise' as const }],
-        };
-
-        const errors = validateOrderedSetDTO(dtoWithDuplicates);
-        expect(errors).toContain('Duplicate statement IDs found');
-      });
-
-      it('should handle multiple validation errors', () => {
-        const dtoWithMultipleErrors = {
-          id: 'set-multi-error',
-          statementIds: ['stmt-1', 'stmt-1'], // Duplicates
-          usageCount: 5, // Mismatch
-          usedBy: [{ argumentId: 'arg-1', usage: 'premise' as const }], // Only 1 item
-        };
-
-        const errors = validateOrderedSetDTO(dtoWithMultipleErrors);
-        expect(errors).toHaveLength(2);
-        expect(errors).toContain('Usage count does not match usedBy array length');
-        expect(errors).toContain('Duplicate statement IDs found');
-      });
-    });
-
     describe('validateAtomicArgumentDTO comprehensive tests', () => {
-      it('should detect arguments without premise or conclusion sets', () => {
+      it('should detect arguments without premise or conclusion statements', () => {
         const emptyArgument = {
           id: 'arg-empty',
-          premiseSetId: null,
-          conclusionSetId: null,
+          premiseIds: [],
+          conclusionIds: [],
         };
 
         const errors = validateAtomicArgumentDTO(emptyArgument);
-        expect(errors).toContain('Atomic argument must have at least premise or conclusion set');
+        expect(errors).toContain('Atomic argument must have at least one premise or conclusion');
       });
 
-      it('should allow arguments with only premise set', () => {
+      it('should allow arguments with only premises', () => {
         const premiseOnlyArg = {
           id: 'arg-premise-only',
-          premiseSetId: 'set-premise',
-          conclusionSetId: null,
+          premiseIds: ['stmt-1', 'stmt-2'],
+          conclusionIds: [],
         };
 
         const errors = validateAtomicArgumentDTO(premiseOnlyArg);
         expect(errors).toEqual([]);
       });
 
-      it('should allow arguments with only conclusion set', () => {
+      it('should allow arguments with only conclusions', () => {
         const conclusionOnlyArg = {
           id: 'arg-conclusion-only',
-          premiseSetId: null,
-          conclusionSetId: 'set-conclusion',
+          premiseIds: [],
+          conclusionIds: ['stmt-1', 'stmt-2'],
         };
 
         const errors = validateAtomicArgumentDTO(conclusionOnlyArg);
@@ -1530,28 +1410,19 @@ describe('Shared Types Executable Functions', () => {
     });
 
     describe('Factory function error conditions', () => {
-      it('should handle createOrderedSetDTO error conditions', () => {
-        expect(() => createOrderedSetDTO('', ['stmt-1'], 0, [])).toThrow(
-          'OrderedSet ID cannot be empty',
-        );
-        expect(() => createOrderedSetDTO('set-1', ['valid', '', 'another'], 0, [])).toThrow(
-          'Statement IDs must be non-empty strings',
-        );
-        expect(() => createOrderedSetDTO('set-1', ['stmt-1'], -1, [])).toThrow(
-          'Usage count must be a non-negative integer',
-        );
-        expect(() => createOrderedSetDTO('set-1', ['stmt-1'], 3.5, [])).toThrow(
-          'Usage count must be a non-negative integer',
-        );
-      });
-
       it('should handle createAtomicArgumentDTO error conditions', () => {
-        expect(() => createAtomicArgumentDTO('', 'set-1', 'set-2')).toThrow(
+        expect(() => createAtomicArgumentDTO('', ['stmt-1'], ['stmt-2'])).toThrow(
           'Argument ID cannot be empty',
         );
-        expect(() => createAtomicArgumentDTO('   ', 'set-1', 'set-2')).toThrow(
+        expect(() => createAtomicArgumentDTO('   ', ['stmt-1'], ['stmt-2'])).toThrow(
           'Argument ID cannot be empty',
         );
+        expect(() =>
+          createAtomicArgumentDTO('arg-1', ['valid', '', 'another'], ['stmt-2']),
+        ).toThrow('Premise IDs must be non-empty strings');
+        expect(() =>
+          createAtomicArgumentDTO('arg-1', ['stmt-1'], ['valid', '', 'another']),
+        ).toThrow('Conclusion IDs must be non-empty strings');
       });
 
       it('should handle createTreeDTO error conditions', () => {
@@ -1616,16 +1487,16 @@ describe('Shared Types Executable Functions', () => {
         it('should handle isAtomicArgumentDTO with invalid side labels', () => {
           const invalidSideLabels1 = {
             id: 'arg-1',
-            premiseSetId: 'set-1',
-            conclusionSetId: 'set-2',
+            premiseIds: ['stmt-1'],
+            conclusionIds: ['stmt-2'],
             sideLabels: null, // Should be object
           };
           expect(isAtomicArgumentDTO(invalidSideLabels1)).toBe(false);
 
           const invalidSideLabels2 = {
             id: 'arg-1',
-            premiseSetId: 'set-1',
-            conclusionSetId: 'set-2',
+            premiseIds: ['stmt-1'],
+            conclusionIds: ['stmt-2'],
             sideLabels: { left: 123 }, // Should be string
           };
           expect(isAtomicArgumentDTO(invalidSideLabels2)).toBe(false);

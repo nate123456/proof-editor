@@ -1,7 +1,7 @@
 import { err, ok, type Result } from 'neverthrow';
 import { Statement } from '../../domain/entities/Statement.js';
 import { ValidationError } from '../../domain/shared/result.js';
-import { StatementId } from '../../domain/shared/value-objects.js';
+import { StatementId } from '../../domain/shared/value-objects/index.js';
 import type { StatementDTO } from '../queries/statement-queries.js';
 
 /**

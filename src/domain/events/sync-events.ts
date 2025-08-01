@@ -4,7 +4,7 @@ import type {
   NodeId,
   TreeId,
   Version,
-} from '../shared/value-objects.js';
+} from '../shared/value-objects/index.js';
 import { DomainEvent } from './base-event.js';
 
 export class SyncConflictDetected extends DomainEvent {

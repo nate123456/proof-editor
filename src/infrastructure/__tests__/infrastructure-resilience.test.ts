@@ -9,6 +9,7 @@ import type { IPlatformPort } from '../../application/ports/IPlatformPort.js';
 import type { IUIPort } from '../../application/ports/IUIPort.js';
 import type { IViewStatePort } from '../../application/ports/IViewStatePort.js';
 import { ValidationError } from '../../domain/shared/result.js';
+import { DialogTitle, ViewType, WebviewId } from '../../domain/shared/value-objects/index.js';
 import { DomainEventBus } from '../events/DomainEventBus.js';
 import { EventBus } from '../events/EventBus.js';
 import { VSCodeFileSystemAdapter } from '../vscode/VSCodeFileSystemAdapter.js';
@@ -285,9 +286,9 @@ describe('Infrastructure Resilience and Error Recovery', () => {
 
       expect(() => {
         adapter.createWebviewPanel({
-          id: 'test-panel',
-          title: 'Test Panel',
-          viewType: 'test',
+          id: WebviewId.create('test-panel')._unsafeUnwrap(),
+          title: DialogTitle.create('Test Panel')._unsafeUnwrap(),
+          viewType: ViewType.create('test')._unsafeUnwrap(),
           showOptions: { viewColumn: 1 },
           retainContextWhenHidden: true,
           enableScripts: true,

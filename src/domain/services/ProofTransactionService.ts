@@ -11,6 +11,11 @@ import {
   TransactionId,
   type TransactionMetrics,
 } from '../interfaces/IProofTransaction.js';
+import {
+  type CompensationError,
+  TransactionLog,
+  type TransactionLogEntry,
+} from '../value-objects/TransactionLog.js';
 
 @injectable()
 export class ProofTransactionService implements IProofTransactionService {
@@ -164,6 +169,7 @@ class ProofTransaction implements IProofTransaction {
   readonly operations: ProofOperation[] = [];
   private active = true;
   private timeoutHandle: NodeJS.Timeout | undefined = undefined;
+  private transactionLog = TransactionLog.create();
 
   constructor(
     readonly transactionId: TransactionId,
@@ -174,6 +180,10 @@ class ProofTransaction implements IProofTransaction {
   }
 
   readonly startTime = new Date();
+
+  getTransactionLog(): TransactionLog {
+    return this.transactionLog;
+  }
 
   addOperation(operation: ProofOperation): Result<void, Error> {
     if (!this.active) {
@@ -209,6 +219,15 @@ class ProofTransaction implements IProofTransaction {
     try {
       for (const operation of this.operations) {
         const executeResult = await operation.execute();
+        const logEntry: TransactionLogEntry = {
+          type: 'operation',
+          operationId: operation.id || 'unknown',
+          timestamp: new Date(),
+          success: executeResult.isOk(),
+          error: executeResult.isErr() ? executeResult.error : undefined,
+        };
+        this.transactionLog = this.transactionLog.addEntry(logEntry);
+
         if (executeResult.isErr()) {
           if (this.config.enableCompensation) {
             await this.compensateExecutedOperations();
@@ -308,9 +327,29 @@ class ProofTransaction implements IProofTransaction {
     for (const operation of executedOperations) {
       try {
         await operation.compensate();
-      } catch (_error) {
-        // Ignore compensation errors to ensure all operations are attempted
-        // Even if one compensation fails, we continue with the others
+        const logEntry: TransactionLogEntry = {
+          type: 'compensation',
+          operationId: operation.id || 'unknown',
+          timestamp: new Date(),
+          success: true,
+        };
+        this.transactionLog = this.transactionLog.addEntry(logEntry);
+      } catch (error) {
+        const compensationError: CompensationError = {
+          operationId: operation.id || 'unknown',
+          error: error instanceof Error ? error : new Error(String(error)),
+          timestamp: new Date(),
+        };
+        this.transactionLog = this.transactionLog.addCompensationError(compensationError);
+
+        const logEntry: TransactionLogEntry = {
+          type: 'compensation',
+          operationId: operation.id || 'unknown',
+          timestamp: new Date(),
+          success: false,
+          error: error instanceof Error ? error : new Error(String(error)),
+        };
+        this.transactionLog = this.transactionLog.addEntry(logEntry);
       }
     }
   }

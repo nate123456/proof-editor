@@ -325,8 +325,8 @@ export class ExportService implements IExportService {
     const atomicArguments = yamlData.atomicArguments as Record<string, unknown>;
     for (const [id, argument] of Object.entries(document.atomicArguments)) {
       atomicArguments[id] = {
-        premises: argument.premiseSetId,
-        conclusions: argument.conclusionSetId,
+        premises: argument.premiseIds,
+        conclusions: argument.conclusionIds,
         ...(argument.sideLabels?.left && { sideLabel: argument.sideLabels.left }),
       };
     }

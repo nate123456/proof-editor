@@ -1,4 +1,11 @@
 import type { Result } from 'neverthrow';
+import type {
+  Architecture,
+  Dimensions,
+  ErrorCode,
+  ErrorMessage,
+  PlatformVersion,
+} from '../../domain/shared/value-objects/index.js';
 
 export interface IPlatformPort {
   // Platform information
@@ -30,9 +37,9 @@ export interface IPlatformPort {
 
 export interface PlatformInfo {
   type: 'vscode' | 'mobile' | 'web' | 'desktop';
-  version: string;
+  version: PlatformVersion;
   os: 'windows' | 'macos' | 'linux' | 'ios' | 'android';
-  arch: string;
+  arch: Architecture;
   isDebug: boolean;
 }
 
@@ -45,8 +52,7 @@ export interface InputCapabilities {
 }
 
 export interface DisplayCapabilities {
-  screenWidth: number;
-  screenHeight: number;
+  screenDimensions: Dimensions;
   devicePixelRatio: number;
   colorDepth: number;
   isHighContrast: boolean;
@@ -64,8 +70,8 @@ export type PlatformFeature =
   | 'keyboard-shortcuts';
 
 export interface PlatformError {
-  code: 'NOT_SUPPORTED' | 'PERMISSION_DENIED' | 'PLATFORM_ERROR';
-  message: string;
+  code: ErrorCode;
+  message: ErrorMessage;
 }
 
 export interface Disposable {

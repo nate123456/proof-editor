@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, test } from 'vitest';
 import { OrderedSet } from '../../entities/OrderedSet.js';
 import { ValidationError } from '../../shared/result.js';
-import { StatementId } from '../../shared/value-objects.js';
+import { StatementId } from '../../shared/value-objects/index.js';
 import { ProofDocument } from '../ProofDocument.js';
 
 describe('ProofDocument Aggregate', () => {

@@ -1,15 +1,15 @@
 import { describe, expect, test } from 'vitest';
 import { ProofAggregate } from '../../aggregates/ProofAggregate.js';
 import { ProofTreeAggregate } from '../../aggregates/ProofTreeAggregate.js';
-import { AtomicArgumentId } from '../../shared/value-objects.js';
+import { AtomicArgumentId } from '../../shared/value-objects/index.js';
 import { BootstrapService } from '../BootstrapService.js';
 
 describe('BootstrapService', () => {
   const service = new BootstrapService();
 
-  describe('initializeEmptyDocument', () => {
+  describe('ProofAggregate.createNew', () => {
     test('creates empty document ready for use', () => {
-      const doc = service.initializeEmptyDocument();
+      const doc = ProofAggregate.createNew();
 
       expect(doc.isOk()).toBe(true);
       if (doc.isOk()) {
@@ -22,7 +22,7 @@ describe('BootstrapService', () => {
 
   describe('createBootstrapArgument', () => {
     test('creates bootstrap argument without tree', () => {
-      const docResult = service.initializeEmptyDocument();
+      const docResult = ProofAggregate.createNew();
       expect(docResult.isOk()).toBe(true);
       if (!docResult.isOk()) return;
 
@@ -41,11 +41,11 @@ describe('BootstrapService', () => {
     });
 
     test('creates bootstrap argument with tree', () => {
-      const docResult = service.initializeEmptyDocument();
+      const docResult = ProofAggregate.createNew();
       expect(docResult.isOk()).toBe(true);
       if (!docResult.isOk()) return;
 
-      const treeAggregateResult = ProofTreeAggregate.createNew(docResult.value);
+      const treeAggregateResult = ProofTreeAggregate.createNew();
       expect(treeAggregateResult.isOk()).toBe(true);
       if (!treeAggregateResult.isOk()) return;
 
@@ -64,7 +64,7 @@ describe('BootstrapService', () => {
 
   describe('populateEmptyArgument', () => {
     test('populates empty argument with content', () => {
-      const docResult = service.initializeEmptyDocument();
+      const docResult = ProofAggregate.createNew();
       expect(docResult.isOk()).toBe(true);
       if (!docResult.isOk()) return;
 
@@ -90,7 +90,7 @@ describe('BootstrapService', () => {
     });
 
     test('allows empty premises', () => {
-      const docResult = service.initializeEmptyDocument();
+      const docResult = ProofAggregate.createNew();
       expect(docResult.isOk()).toBe(true);
       if (!docResult.isOk()) return;
 
@@ -115,7 +115,7 @@ describe('BootstrapService', () => {
     });
 
     test('allows empty conclusions', () => {
-      const docResult = service.initializeEmptyDocument();
+      const docResult = ProofAggregate.createNew();
       expect(docResult.isOk()).toBe(true);
       if (!docResult.isOk()) return;
 
@@ -140,7 +140,7 @@ describe('BootstrapService', () => {
     });
 
     test('fails if argument not found', () => {
-      const docResult = service.initializeEmptyDocument();
+      const docResult = ProofAggregate.createNew();
       expect(docResult.isOk()).toBe(true);
       if (!docResult.isOk()) return;
 
@@ -187,7 +187,7 @@ describe('BootstrapService', () => {
 
   describe('isBootstrapState', () => {
     test('correctly identifies empty document stage', () => {
-      const docResult = service.initializeEmptyDocument();
+      const docResult = ProofAggregate.createNew();
       expect(docResult.isOk()).toBe(true);
       if (!docResult.isOk()) return;
 
@@ -198,7 +198,7 @@ describe('BootstrapService', () => {
     });
 
     test('correctly identifies empty argument stage', () => {
-      const docResult = service.initializeEmptyDocument();
+      const docResult = ProofAggregate.createNew();
       expect(docResult.isOk()).toBe(true);
       if (!docResult.isOk()) return;
 
@@ -213,7 +213,7 @@ describe('BootstrapService', () => {
     });
 
     test('correctly identifies no trees stage', () => {
-      const docResult = service.initializeEmptyDocument();
+      const docResult = ProofAggregate.createNew();
       expect(docResult.isOk()).toBe(true);
       if (!docResult.isOk()) return;
 
@@ -237,11 +237,11 @@ describe('BootstrapService', () => {
     });
 
     test('correctly identifies active stage', () => {
-      const docResult = service.initializeEmptyDocument();
+      const docResult = ProofAggregate.createNew();
       expect(docResult.isOk()).toBe(true);
       if (!docResult.isOk()) return;
 
-      const treeAggregateResult = ProofTreeAggregate.createNew(docResult.value);
+      const treeAggregateResult = ProofTreeAggregate.createNew();
       expect(treeAggregateResult.isOk()).toBe(true);
       if (!treeAggregateResult.isOk()) return;
 

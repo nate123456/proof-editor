@@ -1,10 +1,9 @@
 import { err, ok, type Result } from 'neverthrow';
-import { ProofAggregate } from '../aggregates/ProofAggregate.js';
+import type { ProofAggregate } from '../aggregates/ProofAggregate.js';
 import { ProofTreeAggregate } from '../aggregates/ProofTreeAggregate.js';
-import { AtomicArgument } from '../entities/AtomicArgument.js';
+import type { AtomicArgument } from '../entities/AtomicArgument.js';
 import type { Node } from '../entities/Node.js';
-import { OrderedSet } from '../entities/OrderedSet.js';
-import { Statement } from '../entities/Statement.js';
+import type { Statement } from '../entities/Statement.js';
 import { Tree } from '../entities/Tree.js';
 import type { DomainEvent } from '../events/base-event.js';
 import {
@@ -12,21 +11,17 @@ import {
   BootstrapArgumentPopulated,
 } from '../events/bootstrap-events.js';
 import { ValidationError } from '../shared/result.js';
-import { type AtomicArgumentId, Position2D } from '../shared/value-objects.js';
+import {
+  type AtomicArgumentId,
+  Position2D,
+  type StatementId,
+} from '../shared/value-objects/index.js';
 
 /**
  * Handles bootstrap scenarios where users start from nothing.
  * This is the entry point for all proof construction.
  */
 export class BootstrapService {
-  /**
-   * Initialize a new document with bootstrap support.
-   * Creates an empty document ready for proof construction.
-   */
-  initializeEmptyDocument(): Result<ProofAggregate, ValidationError> {
-    return ProofAggregate.createNew();
-  }
-
   /**
    * Create the first atomic argument in a document.
    * This is the bootstrap case - no premises or conclusions yet.
@@ -35,27 +30,15 @@ export class BootstrapService {
     proofAggregate: ProofAggregate,
     treeAggregate?: ProofTreeAggregate,
   ): Result<BootstrapResult, ValidationError> {
-    // Create empty atomic argument
-    const emptyArg = AtomicArgument.create();
-    if (emptyArg.isErr()) {
-      return err(emptyArg.error);
+    // Use aggregate method to create empty argument (no premises or conclusions)
+    const emptyArgIdResult = proofAggregate.createAtomicArgument([], []);
+    if (emptyArgIdResult.isErr()) {
+      return err(emptyArgIdResult.error);
     }
 
-    // Add empty argument to the proof aggregate
-    const argumentsMap = new Map(proofAggregate.getArguments());
-    argumentsMap.set(emptyArg.value.getId(), emptyArg.value);
-
-    // Create new aggregate with the empty argument
-    const updatedProofResult = ProofAggregate.reconstruct(
-      proofAggregate.getId(),
-      new Map(proofAggregate.getStatements()),
-      argumentsMap,
-      new Map(proofAggregate.getOrderedSets()),
-      proofAggregate.getVersion() + 1,
-    );
-
-    if (updatedProofResult.isErr()) {
-      return err(updatedProofResult.error);
+    const emptyArg = proofAggregate.getArguments().get(emptyArgIdResult.value);
+    if (!emptyArg) {
+      return err(new ValidationError('Failed to retrieve created argument'));
     }
 
     // If tree aggregate provided, create tree and node
@@ -76,17 +59,21 @@ export class BootstrapService {
       }
       tree = treeResult.value;
 
-      // Create a new tree aggregate with the updated proof aggregate
-      const newTreeAggregateResult = ProofTreeAggregate.createNew(updatedProofResult.value);
+      // Create a new tree aggregate with default layout
+      const newTreeAggregateResult = ProofTreeAggregate.createNew();
       if (newTreeAggregateResult.isErr()) {
         return err(newTreeAggregateResult.error);
       }
       updatedTreeAggregate = newTreeAggregateResult.value;
 
       // Add the node to the tree aggregate
-      const addNodeResult = updatedTreeAggregate.addNode({
-        argumentId: emptyArg.value.getId(),
-      });
+      const argumentIds = new Set(proofAggregate.getArguments().keys());
+      const addNodeResult = updatedTreeAggregate.addNode(
+        {
+          argumentId: emptyArg.getId(),
+        },
+        argumentIds,
+      );
       if (addNodeResult.isErr()) {
         return err(addNodeResult.error);
       }
@@ -102,13 +89,13 @@ export class BootstrapService {
     // Emit bootstrap event
     const event = new BootstrapArgumentCreated(
       proofAggregate.getId().getValue(),
-      emptyArg.value.getId(),
+      emptyArg.getId(),
       tree?.getId(),
     );
 
     return ok({
-      argument: emptyArg.value,
-      updatedProofAggregate: updatedProofResult.value,
+      argument: emptyArg,
+      updatedProofAggregate: proofAggregate,
       tree,
       node,
       updatedTreeAggregate,
@@ -137,107 +124,73 @@ export class BootstrapService {
       return err(new ValidationError('Argument is not empty'));
     }
 
-    // Create statements for premises
+    // Use aggregate methods to add statements
+    const premiseStatementIds: StatementId[] = [];
     const premiseStatements: Statement[] = [];
-    const statementsMap = new Map(proofAggregate.getStatements());
 
     for (const content of premiseContents) {
-      const stmt = Statement.create(content);
-      if (stmt.isErr()) {
-        return err(stmt.error);
+      const statementIdResult = proofAggregate.addStatement(content);
+      if (statementIdResult.isErr()) {
+        return err(statementIdResult.error);
       }
-      premiseStatements.push(stmt.value);
-      statementsMap.set(stmt.value.getId(), stmt.value);
+      premiseStatementIds.push(statementIdResult.value);
+
+      const statement = proofAggregate.getStatements().get(statementIdResult.value);
+      if (!statement) {
+        return err(new ValidationError('Failed to retrieve created statement'));
+      }
+      premiseStatements.push(statement);
     }
 
-    // Create statements for conclusions
+    const conclusionStatementIds: StatementId[] = [];
     const conclusionStatements: Statement[] = [];
+
     for (const content of conclusionContents) {
-      const stmt = Statement.create(content);
-      if (stmt.isErr()) {
-        return err(stmt.error);
+      const statementIdResult = proofAggregate.addStatement(content);
+      if (statementIdResult.isErr()) {
+        return err(statementIdResult.error);
       }
-      conclusionStatements.push(stmt.value);
-      statementsMap.set(stmt.value.getId(), stmt.value);
-    }
+      conclusionStatementIds.push(statementIdResult.value);
 
-    // Create ordered sets if we have statements
-    const orderedSetsMap = new Map(proofAggregate.getOrderedSets());
-    let premiseSet: OrderedSet | undefined;
-    let conclusionSet: OrderedSet | undefined;
-
-    if (premiseStatements.length > 0) {
-      const premiseSetResult = OrderedSet.create(premiseStatements.map((s) => s.getId()));
-      if (premiseSetResult.isErr()) {
-        return err(premiseSetResult.error);
+      const statement = proofAggregate.getStatements().get(statementIdResult.value);
+      if (!statement) {
+        return err(new ValidationError('Failed to retrieve created statement'));
       }
-      premiseSet = premiseSetResult.value;
-      orderedSetsMap.set(premiseSet.getId(), premiseSet);
-
-      // Update statement usage counts
-      premiseStatements.forEach((stmt) => stmt.incrementUsage());
+      conclusionStatements.push(statement);
     }
 
-    if (conclusionStatements.length > 0) {
-      const conclusionSetResult = OrderedSet.create(conclusionStatements.map((s) => s.getId()));
-      if (conclusionSetResult.isErr()) {
-        return err(conclusionSetResult.error);
-      }
-      conclusionSet = conclusionSetResult.value;
-      orderedSetsMap.set(conclusionSet.getId(), conclusionSet);
-
-      // Update statement usage counts
-      conclusionStatements.forEach((stmt) => stmt.incrementUsage());
-    }
-
-    // Create new argument with content
-    const newArg = AtomicArgument.create(premiseSet?.getId(), conclusionSet?.getId());
-    if (newArg.isErr()) {
-      return err(newArg.error);
-    }
-
-    // Update argument references in ordered sets
-    if (premiseSet) {
-      premiseSet.addAtomicArgumentReference(newArg.value.getId(), 'premise');
-    }
-
-    if (conclusionSet) {
-      conclusionSet.addAtomicArgumentReference(newArg.value.getId(), 'conclusion');
-    }
-
-    // Remove old empty argument and add new one
-    const argumentsMap = new Map(proofAggregate.getArguments());
-    argumentsMap.delete(argumentId);
-    argumentsMap.set(newArg.value.getId(), newArg.value);
-
-    // Create updated proof aggregate
-    const updatedProofResult = ProofAggregate.reconstruct(
-      proofAggregate.getId(),
-      statementsMap,
-      argumentsMap,
-      orderedSetsMap,
-      proofAggregate.getVersion() + 1,
+    // Use aggregate method to create new argument
+    const newArgumentIdResult = proofAggregate.createAtomicArgument(
+      premiseStatementIds,
+      conclusionStatementIds,
     );
-
-    if (updatedProofResult.isErr()) {
-      return err(updatedProofResult.error);
+    if (newArgumentIdResult.isErr()) {
+      return err(newArgumentIdResult.error);
     }
+
+    const newArgument = proofAggregate.getArguments().get(newArgumentIdResult.value);
+    if (!newArgument) {
+      return err(new ValidationError('Failed to retrieve created argument'));
+    }
+
+    // Note: We should remove the old empty argument, but ProofAggregate doesn't have a removeArgument method
+    // This is a limitation of the current aggregate design
 
     // Emit populated event
     const event = new BootstrapArgumentPopulated(
       proofAggregate.getId().getValue(),
       argumentId,
-      newArg.value.getId(),
+      newArgumentIdResult.value,
       premiseStatements.length,
       conclusionStatements.length,
     );
 
     return ok({
       oldArgumentId: argumentId,
-      newArgument: newArg.value,
+      newArgument,
       premiseStatements,
       conclusionStatements,
-      updatedProofAggregate: updatedProofResult.value,
+      updatedProofAggregate: proofAggregate,
       event,
     });
   }

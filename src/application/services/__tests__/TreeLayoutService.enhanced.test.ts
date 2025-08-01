@@ -246,8 +246,8 @@ describe('TreeLayoutService - Enhanced Coverage', () => {
         atomicArguments: {
           arg1: {
             id: 'arg1',
-            premiseSetId: 'os1',
-            conclusionSetId: 'os2',
+            premiseIds: 'os1',
+            conclusionIds: 'os2',
             sideLabels: {
               left: 'Modus Ponens',
               right: 'Rule Application',
@@ -502,12 +502,12 @@ function createOrderedSetDTO(id: string, statementIds: string[]): OrderedSetDTO 
 
 function createAtomicArgumentDTO(
   id: string,
-  premiseSetId: string | null,
-  conclusionSetId: string | null,
+  premiseIds: string[],
+  conclusionIds: string[],
 ): AtomicArgumentDTO {
   return {
     id,
-    premiseSetId,
-    conclusionSetId,
+    premiseIds,
+    conclusionIds,
   };
 }

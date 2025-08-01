@@ -12,15 +12,17 @@ interface YAMLProofDocument {
     schemaVersion: string;
   };
   statements: Record<string, string>; // id -> content
-  orderedSets: Record<string, string[]>; // id -> statement ids
   atomicArguments: Record<string, YAMLAtomicArgument>;
   trees: Record<string, YAMLTree>;
 }
 
 interface YAMLAtomicArgument {
-  premises: string | null; // OrderedSet ID
-  conclusions: string | null; // OrderedSet ID
-  sideLabel?: string;
+  premises: string[]; // Statement IDs
+  conclusions: string[]; // Statement IDs
+  sideLabels?: {
+    left?: string;
+    right?: string;
+  };
 }
 
 interface YAMLTree {
@@ -46,7 +48,6 @@ export class YAMLSerializer {
           schemaVersion: this.SCHEMA_VERSION,
         },
         statements: this.serializeStatements(document),
-        orderedSets: this.serializeOrderedSets(document),
         atomicArguments: this.serializeAtomicArguments(document),
         trees: this.serializeTrees(document),
       };
@@ -55,9 +56,6 @@ export class YAMLSerializer {
       // Empty collections should serialize as empty objects, not undefined
       if (Object.keys(yamlDoc.statements).length === 0) {
         yamlDoc.statements = {};
-      }
-      if (Object.keys(yamlDoc.orderedSets).length === 0) {
-        yamlDoc.orderedSets = {};
       }
       if (Object.keys(yamlDoc.atomicArguments).length === 0) {
         yamlDoc.atomicArguments = {};
@@ -93,31 +91,21 @@ export class YAMLSerializer {
     return statements;
   }
 
-  private serializeOrderedSets(document: ProofDocument): Record<string, string[]> {
-    const orderedSets: Record<string, string[]> = {};
-
-    for (const orderedSet of document.getAllOrderedSets()) {
-      orderedSets[orderedSet.getId().getValue()] = orderedSet
-        .getStatementIds()
-        .map((id) => id.getValue());
-    }
-
-    return orderedSets;
-  }
-
   private serializeAtomicArguments(document: ProofDocument): Record<string, YAMLAtomicArgument> {
     const args: Record<string, YAMLAtomicArgument> = {};
 
     for (const argument of document.getAllAtomicArguments()) {
       const yamlArg: YAMLAtomicArgument = {
-        premises: argument.getPremiseSet()?.getValue() || null,
-        conclusions: argument.getConclusionSet()?.getValue() || null,
+        premises: argument.getPremises().map((stmt) => stmt.getId().getValue()),
+        conclusions: argument.getConclusions().map((stmt) => stmt.getId().getValue()),
       };
 
-      // Add side label if present
+      // Add side labels if present
       const sideLabels = argument.getSideLabels();
-      if (sideLabels?.left) {
-        yamlArg.sideLabel = sideLabels.left;
+      if (sideLabels?.left || sideLabels?.right) {
+        yamlArg.sideLabels = {};
+        if (sideLabels.left) yamlArg.sideLabels.left = sideLabels.left;
+        if (sideLabels.right) yamlArg.sideLabels.right = sideLabels.right;
       }
 
       args[argument.getId().getValue()] = yamlArg;

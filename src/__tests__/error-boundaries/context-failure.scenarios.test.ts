@@ -16,7 +16,7 @@
 import { err, ok, type Result } from 'neverthrow';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type * as vscode from 'vscode';
-
+import { DialogTitle, ViewType, WebviewId } from '../../domain/shared/value-objects/index.js';
 import { ApplicationContainer } from '../../infrastructure/di/container.js';
 import { VSCodeFileSystemAdapter } from '../../infrastructure/vscode/VSCodeFileSystemAdapter.js';
 import { VSCodePlatformAdapter } from '../../infrastructure/vscode/VSCodePlatformAdapter.js';
@@ -231,10 +231,18 @@ describe('Context Failure Scenarios', () => {
             undefined;
           (mockContext as { globalState?: vscode.Memento | undefined }).globalState = undefined;
 
+          const webviewId = WebviewId.create('test-panel');
+          const viewType = ViewType.create('test');
+          const dialogTitle = DialogTitle.create('Test Panel');
+
+          if (webviewId.isErr() || viewType.isErr() || dialogTitle.isErr()) {
+            return err(new Error('Failed to create webview panel value objects'));
+          }
+
           return adapter.createWebviewPanel({
-            id: 'test-panel',
-            viewType: 'test',
-            title: 'Test Panel',
+            id: webviewId.value,
+            viewType: viewType.value,
+            title: dialogTitle.value,
           });
         } catch (error) {
           return err(error as Error);

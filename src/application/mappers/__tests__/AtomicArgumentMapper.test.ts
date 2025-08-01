@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   atomicArgumentFactory,
-  orderedSetFactory,
+  statementFactory,
 } from '../../../domain/__tests__/factories/index.js';
 import { AtomicArgument, type SideLabels } from '../../../domain/entities/AtomicArgument.js';
 import type { AtomicArgumentDTO } from '../../queries/shared-types.js';
@@ -15,14 +15,10 @@ describe('AtomicArgumentMapper', () => {
   describe('atomicArgumentToDTO', () => {
     it('should convert AtomicArgument to DTO with all fields', () => {
       // Arrange
-      const premiseSet = orderedSetFactory.build();
-      const conclusionSet = orderedSetFactory.build();
+      const premises = [statementFactory.build(), statementFactory.build()];
+      const conclusions = [statementFactory.build()];
       const sideLabels: SideLabels = { left: 'Rule A', right: 'Reference 1' };
-      const createResult = AtomicArgument.create(
-        premiseSet.getId(),
-        conclusionSet.getId(),
-        sideLabels,
-      );
+      const createResult = AtomicArgument.create(premises, conclusions, sideLabels);
       expect(createResult.isOk()).toBe(true);
       if (!createResult.isOk()) throw createResult.error;
       const atomicArgument = createResult.value;
@@ -33,8 +29,8 @@ describe('AtomicArgumentMapper', () => {
       // Assert
       expect(result).toEqual({
         id: atomicArgument.getId().getValue(),
-        premiseSetId: premiseSet.getId().getValue(),
-        conclusionSetId: conclusionSet.getId().getValue(),
+        premiseIds: premises.map((p) => p.getId().getValue()),
+        conclusionIds: conclusions.map((c) => c.getId().getValue()),
         sideLabels: {
           left: 'Rule A',
           right: 'Reference 1',
@@ -42,10 +38,10 @@ describe('AtomicArgumentMapper', () => {
       });
     });
 
-    it('should convert AtomicArgument to DTO with null premise set', () => {
+    it('should convert AtomicArgument to DTO with empty premises', () => {
       // Arrange
-      const conclusionSet = orderedSetFactory.build();
-      const createResult = AtomicArgument.create(undefined, conclusionSet.getId(), {});
+      const conclusions = [statementFactory.build()];
+      const createResult = AtomicArgument.create([], conclusions, {});
       expect(createResult.isOk()).toBe(true);
       if (!createResult.isOk()) throw createResult.error;
       const atomicArgument = createResult.value;
@@ -56,15 +52,15 @@ describe('AtomicArgumentMapper', () => {
       // Assert
       expect(result).toEqual({
         id: atomicArgument.getId().getValue(),
-        premiseSetId: null,
-        conclusionSetId: conclusionSet.getId().getValue(),
+        premiseIds: [],
+        conclusionIds: conclusions.map((c) => c.getId().getValue()),
       });
     });
 
-    it('should convert AtomicArgument to DTO with null conclusion set', () => {
+    it('should convert AtomicArgument to DTO with empty conclusions', () => {
       // Arrange
-      const premiseSet = orderedSetFactory.build();
-      const createResult = AtomicArgument.create(premiseSet.getId(), undefined, {});
+      const premises = [statementFactory.build()];
+      const createResult = AtomicArgument.create(premises, [], {});
       expect(createResult.isOk()).toBe(true);
       if (!createResult.isOk()) throw createResult.error;
       const atomicArgument = createResult.value;
@@ -75,12 +71,12 @@ describe('AtomicArgumentMapper', () => {
       // Assert
       expect(result).toEqual({
         id: atomicArgument.getId().getValue(),
-        premiseSetId: premiseSet.getId().getValue(),
-        conclusionSetId: null,
+        premiseIds: premises.map((p) => p.getId().getValue()),
+        conclusionIds: [],
       });
     });
 
-    it('should convert bootstrap AtomicArgument to DTO with null sets', () => {
+    it('should convert bootstrap AtomicArgument to DTO with empty arrays', () => {
       // Arrange
       const bootstrapArgument = AtomicArgument.createBootstrap();
 
@@ -90,15 +86,15 @@ describe('AtomicArgumentMapper', () => {
       // Assert
       expect(result).toEqual({
         id: bootstrapArgument.getId().getValue(),
-        premiseSetId: null,
-        conclusionSetId: null,
+        premiseIds: [],
+        conclusionIds: [],
       });
     });
 
     it('should convert AtomicArgument to DTO with only left side label', () => {
       // Arrange
       const sideLabels: SideLabels = { left: 'Modus Ponens' };
-      const createResult = AtomicArgument.create(undefined, undefined, sideLabels);
+      const createResult = AtomicArgument.create([], [], sideLabels);
       expect(createResult.isOk()).toBe(true);
       if (!createResult.isOk()) throw createResult.error;
       const atomicArgument = createResult.value;
@@ -113,7 +109,7 @@ describe('AtomicArgumentMapper', () => {
     it('should convert AtomicArgument to DTO with only right side label', () => {
       // Arrange
       const sideLabels: SideLabels = { right: 'Theorem 5.2' };
-      const createResult = AtomicArgument.create(undefined, undefined, sideLabels);
+      const createResult = AtomicArgument.create([], [], sideLabels);
       expect(createResult.isOk()).toBe(true);
       if (!createResult.isOk()) throw createResult.error;
       const atomicArgument = createResult.value;
@@ -127,9 +123,9 @@ describe('AtomicArgumentMapper', () => {
 
     it('should convert AtomicArgument to DTO without sideLabels property when no labels', () => {
       // Arrange
-      const premiseSet = orderedSetFactory.build();
-      const conclusionSet = orderedSetFactory.build();
-      const createResult = AtomicArgument.create(premiseSet.getId(), conclusionSet.getId(), {});
+      const premises = [statementFactory.build()];
+      const conclusions = [statementFactory.build()];
+      const createResult = AtomicArgument.create(premises, conclusions, {});
       expect(createResult.isOk()).toBe(true);
       if (!createResult.isOk()) throw createResult.error;
       const atomicArgument = createResult.value;
@@ -143,14 +139,10 @@ describe('AtomicArgumentMapper', () => {
 
     it('should convert AtomicArgument to DTO without sideLabels property when labels are empty strings', () => {
       // Arrange
-      const premiseSet = orderedSetFactory.build();
-      const conclusionSet = orderedSetFactory.build();
+      const premises = [statementFactory.build()];
+      const conclusions = [statementFactory.build()];
       const sideLabels: SideLabels = { left: '', right: '' };
-      const createResult = AtomicArgument.create(
-        premiseSet.getId(),
-        conclusionSet.getId(),
-        sideLabels,
-      );
+      const createResult = AtomicArgument.create(premises, conclusions, sideLabels);
       expect(createResult.isOk()).toBe(true);
       if (!createResult.isOk()) throw createResult.error;
       const atomicArgument = createResult.value;
@@ -198,16 +190,16 @@ describe('AtomicArgumentMapper', () => {
       const atomicArguments = [
         AtomicArgument.createBootstrap(),
         (() => {
-          const orderedSet = orderedSetFactory.build();
-          const result = AtomicArgument.create(orderedSet.getId(), undefined, {
+          const statements = [statementFactory.build()];
+          const result = AtomicArgument.create(statements, [], {
             left: 'Rule',
           });
           if (result.isErr()) throw result.error;
           return result.value;
         })(),
         (() => {
-          const orderedSet = orderedSetFactory.build();
-          const result = AtomicArgument.create(undefined, orderedSet.getId(), {
+          const statements = [statementFactory.build()];
+          const result = AtomicArgument.create([], statements, {
             right: 'Ref',
           });
           if (result.isErr()) throw result.error;
@@ -220,22 +212,22 @@ describe('AtomicArgumentMapper', () => {
 
       // Assert
       expect(result).toHaveLength(3);
-      expect(result[0]?.premiseSetId).toBeNull();
-      expect(result[0]?.conclusionSetId).toBeNull();
-      expect(result[1]?.premiseSetId).toBeDefined();
+      expect(result[0]?.premiseIds).toEqual([]);
+      expect(result[0]?.conclusionIds).toEqual([]);
+      expect(result[1]?.premiseIds.length).toBeGreaterThan(0);
       expect(result[1]?.sideLabels?.left).toBe('Rule');
-      expect(result[2]?.conclusionSetId).toBeDefined();
+      expect(result[2]?.conclusionIds.length).toBeGreaterThan(0);
       expect(result[2]?.sideLabels?.right).toBe('Ref');
     });
   });
 
   describe('atomicArgumentFromDTO', () => {
-    it('should convert valid DTO to AtomicArgument', () => {
+    it('should convert valid DTO to reconstruction data', () => {
       // Arrange
       const dto: AtomicArgumentDTO = {
         id: 'test-id',
-        premiseSetId: 'premise-set-id',
-        conclusionSetId: 'conclusion-set-id',
+        premiseIds: ['premise-1', 'premise-2'],
+        conclusionIds: ['conclusion-1'],
         sideLabels: {
           left: 'Rule A',
           right: 'Reference 1',
@@ -250,8 +242,13 @@ describe('AtomicArgumentMapper', () => {
       if (result.isOk()) {
         const reconstructionData = result.value;
         expect(reconstructionData.id.getValue()).toBe('test-id');
-        expect(reconstructionData.premiseSetId?.getValue()).toBe('premise-set-id');
-        expect(reconstructionData.conclusionSetId?.getValue()).toBe('conclusion-set-id');
+        expect(reconstructionData.premiseIds.map((id) => id.getValue())).toEqual([
+          'premise-1',
+          'premise-2',
+        ]);
+        expect(reconstructionData.conclusionIds.map((id) => id.getValue())).toEqual([
+          'conclusion-1',
+        ]);
         expect(reconstructionData.sideLabels).toEqual({
           left: 'Rule A',
           right: 'Reference 1',
@@ -259,12 +256,12 @@ describe('AtomicArgumentMapper', () => {
       }
     });
 
-    it('should convert DTO with null premise set to AtomicArgument', () => {
+    it('should convert DTO with empty premises to reconstruction data', () => {
       // Arrange
       const dto: AtomicArgumentDTO = {
         id: 'test-id',
-        premiseSetId: null,
-        conclusionSetId: 'conclusion-set-id',
+        premiseIds: [],
+        conclusionIds: ['conclusion-1'],
       };
 
       // Act
@@ -275,17 +272,19 @@ describe('AtomicArgumentMapper', () => {
       if (result.isOk()) {
         const reconstructionData = result.value;
         expect(reconstructionData.id.getValue()).toBe('test-id');
-        expect(reconstructionData.premiseSetId).toBeNull();
-        expect(reconstructionData.conclusionSetId?.getValue()).toBe('conclusion-set-id');
+        expect(reconstructionData.premiseIds).toEqual([]);
+        expect(reconstructionData.conclusionIds.map((id) => id.getValue())).toEqual([
+          'conclusion-1',
+        ]);
       }
     });
 
-    it('should convert DTO with null conclusion set to AtomicArgument', () => {
+    it('should convert DTO with empty conclusions to reconstruction data', () => {
       // Arrange
       const dto: AtomicArgumentDTO = {
         id: 'test-id',
-        premiseSetId: 'premise-set-id',
-        conclusionSetId: null,
+        premiseIds: ['premise-1'],
+        conclusionIds: [],
       };
 
       // Act
@@ -294,19 +293,19 @@ describe('AtomicArgumentMapper', () => {
       // Assert
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
-        const atomicArgument = result.value;
-        expect(atomicArgument.id.getValue()).toBe('test-id');
-        expect(atomicArgument.premiseSetId?.getValue()).toBe('premise-set-id');
-        expect(atomicArgument.conclusionSetId).toBeNull();
+        const reconstructionData = result.value;
+        expect(reconstructionData.id.getValue()).toBe('test-id');
+        expect(reconstructionData.premiseIds.map((id) => id.getValue())).toEqual(['premise-1']);
+        expect(reconstructionData.conclusionIds).toEqual([]);
       }
     });
 
-    it('should convert bootstrap DTO to AtomicArgument', () => {
+    it('should convert bootstrap DTO to reconstruction data', () => {
       // Arrange
       const dto: AtomicArgumentDTO = {
         id: 'bootstrap-id',
-        premiseSetId: null,
-        conclusionSetId: null,
+        premiseIds: [],
+        conclusionIds: [],
       };
 
       // Act
@@ -315,10 +314,10 @@ describe('AtomicArgumentMapper', () => {
       // Assert
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
-        const atomicArgument = result.value;
-        expect(atomicArgument.id.getValue()).toBe('bootstrap-id');
-        expect(atomicArgument.premiseSetId).toBeNull();
-        expect(atomicArgument.conclusionSetId).toBeNull();
+        const reconstructionData = result.value;
+        expect(reconstructionData.id.getValue()).toBe('bootstrap-id');
+        expect(reconstructionData.premiseIds).toEqual([]);
+        expect(reconstructionData.conclusionIds).toEqual([]);
       }
     });
 
@@ -326,8 +325,8 @@ describe('AtomicArgumentMapper', () => {
       // Arrange
       const dto: AtomicArgumentDTO = {
         id: 'test-id',
-        premiseSetId: 'premise-set-id',
-        conclusionSetId: 'conclusion-set-id',
+        premiseIds: ['premise-1'],
+        conclusionIds: ['conclusion-1'],
         sideLabels: { left: 'Modus Ponens' },
       };
 
@@ -337,8 +336,8 @@ describe('AtomicArgumentMapper', () => {
       // Assert
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
-        const atomicArgument = result.value;
-        expect(atomicArgument.sideLabels).toEqual({ left: 'Modus Ponens' });
+        const reconstructionData = result.value;
+        expect(reconstructionData.sideLabels).toEqual({ left: 'Modus Ponens' });
       }
     });
 
@@ -346,8 +345,8 @@ describe('AtomicArgumentMapper', () => {
       // Arrange
       const dto: AtomicArgumentDTO = {
         id: 'test-id',
-        premiseSetId: 'premise-set-id',
-        conclusionSetId: 'conclusion-set-id',
+        premiseIds: ['premise-1'],
+        conclusionIds: ['conclusion-1'],
         sideLabels: { right: 'Theorem 5.2' },
       };
 
@@ -357,8 +356,8 @@ describe('AtomicArgumentMapper', () => {
       // Assert
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
-        const atomicArgument = result.value;
-        expect(atomicArgument.sideLabels).toEqual({ right: 'Theorem 5.2' });
+        const reconstructionData = result.value;
+        expect(reconstructionData.sideLabels).toEqual({ right: 'Theorem 5.2' });
       }
     });
 
@@ -366,8 +365,8 @@ describe('AtomicArgumentMapper', () => {
       // Arrange
       const dto: AtomicArgumentDTO = {
         id: 'test-id',
-        premiseSetId: 'premise-set-id',
-        conclusionSetId: 'conclusion-set-id',
+        premiseIds: ['premise-1'],
+        conclusionIds: ['conclusion-1'],
       };
 
       // Act
@@ -385,8 +384,8 @@ describe('AtomicArgumentMapper', () => {
       // Arrange
       const dto: AtomicArgumentDTO = {
         id: '',
-        premiseSetId: 'premise-set-id',
-        conclusionSetId: 'conclusion-set-id',
+        premiseIds: ['premise-1'],
+        conclusionIds: ['conclusion-1'],
       };
 
       // Act
@@ -399,12 +398,12 @@ describe('AtomicArgumentMapper', () => {
       }
     });
 
-    it('should return error for invalid premise set id', () => {
+    it('should return error for invalid premise statement id', () => {
       // Arrange
       const dto: AtomicArgumentDTO = {
         id: 'test-id',
-        premiseSetId: '',
-        conclusionSetId: 'conclusion-set-id',
+        premiseIds: [''],
+        conclusionIds: ['conclusion-1'],
       };
 
       // Act
@@ -413,16 +412,16 @@ describe('AtomicArgumentMapper', () => {
       // Assert
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.message).toContain('OrderedSetId cannot be empty');
+        expect(result.error.message).toContain('StatementId cannot be empty');
       }
     });
 
-    it('should return error for invalid conclusion set id', () => {
+    it('should return error for invalid conclusion statement id', () => {
       // Arrange
       const dto: AtomicArgumentDTO = {
         id: 'test-id',
-        premiseSetId: 'premise-set-id',
-        conclusionSetId: '',
+        premiseIds: ['premise-1'],
+        conclusionIds: [''],
       };
 
       // Act
@@ -431,7 +430,7 @@ describe('AtomicArgumentMapper', () => {
       // Assert
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.message).toContain('OrderedSetId cannot be empty');
+        expect(result.error.message).toContain('StatementId cannot be empty');
       }
     });
 
@@ -440,8 +439,8 @@ describe('AtomicArgumentMapper', () => {
       const longId = 'a'.repeat(256);
       const dto: AtomicArgumentDTO = {
         id: longId,
-        premiseSetId: 'premise-set-id',
-        conclusionSetId: 'conclusion-set-id',
+        premiseIds: ['premise-1'],
+        conclusionIds: ['conclusion-1'],
       };
 
       // Act
@@ -454,13 +453,13 @@ describe('AtomicArgumentMapper', () => {
       }
     });
 
-    it('should return error for premise set id that is too long', () => {
+    it('should return error for premise statement id that is too long', () => {
       // Arrange
       const longId = 'a'.repeat(256);
       const dto: AtomicArgumentDTO = {
         id: 'test-id',
-        premiseSetId: longId,
-        conclusionSetId: 'conclusion-set-id',
+        premiseIds: [longId],
+        conclusionIds: ['conclusion-1'],
       };
 
       // Act
@@ -469,17 +468,17 @@ describe('AtomicArgumentMapper', () => {
       // Assert
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.message).toContain('OrderedSetId cannot exceed 255 characters');
+        expect(result.error.message).toContain('StatementId cannot exceed 255 characters');
       }
     });
 
-    it('should return error for conclusion set id that is too long', () => {
+    it('should return error for conclusion statement id that is too long', () => {
       // Arrange
       const longId = 'a'.repeat(256);
       const dto: AtomicArgumentDTO = {
         id: 'test-id',
-        premiseSetId: 'premise-set-id',
-        conclusionSetId: longId,
+        premiseIds: ['premise-1'],
+        conclusionIds: [longId],
       };
 
       // Act
@@ -488,7 +487,7 @@ describe('AtomicArgumentMapper', () => {
       // Assert
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.message).toContain('OrderedSetId cannot exceed 255 characters');
+        expect(result.error.message).toContain('StatementId cannot exceed 255 characters');
       }
     });
 
@@ -496,8 +495,8 @@ describe('AtomicArgumentMapper', () => {
       // Arrange
       const dto: AtomicArgumentDTO = {
         id: 'test-id',
-        premiseSetId: 'premise-set-id',
-        conclusionSetId: 'conclusion-set-id',
+        premiseIds: ['premise-1'],
+        conclusionIds: ['conclusion-1'],
         sideLabels: {},
       };
 
@@ -516,14 +515,10 @@ describe('AtomicArgumentMapper', () => {
   describe('round-trip conversion', () => {
     it('should maintain data integrity in toDTO -> fromDTO conversion', () => {
       // Arrange
-      const premiseSet = orderedSetFactory.build();
-      const conclusionSet = orderedSetFactory.build();
+      const premises = [statementFactory.build(), statementFactory.build()];
+      const conclusions = [statementFactory.build()];
       const sideLabels = { left: 'Rule A', right: 'Reference 1' };
-      const createResult = AtomicArgument.create(
-        premiseSet.getId(),
-        conclusionSet.getId(),
-        sideLabels,
-      );
+      const createResult = AtomicArgument.create(premises, conclusions, sideLabels);
       expect(createResult.isOk()).toBe(true);
       if (!createResult.isOk()) throw createResult.error;
       const original = createResult.value;
@@ -537,11 +532,11 @@ describe('AtomicArgumentMapper', () => {
       if (result.isOk()) {
         const reconstructionData = result.value;
         expect(reconstructionData.id.getValue()).toBe(original.getId().getValue());
-        expect(reconstructionData.premiseSetId?.getValue()).toBe(
-          original.getPremiseSet()?.getValue(),
+        expect(reconstructionData.premiseIds.map((id) => id.getValue())).toEqual(
+          premises.map((p) => p.getId().getValue()),
         );
-        expect(reconstructionData.conclusionSetId?.getValue()).toBe(
-          original.getConclusionSet()?.getValue(),
+        expect(reconstructionData.conclusionIds.map((id) => id.getValue())).toEqual(
+          conclusions.map((c) => c.getId().getValue()),
         );
         expect(reconstructionData.sideLabels).toEqual(original.getSideLabels());
       }
@@ -560,8 +555,8 @@ describe('AtomicArgumentMapper', () => {
       if (result.isOk()) {
         const reconstructionData = result.value;
         expect(reconstructionData.id.getValue()).toBe(original.getId().getValue());
-        expect(reconstructionData.premiseSetId).toBeNull();
-        expect(reconstructionData.conclusionSetId).toBeNull();
+        expect(reconstructionData.premiseIds).toEqual([]);
+        expect(reconstructionData.conclusionIds).toEqual([]);
         // Note: isBootstrap is determined by having both sets null
       }
     });
@@ -569,7 +564,7 @@ describe('AtomicArgumentMapper', () => {
     it('should maintain data integrity for argument with only side labels in round-trip', () => {
       // Arrange
       const sideLabels = { left: 'Complex Rule', right: 'Page 42' };
-      const createResult = AtomicArgument.create(undefined, undefined, sideLabels);
+      const createResult = AtomicArgument.create([], [], sideLabels);
       expect(createResult.isOk()).toBe(true);
       if (!createResult.isOk()) throw createResult.error;
       const original = createResult.value;

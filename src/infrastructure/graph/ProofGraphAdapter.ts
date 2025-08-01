@@ -7,24 +7,41 @@ import type { Tree } from '../../domain/entities/Tree.js';
 import { ProcessingError } from '../../domain/errors/DomainErrors.js';
 import type { IAtomicArgumentRepository } from '../../domain/repositories/IAtomicArgumentRepository.js';
 import type { INodeRepository } from '../../domain/repositories/INodeRepository.js';
+import { AtomicArgumentConnectionService } from '../../domain/services/AtomicArgumentConnectionService.js';
 import type {
+  GraphPerformanceMetrics,
   IGraphTraversalService,
   TreeMetrics,
 } from '../../domain/services/IGraphTraversalService.js';
-import { NodeId, type TreeId } from '../../domain/shared/value-objects.js';
+import { NodeId, type TreeId } from '../../domain/shared/value-objects/index.js';
 
 @injectable()
 export class ProofGraphAdapter implements IGraphTraversalService {
   private readonly graph: DirectedGraph;
+  private readonly performanceMetrics: GraphPerformanceMetrics;
 
   constructor(
     private readonly nodeRepository: INodeRepository,
     private readonly argumentRepository: IAtomicArgumentRepository,
   ) {
     this.graph = new DirectedGraph();
+    this.performanceMetrics = {
+      buildTime: 0,
+      nodeCount: 0,
+      edgeCount: 0,
+      lastBuildTimestamp: 0,
+      memoryUsage: 0,
+      operationCounts: {
+        pathFinds: 0,
+        cycleDetections: 0,
+        subtreeQueries: 0,
+        connectivityChecks: 0,
+      },
+    };
   }
 
   async buildGraphFromTree(tree: Tree): Promise<Result<void, ProcessingError>> {
+    const startTime = performance.now();
     this.graph.clear();
 
     const nodeLoadingResult = await this.loadNodesAndArguments(tree);
@@ -38,10 +55,18 @@ export class ProofGraphAdapter implements IGraphTraversalService {
     this.addParentChildEdges(nodeMap);
     this.addStatementFlowEdges(nodeMap, argumentMap);
 
+    const endTime = performance.now();
+    this.performanceMetrics.buildTime = endTime - startTime;
+    this.performanceMetrics.nodeCount = this.graph.order;
+    this.performanceMetrics.edgeCount = this.graph.size;
+    this.performanceMetrics.lastBuildTimestamp = Date.now();
+
     return ok(undefined);
   }
 
   findPath(fromNodeId: NodeId, toNodeId: NodeId): Result<NodeId[], ProcessingError> {
+    this.performanceMetrics.operationCounts.pathFinds++;
+
     if (!this.graph.hasNode(fromNodeId.getValue()) || !this.graph.hasNode(toNodeId.getValue())) {
       return ok([]);
     }
@@ -67,6 +92,8 @@ export class ProofGraphAdapter implements IGraphTraversalService {
     rootNodeId: NodeId,
     maxDepth?: number,
   ): Result<Map<string, { depth: number; node: NodeId }>, ProcessingError> {
+    this.performanceMetrics.operationCounts.subtreeQueries++;
+
     if (!this.graph.hasNode(rootNodeId.getValue())) {
       return ok(new Map());
     }
@@ -96,6 +123,8 @@ export class ProofGraphAdapter implements IGraphTraversalService {
   }
 
   detectCycles(_treeId: TreeId): Result<boolean, ProcessingError> {
+    this.performanceMetrics.operationCounts.cycleDetections++;
+
     try {
       return ok(this.hasCycles());
     } catch (error) {
@@ -191,10 +220,12 @@ export class ProofGraphAdapter implements IGraphTraversalService {
   }
 
   private createEmptyMetrics(): TreeMetrics {
-    return { depth: 0, breadth: 0, nodeCount: 0, leafCount: 0 };
+    return { depth: 0, breadth: 0, nodeCount: 0, leafCount: 0, cycleCount: 0 };
   }
 
   areNodesConnected(nodeId1: NodeId, nodeId2: NodeId): Result<boolean, ProcessingError> {
+    this.performanceMetrics.operationCounts.connectivityChecks++;
+
     const pathResult = this.findPath(nodeId1, nodeId2);
     return pathResult.map((path) => path.length > 0);
   }
@@ -271,6 +302,264 @@ export class ProofGraphAdapter implements IGraphTraversalService {
     return ok(depth);
   }
 
+  findPaths(
+    nodePairs: Array<{ from: NodeId; to: NodeId }>,
+  ): Result<Map<string, NodeId[]>, ProcessingError> {
+    try {
+      const results = new Map<string, NodeId[]>();
+
+      for (const pair of nodePairs) {
+        const pathResult = this.findPath(pair.from, pair.to);
+        if (pathResult.isErr()) {
+          return err(pathResult.error);
+        }
+
+        const pairKey = `${pair.from.getValue()}-${pair.to.getValue()}`;
+        results.set(pairKey, pathResult.value);
+      }
+
+      return ok(results);
+    } catch (error) {
+      return err(
+        new ProcessingError(
+          `Failed to find paths: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        ),
+      );
+    }
+  }
+
+  areNodesConnectedBatch(
+    nodePairs: Array<{ nodeId1: NodeId; nodeId2: NodeId }>,
+  ): Result<Map<string, boolean>, ProcessingError> {
+    try {
+      const results = new Map<string, boolean>();
+
+      for (const pair of nodePairs) {
+        const connectivityResult = this.areNodesConnected(pair.nodeId1, pair.nodeId2);
+        if (connectivityResult.isErr()) {
+          return err(connectivityResult.error);
+        }
+
+        const pairKey = `${pair.nodeId1.getValue()}-${pair.nodeId2.getValue()}`;
+        results.set(pairKey, connectivityResult.value);
+      }
+
+      return ok(results);
+    } catch (error) {
+      return err(
+        new ProcessingError(
+          `Failed to check connectivity: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        ),
+      );
+    }
+  }
+
+  getPerformanceMetrics(): Result<GraphPerformanceMetrics, ProcessingError> {
+    try {
+      const currentMemory = process.memoryUsage?.().heapUsed || 0;
+
+      return ok({
+        ...this.performanceMetrics,
+        memoryUsage: currentMemory,
+      });
+    } catch (error) {
+      return err(
+        new ProcessingError(
+          `Failed to get performance metrics: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        ),
+      );
+    }
+  }
+
+  async updateNode(nodeId: NodeId, tree: Tree): Promise<Result<void, ProcessingError>> {
+    try {
+      const nodeIdValue = nodeId.getValue();
+
+      if (!this.graph.hasNode(nodeIdValue)) {
+        return err(new ProcessingError(`Node ${nodeIdValue} not found in graph`));
+      }
+
+      const nodeResult = await this.nodeRepository.findById(nodeId);
+      if (nodeResult.isErr()) {
+        return err(
+          new ProcessingError(`Failed to load node ${nodeIdValue}: ${nodeResult.error.message}`),
+        );
+      }
+
+      const node = nodeResult.value;
+      const argumentResult = await this.argumentRepository.findById(node.getArgumentId());
+      if (argumentResult.isErr()) {
+        return err(
+          new ProcessingError(
+            `Failed to load argument for node ${nodeIdValue}: ${argumentResult.error.message}`,
+          ),
+        );
+      }
+
+      const argument = argumentResult.value;
+
+      this.graph.mergeNodeAttributes(nodeIdValue, {
+        nodeId: nodeIdValue,
+        argumentId: node.getArgumentId().getValue(),
+        isRoot: node.isRoot(),
+        premises: argument.getPremises().map((s) => s.getId().getValue()),
+        conclusions: argument.getConclusions().map((s) => s.getId().getValue()),
+        treeId: tree.getId().getValue(),
+        position: undefined,
+      });
+
+      this.updateNodeEdges(nodeIdValue, node, argument);
+
+      return ok(undefined);
+    } catch (error) {
+      return err(
+        new ProcessingError(
+          `Failed to update node: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        ),
+      );
+    }
+  }
+
+  removeNode(nodeId: NodeId): Result<void, ProcessingError> {
+    try {
+      const nodeIdValue = nodeId.getValue();
+
+      if (!this.graph.hasNode(nodeIdValue)) {
+        return ok(undefined);
+      }
+
+      this.graph.dropNode(nodeIdValue);
+      return ok(undefined);
+    } catch (error) {
+      return err(
+        new ProcessingError(
+          `Failed to remove node: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        ),
+      );
+    }
+  }
+
+  invalidateCache(treeId?: TreeId): Result<void, ProcessingError> {
+    try {
+      if (treeId) {
+        const treeNodes = this.graph.filterNodes((_, attrs) => attrs.treeId === treeId.getValue());
+        for (const nodeId of treeNodes) {
+          this.graph.dropNode(nodeId);
+        }
+      } else {
+        this.graph.clear();
+      }
+
+      this.performanceMetrics.lastBuildTimestamp = 0;
+      this.performanceMetrics.nodeCount = this.graph.order;
+      this.performanceMetrics.edgeCount = this.graph.size;
+
+      return ok(undefined);
+    } catch (error) {
+      return err(
+        new ProcessingError(
+          `Failed to invalidate cache: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        ),
+      );
+    }
+  }
+
+  hasNode(nodeId: NodeId): boolean {
+    return this.graph.hasNode(nodeId.getValue());
+  }
+
+  getDirectNeighbors(nodeId: NodeId): Result<NodeId[], ProcessingError> {
+    try {
+      const nodeIdValue = nodeId.getValue();
+
+      if (!this.graph.hasNode(nodeIdValue)) {
+        return ok([]);
+      }
+
+      const neighbors = new Set<string>();
+
+      for (const edge of this.graph.outEdges(nodeIdValue)) {
+        neighbors.add(this.graph.target(edge));
+      }
+
+      for (const edge of this.graph.inEdges(nodeIdValue)) {
+        neighbors.add(this.graph.source(edge));
+      }
+
+      const neighborIds = Array.from(neighbors).map((neighbor) => {
+        const neighborIdResult = NodeId.create(neighbor);
+        if (neighborIdResult.isErr()) {
+          throw new Error(`Invalid neighbor node ID: ${neighbor}`);
+        }
+        return neighborIdResult.value;
+      });
+
+      return ok(neighborIds);
+    } catch (error) {
+      return err(
+        new ProcessingError(
+          `Failed to get direct neighbors: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        ),
+      );
+    }
+  }
+
+  findNodesInDepthRange(
+    startNodeId: NodeId,
+    minDepth: number,
+    maxDepth: number,
+  ): Result<NodeId[], ProcessingError> {
+    try {
+      if (minDepth < 0 || maxDepth < 0 || minDepth > maxDepth) {
+        return err(
+          new ProcessingError(
+            'Invalid depth range: minDepth and maxDepth must be non-negative and minDepth <= maxDepth',
+          ),
+        );
+      }
+
+      const startNodeValue = startNodeId.getValue();
+
+      if (!this.graph.hasNode(startNodeValue)) {
+        return ok([]);
+      }
+
+      const nodesInRange: NodeId[] = [];
+      const visited = new Set<string>();
+      const queue: Array<{ nodeId: string; depth: number }> = [
+        { nodeId: startNodeValue, depth: 0 },
+      ];
+
+      while (queue.length > 0) {
+        const current = queue.shift();
+        if (!current || visited.has(current.nodeId)) continue;
+
+        if (current.depth > maxDepth) continue;
+
+        visited.add(current.nodeId);
+
+        if (current.depth >= minDepth && current.depth <= maxDepth) {
+          const nodeIdResult = NodeId.create(current.nodeId);
+          if (nodeIdResult.isOk()) {
+            nodesInRange.push(nodeIdResult.value);
+          }
+        }
+
+        if (current.depth < maxDepth) {
+          this.addChildrenToQueue(current.nodeId, current.depth, queue, visited);
+        }
+      }
+
+      return ok(nodesInRange);
+    } catch (error) {
+      return err(
+        new ProcessingError(
+          `Failed to find nodes in depth range: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        ),
+      );
+    }
+  }
+
   private findParentEdge(nodeId: string): string | null {
     const parentEdges = this.graph.outEdges(nodeId).filter((edge) => {
       const attrs = this.graph.getEdgeAttributes(edge);
@@ -309,17 +598,17 @@ export class ProofGraphAdapter implements IGraphTraversalService {
     arg1: AtomicArgument,
     arg2: AtomicArgument,
   ): void {
-    const connections = arg1.findConnectionsTo(arg2);
+    const connections = AtomicArgumentConnectionService.findConnectionsTo(arg1, arg2);
 
     for (const connection of connections) {
-      const edgeKey = `${nodeId1}-${nodeId2}-${connection.statement.getId().getValue()}-${connection.fromConclusionPosition}-${connection.toPremisePosition}`;
+      const edgeKey = `${nodeId1}-${nodeId2}-${connection.statement.getId().getValue()}-${connection.fromConclusionPosition}-${connection.toPremisePosition.getValue()}`;
 
       if (!this.graph.hasEdge(edgeKey) && !this.graph.hasEdge(nodeId1, nodeId2)) {
         this.graph.addDirectedEdgeWithKey(edgeKey, nodeId1, nodeId2, {
           type: 'statement-flow',
           statementId: connection.statement.getId().getValue(),
           fromConclusionPosition: connection.fromConclusionPosition,
-          toPremisePosition: connection.toPremisePosition,
+          toPremisePosition: connection.toPremisePosition.getValue(),
         });
       }
     }
@@ -376,7 +665,7 @@ export class ProofGraphAdapter implements IGraphTraversalService {
     currentPath: string[],
     queue: string[][],
   ): void {
-    for (const neighbor of neighbors) {
+    for (const neighbor of Array.from(neighbors)) {
       if (!visited.has(neighbor)) {
         queue.push([...currentPath, neighbor]);
       }
@@ -470,16 +759,24 @@ export class ProofGraphAdapter implements IGraphTraversalService {
     const argumentMap = new Map<string, AtomicArgument>();
 
     for (const nodeId of nodeIds) {
-      const node = await this.nodeRepository.findById(nodeId);
-      if (!node) {
-        return err(new ProcessingError(`Node ${nodeId.getValue()} not found`));
+      const nodeResult = await this.nodeRepository.findById(nodeId);
+      if (nodeResult.isErr()) {
+        return err(
+          new ProcessingError(`Node ${nodeId.getValue()} not found: ${nodeResult.error.message}`),
+        );
       }
+      const node = nodeResult.value;
       nodeMap.set(nodeId.getValue(), node);
 
-      const argument = await this.argumentRepository.findById(node.getArgumentId());
-      if (!argument) {
-        return err(new ProcessingError(`Argument ${node.getArgumentId().getValue()} not found`));
+      const argumentResult = await this.argumentRepository.findById(node.getArgumentId());
+      if (argumentResult.isErr()) {
+        return err(
+          new ProcessingError(
+            `Argument ${node.getArgumentId().getValue()} not found: ${argumentResult.error.message}`,
+          ),
+        );
       }
+      const argument = argumentResult.value;
       argumentMap.set(node.getArgumentId().getValue(), argument);
     }
 
@@ -491,11 +788,10 @@ export class ProofGraphAdapter implements IGraphTraversalService {
     argumentMap: Map<string, AtomicArgument>,
     treeId: string,
   ): void {
-    for (const [nodeIdStr, node] of nodeMap) {
+    for (const [nodeIdStr, node] of Array.from(nodeMap)) {
       const argument = argumentMap.get(node.getArgumentId().getValue());
       if (!argument) continue;
 
-      const position = node.getPosition();
       this.graph.addNode(nodeIdStr, {
         nodeId: nodeIdStr,
         argumentId: node.getArgumentId().getValue(),
@@ -503,18 +799,13 @@ export class ProofGraphAdapter implements IGraphTraversalService {
         premises: argument.getPremises().map((s) => s.getId().getValue()),
         conclusions: argument.getConclusions().map((s) => s.getId().getValue()),
         treeId,
-        position: position
-          ? {
-              x: position.getX(),
-              y: position.getY(),
-            }
-          : undefined,
+        position: undefined,
       });
     }
   }
 
   private addParentChildEdges(nodeMap: Map<string, Node>): void {
-    for (const [nodeIdStr, node] of nodeMap) {
+    for (const [nodeIdStr, node] of Array.from(nodeMap)) {
       if (!node.isChild()) continue;
 
       const parentId = node.getParentNodeId();
@@ -539,6 +830,27 @@ export class ProofGraphAdapter implements IGraphTraversalService {
       }
       return nodeIdResult.value;
     });
+  }
+
+  private updateNodeEdges(nodeId: string, node: Node, _argument: AtomicArgument): void {
+    const existingEdges = this.graph.edges(nodeId);
+    for (const edge of existingEdges) {
+      this.graph.dropEdge(edge);
+    }
+
+    if (node.isChild()) {
+      const parentId = node.getParentNodeId();
+      if (parentId && this.graph.hasNode(parentId.getValue())) {
+        const attachment = node.getAttachment();
+        if (attachment) {
+          this.graph.addDirectedEdge(nodeId, parentId.getValue(), {
+            type: 'parent-child',
+            premisePosition: attachment.getPremisePosition(),
+            fromPosition: attachment.getFromPosition(),
+          });
+        }
+      }
+    }
   }
 
   private addChildrenToQueue(
@@ -602,7 +914,7 @@ export class ProofGraphAdapter implements IGraphTraversalService {
 
   private calculateBreadthFromDepths(depths: Map<string, number>): number {
     const levelCounts = new Map<number, number>();
-    for (const [_, depth] of depths) {
+    for (const [_, depth] of Array.from(depths)) {
       levelCounts.set(depth, (levelCounts.get(depth) || 0) + 1);
     }
     return Math.max(...Array.from(levelCounts.values()));
@@ -610,7 +922,7 @@ export class ProofGraphAdapter implements IGraphTraversalService {
 
   private countLeavesInDepthMap(depths: Map<string, number>): number {
     let leafCount = 0;
-    for (const node of depths.keys()) {
+    for (const node of Array.from(depths.keys())) {
       if (this.isLeafNode(node)) {
         leafCount++;
       }

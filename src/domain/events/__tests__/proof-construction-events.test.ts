@@ -6,7 +6,7 @@ import type {
   NodeId,
   OrderedSetId,
   TreeId,
-} from '../../shared/value-objects.js';
+} from '../../shared/value-objects/index.js';
 import {
   type ArgumentModification,
   AtomicArgumentCreated,
@@ -79,8 +79,8 @@ describe('AtomicArgumentCreated', () => {
 
     expect(data).toEqual({
       argumentId: 'arg-123',
-      premiseSetId: 'set-123',
-      conclusionSetId: null,
+      premiseIds: 'set-123',
+      conclusionIds: null,
       sideLabels: mockSideLabels,
       createdBy: 'test-user',
     });

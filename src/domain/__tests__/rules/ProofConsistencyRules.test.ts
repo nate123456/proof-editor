@@ -9,7 +9,7 @@ import {
   validateStatementUsage,
   validateTreeStructure,
 } from '../../rules/ProofConsistencyRules.js';
-import { AtomicArgumentId, Attachment, NodeId } from '../../shared/value-objects.js';
+import { AtomicArgumentId, Attachment, NodeId } from '../../shared/value-objects/index.js';
 
 describe('ProofConsistencyRules', () => {
   describe('validateStatementUsage', () => {

@@ -1,7 +1,7 @@
 import { err, ok, type Result } from 'neverthrow';
 import type { AtomicArgument } from '../entities/AtomicArgument.js';
 import { ProcessingError } from '../errors/DomainErrors.js';
-import { AtomicArgumentId, type OrderedSetId } from '../shared/value-objects.js';
+import { AtomicArgumentId, type OrderedSetId } from '../shared/value-objects/index.js';
 import type {
   ArgumentCycle,
   CycleDetection,
@@ -175,10 +175,8 @@ export class CycleDetectionService implements ICycleDetectionService {
       const arg = argumentMap.get(argId.getValue());
       if (!arg) continue;
 
-      // Check argument characteristics
-      // (In a real system, arguments might have types)
-      const hasNoPremises = !arg.getPremiseSet();
-      if (hasNoPremises) {
+      // Check argument characteristics using entity methods
+      if (arg.isDefinition()) {
         hasDefinitions = true;
       } else {
         hasDeductions = true;

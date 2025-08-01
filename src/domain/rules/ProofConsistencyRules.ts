@@ -2,7 +2,7 @@ import { err, ok, type Result } from 'neverthrow';
 import type { AtomicArgument } from '../entities/AtomicArgument.js';
 import type { Node } from '../entities/Node.js';
 import type { Statement } from '../entities/Statement.js';
-import type { AtomicArgumentId, NodeId, StatementId } from '../shared/value-objects.js';
+import type { AtomicArgumentId, NodeId, StatementId } from '../shared/value-objects/index.js';
 
 export class ConsistencyError extends Error {
   constructor(

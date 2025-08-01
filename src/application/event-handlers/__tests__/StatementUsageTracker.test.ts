@@ -1,12 +1,19 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { DomainEvent } from '../../../domain/events/base-event.js';
 import {
-  OrderedSetCreated,
-  OrderedSetDeleted,
+  AtomicArgumentCreated,
+  AtomicArgumentDeleted,
+  AtomicArgumentUpdated,
   StatementCreated,
   StatementDeleted,
 } from '../../../domain/events/proof-document-events.js';
-import { Timestamp } from '../../../domain/shared/value-objects.js';
+import {
+  AtomicArgumentId,
+  ProofDocumentId,
+  StatementContent,
+  StatementId,
+  Timestamp,
+} from '../../../domain/shared/value-objects/index.js';
 import { StatementUsageEventHandler, StatementUsageTracker } from '../StatementUsageTracker.js';
 
 describe('StatementUsageTracker', () => {
@@ -18,9 +25,17 @@ describe('StatementUsageTracker', () => {
 
   describe('handleStatementCreated', () => {
     it('should initialize statement with zero usage count', () => {
-      const event = new StatementCreated('doc-1', {
-        statementId: 'stmt-1',
-        content: 'All men are mortal',
+      const docId = ProofDocumentId.create('doc-1');
+      const stmtId = StatementId.create('stmt-1');
+      const content = StatementContent.create('All men are mortal');
+
+      if (docId.isErr() || stmtId.isErr() || content.isErr()) {
+        throw new Error('Failed to create test value objects');
+      }
+
+      const event = new StatementCreated(docId.value, {
+        statementId: stmtId.value,
+        content: content.value,
       });
 
       tracker.handleStatementCreated(event);
@@ -30,14 +45,30 @@ describe('StatementUsageTracker', () => {
     });
 
     it('should handle multiple statement creation events', () => {
-      const event1 = new StatementCreated('doc-1', {
-        statementId: 'stmt-1',
-        content: 'All men are mortal',
+      const docId = ProofDocumentId.create('doc-1');
+      const stmtId1 = StatementId.create('stmt-1');
+      const stmtId2 = StatementId.create('stmt-2');
+      const content1 = StatementContent.create('All men are mortal');
+      const content2 = StatementContent.create('Socrates is a man');
+
+      if (
+        docId.isErr() ||
+        stmtId1.isErr() ||
+        stmtId2.isErr() ||
+        content1.isErr() ||
+        content2.isErr()
+      ) {
+        throw new Error('Failed to create test value objects');
+      }
+
+      const event1 = new StatementCreated(docId.value, {
+        statementId: stmtId1.value,
+        content: content1.value,
       });
 
-      const event2 = new StatementCreated('doc-1', {
-        statementId: 'stmt-2',
-        content: 'Socrates is a man',
+      const event2 = new StatementCreated(docId.value, {
+        statementId: stmtId2.value,
+        content: content2.value,
       });
 
       tracker.handleStatementCreated(event1);
@@ -91,126 +122,255 @@ describe('StatementUsageTracker', () => {
     });
   });
 
-  describe('handleOrderedSetCreated', () => {
-    it('should increment usage counts for statements in the set', () => {
-      const createStmt1 = new StatementCreated('doc-1', {
-        statementId: 'stmt-1',
-        content: 'All men are mortal',
+  describe('handleAtomicArgumentCreated', () => {
+    it('should increment usage counts for statements in premises and conclusions', () => {
+      const docId = ProofDocumentId.create('doc-1');
+      const stmtId1 = StatementId.create('stmt-1');
+      const stmtId2 = StatementId.create('stmt-2');
+      const stmtId3 = StatementId.create('stmt-3');
+      const argId = AtomicArgumentId.create('arg-1');
+      const content1 = StatementContent.create('All men are mortal');
+      const content2 = StatementContent.create('Socrates is a man');
+      const content3 = StatementContent.create('Socrates is mortal');
+
+      if (
+        docId.isErr() ||
+        stmtId1.isErr() ||
+        stmtId2.isErr() ||
+        stmtId3.isErr() ||
+        argId.isErr() ||
+        content1.isErr() ||
+        content2.isErr() ||
+        content3.isErr()
+      ) {
+        throw new Error('Failed to create test value objects');
+      }
+
+      const createStmt1 = new StatementCreated(docId.value, {
+        statementId: stmtId1.value,
+        content: content1.value,
       });
 
-      const createStmt2 = new StatementCreated('doc-1', {
-        statementId: 'stmt-2',
-        content: 'Socrates is a man',
+      const createStmt2 = new StatementCreated(docId.value, {
+        statementId: stmtId2.value,
+        content: content2.value,
       });
 
-      const createSet = new OrderedSetCreated('doc-1', {
-        orderedSetId: 'set-1',
-        statementIds: ['stmt-1', 'stmt-2'],
+      const createStmt3 = new StatementCreated(docId.value, {
+        statementId: stmtId3.value,
+        content: content3.value,
+      });
+
+      const createArg = new AtomicArgumentCreated(docId.value, {
+        argumentId: argId.value,
+        premiseIds: [stmtId1.value, stmtId2.value],
+        conclusionIds: [stmtId3.value],
       });
 
       tracker.handleStatementCreated(createStmt1);
       tracker.handleStatementCreated(createStmt2);
-      tracker.handleOrderedSetCreated(createSet);
+      tracker.handleStatementCreated(createStmt3);
+      tracker.handleAtomicArgumentCreated(createArg);
 
       expect(tracker.getUsageCount('stmt-1')).toBe(1);
       expect(tracker.getUsageCount('stmt-2')).toBe(1);
+      expect(tracker.getUsageCount('stmt-3')).toBe(1);
     });
 
     it('should handle statements that do not exist', () => {
-      const event = new OrderedSetCreated('doc-1', {
-        orderedSetId: 'set-1',
-        statementIds: ['non-existent-1', 'non-existent-2'],
+      const docId = ProofDocumentId.create('doc-1');
+      const stmtId1 = StatementId.create('non-existent-1');
+      const stmtId2 = StatementId.create('non-existent-2');
+      const argId = AtomicArgumentId.create('arg-1');
+
+      if (docId.isErr() || stmtId1.isErr() || stmtId2.isErr() || argId.isErr()) {
+        throw new Error('Failed to create test value objects');
+      }
+
+      const event = new AtomicArgumentCreated(docId.value, {
+        argumentId: argId.value,
+        premiseIds: [stmtId1.value],
+        conclusionIds: [stmtId2.value],
       });
 
-      tracker.handleOrderedSetCreated(event);
+      tracker.handleAtomicArgumentCreated(event);
 
       expect(tracker.getUsageCount('non-existent-1')).toBe(1);
       expect(tracker.getUsageCount('non-existent-2')).toBe(1);
     });
 
-    it('should handle duplicate statement IDs in the same set', () => {
-      const createStmt = new StatementCreated('doc-1', {
-        statementId: 'stmt-1',
-        content: 'All men are mortal',
+    it('should handle duplicate statement IDs in premises and conclusions', () => {
+      const docId = ProofDocumentId.create('doc-1');
+      const stmtId = StatementId.create('stmt-1');
+      const argId = AtomicArgumentId.create('arg-1');
+      const content = StatementContent.create('All men are mortal');
+
+      if (docId.isErr() || stmtId.isErr() || argId.isErr() || content.isErr()) {
+        throw new Error('Failed to create test value objects');
+      }
+
+      const createStmt = new StatementCreated(docId.value, {
+        statementId: stmtId.value,
+        content: content.value,
       });
 
-      const createSet = new OrderedSetCreated('doc-1', {
-        orderedSetId: 'set-1',
-        statementIds: ['stmt-1', 'stmt-1', 'stmt-1'],
+      const createArg = new AtomicArgumentCreated(docId.value, {
+        argumentId: argId.value,
+        premiseIds: [stmtId.value, stmtId.value],
+        conclusionIds: [stmtId.value],
       });
 
       tracker.handleStatementCreated(createStmt);
-      tracker.handleOrderedSetCreated(createSet);
+      tracker.handleAtomicArgumentCreated(createArg);
 
       expect(tracker.getUsageCount('stmt-1')).toBe(3);
     });
 
-    it('should handle empty statement IDs array', () => {
-      const event = new OrderedSetCreated('doc-1', {
-        orderedSetId: 'set-1',
-        statementIds: [],
+    it('should handle empty premise and conclusion arrays', () => {
+      const docId = ProofDocumentId.create('doc-1');
+      const argId = AtomicArgumentId.create('arg-1');
+
+      if (docId.isErr() || argId.isErr()) {
+        throw new Error('Failed to create test value objects');
+      }
+
+      const event = new AtomicArgumentCreated(docId.value, {
+        argumentId: argId.value,
+        premiseIds: [],
+        conclusionIds: [],
       });
 
-      expect(() => tracker.handleOrderedSetCreated(event)).not.toThrow();
+      expect(() => tracker.handleAtomicArgumentCreated(event)).not.toThrow();
     });
   });
 
-  describe('handleOrderedSetDeleted', () => {
-    it('should decrement usage counts for statements in the set', () => {
-      const createStmt1 = new StatementCreated('doc-1', {
-        statementId: 'stmt-1',
-        content: 'All men are mortal',
+  describe('handleAtomicArgumentDeleted', () => {
+    it('should decrement usage counts for statements in premises and conclusions', () => {
+      const docId = ProofDocumentId.create('doc-1');
+      const stmtId1 = StatementId.create('stmt-1');
+      const stmtId2 = StatementId.create('stmt-2');
+      const stmtId3 = StatementId.create('stmt-3');
+      const argId = AtomicArgumentId.create('arg-1');
+      const content1 = StatementContent.create('All men are mortal');
+      const content2 = StatementContent.create('Socrates is a man');
+      const content3 = StatementContent.create('Socrates is mortal');
+
+      if (
+        docId.isErr() ||
+        stmtId1.isErr() ||
+        stmtId2.isErr() ||
+        stmtId3.isErr() ||
+        argId.isErr() ||
+        content1.isErr() ||
+        content2.isErr() ||
+        content3.isErr()
+      ) {
+        throw new Error('Failed to create test value objects');
+      }
+
+      const createStmt1 = new StatementCreated(docId.value, {
+        statementId: stmtId1.value,
+        content: content1.value,
       });
 
-      const createStmt2 = new StatementCreated('doc-1', {
-        statementId: 'stmt-2',
-        content: 'Socrates is a man',
+      const createStmt2 = new StatementCreated(docId.value, {
+        statementId: stmtId2.value,
+        content: content2.value,
       });
 
-      const createSet = new OrderedSetCreated('doc-1', {
-        orderedSetId: 'set-1',
-        statementIds: ['stmt-1', 'stmt-2'],
+      const createStmt3 = new StatementCreated(docId.value, {
+        statementId: stmtId3.value,
+        content: content3.value,
       });
 
-      const deleteSet = new OrderedSetDeleted('doc-1', {
-        orderedSetId: 'set-1',
-        statementIds: ['stmt-1', 'stmt-2'],
+      const createArg = new AtomicArgumentCreated(docId.value, {
+        argumentId: argId.value,
+        premiseIds: [stmtId1.value, stmtId2.value],
+        conclusionIds: [stmtId3.value],
+      });
+
+      const deleteArg = new AtomicArgumentDeleted(docId.value, {
+        argumentId: argId.value,
+        premiseIds: [stmtId1.value, stmtId2.value],
+        conclusionIds: [stmtId3.value],
       });
 
       tracker.handleStatementCreated(createStmt1);
       tracker.handleStatementCreated(createStmt2);
-      tracker.handleOrderedSetCreated(createSet);
-      tracker.handleOrderedSetDeleted(deleteSet);
+      tracker.handleStatementCreated(createStmt3);
+      tracker.handleAtomicArgumentCreated(createArg);
+      tracker.handleAtomicArgumentDeleted(deleteArg);
 
       expect(tracker.getUsageCount('stmt-1')).toBe(0);
       expect(tracker.getUsageCount('stmt-2')).toBe(0);
+      expect(tracker.getUsageCount('stmt-3')).toBe(0);
     });
 
     it('should not allow usage count to go below zero', () => {
-      const createStmt = new StatementCreated('doc-1', {
-        statementId: 'stmt-1',
-        content: 'All men are mortal',
+      const docId = ProofDocumentId.create('doc-1');
+      const stmtId = StatementId.create('stmt-1');
+      const argId = AtomicArgumentId.create('arg-1');
+      const content = StatementContent.create('All men are mortal');
+
+      if (docId.isErr() || stmtId.isErr() || argId.isErr() || content.isErr()) {
+        throw new Error('Failed to create test value objects');
+      }
+
+      const createStmt = new StatementCreated(docId.value, {
+        statementId: stmtId.value,
+        content: content.value,
       });
 
-      const deleteSet = new OrderedSetDeleted('doc-1', {
-        orderedSetId: 'set-1',
-        statementIds: ['stmt-1'],
+      const deleteArg = new AtomicArgumentDeleted(docId.value, {
+        argumentId: argId.value,
+        premiseIds: [stmtId.value],
+        conclusionIds: [],
       });
 
       tracker.handleStatementCreated(createStmt);
-      tracker.handleOrderedSetDeleted(deleteSet);
+      tracker.handleAtomicArgumentDeleted(deleteArg);
 
       expect(tracker.getUsageCount('stmt-1')).toBe(0);
     });
 
     it('should handle non-existent statements', () => {
-      const event = new OrderedSetDeleted('doc-1', {
-        orderedSetId: 'set-1',
-        statementIds: ['non-existent'],
+      const docId = ProofDocumentId.create('doc-1');
+      const stmtId = StatementId.create('non-existent');
+      const argId = AtomicArgumentId.create('arg-1');
+
+      if (docId.isErr() || stmtId.isErr() || argId.isErr()) {
+        throw new Error('Failed to create test value objects');
+      }
+
+      const event = new AtomicArgumentDeleted(docId.value, {
+        argumentId: argId.value,
+        premiseIds: [stmtId.value],
+        conclusionIds: [],
       });
 
-      expect(() => tracker.handleOrderedSetDeleted(event)).not.toThrow();
+      expect(() => tracker.handleAtomicArgumentDeleted(event)).not.toThrow();
       expect(tracker.getUsageCount('non-existent')).toBe(0);
+    });
+  });
+
+  describe('handleAtomicArgumentUpdated', () => {
+    it('should be implemented but currently does nothing', () => {
+      const docId = ProofDocumentId.create('doc-1');
+      const stmtId = StatementId.create('stmt-1');
+      const argId = AtomicArgumentId.create('arg-1');
+
+      if (docId.isErr() || stmtId.isErr() || argId.isErr()) {
+        throw new Error('Failed to create test value objects');
+      }
+
+      const event = new AtomicArgumentUpdated(docId.value, {
+        argumentId: argId.value,
+        premiseIds: [stmtId.value],
+        conclusionIds: [],
+      });
+
+      // Should not throw
+      expect(() => tracker.handleAtomicArgumentUpdated(event)).not.toThrow();
     });
   });
 
@@ -220,24 +380,36 @@ describe('StatementUsageTracker', () => {
     });
 
     it('should return correct usage count', () => {
-      const createStmt = new StatementCreated('doc-1', {
-        statementId: 'stmt-1',
-        content: 'All men are mortal',
+      const docId = ProofDocumentId.create('doc-1');
+      const stmtId = StatementId.create('stmt-1');
+      const argId1 = AtomicArgumentId.create('arg-1');
+      const argId2 = AtomicArgumentId.create('arg-2');
+      const content = StatementContent.create('All men are mortal');
+
+      if (docId.isErr() || stmtId.isErr() || argId1.isErr() || argId2.isErr() || content.isErr()) {
+        throw new Error('Failed to create test value objects');
+      }
+
+      const createStmt = new StatementCreated(docId.value, {
+        statementId: stmtId.value,
+        content: content.value,
       });
 
-      const createSet1 = new OrderedSetCreated('doc-1', {
-        orderedSetId: 'set-1',
-        statementIds: ['stmt-1'],
+      const createArg1 = new AtomicArgumentCreated(docId.value, {
+        argumentId: argId1.value,
+        premiseIds: [stmtId.value],
+        conclusionIds: [],
       });
 
-      const createSet2 = new OrderedSetCreated('doc-1', {
-        orderedSetId: 'set-2',
-        statementIds: ['stmt-1'],
+      const createArg2 = new AtomicArgumentCreated(docId.value, {
+        argumentId: argId2.value,
+        premiseIds: [stmtId.value],
+        conclusionIds: [],
       });
 
       tracker.handleStatementCreated(createStmt);
-      tracker.handleOrderedSetCreated(createSet1);
-      tracker.handleOrderedSetCreated(createSet2);
+      tracker.handleAtomicArgumentCreated(createArg1);
+      tracker.handleAtomicArgumentCreated(createArg2);
 
       expect(tracker.getUsageCount('stmt-1')).toBe(2);
     });
@@ -276,14 +448,23 @@ describe('StatementUsageTracker', () => {
         content: 'Socrates is a man',
       });
 
-      const createSet = new OrderedSetCreated('doc-1', {
-        orderedSetId: 'set-1',
-        statementIds: ['stmt-1'],
+      const docId = ProofDocumentId.create('doc-1');
+      const stmtId1 = StatementId.create('stmt-1');
+      const argId = AtomicArgumentId.create('arg-1');
+
+      if (docId.isErr() || stmtId1.isErr() || argId.isErr()) {
+        throw new Error('Failed to create test value objects');
+      }
+
+      const createArg = new AtomicArgumentCreated(docId.value, {
+        argumentId: argId.value,
+        premiseIds: [stmtId1.value],
+        conclusionIds: [],
       });
 
       tracker.handleStatementCreated(createStmt1);
       tracker.handleStatementCreated(createStmt2);
-      tracker.handleOrderedSetCreated(createSet);
+      tracker.handleAtomicArgumentCreated(createArg);
 
       const unused = tracker.getUnusedStatements();
       expect(unused).toEqual([{ id: 'stmt-2', content: 'Socrates is a man' }]);
@@ -327,25 +508,46 @@ describe('StatementUsageTracker', () => {
       tracker.handleStatementCreated(createStmt2);
       tracker.handleStatementCreated(createStmt3);
 
+      const docId = ProofDocumentId.create('doc-1');
+      const stmtId1 = StatementId.create('stmt-1');
+      const stmtId2 = StatementId.create('stmt-2');
+      const argId1 = AtomicArgumentId.create('arg-1');
+      const argId2 = AtomicArgumentId.create('arg-2');
+      const argId3 = AtomicArgumentId.create('arg-3');
+
+      if (
+        docId.isErr() ||
+        stmtId1.isErr() ||
+        stmtId2.isErr() ||
+        argId1.isErr() ||
+        argId2.isErr() ||
+        argId3.isErr()
+      ) {
+        throw new Error('Failed to create test value objects');
+      }
+
       // Create usage patterns
-      tracker.handleOrderedSetCreated(
-        new OrderedSetCreated('doc-1', {
-          orderedSetId: 'set-1',
-          statementIds: ['stmt-1', 'stmt-2'],
+      tracker.handleAtomicArgumentCreated(
+        new AtomicArgumentCreated(docId.value, {
+          argumentId: argId1.value,
+          premiseIds: [stmtId1.value, stmtId2.value],
+          conclusionIds: [],
         }),
       );
 
-      tracker.handleOrderedSetCreated(
-        new OrderedSetCreated('doc-1', {
-          orderedSetId: 'set-2',
-          statementIds: ['stmt-1'],
+      tracker.handleAtomicArgumentCreated(
+        new AtomicArgumentCreated(docId.value, {
+          argumentId: argId2.value,
+          premiseIds: [stmtId1.value],
+          conclusionIds: [],
         }),
       );
 
-      tracker.handleOrderedSetCreated(
-        new OrderedSetCreated('doc-1', {
-          orderedSetId: 'set-3',
-          statementIds: ['stmt-2'],
+      tracker.handleAtomicArgumentCreated(
+        new AtomicArgumentCreated(docId.value, {
+          argumentId: argId3.value,
+          premiseIds: [stmtId2.value],
+          conclusionIds: [],
         }),
       );
 
@@ -376,10 +578,21 @@ describe('StatementUsageTracker', () => {
       tracker.handleStatementCreated(createStmt2);
       tracker.handleStatementCreated(createStmt3);
 
-      tracker.handleOrderedSetCreated(
-        new OrderedSetCreated('doc-1', {
-          orderedSetId: 'set-1',
-          statementIds: ['stmt-1', 'stmt-2', 'stmt-3'],
+      const docId = ProofDocumentId.create('doc-1');
+      const stmtId1 = StatementId.create('stmt-1');
+      const stmtId2 = StatementId.create('stmt-2');
+      const stmtId3 = StatementId.create('stmt-3');
+      const argId = AtomicArgumentId.create('arg-1');
+
+      if (docId.isErr() || stmtId1.isErr() || stmtId2.isErr() || stmtId3.isErr() || argId.isErr()) {
+        throw new Error('Failed to create test value objects');
+      }
+
+      tracker.handleAtomicArgumentCreated(
+        new AtomicArgumentCreated(docId.value, {
+          argumentId: argId.value,
+          premiseIds: [stmtId1.value, stmtId2.value, stmtId3.value],
+          conclusionIds: [],
         }),
       );
 
@@ -401,10 +614,19 @@ describe('StatementUsageTracker', () => {
       tracker.handleStatementCreated(createStmt1);
       tracker.handleStatementCreated(createStmt2);
 
-      tracker.handleOrderedSetCreated(
-        new OrderedSetCreated('doc-1', {
-          orderedSetId: 'set-1',
-          statementIds: ['stmt-1'],
+      const docId = ProofDocumentId.create('doc-1');
+      const stmtId = StatementId.create('stmt-1');
+      const argId = AtomicArgumentId.create('arg-1');
+
+      if (docId.isErr() || stmtId.isErr() || argId.isErr()) {
+        throw new Error('Failed to create test value objects');
+      }
+
+      tracker.handleAtomicArgumentCreated(
+        new AtomicArgumentCreated(docId.value, {
+          argumentId: argId.value,
+          premiseIds: [stmtId.value],
+          conclusionIds: [],
         }),
       );
 
@@ -446,25 +668,46 @@ describe('StatementUsageTracker', () => {
       tracker.handleStatementCreated(createStmt2);
       tracker.handleStatementCreated(createStmt3);
 
+      const docId = ProofDocumentId.create('doc-1');
+      const stmtId1 = StatementId.create('stmt-1');
+      const stmtId2 = StatementId.create('stmt-2');
+      const argId1 = AtomicArgumentId.create('arg-1');
+      const argId2 = AtomicArgumentId.create('arg-2');
+      const argId3 = AtomicArgumentId.create('arg-3');
+
+      if (
+        docId.isErr() ||
+        stmtId1.isErr() ||
+        stmtId2.isErr() ||
+        argId1.isErr() ||
+        argId2.isErr() ||
+        argId3.isErr()
+      ) {
+        throw new Error('Failed to create test value objects');
+      }
+
       // stmt-1 used 3 times, stmt-2 used 1 time, stmt-3 unused
-      tracker.handleOrderedSetCreated(
-        new OrderedSetCreated('doc-1', {
-          orderedSetId: 'set-1',
-          statementIds: ['stmt-1', 'stmt-2'],
+      tracker.handleAtomicArgumentCreated(
+        new AtomicArgumentCreated(docId.value, {
+          argumentId: argId1.value,
+          premiseIds: [stmtId1.value, stmtId2.value],
+          conclusionIds: [],
         }),
       );
 
-      tracker.handleOrderedSetCreated(
-        new OrderedSetCreated('doc-1', {
-          orderedSetId: 'set-2',
-          statementIds: ['stmt-1'],
+      tracker.handleAtomicArgumentCreated(
+        new AtomicArgumentCreated(docId.value, {
+          argumentId: argId2.value,
+          premiseIds: [stmtId1.value],
+          conclusionIds: [],
         }),
       );
 
-      tracker.handleOrderedSetCreated(
-        new OrderedSetCreated('doc-1', {
-          orderedSetId: 'set-3',
-          statementIds: ['stmt-1'],
+      tracker.handleAtomicArgumentCreated(
+        new AtomicArgumentCreated(docId.value, {
+          argumentId: argId3.value,
+          premiseIds: [stmtId1.value],
+          conclusionIds: [],
         }),
       );
 
@@ -497,18 +740,28 @@ describe('StatementUsageTracker', () => {
     });
 
     it('should return true for used statement', () => {
-      const createStmt = new StatementCreated('doc-1', {
-        statementId: 'stmt-1',
-        content: 'Used statement',
+      const docId = ProofDocumentId.create('doc-1');
+      const stmtId = StatementId.create('stmt-1');
+      const argId = AtomicArgumentId.create('arg-1');
+      const content = StatementContent.create('Used statement');
+
+      if (docId.isErr() || stmtId.isErr() || argId.isErr() || content.isErr()) {
+        throw new Error('Failed to create test value objects');
+      }
+
+      const createStmt = new StatementCreated(docId.value, {
+        statementId: stmtId.value,
+        content: content.value,
       });
 
-      const createSet = new OrderedSetCreated('doc-1', {
-        orderedSetId: 'set-1',
-        statementIds: ['stmt-1'],
+      const createArg = new AtomicArgumentCreated(docId.value, {
+        argumentId: argId.value,
+        premiseIds: [stmtId.value],
+        conclusionIds: [],
       });
 
       tracker.handleStatementCreated(createStmt);
-      tracker.handleOrderedSetCreated(createSet);
+      tracker.handleAtomicArgumentCreated(createArg);
 
       expect(tracker.isStatementUsed('stmt-1')).toBe(true);
     });
@@ -571,25 +824,46 @@ describe('StatementUsageTracker', () => {
       tracker.handleStatementCreated(createStmt1);
       tracker.handleStatementCreated(createStmt2);
 
+      const docId = ProofDocumentId.create('doc-1');
+      const stmtId1 = StatementId.create('stmt-1');
+      const stmtId2 = StatementId.create('stmt-2');
+      const argId1 = AtomicArgumentId.create('arg-1');
+      const argId2 = AtomicArgumentId.create('arg-2');
+      const argId3 = AtomicArgumentId.create('arg-3');
+
+      if (
+        docId.isErr() ||
+        stmtId1.isErr() ||
+        stmtId2.isErr() ||
+        argId1.isErr() ||
+        argId2.isErr() ||
+        argId3.isErr()
+      ) {
+        throw new Error('Failed to create test value objects');
+      }
+
       // Give stmt-2 higher usage
-      tracker.handleOrderedSetCreated(
-        new OrderedSetCreated('doc-1', {
-          orderedSetId: 'set-1',
-          statementIds: ['stmt-2'],
+      tracker.handleAtomicArgumentCreated(
+        new AtomicArgumentCreated(docId.value, {
+          argumentId: argId1.value,
+          premiseIds: [stmtId2.value],
+          conclusionIds: [],
         }),
       );
 
-      tracker.handleOrderedSetCreated(
-        new OrderedSetCreated('doc-1', {
-          orderedSetId: 'set-2',
-          statementIds: ['stmt-2'],
+      tracker.handleAtomicArgumentCreated(
+        new AtomicArgumentCreated(docId.value, {
+          argumentId: argId2.value,
+          premiseIds: [stmtId2.value],
+          conclusionIds: [],
         }),
       );
 
-      tracker.handleOrderedSetCreated(
-        new OrderedSetCreated('doc-1', {
-          orderedSetId: 'set-3',
-          statementIds: ['stmt-1'],
+      tracker.handleAtomicArgumentCreated(
+        new AtomicArgumentCreated(docId.value, {
+          argumentId: argId3.value,
+          premiseIds: [stmtId1.value],
+          conclusionIds: [],
         }),
       );
 
@@ -620,10 +894,19 @@ describe('StatementUsageTracker', () => {
       tracker.handleStatementCreated(createStmt1);
       tracker.handleStatementCreated(createStmt2);
 
-      tracker.handleOrderedSetCreated(
-        new OrderedSetCreated('doc-1', {
-          orderedSetId: 'set-1',
-          statementIds: ['stmt-1'],
+      const docId = ProofDocumentId.create('doc-1');
+      const stmtId1 = StatementId.create('stmt-1');
+      const argId = AtomicArgumentId.create('arg-1');
+
+      if (docId.isErr() || stmtId1.isErr() || argId.isErr()) {
+        throw new Error('Failed to create test value objects');
+      }
+
+      tracker.handleAtomicArgumentCreated(
+        new AtomicArgumentCreated(docId.value, {
+          argumentId: argId.value,
+          premiseIds: [stmtId1.value],
+          conclusionIds: [],
         }),
       );
 
@@ -660,13 +943,22 @@ describe('StatementUsageTracker', () => {
         content: 'All men are mortal',
       });
 
-      const createSet = new OrderedSetCreated('doc-1', {
-        orderedSetId: 'set-1',
-        statementIds: ['stmt-1'],
+      const docId = ProofDocumentId.create('doc-1');
+      const stmtId = StatementId.create('stmt-1');
+      const argId = AtomicArgumentId.create('arg-1');
+
+      if (docId.isErr() || stmtId.isErr() || argId.isErr()) {
+        throw new Error('Failed to create test value objects');
+      }
+
+      const createArg = new AtomicArgumentCreated(docId.value, {
+        argumentId: argId.value,
+        premiseIds: [stmtId.value],
+        conclusionIds: [],
       });
 
       tracker.handleStatementCreated(createStmt);
-      tracker.handleOrderedSetCreated(createSet);
+      tracker.handleAtomicArgumentCreated(createArg);
 
       expect(tracker.getUsageCount('stmt-1')).toBe(1);
       expect(tracker.getStatementContent('stmt-1')).toBe('All men are mortal');
@@ -686,13 +978,22 @@ describe('StatementUsageTracker', () => {
         content: 'All men are mortal',
       });
 
-      const createSet = new OrderedSetCreated('doc-1', {
-        orderedSetId: 'set-1',
-        statementIds: ['stmt-1'],
+      const docId = ProofDocumentId.create('doc-1');
+      const stmtId = StatementId.create('stmt-1');
+      const argId = AtomicArgumentId.create('arg-1');
+
+      if (docId.isErr() || stmtId.isErr() || argId.isErr()) {
+        throw new Error('Failed to create test value objects');
+      }
+
+      const createArg = new AtomicArgumentCreated(docId.value, {
+        argumentId: argId.value,
+        premiseIds: [stmtId.value],
+        conclusionIds: [],
       });
 
       tracker.handleStatementCreated(createStmt);
-      tracker.handleOrderedSetCreated(createSet);
+      tracker.handleAtomicArgumentCreated(createArg);
 
       const exported = tracker.export();
       expect(exported).toEqual({
@@ -797,42 +1098,63 @@ describe('StatementUsageEventHandler', () => {
       expect(tracker.getStatementContent('stmt-1')).toBeUndefined();
     });
 
-    it('should handle OrderedSetCreated events', () => {
-      const createStmt = new StatementCreated('doc-1', {
-        statementId: 'stmt-1',
-        content: 'All men are mortal',
+    it('should handle AtomicArgumentCreated events', () => {
+      const docId = ProofDocumentId.create('doc-1');
+      const stmtId = StatementId.create('stmt-1');
+      const argId = AtomicArgumentId.create('arg-1');
+      const content = StatementContent.create('All men are mortal');
+
+      if (docId.isErr() || stmtId.isErr() || argId.isErr() || content.isErr()) {
+        throw new Error('Failed to create test value objects');
+      }
+
+      const createStmt = new StatementCreated(docId.value, {
+        statementId: stmtId.value,
+        content: content.value,
       });
 
-      const createSet = new OrderedSetCreated('doc-1', {
-        orderedSetId: 'set-1',
-        statementIds: ['stmt-1'],
+      const createArg = new AtomicArgumentCreated(docId.value, {
+        argumentId: argId.value,
+        premiseIds: [stmtId.value],
+        conclusionIds: [],
       });
 
       handler.handle(createStmt);
-      handler.handle(createSet);
+      handler.handle(createArg);
 
       expect(tracker.getUsageCount('stmt-1')).toBe(1);
     });
 
-    it('should handle OrderedSetDeleted events', () => {
-      const createStmt = new StatementCreated('doc-1', {
-        statementId: 'stmt-1',
-        content: 'All men are mortal',
+    it('should handle AtomicArgumentDeleted events', () => {
+      const docId = ProofDocumentId.create('doc-1');
+      const stmtId = StatementId.create('stmt-1');
+      const argId = AtomicArgumentId.create('arg-1');
+      const content = StatementContent.create('All men are mortal');
+
+      if (docId.isErr() || stmtId.isErr() || argId.isErr() || content.isErr()) {
+        throw new Error('Failed to create test value objects');
+      }
+
+      const createStmt = new StatementCreated(docId.value, {
+        statementId: stmtId.value,
+        content: content.value,
       });
 
-      const createSet = new OrderedSetCreated('doc-1', {
-        orderedSetId: 'set-1',
-        statementIds: ['stmt-1'],
+      const createArg = new AtomicArgumentCreated(docId.value, {
+        argumentId: argId.value,
+        premiseIds: [stmtId.value],
+        conclusionIds: [],
       });
 
-      const deleteSet = new OrderedSetDeleted('doc-1', {
-        orderedSetId: 'set-1',
-        statementIds: ['stmt-1'],
+      const deleteArg = new AtomicArgumentDeleted(docId.value, {
+        argumentId: argId.value,
+        premiseIds: [stmtId.value],
+        conclusionIds: [],
       });
 
       handler.handle(createStmt);
-      handler.handle(createSet);
-      handler.handle(deleteSet);
+      handler.handle(createArg);
+      handler.handle(deleteArg);
 
       expect(tracker.getUsageCount('stmt-1')).toBe(0);
     });
@@ -857,19 +1179,37 @@ describe('StatementUsageEventHandler', () => {
       expect(handler.canHandle(event)).toBe(true);
     });
 
-    it('should return true for OrderedSetCreated events', () => {
-      const event = new OrderedSetCreated('doc-1', {
-        orderedSetId: 'set-1',
-        statementIds: ['stmt-1'],
+    it('should return true for AtomicArgumentCreated events', () => {
+      const docId = ProofDocumentId.create('doc-1');
+      const stmtId = StatementId.create('stmt-1');
+      const argId = AtomicArgumentId.create('arg-1');
+
+      if (docId.isErr() || stmtId.isErr() || argId.isErr()) {
+        throw new Error('Failed to create test value objects');
+      }
+
+      const event = new AtomicArgumentCreated(docId.value, {
+        argumentId: argId.value,
+        premiseIds: [stmtId.value],
+        conclusionIds: [],
       });
 
       expect(handler.canHandle(event)).toBe(true);
     });
 
-    it('should return true for OrderedSetDeleted events', () => {
-      const event = new OrderedSetDeleted('doc-1', {
-        orderedSetId: 'set-1',
-        statementIds: ['stmt-1'],
+    it('should return true for AtomicArgumentDeleted events', () => {
+      const docId = ProofDocumentId.create('doc-1');
+      const stmtId = StatementId.create('stmt-1');
+      const argId = AtomicArgumentId.create('arg-1');
+
+      if (docId.isErr() || stmtId.isErr() || argId.isErr()) {
+        throw new Error('Failed to create test value objects');
+      }
+
+      const event = new AtomicArgumentDeleted(docId.value, {
+        argumentId: argId.value,
+        premiseIds: [stmtId.value],
+        conclusionIds: [],
       });
 
       expect(handler.canHandle(event)).toBe(true);
@@ -904,26 +1244,49 @@ describe('StatementUsageEventHandler', () => {
 
   describe('integration scenarios', () => {
     it('should handle complex event sequences', () => {
+      const docId = ProofDocumentId.create('doc-1');
+      const stmtId1 = StatementId.create('stmt-1');
+      const stmtId2 = StatementId.create('stmt-2');
+      const argId1 = AtomicArgumentId.create('arg-1');
+      const argId2 = AtomicArgumentId.create('arg-2');
+      const content1 = StatementContent.create('All men are mortal');
+      const content2 = StatementContent.create('Socrates is a man');
+
+      if (
+        docId.isErr() ||
+        stmtId1.isErr() ||
+        stmtId2.isErr() ||
+        argId1.isErr() ||
+        argId2.isErr() ||
+        content1.isErr() ||
+        content2.isErr()
+      ) {
+        throw new Error('Failed to create test value objects');
+      }
+
       const events = [
-        new StatementCreated('doc-1', {
-          statementId: 'stmt-1',
-          content: 'All men are mortal',
+        new StatementCreated(docId.value, {
+          statementId: stmtId1.value,
+          content: content1.value,
         }),
-        new StatementCreated('doc-1', {
-          statementId: 'stmt-2',
-          content: 'Socrates is a man',
+        new StatementCreated(docId.value, {
+          statementId: stmtId2.value,
+          content: content2.value,
         }),
-        new OrderedSetCreated('doc-1', {
-          orderedSetId: 'set-1',
-          statementIds: ['stmt-1', 'stmt-2'],
+        new AtomicArgumentCreated(docId.value, {
+          argumentId: argId1.value,
+          premiseIds: [stmtId1.value, stmtId2.value],
+          conclusionIds: [],
         }),
-        new OrderedSetCreated('doc-1', {
-          orderedSetId: 'set-2',
-          statementIds: ['stmt-1'],
+        new AtomicArgumentCreated(docId.value, {
+          argumentId: argId2.value,
+          premiseIds: [stmtId1.value],
+          conclusionIds: [],
         }),
-        new OrderedSetDeleted('doc-1', {
-          orderedSetId: 'set-1',
-          statementIds: ['stmt-1', 'stmt-2'],
+        new AtomicArgumentDeleted(docId.value, {
+          argumentId: argId1.value,
+          premiseIds: [stmtId1.value, stmtId2.value],
+          conclusionIds: [],
         }),
       ];
 
@@ -972,10 +1335,10 @@ describe('StatementUsageEventHandler', () => {
 
     it('should handle events with missing data gracefully', () => {
       const incompleteEvent = {
-        eventType: 'OrderedSetCreated',
+        eventType: 'AtomicArgumentCreated',
         eventData: {
-          orderedSetId: 'set-1',
-          statementIds: [],
+          argumentId: 'arg-1',
+          premiseIds: [],
         },
       } as any;
 

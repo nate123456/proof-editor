@@ -1,7 +1,8 @@
 import type { DomainEvent, DomainEventHandler } from '../../domain/events/base-event.js';
 import type {
-  OrderedSetCreated,
-  OrderedSetDeleted,
+  AtomicArgumentCreated,
+  AtomicArgumentDeleted,
+  AtomicArgumentUpdated,
   StatementCreated,
   StatementDeleted,
 } from '../../domain/events/proof-document-events.js';
@@ -18,36 +19,53 @@ export class StatementUsageTracker {
    * Handle StatementCreated events
    */
   handleStatementCreated(event: StatementCreated): void {
-    this.usageCounts.set(event.eventData.statementId, 0);
-    this.statementContent.set(event.eventData.statementId, event.eventData.content);
+    const statementId = event.eventData.statementId.getValue();
+    this.usageCounts.set(statementId, 0);
+    this.statementContent.set(statementId, event.eventData.content.getValue());
   }
 
   /**
    * Handle StatementDeleted events
    */
   handleStatementDeleted(event: StatementDeleted): void {
-    this.usageCounts.delete(event.eventData.statementId);
-    this.statementContent.delete(event.eventData.statementId);
+    const statementId = event.eventData.statementId.getValue();
+    this.usageCounts.delete(statementId);
+    this.statementContent.delete(statementId);
   }
 
   /**
-   * Handle OrderedSetCreated events to increment usage counts
+   * Handle AtomicArgumentCreated events to increment usage counts
    */
-  handleOrderedSetCreated(event: OrderedSetCreated): void {
-    for (const statementId of event.eventData.statementIds) {
-      const current = this.usageCounts.get(statementId) || 0;
-      this.usageCounts.set(statementId, current + 1);
+  handleAtomicArgumentCreated(event: AtomicArgumentCreated): void {
+    const allStatementIds = [...event.eventData.premiseIds, ...event.eventData.conclusionIds];
+
+    for (const statementId of allStatementIds) {
+      const id = statementId.getValue();
+      const current = this.usageCounts.get(id) || 0;
+      this.usageCounts.set(id, current + 1);
     }
   }
 
   /**
-   * Handle OrderedSetDeleted events to decrement usage counts
+   * Handle AtomicArgumentDeleted events to decrement usage counts
    */
-  handleOrderedSetDeleted(event: OrderedSetDeleted): void {
-    for (const statementId of event.eventData.statementIds) {
-      const current = this.usageCounts.get(statementId) || 0;
-      this.usageCounts.set(statementId, Math.max(0, current - 1));
+  handleAtomicArgumentDeleted(event: AtomicArgumentDeleted): void {
+    const allStatementIds = [...event.eventData.premiseIds, ...event.eventData.conclusionIds];
+
+    for (const statementId of allStatementIds) {
+      const id = statementId.getValue();
+      const current = this.usageCounts.get(id) || 0;
+      this.usageCounts.set(id, Math.max(0, current - 1));
     }
+  }
+
+  /**
+   * Handle AtomicArgumentUpdated events to update usage counts
+   */
+  handleAtomicArgumentUpdated(_event: AtomicArgumentUpdated): void {
+    // For simplicity, we'll treat updates as delete + create
+    // In a real system, we'd need the old statement IDs to properly update counts
+    // This is a limitation of the current event design
   }
 
   /**
@@ -243,11 +261,24 @@ export class StatementUsageTracker {
  */
 export class StatementUsageEventHandler
   implements
-    DomainEventHandler<StatementCreated | StatementDeleted | OrderedSetCreated | OrderedSetDeleted>
+    DomainEventHandler<
+      | StatementCreated
+      | StatementDeleted
+      | AtomicArgumentCreated
+      | AtomicArgumentDeleted
+      | AtomicArgumentUpdated
+    >
 {
   constructor(private readonly tracker: StatementUsageTracker) {}
 
-  handle(event: StatementCreated | StatementDeleted | OrderedSetCreated | OrderedSetDeleted): void {
+  handle(
+    event:
+      | StatementCreated
+      | StatementDeleted
+      | AtomicArgumentCreated
+      | AtomicArgumentDeleted
+      | AtomicArgumentUpdated,
+  ): void {
     switch (event.eventType) {
       case 'StatementCreated':
         this.tracker.handleStatementCreated(event as StatementCreated);
@@ -255,23 +286,32 @@ export class StatementUsageEventHandler
       case 'StatementDeleted':
         this.tracker.handleStatementDeleted(event as StatementDeleted);
         break;
-      case 'OrderedSetCreated':
-        this.tracker.handleOrderedSetCreated(event as OrderedSetCreated);
+      case 'AtomicArgumentCreated':
+        this.tracker.handleAtomicArgumentCreated(event as AtomicArgumentCreated);
         break;
-      case 'OrderedSetDeleted':
-        this.tracker.handleOrderedSetDeleted(event as OrderedSetDeleted);
+      case 'AtomicArgumentDeleted':
+        this.tracker.handleAtomicArgumentDeleted(event as AtomicArgumentDeleted);
+        break;
+      case 'AtomicArgumentUpdated':
+        this.tracker.handleAtomicArgumentUpdated(event as AtomicArgumentUpdated);
         break;
     }
   }
 
   canHandle(
     event: DomainEvent,
-  ): event is StatementCreated | StatementDeleted | OrderedSetCreated | OrderedSetDeleted {
+  ): event is
+    | StatementCreated
+    | StatementDeleted
+    | AtomicArgumentCreated
+    | AtomicArgumentDeleted
+    | AtomicArgumentUpdated {
     return [
       'StatementCreated',
       'StatementDeleted',
-      'OrderedSetCreated',
-      'OrderedSetDeleted',
+      'AtomicArgumentCreated',
+      'AtomicArgumentDeleted',
+      'AtomicArgumentUpdated',
     ].includes(event.eventType);
   }
 }

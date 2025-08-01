@@ -11,7 +11,7 @@ import type {
   CycleSeverity,
   ICycleDetectionService,
 } from '../../domain/services/ICycleDetectionService.js';
-import { AtomicArgumentId, type OrderedSetId } from '../../domain/shared/value-objects.js';
+import { AtomicArgumentId, type OrderedSetId } from '../../domain/shared/value-objects/index.js';
 
 @injectable()
 export class GraphCycleDetectionService implements ICycleDetectionService {

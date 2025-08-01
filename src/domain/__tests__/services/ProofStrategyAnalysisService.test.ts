@@ -2,6 +2,7 @@ import fc from 'fast-check';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { ProofStrategyAnalysisService } from '../../services/ProofStrategyAnalysisService.js';
+import { StatementContent } from '../../shared/value-objects/index.js';
 
 describe('ProofStrategyAnalysisService', () => {
   let service: ProofStrategyAnalysisService;
@@ -13,44 +14,65 @@ describe('ProofStrategyAnalysisService', () => {
   describe('analyzeProofStrategies', () => {
     describe('successful analysis cases', () => {
       it('should analyze strategies for basic logical argument', () => {
-        const premises = ['All men are mortal', 'Socrates is a man'];
-        const conclusion = 'Socrates is mortal';
+        const premisesResult = [
+          StatementContent.create('All men are mortal'),
+          StatementContent.create('Socrates is a man'),
+        ];
+        const conclusionResult = StatementContent.create('Socrates is mortal');
 
-        const result = service.analyzeProofStrategies(premises, conclusion);
+        expect(premisesResult.every((p) => p.isOk())).toBe(true);
+        expect(conclusionResult.isOk()).toBe(true);
 
-        expect(result.isOk()).toBe(true);
-        if (result.isOk()) {
-          const recommendations = result.value;
-          expect(recommendations.recommendedStrategies.length).toBeGreaterThan(0);
-          expect(recommendations.structuralAnalysis).toBeDefined();
-          expect(recommendations.complexityAssessment).toBeDefined();
-          expect(recommendations.alternativeApproaches).toBeDefined();
-          expect(recommendations.prerequisiteChecks).toBeDefined();
+        if (premisesResult.every((p) => p.isOk()) && conclusionResult.isOk()) {
+          const premises = premisesResult.map((p) => p.value);
+          const conclusion = conclusionResult.value;
 
-          // Should include direct proof strategy for basic logic
-          const directProof = recommendations.recommendedStrategies.find(
-            (s) => s.name === 'Direct Proof',
-          );
-          expect(directProof).toBeDefined();
-          expect(directProof?.confidence).toBeGreaterThan(0);
-          expect(directProof?.steps.length).toBeGreaterThan(0);
+          const result = service.analyzeProofStrategies(premises, conclusion);
+
+          expect(result.isOk()).toBe(true);
+          if (result.isOk()) {
+            const analysis = result.value;
+            expect(analysis.getStrategies().length).toBeGreaterThan(0);
+            expect(analysis.getStructuralAnalysis()).toBeDefined();
+            expect(analysis.getComplexityAssessment()).toBeDefined();
+            expect(analysis.getAlternativeApproaches()).toBeDefined();
+            expect(analysis.getPrerequisiteChecks()).toBeDefined();
+
+            // Should include direct proof strategy for basic logic
+            const directProof = analysis
+              .getStrategies()
+              .find((s) => s.getName() === 'Direct Proof');
+            expect(directProof).toBeDefined();
+            expect(directProof?.getConfidence().getValue()).toBeGreaterThan(0);
+            expect(directProof?.getSteps().length).toBeGreaterThan(0);
+          }
         }
       });
 
       it('should recommend proof by contradiction for appropriate cases', () => {
-        const premises = ['Assume √2 is rational'];
-        const conclusion = '√2 is irrational';
+        const premisesResult = [StatementContent.create('Assume √2 is rational')];
+        const conclusionResult = StatementContent.create('√2 is irrational');
 
-        const result = service.analyzeProofStrategies(premises, conclusion);
+        expect(premisesResult.every((p) => p.isOk())).toBe(true);
+        expect(conclusionResult.isOk()).toBe(true);
 
-        expect(result.isOk()).toBe(true);
-        if (result.isOk()) {
-          const recommendations = result.value;
-          const contradictionProof = recommendations.recommendedStrategies.find(
-            (s) => s.name === 'Proof by Contradiction',
-          );
-          expect(contradictionProof).toBeDefined();
-          expect(contradictionProof?.steps).toContain('Assume the negation of the conclusion');
+        if (premisesResult.every((p) => p.isOk()) && conclusionResult.isOk()) {
+          const premises = premisesResult.map((p) => p.value);
+          const conclusion = conclusionResult.value;
+
+          const result = service.analyzeProofStrategies(premises, conclusion);
+
+          expect(result.isOk()).toBe(true);
+          if (result.isOk()) {
+            const analysis = result.value;
+            const contradictionProof = analysis
+              .getStrategies()
+              .find((s) => s.getName() === 'Proof by Contradiction');
+            expect(contradictionProof).toBeDefined();
+            expect(contradictionProof?.getSteps()).toContain(
+              'Assume the negation of the conclusion',
+            );
+          }
         }
       });
 

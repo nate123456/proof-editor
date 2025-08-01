@@ -1,4 +1,4 @@
-import type { AtomicArgumentId, TreeId } from '../shared/value-objects.js';
+import type { AtomicArgumentId, TreeId } from '../shared/value-objects/index.js';
 import { DomainEvent } from './base-event.js';
 
 /**

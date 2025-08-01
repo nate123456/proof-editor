@@ -110,7 +110,6 @@ export interface CreateStatementResult {
 export interface CreateArgumentResult {
   argumentId: string;
   argument: AtomicArgumentDTO;
-  createdOrderedSets?: string[]; // IDs of any newly created OrderedSets
 }
 
 export interface AttachNodeResult {
@@ -124,7 +123,8 @@ export interface BranchCreationResult {
   connectionPoint: {
     sourceArgumentId: string;
     targetArgumentId: string;
-    sharedOrderedSetId: string;
+    sharedStatementId: string;
+    connectionType: 'conclusion-to-premise';
   };
   newTreeId?: string; // If created in new tree
 }
@@ -157,7 +157,6 @@ export interface BootstrapResult {
     argumentId?: string;
     treeId?: string;
     statementIds?: string[];
-    orderedSetIds?: string[];
   };
   nextSteps: string[];
 }
@@ -309,13 +308,6 @@ export function isBootstrapResult(obj: unknown): obj is BootstrapResult {
     ) {
       return false;
     }
-    if (
-      entities.orderedSetIds !== undefined &&
-      (!Array.isArray(entities.orderedSetIds) ||
-        !entities.orderedSetIds.every((id) => typeof id === 'string'))
-    ) {
-      return false;
-    }
   }
 
   return true;
@@ -426,7 +418,7 @@ export function getBootstrapNextSteps(phase: BootstrapResult['phase']): string[]
     case 'first_argument':
       return [
         'Add statements to populate your argument',
-        'Create premise and conclusion ordered sets',
+        'Create premise and conclusion statements',
       ];
     case 'populating':
       return ['Connect arguments to build reasoning chains', 'Add validation rules'];

@@ -16,7 +16,7 @@ import fc from 'fast-check';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Node } from '../../entities/Node.js';
-import { AtomicArgumentId, Attachment, NodeId } from '../../shared/value-objects.js';
+import { AtomicArgumentId, Attachment, NodeId } from '../../shared/value-objects/index.js';
 import { atomicArgumentIdFactory, nodeIdFactory } from '../factories/index.js';
 import { expect as customExpect } from '../test-setup.js';
 

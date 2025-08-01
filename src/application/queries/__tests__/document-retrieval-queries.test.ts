@@ -12,7 +12,7 @@ import {
   treeFactory,
 } from '../../../domain/__tests__/factories/index.js';
 import { ProofAggregate } from '../../../domain/aggregates/ProofAggregate.js';
-import { ProofId } from '../../../domain/shared/value-objects.js';
+import { ProofId } from '../../../domain/shared/value-objects/index.js';
 import { documentToDTO } from '../../mappers/DocumentMapper.js';
 import type { GetDocumentQuery } from '../document-queries.js';
 import {
@@ -158,8 +158,8 @@ describe('GetDocumentQuery Execution', () => {
       atomicArguments: {
         arg_1: {
           id: 'arg_1',
-          premiseSetId: 'set_1',
-          conclusionSetId: 'set_2',
+          premiseIds: 'set_1',
+          conclusionIds: 'set_2',
         },
       },
     });

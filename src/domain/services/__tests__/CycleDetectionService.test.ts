@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { AtomicArgument } from '../../entities/AtomicArgument.js';
 import { OrderedSet } from '../../entities/OrderedSet.js';
 import { Statement } from '../../entities/Statement.js';
-import { AtomicArgumentId } from '../../shared/value-objects.js';
+import { AtomicArgumentId } from '../../shared/value-objects/index.js';
 import { CycleDetectionService } from '../CycleDetectionService.js';
 
 describe('CycleDetectionService', () => {

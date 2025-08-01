@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { ProofAggregate } from '../../aggregates/ProofAggregate.js';
-import { AtomicArgumentId, ProofId, StatementId } from '../../shared/value-objects.js';
+import { ProofQueryService } from '../../services/ProofQueryService.js';
+import { AtomicArgumentId, ProofId, StatementId } from '../../shared/value-objects/index.js';
 
 describe('ProofAggregate', () => {
   describe('createNew', () => {
@@ -11,10 +12,10 @@ describe('ProofAggregate', () => {
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         const proof = result.value;
-        expect(proof.getStatements().size).toBe(0);
-        expect(proof.getArguments().size).toBe(0);
-        expect(proof.getOrderedSets().size).toBe(0);
-        expect(proof.getVersion()).toBe(1);
+        const queryService = new ProofQueryService(proof);
+        expect(queryService.getStatements().size).toBe(0);
+        expect(queryService.getArguments().size).toBe(0);
+        expect(queryService.getVersion()).toBe(1);
       }
     });
 
@@ -24,9 +25,10 @@ describe('ProofAggregate', () => {
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         const proof = result.value;
-        expect(proof.getStatements().size).toBe(1);
+        const queryService = new ProofQueryService(proof);
+        expect(queryService.getStatements().size).toBe(1);
 
-        const statements = Array.from(proof.getStatements().values());
+        const statements = Array.from(queryService.getStatements().values());
         expect(statements[0]?.getContent()).toBe('All men are mortal');
       }
     });

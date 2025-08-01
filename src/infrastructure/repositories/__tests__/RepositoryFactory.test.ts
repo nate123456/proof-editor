@@ -57,7 +57,6 @@ describe('RepositoryFactory', () => {
         exists: vi.fn(),
         delete: vi.fn(),
         findAll: vi.fn(),
-        nextIdentity: vi.fn(),
       };
       (YAMLProofDocumentRepository as any).mockImplementation(() => mockRepository);
 
@@ -71,7 +70,6 @@ describe('RepositoryFactory', () => {
       expect(typeof result.exists).toBe('function');
       expect(typeof result.delete).toBe('function');
       expect(typeof result.findAll).toBe('function');
-      expect(typeof result.nextIdentity).toBe('function');
     });
 
     it('should handle different base paths', () => {
@@ -82,7 +80,6 @@ describe('RepositoryFactory', () => {
         exists: vi.fn(),
         delete: vi.fn(),
         findAll: vi.fn(),
-        nextIdentity: vi.fn(),
       };
       (YAMLProofDocumentRepository as any).mockImplementation(() => mockRepository);
       const customBasePath = '/custom/path/to/documents';
@@ -102,7 +99,6 @@ describe('RepositoryFactory', () => {
         exists: vi.fn(),
         delete: vi.fn(),
         findAll: vi.fn(),
-        nextIdentity: vi.fn(),
       };
       (YAMLProofDocumentRepository as any).mockImplementation(() => mockRepository);
       const emptyBasePath = '';
@@ -122,7 +118,6 @@ describe('RepositoryFactory', () => {
         exists: vi.fn(),
         delete: vi.fn(),
         findAll: vi.fn(),
-        nextIdentity: vi.fn(),
       };
       (YAMLProofDocumentRepository as any).mockImplementation(() => mockRepository);
       const relativePath = './documents';
@@ -142,7 +137,6 @@ describe('RepositoryFactory', () => {
         exists: vi.fn(),
         delete: vi.fn(),
         findAll: vi.fn(),
-        nextIdentity: vi.fn(),
       };
       const mockRepository2 = {
         findById: vi.fn(),
@@ -150,7 +144,6 @@ describe('RepositoryFactory', () => {
         exists: vi.fn(),
         delete: vi.fn(),
         findAll: vi.fn(),
-        nextIdentity: vi.fn(),
       };
       (YAMLProofDocumentRepository as any)
         .mockImplementationOnce(() => mockRepository1)
@@ -179,7 +172,6 @@ describe('RepositoryFactory', () => {
         exists: vi.fn(),
         delete: vi.fn(),
         findAll: vi.fn(),
-        nextIdentity: vi.fn(),
       };
       (YAMLProofDocumentRepository as any).mockImplementation(() => mockRepository);
 
@@ -200,7 +192,6 @@ describe('RepositoryFactory', () => {
         exists: vi.fn(),
         delete: vi.fn(),
         findAll: vi.fn(),
-        nextIdentity: vi.fn(),
       };
       (YAMLProofDocumentRepository as any).mockImplementation(() => mockRepository);
 
@@ -238,7 +229,6 @@ describe('RepositoryFactory', () => {
         exists: vi.fn(),
         delete: vi.fn(),
         findAll: vi.fn(),
-        nextIdentity: vi.fn(),
       };
       (YAMLProofDocumentRepository as any).mockImplementation(() => mockRepository);
 
@@ -261,7 +251,6 @@ describe('RepositoryFactory', () => {
         exists: vi.fn(),
         delete: vi.fn(),
         findAll: vi.fn(),
-        nextIdentity: vi.fn(),
       };
       (YAMLProofDocumentRepository as any).mockImplementation(() => mockRepository);
 
@@ -285,7 +274,6 @@ describe('RepositoryFactory', () => {
         exists: vi.fn(),
         delete: vi.fn(),
         findAll: vi.fn(),
-        nextIdentity: vi.fn(),
       };
       (YAMLProofDocumentRepository as any).mockImplementation(() => mockRepository);
 
@@ -308,7 +296,6 @@ describe('RepositoryFactory', () => {
         exists: vi.fn(),
         delete: vi.fn(),
         findAll: vi.fn(),
-        nextIdentity: vi.fn(),
       };
       (YAMLProofDocumentRepository as any).mockImplementation(() => mockRepository);
 
@@ -329,7 +316,6 @@ describe('RepositoryFactory', () => {
         exists: vi.fn(),
         delete: vi.fn(),
         findAll: vi.fn(),
-        nextIdentity: vi.fn(),
       };
       (YAMLProofDocumentRepository as any).mockImplementation(() => mockRepository);
 

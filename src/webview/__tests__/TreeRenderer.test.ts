@@ -98,8 +98,8 @@ describe('TreeRenderer', () => {
 
       const atomicArgument: AtomicArgumentDTO = {
         id: 'arg1',
-        premiseSetId: 'os1',
-        conclusionSetId: 'os2',
+        premiseIds: 'os1',
+        conclusionIds: 'os2',
         sideLabels: { left: 'Modus Ponens' },
       };
 
@@ -262,8 +262,8 @@ describe('TreeRenderer', () => {
         dimensions: { width: 200, height: 100 },
         argument: {
           id: 'arg1',
-          premiseSetId: 'empty',
-          conclusionSetId: 'conclusions',
+          premiseIds: 'empty',
+          conclusionIds: 'conclusions',
           sideLabels: {},
         },
         premises: [], // Empty premises
@@ -312,8 +312,8 @@ describe('TreeRenderer', () => {
         dimensions: { width: 250, height: 150 },
         argument: {
           id: 'arg1',
-          premiseSetId: 'premises',
-          conclusionSetId: 'conclusions',
+          premiseIds: 'premises',
+          conclusionIds: 'conclusions',
           sideLabels: {},
         },
         premises: [
@@ -389,8 +389,8 @@ describe('TreeRenderer', () => {
         dimensions: { width: 200, height: 100 },
         argument: {
           id: 'parentArg',
-          premiseSetId: 'parentPremises',
-          conclusionSetId: 'shared',
+          premiseIds: 'parentPremises',
+          conclusionIds: 'shared',
           sideLabels: {},
         },
         premises: [
@@ -420,8 +420,8 @@ describe('TreeRenderer', () => {
         dimensions: { width: 200, height: 100 },
         argument: {
           id: 'childArg',
-          premiseSetId: 'shared',
-          conclusionSetId: 'childConclusions',
+          premiseIds: 'shared',
+          conclusionIds: 'childConclusions',
           sideLabels: {},
         },
         premises: [
@@ -536,8 +536,8 @@ describe('TreeRenderer', () => {
         dimensions: { width: 200, height: 100 },
         argument: {
           id: 'arg1',
-          premiseSetId: 'nonExistent',
-          conclusionSetId: 'empty',
+          premiseIds: 'nonExistent',
+          conclusionIds: 'empty',
           sideLabels: {},
         },
         premises: [], // Empty premises
@@ -582,8 +582,8 @@ describe('TreeRenderer', () => {
         dimensions: { width: 150, height: 100 }, // Narrow width to force truncation
         argument: {
           id: 'arg1',
-          premiseSetId: 'longSet',
-          conclusionSetId: 'longSet',
+          premiseIds: 'longSet',
+          conclusionIds: 'longSet',
           sideLabels: {},
         },
         premises: [
@@ -642,8 +642,8 @@ describe('TreeRenderer', () => {
         dimensions: { width: 200, height: 100 },
         argument: {
           id: 'arg1',
-          premiseSetId: 'specialSet',
-          conclusionSetId: 'specialSet',
+          premiseIds: 'specialSet',
+          conclusionIds: 'specialSet',
           sideLabels: {},
         },
         premises: [
@@ -737,8 +737,8 @@ describe('TreeRenderer', () => {
           dimensions: { width: 200, height: 100 },
           argument: {
             id: `arg${i}`,
-            premiseSetId: `premises${i}`,
-            conclusionSetId: `conclusions${i}`,
+            premiseIds: `premises${i}`,
+            conclusionIds: `conclusions${i}`,
             sideLabels: {},
           },
           premises: [
@@ -798,8 +798,8 @@ describe('TreeRenderer', () => {
         dimensions: { width: 200, height: 100 },
         argument: {
           id: 'nonExistentArg',
-          premiseSetId: 'missingPremises',
-          conclusionSetId: 'missingConclusions',
+          premiseIds: 'missingPremises',
+          conclusionIds: 'missingConclusions',
           sideLabels: {},
         },
         premises: [], // Empty but references non-existent set
@@ -841,8 +841,8 @@ describe('TreeRenderer', () => {
         dimensions: { width: 200, height: 100 },
         argument: {
           id: 'dangerousArg',
-          premiseSetId: 'dangerousSet',
-          conclusionSetId: 'dangerousSet',
+          premiseIds: 'dangerousSet',
+          conclusionIds: 'dangerousSet',
           sideLabels: {
             left: '<script>alert("label")</script>',
           },
@@ -905,8 +905,8 @@ describe('TreeRenderer', () => {
         dimensions: { width: 200, height: 100 },
         argument: {
           id: 'extremeArg',
-          premiseSetId: 'extremeSet',
-          conclusionSetId: 'extremeSet',
+          premiseIds: 'extremeSet',
+          conclusionIds: 'extremeSet',
           sideLabels: {},
         },
         premises: [
@@ -965,8 +965,8 @@ describe('TreeRenderer', () => {
         dimensions: { width: 200, height: 100 },
         argument: {
           id: 'emptyArg',
-          premiseSetId: 'empty',
-          conclusionSetId: 'empty',
+          premiseIds: 'empty',
+          conclusionIds: 'empty',
           sideLabels: {},
         },
         premises: [], // No statements
@@ -1008,8 +1008,8 @@ describe('TreeRenderer', () => {
         dimensions: { width: 200, height: 100 },
         argument: {
           id: 'arg1',
-          premiseSetId: 'set1',
-          conclusionSetId: 'set2',
+          premiseIds: 'set1',
+          conclusionIds: 'set2',
           sideLabels: { left: 'Rule 1' },
         },
         premises: [
@@ -1039,8 +1039,8 @@ describe('TreeRenderer', () => {
         dimensions: { width: 200, height: 100 },
         argument: {
           id: 'arg2',
-          premiseSetId: 'set2',
-          conclusionSetId: 'set3',
+          premiseIds: 'set2',
+          conclusionIds: 'set3',
           sideLabels: { left: 'Rule 2' },
         },
         premises: [
@@ -1117,8 +1117,8 @@ describe('TreeRenderer', () => {
         dimensions: { width: 200, height: 100 },
         argument: {
           id: 'arg1',
-          premiseSetId: 'os1',
-          conclusionSetId: 'os2',
+          premiseIds: 'os1',
+          conclusionIds: 'os2',
           sideLabels: {
             left: 'Rule Name',
           },
@@ -1177,8 +1177,8 @@ describe('TreeRenderer', () => {
         dimensions: { width: 200, height: 100 },
         argument: {
           id: 'arg1',
-          premiseSetId: 'os1',
-          conclusionSetId: 'os2',
+          premiseIds: 'os1',
+          conclusionIds: 'os2',
           sideLabels: {}, // No side labels
         },
         premises: [

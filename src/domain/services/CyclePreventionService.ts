@@ -5,7 +5,7 @@ import type { Tree } from '../entities/Tree';
 import { StructureError } from '../errors/DomainErrors';
 import type { IAtomicArgumentRepository } from '../repositories/IAtomicArgumentRepository';
 import type { ITreeRepository } from '../repositories/ITreeRepository';
-import type { AtomicArgumentId, NodeId, TreeId } from '../shared/value-objects.js';
+import type { AtomicArgumentId, NodeId, TreeId } from '../shared/value-objects/index.js';
 export class CyclePreventionService {
   constructor(
     private readonly atomicArgumentRepo: IAtomicArgumentRepository,
@@ -53,7 +53,7 @@ export class CyclePreventionService {
       return err(new StructureError('Tree not found'));
     }
 
-    const wouldCreateCycle = tree.wouldCreateCycle(childNodeId, parentNodeId);
+    const wouldCreateCycle = tree.canCreateCycle(childNodeId, parentNodeId);
     const ancestorPath = wouldCreateCycle
       ? this.traceAncestorPath(tree, parentNodeId, childNodeId)
       : [];

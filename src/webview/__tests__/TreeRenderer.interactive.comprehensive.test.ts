@@ -729,8 +729,8 @@ function createStatement(id: string, content: string): StatementDTO {
 function createArgument(id: string): AtomicArgumentDTO {
   return {
     id: `arg-${id}`,
-    premiseSetId: `premises-${id}`,
-    conclusionSetId: `conclusions-${id}`,
+    premiseIds: `premises-${id}`,
+    conclusionIds: `conclusions-${id}`,
     sideLabels: {},
   };
 }

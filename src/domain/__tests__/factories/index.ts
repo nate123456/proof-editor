@@ -10,20 +10,21 @@ import { Factory } from 'fishery';
 import { ProofDocument } from '../../aggregates/ProofDocument.js';
 import { AtomicArgument, type SideLabels } from '../../entities/AtomicArgument.js';
 import { Node } from '../../entities/Node.js';
-import { OrderedSet } from '../../entities/OrderedSet.js';
 import { Statement } from '../../entities/Statement.js';
 import { Tree } from '../../entities/Tree.js';
 import {
+  AlignmentMode,
   AtomicArgumentId,
   Attachment,
+  ExpansionDirection,
+  LayoutStyle,
   NodeId,
-  OrderedSetId,
   PhysicalProperties,
   Position2D,
   ProofDocumentId,
   StatementId,
   TreeId,
-} from '../../shared/value-objects.js';
+} from '../../shared/value-objects/index.js';
 
 // Factory for creating StatementId value objects
 export const statementIdFactory = Factory.define<StatementId>(() => {
@@ -37,15 +38,6 @@ export const statementIdFactory = Factory.define<StatementId>(() => {
 // Factory for creating AtomicArgumentId value objects
 export const atomicArgumentIdFactory = Factory.define<AtomicArgumentId>(() => {
   const result = AtomicArgumentId.fromString(faker.string.uuid());
-  if (result.isErr()) {
-    throw result.error;
-  }
-  return result.value;
-});
-
-// Factory for creating OrderedSetId value objects
-export const orderedSetIdFactory = Factory.define<OrderedSetId>(() => {
-  const result = OrderedSetId.fromString(faker.string.uuid());
   if (result.isErr()) {
     throw result.error;
   }
@@ -128,7 +120,6 @@ export const createTestStatements = (count = 5) => {
 export const createTestIds = (count = 3) => ({
   statementIds: Array.from({ length: count }, () => statementIdFactory.build()),
   argumentIds: Array.from({ length: count }, () => atomicArgumentIdFactory.build()),
-  orderedSetIds: Array.from({ length: count }, () => orderedSetIdFactory.build()),
 });
 
 // Realistic domain-specific test data
@@ -150,16 +141,6 @@ export const proofTestData = {
 export const statementFactory = Factory.define<Statement>(({ sequence: _sequence }) => {
   const content = statementContentFactory.build();
   const result = Statement.create(content);
-  if (result.isErr()) {
-    throw result.error;
-  }
-  return result.value;
-});
-
-// Factory for creating OrderedSet entities
-export const orderedSetFactory = Factory.define<OrderedSet>(({ transientParams }) => {
-  const { statementIds = [] } = transientParams as { statementIds?: StatementId[] };
-  const result = OrderedSet.create(statementIds);
   if (result.isErr()) {
     throw result.error;
   }
@@ -211,17 +192,26 @@ export const position2DFactory = Factory.define<Position2D>(() => {
 // Factory for creating PhysicalProperties value objects
 export const physicalPropertiesFactory = Factory.define<PhysicalProperties>(() => {
   const layoutStyle = faker.helpers.arrayElement([
-    'bottom-up',
-    'top-down',
-    'left-right',
-    'right-left',
+    LayoutStyle.bottomUp(),
+    LayoutStyle.topDown(),
+    LayoutStyle.leftRight(),
+    LayoutStyle.rightLeft(),
   ]);
   const spacingX = faker.number.int({ min: 20, max: 100 });
   const spacingY = faker.number.int({ min: 20, max: 100 });
   const minWidth = faker.number.int({ min: 50, max: 200 });
   const minHeight = faker.number.int({ min: 30, max: 150 });
-  const expansionDirection = faker.helpers.arrayElement(['horizontal', 'vertical', 'radial']);
-  const alignmentMode = faker.helpers.arrayElement(['left', 'center', 'right', 'justify']);
+  const expansionDirection = faker.helpers.arrayElement([
+    ExpansionDirection.horizontal(),
+    ExpansionDirection.vertical(),
+    ExpansionDirection.radial(),
+  ]);
+  const alignmentMode = faker.helpers.arrayElement([
+    AlignmentMode.left(),
+    AlignmentMode.center(),
+    AlignmentMode.right(),
+    AlignmentMode.justify(),
+  ]);
 
   const result = PhysicalProperties.create(
     layoutStyle,
@@ -333,16 +323,10 @@ export const proofDocumentFactory = Factory.define<ProofDocument>(({ transientPa
     throw new Error('Failed to create test statements');
   }
 
-  // Create ordered sets
-  const premiseSet = doc.createOrderedSet([statement1.value.getId(), statement2.value.getId()]);
-  const conclusionSet = doc.createOrderedSet([statement3.value.getId()]);
-
-  if (premiseSet.isErr() || conclusionSet.isErr()) {
-    throw new Error('Failed to create test ordered sets');
-  }
-
-  // Create atomic argument
-  const argument = doc.createAtomicArgument(premiseSet.value, conclusionSet.value);
+  // Create atomic argument with Statement arrays
+  const premises = [statement1.value, statement2.value];
+  const conclusions = [statement3.value];
+  const argument = doc.createAtomicArgument(premises, conclusions);
   if (argument.isErr()) {
     throw new Error('Failed to create test atomic argument');
   }

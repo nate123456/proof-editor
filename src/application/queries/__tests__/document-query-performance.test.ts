@@ -59,8 +59,8 @@ describe('Document Query Performance', () => {
           `arg_${i}`,
           {
             id: `arg_${i}`,
-            premiseSetId: `set_${i}`,
-            conclusionSetId: `set_${i + 1}`,
+            premiseIds: `set_${i}`,
+            conclusionIds: `set_${i + 1}`,
           },
         ]),
       ),

@@ -1,4 +1,25 @@
 import type { Result } from 'neverthrow';
+import type {
+  ActionLabel,
+  DialogPrompt,
+  DialogTitle,
+  DocumentContent,
+  ErrorCode,
+  ErrorMessage,
+  EventData,
+  FileExtensionList,
+  FilePath,
+  FilterName,
+  FontFamily,
+  FontSize,
+  MessageContent,
+  MessageLength,
+  MessageType,
+  NotificationMessage,
+  PlaceholderText,
+  ViewType,
+  WebviewId,
+} from '../../domain/shared/value-objects/index.js';
 
 export interface IUIPort {
   // Dialogs
@@ -14,18 +35,18 @@ export interface IUIPort {
   ): Promise<Result<{ filePath: string; cancelled: boolean }, UIError>>;
 
   // File operations
-  writeFile(filePath: string, content: string | Buffer): Promise<Result<void, UIError>>;
+  writeFile(filePath: FilePath, content: DocumentContent | Buffer): Promise<Result<void, UIError>>;
 
   // Notifications
-  showInformation(message: string, ...actions: NotificationAction[]): void;
-  showWarning(message: string, ...actions: NotificationAction[]): void;
-  showError(message: string, ...actions: NotificationAction[]): void;
+  showInformation(message: NotificationMessage, ...actions: NotificationAction[]): void;
+  showWarning(message: NotificationMessage, ...actions: NotificationAction[]): void;
+  showError(message: NotificationMessage, ...actions: NotificationAction[]): void;
   showProgress<T>(options: ProgressOptions, task: ProgressTask<T>): Promise<T>;
   setStatusMessage(message: string, timeout?: number): Disposable;
 
   // Webview/Panel rendering
   createWebviewPanel(options: WebviewPanelOptions): WebviewPanel;
-  postMessageToWebview(panelId: string, message: WebviewMessage): void;
+  postMessageToWebview(panelId: WebviewId, message: WebviewMessage): void;
 
   // Theme support
   getTheme(): UITheme;
@@ -37,27 +58,27 @@ export interface IUIPort {
 
 // Webview message types
 export interface WebviewMessage {
-  type: string;
-  content?: string;
-  [key: string]: unknown;
+  type: MessageType;
+  content?: MessageContent;
+  data?: EventData;
 }
 
 export interface WebviewTreeMessage extends WebviewMessage {
-  type: 'updateTree';
-  content: string;
+  type: MessageType.UPDATE_TREE;
+  content: MessageContent;
 }
 
 export interface WebviewErrorMessage extends WebviewMessage {
-  type: 'showError';
-  content: string;
+  type: MessageType.SHOW_ERROR;
+  content: MessageContent;
 }
 
 // Dialog types
 export interface InputBoxOptions {
-  title?: string;
-  prompt: string;
+  title?: DialogTitle;
+  prompt: DialogPrompt;
   value?: string;
-  placeholder?: string;
+  placeholder?: PlaceholderText;
   password?: boolean;
   validateInput?(value: string): string | null; // null = valid
 }
@@ -70,19 +91,19 @@ export interface QuickPickItem {
 }
 
 export interface QuickPickOptions {
-  title?: string;
-  placeHolder?: string;
+  title?: DialogTitle;
+  placeHolder?: PlaceholderText;
   canPickMany?: boolean;
   matchOnDescription?: boolean;
   matchOnDetail?: boolean;
 }
 
 export interface ConfirmationOptions {
-  title: string;
-  message: string;
+  title: DialogTitle;
+  message: ErrorMessage;
   detail?: string;
-  confirmLabel?: string;
-  cancelLabel?: string;
+  confirmLabel?: ActionLabel;
+  cancelLabel?: ActionLabel;
   isDestructive?: boolean;
 }
 
@@ -92,30 +113,30 @@ export interface OpenDialogOptions {
   canSelectMany?: boolean;
   canSelectFolders?: boolean;
   canSelectFiles?: boolean;
-  title?: string;
+  title?: DialogTitle;
 }
 
 export interface SaveDialogOptions {
   defaultUri?: string;
   defaultFilename?: string;
   filters?: FileFilter[];
-  saveLabel?: string;
-  title?: string;
+  saveLabel?: ActionLabel;
+  title?: DialogTitle;
 }
 
 export interface FileFilter {
-  name: string;
-  extensions: string[];
+  name: FilterName;
+  extensions: FileExtensionList;
 }
 
 // Notification types
 export interface NotificationAction {
-  label: string;
+  label: ActionLabel;
   callback(): void;
 }
 
 export interface ProgressOptions {
-  title: string;
+  title: DialogTitle;
   location?: 'notification' | 'statusbar' | 'dialog';
   cancellable?: boolean;
 }
@@ -138,9 +159,9 @@ export interface CancellationToken {
 
 // Webview types
 export interface WebviewPanelOptions {
-  id: string;
-  title: string;
-  viewType: string;
+  id: WebviewId;
+  title: DialogTitle;
+  viewType: ViewType;
   showOptions?: {
     viewColumn?: number;
     preserveFocus?: boolean;
@@ -150,7 +171,7 @@ export interface WebviewPanelOptions {
 }
 
 export interface WebviewPanel {
-  id: string;
+  id: WebviewId;
   webview: {
     html: string;
     onDidReceiveMessage(callback: (message: WebviewMessage) => void): Disposable;
@@ -165,9 +186,9 @@ export interface UITheme {
   kind: 'light' | 'dark' | 'high-contrast';
   colors: Record<string, string>;
   fonts: {
-    default: string;
-    monospace: string;
-    size: number;
+    default: FontFamily;
+    monospace: FontFamily;
+    size: FontSize;
   };
 }
 
@@ -179,13 +200,13 @@ export interface UICapabilities {
   supportsStatusBar: boolean;
   supportsWebviews: boolean;
   supportsThemes: boolean;
-  maxMessageLength?: number;
+  maxMessageLength?: MessageLength;
 }
 
 // Error types
 export interface UIError {
-  code: 'CANCELLED' | 'INVALID_INPUT' | 'PLATFORM_ERROR' | 'NOT_SUPPORTED';
-  message: string;
+  code: ErrorCode;
+  message: ErrorMessage;
 }
 
 // Utility types

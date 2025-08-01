@@ -1,26 +1,21 @@
 import type { Result } from 'neverthrow';
 
 import type { ProofTreeAggregate } from '../aggregates/ProofTreeAggregate.js';
-import type { ProofId, ProofTreeId } from '../shared/value-objects.js';
-
-export interface RepositoryError extends Error {
-  name: 'RepositoryError';
-  code: string;
-  cause?: Error;
-}
+import type { RepositoryError } from '../errors/DomainErrors.js';
+import type { ProofId, ProofTreeId } from '../shared/value-objects/index.js';
 
 export interface IProofTreeAggregateRepository {
   save(aggregate: ProofTreeAggregate): Promise<Result<void, RepositoryError>>;
 
-  findById(id: ProofTreeId): Promise<ProofTreeAggregate | null>;
+  findById(id: ProofTreeId): Promise<Result<ProofTreeAggregate, RepositoryError>>;
 
-  findByProofId(proofId: ProofId): Promise<ProofTreeAggregate[]>;
+  findByProofId(proofId: ProofId): Promise<Result<ProofTreeAggregate[], RepositoryError>>;
 
-  findAll(): Promise<ProofTreeAggregate[]>;
+  findAll(): Promise<Result<ProofTreeAggregate[], RepositoryError>>;
 
   delete(id: ProofTreeId): Promise<Result<void, RepositoryError>>;
 
-  exists(id: ProofTreeId): Promise<boolean>;
+  exists(id: ProofTreeId): Promise<Result<boolean, RepositoryError>>;
 
-  count(): Promise<number>;
+  count(): Promise<Result<number, RepositoryError>>;
 }

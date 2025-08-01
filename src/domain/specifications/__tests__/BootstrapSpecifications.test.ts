@@ -24,7 +24,8 @@ describe('BootstrapSpecifications', () => {
       expect(proofResult.isOk()).toBe(true);
       if (!proofResult.isOk()) return;
 
-      const statementIds = Array.from(proofResult.value.getStatements().keys());
+      const queryService = proofResult.value.createQueryService();
+      const statementIds = Array.from(queryService.getStatements().keys());
       const firstStatementId = statementIds[0];
       if (!firstStatementId) {
         throw new Error('Expected at least one statement to exist');
@@ -101,8 +102,12 @@ describe('BootstrapSpecifications', () => {
         expect(emptyArgSpec.isSatisfiedBy(proof)).toBe(true);
 
         // Should not require validation
+        const queryService = proof.createQueryService();
         expect(
-          validationSpec.isSatisfiedBy(proof.getArguments().size, proof.getStatements().size),
+          validationSpec.isSatisfiedBy(
+            queryService.getArguments().size,
+            queryService.getStatements().size,
+          ),
         ).toBe(false);
       }
     });
@@ -122,7 +127,8 @@ describe('BootstrapSpecifications', () => {
         expect(emptyArgSpec.isSatisfiedBy(proof)).toBe(true); // Still true because no arguments created yet
 
         // Create an argument
-        const statementIds = Array.from(proof.getStatements().keys());
+        const queryService = proof.createQueryService();
+        const statementIds = Array.from(queryService.getStatements().keys());
         const firstStatementId = statementIds[0];
         if (firstStatementId) {
           const argResult = proof.createAtomicArgument([firstStatementId], []);
@@ -132,8 +138,12 @@ describe('BootstrapSpecifications', () => {
           expect(emptyArgSpec.isSatisfiedBy(proof)).toBe(false);
 
           // Should require validation
+          const updatedQueryService = proof.createQueryService();
           expect(
-            validationSpec.isSatisfiedBy(proof.getArguments().size, proof.getStatements().size),
+            validationSpec.isSatisfiedBy(
+              updatedQueryService.getArguments().size,
+              updatedQueryService.getStatements().size,
+            ),
           ).toBe(true);
         }
       }

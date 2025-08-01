@@ -12,6 +12,15 @@ import type { DocumentQueryService } from '../../application/services/DocumentQu
 import type { ProofVisualizationService } from '../../application/services/ProofVisualizationService.js';
 import type { ViewStateManager } from '../../application/services/ViewStateManager.js';
 import { ValidationError } from '../../domain/shared/result.js';
+import {
+  DocumentContent,
+  DocumentId,
+  DocumentVersion,
+  FileSize,
+  Position2D,
+  Title,
+  ZoomLevel,
+} from '../../domain/shared/value-objects/index.js';
 import { activate } from '../../extension/extension.js';
 import {
   type ApplicationContainer,
@@ -452,17 +461,33 @@ describe('Performance and Resilience Integration Tests', () => {
       monitor.start('concurrent-file-operations');
 
       for (let i = 0; i < concurrencyLevel; i++) {
+        const contentResult = DocumentContent.create(generateStressTestDocument('low'));
+        const docIdResult = DocumentId.create(`concurrent-test-${i}`);
+        const titleResult = Title.create(`Concurrent Test ${i}`);
+        const sizeResult = FileSize.create(1000);
+        const versionResult = DocumentVersion.create(1);
+
+        if (
+          contentResult.isErr() ||
+          docIdResult.isErr() ||
+          titleResult.isErr() ||
+          sizeResult.isErr() ||
+          versionResult.isErr()
+        ) {
+          throw new Error('Failed to create value objects for test document');
+        }
+
         const testDocument = {
-          id: `concurrent-test-${i}`,
-          content: generateStressTestDocument('low'),
+          id: docIdResult.value,
+          content: contentResult.value,
           metadata: {
-            id: `concurrent-test-${i}`,
-            title: `Concurrent Test ${i}`,
+            id: docIdResult.value,
+            title: titleResult.value,
             modifiedAt: new Date(),
-            size: 1000,
+            size: sizeResult.value,
             syncStatus: 'synced' as const,
           },
-          version: 1,
+          version: versionResult.value,
         };
 
         const operation = fileSystemPort.storeDocument(testDocument);
@@ -623,10 +648,18 @@ describe('Performance and Resilience Integration Tests', () => {
       monitor.start('service-failure-recovery');
 
       for (let i = 0; i < concurrencyLevel; i++) {
+        const zoomResult = ZoomLevel.create(1.0 + i * 0.1);
+        const panResult = Position2D.create(i * 10, i * 10);
+        const centerResult = Position2D.create(0, 0);
+
+        if (zoomResult.isErr() || panResult.isErr() || centerResult.isErr()) {
+          throw new Error('Failed to create value objects for test state');
+        }
+
         const testState = {
-          zoom: 1.0 + i * 0.1,
-          pan: { x: i * 10, y: i * 10 },
-          center: { x: 0, y: 0 },
+          zoom: zoomResult.value,
+          pan: panResult.value,
+          center: centerResult.value,
         };
 
         const operation = viewStateManager.updateViewportState(testState);
@@ -706,17 +739,33 @@ describe('Performance and Resilience Integration Tests', () => {
       monitor.start('network-latency-simulation');
 
       for (let i = 0; i < concurrencyLevel; i++) {
+        const contentResult = DocumentContent.create(generateStressTestDocument('low'));
+        const docIdResult = DocumentId.create(`latency-test-${i}`);
+        const titleResult = Title.create(`Latency Test ${i}`);
+        const sizeResult = FileSize.create(1000);
+        const versionResult = DocumentVersion.create(1);
+
+        if (
+          contentResult.isErr() ||
+          docIdResult.isErr() ||
+          titleResult.isErr() ||
+          sizeResult.isErr() ||
+          versionResult.isErr()
+        ) {
+          throw new Error('Failed to create value objects for test document');
+        }
+
         const testDocument = {
-          id: `latency-test-${i}`,
-          content: generateStressTestDocument('low'),
+          id: docIdResult.value,
+          content: contentResult.value,
           metadata: {
-            id: `latency-test-${i}`,
-            title: `Latency Test ${i}`,
+            id: docIdResult.value,
+            title: titleResult.value,
             modifiedAt: new Date(),
-            size: 1000,
+            size: sizeResult.value,
             syncStatus: 'synced' as const,
           },
-          version: 1,
+          version: versionResult.value,
         };
 
         const operation = fileSystemPort.storeDocument(testDocument);

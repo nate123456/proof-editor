@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { type DocumentId, type NodeId, type TreeId, Version } from '../../shared/value-objects.js';
+import {
+  type DocumentId,
+  type NodeId,
+  type TreeId,
+  Version,
+} from '../../shared/value-objects/index.js';
 import {
   type CausalityViolation,
   CausalityViolationDetected,

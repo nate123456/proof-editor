@@ -488,12 +488,27 @@ export const createTestSetup = () => {
     // Mock command registration
     vscode.commands.registerCommand = vi.fn().mockReturnValue({ dispose: vi.fn() });
 
-    // Mock event handlers
-    vscode.workspace.onDidSaveTextDocument = vi.fn().mockReturnValue({ dispose: vi.fn() });
-    vscode.workspace.onDidChangeTextDocument = vi.fn().mockReturnValue({ dispose: vi.fn() });
-    vscode.workspace.onDidCloseTextDocument = vi.fn().mockReturnValue({ dispose: vi.fn() });
-    vscode.workspace.onDidOpenTextDocument = vi.fn().mockReturnValue({ dispose: vi.fn() });
-    vscode.window.onDidChangeActiveTextEditor = vi.fn().mockReturnValue({ dispose: vi.fn() });
+    // Mock event handlers using Object.defineProperty for readonly properties
+    Object.defineProperty(vscode.workspace, 'onDidSaveTextDocument', {
+      value: vi.fn().mockReturnValue({ dispose: vi.fn() }),
+      writable: true,
+    });
+    Object.defineProperty(vscode.workspace, 'onDidChangeTextDocument', {
+      value: vi.fn().mockReturnValue({ dispose: vi.fn() }),
+      writable: true,
+    });
+    Object.defineProperty(vscode.workspace, 'onDidCloseTextDocument', {
+      value: vi.fn().mockReturnValue({ dispose: vi.fn() }),
+      writable: true,
+    });
+    Object.defineProperty(vscode.workspace, 'onDidOpenTextDocument', {
+      value: vi.fn().mockReturnValue({ dispose: vi.fn() }),
+      writable: true,
+    });
+    Object.defineProperty(vscode.window, 'onDidChangeActiveTextEditor', {
+      value: vi.fn().mockReturnValue({ dispose: vi.fn() }),
+      writable: true,
+    });
 
     // Mock additional methods used in tests
     vscode.window.showInputBox = vi.fn();

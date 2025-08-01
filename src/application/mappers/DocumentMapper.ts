@@ -1,13 +1,12 @@
 import { err, ok, type Result } from 'neverthrow';
 import { ProofAggregate } from '../../domain/aggregates/ProofAggregate.js';
 import { AtomicArgument } from '../../domain/entities/AtomicArgument.js';
-import type { OrderedSet } from '../../domain/entities/OrderedSet.js';
+import type { Statement } from '../../domain/entities/Statement.js';
 import type { Tree } from '../../domain/entities/Tree.js';
 import { ValidationError } from '../../domain/shared/result.js';
-import { ProofId } from '../../domain/shared/value-objects.js';
+import { ProofId } from '../../domain/shared/value-objects/index.js';
 import type { DocumentDTO, DocumentStatsDTO } from '../queries/document-queries.js';
 import { atomicArgumentFromDTO, atomicArgumentToDTO } from './AtomicArgumentMapper.js';
-import { orderedSetFromDTO, orderedSetToDTO } from './OrderedSetMapper.js';
 import { statementToDomain, statementToDTO } from './StatementMapper.js';
 import { treeToDomain, treeToDTO } from './TreeMapper.js';
 
@@ -28,12 +27,6 @@ export function documentToDTO(
     statementDTOs[id.getValue()] = statementToDTO(statement);
   }
 
-  // Convert ordered sets to DTOs
-  const orderedSetDTOs: Record<string, ReturnType<typeof orderedSetToDTO>> = {};
-  for (const [id, orderedSet] of aggregate.getOrderedSets()) {
-    orderedSetDTOs[id.getValue()] = orderedSetToDTO(orderedSet);
-  }
-
   // Convert atomic arguments to DTOs
   const atomicArgumentDTOs: Record<string, ReturnType<typeof atomicArgumentToDTO>> = {};
   for (const [id, argument] of aggregate.getArguments()) {
@@ -52,7 +45,6 @@ export function documentToDTO(
     createdAt: new Date().toISOString(), // ProofAggregate doesn't track timestamps currently
     modifiedAt: new Date().toISOString(), // ProofAggregate doesn't track timestamps currently
     statements: statementDTOs,
-    orderedSets: orderedSetDTOs,
     atomicArguments: atomicArgumentDTOs,
     trees: treeDTOs,
   };
@@ -93,39 +85,6 @@ export function documentFromDTO(
       statements.set(statementResult.value.getId(), statementResult.value);
     }
 
-    // Convert ordered sets from DTOs
-    const orderedSets = new Map();
-    for (const [id, orderedSetDTO] of Object.entries(dto.orderedSets)) {
-      const orderedSetResult = orderedSetFromDTO(orderedSetDTO);
-      if (orderedSetResult.isErr()) {
-        return err(
-          new ValidationError(
-            `Failed to convert ordered set ${id}: ${orderedSetResult.error.message}`,
-          ),
-        );
-      }
-      orderedSets.set(orderedSetResult.value.getId(), orderedSetResult.value);
-    }
-
-    // Validate that all statement references in ordered sets exist
-    for (const [_id, orderedSet] of orderedSets) {
-      for (const statementId of orderedSet.getStatementIds()) {
-        // Check if any statement has the same ID value
-        let found = false;
-        for (const [stmtId, _stmt] of statements) {
-          if (stmtId.getValue() === statementId.getValue()) {
-            found = true;
-            break;
-          }
-        }
-        if (!found) {
-          return err(
-            new ValidationError(`Statement reference not found: ${statementId.getValue()}`),
-          );
-        }
-      }
-    }
-
     // Convert atomic arguments from DTOs
     const atomicArguments = new Map();
     for (const [id, argumentDTO] of Object.entries(dto.atomicArguments)) {
@@ -140,50 +99,46 @@ export function documentFromDTO(
 
       const argumentData = argumentDataResult.value;
 
-      // Validate that referenced ordered sets exist and resolve them
-      let premiseSet: OrderedSet | null = null;
-      let conclusionSet: OrderedSet | null = null;
+      // Resolve statement references to actual Statement objects
+      const premises: Statement[] = [];
+      const conclusions: Statement[] = [];
 
-      if (argumentData.premiseSetId) {
-        // Find the OrderedSetId in the Map that matches this string value
-        for (const [osId, orderedSetEntity] of orderedSets) {
-          if (osId.getValue() === argumentData.premiseSetId.getValue()) {
-            premiseSet = orderedSetEntity;
+      // Convert premise IDs to Statement objects
+      for (const premiseId of argumentData.premiseIds || []) {
+        let found = false;
+        for (const [stmtId, stmt] of statements) {
+          if (stmtId.getValue() === premiseId) {
+            premises.push(stmt);
+            found = true;
             break;
           }
         }
-        if (!premiseSet) {
-          return err(
-            new ValidationError(
-              `OrderedSet reference not found: ${argumentData.premiseSetId.getValue()}`,
-            ),
-          );
+        if (!found) {
+          return err(new ValidationError(`Premise statement not found: ${premiseId}`));
         }
       }
 
-      if (argumentData.conclusionSetId) {
-        // Find the OrderedSetId in the Map that matches this string value
-        for (const [osId, orderedSetEntity] of orderedSets) {
-          if (osId.getValue() === argumentData.conclusionSetId.getValue()) {
-            conclusionSet = orderedSetEntity;
+      // Convert conclusion IDs to Statement objects
+      for (const conclusionId of argumentData.conclusionIds || []) {
+        let found = false;
+        for (const [stmtId, stmt] of statements) {
+          if (stmtId.getValue() === conclusionId) {
+            conclusions.push(stmt);
+            found = true;
             break;
           }
         }
-        if (!conclusionSet) {
-          return err(
-            new ValidationError(
-              `OrderedSet reference not found: ${argumentData.conclusionSetId.getValue()}`,
-            ),
-          );
+        if (!found) {
+          return err(new ValidationError(`Conclusion statement not found: ${conclusionId}`));
         }
       }
 
-      // Create the actual AtomicArgument with resolved OrderedSet IDs
+      // Create the actual AtomicArgument with Statement arrays
       const now = Date.now();
       const argumentResult = AtomicArgument.reconstruct(
         argumentData.id,
-        premiseSet?.getId() || null,
-        conclusionSet?.getId() || null,
+        premises,
+        conclusions,
         now,
         now,
         argumentData.sideLabels,
@@ -205,7 +160,6 @@ export function documentFromDTO(
       docIdResult.value,
       statements,
       atomicArguments,
-      orderedSets,
       dto.version,
     );
 
@@ -268,11 +222,28 @@ function createDocumentStats(aggregate: ProofAggregate, trees: Tree[]): Document
     }
   }
 
+  // Count connections by finding arguments that share statements
+  let connectionCount = 0;
+  const argumentList = Array.from(aggregate.getArguments().values());
+  for (let i = 0; i < argumentList.length; i++) {
+    for (let j = i + 1; j < argumentList.length; j++) {
+      const arg1 = argumentList[i];
+      const arg2 = argumentList[j];
+      if (!arg1 || !arg2) continue;
+
+      // Check if arg1's conclusions appear in arg2's premises
+      const connections = arg1.findConnectionsTo(arg2);
+      if (connections.length > 0) {
+        connectionCount += connections.length;
+      }
+    }
+  }
+
   return {
     statementCount: aggregate.getStatements().size,
     argumentCount: aggregate.getArguments().size,
     treeCount: trees.length,
-    connectionCount: aggregate.getOrderedSets().size, // Approximate - shared OrderedSets represent connections
+    connectionCount,
     unusedStatements,
     unconnectedArguments,
     cyclesDetected: [], // Would need cycle detection service
