@@ -1,9 +1,9 @@
 import { DomainError as BaseDomainError } from '../../../../domain/errors/DomainErrors.js';
 
 export abstract class PackageError extends BaseDomainError {
-  override readonly name: string = 'PackageError';
   abstract getCode(): string;
   public readonly context?: Record<string, unknown>;
+  public override readonly name: string = 'PackageError';
 
   constructor(message: string, context?: Record<string, unknown>, cause?: Error) {
     super(message, cause);
@@ -14,7 +14,7 @@ export abstract class PackageError extends BaseDomainError {
 }
 
 export class PackageValidationError extends PackageError {
-  override readonly name: string = 'PackageValidationError';
+  public override readonly name: string = 'PackageValidationError';
   readonly code: string = 'PACKAGE_VALIDATION_ERROR';
 
   getCode(): string {
@@ -23,7 +23,7 @@ export class PackageValidationError extends PackageError {
 }
 
 export class PackageNotFoundError extends PackageError {
-  override readonly name: string = 'PackageNotFoundError';
+  public override readonly name: string = 'PackageNotFoundError';
   readonly code = 'PACKAGE_NOT_FOUND';
 
   getCode(): string {
@@ -32,7 +32,7 @@ export class PackageNotFoundError extends PackageError {
 }
 
 export class PackageInstallationError extends PackageError {
-  override readonly name: string = 'PackageInstallationError';
+  public override readonly name: string = 'PackageInstallationError';
   readonly code = 'PACKAGE_INSTALLATION_ERROR';
 
   getCode(): string {
@@ -41,7 +41,7 @@ export class PackageInstallationError extends PackageError {
 }
 
 export class DependencyResolutionError extends PackageError {
-  override readonly name: string = 'DependencyResolutionError';
+  public override readonly name: string = 'DependencyResolutionError';
   readonly code = 'DEPENDENCY_RESOLUTION_ERROR';
 
   getCode(): string {
@@ -50,7 +50,7 @@ export class DependencyResolutionError extends PackageError {
 }
 
 export class PackageConflictError extends PackageError {
-  override readonly name: string = 'PackageConflictError';
+  public override readonly name: string = 'PackageConflictError';
   readonly code = 'PACKAGE_CONFLICT_ERROR';
 
   getCode(): string {
@@ -59,7 +59,7 @@ export class PackageConflictError extends PackageError {
 }
 
 export class InvalidPackageVersionError extends PackageValidationError {
-  override readonly name: string = 'InvalidPackageVersionError';
+  public override readonly name: string = 'InvalidPackageVersionError';
   override readonly code = 'INVALID_PACKAGE_VERSION' as const;
 
   override getCode(): string {
@@ -68,7 +68,7 @@ export class InvalidPackageVersionError extends PackageValidationError {
 }
 
 export class PackageSourceUnavailableError extends PackageError {
-  override readonly name: string = 'PackageSourceUnavailableError';
+  public override readonly name: string = 'PackageSourceUnavailableError';
   readonly code = 'PACKAGE_SOURCE_UNAVAILABLE';
 
   getCode(): string {
@@ -77,7 +77,7 @@ export class PackageSourceUnavailableError extends PackageError {
 }
 
 export class SDKComplianceError extends PackageValidationError {
-  override readonly name: string = 'SDKComplianceError';
+  public override readonly name: string = 'SDKComplianceError';
   override readonly code = 'SDK_COMPLIANCE_ERROR' as const;
 
   override getCode(): string {

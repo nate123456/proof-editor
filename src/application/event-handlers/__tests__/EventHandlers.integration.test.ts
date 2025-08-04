@@ -170,13 +170,13 @@ describe('Event Handlers Integration', () => {
 
       // Find connected arguments
       const connectedToArg1 = connectionTracker.findConnectedArguments('arg1');
-      expect(connectedToArg1).toHaveLength(2);
+      expect(connectedToArg1).toHaveLength(1); // Only arg3 is connected through premise-conclusion
 
+      // arg2 is NOT connected to arg1 (they just share premises, not a connection)
       const arg2Connection = connectedToArg1.find((c) => c.argumentId === 'arg2');
-      expect(arg2Connection).toBeDefined();
-      expect(arg2Connection?.sharedStatements).toEqual(['stmt-1', 'stmt-2']);
-      expect(arg2Connection?.connectionType).toBe('bidirectional');
+      expect(arg2Connection).toBeUndefined();
 
+      // arg3 IS connected to arg1 (arg1's conclusion is arg3's premise)
       const arg3Connection = connectedToArg1.find((c) => c.argumentId === 'arg3');
       expect(arg3Connection).toBeDefined();
       expect(arg3Connection?.sharedStatements).toEqual(['stmt-3']);

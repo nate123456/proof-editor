@@ -158,7 +158,7 @@ describe('VSCodeFileSystemAdapter', () => {
 
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
-        expect(result.value).toBe(testContent);
+        expect(result.value.getValue()).toBe(testContent);
       }
       expect(vscode.Uri.file).toHaveBeenCalledWith(testPath);
       expect(vscode.workspace.fs.readFile).toHaveBeenCalledWith(
@@ -178,8 +178,8 @@ describe('VSCodeFileSystemAdapter', () => {
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.code).toBe('NOT_FOUND');
-        expect(result.error.path).toBe(testPath);
+        expect(result.error.code.getValue()).toBe('NOT_FOUND');
+        expect(result.error.path?.getValue()).toBe(testPath);
       }
     });
 
@@ -193,8 +193,8 @@ describe('VSCodeFileSystemAdapter', () => {
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.code).toBe('PERMISSION_DENIED');
-        expect(result.error.path).toBe(testPath);
+        expect(result.error.code.getValue()).toBe('PERMISSION_DENIED');
+        expect(result.error.path?.getValue()).toBe(testPath);
       }
     });
 
@@ -208,8 +208,8 @@ describe('VSCodeFileSystemAdapter', () => {
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.code).toBe('UNKNOWN');
-        expect(result.error.message).toBe('Unknown error');
+        expect(result.error.code.getValue()).toBe('UNKNOWN');
+        expect(result.error.message.getValue()).toBe('Unknown error');
       }
     });
 
@@ -224,7 +224,7 @@ describe('VSCodeFileSystemAdapter', () => {
 
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
-        expect(result.value).toBe(testContent);
+        expect(result.value.getValue()).toBe(testContent);
       }
     });
   });
@@ -263,7 +263,7 @@ describe('VSCodeFileSystemAdapter', () => {
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.code).toBe('PERMISSION_DENIED');
+        expect(result.error.code.getValue()).toBe('PERMISSION_DENIED');
       }
     });
 
@@ -283,7 +283,7 @@ describe('VSCodeFileSystemAdapter', () => {
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.code).toBe('DISK_FULL');
+        expect(result.error.code.getValue()).toBe('DISK_FULL');
       }
     });
 
@@ -347,7 +347,7 @@ describe('VSCodeFileSystemAdapter', () => {
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.code).toBe('PERMISSION_DENIED');
+        expect(result.error.code.getValue()).toBe('PERMISSION_DENIED');
       }
     });
   });
@@ -377,7 +377,7 @@ describe('VSCodeFileSystemAdapter', () => {
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.code).toBe('PERMISSION_DENIED');
+        expect(result.error.code.getValue()).toBe('PERMISSION_DENIED');
       }
     });
   });
@@ -410,14 +410,14 @@ describe('VSCodeFileSystemAdapter', () => {
         const fileInfos = result.value;
         expect(fileInfos).toHaveLength(3);
 
-        expect(fileInfos[0]?.name).toBe('file1.txt');
+        expect(fileInfos[0]?.name.getValue()).toBe('file1.txt');
         expect(fileInfos[0]?.isDirectory).toBe(false);
-        expect(fileInfos[0]?.size).toBe(100);
+        expect(fileInfos[0]?.size?.getValue()).toBe(100);
 
-        expect(fileInfos[1]?.name).toBe('subdir');
+        expect(fileInfos[1]?.name.getValue()).toBe('subdir');
         expect(fileInfos[1]?.isDirectory).toBe(true);
 
-        expect(fileInfos[2]?.name).toBe('file2.txt');
+        expect(fileInfos[2]?.name.getValue()).toBe('file2.txt');
         expect(fileInfos[2]?.isDirectory).toBe(false);
       }
     });
@@ -432,7 +432,7 @@ describe('VSCodeFileSystemAdapter', () => {
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.code).toBe('PERMISSION_DENIED');
+        expect(result.error.code.getValue()).toBe('PERMISSION_DENIED');
       }
     });
   });
@@ -461,7 +461,7 @@ describe('VSCodeFileSystemAdapter', () => {
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.code).toBe('PERMISSION_DENIED');
+        expect(result.error.code.getValue()).toBe('PERMISSION_DENIED');
       }
     });
   });
@@ -519,7 +519,9 @@ describe('VSCodeFileSystemAdapter', () => {
 
       expect(eventCallback).toHaveBeenCalledWith({
         type: 'created',
-        path: '/test/watch/newfile.txt',
+        path: expect.objectContaining({
+          value: '/test/watch/newfile.txt',
+        }),
       });
     });
 
@@ -544,7 +546,9 @@ describe('VSCodeFileSystemAdapter', () => {
 
       expect(eventCallback).toHaveBeenCalledWith({
         type: 'changed',
-        path: '/test/watch/changed.txt',
+        path: expect.objectContaining({
+          value: '/test/watch/changed.txt',
+        }),
       });
     });
 
@@ -569,7 +573,9 @@ describe('VSCodeFileSystemAdapter', () => {
 
       expect(eventCallback).toHaveBeenCalledWith({
         type: 'deleted',
-        path: '/test/watch/deleted.txt',
+        path: expect.objectContaining({
+          value: '/test/watch/deleted.txt',
+        }),
       });
     });
   });
@@ -715,7 +721,7 @@ describe('VSCodeFileSystemAdapter', () => {
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.code).toBe('QUOTA_EXCEEDED');
+        expect(result.error.code.getValue()).toBe('QUOTA_EXCEEDED');
       }
     });
   });
@@ -727,7 +733,9 @@ describe('VSCodeFileSystemAdapter', () => {
       expect(capabilities).toEqual({
         canWatch: true,
         canAccessArbitraryPaths: true,
-        maxFileSize: 100 * 1024 * 1024, // 100MB
+        maxFileSize: expect.objectContaining({
+          value: 100 * 1024 * 1024, // 100MB
+        }),
         supportsOfflineStorage: true,
         persistence: 'permanent',
       });
@@ -745,7 +753,7 @@ describe('VSCodeFileSystemAdapter', () => {
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.code).toBe('NOT_FOUND');
+        expect(result.error.code.getValue()).toBe('NOT_FOUND');
       }
     });
 
@@ -759,7 +767,7 @@ describe('VSCodeFileSystemAdapter', () => {
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.code).toBe('PERMISSION_DENIED');
+        expect(result.error.code.getValue()).toBe('PERMISSION_DENIED');
       }
     });
 
@@ -773,8 +781,8 @@ describe('VSCodeFileSystemAdapter', () => {
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.code).toBe('UNKNOWN');
-        expect(result.error.message).toBe('Generic error');
+        expect(result.error.code.getValue()).toBe('UNKNOWN');
+        expect(result.error.message.getValue()).toBe('Generic error');
       }
     });
 
@@ -788,8 +796,8 @@ describe('VSCodeFileSystemAdapter', () => {
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.code).toBe('UNKNOWN');
-        expect(result.error.message).toBe('String error');
+        expect(result.error.code.getValue()).toBe('UNKNOWN');
+        expect(result.error.message.getValue()).toBe('String error');
       }
     });
   });

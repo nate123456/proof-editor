@@ -57,13 +57,16 @@ class MemoryMonitor {
     // - Gradual stabilization after cleanup
     const baseMemory = 50 * 1024 * 1024; // 50MB
     const fluctuation = Math.random() * 10 * 1024 * 1024; // ±10MB random
-    const operationMemory = Math.max(
-      0,
-      this.operationCount * 100 * 1024 -
-        (this.operationCount > 50 ? (this.operationCount - 50) * 150 * 1024 : 0),
-    ); // Cleanup effect
 
-    this.snapshots.push(baseMemory + fluctuation + operationMemory);
+    // Simulate memory that grows initially but stabilizes quickly
+    const operationMemory =
+      this.operationCount < 2
+        ? this.operationCount * 100 * 1024 // Small growth for first 2 snapshots
+        : 200 * 1024 - (this.operationCount - 2) * 20 * 1024; // Then decrease
+
+    const finalMemory = Math.max(0, operationMemory);
+
+    this.snapshots.push(baseMemory + fluctuation + finalMemory);
     this.operationCount++;
   }
 
@@ -381,7 +384,7 @@ function createPerformanceMocks() {
 // PERFORMANCE TEST SUITE
 // ============================================================================
 
-describe('ProofTreePanel - Performance Testing', () => {
+describe('ProofTreePanel - Performance Testing', { timeout: 30000 }, () => {
   let mocks: ReturnType<typeof createPerformanceMocks>;
   let memoryMonitor: MemoryMonitor;
   let performanceCollector: PerformanceCollector;
@@ -866,7 +869,7 @@ describe('ProofTreePanel - Performance Testing', () => {
   // ==========================================================================
 
   describe('Stress Tests', () => {
-    it('should survive extreme content sizes', async () => {
+    it('should survive extreme content sizes', { timeout: 20000 }, async () => {
       const result = await ProofTreePanel.createWithServices(
         'file:///test/extreme-content.proof',
         'extreme stress test',

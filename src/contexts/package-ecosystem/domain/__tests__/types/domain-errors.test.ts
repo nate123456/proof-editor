@@ -76,7 +76,8 @@ describe('PackageError (Abstract Base Class)', () => {
       const error = new TestDomainError('Test message');
 
       expect(Object.getPrototypeOf(error)).toBe(TestDomainError.prototype);
-      expect(Object.getPrototypeOf(TestDomainError.prototype)).toBe(DomainError.prototype);
+      expect(Object.getPrototypeOf(TestDomainError.prototype)).toBe(PackageError.prototype);
+      expect(Object.getPrototypeOf(PackageError.prototype)).toBe(DomainError.prototype);
       expect(Object.getPrototypeOf(DomainError.prototype)).toBe(Error.prototype);
     });
 

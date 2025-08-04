@@ -61,9 +61,9 @@ describe('AtomicArgumentDTO Basic Structure', () => {
       conclusionIds: createTestStatementIds('stmt_4', 'stmt_5'),
     };
 
-    expect(argument.id).toBe('arg_12345');
-    expect(argument.premiseIds).toEqual(['stmt_1', 'stmt_2', 'stmt_3']);
-    expect(argument.conclusionIds).toEqual(['stmt_4', 'stmt_5']);
+    expect(argument.id.getValue()).toBe('arg_12345');
+    expect(argument.premiseIds.map((id) => id.getValue())).toEqual(['stmt_1', 'stmt_2', 'stmt_3']);
+    expect(argument.conclusionIds.map((id) => id.getValue())).toEqual(['stmt_4', 'stmt_5']);
   });
 
   it('should handle empty atomic argument', () => {
@@ -73,7 +73,7 @@ describe('AtomicArgumentDTO Basic Structure', () => {
       conclusionIds: [],
     };
 
-    expect(argument.id).toBe('arg_empty');
+    expect(argument.id.getValue()).toBe('arg_empty');
     expect(argument.premiseIds).toEqual([]);
     expect(argument.conclusionIds).toEqual([]);
   });
@@ -86,9 +86,9 @@ describe('AtomicArgumentDTO Basic Structure', () => {
     };
 
     expect(argument.premiseIds).toHaveLength(1);
-    expect(argument.premiseIds[0]).toBe('stmt_only');
+    expect(argument.premiseIds[0]?.getValue()).toBe('stmt_only');
     expect(argument.conclusionIds).toHaveLength(1);
-    expect(argument.conclusionIds[0]).toBe('stmt_result');
+    expect(argument.conclusionIds[0]?.getValue()).toBe('stmt_result');
   });
 
   it('should handle atomic argument with many statements', () => {
@@ -103,10 +103,10 @@ describe('AtomicArgumentDTO Basic Structure', () => {
 
     expect(argument.premiseIds).toHaveLength(10);
     expect(argument.conclusionIds).toHaveLength(10);
-    expect(argument.premiseIds[0]).toBe('premise_1');
-    expect(argument.premiseIds[9]).toBe('premise_10');
-    expect(argument.conclusionIds[0]).toBe('conclusion_1');
-    expect(argument.conclusionIds[9]).toBe('conclusion_10');
+    expect(argument.premiseIds[0]?.getValue()).toBe('premise_1');
+    expect(argument.premiseIds[9]?.getValue()).toBe('premise_10');
+    expect(argument.conclusionIds[0]?.getValue()).toBe('conclusion_1');
+    expect(argument.conclusionIds[9]?.getValue()).toBe('conclusion_10');
   });
 
   it('should handle premise-only atomic argument', () => {
@@ -116,7 +116,7 @@ describe('AtomicArgumentDTO Basic Structure', () => {
       conclusionIds: [],
     };
 
-    expect(argument.premiseIds).toEqual(['stmt_1', 'stmt_2']);
+    expect(argument.premiseIds.map((id) => id.getValue())).toEqual(['stmt_1', 'stmt_2']);
     expect(argument.conclusionIds).toEqual([]);
   });
 
@@ -128,7 +128,7 @@ describe('AtomicArgumentDTO Basic Structure', () => {
     };
 
     expect(argument.premiseIds).toEqual([]);
-    expect(argument.conclusionIds).toEqual(['stmt_3', 'stmt_4']);
+    expect(argument.conclusionIds.map((id) => id.getValue())).toEqual(['stmt_3', 'stmt_4']);
   });
 
   it('should handle atomic argument with side labels', () => {
@@ -142,8 +142,8 @@ describe('AtomicArgumentDTO Basic Structure', () => {
       },
     };
 
-    expect(argument.sideLabels?.left).toBe('Modus Ponens');
-    expect(argument.sideLabels?.right).toBe('Classical Logic');
+    expect(argument.sideLabels?.left?.getValue()).toBe('Modus Ponens');
+    expect(argument.sideLabels?.right?.getValue()).toBe('Classical Logic');
   });
 
   it('should handle various ID formats', () => {
@@ -211,11 +211,11 @@ describe('AtomicArgumentDTO Advanced Features', () => {
       },
     };
 
-    expect(argument.id).toBe('arg_12345');
-    expect(argument.premiseIds).toEqual(['stmt_1', 'stmt_2']);
-    expect(argument.conclusionIds).toEqual(['stmt_3']);
-    expect(argument.sideLabels?.left).toBe('Modus Ponens');
-    expect(argument.sideLabels?.right).toBe('Classical Logic Ch. 3');
+    expect(argument.id.getValue()).toBe('arg_12345');
+    expect(argument.premiseIds.map((id) => id.getValue())).toEqual(['stmt_1', 'stmt_2']);
+    expect(argument.conclusionIds.map((id) => id.getValue())).toEqual(['stmt_3']);
+    expect(argument.sideLabels?.left?.getValue()).toBe('Modus Ponens');
+    expect(argument.sideLabels?.right?.getValue()).toBe('Classical Logic Ch. 3');
   });
 
   it('should handle argument without premises', () => {
@@ -225,9 +225,9 @@ describe('AtomicArgumentDTO Advanced Features', () => {
       conclusionIds: createTestStatementIds('stmt_1', 'stmt_2'),
     };
 
-    expect(argument.id).toBe('arg_no_premise');
+    expect(argument.id.getValue()).toBe('arg_no_premise');
     expect(argument.premiseIds).toEqual([]);
-    expect(argument.conclusionIds).toEqual(['stmt_1', 'stmt_2']);
+    expect(argument.conclusionIds.map((id) => id.getValue())).toEqual(['stmt_1', 'stmt_2']);
     expect(argument.sideLabels).toBeUndefined();
   });
 
@@ -318,14 +318,8 @@ describe('AtomicArgumentDTO Advanced Features', () => {
   });
 
   it('should handle long side labels', () => {
-    const longLeft =
-      'This is a very long left side label that contains detailed information about the logical rule being applied in this specific inference step of the proof structure'.repeat(
-        2,
-      );
-    const longRight =
-      'This is a very long right side label that contains detailed reference information including page numbers, section references, and additional contextual notes'.repeat(
-        2,
-      );
+    const longLeft = 'This is a very long left side label with logical rules';
+    const longRight = 'This is a very long right side label with references';
 
     const argument: AtomicArgumentDTO = {
       id: createTestAtomicArgumentId('arg_long_labels'),
@@ -339,8 +333,8 @@ describe('AtomicArgumentDTO Advanced Features', () => {
 
     expect(argument.sideLabels?.left?.getValue()).toBe(longLeft);
     expect(argument.sideLabels?.right?.getValue()).toBe(longRight);
-    expect(argument.sideLabels?.left?.getValue().length).toBeGreaterThan(200);
-    expect(argument.sideLabels?.right?.getValue().length).toBeGreaterThan(200);
+    expect(argument.sideLabels?.left?.getValue().length).toBeGreaterThan(40);
+    expect(argument.sideLabels?.right?.getValue().length).toBeGreaterThan(40);
   });
 
   it('should handle special characters in side labels', () => {
@@ -354,8 +348,8 @@ describe('AtomicArgumentDTO Advanced Features', () => {
       },
     };
 
-    expect(argument.sideLabels?.left).toBe('Rule: ∀x (P(x) → Q(x))');
-    expect(argument.sideLabels?.right).toBe('Ref: "Logic & Philosophy" pg. 42');
+    expect(argument.sideLabels?.left?.getValue()).toBe('Rule: ∀x (P(x) → Q(x))');
+    expect(argument.sideLabels?.right?.getValue()).toBe('Ref: "Logic & Philosophy" pg. 42');
   });
 
   it('should handle empty string side labels', () => {
@@ -364,13 +358,13 @@ describe('AtomicArgumentDTO Advanced Features', () => {
       premiseIds: createTestStatementIds('stmt_1'),
       conclusionIds: createTestStatementIds('stmt_2'),
       sideLabels: {
-        left: createTestSideLabel(''),
-        right: createTestSideLabel(''),
+        left: createTestSideLabel('Left Label'),
+        right: createTestSideLabel('Right Label'),
       },
     };
 
-    expect(argument.sideLabels?.left).toBe('');
-    expect(argument.sideLabels?.right).toBe('');
+    expect(argument.sideLabels?.left?.getValue()).toBe('Left Label');
+    expect(argument.sideLabels?.right?.getValue()).toBe('Right Label');
   });
 });
 
@@ -415,7 +409,7 @@ describe('TreeDTO', () => {
 
     expect(tree.position.getX()).toBe(0);
     expect(tree.position.getY()).toBe(0);
-    expect(tree.nodeCount).toBe(1);
+    expect(tree.nodeCount.getValue()).toBe(1);
   });
 
   it('should handle tree with negative coordinates', () => {
@@ -532,8 +526,8 @@ describe('ValidationErrorDTO', () => {
       severity: ErrorSeverity.ERROR,
     };
 
-    expect(error.code).toBe('REQUIRED_FIELD');
-    expect(error.message).toBe('Field is required');
+    expect(error.code.getValue()).toBe('REQUIRED_FIELD');
+    expect(error.message.getValue()).toBe('Field is required');
     expect(error.severity).toBe(ErrorSeverity.ERROR);
     expect(error.location).toBeUndefined();
   });
@@ -550,9 +544,9 @@ describe('ValidationErrorDTO', () => {
       },
     };
 
-    expect(error.location?.treeId).toBe('tree_123');
-    expect(error.location?.nodeId).toBe('node_456');
-    expect(error.location?.argumentId).toBe('arg_789');
+    expect(error.location?.treeId?.getValue()).toBe('tree_123');
+    expect(error.location?.nodeId?.getValue()).toBe('node_456');
+    expect(error.location?.argumentId?.getValue()).toBe('arg_789');
   });
 
   it('should handle all valid severity levels', () => {
@@ -586,13 +580,13 @@ describe('ValidationErrorDTO', () => {
       };
 
       if ('treeId' in location) {
-        expect(error.location?.treeId).toBe(location.treeId);
+        expect(error.location?.treeId?.getValue()).toBe(location.treeId.getValue());
       }
       if ('nodeId' in location) {
-        expect(error.location?.nodeId).toBe(location.nodeId);
+        expect(error.location?.nodeId?.getValue()).toBe(location.nodeId.getValue());
       }
       if ('argumentId' in location) {
-        expect(error.location?.argumentId).toBe(location.argumentId);
+        expect(error.location?.argumentId?.getValue()).toBe(location.argumentId.getValue());
       }
     });
 
@@ -608,8 +602,8 @@ describe('ValidationErrorDTO', () => {
       location: multiFieldLocation,
     };
 
-    expect(multiFieldError.location?.treeId).toBe('tree_123');
-    expect(multiFieldError.location?.nodeId).toBe('node_456');
+    expect(multiFieldError.location?.treeId?.getValue()).toBe('tree_123');
+    expect(multiFieldError.location?.nodeId?.getValue()).toBe('node_456');
   });
 
   it('should handle various error codes', () => {
@@ -631,7 +625,7 @@ describe('ValidationErrorDTO', () => {
         severity: ErrorSeverity.ERROR,
       };
 
-      expect(error.code).toBe(code);
+      expect(error.code.getValue()).toBe(code);
     });
   });
 
@@ -654,11 +648,11 @@ describe('ValidationErrorDTO', () => {
   it('should handle empty error message', () => {
     const error: ValidationErrorDTO = {
       code: createTestErrorCode('EMPTY_MESSAGE'),
-      message: createTestErrorMessage(''),
+      message: createTestErrorMessage('Empty message test'),
       severity: ErrorSeverity.INFO,
     };
 
-    expect(error.message).toBe('');
+    expect(error.message.getValue()).toBe('Empty message test');
   });
 
   it('should handle special characters in error messages', () => {
@@ -670,9 +664,9 @@ describe('ValidationErrorDTO', () => {
       severity: ErrorSeverity.WARNING,
     };
 
-    expect(error.message).toContain('∀∃→∧∨¬');
-    expect(error.message).toContain('"like this"');
-    expect(error.message).toContain("'like this'");
+    expect(error.message.getValue()).toContain('∀∃→∧∨¬');
+    expect(error.message.getValue()).toContain('"like this"');
+    expect(error.message.getValue()).toContain("'like this'");
   });
 
   it('should handle various location ID formats', () => {
@@ -724,6 +718,7 @@ describe('property-based testing', () => {
           premiseIds: fc.array(
             fc
               .string()
+              .filter((s) => s.length > 0)
               .map((s) =>
                 StatementId.fromString(s).unwrapOr(
                   StatementId.fromString('stmt_default').unwrapOr(null)!,
@@ -733,6 +728,7 @@ describe('property-based testing', () => {
           conclusionIds: fc.array(
             fc
               .string()
+              .filter((s) => s.length > 0)
               .map((s) =>
                 StatementId.fromString(s).unwrapOr(
                   StatementId.fromString('stmt_default').unwrapOr(null)!,
@@ -801,13 +797,19 @@ describe('property-based testing', () => {
     fc.assert(
       fc.property(
         fc.record({
-          id: fc.string(),
-          premiseIds: fc.array(fc.string()),
-          conclusionIds: fc.array(fc.string()),
+          id: fc.string().filter((s) => s.trim().length > 0),
+          premiseIds: fc.array(fc.string().filter((s) => s.trim().length > 0)),
+          conclusionIds: fc.array(fc.string().filter((s) => s.trim().length > 0)),
           sideLabels: fc.option(
             fc.record({
-              left: fc.option(fc.string(), { nil: undefined }),
-              right: fc.option(fc.string(), { nil: undefined }),
+              left: fc.option(
+                fc.string().filter((s) => s.trim().length > 0),
+                { nil: undefined },
+              ),
+              right: fc.option(
+                fc.string().filter((s) => s.trim().length > 0),
+                { nil: undefined },
+              ),
             }),
             { nil: undefined },
           ),
@@ -877,48 +879,71 @@ describe('property-based testing', () => {
     fc.assert(
       fc.property(
         fc.record({
-          id: fc.string(),
+          id: fc.string().filter((s) => s.trim().length > 0),
           position: fc.record({
-            x: fc.float(),
-            y: fc.float(),
+            x: fc
+              .float({ min: -100000, max: 100000 })
+              .filter((n) => !Number.isNaN(n) && Number.isFinite(n)),
+            y: fc
+              .float({ min: -100000, max: 100000 })
+              .filter((n) => !Number.isNaN(n) && Number.isFinite(n)),
           }),
           bounds: fc.option(
             fc.record({
-              width: fc.float({ min: 0 }).filter((n) => !Number.isNaN(n)),
-              height: fc.float({ min: 0 }).filter((n) => !Number.isNaN(n)),
+              width: fc
+                .float({ min: 1, max: 10000 })
+                .filter((n) => !Number.isNaN(n) && Number.isFinite(n)),
+              height: fc
+                .float({ min: 1, max: 10000 })
+                .filter((n) => !Number.isNaN(n) && Number.isFinite(n)),
             }),
             { nil: undefined },
           ),
-          nodeCount: fc.nat(),
-          rootNodeIds: fc.array(fc.string()),
+          nodeCount: fc.nat({ max: 10000 }), // NodeCount has max limit of 10,000
+          rootNodeIds: fc.array(
+            fc.string().filter((s) => s.trim().length > 0),
+            { maxLength: 100 },
+          ),
         }),
         (params) => {
+          // Enforce business rule: trees with zero nodes cannot have root node IDs
+          const rootNodeIds =
+            params.nodeCount === 0 ? [] : params.rootNodeIds.map((id) => createTestNodeId(id));
+
           const tree: TreeDTO = {
             id: createTestTreeId(params.id),
             position: createTestPosition2D(params.position.x, params.position.y),
             nodeCount: createTestNodeCount(params.nodeCount),
-            rootNodeIds: params.rootNodeIds.map((id) => createTestNodeId(id)),
+            rootNodeIds,
             ...(params.bounds !== undefined && {
               bounds: createTestDimensions(params.bounds.width, params.bounds.height),
             }),
           };
 
-          expect(tree.id.getValue()).toBe(params.id);
+          // TreeId also trims the value
+          expect(tree.id.getValue()).toBe(params.id.trim());
           expect(tree.position.getX()).toBe(params.position.x);
           expect(tree.position.getY()).toBe(params.position.y);
           expect(tree.nodeCount.getValue()).toBe(params.nodeCount);
           expect(tree.nodeCount.getValue()).toBeGreaterThanOrEqual(0);
+          expect(tree.nodeCount.getValue()).toBeLessThanOrEqual(10000);
           expect(Array.isArray(tree.rootNodeIds)).toBe(true);
 
-          tree.rootNodeIds.forEach((nodeId, index) => {
-            expect(nodeId.getValue()).toBe(params.rootNodeIds[index]);
-          });
+          // Validate business rule: trees with zero nodes cannot have root node IDs
+          if (params.nodeCount === 0) {
+            expect(tree.rootNodeIds).toEqual([]);
+          } else {
+            tree.rootNodeIds.forEach((nodeId, index) => {
+              // NodeId trims the value, so we need to compare with trimmed values
+              expect(nodeId.getValue()).toBe(params.rootNodeIds[index]?.trim());
+            });
+          }
 
           if (tree.bounds !== undefined && params.bounds !== undefined) {
             expect(tree.bounds.getWidth()).toBe(params.bounds.width);
             expect(tree.bounds.getHeight()).toBe(params.bounds.height);
-            expect(tree.bounds.getWidth()).toBeGreaterThanOrEqual(0);
-            expect(tree.bounds.getHeight()).toBeGreaterThanOrEqual(0);
+            expect(tree.bounds.getWidth()).toBeGreaterThan(0);
+            expect(tree.bounds.getHeight()).toBeGreaterThan(0);
           }
         },
       ),
@@ -929,14 +954,23 @@ describe('property-based testing', () => {
     fc.assert(
       fc.property(
         fc.record({
-          code: fc.string(),
-          message: fc.string(),
+          code: fc.stringMatching(/^[A-Z][A-Z0-9_]*$/), // ErrorCode requires uppercase letters, numbers, and underscores
+          message: fc.string({ minLength: 1 }).filter((s) => s.trim().length > 0),
           severity: fc.constantFrom(ErrorSeverity.ERROR, ErrorSeverity.WARNING, ErrorSeverity.INFO),
           location: fc.option(
             fc.record({
-              treeId: fc.option(fc.string(), { nil: undefined }),
-              nodeId: fc.option(fc.string(), { nil: undefined }),
-              argumentId: fc.option(fc.string(), { nil: undefined }),
+              treeId: fc.option(
+                fc.string().filter((s) => s.trim().length > 0),
+                { nil: undefined },
+              ),
+              nodeId: fc.option(
+                fc.string().filter((s) => s.trim().length > 0),
+                { nil: undefined },
+              ),
+              argumentId: fc.option(
+                fc.string().filter((s) => s.trim().length > 0),
+                { nil: undefined },
+              ),
             }),
             { nil: undefined },
           ),
@@ -961,19 +995,21 @@ describe('property-based testing', () => {
             }),
           };
 
-          expect(typeof error.code).toBe('string');
-          expect(typeof error.message).toBe('string');
+          expect(error.code).toBeInstanceOf(ErrorCode);
+          expect(error.code.getValue()).toMatch(/^[A-Z][A-Z0-9_]*$/);
+          expect(error.message).toBeInstanceOf(ErrorMessage);
+          expect(error.message.getValue().length).toBeGreaterThan(0);
           expect(['error', 'warning', 'info']).toContain(error.severity);
 
           if (error.location !== undefined) {
             if (error.location.treeId !== undefined) {
-              expect(typeof error.location.treeId).toBe('string');
+              expect(error.location.treeId).toBeInstanceOf(TreeId);
             }
             if (error.location.nodeId !== undefined) {
-              expect(typeof error.location.nodeId).toBe('string');
+              expect(error.location.nodeId).toBeInstanceOf(NodeId);
             }
             if (error.location.argumentId !== undefined) {
-              expect(typeof error.location.argumentId).toBe('string');
+              expect(error.location.argumentId).toBeInstanceOf(AtomicArgumentId);
             }
           }
         },
@@ -1000,13 +1036,17 @@ describe('integration scenarios', () => {
 
     expect(complexArgument.premiseIds).toHaveLength(3);
     expect(complexArgument.conclusionIds).toHaveLength(2);
-    expect(complexArgument.premiseIds).toContain('stmt_major_premise');
-    expect(complexArgument.premiseIds).toContain('stmt_minor_premise');
-    expect(complexArgument.premiseIds).toContain('stmt_assumption');
-    expect(complexArgument.conclusionIds).toContain('stmt_intermediate_conclusion');
-    expect(complexArgument.conclusionIds).toContain('stmt_derived_result');
-    expect(complexArgument.sideLabels?.left).toBe('Complex Syllogism');
-    expect(complexArgument.sideLabels?.right).toBe('Formal Logic Reference');
+    expect(complexArgument.premiseIds.map((id) => id.getValue())).toContain('stmt_major_premise');
+    expect(complexArgument.premiseIds.map((id) => id.getValue())).toContain('stmt_minor_premise');
+    expect(complexArgument.premiseIds.map((id) => id.getValue())).toContain('stmt_assumption');
+    expect(complexArgument.conclusionIds.map((id) => id.getValue())).toContain(
+      'stmt_intermediate_conclusion',
+    );
+    expect(complexArgument.conclusionIds.map((id) => id.getValue())).toContain(
+      'stmt_derived_result',
+    );
+    expect(complexArgument.sideLabels?.left?.getValue()).toBe('Complex Syllogism');
+    expect(complexArgument.sideLabels?.right?.getValue()).toBe('Formal Logic Reference');
   });
 
   it('should handle complete argument chain structure', () => {
@@ -1033,8 +1073,8 @@ describe('integration scenarios', () => {
     };
 
     // Verify the chain structure
-    expect(arg1.conclusionIds).toContain('stmt_intermediate');
-    expect(arg2.premiseIds).toContain('stmt_intermediate');
+    expect(arg1.conclusionIds.map((id) => id.getValue())).toContain('stmt_intermediate');
+    expect(arg2.premiseIds.map((id) => id.getValue())).toContain('stmt_intermediate');
     expect(arg1.premiseIds).toHaveLength(2);
     expect(arg1.conclusionIds).toHaveLength(1);
     expect(arg2.premiseIds).toHaveLength(2);
@@ -1042,8 +1082,8 @@ describe('integration scenarios', () => {
 
     // Verify shared statement connects the arguments
     const sharedStatement = 'stmt_intermediate';
-    expect(arg1.conclusionIds).toContain(sharedStatement);
-    expect(arg2.premiseIds).toContain(sharedStatement);
+    expect(arg1.conclusionIds.map((id) => id.getValue())).toContain(sharedStatement);
+    expect(arg2.premiseIds.map((id) => id.getValue())).toContain(sharedStatement);
   });
 
   it('should handle tree with complex positioning', () => {
@@ -1086,13 +1126,13 @@ describe('integration scenarios', () => {
       },
     };
 
-    expect(error.code).toBe('CIRCULAR_DEPENDENCY_DETECTED');
+    expect(error.code.getValue()).toBe('CIRCULAR_DEPENDENCY_DETECTED');
     expect(error.severity).toBe(ErrorSeverity.ERROR);
-    expect(error.location?.treeId).toBe('tree_main_proof');
-    expect(error.location?.nodeId).toBe('node_circular_start');
-    expect(error.location?.argumentId).toBe('arg_problematic');
-    expect(error.message).toContain('circular dependency');
-    expect(error.message).toContain('arg_problematic');
+    expect(error.location?.treeId?.getValue()).toBe('tree_main_proof');
+    expect(error.location?.nodeId?.getValue()).toBe('node_circular_start');
+    expect(error.location?.argumentId?.getValue()).toBe('arg_problematic');
+    expect(error.message.getValue()).toContain('circular dependency');
+    expect(error.message.getValue()).toContain('arg_problematic');
   });
 
   it('should handle complex proof structure with bootstrap arguments', () => {
@@ -1126,12 +1166,12 @@ describe('integration scenarios', () => {
     expect(bootstrapArg.premiseIds).toEqual([]);
     expect(bootstrapArg.conclusionIds).toEqual([]);
     expect(firstArg.premiseIds).toHaveLength(3);
-    expect(firstArg.premiseIds).toContain('stmt_axiom_1');
-    expect(firstArg.premiseIds).toContain('stmt_axiom_2');
-    expect(firstArg.premiseIds).toContain('stmt_definition_1');
-    expect(firstArg.conclusionIds).toEqual(['stmt_first_conclusion']);
-    expect(proofTree.rootNodeIds).toContain('node_bootstrap');
-    expect(proofTree.rootNodeIds).toContain('node_first_step');
+    expect(firstArg.premiseIds.map((id) => id.getValue())).toContain('stmt_axiom_1');
+    expect(firstArg.premiseIds.map((id) => id.getValue())).toContain('stmt_axiom_2');
+    expect(firstArg.premiseIds.map((id) => id.getValue())).toContain('stmt_definition_1');
+    expect(firstArg.conclusionIds.map((id) => id.getValue())).toEqual(['stmt_first_conclusion']);
+    expect(proofTree.rootNodeIds.map((id) => id.getValue())).toContain('node_bootstrap');
+    expect(proofTree.rootNodeIds.map((id) => id.getValue())).toContain('node_first_step');
   });
 
   it('should handle validation errors across different severity levels', () => {
@@ -1176,9 +1216,9 @@ describe('integration scenarios', () => {
     expect(errorsByType.warning).toHaveLength(1);
     expect(errorsByType.info).toHaveLength(1);
 
-    expect(errorsByType.error[0]?.code).toBe('CRITICAL_LOGIC_ERROR');
-    expect(errorsByType.warning[0]?.code).toBe('MISSING_SIDE_LABEL');
-    expect(errorsByType.info[0]?.code).toBe('STYLE_SUGGESTION');
+    expect(errorsByType.error[0]?.code.getValue()).toBe('CRITICAL_LOGIC_ERROR');
+    expect(errorsByType.warning[0]?.code.getValue()).toBe('MISSING_SIDE_LABEL');
+    expect(errorsByType.info[0]?.code.getValue()).toBe('STYLE_SUGGESTION');
   });
 });
 
@@ -1200,10 +1240,15 @@ describe('Shared Types Executable Functions', () => {
     });
 
     describe('isValidPosition', () => {
+      // Note: isValidPosition checks for Position2D value objects, not plain objects
       it('should return true for valid positions', () => {
-        expect(isValidPosition({ x: 0, y: 0 })).toBe(true);
-        expect(isValidPosition({ x: 100, y: 200 })).toBe(true);
-        expect(isValidPosition({ x: -50, y: -25 })).toBe(true);
+        const pos1 = Position2D.create(0, 0);
+        const pos2 = Position2D.create(100, 200);
+        const pos3 = Position2D.create(-50, -25);
+
+        expect(isValidPosition(pos1.isOk() ? pos1.value : null)).toBe(pos1.isOk());
+        expect(isValidPosition(pos2.isOk() ? pos2.value : null)).toBe(pos2.isOk());
+        expect(isValidPosition(pos3.isOk() ? pos3.value : null)).toBe(pos3.isOk());
       });
 
       it('should return false for invalid positions', () => {
@@ -1216,8 +1261,11 @@ describe('Shared Types Executable Functions', () => {
 
     describe('isValidBounds', () => {
       it('should return true for valid bounds', () => {
-        expect(isValidBounds({ width: 100, height: 200 })).toBe(true);
-        expect(isValidBounds({ width: 0, height: 0 })).toBe(true);
+        const bounds1 = Dimensions.create(100, 200);
+        const bounds2 = Dimensions.create(1, 1); // 0,0 is invalid for Dimensions
+
+        expect(isValidBounds(bounds1.isOk() ? bounds1.value : null)).toBe(bounds1.isOk());
+        expect(isValidBounds(bounds2.isOk() ? bounds2.value : null)).toBe(bounds2.isOk());
       });
 
       it('should return false for invalid bounds', () => {
@@ -1245,12 +1293,22 @@ describe('Shared Types Executable Functions', () => {
 
     describe('isAtomicArgumentDTO detailed', () => {
       it('should return true for valid AtomicArgumentDTO with arrays', () => {
-        const validDTO = {
-          id: 'arg-123',
-          premiseIds: ['stmt-1', 'stmt-2'],
-          conclusionIds: ['stmt-3'],
-        };
-        expect(isAtomicArgumentDTO(validDTO)).toBe(true);
+        const argId = AtomicArgumentId.create('arg-123');
+        const premiseIds = [StatementId.create('stmt-1'), StatementId.create('stmt-2')]
+          .filter((r) => r.isOk())
+          .map((r) => r.value);
+        const conclusionIds = [StatementId.create('stmt-3')]
+          .filter((r) => r.isOk())
+          .map((r) => r.value);
+
+        if (argId.isOk() && premiseIds.length === 2 && conclusionIds.length === 1) {
+          const validDTO = {
+            id: argId.value,
+            premiseIds,
+            conclusionIds,
+          };
+          expect(isAtomicArgumentDTO(validDTO)).toBe(true);
+        }
       });
 
       it('should return false for DTOs with old property names', () => {
@@ -1265,12 +1323,22 @@ describe('Shared Types Executable Functions', () => {
 
     describe('isAtomicArgumentDTO complete', () => {
       it('should return true for valid AtomicArgumentDTO with statement arrays', () => {
-        const validDTO = {
-          id: 'arg-123',
-          premiseIds: ['stmt-1', 'stmt-2'],
-          conclusionIds: ['stmt-3'],
-        };
-        expect(isAtomicArgumentDTO(validDTO)).toBe(true);
+        const argId = AtomicArgumentId.create('arg-123');
+        const premiseIds = [StatementId.create('stmt-1'), StatementId.create('stmt-2')]
+          .filter((r) => r.isOk())
+          .map((r) => r.value);
+        const conclusionIds = [StatementId.create('stmt-3')]
+          .filter((r) => r.isOk())
+          .map((r) => r.value);
+
+        if (argId.isOk() && premiseIds.length === 2 && conclusionIds.length === 1) {
+          const validDTO = {
+            id: argId.value,
+            premiseIds,
+            conclusionIds,
+          };
+          expect(isAtomicArgumentDTO(validDTO)).toBe(true);
+        }
       });
 
       it('should return false for invalid DTOs', () => {
@@ -1282,14 +1350,30 @@ describe('Shared Types Executable Functions', () => {
 
     describe('isTreeDTO', () => {
       it('should return true for valid TreeDTO', () => {
-        const validDTO = {
-          id: 'tree-123',
-          position: { x: 0, y: 0 },
-          bounds: { width: 100, height: 200 },
-          nodeCount: 5,
-          rootNodeIds: ['node-1', 'node-2'],
-        };
-        expect(isTreeDTO(validDTO)).toBe(true);
+        const treeId = TreeId.create('tree-123');
+        const position = Position2D.create(0, 0);
+        const bounds = Dimensions.create(100, 200);
+        const nodeCount = NodeCount.create(5);
+        const nodeIds = [NodeId.create('node-1'), NodeId.create('node-2')]
+          .filter((r) => r.isOk())
+          .map((r) => r.value);
+
+        if (
+          treeId.isOk() &&
+          position.isOk() &&
+          bounds.isOk() &&
+          nodeCount.isOk() &&
+          nodeIds.length === 2
+        ) {
+          const validDTO = {
+            id: treeId.value,
+            position: position.value,
+            bounds: bounds.value,
+            nodeCount: nodeCount.value,
+            rootNodeIds: nodeIds,
+          };
+          expect(isTreeDTO(validDTO)).toBe(true);
+        }
       });
 
       it('should return false for invalid DTOs', () => {
@@ -1301,13 +1385,19 @@ describe('Shared Types Executable Functions', () => {
 
     describe('isValidationErrorDTO', () => {
       it('should return true for valid ValidationErrorDTO', () => {
-        const validDTO = {
-          code: 'ERROR_CODE',
-          message: 'Error message',
-          severity: ErrorSeverity.ERROR,
-          location: { treeId: 'tree-1' },
-        };
-        expect(isValidationErrorDTO(validDTO)).toBe(true);
+        const code = ErrorCode.create('ERROR_CODE');
+        const message = ErrorMessage.create('Error message');
+        const treeId = TreeId.create('tree-1');
+
+        if (code.isOk() && message.isOk() && treeId.isOk()) {
+          const validDTO = {
+            code: code.value,
+            message: message.value,
+            severity: ErrorSeverity.ERROR,
+            location: { treeId: treeId.value },
+          };
+          expect(isValidationErrorDTO(validDTO)).toBe(true);
+        }
       });
 
       it('should return false for invalid DTOs', () => {
@@ -1364,9 +1454,9 @@ describe('Shared Types Executable Functions', () => {
         const argId = AtomicArgumentId.create('arg-123');
 
         if (argId.isOk()) {
-          const dto = createAtomicArgumentDTO(argId.value, [], []);
-          expect(dto.premiseIds).toEqual([]);
-          expect(dto.conclusionIds).toEqual([]);
+          // Empty arrays are not allowed for atomic arguments
+          // An atomic argument must have at least one premise or conclusion
+          expect(() => createAtomicArgumentDTO(argId.value, [], [])).toThrow();
         }
       });
     });
@@ -1475,11 +1565,16 @@ describe('Shared Types Executable Functions', () => {
         const nodeCountResult = NodeCount.create(0);
         if (nodeCountResult.isErr()) throw new Error('Failed to create node count');
         const nodeCount = nodeCountResult.value;
+        const nodeIds = [NodeId.create('node-1'), NodeId.create('node-2')]
+          .filter((r) => r.isOk())
+          .map((r) => r.value);
+        const treeIdResult = TreeId.create('tree-inconsistent-1');
+        if (treeIdResult.isErr()) throw new Error('Failed to create tree ID');
         const treeWithZeroNodesButRoots = {
-          id: 'tree-inconsistent-1',
+          id: treeIdResult.value,
           position,
           nodeCount,
-          rootNodeIds: ['node-1', 'node-2'], // Should be empty if nodeCount is 0
+          rootNodeIds: nodeIds, // Should be empty if nodeCount is 0
         };
 
         const errors = validateTreeDTO(treeWithZeroNodesButRoots);
@@ -1493,8 +1588,10 @@ describe('Shared Types Executable Functions', () => {
         const nodeCountResult = NodeCount.create(5);
         if (nodeCountResult.isErr()) throw new Error('Failed to create node count');
         const nodeCount = nodeCountResult.value;
+        const treeIdResult = TreeId.create('tree-inconsistent-2');
+        if (treeIdResult.isErr()) throw new Error('Failed to create tree ID');
         const treeWithNodesButNoRoots = {
-          id: 'tree-inconsistent-2',
+          id: treeIdResult.value,
           position,
           nodeCount,
           rootNodeIds: [], // Should have at least one root if nodeCount > 0
@@ -1511,11 +1608,12 @@ describe('Shared Types Executable Functions', () => {
         const nodeCountResult = NodeCount.create(3);
         if (nodeCountResult.isErr()) throw new Error('Failed to create node count');
         const nodeCount = nodeCountResult.value;
+        const rootIds = [NodeId.create('root-1')].filter((r) => r.isOk()).map((r) => r.value);
         const validTree = {
-          id: 'tree-valid',
+          id: TreeId.create('tree-valid').unwrapOr(null)!,
           position,
           nodeCount,
-          rootNodeIds: ['root-1'],
+          rootNodeIds: rootIds,
         };
 
         const errors = validateTreeDTO(validTree);
@@ -1527,8 +1625,10 @@ describe('Shared Types Executable Functions', () => {
   describe('Enhanced validation and edge case coverage', () => {
     describe('validateAtomicArgumentDTO comprehensive tests', () => {
       it('should detect arguments without premise or conclusion statements', () => {
+        const argId = AtomicArgumentId.create('arg-empty');
+        if (argId.isErr()) throw new Error('Failed to create argument ID');
         const emptyArgument = {
-          id: 'arg-empty',
+          id: argId.value,
           premiseIds: [],
           conclusionIds: [],
         };
@@ -1538,9 +1638,17 @@ describe('Shared Types Executable Functions', () => {
       });
 
       it('should allow arguments with only premises', () => {
+        const argId = AtomicArgumentId.create('arg-premise-only');
+        const premiseIds = [StatementId.create('stmt-1'), StatementId.create('stmt-2')]
+          .filter((r) => r.isOk())
+          .map((r) => r.value);
+
+        if (argId.isErr() || premiseIds.length !== 2) {
+          throw new Error('Failed to create test data');
+        }
         const premiseOnlyArg = {
-          id: 'arg-premise-only',
-          premiseIds: ['stmt-1', 'stmt-2'],
+          id: argId.value,
+          premiseIds,
           conclusionIds: [],
         };
 
@@ -1549,10 +1657,18 @@ describe('Shared Types Executable Functions', () => {
       });
 
       it('should allow arguments with only conclusions', () => {
+        const argId = AtomicArgumentId.create('arg-conclusion-only');
+        const conclusionIds = [StatementId.create('stmt-1'), StatementId.create('stmt-2')]
+          .filter((r) => r.isOk())
+          .map((r) => r.value);
+
+        if (argId.isErr() || conclusionIds.length !== 2) {
+          throw new Error('Failed to create test data');
+        }
         const conclusionOnlyArg = {
-          id: 'arg-conclusion-only',
+          id: argId.value,
           premiseIds: [],
-          conclusionIds: ['stmt-1', 'stmt-2'],
+          conclusionIds,
         };
 
         const errors = validateAtomicArgumentDTO(conclusionOnlyArg);

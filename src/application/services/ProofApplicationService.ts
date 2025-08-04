@@ -55,7 +55,7 @@ export class ProofApplicationService {
 
     const documentResult = await this.repository.findById(documentIdResult.value);
     if (documentResult.isErr()) {
-      return err(new ValidationError(`Document not found: ${documentResult.error.message}`));
+      return err(new ValidationError(documentResult.error.message));
     }
     const document = documentResult.value;
 
@@ -94,7 +94,7 @@ export class ProofApplicationService {
 
     const documentResult = await this.repository.findById(documentIdResult.value);
     if (documentResult.isErr()) {
-      return err(new ValidationError(`Document not found: ${documentResult.error.message}`));
+      return err(new ValidationError(documentResult.error.message));
     }
     const document = documentResult.value;
 
@@ -136,7 +136,7 @@ export class ProofApplicationService {
 
     const documentResult = await this.repository.findById(documentIdResult.value);
     if (documentResult.isErr()) {
-      return err(new ValidationError(`Document not found: ${documentResult.error.message}`));
+      return err(new ValidationError(documentResult.error.message));
     }
     const document = documentResult.value;
 
@@ -180,7 +180,7 @@ export class ProofApplicationService {
 
     const documentResult = await this.repository.findById(documentIdResult.value);
     if (documentResult.isErr()) {
-      return err(new ValidationError(`Document not found: ${documentResult.error.message}`));
+      return err(new ValidationError(documentResult.error.message));
     }
     const document = documentResult.value;
 
@@ -255,7 +255,7 @@ export class ProofApplicationService {
 
     const documentResult = await this.repository.findById(documentIdResult.value);
     if (documentResult.isErr()) {
-      return err(new ValidationError(`Document not found: ${documentResult.error.message}`));
+      return err(new ValidationError(documentResult.error.message));
     }
     const document = documentResult.value;
 
@@ -342,7 +342,7 @@ export class ProofApplicationService {
 
     const documentResult = await this.repository.findById(documentIdResult.value);
     if (documentResult.isErr()) {
-      return err(new ValidationError(`Document not found: ${documentResult.error.message}`));
+      return err(new ValidationError(documentResult.error.message));
     }
     const document = documentResult.value;
 
@@ -386,7 +386,7 @@ export class ProofApplicationService {
 
     const documentResult = await this.repository.findById(documentIdResult.value);
     if (documentResult.isErr()) {
-      return err(new ValidationError(`Document not found: ${documentResult.error.message}`));
+      return err(new ValidationError(documentResult.error.message));
     }
     const document = documentResult.value;
 
@@ -447,7 +447,7 @@ export class ProofApplicationService {
 
     const documentResult = await this.repository.findById(documentIdResult.value);
     if (documentResult.isErr()) {
-      return err(new ValidationError(`Document not found: ${documentResult.error.message}`));
+      return err(new ValidationError(documentResult.error.message));
     }
     const _document = documentResult.value;
 
@@ -481,7 +481,7 @@ export class ProofApplicationService {
 
     const documentResult = await this.repository.findById(documentIdResult.value);
     if (documentResult.isErr()) {
-      return err(new ValidationError(`Document not found: ${documentResult.error.message}`));
+      return err(new ValidationError(documentResult.error.message));
     }
     const document = documentResult.value;
 

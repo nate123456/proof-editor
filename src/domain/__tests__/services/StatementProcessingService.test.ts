@@ -434,7 +434,9 @@ describe('StatementProcessingService', () => {
       it('should fail when parent argument not found', async () => {
         // Arrange
         const parentId = atomicArgumentIdFactory.build();
-        vi.mocked(mockAtomicArgumentRepo.findById).mockResolvedValue(ok(null as any));
+        vi.mocked(mockAtomicArgumentRepo.findById).mockResolvedValue(
+          err(new RepositoryError('Argument not found')),
+        );
 
         // Act
         const result = await service.createBranchConnection(parentId, mockAtomicArgumentRepo);
@@ -583,7 +585,9 @@ describe('StatementProcessingService', () => {
       it('should fail when argument not found', async () => {
         // Arrange
         const argumentId = atomicArgumentIdFactory.build();
-        vi.mocked(mockAtomicArgumentRepo.findById).mockResolvedValue(ok(null as any));
+        vi.mocked(mockAtomicArgumentRepo.findById).mockResolvedValue(
+          err(new RepositoryError('Argument not found')),
+        );
 
         // Act
         const result = await service.validateStatementFlow(argumentId, mockAtomicArgumentRepo);
@@ -751,7 +755,7 @@ describe('StatementProcessingService', () => {
         expect(result.isErr()).toBe(true);
         if (result.isErr()) {
           expect(result.error).toBeInstanceOf(ProcessingError);
-          expect(result.error.message).toBe('Failed to process statement reuse');
+          expect(result.error.message).toBe('Failed to save new statement');
         }
       });
     });
@@ -863,7 +867,9 @@ describe('StatementProcessingService', () => {
       it('should fail when statement not found', async () => {
         // Arrange
         const statementId = statementIdFactory.build();
-        vi.mocked(mockStatementRepo.findById).mockResolvedValue(ok(null as any));
+        vi.mocked(mockStatementRepo.findById).mockResolvedValue(
+          err(new RepositoryError('Statement not found')),
+        );
 
         // Act
         const result = await service.updateStatementContent(

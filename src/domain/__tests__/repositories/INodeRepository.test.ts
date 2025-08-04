@@ -250,7 +250,10 @@ describe('INodeRepository', () => {
       }
 
       const byTree = await repository.findByTree(treeId);
-      expect(byTree).toHaveLength(3);
+      expect(byTree.isOk()).toBe(true);
+      if (byTree.isOk()) {
+        expect(byTree.value).toHaveLength(3);
+      }
     });
 
     it('should reject nodes that would create cycles', async () => {

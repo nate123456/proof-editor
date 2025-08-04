@@ -354,10 +354,10 @@ describe('IStatementRepository', () => {
       await repository.save(statement);
 
       // Increment usage
-      statement.incrementUsage();
+      const updatedStatement = statement.incrementUsage();
 
       // Save again
-      const updateResult = await repository.save(statement);
+      const updateResult = await repository.save(updatedStatement);
 
       expect(updateResult.isOk()).toBe(true);
       expect(repository.size()).toBe(1);
@@ -620,8 +620,8 @@ describe('IStatementRepository', () => {
       const statementResult = Statement.create(content.getValue());
       if (!statementResult.isOk()) throw new Error('Statement creation failed');
       const statement = statementResult.value;
-      statement.incrementUsage();
-      await repository.save(statement);
+      const inUseStatement = statement.incrementUsage();
+      await repository.save(inUseStatement);
 
       const result = await repository.delete(statement.getId());
 
@@ -893,16 +893,16 @@ describe('IStatementRepository', () => {
         if (!statement1Result.isOk() || !statement2Result.isOk() || !statement3Result.isOk()) {
           throw new Error('Statement creation failed');
         }
-        const statement1 = statement1Result.value;
-        const statement2 = statement2Result.value;
-        const statement3 = statement3Result.value;
+        let statement1 = statement1Result.value;
+        let statement2 = statement2Result.value;
+        let statement3 = statement3Result.value;
 
-        statement1.incrementUsage();
-        statement2.incrementUsage();
-        statement2.incrementUsage();
-        statement2.incrementUsage();
-        statement3.incrementUsage();
-        statement3.incrementUsage();
+        statement1 = statement1.incrementUsage();
+        statement2 = statement2.incrementUsage();
+        statement2 = statement2.incrementUsage();
+        statement2 = statement2.incrementUsage();
+        statement3 = statement3.incrementUsage();
+        statement3 = statement3.incrementUsage();
 
         await repository.save(statement1);
         await repository.save(statement2);
@@ -1003,13 +1003,13 @@ describe('IStatementRepository', () => {
           throw new Error('Statement creation failed');
         }
         const statement1 = statement1Result.value;
-        const statement2 = statement2Result.value;
-        const statement3 = statement3Result.value;
+        let statement2 = statement2Result.value;
+        let statement3 = statement3Result.value;
 
-        statement2.incrementUsage();
-        statement3.incrementUsage();
-        statement3.incrementUsage();
-        statement3.incrementUsage();
+        statement2 = statement2.incrementUsage();
+        statement3 = statement3.incrementUsage();
+        statement3 = statement3.incrementUsage();
+        statement3 = statement3.incrementUsage();
 
         await repository.save(statement1);
         await repository.save(statement2);
@@ -1088,9 +1088,9 @@ describe('IStatementRepository', () => {
       it('should return usage metrics for existing statement', async () => {
         const statementResult = Statement.create('Test statement');
         if (!statementResult.isOk()) throw new Error('Statement creation failed');
-        const statement = statementResult.value;
-        statement.incrementUsage();
-        statement.incrementUsage();
+        let statement = statementResult.value;
+        statement = statement.incrementUsage();
+        statement = statement.incrementUsage();
         await repository.save(statement);
 
         const metricsResult = await repository.getStatementUsageMetrics(statement.getId());
@@ -1104,11 +1104,15 @@ describe('IStatementRepository', () => {
         }
       });
 
-      it('should return null for non-existent statement', async () => {
+      it('should return error for non-existent statement', async () => {
         const randomId = statementIdFactory.build();
         const metrics = await repository.getStatementUsageMetrics(randomId);
 
-        expect(metrics).toBeNull();
+        expect(metrics.isErr()).toBe(true);
+        if (metrics.isErr()) {
+          expect(metrics.error).toBeInstanceOf(RepositoryError);
+          expect(metrics.error.message).toBe('Statement not found');
+        }
       });
     });
 
@@ -1119,10 +1123,10 @@ describe('IStatementRepository', () => {
         if (!statement1Result.isOk() || !statement2Result.isOk()) {
           throw new Error('Statement creation failed');
         }
-        const statement1 = statement1Result.value;
+        let statement1 = statement1Result.value;
         const statement2 = statement2Result.value;
 
-        statement1.incrementUsage();
+        statement1 = statement1.incrementUsage();
 
         await repository.save(statement1);
         await repository.save(statement2);

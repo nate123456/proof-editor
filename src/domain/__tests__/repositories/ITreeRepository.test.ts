@@ -235,7 +235,10 @@ describe('ITreeRepository', () => {
       }
 
       const byDocument = await repository.findByDocument(documentId);
-      expect(byDocument).toHaveLength(3);
+      expect(byDocument.isOk()).toBe(true);
+      if (byDocument.isOk()) {
+        expect(byDocument.value).toHaveLength(3);
+      }
     });
 
     it('should reject duplicate tree names within document', async () => {
@@ -357,11 +360,15 @@ describe('ITreeRepository', () => {
       }
     });
 
-    it('should return null for non-existent ID', async () => {
+    it('should return error for non-existent ID', async () => {
       const randomId = treeIdFactory.build();
       const found = await repository.findById(randomId);
 
-      expect(found).toBeNull();
+      expect(found.isErr()).toBe(true);
+      if (found.isErr()) {
+        expect(found.error).toBeInstanceOf(RepositoryError);
+        expect(found.error.message).toBe('Tree not found');
+      }
     });
 
     it('should handle multiple trees correctly', async () => {
@@ -653,10 +660,16 @@ describe('ITreeRepository', () => {
       expect(saveResult.isOk()).toBe(true);
 
       const found = await mockRepository.findById(tree.getId());
-      expect(found).toBe(tree);
+      expect(found.isOk()).toBe(true);
+      if (found.isOk()) {
+        expect(found.value).toBe(tree);
+      }
 
       const byDocument = await mockRepository.findByDocument(documentId);
-      expect(byDocument).toEqual([tree]);
+      expect(byDocument.isOk()).toBe(true);
+      if (byDocument.isOk()) {
+        expect(byDocument.value).toEqual([tree]);
+      }
 
       const deleteResult = await mockRepository.delete(tree.getId());
       expect(deleteResult.isErr()).toBe(true);
@@ -699,7 +712,7 @@ describe('ITreeRepository', () => {
   describe('Edge Cases', () => {
     it('should handle trees with very long names', async () => {
       const documentId = createDocumentId();
-      const longName = 'A'.repeat(1000);
+      const longName = 'A'.repeat(255); // Maximum allowed title length
       const tree = createTestTree(documentId, longName);
 
       const saveResult = await repository.save(tree);

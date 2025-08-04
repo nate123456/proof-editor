@@ -130,7 +130,7 @@ describe('ProofStrategyAnalysisService', () => {
               .find((s) => s.getName() === 'Mathematical Induction');
             expect(inductionProof).toBeDefined();
             expect(inductionProof?.getConfidence().getValue()).toBe(0.9);
-            expect(inductionProof?.getDifficulty()).toBe('hard');
+            expect(inductionProof?.getDifficulty().getValue()).toBe('hard');
           }
         }
       });

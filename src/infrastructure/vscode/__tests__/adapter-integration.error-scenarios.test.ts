@@ -210,8 +210,8 @@ describe('Adapter Integration Error Scenarios', () => {
       expect(writeResult.isErr()).toBe(true);
 
       if (confirmResult.isErr() && writeResult.isErr()) {
-        expect(confirmResult.error.message).toContain('Extension deactivated');
-        expect(writeResult.error.message).toContain('Extension deactivated');
+        expect(confirmResult.error.message.getValue()).toContain('Extension deactivated');
+        expect(writeResult.error.message.getValue()).toContain('Extension deactivated');
       }
     });
 
@@ -259,7 +259,7 @@ describe('Adapter Integration Error Scenarios', () => {
 
       expect(readResult.isErr()).toBe(true);
       if (readResult.isErr()) {
-        expect(readResult.error.code).toBe('PERMISSION_DENIED');
+        expect(readResult.error.code.getValue()).toBe('PERMISSION_DENIED');
       }
     });
 
@@ -312,7 +312,7 @@ describe('Adapter Integration Error Scenarios', () => {
 
       expect(deleteResult.isErr()).toBe(true);
       if (deleteResult.isErr()) {
-        expect(deleteResult.error.code).toBe('PERMISSION_DENIED');
+        expect(deleteResult.error.code.getValue()).toBe('PERMISSION_DENIED');
       }
 
       // Attempting to show error notification fails
@@ -416,8 +416,8 @@ describe('Adapter Integration Error Scenarios', () => {
       expect(uiResult.isErr()).toBe(true);
 
       if (fsResult.isErr() && uiResult.isErr()) {
-        expect(fsResult.error.message).toContain('Out of memory');
-        expect(uiResult.error.message).toContain('Out of memory');
+        expect(fsResult.error.message.getValue()).toContain('Out of memory');
+        expect(uiResult.error.message.getValue()).toContain('Out of memory');
       }
     });
 
@@ -445,7 +445,7 @@ describe('Adapter Integration Error Scenarios', () => {
       expect(fsResult.isErr()).toBe(true);
 
       if (fsResult.isErr()) {
-        expect(fsResult.error.message).toContain('Operation timed out');
+        expect(fsResult.error.message.getValue()).toContain('Operation timed out');
       }
     }, 10000); // 10 second timeout
   });
@@ -585,8 +585,10 @@ describe('Adapter Integration Error Scenarios', () => {
       expect(uiResult.isErr()).toBe(true);
 
       if (fsResult.isErr() && uiResult.isErr()) {
-        expect(fsResult.error.message).toContain('not available in this VS Code version');
-        expect(uiResult.error.message).toContain('requires VS Code 1.74+');
+        expect(fsResult.error.message.getValue()).toContain(
+          'not available in this VS Code version',
+        );
+        expect(uiResult.error.message.getValue()).toContain('requires VS Code 1.74+');
       }
     });
 
@@ -609,8 +611,8 @@ describe('Adapter Integration Error Scenarios', () => {
       expect(uiResult.isErr()).toBe(true);
 
       if (fsResult.isErr() && uiResult.isErr()) {
-        expect(fsResult.error.message).toContain('Sandbox prevents');
-        expect(uiResult.error.message).toContain('Sandbox restricts');
+        expect(fsResult.error.message.getValue()).toContain('Sandbox prevents');
+        expect(uiResult.error.message.getValue()).toContain('Sandbox restricts');
       }
     });
 
@@ -657,7 +659,7 @@ describe('Adapter Integration Error Scenarios', () => {
 
       expect(fsResult.isErr()).toBe(true);
       if (fsResult.isErr()) {
-        expect(fsResult.error.message).toContain('blocked by corporate policy');
+        expect(fsResult.error.message.getValue()).toContain('blocked by corporate policy');
       }
 
       expect(() => {

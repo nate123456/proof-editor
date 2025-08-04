@@ -50,7 +50,7 @@ describe('DocumentQueryService', () => {
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         expect(result.value.id).toBe(documentId);
-        expect(result.value.version).toBe(1);
+        expect(result.value.version).toBe(0);
       }
     });
 
@@ -129,7 +129,7 @@ describe('DocumentQueryService', () => {
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         expect(result.value.id).toBe('parsed-document');
-        expect(result.value.version).toBe(1);
+        expect(result.value.version).toBe(0);
         expect(result.value.statements).toBeDefined();
       }
     });
@@ -227,7 +227,7 @@ describe('DocumentQueryService', () => {
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         expect(result.value.id).toBe(documentId);
-        expect(result.value.version).toBe(1);
+        expect(result.value.version).toBe(0);
         expect(result.value.statementCount).toBeGreaterThanOrEqual(0);
         expect(result.value.argumentCount).toBeGreaterThanOrEqual(0);
         expect(result.value.treeCount).toBe(0); // No tree integration yet

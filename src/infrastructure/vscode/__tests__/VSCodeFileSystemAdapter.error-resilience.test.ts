@@ -445,7 +445,7 @@ describe('VSCodeFileSystemAdapter Error Resilience', () => {
       // DocumentContent has a 50MB limit, so this should fail
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.code.getValue()).toBe('VALIDATION_ERROR');
+        expect(result.error.code.getValue()).toBe('INVALID_CONTENT');
         expect(result.error.message.getValue()).toContain('exceed 50MB');
       }
     });

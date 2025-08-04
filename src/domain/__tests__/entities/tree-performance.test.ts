@@ -1,21 +1,13 @@
 import fc from 'fast-check';
-import { ok } from 'neverthrow';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { type MockProxy, mock } from 'vitest-mock-extended';
 
-import type { AtomicArgument } from '../../entities/AtomicArgument';
 import { Tree } from '../../entities/Tree';
-import { ProcessingError } from '../../errors/DomainErrors';
-import type { IAtomicArgumentRepository } from '../../repositories/IAtomicArgumentRepository';
-import type { IStatementRepository } from '../../repositories/IStatementRepository';
-import { type AtomicArgumentId, NodeId } from '../../shared/value-objects';
+import { NodeId } from '../../shared/value-objects';
 import { TreePosition } from '../../value-objects/TreePosition';
-import { atomicArgumentIdFactory, nodeIdFactory, orderedSetIdFactory } from '../factories/index.js';
+import { nodeIdFactory } from '../factories/index.js';
 
 describe('Tree Performance and Edge Cases', () => {
   let mockDateNow: ReturnType<typeof vi.fn>;
-  let mockAtomicArgumentRepository: MockProxy<IAtomicArgumentRepository>;
-  let mockStatementRepository: MockProxy<IStatementRepository>;
   const FIXED_TIMESTAMP = 1640995200000; // 2022-01-01T00:00:00.000Z
 
   beforeEach(() => {
@@ -24,9 +16,6 @@ describe('Tree Performance and Edge Cases', () => {
       ...Date,
       now: mockDateNow,
     });
-
-    mockAtomicArgumentRepository = mock<IAtomicArgumentRepository>();
-    mockStatementRepository = mock<IStatementRepository>();
   });
 
   afterEach(() => {
@@ -152,22 +141,23 @@ describe('Tree Performance and Edge Cases', () => {
     });
 
     describe('node and parent management', () => {
-      it('should handle node operations with mocked arguments', async () => {
+      it('should handle node operations efficiently', () => {
         const nodeId = nodeIdFactory.build();
         const addResult = tree.addNode(nodeId);
         expect(addResult.isOk()).toBe(true);
 
-        const mockArgument = mock<AtomicArgument>();
-        mockArgument.getId.mockReturnValue(atomicArgumentIdFactory.build());
-        mockArgument.getPremises.mockReturnValue([]);
-        mockArgument.getConclusions.mockReturnValue([]);
-
-        // Mock repository to return the argument
-        mockAtomicArgumentRepository.findById.mockResolvedValue(ok(mockArgument));
-
         // Verify node was added
         expect(tree.hasNode(nodeId)).toBe(true);
         expect(tree.getNodeCount()).toBe(1);
+
+        // Add more nodes to test performance
+        const nodeIds = Array.from({ length: 100 }, () => nodeIdFactory.build());
+        nodeIds.forEach((id) => {
+          const result = tree.addNode(id);
+          expect(result.isOk()).toBe(true);
+        });
+
+        expect(tree.getNodeCount()).toBe(101);
       });
 
       it('should handle multiple nodes with parent relationships', () => {
@@ -548,7 +538,7 @@ describe('Tree Performance and Edge Cases', () => {
           expect(setResult.isOk()).toBe(true);
 
           if (i % 2 === 0) {
-            const clearResult = tree.setTitle('');
+            const clearResult = tree.setTitle(undefined);
             expect(clearResult.isOk()).toBe(true);
           }
         }

@@ -350,7 +350,7 @@ export class DocumentQueryService {
 
     return {
       id: 'parsed-document', // Would need proper ID generation
-      version: 1,
+      version: 0,
       createdAt: new Date().toISOString(),
       modifiedAt: new Date().toISOString(),
       statements: statementDTOs,

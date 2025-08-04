@@ -296,14 +296,19 @@ describe('Statement Entity', () => {
         const originalId = statement.getId();
         const originalCreatedAt = statement.getCreatedAt();
         const originalModifiedAt = statement.getModifiedAt();
+        const originalUsageCount = statement.getUsageCount();
 
-        // Attempt to modify properties (should have no effect)
-        statement.incrementUsage();
+        // Attempt to modify properties (returns new instance, original unchanged)
+        const newStatement = statement.incrementUsage();
 
-        // Core immutable properties should remain unchanged
+        // Core immutable properties should remain unchanged on original
         expect(statement.getId()).toBe(originalId);
         expect(statement.getCreatedAt()).toBe(originalCreatedAt);
         expect(statement.getModifiedAt()).toBe(originalModifiedAt);
+        expect(statement.getUsageCount()).toBe(originalUsageCount);
+
+        // New instance should have updated usage count
+        expect(newStatement.getUsageCount()).toBe(originalUsageCount + 1);
       }
     });
 
@@ -331,18 +336,23 @@ describe('Statement Entity', () => {
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         const statement = result.value;
+        const originalId = statement.getId();
+        const originalCreatedAt = statement.getCreatedAt();
 
-        // These should not be modifiable from outside
-        expect(() => {
-          (statement as any).id = StatementId.generate();
-        }).not.toThrow(); // But should have no effect
+        // Since properties are private, TypeScript prevents direct access
+        // The test verifies that the class encapsulation works correctly
+        // Direct property access would be a compile-time error in TypeScript
 
-        expect(() => {
-          (statement as any).createdAt = Date.now();
-        }).not.toThrow(); // But should have no effect
+        // Verify methods return consistent values
+        expect(statement.getId()).toBe(originalId);
+        expect(statement.getCreatedAt()).toBe(originalCreatedAt);
+        expect(statement.getContent()).toBe(content);
+        expect(statement.getUsageCount()).toBe(0);
 
-        // Original properties should remain unchanged
-        expect(statement.getCreatedAt()).toBe(FIXED_TIMESTAMP);
+        // Operations that create new instances don't modify the original
+        const newStatement = statement.incrementUsage();
+        expect(statement.getUsageCount()).toBe(0); // Original unchanged
+        expect(newStatement.getUsageCount()).toBe(1); // New instance modified
       }
     });
   });
@@ -365,9 +375,16 @@ describe('Statement Entity', () => {
           const updateResult = statement.updateContent(newContent);
           expect(updateResult.isOk()).toBe(true);
 
-          expect(statement.getContent()).toBe(newContent);
-          expect(statement.getModifiedAt()).toBe(updateTime);
-          expect(statement.getCreatedAt()).toBe(FIXED_TIMESTAMP); // Should remain unchanged
+          if (updateResult.isOk()) {
+            const updatedStatement = updateResult.value;
+            expect(updatedStatement.getContent()).toBe(newContent);
+            expect(updatedStatement.getModifiedAt()).toBe(updateTime);
+            expect(updatedStatement.getCreatedAt()).toBe(FIXED_TIMESTAMP); // Should remain unchanged
+
+            // Original should remain unchanged
+            expect(statement.getContent()).toBe(originalContent.trim());
+            expect(statement.getModifiedAt()).toBe(FIXED_TIMESTAMP);
+          }
         }
       });
 
@@ -417,7 +434,12 @@ describe('Statement Entity', () => {
           const updateResult = statement.updateContent('  Updated content  ');
           expect(updateResult.isOk()).toBe(true);
 
-          expect(statement.getContent()).toBe('Updated content');
+          if (updateResult.isOk()) {
+            const updatedStatement = updateResult.value;
+            expect(updatedStatement.getContent()).toBe('Updated content');
+            // Original should remain unchanged
+            expect(statement.getContent()).toBe('Original');
+          }
         }
       });
     });
@@ -480,12 +502,12 @@ describe('Statement Entity', () => {
           expect(statement.getUsageCount()).toBe(0);
           expect(statement.isReferencedInOrderedSets()).toBe(false);
 
-          statement.incrementUsage();
-          expect(statement.getUsageCount()).toBe(1);
-          expect(statement.isReferencedInOrderedSets()).toBe(true);
+          const afterFirst = statement.incrementUsage();
+          expect(afterFirst.getUsageCount()).toBe(1);
+          expect(afterFirst.isReferencedInOrderedSets()).toBe(true);
 
-          statement.incrementUsage();
-          expect(statement.getUsageCount()).toBe(2);
+          const afterSecond = afterFirst.incrementUsage();
+          expect(afterSecond.getUsageCount()).toBe(2);
         }
       });
 
@@ -513,14 +535,17 @@ describe('Statement Entity', () => {
           const statement = result.value;
 
           // First increment to have something to decrement
-          statement.incrementUsage();
-          statement.incrementUsage();
-          expect(statement.getUsageCount()).toBe(2);
+          let currentStatement = statement.incrementUsage();
+          currentStatement = currentStatement.incrementUsage();
+          expect(currentStatement.getUsageCount()).toBe(2);
 
-          const decrementResult = statement.decrementUsage();
+          const decrementResult = currentStatement.decrementUsage();
           expect(decrementResult.isOk()).toBe(true);
-          expect(statement.getUsageCount()).toBe(1);
-          expect(statement.isReferencedInOrderedSets()).toBe(true);
+          if (decrementResult.isOk()) {
+            const decrementedStatement = decrementResult.value;
+            expect(decrementedStatement.getUsageCount()).toBe(1);
+            expect(decrementedStatement.isReferencedInOrderedSets()).toBe(true);
+          }
         }
       });
 
@@ -554,15 +579,19 @@ describe('Statement Entity', () => {
           const statement = result.value;
 
           // Increment to 1, then decrement to 0
-          statement.incrementUsage();
-          const decrementResult = statement.decrementUsage();
+          const incrementedStatement = statement.incrementUsage();
+          const decrementResult = incrementedStatement.decrementUsage();
           expect(decrementResult.isOk()).toBe(true);
-          expect(statement.getUsageCount()).toBe(0);
-          expect(statement.isReferencedInOrderedSets()).toBe(false);
 
-          // Try to decrement from 0 (should fail)
-          const decrementFromZero = statement.decrementUsage();
-          expect(decrementFromZero.isErr()).toBe(true);
+          if (decrementResult.isOk()) {
+            const decrementedStatement = decrementResult.value;
+            expect(decrementedStatement.getUsageCount()).toBe(0);
+            expect(decrementedStatement.isReferencedInOrderedSets()).toBe(false);
+
+            // Try to decrement from 0 (should fail)
+            const decrementFromZero = decrementedStatement.decrementUsage();
+            expect(decrementFromZero.isErr()).toBe(true);
+          }
         }
       });
     });
@@ -579,12 +608,15 @@ describe('Statement Entity', () => {
           expect(statement.isReferencedInOrderedSets()).toBe(false);
 
           // After incrementing, should be referenced
-          statement.incrementUsage();
-          expect(statement.isReferencedInOrderedSets()).toBe(true);
+          const incrementedStatement = statement.incrementUsage();
+          expect(incrementedStatement.isReferencedInOrderedSets()).toBe(true);
 
           // After decrementing back to 0, should not be referenced
-          statement.decrementUsage();
-          expect(statement.isReferencedInOrderedSets()).toBe(false);
+          const decrementResult = incrementedStatement.decrementUsage();
+          expect(decrementResult.isOk()).toBe(true);
+          if (decrementResult.isOk()) {
+            expect(decrementResult.value.isReferencedInOrderedSets()).toBe(false);
+          }
         }
       });
 
@@ -595,11 +627,11 @@ describe('Statement Entity', () => {
             expect(result.isOk()).toBe(true);
 
             if (result.isOk()) {
-              const statement = result.value;
+              let statement = result.value;
 
               // Set usage count by incrementing
               for (let i = 0; i < initialCount; i++) {
-                statement.incrementUsage();
+                statement = statement.incrementUsage();
               }
 
               const expectedReferenced = initialCount > 0;
@@ -839,12 +871,13 @@ describe('Statement Entity', () => {
 
           // Increment to a large number
           const maxCount = 10000;
+          let currentStatement = statement;
           for (let i = 0; i < maxCount; i++) {
-            statement.incrementUsage();
+            currentStatement = currentStatement.incrementUsage();
           }
 
-          expect(statement.getUsageCount()).toBe(maxCount);
-          expect(statement.isReferencedInOrderedSets()).toBe(true);
+          expect(currentStatement.getUsageCount()).toBe(maxCount);
+          expect(currentStatement.isReferencedInOrderedSets()).toBe(true);
         }
       });
 
@@ -885,26 +918,32 @@ describe('Statement Entity', () => {
             expect(result.isOk()).toBe(true);
 
             if (result.isOk()) {
-              const statement = result.value;
+              let statement = result.value;
               let expectedUsageCount = 0;
 
               for (const operation of operations) {
                 switch (operation) {
                   case 'increment': {
-                    statement.incrementUsage();
+                    statement = statement.incrementUsage();
                     expectedUsageCount++;
                     break;
                   }
                   case 'update': {
                     const updateResult = statement.updateContent(`${initialContent} updated`);
                     expect(updateResult.isOk()).toBe(true);
+                    if (updateResult.isOk()) {
+                      statement = updateResult.value;
+                    }
                     break;
                   }
                   case 'decrement': {
                     if (expectedUsageCount > 0) {
                       const decrementResult = statement.decrementUsage();
                       expect(decrementResult.isOk()).toBe(true);
-                      expectedUsageCount--;
+                      if (decrementResult.isOk()) {
+                        statement = decrementResult.value;
+                        expectedUsageCount--;
+                      }
                     }
                     break;
                   }
@@ -932,13 +971,16 @@ describe('Statement Entity', () => {
             expect(result.isOk()).toBe(true);
 
             if (result.isOk()) {
-              const statement = result.value;
+              let statement = result.value;
               let expectedContent = initialContent.trim();
 
               for (const update of updates) {
                 const updateResult = statement.updateContent(update);
                 expect(updateResult.isOk()).toBe(true);
-                expectedContent = update.trim();
+                if (updateResult.isOk()) {
+                  statement = updateResult.value;
+                  expectedContent = update.trim();
+                }
               }
 
               expect(statement.getContent()).toBe(expectedContent);
@@ -1221,16 +1263,25 @@ describe('Statement Entity', () => {
           // Test multiple decrements
           const decrementResult1 = statement.decrementUsage();
           expect(decrementResult1.isOk()).toBe(true);
+          if (decrementResult1.isOk()) {
+            statement = decrementResult1.value;
+          }
           expect(statement.getUsageCount()).toBe(2);
           expect(statement.isReferencedInOrderedSets()).toBe(true);
 
           const decrementResult2 = statement.decrementUsage();
           expect(decrementResult2.isOk()).toBe(true);
+          if (decrementResult2.isOk()) {
+            statement = decrementResult2.value;
+          }
           expect(statement.getUsageCount()).toBe(1);
           expect(statement.isReferencedInOrderedSets()).toBe(true);
 
           const decrementResult3 = statement.decrementUsage();
           expect(decrementResult3.isOk()).toBe(true);
+          if (decrementResult3.isOk()) {
+            statement = decrementResult3.value;
+          }
           expect(statement.getUsageCount()).toBe(0);
           expect(statement.isReferencedInOrderedSets()).toBe(false);
 
@@ -1260,6 +1311,9 @@ describe('Statement Entity', () => {
           for (let i = 0; i < 1000; i++) {
             const decrementResult = statement.decrementUsage();
             expect(decrementResult.isOk()).toBe(true);
+            if (decrementResult.isOk()) {
+              statement = decrementResult.value;
+            }
           }
           expect(statement.getUsageCount()).toBe(0);
           expect(statement.isReferencedInOrderedSets()).toBe(false);

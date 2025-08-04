@@ -57,9 +57,13 @@ export class ProofTreeMessageHandler {
 
       switch (msg.type) {
         case 'viewportChanged':
+          await this.stateManager.handleViewStateUpdate(msg.type, msg.viewport);
+          break;
         case 'panelStateChanged':
+          await this.stateManager.handleViewStateUpdate(msg.type, msg.panel);
+          break;
         case 'selectionChanged':
-          await this.stateManager.handleViewStateUpdate(msg.type, msg);
+          await this.stateManager.handleViewStateUpdate(msg.type, msg.selection);
           break;
         case 'createArgument':
           await this.handleCreateArgument(msg);
@@ -275,6 +279,7 @@ export class ProofTreeMessageHandler {
         return;
       }
 
+      // ArgumentOperations already sends the argumentCreated message
       // Refresh the content to show the new argument
       await this.refreshContent();
     } catch (error) {
@@ -306,6 +311,33 @@ export class ProofTreeMessageHandler {
       );
       if (result.isErr()) {
         return;
+      }
+
+      // Send statementAdded message to webview
+      if (result.value && result.value.statementId) {
+        const contentResult = MessageContent.create(
+          JSON.stringify({
+            statementType,
+            statementId: result.value.statementId,
+            content: result.value.content,
+          }),
+        );
+        if (contentResult.isOk()) {
+          this.uiPort.postMessageToWebview(this.webviewId, {
+            type: MessageType.STATEMENT_ADDED,
+            content: contentResult.value,
+          });
+        }
+      }
+
+      // Show success notification
+      const successMessage =
+        statementType === 'premise'
+          ? 'Premise added successfully'
+          : 'Conclusion added successfully';
+      const notificationResult = NotificationMessage.create(successMessage);
+      if (notificationResult.isOk()) {
+        this.uiPort.showInformation(notificationResult.value);
       }
 
       // Refresh the content to show the new statement
@@ -348,13 +380,28 @@ export class ProofTreeMessageHandler {
       const { metadata, newContent } = validationResult.value;
 
       if (metadata.type === 'statement' && metadata.statementId) {
-        await this.argumentOperations.updateStatementContent(metadata.statementId, newContent);
+        const result = await this.argumentOperations.updateStatementContent(
+          metadata.statementId,
+          newContent,
+        );
+        if (result.isOk()) {
+          const successMsg = NotificationMessage.create('Statement updated successfully');
+          if (successMsg.isOk()) {
+            this.uiPort.showInformation(successMsg.value);
+          }
+        }
       } else if (metadata.type === 'label' && metadata.nodeId) {
-        await this.argumentOperations.updateArgumentLabel(
+        const result = await this.argumentOperations.updateArgumentLabel(
           metadata.nodeId,
           metadata.labelType || 'left',
           newContent,
         );
+        if (result.isOk()) {
+          const successMsg = NotificationMessage.create('Label updated successfully');
+          if (successMsg.isOk()) {
+            this.uiPort.showInformation(successMsg.value);
+          }
+        }
       }
 
       // Refresh content to show changes

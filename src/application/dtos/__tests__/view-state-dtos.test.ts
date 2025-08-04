@@ -50,6 +50,55 @@ import {
   validateViewportState,
 } from '../view-dtos.js';
 
+// Helper functions to create test value objects safely
+function createTestNodeId(value: string): NodeId {
+  const result = NodeId.create(value);
+  if (result.isErr()) {
+    throw new Error(`Failed to create NodeId with value: ${value}`);
+  }
+  return result.value;
+}
+
+function createTestTreeId(value: string): TreeId {
+  const result = TreeId.create(value);
+  if (result.isErr()) {
+    throw new Error(`Failed to create TreeId with value: ${value}`);
+  }
+  return result.value;
+}
+
+function createTestStatementId(value: string): StatementId {
+  const result = StatementId.create(value);
+  if (result.isErr()) {
+    throw new Error(`Failed to create StatementId with value: ${value}`);
+  }
+  return result.value;
+}
+
+function createTestAtomicArgumentId(value: string): AtomicArgumentId {
+  const result = AtomicArgumentId.create(value);
+  if (result.isErr()) {
+    throw new Error(`Failed to create AtomicArgumentId with value: ${value}`);
+  }
+  return result.value;
+}
+
+function createTestDocumentId(value: string): DocumentId {
+  const result = DocumentId.create(value);
+  if (result.isErr()) {
+    throw new Error(`Failed to create DocumentId with value: ${value}`);
+  }
+  return result.value;
+}
+
+function createTestSideLabel(value: string): SideLabel {
+  const result = SideLabel.create(value);
+  if (result.isErr()) {
+    throw new Error(`Failed to create SideLabel with value: ${value}`);
+  }
+  return result.value;
+}
+
 describe('View State DTOs', () => {
   describe('SelectionState', () => {
     it('should create valid selection state with factory function', () => {
@@ -477,7 +526,7 @@ describe('View State DTOs', () => {
       // Arrange
       const validEvent: ViewStateChangeEvent = {
         type: 'selection-changed',
-        newState: createSelectionState([NodeId.create('node1').unwrapOr(null)!], [], []),
+        newState: createSelectionState([createTestNodeId('node1')], [], []),
         timestamp: Date.now(),
       };
       const invalidEvent = {
@@ -518,14 +567,11 @@ describe('View State DTOs', () => {
   describe('Immutability', () => {
     it('should create immutable selection state objects', () => {
       // Arrange
-      const originalNodes = [
-        NodeId.create('node1').unwrapOr(null)!,
-        NodeId.create('node2').unwrapOr(null)!,
-      ];
+      const originalNodes = [createTestNodeId('node1'), createTestNodeId('node2')];
       const state = createSelectionState(originalNodes, [], []);
 
       // Act
-      originalNodes.push(NodeId.create('node3').unwrapOr(null)!);
+      originalNodes.push(createTestNodeId('node3'));
 
       // Assert
       expect(state.selectedNodes.map((n) => n.getValue())).toEqual(['node1', 'node2']);
@@ -736,8 +782,8 @@ describe('View State DTOs', () => {
     it('should create ConnectionDTO with factory function', () => {
       // Act
       const connection = createConnectionDTO(
-        NodeId.create('node1').unwrapOr(null)!,
-        NodeId.create('node2').unwrapOr(null)!,
+        createTestNodeId('node1'),
+        createTestNodeId('node2'),
         0,
         1,
         {

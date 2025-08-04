@@ -266,6 +266,20 @@ describe('ProofGraphAdapter', () => {
 
       (node2.getAttachment as ReturnType<typeof vi.fn>).mockReturnValue(mockAttachment);
 
+      // Update mock tree to only include these two nodes
+      (mockTree.getNodeIds as ReturnType<typeof vi.fn>).mockReturnValue([
+        (() => {
+          const r = NodeId.create('node1');
+          if (r.isErr()) throw new Error('Invalid ID');
+          return r.value;
+        })(),
+        (() => {
+          const r = NodeId.create('node2');
+          if (r.isErr()) throw new Error('Invalid ID');
+          return r.value;
+        })(),
+      ]);
+
       vi.mocked(mockNodeRepository.findById).mockImplementation(async (nodeId: NodeId) => {
         switch (nodeId.getValue()) {
           case 'node1':
@@ -319,6 +333,7 @@ describe('ProofGraphAdapter', () => {
       expect(pathResult.isOk()).toBe(true);
       if (pathResult.isOk()) {
         const path = pathResult.value;
+        // The nodes are connected by statement flow (node1 produces statement1, node2 consumes it)
         expect(path.length).toBeGreaterThan(0);
         expect(path[0]?.getValue()).toBe('node2');
         expect(path[path.length - 1]?.getValue()).toBe('node1');
@@ -350,13 +365,16 @@ describe('ProofGraphAdapter', () => {
       }
     });
 
-    it('should handle same source and target', () => {
+    it('should handle same source and target', async () => {
       // Arrange
       const nodeId = (() => {
         const r = NodeId.create('node1');
         if (r.isErr()) throw new Error('Invalid ID');
         return r.value;
       })();
+
+      // Ensure the graph is built first
+      await adapter.buildGraphFromTree(mockTree);
 
       // Act
       const pathResult = adapter.findPath(nodeId, nodeId);

@@ -1,5 +1,6 @@
 import 'reflect-metadata';
 
+import { ok } from 'neverthrow';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
@@ -257,6 +258,31 @@ describe('DI Container', () => {
   describe('Package Ecosystem Mock Infrastructure', () => {
     it('should register mock package filesystem', async () => {
       const container = createTestContainer();
+
+      // Register required dependencies for IPackageFileSystem
+      container.registerInstance('ExtensionContext', {
+        subscriptions: [],
+        workspaceState: {},
+        globalState: {},
+        extensionUri: { fsPath: '/mock/path' },
+        extensionPath: '/mock/path',
+        asAbsolutePath: (path: string) => `/mock/path/${path}`,
+        storagePath: '/mock/storage',
+        globalStoragePath: '/mock/global-storage',
+        logPath: '/mock/log',
+      });
+
+      // Register mock IFileSystemPort that IPackageFileSystem depends on
+      container.registerInstance(TOKENS.IFileSystemPort, {
+        readFile: vi.fn().mockResolvedValue(ok('')),
+        writeFile: vi.fn().mockResolvedValue(ok(undefined)),
+        exists: vi.fn().mockResolvedValue(ok(true)),
+        readDirectory: vi.fn().mockResolvedValue(ok([])),
+        createDirectory: vi.fn().mockResolvedValue(ok(undefined)),
+        delete: vi.fn().mockResolvedValue(ok(undefined)),
+        stat: vi.fn().mockResolvedValue(ok({ type: 'file', size: 0, mtime: Date.now() })),
+      });
+
       await registerDomainServices(container);
 
       const packageFs = container.resolve<any>(TOKENS.IPackageFileSystem);
@@ -270,6 +296,30 @@ describe('DI Container', () => {
 
     it('should register mock SDK validator', async () => {
       const container = createTestContainer();
+
+      // Register required dependencies
+      container.registerInstance('ExtensionContext', {
+        subscriptions: [],
+        workspaceState: {},
+        globalState: {},
+        extensionUri: { fsPath: '/mock/path' },
+        extensionPath: '/mock/path',
+        asAbsolutePath: (path: string) => `/mock/path/${path}`,
+        storagePath: '/mock/storage',
+        globalStoragePath: '/mock/global-storage',
+        logPath: '/mock/log',
+      });
+
+      container.registerInstance(TOKENS.IFileSystemPort, {
+        readFile: vi.fn().mockResolvedValue(ok('')),
+        writeFile: vi.fn().mockResolvedValue(ok(undefined)),
+        exists: vi.fn().mockResolvedValue(ok(true)),
+        readDirectory: vi.fn().mockResolvedValue(ok([])),
+        createDirectory: vi.fn().mockResolvedValue(ok(undefined)),
+        delete: vi.fn().mockResolvedValue(ok(undefined)),
+        stat: vi.fn().mockResolvedValue(ok({ type: 'file', size: 0, mtime: Date.now() })),
+      });
+
       await registerDomainServices(container);
 
       const sdkValidator = container.resolve<any>(TOKENS.ISDKValidator);
@@ -282,6 +332,30 @@ describe('DI Container', () => {
 
     it('should register mock git ref provider', async () => {
       const container = createTestContainer();
+
+      // Register required dependencies
+      container.registerInstance('ExtensionContext', {
+        subscriptions: [],
+        workspaceState: {},
+        globalState: {},
+        extensionUri: { fsPath: '/mock/path' },
+        extensionPath: '/mock/path',
+        asAbsolutePath: (path: string) => `/mock/path/${path}`,
+        storagePath: '/mock/storage',
+        globalStoragePath: '/mock/global-storage',
+        logPath: '/mock/log',
+      });
+
+      container.registerInstance(TOKENS.IFileSystemPort, {
+        readFile: vi.fn().mockResolvedValue(ok('')),
+        writeFile: vi.fn().mockResolvedValue(ok(undefined)),
+        exists: vi.fn().mockResolvedValue(ok(true)),
+        readDirectory: vi.fn().mockResolvedValue(ok([])),
+        createDirectory: vi.fn().mockResolvedValue(ok(undefined)),
+        delete: vi.fn().mockResolvedValue(ok(undefined)),
+        stat: vi.fn().mockResolvedValue(ok({ type: 'file', size: 0, mtime: Date.now() })),
+      });
+
       await registerDomainServices(container);
 
       const gitRefProvider = container.resolve<any>('IGitRefProvider');
@@ -348,8 +422,12 @@ describe('DI Container', () => {
       const service = resolve<any>(TOKENS.ConnectionResolutionService);
 
       expect(service).toBeDefined();
-      expect(service.findBasicConnections).toBeDefined();
-      expect(typeof service.findBasicConnections).toBe('function');
+      expect(service.findAllConnectionsForArgument).toBeDefined();
+      expect(typeof service.findAllConnectionsForArgument).toBe('function');
+      expect(service.findPotentialProviders).toBeDefined();
+      expect(typeof service.findPotentialProviders).toBe('function');
+      expect(service.findPotentialConsumers).toBeDefined();
+      expect(typeof service.findPotentialConsumers).toBe('function');
     });
   });
 
