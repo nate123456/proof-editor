@@ -7,7 +7,17 @@ import {
   treeIdFactory,
 } from '../../../domain/__tests__/factories/index.js';
 import { Tree } from '../../../domain/entities/Tree.js';
-import { PhysicalProperties, Position2D } from '../../../domain/shared/value-objects/index.js';
+import {
+  AlignmentMode,
+  Dimensions,
+  ExpansionDirection,
+  LayoutStyle,
+  NodeCount,
+  PhysicalProperties,
+  Position2D,
+  type TreeId,
+} from '../../../domain/shared/value-objects/index.js';
+import { TreePosition } from '../../../domain/value-objects/TreePosition.js';
 import type { TreeDTO } from '../../queries/shared-types.js';
 import { treesToDomains, treesToDTOs, treeToDomain, treeToDTO } from '../TreeMapper.js';
 
@@ -54,13 +64,13 @@ describe('TreeMapper', () => {
       if (specificPosition.isErr()) return;
 
       const specificPhysicalProperties = PhysicalProperties.create(
-        'bottom-up',
+        LayoutStyle.bottomUp(),
         30,
         40,
         150,
         100,
-        'horizontal',
-        'center',
+        ExpansionDirection.horizontal(),
+        AlignmentMode.center(),
       );
       expect(specificPhysicalProperties.isOk()).toBe(true);
       if (specificPhysicalProperties.isErr()) return;
@@ -182,8 +192,8 @@ describe('TreeMapper', () => {
 
       // Assert
       expect(result.bounds).toBeDefined();
-      expect(result.bounds?.width).toBeGreaterThan(0);
-      expect(result.bounds?.height).toBeGreaterThan(0);
+      expect(result.bounds?.getWidth()).toBeGreaterThan(0);
+      expect(result.bounds?.getHeight()).toBeGreaterThan(0);
     });
 
     it('should handle tree with large coordinates', () => {
@@ -234,7 +244,7 @@ describe('TreeMapper', () => {
       // Arrange
       const specificTreeId = treeIdFactory.build();
       const documentId = 'test-document';
-      const position = Position2D.origin();
+      const position = TreePosition.origin();
       const physicalProperties = PhysicalProperties.default();
 
       const treeResult = Tree.reconstruct(
@@ -338,11 +348,22 @@ describe('TreeMapper', () => {
   describe('treeToDomain', () => {
     it('should convert valid TreeDTO to Tree domain entity', () => {
       // Arrange
+      const treeIdResult = treeIdFactory.build();
+      const positionResult = Position2D.create(100, 200);
+      const dimensionsResult = Dimensions.create(300, 400);
+      const nodeCountResult = NodeCount.create(0);
+      expect(nodeCountResult.isOk()).toBe(true);
+      if (nodeCountResult.isErr()) return;
+
+      expect(positionResult.isOk()).toBe(true);
+      expect(dimensionsResult.isOk()).toBe(true);
+      if (positionResult.isErr() || dimensionsResult.isErr()) return;
+
       const dto: TreeDTO = {
-        id: 'test-tree-id',
-        position: { x: 100, y: 200 },
-        bounds: { width: 300, height: 400 },
-        nodeCount: 0,
+        id: treeIdResult,
+        position: positionResult.value,
+        bounds: dimensionsResult.value,
+        nodeCount: nodeCountResult.value,
         rootNodeIds: [],
       };
       const documentId = 'test-doc-id';
@@ -354,7 +375,7 @@ describe('TreeMapper', () => {
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         const tree = result.value;
-        expect(tree.getId().getValue()).toBe('test-tree-id');
+        expect(tree.getId().getValue()).toBe(treeIdResult.getValue());
         expect(tree.getPosition().getX()).toBe(100);
         expect(tree.getPosition().getY()).toBe(200);
         expect(tree.getPhysicalProperties().getMinWidth()).toBe(300);
@@ -365,11 +386,22 @@ describe('TreeMapper', () => {
 
     it('should convert TreeDTO without bounds using defaults', () => {
       // Arrange
+      const treeIdResult = treeIdFactory.build();
+      const positionResult = Position2D.create(50, 75);
+      const nodeCountResult = NodeCount.create(2);
+      expect(nodeCountResult.isOk()).toBe(true);
+      if (nodeCountResult.isErr()) return;
+      const nodeId1 = nodeIdFactory.build();
+      const nodeId2 = nodeIdFactory.build();
+
+      expect(positionResult.isOk()).toBe(true);
+      if (positionResult.isErr()) return;
+
       const dto: TreeDTO = {
-        id: 'test-tree-id',
-        position: { x: 50, y: 75 },
-        nodeCount: 2,
-        rootNodeIds: ['node1', 'node2'],
+        id: treeIdResult,
+        position: positionResult.value,
+        nodeCount: nodeCountResult.value,
+        rootNodeIds: [nodeId1, nodeId2],
       };
       const documentId = 'test-doc-id';
 
@@ -380,7 +412,7 @@ describe('TreeMapper', () => {
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         const tree = result.value;
-        expect(tree.getId().getValue()).toBe('test-tree-id');
+        expect(tree.getId().getValue()).toBe(treeIdResult.getValue());
         expect(tree.getPosition().getX()).toBe(50);
         expect(tree.getPosition().getY()).toBe(75);
         // Should use default physical properties
@@ -391,12 +423,21 @@ describe('TreeMapper', () => {
 
     it('should fail with invalid tree ID', () => {
       // Arrange
-      const dto: TreeDTO = {
-        id: '', // Invalid empty ID
-        position: { x: 0, y: 0 },
-        nodeCount: 0,
+      const positionResult = Position2D.create(0, 0);
+      const nodeCountResult = NodeCount.create(0);
+      expect(nodeCountResult.isOk()).toBe(true);
+      if (nodeCountResult.isErr()) return;
+
+      expect(positionResult.isOk()).toBe(true);
+      if (positionResult.isErr()) return;
+
+      // Create an invalid TreeDTO by casting an empty string as TreeId
+      const dto = {
+        id: '' as unknown as TreeId,
+        position: positionResult.value,
+        nodeCount: nodeCountResult.value,
         rootNodeIds: [],
-      };
+      } as TreeDTO;
       const documentId = 'test-doc-id';
 
       // Act
@@ -411,12 +452,18 @@ describe('TreeMapper', () => {
 
     it('should fail with invalid position coordinates', () => {
       // Arrange
-      const dto: TreeDTO = {
-        id: 'test-tree-id',
-        position: { x: Number.NaN, y: 0 }, // Invalid coordinates
-        nodeCount: 0,
+      const treeIdResult = treeIdFactory.build();
+      const nodeCountResult = NodeCount.create(0);
+      expect(nodeCountResult.isOk()).toBe(true);
+      if (nodeCountResult.isErr()) return;
+
+      // Create an invalid position by casting
+      const dto = {
+        id: treeIdResult,
+        position: { x: Number.NaN, y: 0 } as unknown as Position2D,
+        nodeCount: nodeCountResult.value,
         rootNodeIds: [],
-      };
+      } as TreeDTO;
       const documentId = 'test-doc-id';
 
       // Act
@@ -428,13 +475,23 @@ describe('TreeMapper', () => {
 
     it('should fail with invalid physical properties', () => {
       // Arrange
-      const dto: TreeDTO = {
-        id: 'test-tree-id',
-        position: { x: 0, y: 0 },
-        bounds: { width: -100, height: 200 }, // Invalid negative width
-        nodeCount: 0,
+      const treeIdResult = treeIdFactory.build();
+      const positionResult = Position2D.create(0, 0);
+      const nodeCountResult = NodeCount.create(0);
+      expect(nodeCountResult.isOk()).toBe(true);
+      if (nodeCountResult.isErr()) return;
+
+      expect(positionResult.isOk()).toBe(true);
+      if (positionResult.isErr()) return;
+
+      // Create invalid bounds by casting
+      const dto = {
+        id: treeIdResult,
+        position: positionResult.value,
+        bounds: { width: -100, height: 200 } as unknown as Dimensions,
+        nodeCount: nodeCountResult.value,
         rootNodeIds: [],
-      };
+      } as TreeDTO;
       const documentId = 'test-doc-id';
 
       // Act
@@ -446,11 +503,22 @@ describe('TreeMapper', () => {
 
     it('should handle edge case coordinates', () => {
       // Arrange
+      const treeIdResult = treeIdFactory.build();
+      const positionResult = Position2D.create(-1000, 1000);
+      const dimensionsResult = Dimensions.create(1, 1);
+      const nodeCountResult = NodeCount.create(0);
+      expect(nodeCountResult.isOk()).toBe(true);
+      if (nodeCountResult.isErr()) return;
+
+      expect(positionResult.isOk()).toBe(true);
+      expect(dimensionsResult.isOk()).toBe(true);
+      if (positionResult.isErr() || dimensionsResult.isErr()) return;
+
       const dto: TreeDTO = {
-        id: 'test-tree-id',
-        position: { x: -1000, y: 1000 },
-        bounds: { width: 1, height: 1 },
-        nodeCount: 0,
+        id: treeIdResult,
+        position: positionResult.value,
+        bounds: dimensionsResult.value,
+        nodeCount: nodeCountResult.value,
         rootNodeIds: [],
       };
       const documentId = 'test-doc-id';
@@ -471,10 +539,19 @@ describe('TreeMapper', () => {
 
     it('should use current timestamp for creation and modification times', () => {
       // Arrange
+      const treeIdResult = treeIdFactory.build();
+      const positionResult = Position2D.create(0, 0);
+      const nodeCountResult = NodeCount.create(0);
+      expect(nodeCountResult.isOk()).toBe(true);
+      if (nodeCountResult.isErr()) return;
+
+      expect(positionResult.isOk()).toBe(true);
+      if (positionResult.isErr()) return;
+
       const dto: TreeDTO = {
-        id: 'test-tree-id',
-        position: { x: 0, y: 0 },
-        nodeCount: 0,
+        id: treeIdResult,
+        position: positionResult.value,
+        nodeCount: nodeCountResult.value,
         rootNodeIds: [],
       };
       const documentId = 'test-doc-id';
@@ -514,10 +591,19 @@ describe('TreeMapper', () => {
 
     it('should convert single valid TreeDTO', () => {
       // Arrange
+      const treeIdResult = treeIdFactory.build();
+      const positionResult = Position2D.create(100, 200);
+      const nodeCountResult = NodeCount.create(0);
+      expect(nodeCountResult.isOk()).toBe(true);
+      if (nodeCountResult.isErr()) return;
+
+      expect(positionResult.isOk()).toBe(true);
+      if (positionResult.isErr()) return;
+
       const dto: TreeDTO = {
-        id: 'test-tree-id',
-        position: { x: 100, y: 200 },
-        nodeCount: 0,
+        id: treeIdResult,
+        position: positionResult.value,
+        nodeCount: nodeCountResult.value,
         rootNodeIds: [],
       };
       const documentId = 'test-doc-id';
@@ -529,31 +615,55 @@ describe('TreeMapper', () => {
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         expect(result.value).toHaveLength(1);
-        expect(result.value[0]?.getId().getValue()).toBe('test-tree-id');
+        expect(result.value[0]?.getId().getValue()).toBe(treeIdResult.getValue());
       }
     });
 
     it('should convert multiple valid TreeDTOs', () => {
       // Arrange
+      const treeId1 = treeIdFactory.build();
+      const treeId2 = treeIdFactory.build();
+      const treeId3 = treeIdFactory.build();
+      const position1 = Position2D.create(0, 0);
+      const position2 = Position2D.create(100, 100);
+      const position3 = Position2D.create(200, 200);
+      const bounds3 = Dimensions.create(150, 100);
+      const nodeCount1 = NodeCount.create(0);
+      const nodeCount2 = NodeCount.create(1);
+      const nodeCount3 = NodeCount.create(2);
+      expect(nodeCount1.isOk()).toBe(true);
+      expect(nodeCount2.isOk()).toBe(true);
+      expect(nodeCount3.isOk()).toBe(true);
+      if (nodeCount1.isErr() || nodeCount2.isErr() || nodeCount3.isErr()) return;
+      const nodeId1 = nodeIdFactory.build();
+      const nodeId2 = nodeIdFactory.build();
+      const nodeId3 = nodeIdFactory.build();
+
+      expect(position1.isOk()).toBe(true);
+      expect(position2.isOk()).toBe(true);
+      expect(position3.isOk()).toBe(true);
+      expect(bounds3.isOk()).toBe(true);
+      if (position1.isErr() || position2.isErr() || position3.isErr() || bounds3.isErr()) return;
+
       const dtos: TreeDTO[] = [
         {
-          id: 'tree-1',
-          position: { x: 0, y: 0 },
-          nodeCount: 0,
+          id: treeId1,
+          position: position1.value,
+          nodeCount: nodeCount1.value,
           rootNodeIds: [],
         },
         {
-          id: 'tree-2',
-          position: { x: 100, y: 100 },
-          nodeCount: 1,
-          rootNodeIds: ['node1'],
+          id: treeId2,
+          position: position2.value,
+          nodeCount: nodeCount2.value,
+          rootNodeIds: [nodeId1],
         },
         {
-          id: 'tree-3',
-          position: { x: 200, y: 200 },
-          bounds: { width: 150, height: 100 },
-          nodeCount: 2,
-          rootNodeIds: ['node2', 'node3'],
+          id: treeId3,
+          position: position3.value,
+          bounds: bounds3.value,
+          nodeCount: nodeCount3.value,
+          rootNodeIds: [nodeId2, nodeId3],
         },
       ];
       const documentId = 'test-doc-id';
@@ -565,31 +675,45 @@ describe('TreeMapper', () => {
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         expect(result.value).toHaveLength(3);
-        expect(result.value[0]?.getId().getValue()).toBe('tree-1');
-        expect(result.value[1]?.getId().getValue()).toBe('tree-2');
-        expect(result.value[2]?.getId().getValue()).toBe('tree-3');
+        expect(result.value[0]?.getId().getValue()).toBe(treeId1.getValue());
+        expect(result.value[1]?.getId().getValue()).toBe(treeId2.getValue());
+        expect(result.value[2]?.getId().getValue()).toBe(treeId3.getValue());
       }
     });
 
     it('should fail fast on first invalid TreeDTO', () => {
       // Arrange
+      const validTreeId = treeIdFactory.build();
+      const neverReachedId = treeIdFactory.build();
+      const position1 = Position2D.create(0, 0);
+      const position2 = Position2D.create(100, 100);
+      const position3 = Position2D.create(200, 200);
+      const nodeCount = NodeCount.create(0);
+      expect(nodeCount.isOk()).toBe(true);
+      if (nodeCount.isErr()) return;
+
+      expect(position1.isOk()).toBe(true);
+      expect(position2.isOk()).toBe(true);
+      expect(position3.isOk()).toBe(true);
+      if (position1.isErr() || position2.isErr() || position3.isErr()) return;
+
       const dtos: TreeDTO[] = [
         {
-          id: 'valid-tree',
-          position: { x: 0, y: 0 },
-          nodeCount: 0,
+          id: validTreeId,
+          position: position1.value,
+          nodeCount: nodeCount.value,
           rootNodeIds: [],
         },
         {
-          id: '', // Invalid empty ID
-          position: { x: 100, y: 100 },
-          nodeCount: 0,
+          id: '' as unknown as TreeId, // Invalid empty ID
+          position: position2.value,
+          nodeCount: nodeCount.value,
           rootNodeIds: [],
         },
         {
-          id: 'never-reached',
-          position: { x: 200, y: 200 },
-          nodeCount: 0,
+          id: neverReachedId,
+          position: position3.value,
+          nodeCount: nodeCount.value,
           rootNodeIds: [],
         },
       ];
@@ -607,10 +731,22 @@ describe('TreeMapper', () => {
 
     it('should maintain order of trees in conversion', () => {
       // Arrange
+      const firstId = treeIdFactory.build();
+      const secondId = treeIdFactory.build();
+      const thirdId = treeIdFactory.build();
+      const position = Position2D.create(0, 0);
+      const nodeCountResult = NodeCount.create(0);
+      expect(nodeCountResult.isOk()).toBe(true);
+      if (nodeCountResult.isErr()) return;
+      const nodeCount = nodeCountResult.value;
+
+      expect(position.isOk()).toBe(true);
+      if (position.isErr()) return;
+
       const dtos: TreeDTO[] = [
-        { id: 'first', position: { x: 0, y: 0 }, nodeCount: 0, rootNodeIds: [] },
-        { id: 'second', position: { x: 0, y: 0 }, nodeCount: 0, rootNodeIds: [] },
-        { id: 'third', position: { x: 0, y: 0 }, nodeCount: 0, rootNodeIds: [] },
+        { id: firstId, position: position.value, nodeCount: nodeCount, rootNodeIds: [] },
+        { id: secondId, position: position.value, nodeCount: nodeCount, rootNodeIds: [] },
+        { id: thirdId, position: position.value, nodeCount: nodeCount, rootNodeIds: [] },
       ];
       const documentId = 'test-doc-id';
 
@@ -621,9 +757,9 @@ describe('TreeMapper', () => {
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         expect(result.value).toHaveLength(3);
-        expect(result.value[0]?.getId().getValue()).toBe('first');
-        expect(result.value[1]?.getId().getValue()).toBe('second');
-        expect(result.value[2]?.getId().getValue()).toBe('third');
+        expect(result.value[0]?.getId().getValue()).toBe(firstId.getValue());
+        expect(result.value[1]?.getId().getValue()).toBe(secondId.getValue());
+        expect(result.value[2]?.getId().getValue()).toBe(thirdId.getValue());
       }
     });
   });
@@ -660,13 +796,13 @@ describe('TreeMapper', () => {
       // Arrange
       const customPosition = Position2D.create(500, 600);
       const customPhysicalProperties = PhysicalProperties.create(
-        'bottom-up',
+        LayoutStyle.bottomUp(),
         25,
         30,
         400,
         300,
-        'vertical',
-        'left',
+        ExpansionDirection.vertical(),
+        AlignmentMode.left(),
       );
 
       if (customPosition.isErr() || customPhysicalProperties.isErr()) return;
@@ -776,8 +912,8 @@ describe('TreeMapper', () => {
       const result = treeToDTO(tree);
 
       // Assert
-      expect(result.position.x).toBeCloseTo(123.456, 3);
-      expect(result.position.y).toBeCloseTo(789.012, 3);
+      expect(result.position.getX()).toBeCloseTo(123.456, 3);
+      expect(result.position.getY()).toBeCloseTo(789.012, 3);
     });
 
     it('should maintain data integrity across multiple conversions', () => {
@@ -826,13 +962,23 @@ describe('TreeMapper', () => {
 
     it('should handle zero-sized bounds gracefully', () => {
       // Arrange
-      const dto: TreeDTO = {
-        id: 'zero-bounds-tree',
-        position: { x: 0, y: 0 },
-        bounds: { width: 0, height: 0 },
-        nodeCount: 0,
+      const treeIdResult = treeIdFactory.build();
+      const positionResult = Position2D.create(0, 0);
+      const nodeCountResult = NodeCount.create(0);
+      expect(nodeCountResult.isOk()).toBe(true);
+      if (nodeCountResult.isErr()) return;
+
+      expect(positionResult.isOk()).toBe(true);
+      if (positionResult.isErr()) return;
+
+      // Create zero-sized bounds by casting
+      const dto = {
+        id: treeIdResult,
+        position: positionResult.value,
+        bounds: { width: 0, height: 0 } as unknown as Dimensions,
+        nodeCount: nodeCountResult.value,
         rootNodeIds: [],
-      };
+      } as TreeDTO;
       const documentId = 'test-doc-id';
 
       // Act
@@ -865,10 +1011,10 @@ describe('TreeMapper', () => {
       expect(result).toHaveProperty('nodeCount');
       expect(result).toHaveProperty('rootNodeIds');
 
-      expect(result.position).toHaveProperty('x');
-      expect(result.position).toHaveProperty('y');
-      expect(result.bounds).toHaveProperty('width');
-      expect(result.bounds).toHaveProperty('height');
+      expect(typeof result.position.getX).toBe('function');
+      expect(typeof result.position.getY).toBe('function');
+      expect(typeof result.bounds?.getWidth).toBe('function');
+      expect(typeof result.bounds?.getHeight).toBe('function');
     });
 
     it('should produce DTO with correct data types', () => {
@@ -883,25 +1029,25 @@ describe('TreeMapper', () => {
 
       // Assert
       expect(typeof result.id).toBe('string');
-      expect(typeof result.position.x).toBe('number');
-      expect(typeof result.position.y).toBe('number');
-      expect(typeof result.bounds?.width).toBe('number');
-      expect(typeof result.bounds?.height).toBe('number');
+      expect(typeof result.position.getX()).toBe('number');
+      expect(typeof result.position.getY()).toBe('number');
+      expect(typeof result.bounds?.getWidth()).toBe('number');
+      expect(typeof result.bounds?.getHeight()).toBe('number');
       expect(typeof result.nodeCount).toBe('number');
       expect(Array.isArray(result.rootNodeIds)).toBe(true);
-      expect(result.rootNodeIds.every((id: string) => typeof id === 'string')).toBe(true);
+      expect(result.rootNodeIds.every((id) => typeof id.getValue() === 'string')).toBe(true);
     });
 
     it('should handle bounds field correctly', () => {
       // Arrange
       const customProperties = PhysicalProperties.create(
-        'bottom-up',
+        LayoutStyle.bottomUp(),
         10,
         20,
         300,
         400,
-        'horizontal',
-        'center',
+        ExpansionDirection.horizontal(),
+        AlignmentMode.center(),
       );
       expect(customProperties.isOk()).toBe(true);
       if (customProperties.isErr()) return;
@@ -920,8 +1066,8 @@ describe('TreeMapper', () => {
 
       // Assert
       expect(result.bounds).toBeDefined();
-      expect(result.bounds?.width).toBe(300);
-      expect(result.bounds?.height).toBe(400);
+      expect(result.bounds?.getWidth()).toBe(300);
+      expect(result.bounds?.getHeight()).toBe(400);
     });
   });
 

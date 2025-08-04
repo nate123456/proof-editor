@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TestScenarios } from '../../__tests__/utils/integration-test-factories.js';
 import { ValidationApplicationError } from '../../application/dtos/operation-results.js';
 import type { IExportService } from '../../application/ports/IExportService.js';
-import type { IUIPort, WebviewPanel } from '../../application/ports/IUIPort.js';
+import type { IUIPort, WebviewMessage, WebviewPanel } from '../../application/ports/IUIPort.js';
 import type { IViewStatePort } from '../../application/ports/IViewStatePort.js';
 import type { IDocumentIdService } from '../../application/services/DocumentIdService.js';
 import type { DocumentQueryService } from '../../application/services/DocumentQueryService.js';
@@ -13,6 +13,8 @@ import type { ProofApplicationService } from '../../application/services/ProofAp
 import type { ProofVisualizationService } from '../../application/services/ProofVisualizationService.js';
 import type { ViewStateManager } from '../../application/services/ViewStateManager.js';
 import { ValidationError } from '../../domain/shared/result.js';
+import { MessageType } from '../../domain/shared/value-objects/enums.js';
+import { WebviewId } from '../../domain/shared/value-objects/identifiers.js';
 import type { YAMLSerializer } from '../../infrastructure/repositories/yaml/YAMLSerializer.js';
 import type { BootstrapController } from '../../presentation/controllers/BootstrapController.js';
 import { ProofTreePanel } from '../ProofTreePanel.js';
@@ -41,7 +43,7 @@ describe('ProofTreePanel - Integration Tests', () => {
     };
 
     mockWebviewPanel = {
-      id: 'test-panel-integration',
+      id: WebviewId.create('test-panel-integration').unwrapOr(null as any),
       webview: mockWebview,
       onDidDispose: vi.fn(),
       reveal: vi.fn(),
@@ -466,16 +468,16 @@ describe('ProofTreePanel - Integration Tests', () => {
           return;
         }
 
-        const concurrentMessages = [
+        const concurrentMessages: WebviewMessage[] = [
           {
-            type: 'viewportChanged',
-            viewport: { zoom: 1.5, pan: { x: 10, y: 20 }, center: { x: 0, y: 0 } },
+            type: MessageType.STATEMENT_ADDED,
+            content: 'Concurrent statement 1' as any,
+            data: { statementType: 'premise' } as any,
           },
-          { type: 'addStatement', statementType: 'premise', content: 'Concurrent statement 1' },
           {
-            type: 'addStatement',
-            statementType: 'conclusion',
-            content: 'Concurrent statement 2',
+            type: MessageType.STATEMENT_ADDED,
+            content: 'Concurrent statement 2' as any,
+            data: { statementType: 'conclusion' } as any,
           },
         ];
 

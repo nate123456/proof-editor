@@ -8,6 +8,15 @@ import type {
 } from '../../application/dtos/view-dtos.js';
 import type { AtomicArgumentDTO } from '../../application/queries/shared-types.js';
 import type { StatementDTO } from '../../application/queries/statement-queries.js';
+import { SideLabel, Version } from '../../domain/shared/value-objects/content.js';
+import { Dimensions, Position2D } from '../../domain/shared/value-objects/geometry.js';
+import {
+  AtomicArgumentId,
+  DocumentId,
+  NodeId,
+  StatementId,
+  TreeId,
+} from '../../domain/shared/value-objects/identifiers.js';
 import { TreeRenderer } from '../TreeRenderer.js';
 
 describe('TreeRenderer Interactive Features - Comprehensive Coverage', () => {
@@ -246,21 +255,21 @@ describe('TreeRenderer Interactive Features - Comprehensive Coverage', () => {
   describe('Error Handling and Edge Cases', () => {
     it('should handle malformed data gracefully', () => {
       const malformedVisualization: ProofVisualizationDTO = {
-        documentId: 'test',
-        version: 1,
+        documentId: DocumentId.fromString('test').unwrapOr(null)!,
+        version: Version.create(1).unwrapOr(Version.initial()),
         trees: [
           {
-            id: 'malformed',
-            position: { x: Number.NaN, y: undefined as any },
+            id: TreeId.fromString('malformed').unwrapOr(null)!,
+            position: Position2D.create(Number.NaN, undefined as any).unwrapOr(Position2D.origin()),
             layout: {
               nodes: [null as any],
               connections: [undefined as any],
-              dimensions: { width: -1, height: 'invalid' as any },
+              dimensions: Dimensions.create(-1, 'invalid' as any).unwrapOr(Dimensions.fullHD()),
             },
-            bounds: { width: 0, height: 0 },
+            bounds: Dimensions.create(0, 0).unwrapOr(Dimensions.fullHD()),
           },
         ],
-        totalDimensions: { width: 0, height: 0 },
+        totalDimensions: Dimensions.create(0, 0).unwrapOr(Dimensions.fullHD()),
         isEmpty: false,
       };
 
@@ -281,10 +290,10 @@ describe('TreeRenderer Interactive Features - Comprehensive Coverage', () => {
 
     it('should handle empty visualization correctly', () => {
       const emptyVisualization: ProofVisualizationDTO = {
-        documentId: 'empty',
-        version: 1,
+        documentId: DocumentId.fromString('empty').unwrapOr(null)!,
+        version: Version.create(1).unwrapOr(Version.initial()),
         trees: [],
-        totalDimensions: { width: 0, height: 0 },
+        totalDimensions: Dimensions.create(0, 0).unwrapOr(Dimensions.fullHD()),
         isEmpty: true,
       };
 
@@ -507,14 +516,14 @@ function createComplexTreeVisualization(): ProofVisualizationDTO {
   return createVisualizationDTO({
     trees: [
       {
-        id: 'complex-tree',
-        position: { x: 0, y: 0 },
+        id: TreeId.fromString('complex-tree').unwrapOr(null)!,
+        position: Position2D.create(0, 0).unwrapOr(Position2D.origin()),
         layout: {
           nodes: [parent, child1, child2],
           connections,
-          dimensions: { width: 600, height: 400 },
+          dimensions: Dimensions.create(600, 400).unwrapOr(Dimensions.fullHD()),
         },
-        bounds: { width: 600, height: 400 },
+        bounds: Dimensions.create(600, 400).unwrapOr(Dimensions.fullHD()),
       },
     ],
   });
@@ -570,17 +579,17 @@ function createLargeTreeVisualization(nodeCount: number): ProofVisualizationDTO 
   return createVisualizationDTO({
     trees: [
       {
-        id: 'large-tree',
-        position: { x: 0, y: 0 },
+        id: TreeId.fromString('large-tree').unwrapOr(null)!,
+        position: Position2D.create(0, 0).unwrapOr(Position2D.origin()),
         layout: {
           nodes,
           connections: [],
-          dimensions: { width: 12500, height: nodeCount * 3 },
+          dimensions: Dimensions.create(12500, nodeCount * 3).unwrapOr(Dimensions.fullHD()),
         },
-        bounds: { width: 12500, height: nodeCount * 3 },
+        bounds: Dimensions.create(12500, nodeCount * 3).unwrapOr(Dimensions.fullHD()),
       },
     ],
-    totalDimensions: { width: 12500, height: nodeCount * 3 },
+    totalDimensions: Dimensions.create(12500, nodeCount * 3).unwrapOr(Dimensions.fullHD()),
   });
 }
 
@@ -617,14 +626,14 @@ function createVisualizationFromPositions(
   return createVisualizationDTO({
     trees: [
       {
-        id: 'position-test',
-        position: { x: 0, y: 0 },
+        id: TreeId.fromString('position-test').unwrapOr(null)!,
+        position: Position2D.create(0, 0).unwrapOr(Position2D.origin()),
         layout: {
           nodes,
           connections: [],
-          dimensions: { width: 1200, height: 1200 },
+          dimensions: Dimensions.create(1200, 1200).unwrapOr(Dimensions.fullHD()),
         },
-        bounds: { width: 1200, height: 1200 },
+        bounds: Dimensions.create(1200, 1200).unwrapOr(Dimensions.fullHD()),
       },
     ],
   });
@@ -635,10 +644,10 @@ function createVisualizationDTO(
   overrides: Partial<ProofVisualizationDTO> = {},
 ): ProofVisualizationDTO {
   return {
-    documentId: 'test-doc',
-    version: 1,
+    documentId: DocumentId.fromString('test-doc').unwrapOr(null)!,
+    version: Version.create(1).unwrapOr(Version.initial()),
     trees: [],
-    totalDimensions: { width: 400, height: 300 },
+    totalDimensions: Dimensions.create(400, 300).unwrapOr(Dimensions.fullHD()),
     isEmpty: false,
     ...overrides,
   };
@@ -657,14 +666,14 @@ function createTreeWithNodes(
   const nodes = nodeConfigs.map((config) => createNode(config.id, config));
 
   return {
-    id: 'test-tree',
-    position: { x: 0, y: 0 },
+    id: TreeId.fromString('test-tree').unwrapOr(null)!,
+    position: Position2D.create(0, 0).unwrapOr(Position2D.origin()),
     layout: {
       nodes,
       connections: [],
-      dimensions: { width: 400, height: 300 },
+      dimensions: Dimensions.create(400, 300).unwrapOr(Dimensions.fullHD()),
     },
-    bounds: { width: 400, height: 300 },
+    bounds: Dimensions.create(400, 300).unwrapOr(Dimensions.fullHD()),
   };
 }
 
@@ -684,14 +693,14 @@ function createTreeWithConnections(): TreeRenderDTO {
   const connection = createConnection('node1', 'node2', 0, 0);
 
   return {
-    id: 'connected-tree',
-    position: { x: 0, y: 0 },
+    id: TreeId.fromString('connected-tree').unwrapOr(null)!,
+    position: Position2D.create(0, 0).unwrapOr(Position2D.origin()),
     layout: {
       nodes: [node1, node2],
       connections: [connection],
-      dimensions: { width: 400, height: 400 },
+      dimensions: Dimensions.create(400, 400).unwrapOr(Dimensions.fullHD()),
     },
-    bounds: { width: 400, height: 400 },
+    bounds: Dimensions.create(400, 400).unwrapOr(Dimensions.fullHD()),
   };
 }
 
@@ -705,15 +714,26 @@ function createNode(
     sideLabel?: string;
   } = {},
 ): RenderedNodeDTO {
-  return {
-    id,
-    position: overrides.position || { x: 50, y: 50 },
-    dimensions: overrides.dimensions || { width: 200, height: 120 },
+  const result: RenderedNodeDTO = {
+    id: NodeId.fromString(id).unwrapOr(null)!,
+    position: overrides.position
+      ? Position2D.create(overrides.position.x, overrides.position.y).unwrapOr(Position2D.origin())
+      : Position2D.create(50, 50).unwrapOr(Position2D.origin()),
+    dimensions: overrides.dimensions
+      ? Dimensions.create(overrides.dimensions.width, overrides.dimensions.height).unwrapOr(
+          Dimensions.fullHD(),
+        )
+      : Dimensions.create(200, 120).unwrapOr(Dimensions.fullHD()),
     argument: createArgument(id),
     premises: overrides.premises || [],
     conclusions: overrides.conclusions || [],
-    sideLabel: overrides.sideLabel || '',
   };
+
+  if (overrides.sideLabel) {
+    result.sideLabel = SideLabel.create(overrides.sideLabel).unwrapOr(null)!;
+  }
+
+  return result;
 }
 
 function createStatement(id: string, content: string): StatementDTO {
@@ -728,22 +748,22 @@ function createStatement(id: string, content: string): StatementDTO {
 
 function createArgument(id: string): AtomicArgumentDTO {
   return {
-    id: `arg-${id}`,
-    premiseIds: `premises-${id}`,
-    conclusionIds: `conclusions-${id}`,
+    id: AtomicArgumentId.fromString(`arg-${id}`).unwrapOr(null)!,
+    premiseIds: [StatementId.fromString(`premise-${id}`).unwrapOr(null)!],
+    conclusionIds: [StatementId.fromString(`conclusion-${id}`).unwrapOr(null)!],
     sideLabels: {},
   };
 }
 
 function createConnection(
-  fromNodeId: string,
-  toNodeId: string,
+  _fromNodeId: string,
+  _toNodeId: string,
   fromPosition: number,
   toPosition: number,
 ): ConnectionDTO {
   return {
-    fromNodeId,
-    toNodeId,
+    fromNodeId: NodeId.generate(),
+    toNodeId: NodeId.generate(),
     fromPosition,
     toPosition,
     coordinates: {

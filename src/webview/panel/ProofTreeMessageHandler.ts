@@ -4,18 +4,24 @@ import type { DocumentQueryService } from '../../application/services/DocumentQu
 import type { ProofApplicationService } from '../../application/services/ProofApplicationService.js';
 import type { ProofVisualizationService } from '../../application/services/ProofVisualizationService.js';
 import { ValidationError } from '../../domain/shared/result.js';
+import { MessageContent } from '../../domain/shared/value-objects/content.js';
+import { MessageType } from '../../domain/shared/value-objects/enums.js';
+import { WebviewId } from '../../domain/shared/value-objects/identifiers.js';
+import { NotificationMessage } from '../../domain/shared/value-objects/ui.js';
 import type { YAMLSerializer } from '../../infrastructure/repositories/yaml/YAMLSerializer.js';
 import type { TreeRenderer } from '../TreeRenderer.js';
 import type { ArgumentOperations } from './operations/ArgumentOperations.js';
 import type { ProofTreeStateManager } from './ProofTreeStateManager.js';
-import { ProofTreeValidators } from './validation/ProofTreeValidators.js';
+import * as ProofTreeValidators from './validation/ProofTreeValidators.js';
 
 /**
  * Handles all message passing between webview and extension for ProofTreePanel
  */
 export class ProofTreeMessageHandler {
+  private readonly webviewId: WebviewId;
+
   constructor(
-    private readonly panelId: string,
+    panelId: string,
     private readonly documentUri: string,
     private readonly uiPort: IUIPort,
     private readonly visualizationService: ProofVisualizationService,
@@ -25,7 +31,14 @@ export class ProofTreeMessageHandler {
     private readonly argumentOperations: ArgumentOperations,
     private readonly proofApplicationService: ProofApplicationService,
     private readonly yamlSerializer: YAMLSerializer,
-  ) {}
+  ) {
+    // Create WebviewId from panelId string
+    const webviewIdResult = WebviewId.create(panelId);
+    if (webviewIdResult.isErr()) {
+      throw new Error(`Invalid panel ID: ${webviewIdResult.error.message}`);
+    }
+    this.webviewId = webviewIdResult.value;
+  }
 
   /**
    * Main message handler
@@ -59,7 +72,10 @@ export class ProofTreeMessageHandler {
           break;
         case 'showError': {
           const errorMessage = msg.message as string;
-          this.uiPort.showError(errorMessage);
+          const notificationResult = NotificationMessage.create(errorMessage);
+          if (notificationResult.isOk()) {
+            this.uiPort.showError(notificationResult.value);
+          }
           break;
         }
         case 'editContent':
@@ -114,9 +130,13 @@ export class ProofTreeMessageHandler {
       const svgContent = this.renderer.generateSVG(visualizationResult.value);
 
       // Send update through platform abstraction
-      this.uiPort.postMessageToWebview(this.panelId, {
-        type: 'updateTree',
-        content: svgContent,
+      const contentResult = MessageContent.create(svgContent);
+      if (contentResult.isErr()) {
+        return err(contentResult.error);
+      }
+      this.uiPort.postMessageToWebview(this.webviewId, {
+        type: MessageType.UPDATE_TREE,
+        content: contentResult.value,
       });
 
       return visualizationResult.map(() => undefined);
@@ -149,10 +169,13 @@ export class ProofTreeMessageHandler {
       `;
 
       // Send error through platform abstraction
-      this.uiPort.postMessageToWebview(this.panelId, {
-        type: 'showError',
-        content: errorContent,
-      });
+      const errorContentResult = MessageContent.create(errorContent);
+      if (errorContentResult.isOk()) {
+        this.uiPort.postMessageToWebview(this.webviewId, {
+          type: MessageType.SHOW_ERROR,
+          content: errorContentResult.value,
+        });
+      }
 
       return ok(undefined);
     } catch (error) {
@@ -196,10 +219,13 @@ export class ProofTreeMessageHandler {
       const svgContent = this.renderer.generateSVG(visualizationResult.value);
 
       // Update webview content
-      this.uiPort.postMessageToWebview(this.panelId, {
-        type: 'updateTree',
-        content: svgContent,
-      });
+      const contentResult = MessageContent.create(svgContent);
+      if (contentResult.isOk()) {
+        this.uiPort.postMessageToWebview(this.webviewId, {
+          type: MessageType.UPDATE_TREE,
+          content: contentResult.value,
+        });
+      }
     } catch (_error) {
       // Ignore refresh errors to avoid disrupting user experience
     }
@@ -237,7 +263,10 @@ export class ProofTreeMessageHandler {
         conclusions,
       );
       if (validationResult.isErr()) {
-        this.uiPort.showError(validationResult.error.message);
+        const notificationResult = NotificationMessage.create(validationResult.error.message);
+        if (notificationResult.isOk()) {
+          this.uiPort.showError(notificationResult.value);
+        }
         return;
       }
 
@@ -249,9 +278,11 @@ export class ProofTreeMessageHandler {
       // Refresh the content to show the new argument
       await this.refreshContent();
     } catch (error) {
-      this.uiPort.showError(
-        `Failed to create argument: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      const errorMessage = `Failed to create argument: ${error instanceof Error ? error.message : String(error)}`;
+      const notificationResult = NotificationMessage.create(errorMessage);
+      if (notificationResult.isOk()) {
+        this.uiPort.showError(notificationResult.value);
+      }
     }
   }
 
@@ -262,7 +293,10 @@ export class ProofTreeMessageHandler {
 
       const contentValidation = ProofTreeValidators.validateStatementContent(content);
       if (contentValidation.isErr()) {
-        this.uiPort.showError(contentValidation.error.message);
+        const notificationResult = NotificationMessage.create(contentValidation.error.message);
+        if (notificationResult.isOk()) {
+          this.uiPort.showError(notificationResult.value);
+        }
         return;
       }
 
@@ -277,9 +311,11 @@ export class ProofTreeMessageHandler {
       // Refresh the content to show the new statement
       await this.refreshContent();
     } catch (error) {
-      this.uiPort.showError(
-        `Failed to add statement: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      const errorMessage = `Failed to add statement: ${error instanceof Error ? error.message : String(error)}`;
+      const notificationResult = NotificationMessage.create(errorMessage);
+      if (notificationResult.isOk()) {
+        this.uiPort.showError(notificationResult.value);
+      }
     }
   }
 
@@ -287,9 +323,11 @@ export class ProofTreeMessageHandler {
     try {
       await this.argumentOperations.exportProof();
     } catch (error) {
-      this.uiPort.showError(
-        `Failed to export proof: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      const errorMessage = `Failed to export proof: ${error instanceof Error ? error.message : String(error)}`;
+      const notificationResult = NotificationMessage.create(errorMessage);
+      if (notificationResult.isOk()) {
+        this.uiPort.showError(notificationResult.value);
+      }
     }
   }
 
@@ -300,7 +338,10 @@ export class ProofTreeMessageHandler {
         msg.newContent,
       );
       if (validationResult.isErr()) {
-        this.uiPort.showError(validationResult.error.message);
+        const notificationResult = NotificationMessage.create(validationResult.error.message);
+        if (notificationResult.isOk()) {
+          this.uiPort.showError(notificationResult.value);
+        }
         return;
       }
 
@@ -319,9 +360,11 @@ export class ProofTreeMessageHandler {
       // Refresh content to show changes
       await this.refreshContent();
     } catch (error) {
-      this.uiPort.showError(
-        `Failed to edit content: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      const errorMessage = `Failed to edit content: ${error instanceof Error ? error.message : String(error)}`;
+      const notificationResult = NotificationMessage.create(errorMessage);
+      if (notificationResult.isOk()) {
+        this.uiPort.showError(notificationResult.value);
+      }
     }
   }
 
@@ -333,7 +376,10 @@ export class ProofTreeMessageHandler {
         msg.dropType,
       );
       if (validationResult.isErr()) {
-        this.uiPort.showError(validationResult.error.message);
+        const notificationResult = NotificationMessage.create(validationResult.error.message);
+        if (notificationResult.isOk()) {
+          this.uiPort.showError(notificationResult.value);
+        }
         return;
       }
 
@@ -341,14 +387,21 @@ export class ProofTreeMessageHandler {
 
       const documentId = this.extractDocumentIdFromUri();
       if (!documentId) {
-        this.uiPort.showError('Could not determine document ID');
+        const notificationResult = NotificationMessage.create('Could not determine document ID');
+        if (notificationResult.isOk()) {
+          this.uiPort.showError(notificationResult.value);
+        }
         return;
       }
 
       // Get the current document to find ordered sets
       const document = await this.documentQueryService.getDocumentById(documentId);
       if (document.isErr()) {
-        this.uiPort.showError(`Failed to get document: ${document.error.message}`);
+        const errorMessage = `Failed to get document: ${document.error.message}`;
+        const notificationResult = NotificationMessage.create(errorMessage);
+        if (notificationResult.isOk()) {
+          this.uiPort.showError(notificationResult.value);
+        }
         return;
       }
 
@@ -363,33 +416,53 @@ export class ProofTreeMessageHandler {
       );
 
       if (sourceArgumentIds.length === 0) {
-        this.uiPort.showError('Could not find source statement in any argument');
+        const notificationResult = NotificationMessage.create(
+          'Could not find source statement in any argument',
+        );
+        if (notificationResult.isOk()) {
+          this.uiPort.showError(notificationResult.value);
+        }
         return;
       }
 
       if (targetArgumentIds.length === 0) {
-        this.uiPort.showError('Could not find target statement in any argument');
+        const notificationResult = NotificationMessage.create(
+          'Could not find target statement in any argument',
+        );
+        if (notificationResult.isOk()) {
+          this.uiPort.showError(notificationResult.value);
+        }
         return;
       }
 
       // Check if they share any common arguments
       const sharedArguments = sourceArgumentIds.filter((id) => targetArgumentIds.includes(id));
       if (sharedArguments.length > 0) {
-        this.uiPort.showInformation(
+        const notificationResult = NotificationMessage.create(
           'Statement reordering within the same argument is not yet implemented',
         );
+        if (notificationResult.isOk()) {
+          this.uiPort.showInformation(notificationResult.value);
+        }
         await this.refreshContent();
         return;
       }
 
       // TODO: Implement statement movement after OrderedSet elimination
       // This functionality needs to be redesigned to work with direct statement references
-      this.uiPort.showError('Statement movement is not yet implemented after OrderedSet removal');
+      const notificationResult = NotificationMessage.create(
+        'Statement movement is not yet implemented after OrderedSet removal',
+      );
+      if (notificationResult.isOk()) {
+        this.uiPort.showError(notificationResult.value);
+      }
       return;
     } catch (error) {
-      this.uiPort.showError(
-        `Failed to move statement: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      const errorMessage = `Failed to move statement: ${error instanceof Error ? error.message : String(error)}`;
+      const notificationResult = NotificationMessage.create(errorMessage);
+      if (notificationResult.isOk()) {
+        this.uiPort.showError(notificationResult.value);
+      }
     }
   }
 
@@ -401,7 +474,10 @@ export class ProofTreeMessageHandler {
         msg.deltaY,
       );
       if (validationResult.isErr()) {
-        this.uiPort.showError(validationResult.error.message);
+        const notificationResult = NotificationMessage.create(validationResult.error.message);
+        if (notificationResult.isOk()) {
+          this.uiPort.showError(notificationResult.value);
+        }
         return;
       }
 
@@ -409,34 +485,49 @@ export class ProofTreeMessageHandler {
 
       const documentId = this.extractDocumentIdFromUri();
       if (!documentId) {
-        this.uiPort.showError('Could not determine document ID');
+        const notificationResult = NotificationMessage.create('Could not determine document ID');
+        if (notificationResult.isOk()) {
+          this.uiPort.showError(notificationResult.value);
+        }
         return;
       }
 
       // Get the current document to find which tree contains the node
       const document = await this.documentQueryService.getDocumentById(documentId);
       if (document.isErr()) {
-        this.uiPort.showError(`Failed to get document: ${document.error.message}`);
+        const errorMessage = `Failed to get document: ${document.error.message}`;
+        const notificationResult = NotificationMessage.create(errorMessage);
+        if (notificationResult.isOk()) {
+          this.uiPort.showError(notificationResult.value);
+        }
         return;
       }
 
       // Find the tree that contains this node
       const treeId = this.argumentOperations.findTreeForNode(document.value, nodeId);
       if (!treeId) {
-        this.uiPort.showError('Could not find tree containing the node');
+        const notificationResult = NotificationMessage.create(
+          'Could not find tree containing the node',
+        );
+        if (notificationResult.isOk()) {
+          this.uiPort.showError(notificationResult.value);
+        }
         return;
       }
 
       const tree = document.value.trees[treeId];
       if (!tree) {
-        this.uiPort.showError('Tree not found');
+        const notificationResult = NotificationMessage.create('Tree not found');
+        if (notificationResult.isOk()) {
+          this.uiPort.showError(notificationResult.value);
+        }
         return;
       }
 
       // Calculate new position by adding delta to current position
       const newPosition = {
-        x: tree.position.x + deltaX,
-        y: tree.position.y + deltaY,
+        x: tree.position.getX() + deltaX,
+        y: tree.position.getY() + deltaY,
       };
 
       // Move the tree to the new position
@@ -447,18 +538,27 @@ export class ProofTreeMessageHandler {
       });
 
       if (moveResult.isErr()) {
-        this.uiPort.showError(`Failed to move tree: ${moveResult.error.message}`);
+        const errorMessage = `Failed to move tree: ${moveResult.error.message}`;
+        const notificationResult = NotificationMessage.create(errorMessage);
+        if (notificationResult.isOk()) {
+          this.uiPort.showError(notificationResult.value);
+        }
         return;
       }
 
-      this.uiPort.showInformation('Node position updated successfully');
+      const notificationResult = NotificationMessage.create('Node position updated successfully');
+      if (notificationResult.isOk()) {
+        this.uiPort.showInformation(notificationResult.value);
+      }
 
       // Refresh content to show changes
       await this.refreshContent();
     } catch (error) {
-      this.uiPort.showError(
-        `Failed to move node: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      const errorMessage = `Failed to move node: ${error instanceof Error ? error.message : String(error)}`;
+      const notificationResult = NotificationMessage.create(errorMessage);
+      if (notificationResult.isOk()) {
+        this.uiPort.showError(notificationResult.value);
+      }
     }
   }
 
@@ -470,7 +570,10 @@ export class ProofTreeMessageHandler {
         msg.position,
       );
       if (validationResult.isErr()) {
-        this.uiPort.showError(validationResult.error.message);
+        const notificationResult = NotificationMessage.create(validationResult.error.message);
+        if (notificationResult.isOk()) {
+          this.uiPort.showError(notificationResult.value);
+        }
         return;
       }
 
@@ -485,9 +588,11 @@ export class ProofTreeMessageHandler {
       // Refresh content to show the new branch
       await this.refreshContent();
     } catch (error) {
-      this.uiPort.showError(
-        `Failed to create branch: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      const errorMessage = `Failed to create branch: ${error instanceof Error ? error.message : String(error)}`;
+      const notificationResult = NotificationMessage.create(errorMessage);
+      if (notificationResult.isOk()) {
+        this.uiPort.showError(notificationResult.value);
+      }
     }
   }
 }

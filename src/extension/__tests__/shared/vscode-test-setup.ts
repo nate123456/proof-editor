@@ -94,6 +94,9 @@ export const createVSCodeMock = () => {
         onDidCreate: vi.fn((_handler) => ({ dispose: vi.fn() })),
         onDidDelete: vi.fn((_handler) => ({ dispose: vi.fn() })),
         dispose: vi.fn(),
+        ignoreCreateEvents: false,
+        ignoreChangeEvents: false,
+        ignoreDeleteEvents: false,
       })),
       textDocuments: [],
     },
@@ -247,7 +250,7 @@ export const createMockWebviewPanel = (): vscode.WebviewPanel =>
 export const createMockChangeEvent = (document?: TextDocument): TextDocumentChangeEvent => ({
   document: document || createMockTextDocument(),
   contentChanges: [],
-  reason: 1,
+  reason: undefined,
 });
 
 export const createMockExtensionContext = (): vscode.ExtensionContext =>

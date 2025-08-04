@@ -7,6 +7,15 @@
 
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
+import { SideLabel } from '../../../domain/shared/value-objects/content.js';
+import { ErrorSeverity } from '../../../domain/shared/value-objects/enums.js';
+import {
+  AtomicArgumentId,
+  NodeId,
+  StatementId,
+  TreeId,
+} from '../../../domain/shared/value-objects/identifiers.js';
+import { ErrorCode, ErrorMessage } from '../../../domain/shared/value-objects/ui.js';
 import type {
   AttachNodeResult,
   BootstrapResult,
@@ -228,8 +237,8 @@ describe('CommandResult', () => {
     const result: CommandResult = {
       success: false,
       error: {
-        code: 'VALIDATION_ERROR',
-        message: 'Invalid input provided',
+        code: ErrorCode.create('VALIDATION_ERROR').unwrapOr(null)?.getValue() ?? '',
+        message: ErrorMessage.create('Invalid input provided').unwrapOr(null)?.getValue() ?? '',
         details: { field: 'name', reason: 'required' },
       },
     };
@@ -268,8 +277,10 @@ describe('CommandResult', () => {
     const result: CommandResult = {
       success: false,
       error: {
-        code: 'MULTIPLE_ERRORS',
-        message: 'Multiple validation errors occurred',
+        code: ErrorCode.create('MULTIPLE_ERRORS').unwrapOr(null)?.getValue() ?? '',
+        message:
+          ErrorMessage.create('Multiple validation errors occurred').unwrapOr(null)?.getValue() ??
+          '',
         details: [
           { field: 'name', error: 'required' },
           { field: 'email', error: 'invalid format' },
@@ -310,8 +321,8 @@ describe('QueryResult', () => {
     const result: QueryResult<unknown> = {
       success: false,
       error: {
-        code: 'NOT_FOUND',
-        message: 'Resource not found',
+        code: ErrorCode.create('NOT_FOUND').unwrapOr(null)?.getValue() ?? '',
+        message: ErrorMessage.create('Resource not found').unwrapOr(null)?.getValue() ?? '',
       },
     };
 
@@ -334,8 +345,8 @@ describe('QueryResult', () => {
 describe('ErrorDTO', () => {
   it('should handle basic error', () => {
     const error: ErrorDTO = {
-      code: 'VALIDATION_ERROR',
-      message: 'Validation failed',
+      code: ErrorCode.create('VALIDATION_ERROR').unwrapOr(null)?.getValue() ?? '',
+      message: ErrorMessage.create('Validation failed').unwrapOr(null)?.getValue() ?? '',
     };
 
     expect(error.code).toBe('VALIDATION_ERROR');
@@ -345,8 +356,8 @@ describe('ErrorDTO', () => {
 
   it('should handle error with details', () => {
     const error: ErrorDTO = {
-      code: 'VALIDATION_ERROR',
-      message: 'Validation failed',
+      code: ErrorCode.create('VALIDATION_ERROR').unwrapOr(null)?.getValue() ?? '',
+      message: ErrorMessage.create('Validation failed').unwrapOr(null)?.getValue() ?? '',
       details: {
         field: 'email',
         providedValue: 'invalid-email',
@@ -363,8 +374,8 @@ describe('ErrorDTO', () => {
 
   it('should handle error with array details', () => {
     const error: ErrorDTO = {
-      code: 'MULTIPLE_ERRORS',
-      message: 'Multiple validation errors',
+      code: ErrorCode.create('MULTIPLE_ERRORS').unwrapOr(null)?.getValue() ?? '',
+      message: ErrorMessage.create('Multiple validation errors').unwrapOr(null)?.getValue() ?? '',
       details: [
         { field: 'name', error: 'required' },
         { field: 'age', error: 'must be positive' },
@@ -377,14 +388,14 @@ describe('ErrorDTO', () => {
 
   it('should handle error with primitive details', () => {
     const errorWithString: ErrorDTO = {
-      code: 'SIMPLE_ERROR',
-      message: 'Simple error',
+      code: ErrorCode.create('SIMPLE_ERROR').unwrapOr(null)?.getValue() ?? '',
+      message: ErrorMessage.create('Simple error').unwrapOr(null)?.getValue() ?? '',
       details: 'Additional info',
     };
 
     const errorWithNumber: ErrorDTO = {
-      code: 'NUMERIC_ERROR',
-      message: 'Numeric error',
+      code: ErrorCode.create('NUMERIC_ERROR').unwrapOr(null)?.getValue() ?? '',
+      message: ErrorMessage.create('Numeric error').unwrapOr(null)?.getValue() ?? '',
       details: 404,
     };
 
@@ -475,33 +486,38 @@ describe('CreateStatementResult', () => {
 
 describe('CreateArgumentResult', () => {
   it('should handle create argument result without created ordered sets', () => {
+    const argumentId = AtomicArgumentId.create('arg_123').unwrapOr(null)!;
+    const premiseId1 = StatementId.create('stmt_1').unwrapOr(null)!;
+    const premiseId2 = StatementId.create('stmt_2').unwrapOr(null)!;
+    const conclusionId = StatementId.create('stmt_3').unwrapOr(null)!;
     const result: CreateArgumentResult = {
       argumentId: 'arg_123',
       argument: {
-        id: 'arg_123',
-        premiseIds: ['stmt_1', 'stmt_2'],
-        conclusionIds: ['stmt_3'],
+        id: argumentId,
+        premiseIds: [premiseId1, premiseId2],
+        conclusionIds: [conclusionId],
         sideLabels: {
-          left: 'Modus Ponens',
-          right: 'Rule 1',
+          left: SideLabel.create('Modus Ponens').unwrapOr(null)!,
+          right: SideLabel.create('Rule 1').unwrapOr(null)!,
         },
       },
     };
 
     expect(result.argumentId).toBe('arg_123');
-    expect(result.argument.id).toBe('arg_123');
-    expect(result.argument.premiseIds).toEqual(['stmt_1', 'stmt_2']);
-    expect(result.argument.conclusionIds).toEqual(['stmt_3']);
+    expect(result.argument.id.getValue()).toBe('arg_123');
+    expect(result.argument.premiseIds.map((id) => id.getValue())).toEqual(['stmt_1', 'stmt_2']);
+    expect(result.argument.conclusionIds.map((id) => id.getValue())).toEqual(['stmt_3']);
     // createdOrderedSets removed in Statement-level paradigm
   });
 
   // Test removed - createdOrderedSets property no longer exists in Statement-level paradigm
 
   it('should handle bootstrap argument result', () => {
+    const argumentId = AtomicArgumentId.create('arg_bootstrap').unwrapOr(null)!;
     const result: CreateArgumentResult = {
       argumentId: 'arg_bootstrap',
       argument: {
-        id: 'arg_bootstrap',
+        id: argumentId,
         premiseIds: [],
         conclusionIds: [],
       },
@@ -572,6 +588,8 @@ describe('AttachNodeResult', () => {
 
 describe('BranchCreationResult', () => {
   it('should handle branch creation result without new tree', () => {
+    const argNewId = AtomicArgumentId.create('arg_new').unwrapOr(null)!;
+    const sharedStatementId = StatementId.create('stmt_shared').unwrapOr(null)!;
     const result: BranchCreationResult = {
       newStatement: {
         id: 'stmt_new',
@@ -581,9 +599,9 @@ describe('BranchCreationResult', () => {
         modifiedAt: '2023-01-01T00:00:00.000Z',
       },
       newArgument: {
-        id: 'arg_new',
-        premiseIds: ['stmt_shared'],
-        conclusionIds: ['stmt_new'],
+        id: argNewId,
+        premiseIds: [sharedStatementId],
+        conclusionIds: [StatementId.create('stmt_new').unwrapOr(null)!],
       },
       connectionPoint: {
         sourceArgumentId: 'arg_source',
@@ -594,7 +612,7 @@ describe('BranchCreationResult', () => {
     };
 
     expect(result.newStatement.id).toBe('stmt_new');
-    expect(result.newArgument.id).toBe('arg_new');
+    expect(result.newArgument.id.getValue()).toBe('arg_new');
     expect(result.connectionPoint.sourceArgumentId).toBe('arg_source');
     expect(result.connectionPoint.targetArgumentId).toBe('arg_new');
     expect(result.connectionPoint.sharedStatementId).toBe('stmt_shared');
@@ -603,6 +621,8 @@ describe('BranchCreationResult', () => {
   });
 
   it('should handle branch creation result with new tree', () => {
+    const argNewId = AtomicArgumentId.create('arg_new').unwrapOr(null)!;
+    const sharedStatementId = StatementId.create('stmt_shared').unwrapOr(null)!;
     const result: BranchCreationResult = {
       newStatement: {
         id: 'stmt_new',
@@ -612,9 +632,9 @@ describe('BranchCreationResult', () => {
         modifiedAt: '2023-01-01T00:00:00.000Z',
       },
       newArgument: {
-        id: 'arg_new',
-        premiseIds: ['stmt_shared'],
-        conclusionIds: ['stmt_new'],
+        id: argNewId,
+        premiseIds: [sharedStatementId],
+        conclusionIds: [StatementId.create('stmt_new').unwrapOr(null)!],
       },
       connectionPoint: {
         sourceArgumentId: 'arg_source',
@@ -648,21 +668,21 @@ describe('ValidationResult', () => {
       isValid: false,
       errors: [
         {
-          code: 'REQUIRED_FIELD',
-          message: 'Field is required',
-          severity: 'error',
+          code: ErrorCode.create('REQUIRED_FIELD').unwrapOr(null)!,
+          message: ErrorMessage.create('Field is required').unwrapOr(null)!,
+          severity: ErrorSeverity.ERROR,
           location: {
-            treeId: 'tree_123',
-            nodeId: 'node_456',
-            argumentId: 'arg_789',
+            treeId: TreeId.create('tree_123').unwrapOr(null)!,
+            nodeId: NodeId.create('node_456').unwrapOr(null)!,
+            argumentId: AtomicArgumentId.create('arg_789').unwrapOr(null)!,
           },
         },
       ],
       warnings: [
         {
-          code: 'DEPRECATED_USAGE',
-          message: 'Usage is deprecated',
-          severity: 'warning',
+          code: ErrorCode.create('DEPRECATED_USAGE').unwrapOr(null)!,
+          message: ErrorMessage.create('Usage is deprecated').unwrapOr(null)!,
+          severity: ErrorSeverity.WARNING,
         },
       ],
     };
@@ -670,8 +690,8 @@ describe('ValidationResult', () => {
     expect(result.isValid).toBe(false);
     expect(result.errors).toHaveLength(1);
     expect(result.warnings).toHaveLength(1);
-    expect(result.errors[0]?.code).toBe('REQUIRED_FIELD');
-    expect(result.warnings[0]?.code).toBe('DEPRECATED_USAGE');
+    expect(result.errors[0]?.code.getValue()).toBe('REQUIRED_FIELD');
+    expect(result.warnings[0]?.code.getValue()).toBe('DEPRECATED_USAGE');
   });
 
   it('should handle result with custom script results', () => {
@@ -933,24 +953,24 @@ describe('property-based testing', () => {
   });
 
   it('should handle arbitrary validation results', () => {
+    const validationErrorArb = fc.record({
+      code: fc
+        .string({ minLength: 1 })
+        .map((s) => ErrorCode.create(s).unwrapOr(ErrorCode.create('DEFAULT_CODE').unwrapOr(null)!)),
+      message: fc
+        .string({ minLength: 1 })
+        .map((s) =>
+          ErrorMessage.create(s).unwrapOr(ErrorMessage.create('Default message').unwrapOr(null)!),
+        ),
+      severity: fc.constantFrom(ErrorSeverity.ERROR, ErrorSeverity.WARNING, ErrorSeverity.INFO),
+    });
+
     fc.assert(
       fc.property(
         fc.record({
           isValid: fc.boolean(),
-          errors: fc.array(
-            fc.record({
-              code: fc.string(),
-              message: fc.string(),
-              severity: fc.constantFrom('error', 'warning', 'info'),
-            }),
-          ),
-          warnings: fc.array(
-            fc.record({
-              code: fc.string(),
-              message: fc.string(),
-              severity: fc.constantFrom('error', 'warning', 'info'),
-            }),
-          ),
+          errors: fc.array(validationErrorArb),
+          warnings: fc.array(validationErrorArb),
         }),
         (params) => {
           const result: ValidationResult = params;
@@ -960,15 +980,27 @@ describe('property-based testing', () => {
           expect(Array.isArray(result.warnings)).toBe(true);
 
           result.errors.forEach((error) => {
-            expect(typeof error.code).toBe('string');
-            expect(typeof error.message).toBe('string');
-            expect(['error', 'warning', 'info']).toContain(error.severity);
+            expect(error.code).toBeDefined();
+            expect(error.code.getValue).toBeDefined();
+            expect(typeof error.code.getValue()).toBe('string');
+            expect(error.message).toBeDefined();
+            expect(error.message.getValue).toBeDefined();
+            expect(typeof error.message.getValue()).toBe('string');
+            expect([ErrorSeverity.ERROR, ErrorSeverity.WARNING, ErrorSeverity.INFO]).toContain(
+              error.severity,
+            );
           });
 
           result.warnings.forEach((warning) => {
-            expect(typeof warning.code).toBe('string');
-            expect(typeof warning.message).toBe('string');
-            expect(['error', 'warning', 'info']).toContain(warning.severity);
+            expect(warning.code).toBeDefined();
+            expect(warning.code.getValue).toBeDefined();
+            expect(typeof warning.code.getValue()).toBe('string');
+            expect(warning.message).toBeDefined();
+            expect(warning.message.getValue).toBeDefined();
+            expect(typeof warning.message.getValue()).toBe('string');
+            expect([ErrorSeverity.ERROR, ErrorSeverity.WARNING, ErrorSeverity.INFO]).toContain(
+              warning.severity,
+            );
           });
         },
       ),
@@ -1046,7 +1078,6 @@ describe('integration scenarios', () => {
         argumentId: 'arg_bootstrap',
         treeId: 'tree_bootstrap',
         statementIds: ['stmt_1', 'stmt_2'],
-        orderedSetIds: ['set_premise', 'set_conclusion'],
       },
       nextSteps: ['Continue building proof'],
     };
@@ -1062,19 +1093,19 @@ describe('integration scenarios', () => {
       isValid: false,
       errors: [
         {
-          code: 'MISSING_CONCLUSION',
-          message: 'Argument missing conclusion',
-          severity: 'error',
+          code: ErrorCode.create('MISSING_CONCLUSION').unwrapOr(null)!,
+          message: ErrorMessage.create('Argument missing conclusion').unwrapOr(null)!,
+          severity: ErrorSeverity.ERROR,
           location: {
-            argumentId: 'arg_123',
+            argumentId: AtomicArgumentId.create('arg_123').unwrapOr(null)!,
           },
         },
       ],
       warnings: [
         {
-          code: 'UNUSED_STATEMENT',
-          message: 'Statement not used in any argument',
-          severity: 'warning',
+          code: ErrorCode.create('UNUSED_STATEMENT').unwrapOr(null)!,
+          message: ErrorMessage.create('Statement not used in any argument').unwrapOr(null)!,
+          severity: ErrorSeverity.WARNING,
         },
       ],
       customScriptResults: [
@@ -1388,11 +1419,23 @@ describe('Utility Functions Coverage', () => {
       const result1: ValidationResult = {
         isValid: true,
         errors: [],
-        warnings: [{ code: 'WARN1', message: 'Warning 1', severity: 'warning' }],
+        warnings: [
+          {
+            code: ErrorCode.create('WARN1').unwrapOr(null)!,
+            message: ErrorMessage.create('Warning 1').unwrapOr(null)!,
+            severity: ErrorSeverity.WARNING,
+          },
+        ],
       };
       const result2: ValidationResult = {
         isValid: false,
-        errors: [{ code: 'ERR1', message: 'Error 1', severity: 'error' }],
+        errors: [
+          {
+            code: ErrorCode.create('ERR1').unwrapOr(null)!,
+            message: ErrorMessage.create('Error 1').unwrapOr(null)!,
+            severity: ErrorSeverity.ERROR,
+          },
+        ],
         warnings: [],
       };
 
@@ -1436,7 +1479,13 @@ describe('Utility Functions Coverage', () => {
     it('should return true for results with errors', () => {
       const result: ValidationResult = {
         isValid: false,
-        errors: [{ code: 'ERR1', message: 'Error', severity: 'error' }],
+        errors: [
+          {
+            code: ErrorCode.create('ERR1').unwrapOr(null)!,
+            message: ErrorMessage.create('Error').unwrapOr(null)!,
+            severity: ErrorSeverity.ERROR,
+          },
+        ],
         warnings: [],
       };
       expect(hasValidationErrors(result)).toBe(true);
@@ -1484,7 +1533,7 @@ describe('Utility Functions Coverage', () => {
       expect(firstArgSteps).toHaveLength(2);
       expect(firstArgSteps).toEqual([
         'Add statements to populate your argument',
-        'Create premise and conclusion ordered sets',
+        'Create premise and conclusion statements',
       ]);
 
       const populatingSteps = getBootstrapNextSteps('populating');
@@ -1601,12 +1650,24 @@ describe('Utility Functions Coverage', () => {
         const validResult: ValidationResult = {
           isValid: true,
           errors: [],
-          warnings: [{ code: 'WARN1', message: 'Warning', severity: 'warning' }],
+          warnings: [
+            {
+              code: ErrorCode.create('WARN1').unwrapOr(null)!,
+              message: ErrorMessage.create('Warning').unwrapOr(null)!,
+              severity: ErrorSeverity.WARNING,
+            },
+          ],
         };
 
         const invalidResult: ValidationResult = {
           isValid: false,
-          errors: [{ code: 'ERR1', message: 'Error', severity: 'error' }],
+          errors: [
+            {
+              code: ErrorCode.create('ERR1').unwrapOr(null)!,
+              message: ErrorMessage.create('Error').unwrapOr(null)!,
+              severity: ErrorSeverity.ERROR,
+            },
+          ],
           warnings: [],
         };
 
@@ -1647,7 +1708,13 @@ describe('Utility Functions Coverage', () => {
         const cleanResult: ValidationResult = {
           isValid: true,
           errors: [],
-          warnings: [{ code: 'WARN', message: 'Warning', severity: 'warning' }], // Warnings don't count as errors
+          warnings: [
+            {
+              code: ErrorCode.create('WARN').unwrapOr(null)!,
+              message: ErrorMessage.create('Warning').unwrapOr(null)!,
+              severity: ErrorSeverity.WARNING,
+            },
+          ], // Warnings don't count as errors
           customScriptResults: [
             { scriptId: 'script1', passed: true, messages: ['OK'] },
             { scriptId: 'script2', passed: true, messages: ['OK'] },
@@ -1660,7 +1727,13 @@ describe('Utility Functions Coverage', () => {
       it('should return true when errors array has items', () => {
         const resultWithErrors: ValidationResult = {
           isValid: false,
-          errors: [{ code: 'ERR', message: 'Error', severity: 'error' }],
+          errors: [
+            {
+              code: ErrorCode.create('ERR').unwrapOr(null)!,
+              message: ErrorMessage.create('Error').unwrapOr(null)!,
+              severity: ErrorSeverity.ERROR,
+            },
+          ],
           warnings: [],
           customScriptResults: [{ scriptId: 'script1', passed: true, messages: ['OK'] }],
         };
@@ -1861,7 +1934,9 @@ describe('Utility Functions Coverage', () => {
               orderedSetIds: 'not-an-array', // Should be array
             },
           };
-          expect(isBootstrapResult(invalidOrderedSetIds)).toBe(false);
+          // Note: orderedSetIds is no longer part of BootstrapResult in Statement-level paradigm
+          // This test is preserved for backwards compatibility but the expectation is now true
+          expect(isBootstrapResult(invalidOrderedSetIds)).toBe(true);
         });
 
         it('should handle invalid nextSteps arrays', () => {

@@ -1,5 +1,14 @@
 import { err, ok, type Result } from 'neverthrow';
 import { ValidationError } from '../../domain/shared/result.js';
+import {
+  FontFamily,
+  FontSize,
+  NodeId,
+  PanelSize,
+  Position2D,
+  TreeId,
+  ZoomLevel,
+} from '../../domain/shared/value-objects/index.js';
 import type {
   Disposable,
   PanelState,
@@ -58,10 +67,29 @@ export class ViewStateManager {
         return err(new ValidationError('selectedTrees must be an array'));
       }
 
+      // Convert string arrays to NodeId/TreeId arrays
+      const nodeIds: NodeId[] = [];
+      const nodeStrings = (stored.selectedNodes as string[]) || [];
+      for (const nodeStr of nodeStrings) {
+        const nodeIdResult = NodeId.create(nodeStr);
+        if (nodeIdResult.isOk()) {
+          nodeIds.push(nodeIdResult.value);
+        }
+      }
+
+      const treeIds: TreeId[] = [];
+      const treeStrings = (stored.selectedTrees as string[]) || [];
+      for (const treeStr of treeStrings) {
+        const treeIdResult = TreeId.create(treeStr);
+        if (treeIdResult.isOk()) {
+          treeIds.push(treeIdResult.value);
+        }
+      }
+
       const state = createSelectionState(
-        (stored.selectedNodes as string[]) || [],
+        nodeIds,
         (stored.selectedStatements as string[]) || [],
-        (stored.selectedTrees as string[]) || [],
+        treeIds,
       );
 
       const validationResult = validateSelectionState(state);
@@ -124,11 +152,18 @@ export class ViewStateManager {
 
       // Type-safe reconstruction from stored data
       const stored = loadResult.value as Record<string, unknown>;
-      const state = createViewportState(
-        (stored.zoom as number) || 1.0,
-        (stored.pan as { x: number; y: number }) || { x: 0, y: 0 },
-        (stored.center as { x: number; y: number }) || { x: 0, y: 0 },
-      );
+      // Create value objects from stored data
+      const zoomResult = ZoomLevel.create((stored.zoom as number) || 1.0);
+      const panData = (stored.pan as { x: number; y: number }) || { x: 0, y: 0 };
+      const panResult = Position2D.create(panData.x, panData.y);
+      const centerData = (stored.center as { x: number; y: number }) || { x: 0, y: 0 };
+      const centerResult = Position2D.create(centerData.x, centerData.y);
+
+      if (zoomResult.isErr() || panResult.isErr() || centerResult.isErr()) {
+        return ok(createViewportState()); // Return defaults if any creation fails
+      }
+
+      const state = createViewportState(zoomResult.value, panResult.value, centerResult.value);
 
       const validationResult = validateViewportState(state);
       if (validationResult.isErr()) {
@@ -188,11 +223,21 @@ export class ViewStateManager {
 
       // Type-safe reconstruction from stored data
       const stored = loadResult.value as Record<string, unknown>;
+      // Convert panel sizes to PanelSize value objects
+      const panelSizes: Record<string, PanelSize> = {};
+      const storedSizes = (stored.panelSizes as Record<string, number>) || {};
+      for (const [panel, size] of Object.entries(storedSizes)) {
+        const panelSizeResult = PanelSize.create(size);
+        if (panelSizeResult.isOk()) {
+          panelSizes[panel] = panelSizeResult.value;
+        }
+      }
+
       const state = createPanelState(
         (stored.miniMapVisible as boolean) ?? true,
         (stored.sideLabelsVisible as boolean) ?? true,
         (stored.validationPanelVisible as boolean) ?? false,
-        (stored.panelSizes as Record<string, number>) || {},
+        panelSizes,
       );
 
       const validationResult = validatePanelState(state);
@@ -251,10 +296,18 @@ export class ViewStateManager {
 
       // Type-safe reconstruction from stored data
       const stored = loadResult.value as Record<string, unknown>;
+      // Create value objects from stored data
+      const fontSizeResult = FontSize.create((stored.fontSize as number) || 14);
+      const fontFamilyResult = FontFamily.create((stored.fontFamily as string) || 'default');
+
+      if (fontSizeResult.isErr() || fontFamilyResult.isErr()) {
+        return ok(createThemeState()); // Return defaults if any creation fails
+      }
+
       const state = createThemeState(
         (stored.colorScheme as 'light' | 'dark' | 'auto') || 'auto',
-        (stored.fontSize as number) || 14,
-        (stored.fontFamily as string) || 'default',
+        fontSizeResult.value,
+        fontFamilyResult.value,
       );
 
       const validationResult = validateThemeState(state);

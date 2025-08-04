@@ -2,7 +2,6 @@ import { err, ok } from 'neverthrow';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { TransactionConfig } from '../../interfaces/IProofTransaction.js';
-import { TransactionLog } from '../../value-objects/TransactionLog.js';
 import { ProofTransactionService } from '../ProofTransactionService.js';
 
 describe('ProofTransactionService', () => {
@@ -368,12 +367,9 @@ describe('Transaction Error Handling & Logging', () => {
     if (transactionResult.isOk()) {
       const transaction = transactionResult.value;
 
-      expect(transaction.getTransactionLog).toBeDefined();
-      expect(transaction.getTransactionLog()).toBeInstanceOf(TransactionLog);
-
-      const log = transaction.getTransactionLog();
-      expect(log.getTotalOperations()).toBe(0);
-      expect(log.hasCompensationErrors()).toBe(false);
+      // Transaction should be active
+      expect(transaction.isActive()).toBe(true);
+      expect(transaction.transactionId).toBeDefined();
     }
   });
 });

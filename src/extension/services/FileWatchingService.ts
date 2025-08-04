@@ -2,6 +2,7 @@ import { err, ok, type Result } from 'neverthrow';
 import * as vscode from 'vscode';
 import type { IFileSystemPort } from '../../application/ports/IFileSystemPort.js';
 import type { IUIPort } from '../../application/ports/IUIPort.js';
+import { DocumentId, NotificationMessage } from '../../domain/shared/value-objects/index.js';
 import type { ApplicationContainer } from '../../infrastructure/di/container.js';
 import { TOKENS } from '../../infrastructure/di/tokens.js';
 import { refreshDocumentContent } from '../helpers/ProofTreeHelper.js';
@@ -65,7 +66,10 @@ export class FileWatchingService {
       if (!isDirty) {
         // No local changes - safe to refresh
         await refreshDocumentContent(openEditor, this.container);
-        this.uiPort.showInformation('Document refreshed with external changes');
+        const infoResult = NotificationMessage.create('Document refreshed with external changes');
+        if (infoResult.isOk()) {
+          this.uiPort.showInformation(infoResult.value);
+        }
         return;
       }
 
@@ -79,12 +83,16 @@ export class FileWatchingService {
       );
 
       switch (action) {
-        case 'Reload from Disk (Lose Changes)':
+        case 'Reload from Disk (Lose Changes)': {
           // Force reload - this will lose local changes
           await vscode.commands.executeCommand('workbench.action.files.revert', uri);
           await refreshDocumentContent(openEditor, this.container);
-          this.uiPort.showInformation('Document reloaded from disk');
+          const infoResult = NotificationMessage.create('Document reloaded from disk');
+          if (infoResult.isOk()) {
+            this.uiPort.showInformation(infoResult.value);
+          }
           break;
+        }
 
         case 'Compare Changes':
           // Open diff view to compare changes
@@ -96,15 +104,24 @@ export class FileWatchingService {
           );
           break;
 
-        default:
+        default: {
           // Do nothing - keep local changes
-          this.uiPort.showInformation('Keeping local changes. Save to overwrite external changes.');
+          const infoResult = NotificationMessage.create(
+            'Keeping local changes. Save to overwrite external changes.',
+          );
+          if (infoResult.isOk()) {
+            this.uiPort.showInformation(infoResult.value);
+          }
           break;
+        }
       }
     } catch (error) {
-      this.uiPort.showError(
+      const errorResult = NotificationMessage.create(
         `Failed to handle external file change: ${error instanceof Error ? error.message : String(error)}`,
       );
+      if (errorResult.isOk()) {
+        this.uiPort.showError(errorResult.value);
+      }
     }
   }
 
@@ -126,7 +143,10 @@ export class FileWatchingService {
   private async handleFileDeleted(uri: vscode.Uri): Promise<void> {
     // Proof file deleted - clean up and close associated panels
     const documentId = uri.fsPath;
-    await this.fileSystemPort.deleteStoredDocument(documentId);
+    const docIdResult = DocumentId.create(documentId);
+    if (docIdResult.isOk()) {
+      await this.fileSystemPort.deleteStoredDocument(docIdResult.value);
+    }
 
     // Close associated proof tree panel
     try {
@@ -139,7 +159,10 @@ export class FileWatchingService {
 
     // Notify user
     const fileName = uri.fsPath.split('/').pop() || uri.fsPath;
-    this.uiPort.showWarning(`Proof file was deleted: ${fileName}`);
+    const warningResult = NotificationMessage.create(`Proof file was deleted: ${fileName}`);
+    if (warningResult.isOk()) {
+      this.uiPort.showWarning(warningResult.value);
+    }
   }
 
   public dispose(): void {

@@ -7,6 +7,7 @@
 
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
+import { ErrorCode, ErrorMessage, ErrorSeverity } from '../../../domain/index.js';
 import { ValidationError } from '../../../domain/shared/result.js';
 import type { ValidationErrorDTO } from '../../queries/shared-types.js';
 import {
@@ -26,11 +27,9 @@ describe('ValidationMapper', () => {
       const result = validationErrorToDTO(error);
 
       // Assert
-      expect(result).toEqual({
-        code: 'EMPTY_STATEMENT',
-        message: 'Statement cannot be empty',
-        severity: 'error', // "cannot" keyword triggers error severity
-      });
+      expect(result.code.getValue()).toBe('EMPTY_STATEMENT');
+      expect(result.message.getValue()).toBe('Statement cannot be empty');
+      expect(result.severity).toBe(ErrorSeverity.ERROR);
     });
 
     it('should handle statement-related errors', () => {
@@ -61,9 +60,14 @@ describe('ValidationMapper', () => {
         const error = new ValidationError(message);
         const result = validationErrorToDTO(error);
 
-        expect(result.code).toBe(expectedCode);
-        expect(result.message).toBe(message);
-        expect(result.severity).toBe(expectedSeverity);
+        expect(result.code.getValue()).toBe(expectedCode);
+        expect(result.message.getValue()).toBe(message);
+        const severityMap = {
+          error: ErrorSeverity.ERROR,
+          warning: ErrorSeverity.WARNING,
+          info: ErrorSeverity.INFO,
+        };
+        expect(result.severity).toBe(severityMap[expectedSeverity]);
       });
     });
 
@@ -90,9 +94,14 @@ describe('ValidationMapper', () => {
         const error = new ValidationError(message);
         const result = validationErrorToDTO(error);
 
-        expect(result.code).toBe(expectedCode);
-        expect(result.message).toBe(message);
-        expect(result.severity).toBe(expectedSeverity);
+        expect(result.code.getValue()).toBe(expectedCode);
+        expect(result.message.getValue()).toBe(message);
+        const severityMap = {
+          error: ErrorSeverity.ERROR,
+          warning: ErrorSeverity.WARNING,
+          info: ErrorSeverity.INFO,
+        };
+        expect(result.severity).toBe(severityMap[expectedSeverity]);
       });
     });
 
@@ -124,9 +133,14 @@ describe('ValidationMapper', () => {
         const error = new ValidationError(message);
         const result = validationErrorToDTO(error);
 
-        expect(result.code).toBe(expectedCode);
-        expect(result.message).toBe(message);
-        expect(result.severity).toBe(expectedSeverity);
+        expect(result.code.getValue()).toBe(expectedCode);
+        expect(result.message.getValue()).toBe(message);
+        const severityMap = {
+          error: ErrorSeverity.ERROR,
+          warning: ErrorSeverity.WARNING,
+          info: ErrorSeverity.INFO,
+        };
+        expect(result.severity).toBe(severityMap[expectedSeverity]);
       });
     });
 
@@ -153,9 +167,14 @@ describe('ValidationMapper', () => {
         const error = new ValidationError(message);
         const result = validationErrorToDTO(error);
 
-        expect(result.code).toBe(expectedCode);
-        expect(result.message).toBe(message);
-        expect(result.severity).toBe(expectedSeverity);
+        expect(result.code.getValue()).toBe(expectedCode);
+        expect(result.message.getValue()).toBe(message);
+        const severityMap = {
+          error: ErrorSeverity.ERROR,
+          warning: ErrorSeverity.WARNING,
+          info: ErrorSeverity.INFO,
+        };
+        expect(result.severity).toBe(severityMap[expectedSeverity]);
       });
     });
 
@@ -167,9 +186,9 @@ describe('ValidationMapper', () => {
       const result = validationErrorToDTO(error);
 
       // Assert
-      expect(result.code).toBe('BOOTSTRAP_ERROR');
-      expect(result.message).toBe('Bootstrap validation failed');
-      expect(result.severity).toBe('info');
+      expect(result.code.getValue()).toBe('BOOTSTRAP_ERROR');
+      expect(result.message.getValue()).toBe('Bootstrap validation failed');
+      expect(result.severity).toBe(ErrorSeverity.INFO);
     });
 
     it('should handle generic validation errors', () => {
@@ -180,9 +199,9 @@ describe('ValidationMapper', () => {
       const result = validationErrorToDTO(error);
 
       // Assert
-      expect(result.code).toBe('VALIDATION_ERROR');
-      expect(result.message).toBe('Some unexpected validation issue');
-      expect(result.severity).toBe('info');
+      expect(result.code.getValue()).toBe('VALIDATION_ERROR');
+      expect(result.message.getValue()).toBe('Some unexpected validation issue');
+      expect(result.severity).toBe(ErrorSeverity.INFO);
     });
 
     it('should extract location from error messages with tree ID', () => {
@@ -193,7 +212,7 @@ describe('ValidationMapper', () => {
       const result = validationErrorToDTO(error);
 
       // Assert
-      expect(result.location).toEqual({ treeId: 'tree123' });
+      expect(result.location?.treeId?.getValue()).toBe('tree123');
     });
 
     it('should extract location from error messages with node ID', () => {
@@ -204,7 +223,7 @@ describe('ValidationMapper', () => {
       const result = validationErrorToDTO(error);
 
       // Assert
-      expect(result.location).toEqual({ nodeId: 'node456' });
+      expect(result.location?.nodeId?.getValue()).toBe('node456');
     });
 
     it('should extract location from error messages with argument ID', () => {
@@ -215,7 +234,7 @@ describe('ValidationMapper', () => {
       const result = validationErrorToDTO(error);
 
       // Assert
-      expect(result.location).toEqual({ argumentId: 'arg789' });
+      expect(result.location?.argumentId?.getValue()).toBe('arg789');
     });
 
     it('should extract multiple location components', () => {
@@ -226,11 +245,9 @@ describe('ValidationMapper', () => {
       const result = validationErrorToDTO(error);
 
       // Assert
-      expect(result.location).toEqual({
-        treeId: 'tree123',
-        nodeId: 'node456',
-        argumentId: 'arg789',
-      });
+      expect(result.location?.treeId?.getValue()).toBe('tree123');
+      expect(result.location?.nodeId?.getValue()).toBe('node456');
+      expect(result.location?.argumentId?.getValue()).toBe('arg789');
     });
 
     it('should handle error messages without location information', () => {
@@ -252,10 +269,8 @@ describe('ValidationMapper', () => {
       const result = validationErrorToDTO(error);
 
       // Assert
-      expect(result.location).toEqual({
-        treeId: 'TREE123',
-        nodeId: 'NODE456',
-      });
+      expect(result.location?.treeId?.getValue()).toBe('TREE123');
+      expect(result.location?.nodeId?.getValue()).toBe('NODE456');
     });
 
     it('should handle location extraction with different separators', () => {
@@ -265,26 +280,26 @@ describe('ValidationMapper', () => {
         const error = new ValidationError(message);
         const result = validationErrorToDTO(error);
 
-        expect(result.location).toEqual({ treeId: 'tree123' });
+        expect(result.location?.treeId?.getValue()).toBe('tree123');
       });
     });
 
     it('should determine severity based on error keywords', () => {
       const errorSeverityTests = [
         // Error level
-        { message: 'Cycle detected in proof', expectedSeverity: 'error' as const },
-        { message: 'Statement not found', expectedSeverity: 'error' as const },
-        { message: 'Invalid argument structure', expectedSeverity: 'error' as const },
-        { message: 'Cannot process request', expectedSeverity: 'error' as const },
+        { message: 'Cycle detected in proof', expectedSeverity: ErrorSeverity.ERROR },
+        { message: 'Statement not found', expectedSeverity: ErrorSeverity.ERROR },
+        { message: 'Invalid argument structure', expectedSeverity: ErrorSeverity.ERROR },
+        { message: 'Cannot process request', expectedSeverity: ErrorSeverity.ERROR },
 
         // Warning level
-        { message: 'Statement is unused', expectedSeverity: 'warning' as const },
-        { message: 'Ordered set is empty', expectedSeverity: 'warning' as const },
-        { message: 'You should check this', expectedSeverity: 'warning' as const },
+        { message: 'Statement is unused', expectedSeverity: ErrorSeverity.WARNING },
+        { message: 'Ordered set is empty', expectedSeverity: ErrorSeverity.WARNING },
+        { message: 'You should check this', expectedSeverity: ErrorSeverity.WARNING },
 
         // Info level (default)
-        { message: 'General information message', expectedSeverity: 'info' as const },
-        { message: 'Process completed', expectedSeverity: 'info' as const },
+        { message: 'General information message', expectedSeverity: ErrorSeverity.INFO },
+        { message: 'Process completed', expectedSeverity: ErrorSeverity.INFO },
       ];
 
       errorSeverityTests.forEach(({ message, expectedSeverity }) => {
@@ -304,9 +319,9 @@ describe('ValidationMapper', () => {
       const result = validationErrorToDTO(error);
 
       // Assert
-      expect(result.code).toBe('VALIDATION_ERROR');
-      expect(result.message).toBe('Error with context');
-      expect(result.severity).toBe('info');
+      expect(result.code.getValue()).toBe('VALIDATION_ERROR');
+      expect(result.message.getValue()).toBe('Error with context');
+      expect(result.severity).toBe(ErrorSeverity.INFO);
       // Note: Context is not included in DTO - this is by design
     });
   });
@@ -349,9 +364,9 @@ describe('ValidationMapper', () => {
 
       // Assert
       expect(result).toHaveLength(3);
-      expect(result[0]?.code).toBe('EMPTY_STATEMENT');
-      expect(result[1]?.code).toBe('CYCLE_DETECTED');
-      expect(result[2]?.code).toBe('TREE_NODE_ERROR');
+      expect(result[0]?.code.getValue()).toBe('EMPTY_STATEMENT');
+      expect(result[1]?.code.getValue()).toBe('CYCLE_DETECTED');
+      expect(result[2]?.code.getValue()).toBe('TREE_NODE_ERROR');
     });
 
     it('should maintain order of errors', () => {
@@ -364,7 +379,7 @@ describe('ValidationMapper', () => {
       // Assert
       expect(result).toHaveLength(5);
       result.forEach((dto, index) => {
-        expect(dto.message).toBe(`Error ${index + 1}`);
+        expect(dto.message.getValue()).toBe(`Error ${index + 1}`);
       });
     });
 
@@ -384,12 +399,12 @@ describe('ValidationMapper', () => {
 
       // Assert
       expect(result).toHaveLength(6);
-      expect(result[0]?.code).toBe('STATEMENT_ERROR');
-      expect(result[1]?.code).toBe('DUPLICATE_IN_ORDERED_SET');
-      expect(result[2]?.code).toBe('ARGUMENT_NOT_FOUND');
-      expect(result[3]?.code).toBe('TREE_POSITION_ERROR');
-      expect(result[4]?.code).toBe('BOOTSTRAP_ERROR');
-      expect(result[5]?.code).toBe('VALIDATION_ERROR');
+      expect(result[0]?.code.getValue()).toBe('STATEMENT_ERROR');
+      expect(result[1]?.code.getValue()).toBe('DUPLICATE_IN_ORDERED_SET');
+      expect(result[2]?.code.getValue()).toBe('ARGUMENT_NOT_FOUND');
+      expect(result[3]?.code.getValue()).toBe('TREE_POSITION_ERROR');
+      expect(result[4]?.code.getValue()).toBe('BOOTSTRAP_ERROR');
+      expect(result[5]?.code.getValue()).toBe('VALIDATION_ERROR');
     });
   });
 
@@ -417,7 +432,7 @@ describe('ValidationMapper', () => {
       expect(result.has('EMPTY_STATEMENT')).toBe(true);
       const group = result.get('EMPTY_STATEMENT');
       expect(group).toHaveLength(1);
-      expect(group?.[0]?.message).toBe('Statement cannot be empty');
+      expect(group?.[0]?.message.getValue()).toBe('Statement cannot be empty');
     });
 
     it('should group multiple errors of same type', () => {
@@ -519,29 +534,29 @@ describe('ValidationMapper', () => {
     // Setup common test data
     const createTestErrors = (): ValidationErrorDTO[] => [
       {
-        code: 'CYCLE_DETECTED',
-        message: 'Cycle found',
-        severity: 'error',
+        code: ErrorCode.create('CYCLE_DETECTED').unwrapOr(null as any),
+        message: ErrorMessage.create('Cycle found').unwrapOr(null as any),
+        severity: ErrorSeverity.ERROR,
       },
       {
-        code: 'EMPTY_STATEMENT',
-        message: 'Statement empty',
-        severity: 'warning',
+        code: ErrorCode.create('EMPTY_STATEMENT').unwrapOr(null as any),
+        message: ErrorMessage.create('Statement empty').unwrapOr(null as any),
+        severity: ErrorSeverity.WARNING,
       },
       {
-        code: 'VALIDATION_ERROR',
-        message: 'General error',
-        severity: 'info',
+        code: ErrorCode.create('VALIDATION_ERROR').unwrapOr(null as any),
+        message: ErrorMessage.create('General error').unwrapOr(null as any),
+        severity: ErrorSeverity.INFO,
       },
       {
-        code: 'STATEMENT_NOT_FOUND',
-        message: 'Not found',
-        severity: 'error',
+        code: ErrorCode.create('STATEMENT_NOT_FOUND').unwrapOr(null as any),
+        message: ErrorMessage.create('Not found').unwrapOr(null as any),
+        severity: ErrorSeverity.ERROR,
       },
       {
-        code: 'UNUSED_STATEMENT',
-        message: 'Unused',
-        severity: 'warning',
+        code: ErrorCode.create('UNUSED_STATEMENT').unwrapOr(null as any),
+        message: ErrorMessage.create('Unused').unwrapOr(null as any),
+        severity: ErrorSeverity.WARNING,
       },
     ];
 
@@ -550,12 +565,15 @@ describe('ValidationMapper', () => {
       const errors = createTestErrors();
 
       // Act
-      const result = filterErrorsBySeverity(errors, 'error');
+      const result = filterErrorsBySeverity(errors, ErrorSeverity.ERROR);
 
       // Assert
       expect(result).toHaveLength(2);
-      expect(result.every((error) => error.severity === 'error')).toBe(true);
-      expect(result.map((e) => e.code)).toEqual(['CYCLE_DETECTED', 'STATEMENT_NOT_FOUND']);
+      expect(result.every((error) => error.severity === ErrorSeverity.ERROR)).toBe(true);
+      expect(result.map((e) => e.code.getValue())).toEqual([
+        'CYCLE_DETECTED',
+        'STATEMENT_NOT_FOUND',
+      ]);
     });
 
     it('should filter errors by warning severity', () => {
@@ -563,12 +581,12 @@ describe('ValidationMapper', () => {
       const errors = createTestErrors();
 
       // Act
-      const result = filterErrorsBySeverity(errors, 'warning');
+      const result = filterErrorsBySeverity(errors, ErrorSeverity.WARNING);
 
       // Assert
       expect(result).toHaveLength(2);
-      expect(result.every((error) => error.severity === 'warning')).toBe(true);
-      expect(result.map((e) => e.code)).toEqual(['EMPTY_STATEMENT', 'UNUSED_STATEMENT']);
+      expect(result.every((error) => error.severity === ErrorSeverity.WARNING)).toBe(true);
+      expect(result.map((e) => e.code.getValue())).toEqual(['EMPTY_STATEMENT', 'UNUSED_STATEMENT']);
     });
 
     it('should filter errors by info severity', () => {
@@ -576,26 +594,26 @@ describe('ValidationMapper', () => {
       const errors = createTestErrors();
 
       // Act
-      const result = filterErrorsBySeverity(errors, 'info');
+      const result = filterErrorsBySeverity(errors, ErrorSeverity.INFO);
 
       // Assert
       expect(result).toHaveLength(1);
-      expect(result.every((error) => error.severity === 'info')).toBe(true);
-      expect(result[0]?.code).toBe('VALIDATION_ERROR');
+      expect(result.every((error) => error.severity === ErrorSeverity.INFO)).toBe(true);
+      expect(result[0]?.code.getValue()).toBe('VALIDATION_ERROR');
     });
 
     it('should return empty array when no errors match severity', () => {
       // Arrange
       const errors: ValidationErrorDTO[] = [
         {
-          code: 'TEST_ERROR',
-          message: 'Test',
-          severity: 'error',
+          code: ErrorCode.create('TEST_ERROR').unwrapOr(null as any),
+          message: ErrorMessage.create('Test').unwrapOr(null as any),
+          severity: ErrorSeverity.ERROR,
         },
       ];
 
       // Act
-      const result = filterErrorsBySeverity(errors, 'warning');
+      const result = filterErrorsBySeverity(errors, ErrorSeverity.WARNING);
 
       // Assert
       expect(result).toEqual([]);
@@ -606,7 +624,7 @@ describe('ValidationMapper', () => {
       const errors: ValidationErrorDTO[] = [];
 
       // Act
-      const result = filterErrorsBySeverity(errors, 'error');
+      const result = filterErrorsBySeverity(errors, ErrorSeverity.ERROR);
 
       // Assert
       expect(result).toEqual([]);
@@ -615,18 +633,34 @@ describe('ValidationMapper', () => {
     it('should maintain order of filtered errors', () => {
       // Arrange
       const errors: ValidationErrorDTO[] = [
-        { code: 'ERROR_1', message: 'First error', severity: 'error' },
-        { code: 'WARNING_1', message: 'Warning', severity: 'warning' },
-        { code: 'ERROR_2', message: 'Second error', severity: 'error' },
-        { code: 'ERROR_3', message: 'Third error', severity: 'error' },
+        {
+          code: ErrorCode.create('ERROR_1').unwrapOr(null as any),
+          message: ErrorMessage.create('First error').unwrapOr(null as any),
+          severity: ErrorSeverity.ERROR,
+        },
+        {
+          code: ErrorCode.create('WARNING_1').unwrapOr(null as any),
+          message: ErrorMessage.create('Warning').unwrapOr(null as any),
+          severity: ErrorSeverity.WARNING,
+        },
+        {
+          code: ErrorCode.create('ERROR_2').unwrapOr(null as any),
+          message: ErrorMessage.create('Second error').unwrapOr(null as any),
+          severity: ErrorSeverity.ERROR,
+        },
+        {
+          code: ErrorCode.create('ERROR_3').unwrapOr(null as any),
+          message: ErrorMessage.create('Third error').unwrapOr(null as any),
+          severity: ErrorSeverity.ERROR,
+        },
       ];
 
       // Act
-      const result = filterErrorsBySeverity(errors, 'error');
+      const result = filterErrorsBySeverity(errors, ErrorSeverity.ERROR);
 
       // Assert
       expect(result).toHaveLength(3);
-      expect(result.map((e) => e.code)).toEqual(['ERROR_1', 'ERROR_2', 'ERROR_3']);
+      expect(result.map((e) => e.code.getValue())).toEqual(['ERROR_1', 'ERROR_2', 'ERROR_3']);
     });
 
     it('should not modify original array', () => {
@@ -635,7 +669,7 @@ describe('ValidationMapper', () => {
       const originalLength = errors.length;
 
       // Act
-      const result = filterErrorsBySeverity(errors, 'error');
+      const result = filterErrorsBySeverity(errors, ErrorSeverity.ERROR);
 
       // Assert
       expect(errors).toHaveLength(originalLength);
@@ -658,23 +692,23 @@ describe('ValidationMapper', () => {
         const error = new ValidationError(message);
         const result = validationErrorToDTO(error);
 
-        expect(result.message).toBe(message);
-        expect(result.code).toBe('VALIDATION_ERROR');
-        expect(result.severity).toBe('info');
+        expect(result.message.getValue()).toBe(message);
+        expect(result.code.getValue()).toBe('VALIDATION_ERROR');
+        expect(result.severity).toBe(ErrorSeverity.INFO);
       });
     });
 
     it('should handle very long error messages', () => {
       // Arrange
-      const longMessage = 'A'.repeat(10000);
+      const longMessage = 'A'.repeat(1000); // ErrorMessage has max length of 1000
       const error = new ValidationError(longMessage);
 
       // Act
       const result = validationErrorToDTO(error);
 
       // Assert
-      expect(result.message).toBe(longMessage);
-      expect(result.code).toBe('VALIDATION_ERROR');
+      expect(result.message.getValue()).toBe(longMessage);
+      expect(result.code.getValue()).toBe('VALIDATION_ERROR');
     });
 
     it('should handle error message with multiple location patterns', () => {
@@ -688,11 +722,9 @@ describe('ValidationMapper', () => {
 
       // Assert
       // Should extract first occurrence of each pattern
-      expect(result.location).toEqual({
-        treeId: 'tree1',
-        nodeId: 'node1',
-        argumentId: 'arg1',
-      });
+      expect(result.location?.treeId?.getValue()).toBe('tree1');
+      expect(result.location?.nodeId?.getValue()).toBe('node1');
+      expect(result.location?.argumentId?.getValue()).toBe('arg1');
     });
 
     it('should handle case sensitivity in error classification', () => {
@@ -707,7 +739,7 @@ describe('ValidationMapper', () => {
         const error = new ValidationError(message);
         const result = validationErrorToDTO(error);
 
-        expect(result.code).toBe(expectedCode);
+        expect(result.code.getValue()).toBe(expectedCode);
       });
     });
   });
@@ -715,26 +747,34 @@ describe('ValidationMapper', () => {
   describe('property-based testing', () => {
     it('should handle arbitrary error messages', () => {
       fc.assert(
-        fc.property(fc.string({ minLength: 1, maxLength: 1000 }), (message) => {
-          const error = new ValidationError(message);
-          const result = validationErrorToDTO(error);
+        fc.property(
+          fc.string({ minLength: 1, maxLength: 1000 }).filter((s) => s.trim().length > 0),
+          (message) => {
+            const error = new ValidationError(message);
+            const result = validationErrorToDTO(error);
 
-          // Verify basic structure
-          expect(result).toHaveProperty('code');
-          expect(result).toHaveProperty('message');
-          expect(result).toHaveProperty('severity');
-          expect(result.message).toBe(message);
-          expect(['error', 'warning', 'info']).toContain(result.severity);
-          expect(typeof result.code).toBe('string');
-          expect(result.code.length).toBeGreaterThan(0);
-        }),
+            // Verify basic structure
+            expect(result).toHaveProperty('code');
+            expect(result).toHaveProperty('message');
+            expect(result).toHaveProperty('severity');
+            expect(result.message.getValue()).toBe(message.trim());
+            expect([ErrorSeverity.ERROR, ErrorSeverity.WARNING, ErrorSeverity.INFO]).toContain(
+              result.severity,
+            );
+            expect(result.code).toBeInstanceOf(ErrorCode);
+            expect(result.code.getValue().length).toBeGreaterThan(0);
+          },
+        ),
       );
     });
 
     it('should maintain referential integrity in array operations', () => {
       fc.assert(
         fc.property(
-          fc.array(fc.string({ minLength: 1, maxLength: 100 }), { minLength: 0, maxLength: 20 }),
+          fc.array(
+            fc.string({ minLength: 1, maxLength: 100 }).filter((s) => s.trim().length > 0),
+            { minLength: 0, maxLength: 20 },
+          ),
           (messages) => {
             const errors = messages.map((msg) => new ValidationError(msg));
             const dtos = validationErrorsToDTOs(errors);
@@ -744,7 +784,7 @@ describe('ValidationMapper', () => {
 
             // Verify order preservation
             dtos.forEach((dto, index) => {
-              expect(dto.message).toBe(messages[index]);
+              expect(dto.message.getValue()).toBe(messages[index]?.trim());
             });
 
             // Verify grouping works
@@ -777,8 +817,8 @@ describe('ValidationMapper', () => {
       // Act - Convert and group
       const dtos = validationErrorsToDTOs(errors);
       const grouped = groupErrorsByType(errors);
-      const criticalErrors = filterErrorsBySeverity(dtos, 'error');
-      const warnings = filterErrorsBySeverity(dtos, 'warning');
+      const criticalErrors = filterErrorsBySeverity(dtos, ErrorSeverity.ERROR);
+      const warnings = filterErrorsBySeverity(dtos, ErrorSeverity.WARNING);
 
       // Assert - Verify complete workflow
       expect(dtos).toHaveLength(8);
@@ -792,8 +832,8 @@ describe('ValidationMapper', () => {
 
       // Verify severity classification
       const severities = dtos.map((dto) => dto.severity);
-      expect(severities).toContain('error');
-      expect(severities).toContain('info'); // Most errors default to info, not warning
+      expect(severities).toContain(ErrorSeverity.ERROR);
+      expect(severities).toContain(ErrorSeverity.INFO); // Most errors default to info, not warning
     });
   });
 });

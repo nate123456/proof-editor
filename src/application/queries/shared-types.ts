@@ -55,7 +55,11 @@ export function isAtomicArgumentDTO(obj: unknown): obj is AtomicArgumentDTO {
   }
 
   const dto = obj as Record<string, unknown>;
-  const hasValidId = dto.id && typeof dto.id.getValue === 'function';
+  const hasValidId =
+    dto.id &&
+    typeof dto.id === 'object' &&
+    dto.id !== null &&
+    typeof (dto.id as any).getValue === 'function';
   const hasValidPremiseIds =
     Array.isArray(dto.premiseIds) &&
     dto.premiseIds.every(
@@ -111,7 +115,11 @@ export function isTreeDTO(obj: unknown): obj is TreeDTO {
   }
 
   const dto = obj as Record<string, unknown>;
-  const hasValidId = dto.id && typeof dto.id.getValue === 'function';
+  const hasValidId =
+    dto.id &&
+    typeof dto.id === 'object' &&
+    dto.id !== null &&
+    typeof (dto.id as any).getValue === 'function';
   const hasValidPosition = isValidPosition(dto.position);
   const hasValidNodeCount = dto.nodeCount instanceof NodeCount;
   const hasValidRootNodeIds =
@@ -316,11 +324,11 @@ export function validateTreeDTO(dto: unknown): string[] {
     return errors;
   }
 
-  if (dto.nodeCount === 0 && dto.rootNodeIds.length > 0) {
+  if (dto.nodeCount.getValue() === 0 && dto.rootNodeIds.length > 0) {
     errors.push('Tree with zero nodes cannot have root node IDs');
   }
 
-  if (dto.nodeCount > 0 && dto.rootNodeIds.length === 0) {
+  if (dto.nodeCount.getValue() > 0 && dto.rootNodeIds.length === 0) {
     errors.push('Tree with nodes must have at least one root node');
   }
 

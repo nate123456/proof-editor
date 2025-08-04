@@ -54,6 +54,7 @@ export interface FindPathBetweenNodesQuery {
   treeId: string;
   fromNodeId: string;
   toNodeId: string;
+  includeArguments?: boolean;
 }
 
 export interface GetSubtreeQuery {
@@ -61,6 +62,7 @@ export interface GetSubtreeQuery {
   treeId: string;
   rootNodeId: string;
   maxDepth?: number;
+  includeArguments?: boolean;
 }
 
 export interface TreeNodeDTO {

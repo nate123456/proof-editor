@@ -8,14 +8,14 @@ import {
   MaxDepth,
   type NodeId,
   PhysicalProperties,
-  Position2D,
 } from '../shared/value-objects/index.js';
+import { TreePosition } from '../value-objects/TreePosition.js';
 
 export class TreeStructureService {
   createTreeWithRootNode(
     documentId: string,
     rootArgument: AtomicArgument,
-    position: Position2D = Position2D.origin(),
+    position: TreePosition = TreePosition.origin(),
     physicalProperties: PhysicalProperties = PhysicalProperties.default(),
     title?: string,
   ): Result<{ tree: Tree; rootNode: Node }, ValidationError> {

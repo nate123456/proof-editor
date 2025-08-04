@@ -11,7 +11,7 @@ import type {
   CycleSeverity,
   ICycleDetectionService,
 } from '../../domain/services/ICycleDetectionService.js';
-import { AtomicArgumentId, type OrderedSetId } from '../../domain/shared/value-objects/index.js';
+import { AtomicArgumentId, type StatementId } from '../../domain/shared/value-objects/index.js';
 
 @injectable()
 export class GraphCycleDetectionService implements ICycleDetectionService {
@@ -105,7 +105,7 @@ export class GraphCycleDetectionService implements ICycleDetectionService {
           cycles.push({
             argumentIds: cycleArgumentIds,
             length: cycleArgumentIds.length,
-            sharedOrderedSets,
+            sharedStatements: sharedOrderedSets,
           });
         }
       }
@@ -137,7 +137,7 @@ export class GraphCycleDetectionService implements ICycleDetectionService {
       if (!arg) continue;
 
       // Check argument characteristics
-      const hasNoPremises = !arg.getPremiseSet();
+      const hasNoPremises = !arg.getPremises();
       if (hasNoPremises) {
         hasDefinitions = true;
       } else {
@@ -176,17 +176,24 @@ export class GraphCycleDetectionService implements ICycleDetectionService {
 
     // Add edges based on premise-conclusion connections
     for (const [consumerId, consumer] of argumentMap) {
-      const premiseSet = consumer.getPremiseSet();
+      const premises = consumer.getPremises();
 
-      if (premiseSet) {
-        // Find arguments that provide this premise set
+      if (premises && premises.length > 0) {
+        // Find arguments that provide conclusions that match these premises
         for (const [providerId, provider] of argumentMap) {
           if (providerId === consumerId) continue;
 
-          const conclusionSet = provider.getConclusionSet();
-          if (conclusionSet && premiseSet && conclusionSet.equals(premiseSet)) {
-            // Consumer depends on provider
-            graph.addDirectedEdge(consumerId, providerId);
+          const conclusions = provider.getConclusions();
+          if (conclusions && conclusions.length > 0) {
+            // Check if any conclusion matches any premise
+            const hasConnection = conclusions.some((conclusion) =>
+              premises.some((premise) => conclusion.getId().equals(premise.getId())),
+            );
+
+            if (hasConnection) {
+              // Consumer depends on provider
+              graph.addDirectedEdge(consumerId, providerId);
+            }
           }
         }
       }
@@ -243,13 +250,13 @@ export class GraphCycleDetectionService implements ICycleDetectionService {
   }
 
   /**
-   * Find OrderedSets involved in a cycle.
+   * Find shared statement connections in a cycle.
    */
   private findSharedSetsInCycle(
     cycleArgs: AtomicArgumentId[],
     argumentMap: Map<string, AtomicArgument>,
-  ): OrderedSetId[] {
-    const sharedSets: OrderedSetId[] = [];
+  ): StatementId[] {
+    const sharedStatements: StatementId[] = [];
 
     for (let i = 0; i < cycleArgs.length; i++) {
       const currentId = cycleArgs[i];
@@ -262,15 +269,20 @@ export class GraphCycleDetectionService implements ICycleDetectionService {
       const next = argumentMap.get(nextId.getValue());
 
       if (current && next) {
-        const currentConclusion = current.getConclusionSet();
-        const nextPremise = next.getPremiseSet();
+        const currentConclusions = current.getConclusions();
+        const nextPremises = next.getPremises();
 
-        if (currentConclusion && nextPremise && currentConclusion.equals(nextPremise)) {
-          sharedSets.push(currentConclusion);
+        // Check if any conclusion from current matches any premise in next
+        for (const conclusion of currentConclusions) {
+          for (const premise of nextPremises) {
+            if (conclusion.getId().equals(premise.getId())) {
+              sharedStatements.push(conclusion.getId());
+            }
+          }
         }
       }
     }
 
-    return sharedSets;
+    return sharedStatements;
   }
 }

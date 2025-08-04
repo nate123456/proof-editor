@@ -123,10 +123,8 @@ export class TreeController implements IController {
   constructor(
     @inject(TOKENS.CrossContextOrchestrationService)
     private readonly orchestrationService: CrossContextOrchestrationService,
-    @inject(TOKENS.IPlatformPort)
-    private readonly platform: IPlatformPort,
-    @inject(TOKENS.IUIPort)
-    private readonly ui: IUIPort,
+    @inject(TOKENS.IPlatformPort) private readonly platform: IPlatformPort,
+    @inject(TOKENS.IUIPort) private readonly ui: IUIPort,
     @inject(TOKENS.ProofApplicationService)
     private readonly proofApplicationService: ProofApplicationService,
   ) {}
@@ -482,8 +480,8 @@ export class TreeController implements IController {
           selectedText: command.selectedText,
         },
         createdStatements: [
-          ...newArgument.premises.map((p) => p.id),
-          ...newArgument.conclusions.map((c) => c.id),
+          ...newArgument.premiseIds.map((id) => id.getValue()),
+          ...newArgument.conclusionIds.map((id) => id.getValue()),
         ],
         success: true,
         newTreeId: command.newTreeId || `tree-${Date.now()}`,

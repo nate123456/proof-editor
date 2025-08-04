@@ -2,9 +2,18 @@ import { err, ok, type Result } from 'neverthrow';
 import { injectable } from 'tsyringe';
 import { ValidationError } from '../../domain/shared/result.js';
 import {
+  Dimensions,
+  NodeCount,
+  NodeId,
+  Position2D,
+  type StatementId,
+  TreeId,
+} from '../../domain/shared/value-objects/index.js';
+import {
   type ConnectionDTO,
   createRenderedNodeDTO,
   type RenderedNodeDTO,
+  type TreeLayoutConfig,
   type TreeLayoutDTO,
   type TreeNodeData,
   type TreeRenderDTO,
@@ -23,7 +32,7 @@ export class TreeLayoutService {
    */
   calculateDocumentLayout(
     document: DocumentDTO,
-    config: Partial<TypedTreeLayoutConfig> = {},
+    config: Partial<TreeLayoutConfig> | TypedTreeLayoutConfig = {},
   ): Result<TreeRenderDTO[], ValidationError> {
     const layoutConfig = config instanceof TypedTreeLayoutConfig ? config : this.defaultConfig;
     const layouts: TreeRenderDTO[] = [];
@@ -44,7 +53,8 @@ export class TreeLayoutService {
         }
 
         layouts.push(layoutResult.value);
-        currentY += layoutResult.value.bounds.height + layoutConfig.getTreeSpacing().getValue();
+        currentY +=
+          layoutResult.value.bounds.getHeight() + layoutConfig.getTreeSpacing().getValue();
       }
 
       return ok(layouts);
@@ -71,16 +81,23 @@ export class TreeLayoutService {
       // Get nodes from tree structure
       const nodes = this.extractTreeNodes(treeDTO, document);
       if (nodes.length === 0) {
-        return ok(this.createEmptyTreeLayout(treeId, treeDTO, config, startY));
+        const emptyLayoutResult = this.createEmptyTreeLayout(treeId, treeDTO, config, startY);
+        if (emptyLayoutResult.isErr()) {
+          return err(emptyLayoutResult.error);
+        }
+        return ok(emptyLayoutResult.value);
       }
 
       // Calculate node positions using hierarchical layout
-      const positions = this.calculateNodePositions(nodes, config, treeDTO.position);
+      const positions = this.calculateNodePositions(nodes, config, {
+        x: treeDTO.position.getX(),
+        y: treeDTO.position.getY(),
+      });
 
       // Create rendered nodes with calculated positions
       const renderedNodes: RenderedNodeDTO[] = [];
       for (const [nodeId, position] of positions) {
-        const node = nodes.find((n) => n.nodeId === nodeId);
+        const node = nodes.find((n) => n.nodeId.getValue() === nodeId);
         if (!node) continue;
 
         const argumentDTO = document.atomicArguments[node.argumentId];
@@ -89,11 +106,26 @@ export class TreeLayoutService {
         const premises = this.getStatementsFromIds(argumentDTO.premiseIds, document);
         const conclusions = this.getStatementsFromIds(argumentDTO.conclusionIds, document);
 
+        const dimensionsResult = Dimensions.create(
+          config.getNodeWidth().getValue(),
+          config.getNodeHeight().getValue(),
+        );
+        if (dimensionsResult.isErr()) {
+          return err(dimensionsResult.error);
+        }
+        const positionResult = Position2D.create(position.x, position.y);
+        if (positionResult.isErr()) {
+          return err(positionResult.error);
+        }
+        const nodeIdResult = NodeId.create(nodeId);
+        if (nodeIdResult.isErr()) {
+          return err(nodeIdResult.error);
+        }
         renderedNodes.push(
           createRenderedNodeDTO(
-            nodeId,
-            position,
-            { width: config.getNodeWidth().getValue(), height: config.getNodeHeight().getValue() },
+            nodeIdResult.value,
+            positionResult.value,
+            dimensionsResult.value,
             argumentDTO,
             premises,
             conclusions,
@@ -108,17 +140,33 @@ export class TreeLayoutService {
       // Calculate overall bounds
       const bounds = this.calculateTreeBounds(renderedNodes, config);
 
+      const dimensionsResult = Dimensions.create(bounds.width, bounds.height);
+      if (dimensionsResult.isErr()) {
+        return err(dimensionsResult.error);
+      }
       const layout: TreeLayoutDTO = {
         nodes: renderedNodes,
         connections,
-        dimensions: bounds,
+        dimensions: dimensionsResult.value,
       };
 
+      const treePositionResult = Position2D.create(treeDTO.position.getX(), startY);
+      if (treePositionResult.isErr()) {
+        return err(treePositionResult.error);
+      }
+      const boundsResult = Dimensions.create(bounds.width, bounds.height);
+      if (boundsResult.isErr()) {
+        return err(boundsResult.error);
+      }
+      const treeIdResult = TreeId.create(treeId);
+      if (treeIdResult.isErr()) {
+        return err(treeIdResult.error);
+      }
       return ok({
-        id: treeId,
-        position: { x: treeDTO.position.x, y: startY },
+        id: treeIdResult.value,
+        position: treePositionResult.value,
         layout,
-        bounds: { width: bounds.width, height: bounds.height },
+        bounds: boundsResult.value,
       });
     } catch (error) {
       return err(
@@ -144,7 +192,7 @@ export class TreeLayoutService {
     // Create nodes for each root node ID
     for (const rootNodeId of treeDTO.rootNodeIds) {
       // Find if there's an atomic argument with this ID
-      const argumentId = this.findArgumentForNode(rootNodeId, document);
+      const argumentId = this.findArgumentForNode(rootNodeId.getValue(), document);
       if (argumentId) {
         nodes.push({
           nodeId: rootNodeId,
@@ -207,7 +255,7 @@ export class TreeLayoutService {
     const queue: { nodeId: string; level: number }[] = [];
 
     rootNodes.forEach((node) => {
-      queue.push({ nodeId: node.nodeId, level: 0 });
+      queue.push({ nodeId: node.nodeId.getValue(), level: 0 });
     });
 
     while (queue.length > 0) {
@@ -227,33 +275,30 @@ export class TreeLayoutService {
       }
 
       // Add children to queue
-      const children = nodes.filter((n) => n.parentId === nodeId);
+      const children = nodes.filter((n) => n.parentId && n.parentId.getValue() === nodeId);
       children.forEach((child) => {
-        queue.push({ nodeId: child.nodeId, level: level + 1 });
+        queue.push({ nodeId: child.nodeId.getValue(), level: level + 1 });
       });
     }
 
     return levels;
   }
 
-  private getStatementsFromIds(statementIds: string[], document: DocumentDTO): StatementDTO[] {
+  private getStatementsFromIds(statementIds: StatementId[], document: DocumentDTO): StatementDTO[] {
     if (!statementIds || statementIds.length === 0) return [];
 
-    return statementIds.map((id) => document.statements[id]).filter((stmt) => stmt != null);
+    return statementIds
+      .map((id) => document.statements[id.getValue()])
+      .filter((stmt): stmt is StatementDTO => stmt != null);
   }
 
   private getStatementsForOrderedSet(
     orderedSetId: string | null,
     document: DocumentDTO,
   ): StatementDTO[] {
-    if (!orderedSetId) return [];
-
-    const orderedSet = document.orderedSets[orderedSetId];
-    if (!orderedSet) return [];
-
-    return orderedSet.statementIds
-      .map((id) => document.statements[id])
-      .filter((stmt) => stmt != null);
+    // This method appears to be unused and references a non-existent property
+    // Returning empty array for now
+    return [];
   }
 
   private calculateConnections(
@@ -265,8 +310,10 @@ export class TreeLayoutService {
     for (const node of nodeData) {
       if (!node.parentId) continue;
 
-      const childNode = renderedNodes.find((n) => n.id === node.nodeId);
-      const parentNode = renderedNodes.find((n) => n.id === node.parentId);
+      const childNode = renderedNodes.find((n) => n.id.getValue() === node.nodeId.getValue());
+      const parentNode = renderedNodes.find(
+        (n) => node.parentId && n.id.getValue() === node.parentId.getValue(),
+      );
 
       if (!childNode || !parentNode) continue;
 
@@ -276,10 +323,10 @@ export class TreeLayoutService {
         fromPosition: 0,
         toPosition: node.premisePosition || 0,
         coordinates: {
-          startX: childNode.position.x + childNode.dimensions.width / 2,
-          startY: childNode.position.y,
-          endX: parentNode.position.x + parentNode.dimensions.width / 2,
-          endY: parentNode.position.y + parentNode.dimensions.height,
+          startX: childNode.position.getX() + childNode.dimensions.getWidth() / 2,
+          startY: childNode.position.getY(),
+          endX: parentNode.position.getX() + parentNode.dimensions.getWidth() / 2,
+          endY: parentNode.position.getY() + parentNode.dimensions.getHeight(),
         },
       });
     }
@@ -295,10 +342,10 @@ export class TreeLayoutService {
       return { width: 400, height: 200 };
     }
 
-    const maxX = Math.max(...nodes.map((n) => n.position.x + n.dimensions.width));
-    const maxY = Math.max(...nodes.map((n) => n.position.y + n.dimensions.height));
-    const minX = Math.min(...nodes.map((n) => n.position.x));
-    const minY = Math.min(...nodes.map((n) => n.position.y));
+    const maxX = Math.max(...nodes.map((n) => n.position.getX() + n.dimensions.getWidth()));
+    const maxY = Math.max(...nodes.map((n) => n.position.getY() + n.dimensions.getHeight()));
+    const minX = Math.min(...nodes.map((n) => n.position.getX()));
+    const minY = Math.min(...nodes.map((n) => n.position.getY()));
 
     return {
       width: maxX - minX + config.getCanvasMargin().getValue() * 2,
@@ -311,7 +358,7 @@ export class TreeLayoutService {
     treeDTO: TreeDTO,
     config: TypedTreeLayoutConfig,
     startY: number,
-  ): TreeRenderDTO {
+  ): Result<TreeRenderDTO, ValidationError> {
     // Calculate minimum dimensions for empty tree
     // For empty trees, provide a reasonable default size based on node dimensions plus spacing
     // When canvasMargin is customized (larger than default), add both canvasMargin and minimum spacing
@@ -330,16 +377,28 @@ export class TreeLayoutService {
     );
     const height = Math.max(200, nodeHeight + verticalSpacing);
 
-    return {
-      id: treeId,
-      position: { x: treeDTO.position.x, y: startY },
+    const positionResult = Position2D.create(treeDTO.position.getX(), startY);
+    if (positionResult.isErr()) {
+      return err(positionResult.error);
+    }
+    const dimensionsResult = Dimensions.create(width, height);
+    if (dimensionsResult.isErr()) {
+      return err(dimensionsResult.error);
+    }
+    const treeIdResult = TreeId.create(treeId);
+    if (treeIdResult.isErr()) {
+      return err(treeIdResult.error);
+    }
+    return ok({
+      id: treeIdResult.value,
+      position: positionResult.value,
       layout: {
         nodes: [],
         connections: [],
-        dimensions: { width, height },
+        dimensions: dimensionsResult.value,
       },
-      bounds: { width, height },
-    };
+      bounds: dimensionsResult.value,
+    });
   }
 
   /**

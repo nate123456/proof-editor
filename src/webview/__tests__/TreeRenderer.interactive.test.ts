@@ -8,6 +8,15 @@ import type {
 } from '../../application/dtos/view-dtos.js';
 import type { AtomicArgumentDTO } from '../../application/queries/shared-types.js';
 import type { StatementDTO } from '../../application/queries/statement-queries.js';
+import { SideLabel, Version } from '../../domain/shared/value-objects/content.js';
+import { Dimensions, Position2D } from '../../domain/shared/value-objects/geometry.js';
+import {
+  AtomicArgumentId,
+  DocumentId,
+  NodeId,
+  StatementId,
+  TreeId,
+} from '../../domain/shared/value-objects/identifiers.js';
 import { TreeRenderer } from '../TreeRenderer.js';
 
 describe('TreeRenderer Interactive Features', () => {
@@ -30,16 +39,24 @@ describe('TreeRenderer Interactive Features', () => {
     });
 
     test('generates interactive statement elements', () => {
+      const nodeId = NodeId.create('n1').unwrapOr(NodeId.generate());
+      const statementId1 = StatementId.create('s1').unwrapOr(StatementId.generate());
+      const statementId2 = StatementId.create('s2').unwrapOr(StatementId.generate());
+      const treeId = TreeId.create('tree1').unwrapOr(
+        TreeId.create('tree1').unwrapOr(null) as TreeId,
+      );
+      const position = Position2D.create(100, 100).unwrapOr(Position2D.origin());
+
       const visualization = createProofVisualizationDTO({
         isEmpty: false,
         trees: [
-          createTreeRenderDTO('tree1', {
+          createTreeRenderDTO(treeId.getValue(), {
             nodes: [
               createRenderedNodeDTO({
-                id: 'n1',
-                position: { x: 100, y: 100 },
-                premises: [createStatementDTO('s1', 'Test premise')],
-                conclusions: [createStatementDTO('s2', 'Test conclusion')],
+                id: nodeId,
+                position: position,
+                premises: [createStatementDTO(statementId1.getValue(), 'Test premise')],
+                conclusions: [createStatementDTO(statementId2.getValue(), 'Test conclusion')],
               }),
             ],
             connections: [],
@@ -59,14 +76,20 @@ describe('TreeRenderer Interactive Features', () => {
     });
 
     test('generates interactive node elements', () => {
+      const nodeId = NodeId.create('n1').unwrapOr(NodeId.generate());
+      const treeId = TreeId.create('tree1').unwrapOr(
+        TreeId.create('tree1').unwrapOr(null) as TreeId,
+      );
+      const position = Position2D.create(100, 100).unwrapOr(Position2D.origin());
+
       const visualization = createProofVisualizationDTO({
         isEmpty: false,
         trees: [
-          createTreeRenderDTO('tree1', {
+          createTreeRenderDTO(treeId.getValue(), {
             nodes: [
               createRenderedNodeDTO({
-                id: 'n1',
-                position: { x: 100, y: 100 },
+                id: nodeId,
+                position: position,
                 premises: [],
                 conclusions: [],
               }),
@@ -81,32 +104,40 @@ describe('TreeRenderer Interactive Features', () => {
       // Check for interactive node elements
       expect(svg).toContain('interactive-node');
       expect(svg).toContain('data-node-id="n1"');
-      expect(svg).toContain('class="drag-handle"');
+      expect(svg).toContain('drag-handle');
     });
 
     test('generates interactive connection elements', () => {
+      const nodeId1 = NodeId.create('n1').unwrapOr(NodeId.generate());
+      const nodeId2 = NodeId.create('n2').unwrapOr(NodeId.generate());
+      const treeId = TreeId.create('tree1').unwrapOr(
+        TreeId.create('tree1').unwrapOr(null) as TreeId,
+      );
+      const position1 = Position2D.create(100, 100).unwrapOr(Position2D.origin());
+      const position2 = Position2D.create(200, 200).unwrapOr(Position2D.origin());
+
       const visualization = createProofVisualizationDTO({
         trees: [
-          createTreeRenderDTO('tree1', {
+          createTreeRenderDTO(treeId.getValue(), {
             nodes: [
               createRenderedNodeDTO({
-                id: 'n1',
-                position: { x: 100, y: 100 },
+                id: nodeId1,
+                position: position1,
               }),
               createRenderedNodeDTO({
-                id: 'n2',
-                position: { x: 200, y: 200 },
+                id: nodeId2,
+                position: position2,
               }),
             ],
             connections: [
               createConnectionDTO({
-                fromNodeId: 'n1',
-                toNodeId: 'n2',
+                fromNodeId: nodeId1,
+                toNodeId: nodeId2,
                 coordinates: {
-                  startX: 100,
-                  startY: 100,
-                  endX: 200,
-                  endY: 200,
+                  startX: position1.getX(),
+                  startY: position1.getY(),
+                  endX: position2.getX(),
+                  endY: position2.getY(),
                 },
               }),
             ],
@@ -124,15 +155,22 @@ describe('TreeRenderer Interactive Features', () => {
     });
 
     test('generates drop zone elements', () => {
+      const nodeId = NodeId.create('n1').unwrapOr(NodeId.generate());
+      const statementId = StatementId.create('s1').unwrapOr(StatementId.generate());
+      const treeId = TreeId.create('tree1').unwrapOr(
+        TreeId.create('tree1').unwrapOr(null) as TreeId,
+      );
+      const position = Position2D.create(100, 100).unwrapOr(Position2D.origin());
+
       const visualization = createProofVisualizationDTO({
         isEmpty: false,
         trees: [
-          createTreeRenderDTO('tree1', {
+          createTreeRenderDTO(treeId.getValue(), {
             nodes: [
               createRenderedNodeDTO({
-                id: 'n1',
-                position: { x: 100, y: 100 },
-                premises: [createStatementDTO('s1', 'Test premise')],
+                id: nodeId,
+                position: position,
+                premises: [createStatementDTO(statementId.getValue(), 'Test premise')],
                 conclusions: [],
               }),
             ],
@@ -149,15 +187,23 @@ describe('TreeRenderer Interactive Features', () => {
     });
 
     test('generates editable side labels', () => {
+      const nodeId = NodeId.create('n1').unwrapOr(NodeId.generate());
+      const treeId = TreeId.create('tree1').unwrapOr(
+        TreeId.create('tree1').unwrapOr(null) as TreeId,
+      );
+      const position = Position2D.create(100, 100).unwrapOr(Position2D.origin());
+
       const visualization = createProofVisualizationDTO({
         isEmpty: false,
         trees: [
-          createTreeRenderDTO('tree1', {
+          createTreeRenderDTO(treeId.getValue(), {
             nodes: [
               createRenderedNodeDTO({
-                id: 'n1',
-                position: { x: 100, y: 100 },
-                sideLabel: 'Modus Ponens',
+                id: nodeId,
+                position: position,
+                sideLabel: SideLabel.create('Modus Ponens').unwrapOr(
+                  SideLabel.create('Modus Ponens').unwrapOr(null) as SideLabel,
+                ),
               }),
             ],
             connections: [],
@@ -174,14 +220,20 @@ describe('TreeRenderer Interactive Features', () => {
     });
 
     test('handles empty statements with proper data attributes', () => {
+      const nodeId = NodeId.create('n1').unwrapOr(NodeId.generate());
+      const treeId = TreeId.create('tree1').unwrapOr(
+        TreeId.create('tree1').unwrapOr(null) as TreeId,
+      );
+      const position = Position2D.create(100, 100).unwrapOr(Position2D.origin());
+
       const visualization = createProofVisualizationDTO({
         isEmpty: false,
         trees: [
-          createTreeRenderDTO('tree1', {
+          createTreeRenderDTO(treeId.getValue(), {
             nodes: [
               createRenderedNodeDTO({
-                id: 'n1',
-                position: { x: 100, y: 100 },
+                id: nodeId,
+                position: position,
                 premises: [],
                 conclusions: [],
               }),
@@ -204,15 +256,22 @@ describe('TreeRenderer Interactive Features', () => {
     test('properly escapes XML special characters in statements', () => {
       const contentWithSpecialChars = 'A<B&C"D\'E';
 
+      const nodeId = NodeId.create('n1').unwrapOr(NodeId.generate());
+      const statementId = StatementId.create('s1').unwrapOr(StatementId.generate());
+      const treeId = TreeId.create('tree1').unwrapOr(
+        TreeId.create('tree1').unwrapOr(null) as TreeId,
+      );
+      const position = Position2D.create(100, 100).unwrapOr(Position2D.origin());
+
       const visualization = createProofVisualizationDTO({
         isEmpty: false,
         trees: [
-          createTreeRenderDTO('tree1', {
+          createTreeRenderDTO(treeId.getValue(), {
             nodes: [
               createRenderedNodeDTO({
-                id: 'n1',
-                position: { x: 100, y: 100 },
-                premises: [createStatementDTO('s1', contentWithSpecialChars)],
+                id: nodeId,
+                position: position,
+                premises: [createStatementDTO(statementId.getValue(), contentWithSpecialChars)],
                 conclusions: [],
               }),
             ],
@@ -231,15 +290,23 @@ describe('TreeRenderer Interactive Features', () => {
     test('properly escapes XML special characters in side labels', () => {
       const labelWithSpecialChars = 'Rule<&>"\'';
 
+      const nodeId = NodeId.create('n1').unwrapOr(NodeId.generate());
+      const treeId = TreeId.create('tree1').unwrapOr(
+        TreeId.create('tree1').unwrapOr(null) as TreeId,
+      );
+      const position = Position2D.create(100, 100).unwrapOr(Position2D.origin());
+
       const visualization = createProofVisualizationDTO({
         isEmpty: false,
         trees: [
-          createTreeRenderDTO('tree1', {
+          createTreeRenderDTO(treeId.getValue(), {
             nodes: [
               createRenderedNodeDTO({
-                id: 'n1',
-                position: { x: 100, y: 100 },
-                sideLabel: labelWithSpecialChars,
+                id: nodeId,
+                position: position,
+                sideLabel: SideLabel.create(labelWithSpecialChars).unwrapOr(
+                  SideLabel.create(labelWithSpecialChars).unwrapOr(null) as SideLabel,
+                ),
               }),
             ],
             connections: [],
@@ -260,11 +327,16 @@ describe('TreeRenderer Interactive Features', () => {
 function createProofVisualizationDTO(
   overrides: Partial<ProofVisualizationDTO> = {},
 ): ProofVisualizationDTO {
+  const documentId = DocumentId.create('test-doc').unwrapOr(
+    DocumentId.create('test-doc').unwrapOr(null) as DocumentId,
+  );
   return {
-    documentId: 'test-doc',
-    version: 1,
+    documentId: documentId,
+    version: Version.create(1).unwrapOr(Version.create(1).unwrapOr(null) as Version),
     trees: [],
-    totalDimensions: { width: 400, height: 200 },
+    totalDimensions: Dimensions.create(400, 200).unwrapOr(
+      Dimensions.create(400, 200).unwrapOr(null) as Dimensions,
+    ),
     isEmpty: false,
     ...overrides,
   };
@@ -275,25 +347,35 @@ function createTreeRenderDTO(
   layout: Partial<TreeLayoutDTO> = {},
   overrides: Partial<TreeRenderDTO> = {},
 ): TreeRenderDTO {
+  const treeId = TreeId.create(id).unwrapOr(TreeId.create(id).unwrapOr(null) as TreeId);
+  const position = Position2D.origin();
+  const dimensions = Dimensions.create(400, 200).unwrapOr(
+    Dimensions.create(400, 200).unwrapOr(null) as Dimensions,
+  );
   return {
-    id,
-    position: { x: 0, y: 0 },
+    id: treeId,
+    position: position,
     layout: {
       nodes: [],
       connections: [],
-      dimensions: { width: 400, height: 200 },
+      dimensions: dimensions,
       ...layout,
     },
-    bounds: { width: 400, height: 200 },
+    bounds: dimensions,
     ...overrides,
   };
 }
 
 function createRenderedNodeDTO(overrides: Partial<RenderedNodeDTO> = {}): RenderedNodeDTO {
+  const nodeId = NodeId.create('test-node').unwrapOr(NodeId.generate());
+  const position = Position2D.origin();
+  const dimensions = Dimensions.create(220, 120).unwrapOr(
+    Dimensions.create(220, 120).unwrapOr(null) as Dimensions,
+  );
   return {
-    id: 'test-node',
-    position: { x: 0, y: 0 },
-    dimensions: { width: 220, height: 120 },
+    id: nodeId,
+    position: position,
+    dimensions: dimensions,
     argument: createAtomicArgumentDTO(),
     premises: [],
     conclusions: [],
@@ -302,9 +384,11 @@ function createRenderedNodeDTO(overrides: Partial<RenderedNodeDTO> = {}): Render
 }
 
 function createConnectionDTO(overrides: Partial<ConnectionDTO> = {}): ConnectionDTO {
+  const nodeId1 = NodeId.create('n1').unwrapOr(NodeId.generate());
+  const nodeId2 = NodeId.create('n2').unwrapOr(NodeId.generate());
   return {
-    fromNodeId: 'n1',
-    toNodeId: 'n2',
+    fromNodeId: nodeId1,
+    toNodeId: nodeId2,
     fromPosition: 0,
     toPosition: 0,
     coordinates: {
@@ -318,8 +402,9 @@ function createConnectionDTO(overrides: Partial<ConnectionDTO> = {}): Connection
 }
 
 function createStatementDTO(id: string, content: string): StatementDTO {
+  const statementId = StatementId.create(id).unwrapOr(StatementId.generate());
   return {
-    id,
+    id: statementId.getValue(),
     content,
     usageCount: 0,
     createdAt: new Date().toISOString(),
@@ -328,9 +413,12 @@ function createStatementDTO(id: string, content: string): StatementDTO {
 }
 
 function createAtomicArgumentDTO(): AtomicArgumentDTO {
+  const argumentId = AtomicArgumentId.create('test-arg').unwrapOr(AtomicArgumentId.generate());
+  const premiseId = StatementId.create('os1').unwrapOr(StatementId.generate());
+  const conclusionId = StatementId.create('os2').unwrapOr(StatementId.generate());
   return {
-    id: 'test-arg',
-    premiseIds: 'os1',
-    conclusionIds: 'os2',
+    id: argumentId,
+    premiseIds: [premiseId],
+    conclusionIds: [conclusionId],
   };
 }

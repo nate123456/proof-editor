@@ -16,6 +16,39 @@ import {
 } from '../../../domain/shared/value-objects/index.js';
 import { StatementUsageEventHandler, StatementUsageTracker } from '../StatementUsageTracker.js';
 
+// Helper functions for creating test data
+function createTestDocId(id: string): ProofDocumentId {
+  const result = ProofDocumentId.create(id);
+  if (result.isErr()) {
+    throw new Error(`Failed to create ProofDocumentId: ${id}`);
+  }
+  return result.value;
+}
+
+function createTestStatementId(id: string): StatementId {
+  const result = StatementId.create(id);
+  if (result.isErr()) {
+    throw new Error(`Failed to create StatementId: ${id}`);
+  }
+  return result.value;
+}
+
+function createTestContent(content: string): StatementContent {
+  const result = StatementContent.create(content);
+  if (result.isErr()) {
+    throw new Error(`Failed to create StatementContent: ${content}`);
+  }
+  return result.value;
+}
+
+function _createTestAtomicArgumentId(id: string): AtomicArgumentId {
+  const result = AtomicArgumentId.create(id);
+  if (result.isErr()) {
+    throw new Error(`Failed to create AtomicArgumentId: ${id}`);
+  }
+  return result.value;
+}
+
 describe('StatementUsageTracker', () => {
   let tracker: StatementUsageTracker;
 
@@ -80,29 +113,29 @@ describe('StatementUsageTracker', () => {
       expect(tracker.getStatementContent('stmt-2')).toBe('Socrates is a man');
     });
 
-    it('should handle statement creation with empty content', () => {
-      const event = new StatementCreated('doc-1', {
-        statementId: 'stmt-1',
-        content: '',
+    it('should handle statement creation with minimal content', () => {
+      const event = new StatementCreated(createTestDocId('doc-1'), {
+        statementId: createTestStatementId('stmt-1'),
+        content: createTestContent('a'),
       });
 
       tracker.handleStatementCreated(event);
 
       expect(tracker.getUsageCount('stmt-1')).toBe(0);
-      expect(tracker.getStatementContent('stmt-1')).toBe('');
+      expect(tracker.getStatementContent('stmt-1')).toBe('a');
     });
   });
 
   describe('handleStatementDeleted', () => {
     it('should remove statement from tracking', () => {
-      const createEvent = new StatementCreated('doc-1', {
-        statementId: 'stmt-1',
-        content: 'All men are mortal',
+      const createEvent = new StatementCreated(createTestDocId('doc-1'), {
+        statementId: createTestStatementId('stmt-1'),
+        content: createTestContent('All men are mortal'),
       });
 
-      const deleteEvent = new StatementDeleted('doc-1', {
-        statementId: 'stmt-1',
-        content: 'All men are mortal',
+      const deleteEvent = new StatementDeleted(createTestDocId('doc-1'), {
+        statementId: createTestStatementId('stmt-1'),
+        content: createTestContent('All men are mortal'),
       });
 
       tracker.handleStatementCreated(createEvent);
@@ -113,9 +146,9 @@ describe('StatementUsageTracker', () => {
     });
 
     it('should handle deletion of non-existent statement', () => {
-      const event = new StatementDeleted('doc-1', {
-        statementId: 'non-existent',
-        content: 'Some content',
+      const event = new StatementDeleted(createTestDocId('doc-1'), {
+        statementId: createTestStatementId('non-existent'),
+        content: createTestContent('Some content'),
       });
 
       expect(() => tracker.handleStatementDeleted(event)).not.toThrow();
@@ -421,9 +454,9 @@ describe('StatementUsageTracker', () => {
     });
 
     it('should return correct content', () => {
-      const event = new StatementCreated('doc-1', {
-        statementId: 'stmt-1',
-        content: 'All men are mortal',
+      const event = new StatementCreated(createTestDocId('doc-1'), {
+        statementId: createTestStatementId('stmt-1'),
+        content: createTestContent('All men are mortal'),
       });
 
       tracker.handleStatementCreated(event);
@@ -438,14 +471,14 @@ describe('StatementUsageTracker', () => {
     });
 
     it('should return statements with zero usage', () => {
-      const createStmt1 = new StatementCreated('doc-1', {
-        statementId: 'stmt-1',
-        content: 'All men are mortal',
+      const createStmt1 = new StatementCreated(createTestDocId('doc-1'), {
+        statementId: createTestStatementId('stmt-1'),
+        content: createTestContent('All men are mortal'),
       });
 
-      const createStmt2 = new StatementCreated('doc-1', {
-        statementId: 'stmt-2',
-        content: 'Socrates is a man',
+      const createStmt2 = new StatementCreated(createTestDocId('doc-1'), {
+        statementId: createTestStatementId('stmt-2'),
+        content: createTestContent('Socrates is a man'),
       });
 
       const docId = ProofDocumentId.create('doc-1');
@@ -471,9 +504,9 @@ describe('StatementUsageTracker', () => {
     });
 
     it('should handle statements with content but no tracking', () => {
-      const createStmt = new StatementCreated('doc-1', {
-        statementId: 'stmt-1',
-        content: 'All men are mortal',
+      const createStmt = new StatementCreated(createTestDocId('doc-1'), {
+        statementId: createTestStatementId('stmt-1'),
+        content: createTestContent('All men are mortal'),
       });
 
       tracker.handleStatementCreated(createStmt);
@@ -489,19 +522,19 @@ describe('StatementUsageTracker', () => {
     });
 
     it('should return statements sorted by usage count', () => {
-      const createStmt1 = new StatementCreated('doc-1', {
-        statementId: 'stmt-1',
-        content: 'All men are mortal',
+      const createStmt1 = new StatementCreated(createTestDocId('doc-1'), {
+        statementId: createTestStatementId('stmt-1'),
+        content: createTestContent('All men are mortal'),
       });
 
-      const createStmt2 = new StatementCreated('doc-1', {
-        statementId: 'stmt-2',
-        content: 'Socrates is a man',
+      const createStmt2 = new StatementCreated(createTestDocId('doc-1'), {
+        statementId: createTestStatementId('stmt-2'),
+        content: createTestContent('Socrates is a man'),
       });
 
-      const createStmt3 = new StatementCreated('doc-1', {
-        statementId: 'stmt-3',
-        content: 'Socrates is mortal',
+      const createStmt3 = new StatementCreated(createTestDocId('doc-1'), {
+        statementId: createTestStatementId('stmt-3'),
+        content: createTestContent('Socrates is mortal'),
       });
 
       tracker.handleStatementCreated(createStmt1);
@@ -559,19 +592,19 @@ describe('StatementUsageTracker', () => {
     });
 
     it('should respect the limit parameter', () => {
-      const createStmt1 = new StatementCreated('doc-1', {
-        statementId: 'stmt-1',
-        content: 'Statement 1',
+      const createStmt1 = new StatementCreated(createTestDocId('doc-1'), {
+        statementId: createTestStatementId('stmt-1'),
+        content: createTestContent('Statement 1'),
       });
 
-      const createStmt2 = new StatementCreated('doc-1', {
-        statementId: 'stmt-2',
-        content: 'Statement 2',
+      const createStmt2 = new StatementCreated(createTestDocId('doc-1'), {
+        statementId: createTestStatementId('stmt-2'),
+        content: createTestContent('Statement 2'),
       });
 
-      const createStmt3 = new StatementCreated('doc-1', {
-        statementId: 'stmt-3',
-        content: 'Statement 3',
+      const createStmt3 = new StatementCreated(createTestDocId('doc-1'), {
+        statementId: createTestStatementId('stmt-3'),
+        content: createTestContent('Statement 3'),
       });
 
       tracker.handleStatementCreated(createStmt1);
@@ -601,14 +634,14 @@ describe('StatementUsageTracker', () => {
     });
 
     it('should not include statements with zero usage', () => {
-      const createStmt1 = new StatementCreated('doc-1', {
-        statementId: 'stmt-1',
-        content: 'Used statement',
+      const createStmt1 = new StatementCreated(createTestDocId('doc-1'), {
+        statementId: createTestStatementId('stmt-1'),
+        content: createTestContent('Used statement'),
       });
 
-      const createStmt2 = new StatementCreated('doc-1', {
-        statementId: 'stmt-2',
-        content: 'Unused statement',
+      const createStmt2 = new StatementCreated(createTestDocId('doc-1'), {
+        statementId: createTestStatementId('stmt-2'),
+        content: createTestContent('Unused statement'),
       });
 
       tracker.handleStatementCreated(createStmt1);
@@ -649,19 +682,19 @@ describe('StatementUsageTracker', () => {
     });
 
     it('should return correct statistics', () => {
-      const createStmt1 = new StatementCreated('doc-1', {
-        statementId: 'stmt-1',
-        content: 'Statement 1',
+      const createStmt1 = new StatementCreated(createTestDocId('doc-1'), {
+        statementId: createTestStatementId('stmt-1'),
+        content: createTestContent('Statement 1'),
       });
 
-      const createStmt2 = new StatementCreated('doc-1', {
-        statementId: 'stmt-2',
-        content: 'Statement 2',
+      const createStmt2 = new StatementCreated(createTestDocId('doc-1'), {
+        statementId: createTestStatementId('stmt-2'),
+        content: createTestContent('Statement 2'),
       });
 
-      const createStmt3 = new StatementCreated('doc-1', {
-        statementId: 'stmt-3',
-        content: 'Statement 3',
+      const createStmt3 = new StatementCreated(createTestDocId('doc-1'), {
+        statementId: createTestStatementId('stmt-3'),
+        content: createTestContent('Statement 3'),
       });
 
       tracker.handleStatementCreated(createStmt1);
@@ -729,9 +762,9 @@ describe('StatementUsageTracker', () => {
     });
 
     it('should return false for unused statement', () => {
-      const event = new StatementCreated('doc-1', {
-        statementId: 'stmt-1',
-        content: 'Unused statement',
+      const event = new StatementCreated(createTestDocId('doc-1'), {
+        statementId: createTestStatementId('stmt-1'),
+        content: createTestContent('Unused statement'),
       });
 
       tracker.handleStatementCreated(event);
@@ -773,19 +806,19 @@ describe('StatementUsageTracker', () => {
     });
 
     it('should find statements by content pattern', () => {
-      const createStmt1 = new StatementCreated('doc-1', {
-        statementId: 'stmt-1',
-        content: 'All men are mortal',
+      const createStmt1 = new StatementCreated(createTestDocId('doc-1'), {
+        statementId: createTestStatementId('stmt-1'),
+        content: createTestContent('All men are mortal'),
       });
 
-      const createStmt2 = new StatementCreated('doc-1', {
-        statementId: 'stmt-2',
-        content: 'Socrates is a man',
+      const createStmt2 = new StatementCreated(createTestDocId('doc-1'), {
+        statementId: createTestStatementId('stmt-2'),
+        content: createTestContent('Socrates is a man'),
       });
 
-      const createStmt3 = new StatementCreated('doc-1', {
-        statementId: 'stmt-3',
-        content: 'All humans are mortal',
+      const createStmt3 = new StatementCreated(createTestDocId('doc-1'), {
+        statementId: createTestStatementId('stmt-3'),
+        content: createTestContent('All humans are mortal'),
       });
 
       tracker.handleStatementCreated(createStmt1);
@@ -798,9 +831,9 @@ describe('StatementUsageTracker', () => {
     });
 
     it('should perform case-insensitive search', () => {
-      const createStmt = new StatementCreated('doc-1', {
-        statementId: 'stmt-1',
-        content: 'All Men Are Mortal',
+      const createStmt = new StatementCreated(createTestDocId('doc-1'), {
+        statementId: createTestStatementId('stmt-1'),
+        content: createTestContent('All Men Are Mortal'),
       });
 
       tracker.handleStatementCreated(createStmt);
@@ -811,14 +844,14 @@ describe('StatementUsageTracker', () => {
     });
 
     it('should sort results by usage count', () => {
-      const createStmt1 = new StatementCreated('doc-1', {
-        statementId: 'stmt-1',
-        content: 'All men are mortal',
+      const createStmt1 = new StatementCreated(createTestDocId('doc-1'), {
+        statementId: createTestStatementId('stmt-1'),
+        content: createTestContent('All men are mortal'),
       });
 
-      const createStmt2 = new StatementCreated('doc-1', {
-        statementId: 'stmt-2',
-        content: 'All humans are mortal',
+      const createStmt2 = new StatementCreated(createTestDocId('doc-1'), {
+        statementId: createTestStatementId('stmt-2'),
+        content: createTestContent('All humans are mortal'),
       });
 
       tracker.handleStatementCreated(createStmt1);
@@ -881,14 +914,14 @@ describe('StatementUsageTracker', () => {
     });
 
     it('should return all statements with their usage counts', () => {
-      const createStmt1 = new StatementCreated('doc-1', {
-        statementId: 'stmt-1',
-        content: 'All men are mortal',
+      const createStmt1 = new StatementCreated(createTestDocId('doc-1'), {
+        statementId: createTestStatementId('stmt-1'),
+        content: createTestContent('All men are mortal'),
       });
 
-      const createStmt2 = new StatementCreated('doc-1', {
-        statementId: 'stmt-2',
-        content: 'Socrates is a man',
+      const createStmt2 = new StatementCreated(createTestDocId('doc-1'), {
+        statementId: createTestStatementId('stmt-2'),
+        content: createTestContent('Socrates is a man'),
       });
 
       tracker.handleStatementCreated(createStmt1);
@@ -917,14 +950,14 @@ describe('StatementUsageTracker', () => {
     });
 
     it('should sort results by content', () => {
-      const createStmt1 = new StatementCreated('doc-1', {
-        statementId: 'stmt-1',
-        content: 'Z statement',
+      const createStmt1 = new StatementCreated(createTestDocId('doc-1'), {
+        statementId: createTestStatementId('stmt-1'),
+        content: createTestContent('Z statement'),
       });
 
-      const createStmt2 = new StatementCreated('doc-1', {
-        statementId: 'stmt-2',
-        content: 'A statement',
+      const createStmt2 = new StatementCreated(createTestDocId('doc-1'), {
+        statementId: createTestStatementId('stmt-2'),
+        content: createTestContent('A statement'),
       });
 
       tracker.handleStatementCreated(createStmt1);
@@ -938,9 +971,9 @@ describe('StatementUsageTracker', () => {
 
   describe('clear', () => {
     it('should clear all tracked data', () => {
-      const createStmt = new StatementCreated('doc-1', {
-        statementId: 'stmt-1',
-        content: 'All men are mortal',
+      const createStmt = new StatementCreated(createTestDocId('doc-1'), {
+        statementId: createTestStatementId('stmt-1'),
+        content: createTestContent('All men are mortal'),
       });
 
       const docId = ProofDocumentId.create('doc-1');
@@ -973,9 +1006,9 @@ describe('StatementUsageTracker', () => {
 
   describe('export', () => {
     it('should export tracked data', () => {
-      const createStmt = new StatementCreated('doc-1', {
-        statementId: 'stmt-1',
-        content: 'All men are mortal',
+      const createStmt = new StatementCreated(createTestDocId('doc-1'), {
+        statementId: createTestStatementId('stmt-1'),
+        content: createTestContent('All men are mortal'),
       });
 
       const docId = ProofDocumentId.create('doc-1');
@@ -1027,9 +1060,9 @@ describe('StatementUsageTracker', () => {
     });
 
     it('should replace existing data when importing', () => {
-      const createStmt = new StatementCreated('doc-1', {
-        statementId: 'stmt-1',
-        content: 'Original content',
+      const createStmt = new StatementCreated(createTestDocId('doc-1'), {
+        statementId: createTestStatementId('stmt-1'),
+        content: createTestContent('Original content'),
       });
 
       tracker.handleStatementCreated(createStmt);
@@ -1069,9 +1102,9 @@ describe('StatementUsageEventHandler', () => {
 
   describe('handle', () => {
     it('should handle StatementCreated events', () => {
-      const event = new StatementCreated('doc-1', {
-        statementId: 'stmt-1',
-        content: 'All men are mortal',
+      const event = new StatementCreated(createTestDocId('doc-1'), {
+        statementId: createTestStatementId('stmt-1'),
+        content: createTestContent('All men are mortal'),
       });
 
       handler.handle(event);
@@ -1081,14 +1114,14 @@ describe('StatementUsageEventHandler', () => {
     });
 
     it('should handle StatementDeleted events', () => {
-      const createEvent = new StatementCreated('doc-1', {
-        statementId: 'stmt-1',
-        content: 'All men are mortal',
+      const createEvent = new StatementCreated(createTestDocId('doc-1'), {
+        statementId: createTestStatementId('stmt-1'),
+        content: createTestContent('All men are mortal'),
       });
 
-      const deleteEvent = new StatementDeleted('doc-1', {
-        statementId: 'stmt-1',
-        content: 'All men are mortal',
+      const deleteEvent = new StatementDeleted(createTestDocId('doc-1'), {
+        statementId: createTestStatementId('stmt-1'),
+        content: createTestContent('All men are mortal'),
       });
 
       handler.handle(createEvent);
@@ -1162,18 +1195,18 @@ describe('StatementUsageEventHandler', () => {
 
   describe('canHandle', () => {
     it('should return true for StatementCreated events', () => {
-      const event = new StatementCreated('doc-1', {
-        statementId: 'stmt-1',
-        content: 'All men are mortal',
+      const event = new StatementCreated(createTestDocId('doc-1'), {
+        statementId: createTestStatementId('stmt-1'),
+        content: createTestContent('All men are mortal'),
       });
 
       expect(handler.canHandle(event)).toBe(true);
     });
 
     it('should return true for StatementDeleted events', () => {
-      const event = new StatementDeleted('doc-1', {
-        statementId: 'stmt-1',
-        content: 'All men are mortal',
+      const event = new StatementDeleted(createTestDocId('doc-1'), {
+        statementId: createTestStatementId('stmt-1'),
+        content: createTestContent('All men are mortal'),
       });
 
       expect(handler.canHandle(event)).toBe(true);
@@ -1302,14 +1335,14 @@ describe('StatementUsageEventHandler', () => {
 
     it('should handle rapid statement creation and deletion', () => {
       for (let i = 0; i < 100; i++) {
-        const createEvent = new StatementCreated('doc-1', {
-          statementId: `stmt-${i}`,
-          content: `Statement ${i}`,
+        const createEvent = new StatementCreated(createTestDocId('doc-1'), {
+          statementId: createTestStatementId(`stmt-${i}`),
+          content: createTestContent(`Statement ${i}`),
         });
 
-        const deleteEvent = new StatementDeleted('doc-1', {
-          statementId: `stmt-${i}`,
-          content: `Statement ${i}`,
+        const deleteEvent = new StatementDeleted(createTestDocId('doc-1'), {
+          statementId: createTestStatementId(`stmt-${i}`),
+          content: createTestContent(`Statement ${i}`),
         });
 
         handler.handle(createEvent);

@@ -7,6 +7,14 @@
  */
 
 import {
+  DocumentContent,
+  DocumentId,
+  DocumentVersion,
+  FileSize,
+  Timestamp,
+  Title,
+} from '../../domain/shared/value-objects/index.js';
+import {
   type ApplicationContainer,
   activate,
   afterEach,
@@ -90,17 +98,31 @@ describe('System E2E - Error Recovery and Resilience Tests', () => {
       const originalWriteFile = fileSystemPort.writeFile;
       fileSystemPort.writeFile = vi.fn().mockResolvedValue(err(new ValidationError('Disk full')));
 
+      const docIdResult = DocumentId.create('test-save-error');
+      const contentResult = DocumentContent.create(generateComplexProofDocument(10, 5));
+      const titleResult = Title.create('Test Document');
+      const versionResult = DocumentVersion.create(1);
+
+      if (
+        !docIdResult.isOk() ||
+        !contentResult.isOk() ||
+        !titleResult.isOk() ||
+        !versionResult.isOk()
+      ) {
+        throw new Error('Failed to create value objects');
+      }
+
       const testDocument = {
-        id: 'test-save-error',
-        content: generateComplexProofDocument(10, 5),
+        id: docIdResult.value,
+        content: contentResult.value,
         metadata: {
-          id: 'test-save-error',
-          title: 'Test Document',
-          modifiedAt: new Date(),
-          size: 1000,
+          id: docIdResult.value,
+          title: titleResult.value,
+          modifiedAt: Timestamp.now(),
+          size: FileSize.fromNumber(1000).unwrapOr(FileSize.zero()),
           syncStatus: 'synced' as const,
         },
-        version: 1,
+        version: versionResult.value,
       };
 
       const result = await fileSystemPort.storeDocument(testDocument);

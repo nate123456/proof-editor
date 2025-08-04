@@ -444,15 +444,23 @@ export class SideLabels {
   }
 
   toStrings(): { left?: string; right?: string } {
-    return {
-      left: this.left?.getValue(),
-      right: this.right?.getValue(),
-    };
+    const result: { left?: string; right?: string } = {};
+    if (this.left !== undefined) {
+      result.left = this.left.getValue();
+    }
+    if (this.right !== undefined) {
+      result.right = this.right.getValue();
+    }
+    return result;
   }
 
   equals(other: SideLabels): boolean {
-    const leftEquals = this.left?.equals(other.left) ?? other.left === undefined;
-    const rightEquals = this.right?.equals(other.right) ?? other.right === undefined;
+    const leftEquals =
+      (this.left === undefined && other.left === undefined) ||
+      (this.left !== undefined && other.left !== undefined && this.left.equals(other.left));
+    const rightEquals =
+      (this.right === undefined && other.right === undefined) ||
+      (this.right !== undefined && other.right !== undefined && this.right.equals(other.right));
     return leftEquals && rightEquals;
   }
 

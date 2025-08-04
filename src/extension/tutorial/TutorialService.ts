@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import type { IUIPort } from '../../application/ports/IUIPort.js';
+import { NotificationMessage } from '../../domain/shared/value-objects/index.js';
 import type { ApplicationContainer } from '../../infrastructure/di/container.js';
 import { TOKENS } from '../../infrastructure/di/tokens.js';
 import type { BootstrapController } from '../../presentation/controllers/BootstrapController.js';
@@ -53,9 +54,12 @@ export class TutorialService {
         await this.createExampleArgument();
       } else {
         // Wait for user to create the argument manually
-        this.uiPort.showInformation(
+        const infoResult = NotificationMessage.create(
           'Great! Click "Create First Argument" in the tree panel, then fill in the form with the example premises and conclusion.',
         );
+        if (infoResult.isOk()) {
+          this.uiPort.showInformation(infoResult.value);
+        }
 
         // Give user time to create the argument
         await new Promise((resolve) => setTimeout(resolve, 10000));
@@ -88,9 +92,12 @@ export class TutorialService {
         await this.finishTutorial();
       }
     } catch (error) {
-      this.uiPort.showError(
+      const errorResult = NotificationMessage.create(
         `Tutorial error: ${error instanceof Error ? error.message : String(error)}`,
       );
+      if (errorResult.isOk()) {
+        this.uiPort.showError(errorResult.value);
+      }
     }
   }
 
@@ -117,7 +124,10 @@ export class TutorialService {
       if (result.isOk()) {
         await autoSaveProofDocument(activeEditor, this.container);
         await showProofTreeForDocument(activeEditor, this.container);
-        this.uiPort.showInformation('✅ Example argument created successfully!');
+        const infoResult = NotificationMessage.create('✅ Example argument created successfully!');
+        if (infoResult.isOk()) {
+          this.uiPort.showInformation(infoResult.value);
+        }
       }
     } catch (_error) {
       // Error creating example argument - user will be notified via UI
@@ -181,7 +191,10 @@ export class TutorialService {
     } else if (action === 'Create Another Proof') {
       await vscode.commands.executeCommand('proofEditor.createBootstrapDocument');
     } else {
-      this.uiPort.showInformation('Happy proving! 🎯');
+      const infoResult = NotificationMessage.create('Happy proving! 🎯');
+      if (infoResult.isOk()) {
+        this.uiPort.showInformation(infoResult.value);
+      }
     }
   }
 }

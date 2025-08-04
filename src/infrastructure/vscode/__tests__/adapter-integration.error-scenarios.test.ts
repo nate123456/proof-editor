@@ -13,6 +13,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as vscode from 'vscode';
 import type { StoredDocument } from '../../../application/ports/IFileSystemPort.js';
+import { NotificationMessage } from '../../../domain/shared/value-objects/index.js';
 import { VSCodeFileSystemAdapter } from '../VSCodeFileSystemAdapter.js';
 import { VSCodeUIAdapter } from '../VSCodeUIAdapter.js';
 
@@ -294,7 +295,10 @@ describe('Adapter Integration Error Scenarios', () => {
 
       // Attempting to show error notification fails
       expect(() => {
-        uiAdapter.showError('Failed to delete file');
+        const msgResult = NotificationMessage.create('Failed to delete file');
+        if (msgResult.isOk()) {
+          uiAdapter.showError(msgResult.value);
+        }
       }).toThrow('Cannot show error message');
     });
 
@@ -436,7 +440,10 @@ describe('Adapter Integration Error Scenarios', () => {
 
       // Error display also fails
       expect(() => {
-        uiAdapter.showError('Configuration file not found');
+        const msgResult = NotificationMessage.create('Configuration file not found');
+        if (msgResult.isOk()) {
+          uiAdapter.showError(msgResult.value);
+        }
       }).toThrow('Cannot display error');
 
       // Recovery attempt through alternative UI fails too
@@ -481,7 +488,10 @@ describe('Adapter Integration Error Scenarios', () => {
 
       // UI notification succeeds
       expect(() => {
-        uiAdapter.showWarning('File saved to offline storage');
+        const msgResult = NotificationMessage.create('File saved to offline storage');
+        if (msgResult.isOk()) {
+          uiAdapter.showWarning(msgResult.value);
+        }
       }).not.toThrow();
     });
 
@@ -612,7 +622,10 @@ describe('Adapter Integration Error Scenarios', () => {
       }
 
       expect(() => {
-        uiAdapter.showError('Network access denied');
+        const msgResult = NotificationMessage.create('Network access denied');
+        if (msgResult.isOk()) {
+          uiAdapter.showError(msgResult.value);
+        }
       }).toThrow('restricted by corporate policy');
     });
   });

@@ -219,13 +219,20 @@ class ProofTransaction implements IProofTransaction {
     try {
       for (const operation of this.operations) {
         const executeResult = await operation.execute();
-        const logEntry: TransactionLogEntry = {
-          type: 'operation',
-          operationId: operation.id || 'unknown',
-          timestamp: new Date(),
-          success: executeResult.isOk(),
-          error: executeResult.isErr() ? executeResult.error : undefined,
-        };
+        const logEntry: TransactionLogEntry = executeResult.isErr()
+          ? {
+              type: 'operation',
+              operationId: operation.operationId.getValue(),
+              timestamp: new Date(),
+              success: false,
+              error: executeResult.error,
+            }
+          : {
+              type: 'operation',
+              operationId: operation.operationId.getValue(),
+              timestamp: new Date(),
+              success: true,
+            };
         this.transactionLog = this.transactionLog.addEntry(logEntry);
 
         if (executeResult.isErr()) {
@@ -329,14 +336,14 @@ class ProofTransaction implements IProofTransaction {
         await operation.compensate();
         const logEntry: TransactionLogEntry = {
           type: 'compensation',
-          operationId: operation.id || 'unknown',
+          operationId: operation.operationId.getValue(),
           timestamp: new Date(),
           success: true,
         };
         this.transactionLog = this.transactionLog.addEntry(logEntry);
       } catch (error) {
         const compensationError: CompensationError = {
-          operationId: operation.id || 'unknown',
+          operationId: operation.operationId.getValue(),
           error: error instanceof Error ? error : new Error(String(error)),
           timestamp: new Date(),
         };
@@ -344,7 +351,7 @@ class ProofTransaction implements IProofTransaction {
 
         const logEntry: TransactionLogEntry = {
           type: 'compensation',
-          operationId: operation.id || 'unknown',
+          operationId: operation.operationId.getValue(),
           timestamp: new Date(),
           success: false,
           error: error instanceof Error ? error : new Error(String(error)),

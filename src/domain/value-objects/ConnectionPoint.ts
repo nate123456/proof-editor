@@ -55,7 +55,7 @@ export class ConnectionPoint extends ValueObject<{
     );
   }
 
-  equals(other: ConnectionPoint): boolean {
+  override equals(other: ConnectionPoint): boolean {
     return (
       this.value.argumentId.equals(other.value.argumentId) &&
       this.value.statementId.equals(other.value.statementId) &&
@@ -63,7 +63,7 @@ export class ConnectionPoint extends ValueObject<{
     );
   }
 
-  toString(): string {
+  override toString(): string {
     return `${this.value.argumentId.getValue()}:${this.value.statementId.getValue()}:${this.value.type}`;
   }
 }

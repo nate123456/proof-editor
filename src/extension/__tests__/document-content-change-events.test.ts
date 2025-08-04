@@ -55,6 +55,9 @@ describe('Document Content Change Events', () => {
       onDidCreate: vi.fn(() => ({ dispose: vi.fn() })),
       onDidDelete: vi.fn(() => ({ dispose: vi.fn() })),
       dispose: vi.fn(),
+      ignoreCreateEvents: false,
+      ignoreChangeEvents: false,
+      ignoreDeleteEvents: false,
     });
   });
 
@@ -313,14 +316,14 @@ describe('Document Content Change Events', () => {
       expect(mockValidationController.validateDocumentDebounced).toHaveBeenCalled();
     });
 
-    it('should handle change events with different save reasons', async () => {
-      const manualSaveEvent = {
-        ...mockChangeEvent,
-        reason: vscode.TextDocumentSaveReason.Manual,
+    it('should handle change events from different editors', async () => {
+      const differentDocument = {
+        ...mockTextDocument,
+        uri: vscode.Uri.file('/test/different.proof'),
       };
 
       Object.defineProperty(vscode.window, 'visibleTextEditors', {
-        value: [createMockTextEditor(mockTextDocument)],
+        value: [createMockTextEditor(mockTextDocument), createMockTextEditor(differentDocument)],
         writable: true,
         configurable: true,
       });
@@ -334,7 +337,13 @@ describe('Document Content Change Events', () => {
         throw new Error('onDidChangeTextDocument handler not registered');
       }
 
-      await handler(manualSaveEvent);
+      const changeEvent = {
+        document: differentDocument,
+        contentChanges: mockChangeEvent.contentChanges,
+        reason: undefined,
+      };
+
+      await handler(changeEvent as vscode.TextDocumentChangeEvent);
 
       expect(mockPanelManager.createPanelWithServices).toHaveBeenCalled();
       expect(mockValidationController.validateDocumentDebounced).toHaveBeenCalled();

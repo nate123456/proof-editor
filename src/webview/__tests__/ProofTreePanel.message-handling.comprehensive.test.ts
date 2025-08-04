@@ -13,6 +13,7 @@ import type { ProofApplicationService } from '../../application/services/ProofAp
 import type { ProofVisualizationService } from '../../application/services/ProofVisualizationService.js';
 import type { ViewStateManager } from '../../application/services/ViewStateManager.js';
 import { ValidationError } from '../../domain/shared/result.js';
+import { WebviewId } from '../../domain/shared/value-objects/identifiers.js';
 import type { YAMLSerializer } from '../../infrastructure/repositories/yaml/YAMLSerializer.js';
 import type { BootstrapController } from '../../presentation/controllers/BootstrapController.js';
 import { ProofTreePanel } from '../ProofTreePanel.js';
@@ -42,7 +43,7 @@ describe('ProofTreePanel Message Handling - Comprehensive Coverage', () => {
 
     // Setup comprehensive mocks
     mockWebviewPanel = {
-      id: 'test-panel',
+      id: WebviewId.create('test-panel').unwrapOr(null as any),
       webview: {
         html: '',
         onDidReceiveMessage: vi.fn((handler) => {
@@ -972,7 +973,11 @@ describe('ProofTreePanel Message Handling - Comprehensive Coverage', () => {
       }
 
       // Assert
-      expect(mockUIPort.showError).toHaveBeenCalledWith('Custom error message');
+      expect(mockUIPort.showError).toHaveBeenCalledWith(
+        expect.objectContaining({
+          value: 'Custom error message',
+        }),
+      );
     });
   });
 

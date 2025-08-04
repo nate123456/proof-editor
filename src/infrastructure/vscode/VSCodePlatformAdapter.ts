@@ -9,17 +9,36 @@ import type {
   PlatformFeature,
   PlatformInfo,
 } from '../../application/ports/IPlatformPort.js';
-import { Dimensions } from '../../domain/shared/value-objects/index.js';
+import {
+  Architecture,
+  Dimensions,
+  ErrorCode,
+  ErrorMessage,
+  PlatformVersion,
+} from '../../domain/shared/value-objects/index.js';
 
 export class VSCodePlatformAdapter implements IPlatformPort {
   constructor(private readonly context: vscode.ExtensionContext) {}
 
   getPlatformInfo(): PlatformInfo {
+    const versionResult = PlatformVersion.create(vscode.version);
+    const archResult = Architecture.create(process.arch);
+
     return {
       type: 'vscode',
-      version: vscode.version,
+      version: versionResult.isOk()
+        ? versionResult.value
+        : (() => {
+            const fallback = PlatformVersion.create('unknown');
+            return fallback.isOk() ? fallback.value : ({} as PlatformVersion);
+          })(),
       os: this.detectOS(),
-      arch: process.arch,
+      arch: archResult.isOk()
+        ? archResult.value
+        : (() => {
+            const fallback = Architecture.create('unknown');
+            return fallback.isOk() ? fallback.value : ({} as Architecture);
+          })(),
       isDebug: process.env.NODE_ENV === 'development',
     };
   }
@@ -72,9 +91,23 @@ export class VSCodePlatformAdapter implements IPlatformPort {
       await vscode.env.openExternal(vscode.Uri.parse(url));
       return ok(undefined);
     } catch (error) {
+      const errorCode = ErrorCode.create('PLATFORM_ERROR');
+      const errorMessage = ErrorMessage.create(
+        error instanceof Error ? error.message : 'Failed to open external URL',
+      );
+
+      if (errorCode.isErr() || errorMessage.isErr()) {
+        const fallbackCode = ErrorCode.create('UNKNOWN');
+        const fallbackMessage = ErrorMessage.create('Failed to open external URL');
+        return err({
+          code: fallbackCode.isOk() ? fallbackCode.value : ({} as ErrorCode),
+          message: fallbackMessage.isOk() ? fallbackMessage.value : ({} as ErrorMessage),
+        });
+      }
+
       return err({
-        code: 'PLATFORM_ERROR',
-        message: error instanceof Error ? error.message : 'Failed to open external URL',
+        code: errorCode.value,
+        message: errorMessage.value,
       });
     }
   }
@@ -84,9 +117,23 @@ export class VSCodePlatformAdapter implements IPlatformPort {
       await vscode.env.clipboard.writeText(text);
       return ok(undefined);
     } catch (error) {
+      const errorCode = ErrorCode.create('PLATFORM_ERROR');
+      const errorMessage = ErrorMessage.create(
+        error instanceof Error ? error.message : 'Failed to copy to clipboard',
+      );
+
+      if (errorCode.isErr() || errorMessage.isErr()) {
+        const fallbackCode = ErrorCode.create('UNKNOWN');
+        const fallbackMessage = ErrorMessage.create('Failed to copy to clipboard');
+        return err({
+          code: fallbackCode.isOk() ? fallbackCode.value : ({} as ErrorCode),
+          message: fallbackMessage.isOk() ? fallbackMessage.value : ({} as ErrorMessage),
+        });
+      }
+
       return err({
-        code: 'PLATFORM_ERROR',
-        message: error instanceof Error ? error.message : 'Failed to copy to clipboard',
+        code: errorCode.value,
+        message: errorMessage.value,
       });
     }
   }
@@ -96,9 +143,23 @@ export class VSCodePlatformAdapter implements IPlatformPort {
       const text = await vscode.env.clipboard.readText();
       return ok(text || null);
     } catch (error) {
+      const errorCode = ErrorCode.create('PLATFORM_ERROR');
+      const errorMessage = ErrorMessage.create(
+        error instanceof Error ? error.message : 'Failed to read from clipboard',
+      );
+
+      if (errorCode.isErr() || errorMessage.isErr()) {
+        const fallbackCode = ErrorCode.create('UNKNOWN');
+        const fallbackMessage = ErrorMessage.create('Failed to read from clipboard');
+        return err({
+          code: fallbackCode.isOk() ? fallbackCode.value : ({} as ErrorCode),
+          message: fallbackMessage.isOk() ? fallbackMessage.value : ({} as ErrorMessage),
+        });
+      }
+
       return err({
-        code: 'PLATFORM_ERROR',
-        message: error instanceof Error ? error.message : 'Failed to read from clipboard',
+        code: errorCode.value,
+        message: errorMessage.value,
       });
     }
   }
@@ -138,9 +199,23 @@ export class VSCodePlatformAdapter implements IPlatformPort {
           : this.context.globalState.get<T>(key);
       return ok(value);
     } catch (error) {
+      const errorCode = ErrorCode.create('PLATFORM_ERROR');
+      const errorMessage = ErrorMessage.create(
+        error instanceof Error ? error.message : 'Failed to get storage value',
+      );
+
+      if (errorCode.isErr() || errorMessage.isErr()) {
+        const fallbackCode = ErrorCode.create('UNKNOWN');
+        const fallbackMessage = ErrorMessage.create('Failed to get storage value');
+        return err({
+          code: fallbackCode.isOk() ? fallbackCode.value : ({} as ErrorCode),
+          message: fallbackMessage.isOk() ? fallbackMessage.value : ({} as ErrorMessage),
+        });
+      }
+
       return err({
-        code: 'PLATFORM_ERROR',
-        message: error instanceof Error ? error.message : 'Failed to get storage value',
+        code: errorCode.value,
+        message: errorMessage.value,
       });
     }
   }
@@ -150,9 +225,23 @@ export class VSCodePlatformAdapter implements IPlatformPort {
       await this.context.globalState.update(key, value);
       return ok(undefined);
     } catch (error) {
+      const errorCode = ErrorCode.create('PLATFORM_ERROR');
+      const errorMessage = ErrorMessage.create(
+        error instanceof Error ? error.message : 'Failed to set storage value',
+      );
+
+      if (errorCode.isErr() || errorMessage.isErr()) {
+        const fallbackCode = ErrorCode.create('UNKNOWN');
+        const fallbackMessage = ErrorMessage.create('Failed to set storage value');
+        return err({
+          code: fallbackCode.isOk() ? fallbackCode.value : ({} as ErrorCode),
+          message: fallbackMessage.isOk() ? fallbackMessage.value : ({} as ErrorMessage),
+        });
+      }
+
       return err({
-        code: 'PLATFORM_ERROR',
-        message: error instanceof Error ? error.message : 'Failed to set storage value',
+        code: errorCode.value,
+        message: errorMessage.value,
       });
     }
   }
@@ -162,9 +251,23 @@ export class VSCodePlatformAdapter implements IPlatformPort {
       await this.context.globalState.update(key, undefined);
       return ok(undefined);
     } catch (error) {
+      const errorCode = ErrorCode.create('PLATFORM_ERROR');
+      const errorMessage = ErrorMessage.create(
+        error instanceof Error ? error.message : 'Failed to delete storage value',
+      );
+
+      if (errorCode.isErr() || errorMessage.isErr()) {
+        const fallbackCode = ErrorCode.create('UNKNOWN');
+        const fallbackMessage = ErrorMessage.create('Failed to delete storage value');
+        return err({
+          code: fallbackCode.isOk() ? fallbackCode.value : ({} as ErrorCode),
+          message: fallbackMessage.isOk() ? fallbackMessage.value : ({} as ErrorMessage),
+        });
+      }
+
       return err({
-        code: 'PLATFORM_ERROR',
-        message: error instanceof Error ? error.message : 'Failed to delete storage value',
+        code: errorCode.value,
+        message: errorMessage.value,
       });
     }
   }

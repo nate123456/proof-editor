@@ -8,6 +8,11 @@ import type { IFileSystemPort } from '../../application/ports/IFileSystemPort.js
 import type { IPlatformPort } from '../../application/ports/IPlatformPort.js';
 import type { IUIPort } from '../../application/ports/IUIPort.js';
 import type { IViewStatePort } from '../../application/ports/IViewStatePort.js';
+import { FilePath } from '../../domain/shared/value-objects/collections.js';
+import { DocumentContent, EventData } from '../../domain/shared/value-objects/content.js';
+import { MessageType } from '../../domain/shared/value-objects/enums.js';
+import { WebviewId } from '../../domain/shared/value-objects/identifiers.js';
+import { DialogTitle, ViewType } from '../../domain/shared/value-objects/ui.js';
 import { VSCodeFileSystemAdapter } from '../../infrastructure/vscode/VSCodeFileSystemAdapter.js';
 import { VSCodePlatformAdapter } from '../../infrastructure/vscode/VSCodePlatformAdapter.js';
 import { VSCodeUIAdapter } from '../../infrastructure/vscode/VSCodeUIAdapter.js';
@@ -436,9 +441,9 @@ describe('VS Code Compatibility - Comprehensive Coverage', () => {
         if (environment.features.webviews) {
           // Test webview creation
           const webviewResult = await adapter.createWebviewPanel({
-            id: 'test-panel',
-            title: 'Test Panel',
-            viewType: 'test',
+            id: WebviewId.create('test-panel')._unsafeUnwrap() as WebviewId,
+            title: DialogTitle.create('Test Panel')._unsafeUnwrap() as DialogTitle,
+            viewType: ViewType.create('test')._unsafeUnwrap() as ViewType,
             showOptions: { viewColumn: 1 },
             retainContextWhenHidden: true,
             enableScripts: true,
@@ -454,9 +459,9 @@ describe('VS Code Compatibility - Comprehensive Coverage', () => {
 
           const degradedAdapter = new VSCodeUIAdapter(mockWithoutWebviews as any);
           const result = await degradedAdapter.createWebviewPanel({
-            id: 'test-panel',
-            title: 'Test Panel',
-            viewType: 'test',
+            id: WebviewId.create('test-panel')._unsafeUnwrap() as WebviewId,
+            title: DialogTitle.create('Test Panel')._unsafeUnwrap() as DialogTitle,
+            viewType: ViewType.create('test')._unsafeUnwrap() as ViewType,
             showOptions: { viewColumn: 1 },
             retainContextWhenHidden: true,
             enableScripts: true,
@@ -479,7 +484,15 @@ describe('VS Code Compatibility - Comprehensive Coverage', () => {
 
       // Test remote file operations
       const remotePath = `${remoteEnvironment.paths.workspaceExample}/remote-test.proof`;
-      const writeResult = await fileAdapter.writeFile(remotePath, 'remote content');
+      const pathResult = FilePath.create(remotePath);
+      if (pathResult.isErr()) {
+        throw new Error(`Invalid path: ${pathResult.error.message}`);
+      }
+      const contentResult = DocumentContent.create('remote content');
+      if (contentResult.isErr()) {
+        throw new Error(`Invalid content: ${contentResult.error.message}`);
+      }
+      const writeResult = await fileAdapter.writeFile(pathResult.value, contentResult.value);
       expect(writeResult.isOk()).toBe(true);
 
       // Test configuration in remote context (using available adapter methods)
@@ -488,7 +501,7 @@ describe('VS Code Compatibility - Comprehensive Coverage', () => {
 
       // Test file watching in remote environment (using available adapter methods)
       if (remoteEnvironment.features.fileWatching) {
-        const watchResult = fileAdapter.watch?.(remotePath, vi.fn());
+        const watchResult = fileAdapter.watch?.(pathResult.value, vi.fn());
         expect(watchResult).toBeDefined();
       }
     });
@@ -541,7 +554,11 @@ describe('VS Code Compatibility - Comprehensive Coverage', () => {
         const adapter = new VSCodeFileSystemAdapter(platformMocks.fileSystemPort as any);
 
         const startTime = performance.now();
-        const result = await adapter.readFile(`${environment.paths.workspaceExample}/test.proof`);
+        const pathResult = FilePath.create(`${environment.paths.workspaceExample}/test.proof`);
+        if (pathResult.isErr()) {
+          throw new Error(`Invalid path: ${pathResult.error.message}`);
+        }
+        const result = await adapter.readFile(pathResult.value);
         const endTime = performance.now();
 
         expect(result.isOk()).toBe(true);
@@ -563,7 +580,11 @@ describe('VS Code Compatibility - Comprehensive Coverage', () => {
         .mockRejectedValue(new Error('File watching not supported in web environment'));
 
       const adapter = new VSCodeFileSystemAdapter(platformMocks.fileSystemPort as any);
-      const result = adapter.watch?.('/test/file.proof', vi.fn());
+      const pathResult = FilePath.create('/test/file.proof');
+      if (pathResult.isErr()) {
+        throw new Error(`Invalid path: ${pathResult.error.message}`);
+      }
+      const result = adapter.watch?.(pathResult.value, vi.fn());
 
       expect(result).toBeDefined();
     });
@@ -635,9 +656,11 @@ describe('VS Code Compatibility - Comprehensive Coverage', () => {
         const adapter = new VSCodeUIAdapter(platformMocks.uiPort as any);
 
         const webviewResult = await adapter.createWebviewPanel({
-          id: `test-${environment.name.replace(/\s+/g, '-').toLowerCase()}`,
-          title: `Test ${environment.name}`,
-          viewType: 'proofTreeVisualization',
+          id: WebviewId.create(
+            `test-${environment.name.replace(/\s+/g, '-').toLowerCase()}`,
+          )._unsafeUnwrap() as WebviewId,
+          title: DialogTitle.create(`Test ${environment.name}`)._unsafeUnwrap() as DialogTitle,
+          viewType: ViewType.proofTreeVisualization(),
           showOptions: { viewColumn: 1 },
           retainContextWhenHidden: true,
           enableScripts: true,
@@ -649,9 +672,15 @@ describe('VS Code Compatibility - Comprehensive Coverage', () => {
           const panel = webviewResult;
 
           // Test message posting
-          adapter.postMessageToWebview(panel.id || 'test', {
-            type: 'test',
-            data: 'test message',
+          const webviewId = panel.id
+            ? WebviewId.create(panel.id.getValue())
+            : WebviewId.create('test');
+          if (webviewId.isErr()) {
+            throw new Error('Invalid webview ID');
+          }
+          adapter.postMessageToWebview(webviewId.value, {
+            type: MessageType.UPDATE_TREE,
+            data: EventData.fromObject({ message: 'test message' }).unwrapOr(EventData.empty()),
           });
 
           // Message posting should not throw
@@ -689,9 +718,9 @@ describe('VS Code Compatibility - Comprehensive Coverage', () => {
 
         const adapter = new VSCodeUIAdapter(platformMocks.uiPort as any);
         const result = await adapter.createWebviewPanel({
-          id: 'security-test',
-          title: 'Security Test',
-          viewType: 'test',
+          id: WebviewId.create('security-test')._unsafeUnwrap() as WebviewId,
+          title: DialogTitle.create('Security Test')._unsafeUnwrap() as DialogTitle,
+          viewType: ViewType.create('test')._unsafeUnwrap() as ViewType,
           showOptions: { viewColumn: 1 },
           retainContextWhenHidden: true,
           enableScripts: true,
@@ -734,9 +763,9 @@ describe('VS Code Compatibility - Comprehensive Coverage', () => {
 
       const adapter = new VSCodeUIAdapter(platformMocks.uiPort as any);
       const result = await adapter.createWebviewPanel({
-        id: 'disposal-test',
-        title: 'Disposal Test',
-        viewType: 'test',
+        id: WebviewId.create('disposal-test')._unsafeUnwrap() as WebviewId,
+        title: DialogTitle.create('Disposal Test')._unsafeUnwrap() as DialogTitle,
+        viewType: ViewType.create('test')._unsafeUnwrap() as ViewType,
         showOptions: { viewColumn: 1 },
         retainContextWhenHidden: true,
         enableScripts: true,
@@ -772,12 +801,19 @@ describe('VS Code Compatibility - Comprehensive Coverage', () => {
         const startMemory = process.memoryUsage().heapUsed;
 
         // Perform standard operations
-        await fileAdapter.writeFile(
+        const perfPathResult = FilePath.create(
           `${environment.paths.workspaceExample}/perf-test.proof`,
-          'test content',
         );
-        await fileAdapter.readFile(`${environment.paths.workspaceExample}/perf-test.proof`);
-        await fileAdapter.exists(`${environment.paths.workspaceExample}/perf-test.proof`);
+        if (perfPathResult.isErr()) {
+          throw new Error(`Invalid path: ${perfPathResult.error.message}`);
+        }
+        const perfContentResult = DocumentContent.create('test content');
+        if (perfContentResult.isErr()) {
+          throw new Error(`Invalid content: ${perfContentResult.error.message}`);
+        }
+        await fileAdapter.writeFile(perfPathResult.value, perfContentResult.value);
+        await fileAdapter.readFile(perfPathResult.value);
+        await fileAdapter.exists(perfPathResult.value);
 
         const endTime = performance.now();
         const endMemory = process.memoryUsage().heapUsed;
@@ -810,10 +846,19 @@ describe('VS Code Compatibility - Comprehensive Coverage', () => {
 
         const concurrentOperations = 10;
         const operations = Array.from({ length: concurrentOperations }, (_, i) =>
-          fileAdapter.writeFile(
-            `${environment.paths.workspaceExample}/concurrent-${i}.proof`,
-            `content-${i}`,
-          ),
+          (async () => {
+            const concurrentPathResult = FilePath.create(
+              `${environment.paths.workspaceExample}/concurrent-${i}.proof`,
+            );
+            if (concurrentPathResult.isErr()) {
+              throw new Error(`Invalid path: ${concurrentPathResult.error.message}`);
+            }
+            const concurrentContentResult = DocumentContent.create(`content-${i}`);
+            if (concurrentContentResult.isErr()) {
+              throw new Error(`Invalid content: ${concurrentContentResult.error.message}`);
+            }
+            return fileAdapter.writeFile(concurrentPathResult.value, concurrentContentResult.value);
+          })(),
         );
 
         const startTime = performance.now();

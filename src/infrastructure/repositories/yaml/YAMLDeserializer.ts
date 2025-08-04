@@ -156,22 +156,28 @@ export class YAMLDeserializer {
       // The old format has premises/conclusions as ordered set IDs
       // We need to look up the statements in those ordered sets
       if (argData.premises && data.orderedSets[argData.premises]) {
-        for (const stmtId of data.orderedSets[argData.premises]) {
-          const stmtIdResult = StatementId.create(stmtId);
-          if (stmtIdResult.isErr()) {
-            return err(stmtIdResult.error);
+        const orderedSet = data.orderedSets[argData.premises];
+        if (orderedSet) {
+          for (const stmtId of orderedSet) {
+            const stmtIdResult = StatementId.create(stmtId);
+            if (stmtIdResult.isErr()) {
+              return err(stmtIdResult.error);
+            }
+            premiseIds.push(stmtIdResult.value);
           }
-          premiseIds.push(stmtIdResult.value);
         }
       }
 
       if (argData.conclusions && data.orderedSets[argData.conclusions]) {
-        for (const stmtId of data.orderedSets[argData.conclusions]) {
-          const stmtIdResult = StatementId.create(stmtId);
-          if (stmtIdResult.isErr()) {
-            return err(stmtIdResult.error);
+        const orderedSet = data.orderedSets[argData.conclusions];
+        if (orderedSet) {
+          for (const stmtId of orderedSet) {
+            const stmtIdResult = StatementId.create(stmtId);
+            if (stmtIdResult.isErr()) {
+              return err(stmtIdResult.error);
+            }
+            conclusionIds.push(stmtIdResult.value);
           }
-          conclusionIds.push(stmtIdResult.value);
         }
       }
 

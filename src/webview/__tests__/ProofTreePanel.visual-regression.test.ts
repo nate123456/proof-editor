@@ -30,6 +30,7 @@ import type { DocumentQueryService } from '../../application/services/DocumentQu
 import type { ProofApplicationService } from '../../application/services/ProofApplicationService.js';
 import type { ProofVisualizationService } from '../../application/services/ProofVisualizationService.js';
 import type { ViewStateManager } from '../../application/services/ViewStateManager.js';
+import { FontFamily, FontSize, WebviewId } from '../../domain/shared/value-objects/index.js';
 import type { YAMLSerializer } from '../../infrastructure/repositories/yaml/YAMLSerializer.js';
 import type { BootstrapController } from '../../presentation/controllers/BootstrapController.js';
 import { ProofTreePanel } from '../ProofTreePanel.js';
@@ -399,7 +400,7 @@ const VisualTestData = {
  */
 function createVisualTestMocks() {
   const mockWebviewPanel: WebviewPanel = {
-    id: 'visual-test-panel',
+    id: WebviewId.create('visual-test-panel').unwrapOr(null as any),
     webview: {
       html: '',
       onDidReceiveMessage: vi.fn(),
@@ -670,7 +671,10 @@ describe('ProofTreePanel - Visual Regression Testing', () => {
         // Compare SVGs
         expect(firstSVG).toBe(secondSVG);
 
-        const comparison = compareSVGStructures(firstSVG || '', secondSVG || '');
+        const comparison = compareSVGStructures(
+          typeof firstSVG === 'object' ? firstSVG?.getValue?.() || '' : firstSVG || '',
+          typeof secondSVG === 'object' ? secondSVG?.getValue?.() || '' : secondSVG || '',
+        );
         expect(comparison.areIdentical).toBe(true);
         expect(comparison.structuralDifferences).toHaveLength(0);
         expect(comparison.contentDifferences).toHaveLength(0);
@@ -719,10 +723,11 @@ describe('ProofTreePanel - Visual Regression Testing', () => {
             .mock.calls.find((call) => call[1].type === 'updateTree');
 
           expect(updateCall).toBeDefined();
-          const svgContent = updateCall?.[1].content;
+          const messageContent = updateCall?.[1].content;
+          const svgContent = messageContent ? messageContent.getValue() : '';
 
           // Analyze SVG structure
-          const analysis = analyzeSVGStructure(svgContent || '');
+          const analysis = analyzeSVGStructure(svgContent);
 
           expect(analysis.isValid).toBe(true);
           expect(analysis.errors).toHaveLength(0);
@@ -773,7 +778,8 @@ describe('ProofTreePanel - Visual Regression Testing', () => {
           const updateCall = updateCalls[updateCalls.length - 1];
 
           expect(updateCall).toBeDefined();
-          svgs.push(updateCall?.[1].content || '');
+          const content = updateCall?.[1].content;
+          svgs.push(typeof content === 'object' ? content?.getValue?.() || '' : content || '');
         }
 
         // Analyze ID consistency
@@ -828,13 +834,17 @@ describe('ProofTreePanel - Visual Regression Testing', () => {
         const svgContent = updateCall?.[1].content;
 
         // Check theme variable usage
-        const _themeValidation = validateThemeUsage(svgContent || '');
+        const _themeValidation = validateThemeUsage(
+          typeof svgContent === 'object' ? svgContent?.getValue?.() || '' : svgContent || '',
+        );
 
         // Should use theme variables
         expect(svgContent || '').toMatch(/var\(--vscode-/);
 
         // Extract used variables
-        const colorInfo = extractColors(svgContent || '');
+        const colorInfo = extractColors(
+          typeof svgContent === 'object' ? svgContent?.getValue?.() || '' : svgContent || '',
+        );
         expect(colorInfo.cssVariables.length).toBeGreaterThan(0);
 
         // Should include essential theme variables
@@ -867,7 +877,15 @@ describe('ProofTreePanel - Visual Regression Testing', () => {
               ? 'dark'
               : 'high-contrast') as any,
           colors: {},
-          fonts: { default: 'Arial', monospace: 'Monaco', size: 14 },
+          fonts: {
+            default: FontFamily.create('Arial').unwrapOr(
+              FontFamily.create('sans-serif').unwrapOr(null as any),
+            ),
+            monospace: FontFamily.create('Monaco').unwrapOr(
+              FontFamily.create('monospace').unwrapOr(null as any),
+            ),
+            size: FontSize.create(14).unwrapOr(FontSize.create(12).unwrapOr(null as any)),
+          },
         });
 
         const result = await ProofTreePanel.createWithServices(
@@ -898,7 +916,9 @@ describe('ProofTreePanel - Visual Regression Testing', () => {
             .mock.calls.find((call) => call[1].type === 'updateTree');
 
           expect(updateCall).toBeDefined();
-          renderedSVGs[themeName] = updateCall?.[1].content || '';
+          const content = updateCall?.[1].content;
+          renderedSVGs[themeName] =
+            typeof content === 'object' ? content?.getValue?.() || '' : content || '';
 
           panel.dispose();
         }
@@ -970,8 +990,10 @@ describe('ProofTreePanel - Visual Regression Testing', () => {
         const svgContent = updateCall?.[1].content;
 
         // Extract positioning information
-        const rectMatches = (svgContent || '').match(/<rect[^>]*>/g) || [];
-        const positions = rectMatches.map((rect) => {
+        const svgStr =
+          typeof svgContent === 'object' ? svgContent?.getValue?.() || '' : svgContent || '';
+        const rectMatches = svgStr.match(/<rect[^>]*>/g) || [];
+        const positions = rectMatches.map((rect: string) => {
           const xMatch = rect.match(/x="([^"]*)"/);
           const yMatch = rect.match(/y="([^"]*)"/);
           return { x: xMatch?.[1], y: yMatch?.[1] };
@@ -990,7 +1012,9 @@ describe('ProofTreePanel - Visual Regression Testing', () => {
         expect(secondUpdateCall).toBeDefined();
         const secondSVG = secondUpdateCall?.[1].content;
 
-        const secondRectMatches = (secondSVG || '').match(/<rect[^>]*>/g) || [];
+        const secondSvgStr =
+          typeof secondSVG === 'object' ? secondSVG?.getValue?.() || '' : secondSVG || '';
+        const secondRectMatches = secondSvgStr.match(/<rect[^>]*>/g) || [];
         const secondPositions = secondRectMatches.map((rect) => {
           const xMatch = rect.match(/x="([^"]*)"/);
           const yMatch = rect.match(/y="([^"]*)"/);
@@ -1035,7 +1059,9 @@ describe('ProofTreePanel - Visual Regression Testing', () => {
         const svgContent = updateCall?.[1].content;
 
         // Verify SVG has proper viewBox for transformations
-        const analysis = analyzeSVGStructure(svgContent || '');
+        const svgString =
+          typeof svgContent === 'string' ? svgContent : svgContent?.getValue() || '';
+        const analysis = analyzeSVGStructure(svgString);
         expect(analysis.viewBox).toBeTruthy();
         expect(analysis.dimensions.width).toBeTruthy();
         expect(analysis.dimensions.height).toBeTruthy();
@@ -1093,14 +1119,16 @@ describe('ProofTreePanel - Visual Regression Testing', () => {
         const svgContent = updateCall?.[1].content;
 
         // Check for accessibility features
-        expect(svgContent || '').toMatch(/xmlns="http:\/\/www\.w3\.org\/2000\/svg"/);
+        const svgString =
+          typeof svgContent === 'string' ? svgContent : svgContent?.getValue() || '';
+        expect(svgString).toMatch(/xmlns="http:\/\/www\.w3\.org\/2000\/svg"/);
 
         // Text elements should be properly structured
-        const textElements = (svgContent || '').match(/<text[^>]*>/g) || [];
+        const textElements = svgString.match(/<text[^>]*>/g) || [];
         expect(textElements.length).toBeGreaterThan(0);
 
         // Should have proper text anchoring for readability
-        expect(svgContent || '').toMatch(/text-anchor="middle"/);
+        expect(svgString).toMatch(/text-anchor="middle"/);
 
         panel.dispose();
       }
@@ -1138,10 +1166,11 @@ describe('ProofTreePanel - Visual Regression Testing', () => {
             .mock.calls.find((call) => call[1].type === 'updateTree');
 
           expect(updateCall).toBeDefined();
-          const svgContent = updateCall?.[1].content;
+          const messageContent = updateCall?.[1].content;
+          const svgContent = messageContent ? messageContent.getValue() : '';
 
           // Apply theme and check color usage
-          const themedSVG = applyTheme(svgContent || '', themeName);
+          const themedSVG = applyTheme(svgContent, themeName);
           const colorInfo = extractColors(themedSVG);
 
           // Should have both fill and stroke colors
@@ -1216,9 +1245,10 @@ describe('ProofTreePanel - Visual Regression Testing', () => {
             .mock.calls.find((call) => call[1].type === 'updateTree');
 
           expect(updateCall).toBeDefined();
-          const svgContent = updateCall?.[1].content;
+          const messageContent = updateCall?.[1].content;
+          const svgContent = messageContent ? messageContent.getValue() : '';
 
-          const analysis = analyzeSVGStructure(svgContent || '');
+          const analysis = analyzeSVGStructure(svgContent);
 
           // SVG should adapt to viewport size
           expect(analysis.dimensions.width).toBeTruthy();

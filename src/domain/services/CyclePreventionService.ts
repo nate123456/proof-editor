@@ -16,24 +16,19 @@ export class CyclePreventionService {
     parentArgumentId: AtomicArgumentId,
     childArgumentId: AtomicArgumentId,
   ): Promise<Result<CycleValidationResult, StructureError>> {
-    const parentArgument = await this.atomicArgumentRepo.findById(parentArgumentId);
-    const childArgument = await this.atomicArgumentRepo.findById(childArgumentId);
+    const parentArgumentResult = await this.atomicArgumentRepo.findById(parentArgumentId);
+    const childArgumentResult = await this.atomicArgumentRepo.findById(childArgumentId);
 
-    if (!parentArgument || !childArgument) {
+    if (parentArgumentResult.isErr() || childArgumentResult.isErr()) {
       return err(new StructureError('One or both arguments not found'));
     }
 
-    const safetyValidation = parentArgument.validateConnectionSafety(childArgument);
-    if (safetyValidation.isErr()) {
-      const result = new CycleValidationResult(
-        true,
-        [parentArgumentId, childArgumentId],
-        safetyValidation.error.message,
-      );
-      return ok(result);
-    }
+    const parentArgument = parentArgumentResult.value;
+    const childArgument = childArgumentResult.value;
 
-    const wouldCreateDirectCycle = parentArgument.wouldCreateDirectCycle(childArgument);
+    // Check if they are directly connected (would create a direct cycle)
+    const wouldCreateDirectCycle = childArgument.isDirectlyConnectedTo(parentArgument);
+
     const result = new CycleValidationResult(
       wouldCreateDirectCycle,
       wouldCreateDirectCycle ? [parentArgumentId, childArgumentId] : [],
@@ -48,11 +43,12 @@ export class CyclePreventionService {
     parentNodeId: NodeId,
     childNodeId: NodeId,
   ): Promise<Result<TreeCycleValidationResult, StructureError>> {
-    const tree = await this.treeRepo.findById(treeId);
-    if (!tree) {
+    const treeResult = await this.treeRepo.findById(treeId);
+    if (treeResult.isErr()) {
       return err(new StructureError('Tree not found'));
     }
 
+    const tree = treeResult.value;
     const wouldCreateCycle = tree.canCreateCycle(childNodeId, parentNodeId);
     const ancestorPath = wouldCreateCycle
       ? this.traceAncestorPath(tree, parentNodeId, childNodeId)

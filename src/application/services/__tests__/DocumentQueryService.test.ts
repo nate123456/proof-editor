@@ -1,6 +1,7 @@
 import { err, ok } from 'neverthrow';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { ProofDocument } from '../../../domain/aggregates/ProofDocument.js';
+import { RepositoryError } from '../../../domain/errors/DomainErrors.js';
 import type { IProofDocumentRepository } from '../../../domain/repositories/IProofDocumentRepository.js';
 import { ProofDocumentId } from '../../../domain/shared/value-objects/index.js';
 import { ParseFailureError } from '../../../parser/ParseError.js';
@@ -42,14 +43,14 @@ describe('DocumentQueryService', () => {
       if (!docIdResult.isOk()) return;
 
       const mockDocument = createMockProofDocument(documentId);
-      mockRepository.findById.mockResolvedValue(mockDocument);
+      mockRepository.findById.mockResolvedValue(ok(mockDocument));
 
       const result = await service.getDocumentById(documentId);
 
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         expect(result.value.id).toBe(documentId);
-        expect(result.value.version).toBe(mockDocument.getVersion());
+        expect(result.value.version).toBe(1);
       }
     });
 
@@ -66,7 +67,7 @@ describe('DocumentQueryService', () => {
 
     test('returns error when document not found', async () => {
       const documentId = 'nonexistent-doc';
-      mockRepository.findById.mockResolvedValue(null);
+      mockRepository.findById.mockResolvedValue(err(new RepositoryError('Document not found')));
 
       const result = await service.getDocumentById(documentId);
 
@@ -93,7 +94,7 @@ describe('DocumentQueryService', () => {
     test('returns document DTO with statistics', async () => {
       const documentId = 'test-doc-id';
       const mockDocument = createMockProofDocument(documentId);
-      mockRepository.findById.mockResolvedValue(mockDocument);
+      mockRepository.findById.mockResolvedValue(ok(mockDocument));
 
       const result = await service.getDocumentWithStats(documentId);
 
@@ -108,7 +109,7 @@ describe('DocumentQueryService', () => {
 
     test('handles errors same as getDocumentById', async () => {
       const documentId = 'nonexistent-doc';
-      mockRepository.findById.mockResolvedValue(null);
+      mockRepository.findById.mockResolvedValue(err(new RepositoryError('Document not found')));
 
       const result = await service.getDocumentWithStats(documentId);
 
@@ -219,14 +220,14 @@ describe('DocumentQueryService', () => {
     test('returns metadata for existing document', async () => {
       const documentId = 'test-doc-id';
       const mockDocument = createMockProofDocument(documentId);
-      mockRepository.findById.mockResolvedValue(mockDocument);
+      mockRepository.findById.mockResolvedValue(ok(mockDocument));
 
       const result = await service.getDocumentMetadata(documentId);
 
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         expect(result.value.id).toBe(documentId);
-        expect(result.value.version).toBe(mockDocument.getVersion());
+        expect(result.value.version).toBe(1);
         expect(result.value.statementCount).toBeGreaterThanOrEqual(0);
         expect(result.value.argumentCount).toBeGreaterThanOrEqual(0);
         expect(result.value.treeCount).toBe(0); // No tree integration yet
@@ -235,7 +236,7 @@ describe('DocumentQueryService', () => {
 
     test('returns error for nonexistent document', async () => {
       const documentId = 'nonexistent-doc';
-      mockRepository.findById.mockResolvedValue(null);
+      mockRepository.findById.mockResolvedValue(err(new RepositoryError('Document not found')));
 
       const result = await service.getDocumentMetadata(documentId);
 
@@ -250,7 +251,7 @@ describe('DocumentQueryService', () => {
     test('returns true for existing document', async () => {
       const documentId = 'test-doc-id';
       const mockDocument = createMockProofDocument(documentId);
-      mockRepository.findById.mockResolvedValue(mockDocument);
+      mockRepository.findById.mockResolvedValue(ok(mockDocument));
 
       const result = await service.documentExists(documentId);
 
@@ -262,7 +263,7 @@ describe('DocumentQueryService', () => {
 
     test('returns false for nonexistent document', async () => {
       const documentId = 'nonexistent-doc';
-      mockRepository.findById.mockResolvedValue(null);
+      mockRepository.findById.mockResolvedValue(err(new RepositoryError('Document not found')));
 
       const result = await service.documentExists(documentId);
 
@@ -356,13 +357,13 @@ describe('DocumentQueryService', () => {
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         expect(result.value.statements).toBeDefined();
-        expect(result.value.orderedSets).toBeDefined();
+        // OrderedSets are not exposed in DocumentDTO
         expect(result.value.atomicArguments).toBeDefined();
         expect(result.value.trees).toBeDefined();
 
         // Should have converted entities from mock document
         expect(Object.keys(result.value.statements)).toHaveLength(1);
-        expect(Object.keys(result.value.orderedSets)).toHaveLength(1);
+        // OrderedSets are not exposed in DocumentDTO
         expect(Object.keys(result.value.atomicArguments)).toHaveLength(1);
         expect(Object.keys(result.value.trees)).toHaveLength(1);
       }
@@ -379,7 +380,7 @@ describe('DocumentQueryService', () => {
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         expect(Object.keys(result.value.statements)).toHaveLength(0);
-        expect(Object.keys(result.value.orderedSets)).toHaveLength(0);
+        // OrderedSets are not exposed in DocumentDTO
         expect(Object.keys(result.value.atomicArguments)).toHaveLength(0);
         expect(Object.keys(result.value.trees)).toHaveLength(0);
       }
@@ -405,7 +406,6 @@ function createMockProofDocument(id: string): ProofDocument {
 function createMockParserProofDocument(): ParserProofDocument {
   return {
     statements: new Map(),
-    orderedSets: new Map(),
     atomicArguments: new Map(),
     trees: new Map(),
     nodes: new Map(),
@@ -441,7 +441,6 @@ function createComplexMockParserProofDocument(): ParserProofDocument {
 
   return {
     statements: new Map([['s1', mockStatement as any]]),
-    orderedSets: new Map([['os1', mockOrderedSet as any]]),
     atomicArguments: new Map([['arg1', mockArgument as any]]),
     trees: new Map([['tree1', mockTree as any]]),
     nodes: new Map(),
@@ -451,7 +450,6 @@ function createComplexMockParserProofDocument(): ParserProofDocument {
 function createEmptyMockParserProofDocument(): ParserProofDocument {
   return {
     statements: new Map(),
-    orderedSets: new Map(),
     atomicArguments: new Map(),
     trees: new Map(),
     nodes: new Map(),

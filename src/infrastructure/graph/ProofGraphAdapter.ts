@@ -7,7 +7,7 @@ import type { Tree } from '../../domain/entities/Tree.js';
 import { ProcessingError } from '../../domain/errors/DomainErrors.js';
 import type { IAtomicArgumentRepository } from '../../domain/repositories/IAtomicArgumentRepository.js';
 import type { INodeRepository } from '../../domain/repositories/INodeRepository.js';
-import { AtomicArgumentConnectionService } from '../../domain/services/AtomicArgumentConnectionService.js';
+import { findConnectionsTo } from '../../domain/services/AtomicArgumentConnectionService.js';
 import type {
   GraphPerformanceMetrics,
   IGraphTraversalService,
@@ -579,8 +579,13 @@ export class ProofGraphAdapter implements IGraphTraversalService {
       for (let j = 0; j < nodeList.length; j++) {
         if (i === j) continue;
 
-        const [nodeId1, node1] = nodeList[i];
-        const [nodeId2, node2] = nodeList[j];
+        const entry1 = nodeList[i];
+        const entry2 = nodeList[j];
+
+        if (!entry1 || !entry2) continue;
+
+        const [nodeId1, node1] = entry1;
+        const [nodeId2, node2] = entry2;
 
         const arg1 = argumentMap.get(node1.getArgumentId().getValue());
         const arg2 = argumentMap.get(node2.getArgumentId().getValue());
@@ -598,7 +603,7 @@ export class ProofGraphAdapter implements IGraphTraversalService {
     arg1: AtomicArgument,
     arg2: AtomicArgument,
   ): void {
-    const connections = AtomicArgumentConnectionService.findConnectionsTo(arg1, arg2);
+    const connections = findConnectionsTo(arg1, arg2);
 
     for (const connection of connections) {
       const edgeKey = `${nodeId1}-${nodeId2}-${connection.statement.getId().getValue()}-${connection.fromConclusionPosition}-${connection.toPremisePosition.getValue()}`;

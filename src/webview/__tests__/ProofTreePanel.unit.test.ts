@@ -11,6 +11,7 @@ import type { ProofApplicationService } from '../../application/services/ProofAp
 import type { ProofVisualizationService } from '../../application/services/ProofVisualizationService.js';
 import type { ViewStateManager } from '../../application/services/ViewStateManager.js';
 import { ValidationError } from '../../domain/shared/result.js';
+import { WebviewId } from '../../domain/shared/value-objects/identifiers.js';
 import type { YAMLSerializer } from '../../infrastructure/repositories/yaml/YAMLSerializer.js';
 import type { BootstrapController } from '../../presentation/controllers/BootstrapController.js';
 import { ProofTreePanel } from '../ProofTreePanel.js';
@@ -39,7 +40,7 @@ describe('ProofTreePanel - Unit Tests', () => {
     };
 
     mockWebviewPanel = {
-      id: 'test-panel-unit',
+      id: WebviewId.create('test-panel-unit').unwrapOr(null as any),
       webview: mockWebview,
       onDidDispose: vi.fn(),
       reveal: vi.fn(),

@@ -5,8 +5,20 @@ import { webviewScript } from './webview-script-utils';
 import { createBasicWebviewHTML, JSDOM, setupMockVSCodeAPI } from './webview-test-utils';
 
 describe('ProofTreePanel Webview Toolbar State Management', () => {
-  let dom: JSDOM;
-  let window: Window & typeof globalThis;
+  let dom: any;
+  let window: Window &
+    typeof globalThis & {
+      updateToolbarState?: () => void;
+      zoomIn?: () => void;
+      zoomOut?: () => void;
+      resetView?: () => void;
+      exportProof?: () => void;
+      showCreateArgumentForm?: () => void;
+      showAddStatementForm?: (type: string) => void;
+      submitCreateArgumentForm?: () => void;
+      submitAddStatementForm?: () => void;
+      currentZoom?: number;
+    };
   let document: Document;
   let mockVSCode: any;
 
@@ -17,7 +29,7 @@ describe('ProofTreePanel Webview Toolbar State Management', () => {
       `<script>${webviewScript}</script></body>`,
     );
 
-    dom = new JSDOM(htmlWithScript);
+    dom = new (JSDOM as any)(htmlWithScript);
     window = dom.window as any;
     document = window.document;
 
@@ -48,9 +60,9 @@ describe('ProofTreePanel Webview Toolbar State Management', () => {
         const exportBtn = document.getElementById('export-btn');
 
         if (createBtn) createBtn.textContent = 'Create Another Argument';
-        if (addPremiseBtn) addPremiseBtn.disabled = false;
-        if (addConclusionBtn) addConclusionBtn.disabled = false;
-        if (exportBtn) exportBtn.disabled = false;
+        if (addPremiseBtn) (addPremiseBtn as HTMLButtonElement).disabled = false;
+        if (addConclusionBtn) (addConclusionBtn as HTMLButtonElement).disabled = false;
+        if (exportBtn) (exportBtn as HTMLButtonElement).disabled = false;
       };
     }
 

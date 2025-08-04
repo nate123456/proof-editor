@@ -667,6 +667,9 @@ describe('Extension Document Lifecycle Integration Tests', () => {
         onDidCreate: mockEventRegistration,
         onDidDelete: mockEventRegistration,
         dispose: vi.fn(),
+        ignoreCreateEvents: false,
+        ignoreChangeEvents: false,
+        ignoreDeleteEvents: false,
       } as any);
 
       // Act
@@ -704,6 +707,9 @@ describe('Extension Document Lifecycle Integration Tests', () => {
         onDidChange: vi.fn().mockReturnValue({ dispose: vi.fn() }),
         onDidDelete: vi.fn().mockReturnValue({ dispose: vi.fn() }),
         dispose: vi.fn(),
+        ignoreCreateEvents: false,
+        ignoreChangeEvents: false,
+        ignoreDeleteEvents: false,
       };
       vi.mocked(vscode.workspace.createFileSystemWatcher).mockReturnValue(mockWatcher as any);
 

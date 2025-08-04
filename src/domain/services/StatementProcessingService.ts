@@ -44,11 +44,12 @@ export class StatementProcessingService {
     atomicArgumentRepo: IAtomicArgumentRepository,
     conclusionIndex: number = 0,
   ): Promise<Result<AtomicArgument, ProcessingError>> {
-    const parent = await atomicArgumentRepo.findById(parentArgumentId);
-    if (!parent) {
+    const parentResult = await atomicArgumentRepo.findById(parentArgumentId);
+    if (parentResult.isErr()) {
       return err(new ProcessingError('Parent argument not found'));
     }
 
+    const parent = parentResult.value;
     const branchResult = parent.createBranchFromConclusion(conclusionIndex);
     if (branchResult.isErr()) {
       return err(new ProcessingError(branchResult.error.message, branchResult.error));
@@ -66,11 +67,12 @@ export class StatementProcessingService {
     argumentId: AtomicArgumentId,
     atomicArgumentRepo: IAtomicArgumentRepository,
   ): Promise<Result<StatementFlowValidationResult, ProcessingError>> {
-    const argument = await atomicArgumentRepo.findById(argumentId);
-    if (!argument) {
+    const argumentResult = await atomicArgumentRepo.findById(argumentId);
+    if (argumentResult.isErr()) {
       return err(new ProcessingError('Argument not found'));
     }
 
+    const argument = argumentResult.value;
     const isComplete = argument.isComplete();
     const isEmpty = argument.isEmpty();
 
@@ -82,9 +84,10 @@ export class StatementProcessingService {
     statementContent: string,
     statementRepo: IStatementRepository,
   ): Promise<Result<Statement, ProcessingError>> {
-    const existingStatement = await statementRepo.findByContent(statementContent);
+    const existingStatementResult = await statementRepo.findByContent(statementContent);
 
-    if (existingStatement) {
+    if (existingStatementResult.isOk() && existingStatementResult.value) {
+      const existingStatement = existingStatementResult.value;
       const updatedStatement = existingStatement.incrementUsage();
       const saveResult = await statementRepo.save(updatedStatement);
       if (saveResult.isErr()) {
@@ -111,11 +114,12 @@ export class StatementProcessingService {
     newContent: string,
     statementRepo: IStatementRepository,
   ): Promise<Result<void, ProcessingError>> {
-    const statement = await statementRepo.findById(statementId);
-    if (!statement) {
+    const statementResult = await statementRepo.findById(statementId);
+    if (statementResult.isErr()) {
       return err(new ProcessingError('Statement not found'));
     }
 
+    const statement = statementResult.value;
     const updateResult = statement.updateContent(newContent);
     if (updateResult.isErr()) {
       return err(new ProcessingError('Invalid content update', updateResult.error));

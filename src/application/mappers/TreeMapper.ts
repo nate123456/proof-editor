@@ -3,39 +3,57 @@ import { Tree } from '../../domain/entities/Tree.js';
 import type { ValidationError } from '../../domain/shared/result.js';
 import {
   AlignmentMode,
+  Dimensions,
   ExpansionDirection,
   LayoutStyle,
+  NodeCount,
   PhysicalProperties,
   Position2D,
   TreeId,
 } from '../../domain/shared/value-objects/index.js';
+import { TreePosition } from '../../domain/value-objects/TreePosition.js';
 import type { TreeDTO } from '../queries/shared-types.js';
 
 /**
  * Converts a Tree domain entity to a TreeDTO
  */
 export function treeToDTO(tree: Tree): TreeDTO {
-  const position = tree.getPosition();
+  const treePosition = tree.getPosition();
   const physicalProperties = tree.getPhysicalProperties();
 
+  // Convert TreePosition to Position2D for DTO
+  const position2DResult = Position2D.create(treePosition.getX(), treePosition.getY());
+  if (position2DResult.isErr()) {
+    // This should never happen with valid tree data
+    throw new Error(`Invalid position in tree: ${position2DResult.error.message}`);
+  }
+
+  // Convert physical properties to Dimensions for DTO
+  const dimensionsResult = Dimensions.create(
+    physicalProperties.getMinWidth(),
+    physicalProperties.getMinHeight(),
+  );
+  if (dimensionsResult.isErr()) {
+    // This should never happen with valid tree data
+    throw new Error(`Invalid dimensions in tree: ${dimensionsResult.error.message}`);
+  }
+
+  // Create NodeCount value object
+  const nodeCountResult = NodeCount.create(tree.getNodeCount());
+  if (nodeCountResult.isErr()) {
+    // This should never happen with valid tree data
+    throw new Error(`Invalid node count in tree: ${nodeCountResult.error.message}`);
+  }
+
   return {
-    id: tree.getId().getValue(),
-    position: {
-      x: position.getX(),
-      y: position.getY(),
-    },
-    bounds: {
-      width: physicalProperties.getMinWidth(),
-      height: physicalProperties.getMinHeight(),
-    },
-    nodeCount: tree.getNodeCount(),
-    rootNodeIds: tree
-      .getNodeIds()
-      .filter((nodeId) => {
-        const node = tree.getNode(nodeId);
-        return node && node.getParentId() === null;
-      })
-      .map((nodeId) => nodeId.getValue()),
+    id: tree.getId(),
+    position: position2DResult.value,
+    bounds: dimensionsResult.value,
+    nodeCount: nodeCountResult.value,
+    rootNodeIds: tree.getNodeIds().filter((nodeId) => {
+      const node = tree.getNode(nodeId);
+      return node && node.getParentId() === null;
+    }),
   };
 }
 
@@ -45,15 +63,15 @@ export function treeToDTO(tree: Tree): TreeDTO {
  */
 export function treeToDomain(dto: TreeDTO, documentId: string): Result<Tree, ValidationError> {
   // Parse the tree ID
-  const treeIdResult = TreeId.create(dto.id);
+  const treeIdResult = TreeId.create(dto.id.getValue());
   if (treeIdResult.isErr()) {
     return err(treeIdResult.error);
   }
 
-  // Parse position
-  const positionResult = Position2D.create(dto.position.x, dto.position.y);
-  if (positionResult.isErr()) {
-    return err(positionResult.error);
+  // Parse position - TreeDTO uses Position2D but Tree entity needs TreePosition
+  const treePositionResult = TreePosition.create(dto.position.getX(), dto.position.getY());
+  if (treePositionResult.isErr()) {
+    return err(treePositionResult.error);
   }
 
   // Create physical properties using bounds if available, otherwise use defaults
@@ -63,8 +81,8 @@ export function treeToDomain(dto: TreeDTO, documentId: string): Result<Tree, Val
       LayoutStyle.bottomUp(), // Default layout style
       20, // Default spacing X
       20, // Default spacing Y
-      dto.bounds.width,
-      dto.bounds.height,
+      dto.bounds.getWidth(),
+      dto.bounds.getHeight(),
       ExpansionDirection.horizontal(), // Default expansion direction
       AlignmentMode.center(), // Default alignment mode
     );
@@ -83,7 +101,7 @@ export function treeToDomain(dto: TreeDTO, documentId: string): Result<Tree, Val
   return Tree.reconstruct(
     treeIdResult.value,
     documentId,
-    positionResult.value,
+    treePositionResult.value,
     physicalProperties,
     [], // Empty node list - TreeDTO doesn't contain node structure
     now,

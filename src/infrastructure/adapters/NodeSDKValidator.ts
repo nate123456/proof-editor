@@ -1,29 +1,32 @@
 import { err, ok, type Result } from 'neverthrow';
-import type { ISDKValidator } from '../../contexts/package-ecosystem/domain/services/PackageValidationService.js';
-import type { PackageValidationError } from '../../contexts/package-ecosystem/domain/types/domain-errors.js';
+// import type { ISDKValidator } from '../../contexts/package-ecosystem/domain/services/PackageValidationService.js';
+import { PackageValidationError } from '../../contexts/package-ecosystem/domain/types/domain-errors.js';
 
-export class NodeSDKValidator implements ISDKValidator {
+// This class provides SDK validation utilities but doesn't fully implement ISDKValidator
+// TODO: Either implement the full interface or create a different interface for version validation
+export class NodeSDKValidator {
   validateNodeVersion(version: string): Result<boolean, PackageValidationError> {
     const nodeVersionRegex = /^v?(\d+)\.(\d+)\.(\d+)(?:-(.+))?$/;
     const match = version.match(nodeVersionRegex);
 
     if (!match) {
-      return err({
-        code: 'INVALID_VERSION_FORMAT',
-        message: `Invalid Node.js version format: ${version}`,
-        details: { version },
-      });
+      return err(
+        new PackageValidationError(`Invalid Node.js version format: ${version}`, {
+          version,
+        }),
+      );
     }
 
     const [, major] = match;
-    const majorNum = Number.parseInt(major, 10);
+    const majorNum = Number.parseInt(major || '0', 10);
 
     if (majorNum < 16) {
-      return err({
-        code: 'UNSUPPORTED_NODE_VERSION',
-        message: `Node.js version ${version} is not supported. Minimum required: 16.0.0`,
-        details: { version, minimumRequired: '16.0.0' },
-      });
+      return err(
+        new PackageValidationError(
+          `Node.js version ${version} is not supported. Minimum required: 16.0.0`,
+          { version, minimumRequired: '16.0.0' },
+        ),
+      );
     }
 
     return ok(true);
@@ -34,22 +37,26 @@ export class NodeSDKValidator implements ISDKValidator {
     const match = version.match(npmVersionRegex);
 
     if (!match) {
-      return err({
-        code: 'INVALID_VERSION_FORMAT',
-        message: `Invalid npm version format: ${version}`,
-        details: { version },
-      });
+      return err(
+        new PackageValidationError(`Invalid npm version format: ${version}`, {
+          version,
+        }),
+      );
     }
 
     const [, major] = match;
-    const majorNum = Number.parseInt(major, 10);
+    const majorNum = Number.parseInt(major || '0', 10);
 
     if (majorNum < 7) {
-      return err({
-        code: 'UNSUPPORTED_NPM_VERSION',
-        message: `npm version ${version} is not supported. Minimum required: 7.0.0`,
-        details: { version, minimumRequired: '7.0.0' },
-      });
+      return err(
+        new PackageValidationError(
+          `npm version ${version} is not supported. Minimum required: 7.0.0`,
+          {
+            version,
+            minimumRequired: '7.0.0',
+          },
+        ),
+      );
     }
 
     return ok(true);
@@ -60,23 +67,24 @@ export class NodeSDKValidator implements ISDKValidator {
     const match = version.match(tsVersionRegex);
 
     if (!match) {
-      return err({
-        code: 'INVALID_VERSION_FORMAT',
-        message: `Invalid TypeScript version format: ${version}`,
-        details: { version },
-      });
+      return err(
+        new PackageValidationError(`Invalid TypeScript version format: ${version}`, {
+          version,
+        }),
+      );
     }
 
     const [, major, minor] = match;
-    const majorNum = Number.parseInt(major, 10);
-    const minorNum = Number.parseInt(minor, 10);
+    const majorNum = Number.parseInt(major || '0', 10);
+    const minorNum = Number.parseInt(minor || '0', 10);
 
     if (majorNum < 4 || (majorNum === 4 && minorNum < 5)) {
-      return err({
-        code: 'UNSUPPORTED_TYPESCRIPT_VERSION',
-        message: `TypeScript version ${version} is not supported. Minimum required: 4.5.0`,
-        details: { version, minimumRequired: '4.5.0' },
-      });
+      return err(
+        new PackageValidationError(
+          `TypeScript version ${version} is not supported. Minimum required: 4.5.0`,
+          { version, minimumRequired: '4.5.0' },
+        ),
+      );
     }
 
     return ok(true);
@@ -87,23 +95,24 @@ export class NodeSDKValidator implements ISDKValidator {
     const match = version.match(vscodeVersionRegex);
 
     if (!match) {
-      return err({
-        code: 'INVALID_VERSION_FORMAT',
-        message: `Invalid VS Code version format: ${version}`,
-        details: { version },
-      });
+      return err(
+        new PackageValidationError(`Invalid VS Code version format: ${version}`, {
+          version,
+        }),
+      );
     }
 
     const [, major, minor] = match;
-    const majorNum = Number.parseInt(major, 10);
-    const minorNum = Number.parseInt(minor, 10);
+    const majorNum = Number.parseInt(major || '0', 10);
+    const minorNum = Number.parseInt(minor || '0', 10);
 
     if (majorNum < 1 || (majorNum === 1 && minorNum < 60)) {
-      return err({
-        code: 'UNSUPPORTED_VSCODE_VERSION',
-        message: `VS Code version ${version} is not supported. Minimum required: 1.60.0`,
-        details: { version, minimumRequired: '1.60.0' },
-      });
+      return err(
+        new PackageValidationError(
+          `VS Code version ${version} is not supported. Minimum required: 1.60.0`,
+          { version, minimumRequired: '1.60.0' },
+        ),
+      );
     }
 
     return ok(true);

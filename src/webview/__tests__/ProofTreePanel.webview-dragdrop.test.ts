@@ -2,10 +2,15 @@ import 'reflect-metadata';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { webviewScript } from './webview-script-utils';
-import { createBasicWebviewHTML, JSDOM, setupMockVSCodeAPI } from './webview-test-utils';
+import {
+  createBasicWebviewHTML,
+  JSDOM,
+  type MockJSDOMImpl,
+  setupMockVSCodeAPI,
+} from './webview-test-utils';
 
 describe('ProofTreePanel Webview Drag and Drop Features', () => {
-  let dom: JSDOM;
+  let dom: MockJSDOMImpl;
   let window: Window & typeof globalThis;
   let document: Document;
   let mockVSCode: any;
@@ -17,7 +22,7 @@ describe('ProofTreePanel Webview Drag and Drop Features', () => {
       `<script>${webviewScript}</script></body>`,
     );
 
-    dom = new JSDOM(htmlWithScript);
+    dom = new JSDOM(htmlWithScript) as MockJSDOMImpl;
     window = dom.window as any;
     document = window.document;
 
@@ -381,7 +386,7 @@ describe('ProofTreePanel Webview Drag and Drop Features', () => {
     document.dispatchEvent(dragOverEvent);
 
     expect(preventDefaultSpy).toHaveBeenCalled();
-    expect(dragOverEvent.dataTransfer.dropEffect).toBe('move');
+    expect(dragOverEvent.dataTransfer?.dropEffect).toBe('move');
   });
 
   it('should set drag effect allowed on drag start', () => {

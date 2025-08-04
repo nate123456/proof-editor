@@ -1,4 +1,25 @@
 import { describe, expect, test } from 'vitest';
+import {
+  Architecture,
+  DialogPrompt,
+  DialogTitle,
+  Dimensions,
+  DocumentContent,
+  DocumentId,
+  DocumentVersion,
+  ErrorCode,
+  ErrorMessage,
+  FileName,
+  FilePath,
+  FileSize,
+  FontFamily,
+  FontSize,
+  PlatformVersion,
+  Timestamp,
+  Title,
+  ViewType,
+  WebviewId,
+} from '../../../domain/shared/value-objects/index.js';
 import type {
   IFileSystemPort,
   InputBoxOptions,
@@ -13,15 +34,32 @@ function createMockFileSystemPort(): IFileSystemPort {
   const storage = new Map<string, StoredDocument>();
 
   return {
-    async readFile(path: string) {
-      if (path === '/non/existent') {
+    async readFile(path: FilePath) {
+      if (path.getValue() === '/non/existent') {
+        const errorCode = ErrorCode.fromString('NOT_FOUND');
+        const errorMessage = ErrorMessage.fromString('File not found');
+        if (errorCode.isErr() || errorMessage.isErr()) {
+          throw new Error('Failed to create error value objects');
+        }
         return {
           isOk: () => false,
           isErr: () => true,
-          error: { code: 'NOT_FOUND', message: 'File not found', path },
+          error: {
+            code: errorCode.value,
+            message: errorMessage.value,
+            path,
+          },
         } as any;
       }
-      return { isOk: () => true, isErr: () => false, value: 'file content' } as any;
+      const content = DocumentContent.fromString('file content');
+      if (content.isErr()) {
+        throw new Error('Failed to create document content');
+      }
+      return {
+        isOk: () => true,
+        isErr: () => false,
+        value: content.value,
+      } as any;
     },
 
     async writeFile() {
@@ -44,18 +82,18 @@ function createMockFileSystemPort(): IFileSystemPort {
       return { isOk: () => true, isErr: () => false } as any;
     },
 
-    async getStoredDocument(id: string) {
-      const doc = storage.get(id);
+    async getStoredDocument(id: DocumentId) {
+      const doc = storage.get(id.getValue());
       return { isOk: () => true, isErr: () => false, value: doc || null } as any;
     },
 
     async storeDocument(doc: StoredDocument) {
-      storage.set(doc.id, doc);
+      storage.set(doc.id.getValue(), doc);
       return { isOk: () => true, isErr: () => false } as any;
     },
 
-    async deleteStoredDocument(id: string) {
-      storage.delete(id);
+    async deleteStoredDocument(id: DocumentId) {
+      storage.delete(id.getValue());
       return { isOk: () => true, isErr: () => false } as any;
     },
 
@@ -159,22 +197,39 @@ function createMockUIPort(): IUIPort {
           // Mock panel reveal
         },
         dispose: () => {
-          panels.delete(options.id);
+          panels.delete(options.id.getValue());
         },
       };
-      panels.set(options.id, panel);
+      panels.set(options.id.getValue(), panel);
       return panel;
     },
 
-    postMessageToWebview() {
+    postMessageToWebview(panelId: any) {
       // Mock message posting - no actual webview in tests
+      // panelId is used to identify which panel to send to
     },
 
     getTheme() {
       return {
         kind: 'light' as const,
         colors: {},
-        fonts: { default: 'Arial', monospace: 'Courier', size: 14 },
+        fonts: {
+          default: (() => {
+            const result = FontFamily.fromString('Arial');
+            if (result.isErr()) throw new Error('Failed to create FontFamily');
+            return result.value;
+          })(),
+          monospace: (() => {
+            const result = FontFamily.fromString('Courier');
+            if (result.isErr()) throw new Error('Failed to create FontFamily');
+            return result.value;
+          })(),
+          size: (() => {
+            const result = FontSize.fromNumber(14);
+            if (result.isErr()) throw new Error('Failed to create FontSize');
+            return result.value;
+          })(),
+        },
       };
     },
 
@@ -208,9 +263,17 @@ function createMockPlatformPort(
     getPlatformInfo() {
       return {
         type: platformType,
-        version: '1.0.0',
+        version: (() => {
+          const result = PlatformVersion.fromString('1.0.0');
+          if (result.isErr()) throw new Error('Failed to create PlatformVersion');
+          return result.value;
+        })(),
         os: platformType === 'mobile' ? 'ios' : 'macos',
-        arch: 'arm64',
+        arch: (() => {
+          const result = Architecture.fromString('arm64');
+          if (result.isErr()) throw new Error('Failed to create Architecture');
+          return result.value;
+        })(),
         isDebug: false,
       };
     },
@@ -226,9 +289,12 @@ function createMockPlatformPort(
     },
 
     getDisplayCapabilities() {
+      const dimensions = Dimensions.create(1920, 1080);
+      if (dimensions.isErr()) {
+        throw new Error('Failed to create dimensions');
+      }
       return {
-        screenWidth: 1920,
-        screenHeight: 1080,
+        screenDimensions: dimensions.value,
         devicePixelRatio: 1,
         colorDepth: 24,
         isHighContrast: false,
@@ -294,7 +360,11 @@ describe('Platform Port Contracts', () => {
     test('handles all error cases', async () => {
       const mockPort = createMockFileSystemPort();
 
-      const result = await mockPort.readFile('/non/existent');
+      const filePathResult = FilePath.fromString('/non/existent');
+      if (filePathResult.isErr()) {
+        throw new Error('Failed to create file path');
+      }
+      const result = await mockPort.readFile(filePathResult.value);
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
         expect(result.error.code).toBe('NOT_FOUND');
@@ -304,26 +374,46 @@ describe('Platform Port Contracts', () => {
     test('supports offline storage', async () => {
       const mockPort = createMockFileSystemPort();
 
+      const docId = DocumentId.fromString('test-doc');
+      const content = DocumentContent.fromString('test content');
+      const title = Title.fromString('Test Document');
+      const fileSize = FileSize.fromNumber(12);
+      const version = DocumentVersion.fromNumber(1);
+
+      if (
+        docId.isErr() ||
+        content.isErr() ||
+        title.isErr() ||
+        fileSize.isErr() ||
+        version.isErr()
+      ) {
+        throw new Error('Failed to create value objects for document');
+      }
+
       const doc: StoredDocument = {
-        id: 'test-doc',
-        content: 'test content',
+        id: docId.value,
+        content: content.value,
         metadata: {
-          id: 'test-doc',
-          title: 'Test Document',
-          modifiedAt: new Date(),
-          size: 12,
+          id: docId.value,
+          title: title.value,
+          modifiedAt: Timestamp.fromDate(new Date()),
+          size: fileSize.value,
           syncStatus: 'local',
         },
-        version: 1,
+        version: version.value,
       };
 
       const storeResult = await mockPort.storeDocument(doc);
       expect(storeResult.isOk()).toBe(true);
 
-      const getResult = await mockPort.getStoredDocument('test-doc');
+      const docIdResult = DocumentId.fromString('test-doc');
+      if (docIdResult.isErr()) {
+        throw new Error('Failed to create document ID');
+      }
+      const getResult = await mockPort.getStoredDocument(docIdResult.value);
       expect(getResult.isOk()).toBe(true);
       if (getResult.isOk()) {
-        expect(getResult.value?.content).toBe('test content');
+        expect(getResult.value?.content.getValue()).toBe('test content');
       }
     });
 
@@ -341,7 +431,11 @@ describe('Platform Port Contracts', () => {
     test('respects cancellation', async () => {
       const mockPort = createMockUIPort();
 
-      const result = await mockPort.showInputBox({ prompt: 'Test' });
+      const promptResult = DialogPrompt.fromString('Test');
+      if (promptResult.isErr()) {
+        throw new Error('Failed to create dialog prompt');
+      }
+      const result = await mockPort.showInputBox({ prompt: promptResult.value });
       // User cancels
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
@@ -352,10 +446,18 @@ describe('Platform Port Contracts', () => {
     test('creates webview panels', () => {
       const mockPort = createMockUIPort();
 
+      const webviewId = WebviewId.fromString('test-panel');
+      const dialogTitle = DialogTitle.fromString('Test Panel');
+      const viewType = ViewType.fromString('proofTree');
+
+      if (webviewId.isErr() || dialogTitle.isErr() || viewType.isErr()) {
+        throw new Error('Failed to create webview panel value objects');
+      }
+
       const panel = mockPort.createWebviewPanel({
-        id: 'test-panel',
-        title: 'Test Panel',
-        viewType: 'proof.tree',
+        id: webviewId.value,
+        title: dialogTitle.value,
+        viewType: viewType.value,
         enableScripts: true,
       });
 
@@ -366,10 +468,17 @@ describe('Platform Port Contracts', () => {
     test('handles progress operations', async () => {
       const mockPort = createMockUIPort();
 
-      const result = await mockPort.showProgress({ title: 'Testing' }, async (progress, _token) => {
-        progress.report({ message: 'Working...' });
-        return 'completed';
-      });
+      const titleResult = DialogTitle.fromString('Testing');
+      if (titleResult.isErr()) {
+        throw new Error('Failed to create dialog title');
+      }
+      const result = await mockPort.showProgress(
+        { title: titleResult.value },
+        async (progress, _token) => {
+          progress.report({ message: 'Working...' });
+          return 'completed';
+        },
+      );
 
       expect(result).toBe('completed');
     });

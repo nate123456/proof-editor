@@ -5,6 +5,7 @@ import { err } from 'neverthrow';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as vscode from 'vscode';
 import { ValidationError } from '../../domain/shared/result.js';
+import { DocumentContent, FilePath } from '../../domain/shared/value-objects/index.js';
 import { VSCodeFileSystemAdapter } from '../vscode/VSCodeFileSystemAdapter.js';
 
 // Mock VS Code module
@@ -82,6 +83,20 @@ describe('File Operations - Comprehensive Coverage', () => {
   let mockContext: vscode.ExtensionContext;
   let adapter: VSCodeFileSystemAdapter;
 
+  // Helper to create FilePath value objects
+  const createFilePath = (path: string): FilePath => {
+    const result = FilePath.create(path);
+    if (result.isErr()) throw new Error(`Invalid file path: ${path}`);
+    return result.value;
+  };
+
+  // Helper to create DocumentContent value objects
+  const createDocumentContent = (content: string): DocumentContent => {
+    const result = DocumentContent.create(content);
+    if (result.isErr()) throw new Error(`Invalid content: ${content}`);
+    return result.value;
+  };
+
   // Test data generators
   const validProofContent = `
 statements:
@@ -132,7 +147,7 @@ trees:
         vscode.FileSystemError.FileNotFound('File not found'),
       );
 
-      const existsResult = await adapter.exists(documentPath);
+      const existsResult = await adapter.exists(createFilePath(documentPath));
       expect(existsResult.isOk()).toBe(true);
       if (existsResult.isOk()) {
         expect(existsResult.value).toBe(false);
@@ -141,7 +156,10 @@ trees:
       // Step 2: Create new document
       vi.mocked(vscode.workspace.fs.writeFile).mockResolvedValue(undefined);
 
-      const createResult = await adapter.writeFile(documentPath, validProofContent);
+      const createResult = await adapter.writeFile(
+        createFilePath(documentPath),
+        createDocumentContent(validProofContent),
+      );
       expect(createResult.isOk()).toBe(true);
 
       // Step 3: Verify document was created
@@ -154,10 +172,10 @@ trees:
         new TextEncoder().encode(validProofContent),
       );
 
-      const verifyExistsResult = await adapter.exists(documentPath);
+      const verifyExistsResult = await adapter.exists(createFilePath(documentPath));
       expect(verifyExistsResult.isOk()).toBe(true);
 
-      const readResult = await adapter.readFile(documentPath);
+      const readResult = await adapter.readFile(createFilePath(documentPath));
       expect(readResult.isOk()).toBe(true);
       if (readResult.isOk()) {
         expect(readResult.value).toBe(validProofContent);
@@ -179,7 +197,10 @@ trees:
       );
 
       // Initial save
-      await adapter.writeFile(documentPath, validProofContent);
+      await adapter.writeFile(
+        createFilePath(documentPath),
+        createDocumentContent(validProofContent),
+      );
 
       // Modification 1: Add new statement
       const modification1 = savedContent.replace(
@@ -187,9 +208,9 @@ trees:
         'stmt3: "Therefore, Socrates is mortal"\n  stmt4: "All mortals die"',
       );
 
-      await adapter.writeFile(documentPath, modification1);
+      await adapter.writeFile(createFilePath(documentPath), createDocumentContent(modification1));
 
-      const readAfterMod1 = await adapter.readFile(documentPath);
+      const readAfterMod1 = await adapter.readFile(createFilePath(documentPath));
       expect(readAfterMod1.isOk()).toBe(true);
       if (readAfterMod1.isOk()) {
         expect(readAfterMod1.value).toContain('stmt4');
@@ -201,9 +222,9 @@ trees:
         'arg1:\n    premises: premises1\n    conclusions: conclusions1\n  arg2:',
       );
 
-      await adapter.writeFile(documentPath, modification2);
+      await adapter.writeFile(createFilePath(documentPath), createDocumentContent(modification2));
 
-      const readAfterMod2 = await adapter.readFile(documentPath);
+      const readAfterMod2 = await adapter.readFile(createFilePath(documentPath));
       expect(readAfterMod2.isOk()).toBe(true);
       if (readAfterMod2.isOk()) {
         expect(readAfterMod2.value).toContain('arg2');
@@ -223,16 +244,16 @@ trees:
       } as any);
       vi.mocked(vscode.workspace.fs.delete).mockResolvedValue(undefined);
 
-      const existsResult = await adapter.exists(documentPath);
+      const existsResult = await adapter.exists(createFilePath(documentPath));
       expect(existsResult.isOk() && existsResult.value).toBe(true);
 
       // Delete document
-      const deleteResult = await adapter.delete(documentPath);
+      const deleteResult = await adapter.delete(createFilePath(documentPath));
       expect(deleteResult.isOk()).toBe(true);
 
       // Verify deletion
       vi.mocked(vscode.workspace.fs.stat).mockRejectedValue(new Error('File not found'));
-      const deletedCheckResult = await adapter.exists(documentPath);
+      const deletedCheckResult = await adapter.exists(createFilePath(documentPath));
       expect(deletedCheckResult.isOk() && deletedCheckResult.value).toBe(false);
     });
   });
@@ -262,7 +283,7 @@ trees:
       const writePromises = documents.map((path, i) => {
         const content = contents[i];
         if (!content) throw new Error(`No content for index ${i}`);
-        return adapter.writeFile(path, content);
+        return adapter.writeFile(createFilePath(path), createDocumentContent(content));
       });
 
       const results = await Promise.all(writePromises);
@@ -296,22 +317,22 @@ trees:
       });
 
       // Create both documents
-      await adapter.writeFile(doc1Path, doc1Content);
-      await adapter.writeFile(doc2Path, doc2Content);
+      await adapter.writeFile(createFilePath(doc1Path), createDocumentContent(doc1Content));
+      await adapter.writeFile(createFilePath(doc2Path), createDocumentContent(doc2Content));
 
       // Switch between documents multiple times
-      await adapter.readFile(doc1Path);
+      await adapter.readFile(createFilePath(doc1Path));
       expect(lastAccessedPath).toBe(doc1Path);
 
-      await adapter.readFile(doc2Path);
+      await adapter.readFile(createFilePath(doc2Path));
       expect(lastAccessedPath).toBe(doc2Path);
 
-      await adapter.readFile(doc1Path);
+      await adapter.readFile(createFilePath(doc1Path));
       expect(lastAccessedPath).toBe(doc1Path);
 
       // Verify content integrity during switches
-      const doc1Result = await adapter.readFile(doc1Path);
-      const doc2Result = await adapter.readFile(doc2Path);
+      const doc1Result = await adapter.readFile(createFilePath(doc1Path));
+      const doc2Result = await adapter.readFile(createFilePath(doc2Path));
 
       expect(doc1Result.isOk()).toBe(true);
       expect(doc2Result.isOk()).toBe(true);
@@ -362,11 +383,11 @@ atomic_arguments:
       });
 
       // Read main document (should potentially trigger shared document read)
-      await adapter.readFile(mainProofDoc);
+      await adapter.readFile(createFilePath(mainProofDoc));
 
       // Simulate dependency resolution
       if (mainContent.includes('References:')) {
-        await adapter.readFile(sharedStatementsDoc);
+        await adapter.readFile(createFilePath(sharedStatementsDoc));
       }
 
       expect(documentAccess).toContain(mainProofDoc);
@@ -385,7 +406,10 @@ atomic_arguments:
 
       // Write large document
       const startWrite = performance.now();
-      const writeResult = await adapter.writeFile(largePath, largeProofContent);
+      const writeResult = await adapter.writeFile(
+        createFilePath(largePath),
+        createDocumentContent(largeProofContent),
+      );
       const endWrite = performance.now();
 
       expect(writeResult.isOk()).toBe(true);
@@ -393,15 +417,15 @@ atomic_arguments:
 
       // Read large document
       const startRead = performance.now();
-      const readResult = await adapter.readFile(largePath);
+      const readResult = await adapter.readFile(createFilePath(largePath));
       const endRead = performance.now();
 
       expect(readResult.isOk()).toBe(true);
       expect(endRead - startRead).toBeLessThan(1000); // Should read in under 1 second
 
       if (readResult.isOk()) {
-        expect(readResult.value.length).toBeGreaterThan(10000);
-        expect(readResult.value).toContain('stmt_499'); // Last generated statement
+        expect(readResult.value.getValue().length).toBeGreaterThan(10000);
+        expect(readResult.value.getValue()).toContain('stmt_499'); // Last generated statement
       }
     });
 
@@ -428,13 +452,16 @@ atomic_arguments:
       } as any);
 
       for (const path of specialPaths) {
-        const writeResult = await adapter.writeFile(path, validProofContent);
+        const writeResult = await adapter.writeFile(
+          createFilePath(path),
+          createDocumentContent(validProofContent),
+        );
         expect(writeResult.isOk()).toBe(true);
 
-        const readResult = await adapter.readFile(path);
+        const readResult = await adapter.readFile(createFilePath(path));
         expect(readResult.isOk()).toBe(true);
 
-        const existsResult = await adapter.exists(path);
+        const existsResult = await adapter.exists(createFilePath(path));
         expect(existsResult.isOk()).toBe(true);
       }
     });
@@ -450,16 +477,19 @@ atomic_arguments:
 
       // Create directory structure
       const dirResult = await adapter.createDirectory(
-        '/workspace/level1/level2/level3/level4/level5',
+        createFilePath('/workspace/level1/level2/level3/level4/level5'),
       );
       expect(dirResult.isOk()).toBe(true);
 
       // Write file in deep structure
-      const writeResult = await adapter.writeFile(deepPath, validProofContent);
+      const writeResult = await adapter.writeFile(
+        createFilePath(deepPath),
+        createDocumentContent(validProofContent),
+      );
       expect(writeResult.isOk()).toBe(true);
 
       // Read file from deep structure
-      const readResult = await adapter.readFile(deepPath);
+      const readResult = await adapter.readFile(createFilePath(deepPath));
       expect(readResult.isOk()).toBe(true);
     });
 
@@ -494,10 +524,13 @@ atomic_arguments:
       for (const testCase of testCases) {
         const path = `/workspace/${testCase.name}.proof`;
 
-        const writeResult = await adapter.writeFile(path, testCase.content);
+        const writeResult = await adapter.writeFile(
+          createFilePath(path),
+          createDocumentContent(testCase.content),
+        );
         expect(writeResult.isOk()).toBe(true);
 
-        const readResult = await adapter.readFile(path);
+        const readResult = await adapter.readFile(createFilePath(path));
         expect(readResult.isOk()).toBe(true);
 
         if (readResult.isOk()) {
@@ -525,7 +558,10 @@ atomic_arguments:
 
       for (let i = 1; i <= 10; i++) {
         try {
-          const result = await adapter.writeFile(path, validProofContent);
+          const result = await adapter.writeFile(
+            createFilePath(path),
+            createDocumentContent(validProofContent),
+          );
           results.push({ success: result.isOk(), attempt: i });
         } catch {
           results.push({ success: false, attempt: i });
@@ -561,15 +597,18 @@ atomic_arguments:
 
       for (let cycle = 1; cycle <= 5; cycle++) {
         // Save current content
-        const saveResult = await adapter.writeFile(path, currentContent);
+        const saveResult = await adapter.writeFile(
+          createFilePath(path),
+          createDocumentContent(currentContent),
+        );
         expect(saveResult.isOk()).toBe(true);
 
         // Load content back
-        const loadResult = await adapter.readFile(path);
+        const loadResult = await adapter.readFile(createFilePath(path));
         expect(loadResult.isOk()).toBe(true);
 
         if (loadResult.isOk()) {
-          expect(loadResult.value).toBe(currentContent);
+          expect(loadResult.value).toEqual(currentContent);
         }
 
         // Modify content for next cycle
@@ -601,7 +640,10 @@ atomic_arguments:
       do {
         attempts++;
         try {
-          result = await adapter.writeFile(path, validProofContent);
+          result = await adapter.writeFile(
+            createFilePath(path),
+            createDocumentContent(validProofContent),
+          );
         } catch (error) {
           result = err(new ValidationError(`Save failed: ${error}`));
         }
@@ -637,7 +679,7 @@ atomic_arguments:
       });
 
       // User starts editing
-      const initialRead = await adapter.readFile(path);
+      const initialRead = await adapter.readFile(createFilePath(path));
       expect(initialRead.isOk()).toBe(true);
 
       // Simulate external modification
@@ -645,7 +687,10 @@ atomic_arguments:
       fileContent = externalModification;
 
       // User tries to save their changes
-      const saveResult = await adapter.writeFile(path, userModification);
+      const saveResult = await adapter.writeFile(
+        createFilePath(path),
+        createDocumentContent(userModification),
+      );
       expect(saveResult.isErr()).toBe(true);
 
       // Should detect conflict
@@ -668,7 +713,7 @@ atomic_arguments:
       vi.mocked(vscode.workspace.createFileSystemWatcher).mockReturnValue(mockWatcher as any);
 
       const eventCallback = vi.fn();
-      const watcher = adapter.watch(path, eventCallback);
+      const watcher = adapter.watch(createFilePath(path), eventCallback);
 
       expect(vscode.workspace.createFileSystemWatcher).toHaveBeenCalled();
       expect(mockWatcher.onDidCreate).toHaveBeenCalled();
@@ -714,13 +759,13 @@ atomic_arguments:
       });
 
       // Create multiple watchers
-      const watcher1 = adapter.watch(path, () => {
+      const watcher1 = adapter.watch(createFilePath(path), () => {
         if (eventCounts[0] !== undefined) eventCounts[0]++;
       });
-      const watcher2 = adapter.watch(path, () => {
+      const watcher2 = adapter.watch(createFilePath(path), () => {
         if (eventCounts[1] !== undefined) eventCounts[1]++;
       });
-      const watcher3 = adapter.watch(path, () => {
+      const watcher3 = adapter.watch(createFilePath(path), () => {
         if (eventCounts[2] !== undefined) eventCounts[2]++;
       });
 
@@ -760,7 +805,7 @@ atomic_arguments:
       vi.mocked(vscode.workspace.createFileSystemWatcher).mockReturnValue(mockWatcher as any);
 
       // Create watcher that throws error
-      const watcher = adapter.watch(path, () => {
+      const watcher = adapter.watch(createFilePath(path), () => {
         throw new Error('Watcher callback error');
       });
 
@@ -792,14 +837,17 @@ atomic_arguments:
               new TextEncoder().encode(content),
             );
 
-            const writeResult = await adapter.writeFile(path, content);
+            const writeResult = await adapter.writeFile(
+              createFilePath(path),
+              createDocumentContent(content),
+            );
             expect(writeResult.isOk()).toBe(true);
 
-            const readResult = await adapter.readFile(path);
+            const readResult = await adapter.readFile(createFilePath(path));
             expect(readResult.isOk()).toBe(true);
 
             if (readResult.isOk()) {
-              expect(readResult.value).toBe(content);
+              expect(readResult.value).toEqual(content);
             }
           },
         ),
@@ -825,9 +873,12 @@ atomic_arguments:
               ctime: Date.now(),
             } as any);
 
-            const writeResult = await adapter.writeFile(safePath, validProofContent);
-            const readResult = await adapter.readFile(safePath);
-            const existsResult = await adapter.exists(safePath);
+            const writeResult = await adapter.writeFile(
+              createFilePath(safePath),
+              createDocumentContent(validProofContent),
+            );
+            const readResult = await adapter.readFile(createFilePath(safePath));
+            const existsResult = await adapter.exists(createFilePath(safePath));
 
             expect(writeResult.isOk()).toBe(true);
             expect(readResult.isOk()).toBe(true);
@@ -852,10 +903,14 @@ atomic_arguments:
       const startTime = performance.now();
 
       // Perform rapid write operations
-      await Promise.all(paths.map((path) => adapter.writeFile(path, validProofContent)));
+      await Promise.all(
+        paths.map((path) =>
+          adapter.writeFile(createFilePath(path), createDocumentContent(validProofContent)),
+        ),
+      );
 
       // Perform rapid read operations
-      await Promise.all(paths.map((path) => adapter.readFile(path)));
+      await Promise.all(paths.map((path) => adapter.readFile(createFilePath(path))));
 
       const endTime = performance.now();
       const duration = endTime - startTime;
@@ -883,7 +938,7 @@ atomic_arguments:
 
       // Create many watchers
       const watchers = paths.map((path) =>
-        adapter.watch(path, () => {
+        adapter.watch(createFilePath(path), () => {
           // Test watcher callback - intentionally empty
         }),
       );

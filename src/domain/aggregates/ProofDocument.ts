@@ -193,17 +193,19 @@ export class ProofDocument extends AggregateRoot {
       return err(updateResult.error);
     }
 
+    const updatedStatement = updateResult.value;
+    this.statements.set(id, updatedStatement);
     this.incrementVersion();
 
     this.addDomainEvent(
       new StatementUpdated(this.id, {
         statementId: id,
         oldContent,
-        newContent: existing.getContentObject(),
+        newContent: updatedStatement.getContentObject(),
       }),
     );
 
-    return ok(existing);
+    return ok(updatedStatement);
   }
 
   // Convenience method for string input

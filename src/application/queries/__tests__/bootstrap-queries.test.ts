@@ -66,12 +66,7 @@ describe('Bootstrap Query Execution Tests', () => {
       const proofIdResult = ProofId.fromString('doc_empty');
       if (proofIdResult.isErr()) throw proofIdResult.error;
 
-      const emptyProof = ProofAggregate.reconstruct(
-        proofIdResult.value,
-        new Map(),
-        new Map(),
-        new Map(),
-      );
+      const emptyProof = ProofAggregate.reconstruct(proofIdResult.value, new Map(), new Map());
 
       if (emptyProof.isErr()) throw emptyProof.error;
 

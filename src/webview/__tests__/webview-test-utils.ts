@@ -99,15 +99,11 @@ export class MockJSDOMImpl implements MockJSDOM {
         if (code.includes('currentZoom')) {
           const zoomMatch = code.match(/currentZoom\s*=\s*([\d.]+)/);
           if (zoomMatch) {
-            (this.window as any).currentZoom = Number.parseFloat(zoomMatch[1]);
+            (this.window as any).currentZoom = Number.parseFloat(zoomMatch[1] || '1');
           }
         }
         if (code.includes('applyZoom()')) {
-          const container = this.elements.get('tree-container');
-          if (container) {
-            const zoom = Math.max(0.5, Math.min(3, (this.window as any).currentZoom || 1));
-            container.style.transform = `scale(${zoom})`;
-          }
+          this.window.applyZoom();
         }
         return undefined;
       }),
@@ -411,7 +407,7 @@ export class MockJSDOMImpl implements MockJSDOM {
         const regex = new RegExp(`class="[^"]*${className}[^"]*"`, 'g');
         const matches = container.innerHTML.match(regex);
         if (matches) {
-          matches.forEach((_, index) => {
+          matches.forEach((_: string, index: number) => {
             const mockElement = this.createElement(
               `temp-query-${Date.now()}-${index}`,
               false,
@@ -447,8 +443,13 @@ export class MockJSDOMImpl implements MockJSDOM {
         if (attrMatch) {
           const [, tagName, attrName, attrValue] = attrMatch;
           // Create a mock element for buttons with specific onclick handlers
-          if (tagName.toLowerCase() === 'button' && attrName === 'onclick') {
-            const mockButton = this.createElement(`temp-btn-${Date.now()}`, false, '', attrValue);
+          if (tagName && tagName.toLowerCase() === 'button' && attrName === 'onclick') {
+            const mockButton = this.createElement(
+              `temp-btn-${Date.now()}`,
+              false,
+              '',
+              attrValue || null,
+            );
             mockButton.tagName = 'BUTTON';
             mockButton.nodeName = 'BUTTON';
             mockButton._parentId = parentElement.id;
@@ -500,13 +501,13 @@ export class MockJSDOMImpl implements MockJSDOM {
 
       // Extract tag name
       const tagMatch = fullMatch.match(/^<(\w+)/);
-      const tagName = tagMatch?.[1]?.toUpperCase() || 'DIV';
+      const tagName = tagMatch?.[1] ? tagMatch[1].toUpperCase() : 'DIV';
 
       // Extract classes
       const classMatch = fullMatch.match(/class=["']([^"']+)["']/);
       const classes = classMatch?.[1]?.split(' ') || [];
 
-      const element = this.createElement(id || '', isDisabled, textContent || '', onclick);
+      const element = this.createElement(id || '', isDisabled, textContent || '', onclick || null);
       element.tagName = tagName;
       element.nodeName = tagName;
 
@@ -578,7 +579,12 @@ export class MockJSDOMImpl implements MockJSDOM {
         const classMatch = fullMatch.match(/class=["']([^"']+)["']/);
         const classes = classMatch?.[1] ? classMatch[1].split(' ') : [];
 
-        const element = this.createElement(id || '', isDisabled, textContent || '', onclick);
+        const element = this.createElement(
+          id || '',
+          isDisabled,
+          textContent || '',
+          onclick || null,
+        );
         element.tagName = tagName;
         element.nodeName = tagName;
         element._parentId = parentId;
@@ -615,7 +621,7 @@ export class MockJSDOMImpl implements MockJSDOM {
       const tagMatch = fullMatch.match(/^<(\w+)/);
       const tagName = tagMatch?.[1] ? tagMatch[1].toUpperCase() : 'G';
 
-      const classes = classString.split(' ');
+      const classes = classString ? classString.split(' ') : [];
 
       const element = this.createElement(tempId, isDisabled, textContent || '', null);
       element.tagName = tagName;
@@ -714,7 +720,7 @@ export class MockJSDOMImpl implements MockJSDOM {
           event.currentTarget = element;
         }
 
-        listeners.forEach((listener) => {
+        listeners.forEach((listener: (event: any) => void) => {
           try {
             const eventWithTarget = {
               ...event,
@@ -799,11 +805,19 @@ export class MockJSDOMImpl implements MockJSDOM {
         element.dispatchEvent(clickEvent);
       }),
       focus: vi.fn().mockImplementation(() => {
-        this.window.document.activeElement = element;
+        // Set activeElement by replacing the entire document object
+        (this.window as any).document = {
+          ...this.window.document,
+          activeElement: element,
+        };
       }),
       blur: vi.fn().mockImplementation(() => {
         if (this.window.document.activeElement === element) {
-          this.window.document.activeElement = null;
+          // Reset activeElement by replacing the entire document object
+          (this.window as any).document = {
+            ...this.window.document,
+            activeElement: null,
+          };
         }
       }),
       tabIndex: 0,

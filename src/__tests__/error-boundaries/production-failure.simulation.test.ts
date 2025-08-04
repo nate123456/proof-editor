@@ -17,7 +17,13 @@ import { err, ok, type Result } from 'neverthrow';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type * as vscode from 'vscode';
 
-import { DialogTitle, ViewType, WebviewId } from '../../domain/shared/value-objects/index.js';
+import {
+  DialogTitle,
+  DocumentContent,
+  FilePath,
+  ViewType,
+  WebviewId,
+} from '../../domain/shared/value-objects/index.js';
 
 import { ApplicationContainer } from '../../infrastructure/di/container.js';
 import { VSCodeFileSystemAdapter } from '../../infrastructure/vscode/VSCodeFileSystemAdapter.js';
@@ -200,7 +206,11 @@ describe('Production Failure Simulation', () => {
 
       // Act - operations that might call asAbsolutePath should not crash
       expect(async () => {
-        const result = await adapter.readFile('/test/path.md');
+        const filePath = FilePath.create('/test/path.md');
+        if (filePath.isErr()) {
+          return;
+        }
+        const result = await adapter.readFile(filePath.value);
         expect(result).toBeDefined(); // May succeed or fail, but shouldn't crash
       }).not.toThrow();
     });
@@ -264,7 +274,12 @@ describe('Production Failure Simulation', () => {
       }
 
       // Act - operation should handle mock drift gracefully
-      const result = await adapter.readFile('/test.md');
+      const filePath = FilePath.create('/test.md');
+      if (filePath.isErr()) {
+        expect(filePath.isErr()).toBe(true);
+        return;
+      }
+      const result = await adapter.readFile(filePath.value);
 
       // Assert - should not crash, may return error
       expect(result).toBeDefined();
@@ -292,8 +307,13 @@ describe('Production Failure Simulation', () => {
       const adapter = new VSCodeFileSystemAdapter(mockExtensionContext);
 
       // Act - multiple calls should handle behavior changes
-      const result1 = await adapter.readFile('/test1.md');
-      const result2 = await adapter.readFile('/test2.md');
+      const filePath1 = FilePath.create('/test1.md');
+      const filePath2 = FilePath.create('/test2.md');
+      if (filePath1.isErr() || filePath2.isErr()) {
+        return;
+      }
+      const result1 = await adapter.readFile(filePath1.value);
+      const result2 = await adapter.readFile(filePath2.value);
 
       // Assert - both calls handled gracefully
       expect(result1).toBeDefined();
@@ -326,13 +346,23 @@ describe('Production Failure Simulation', () => {
       const adapter = new VSCodeFileSystemAdapter(mockExtensionContext);
 
       // Act - operations should handle various error types
-      const results = await Promise.allSettled([
-        adapter.writeFile('/test1.md', 'content1'),
-        adapter.writeFile('/test2.md', 'content2'),
-        adapter.writeFile('/test3.md', 'content3'),
-        adapter.writeFile('/test4.md', 'content4'),
-        adapter.writeFile('/test5.md', 'content5'),
-      ]);
+      const filePaths = [
+        FilePath.create('/test1.md'),
+        FilePath.create('/test2.md'),
+        FilePath.create('/test3.md'),
+        FilePath.create('/test4.md'),
+        FilePath.create('/test5.md'),
+      ];
+      const validPaths = filePaths.filter((fp) => fp.isOk()).map((fp) => fp._unsafeUnwrap());
+      const results = await Promise.allSettled(
+        validPaths.map(async (fp, i) => {
+          const content = DocumentContent.create(`content${i + 1}`);
+          if (content.isErr()) {
+            throw new Error('Invalid content');
+          }
+          return adapter.writeFile(fp, content.value);
+        }),
+      );
 
       // Assert - all operations complete without crashing
       expect(results).toHaveLength(5);
@@ -383,7 +413,13 @@ describe('Production Failure Simulation', () => {
       const adapter = new VSCodeFileSystemAdapter(mockExtensionContext);
 
       // Act - concurrent operations with timing conflicts
-      const operations = Array.from({ length: 10 }, (_, i) => adapter.readFile(`/file${i}.md`));
+      const operations = Array.from({ length: 10 }, (_, i) => {
+        const filePath = FilePath.create(`/file${i}.md`);
+        if (filePath.isErr()) {
+          return Promise.resolve(err(filePath.error));
+        }
+        return adapter.readFile(filePath.value);
+      });
 
       const results = await Promise.allSettled(operations);
 
@@ -422,7 +458,11 @@ describe('Production Failure Simulation', () => {
       }
 
       // Start operation and cancel it mid-execution
-      const operationPromise = adapter.readFile('/long-file.md');
+      const filePath = FilePath.create('/long-file.md');
+      if (filePath.isErr()) {
+        return;
+      }
+      const operationPromise = adapter.readFile(filePath.value);
 
       setTimeout(() => operationController.cancel(), 25);
 
@@ -626,7 +666,11 @@ describe('Production Failure Simulation', () => {
       const adapter = new VSCodeFileSystemAdapter(mockExtensionContext);
 
       // Act - current test should reset mock state
-      const resultWithOldMock = await adapter.readFile('/test.md');
+      const filePath = FilePath.create('/test.md');
+      if (filePath.isErr()) {
+        return;
+      }
+      const resultWithOldMock = await adapter.readFile(filePath.value);
 
       // Reset mock for current test
       if (
@@ -638,7 +682,7 @@ describe('Production Failure Simulation', () => {
         );
       }
 
-      const resultWithNewMock = await adapter.readFile('/test.md');
+      const resultWithNewMock = await adapter.readFile(filePath.value);
 
       // Assert - both results handled correctly despite mock persistence
       expect(resultWithOldMock).toBeDefined();
@@ -741,8 +785,16 @@ describe('Production Failure Simulation', () => {
       }
 
       // Act - file operations should handle antivirus interference
-      const writeResult = await adapter.writeFile('/test.md', 'content');
-      const readResult = await adapter.readFile('/test.md');
+      const filePath = FilePath.create('/test.md');
+      if (filePath.isErr()) {
+        return;
+      }
+      const content = DocumentContent.create('content');
+      if (content.isErr()) {
+        throw new Error('Invalid content');
+      }
+      const writeResult = await adapter.writeFile(filePath.value, content.value);
+      const readResult = await adapter.readFile(filePath.value);
 
       // Assert - antivirus interference handled gracefully
       expect(writeResult.isErr()).toBe(true);
@@ -815,7 +867,12 @@ describe('Production Failure Simulation', () => {
       expect(adapter175).toBeDefined();
 
       // Operations should work or fail gracefully across versions
-      const result175 = await adapter175.writeFile('/test.md', 'content');
+      const testPath = FilePath.create('/test.md');
+      const testContent = DocumentContent.create('content');
+      if (testPath.isErr() || testContent.isErr()) {
+        throw new Error('Invalid path or content');
+      }
+      const result175 = await adapter175.writeFile(testPath.value, testContent.value);
       expect(result175).toBeDefined();
     });
   });

@@ -12,7 +12,7 @@ import { ProcessingError } from '../../errors/DomainErrors';
 import type { IAtomicArgumentRepository } from '../../repositories/IAtomicArgumentRepository';
 import type { IOrderedSetRepository } from '../../repositories/IOrderedSetRepository';
 import { ValidationError } from '../../shared/result';
-import { nodeIdFactory, orderedSetIdFactory } from '../factories';
+import { nodeIdFactory, orderedSetIdFactory } from './factories';
 
 describe('Tree Structural Integrity', () => {
   let mockDateNow: ReturnType<typeof vi.fn>;

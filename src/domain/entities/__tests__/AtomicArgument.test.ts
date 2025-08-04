@@ -1,8 +1,16 @@
 import fc from 'fast-check';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createBranchToPremise } from '../../services/AtomicArgumentBranchingService.js';
+import {
+  canConnectAt,
+  connectConclusionToPremise,
+  findConnectionsTo,
+  sharesStatementWith,
+  validateConnectionSafety,
+} from '../../services/AtomicArgumentConnectionService.js';
 import { ValidationError } from '../../shared/result.js';
 import { AtomicArgumentId } from '../../shared/value-objects/index.js';
-import { AtomicArgument, type SideLabels } from '../AtomicArgument.js';
+import { AtomicArgument } from '../AtomicArgument.js';
 import { Statement } from '../Statement.js';
 
 describe('AtomicArgument Entity', () => {
@@ -198,14 +206,14 @@ describe('AtomicArgument Entity', () => {
         const arg1 = arg1Result.value;
         const arg2 = arg2Result.value;
 
-        const connections = arg1.findConnectionsTo(arg2);
+        const connections = findConnectionsTo(arg1, arg2);
         expect(connections).toHaveLength(1);
 
         const connection = connections[0];
         if (connection) {
           expect(connection.statement).toBe(sharedStatement);
           expect(connection.fromConclusionPosition).toBe(0);
-          expect(connection.toPremisePosition).toBe(0);
+          expect(connection.toPremisePosition.getValue()).toBe(0);
         }
       }
     });
@@ -225,10 +233,10 @@ describe('AtomicArgument Entity', () => {
         const arg2 = arg2Result.value;
 
         // Should connect at positions (0, 0) because they share the same statement
-        expect(arg1.canConnectAt(0, arg2, 0)).toBe(true);
+        expect(canConnectAt(arg1, 0, arg2, 0)).toBe(true);
 
         // Should not connect at positions (1, 0) because different statements
-        expect(arg1.canConnectAt(1, arg2, 0)).toBe(false);
+        expect(canConnectAt(arg1, 1, arg2, 0)).toBe(false);
       }
     });
 
@@ -246,7 +254,7 @@ describe('AtomicArgument Entity', () => {
         const arg1 = arg1Result.value;
         const arg2 = arg2Result.value;
 
-        const connectResult = arg1.connectConclusionToPremise(0, arg2, 0, sharedStatement);
+        const connectResult = connectConclusionToPremise(arg1, 0, arg2, 0, sharedStatement);
         expect(connectResult.isOk()).toBe(true);
 
         // After connection, both should reference the same statement object
@@ -269,8 +277,9 @@ describe('AtomicArgument Entity', () => {
         const arg1 = arg1Result.value;
         const arg2 = arg2Result.value;
 
-        expect(arg1.isDirectlyConnectedTo(arg2)).toBe(true);
-        expect(arg2.isDirectlyConnectedTo(arg1)).toBe(true);
+        // Check if they share statements (direct connection check removed)
+        expect(sharesStatementWith(arg1, arg2)).toBe(true);
+        expect(sharesStatementWith(arg2, arg1)).toBe(true);
       }
     });
 
@@ -288,7 +297,7 @@ describe('AtomicArgument Entity', () => {
         const arg1 = arg1Result.value;
         const arg2 = arg2Result.value;
 
-        expect(arg1.sharesStatementWith(arg2)).toBe(true);
+        expect(sharesStatementWith(arg1, arg2)).toBe(true);
       }
     });
   });
@@ -326,7 +335,7 @@ describe('AtomicArgument Entity', () => {
       if (childResult.isOk()) {
         const child = childResult.value;
 
-        const branchResult = child.createBranchToPremise(0);
+        const branchResult = createBranchToPremise(child, 0);
         expect(branchResult.isOk()).toBe(true);
 
         if (branchResult.isOk()) {
@@ -344,7 +353,7 @@ describe('AtomicArgument Entity', () => {
       const invalidConclusionBranch = argument.createBranchFromConclusion(0);
       expect(invalidConclusionBranch.isErr()).toBe(true);
 
-      const invalidPremiseBranch = argument.createBranchToPremise(0);
+      const invalidPremiseBranch = createBranchToPremise(argument, 0);
       expect(invalidPremiseBranch.isErr()).toBe(true);
     });
   });
@@ -353,7 +362,7 @@ describe('AtomicArgument Entity', () => {
     it('should prevent self-connections', () => {
       const argument = AtomicArgument.createBootstrap();
 
-      const result = argument.validateConnectionSafety(argument);
+      const result = validateConnectionSafety(argument, argument);
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
         expect(result.error.message).toBe('Cannot connect argument to itself');
@@ -368,7 +377,7 @@ describe('AtomicArgument Entity', () => {
       if (targetResult.isOk()) {
         const target = targetResult.value;
 
-        const result = source.validateConnectionSafety(target);
+        const result = validateConnectionSafety(source, target);
         expect(result.isErr()).toBe(true);
         if (result.isErr()) {
           expect(result.error.message).toBe('Source argument has no conclusions');
@@ -384,7 +393,7 @@ describe('AtomicArgument Entity', () => {
       if (sourceResult.isOk()) {
         const source = sourceResult.value;
 
-        const result = source.validateConnectionSafety(target);
+        const result = validateConnectionSafety(source, target);
         expect(result.isErr()).toBe(true);
         if (result.isErr()) {
           expect(result.error.message).toBe('Target argument has no premises');
@@ -406,7 +415,7 @@ describe('AtomicArgument Entity', () => {
         const arg2 = arg2Result.value;
 
         // arg1 -> arg2 is valid (arg1.conclusion matches arg2.premise)
-        const forwardResult = arg1.validateConnectionSafety(arg2);
+        const forwardResult = validateConnectionSafety(arg1, arg2);
         expect(forwardResult.isOk()).toBe(true);
 
         // arg2 -> arg1 would create cycle (arg2.conclusion matches arg1.premise... but arg1 has no premises)
@@ -418,7 +427,7 @@ describe('AtomicArgument Entity', () => {
           const arg1Modified = arg1ModifiedResult.value;
 
           // Now both args have premise=conclusion=sharedStatement, so they'd create cycles
-          const cycleResult = arg1Modified.validateConnectionSafety(arg2);
+          const cycleResult = validateConnectionSafety(arg1Modified, arg2);
           expect(cycleResult.isErr()).toBe(true);
           if (cycleResult.isErr()) {
             expect(cycleResult.error.message).toBe('Connection would create direct cycle');
@@ -457,7 +466,7 @@ describe('AtomicArgument Entity', () => {
 
     it('should update all side labels at once', () => {
       const argument = AtomicArgument.createBootstrap();
-      const newLabels: SideLabels = { left: 'Logic Rule', right: 'Reference 1' };
+      const newLabels = { left: 'Logic Rule', right: 'Reference 1' };
 
       const updateResult = argument.updateSideLabels(newLabels);
       expect(updateResult.isOk()).toBe(true);
@@ -547,10 +556,28 @@ describe('AtomicArgument Entity', () => {
               const gotPremises = argument.getPremises();
               const gotConclusions = argument.getConclusions();
 
-              // Modifying returned arrays should not affect internal state
-              gotPremises.push(createTestStatement('Should not affect internal'));
-              gotConclusions.push(createTestStatement('Should not affect internal'));
+              // Test that returned arrays are truly immutable
+              // The arrays should be frozen/readonly, so this should throw
+              let _premiseError: Error | null = null;
+              let _conclusionError: Error | null = null;
 
+              try {
+                // @ts-expect-error - Testing immutability
+                gotPremises.push(createTestStatement('Should not affect internal'));
+              } catch (e) {
+                _premiseError = e as Error;
+              }
+
+              try {
+                // @ts-expect-error - Testing immutability
+                gotConclusions.push(createTestStatement('Should not affect internal'));
+              } catch (e) {
+                _conclusionError = e as Error;
+              }
+
+              // The arrays should be immutable, so we expect errors or unchanged lengths
+              expect(gotPremises.length).toBe(premises.length);
+              expect(gotConclusions.length).toBe(conclusions.length);
               expect(argument.getPremiseCount()).toBe(premises.length);
               expect(argument.getConclusionCount()).toBe(conclusions.length);
             }
@@ -585,7 +612,7 @@ describe('AtomicArgument Entity', () => {
               const arg1 = arg1Result.value;
               const arg2 = arg2Result.value;
 
-              const connections = arg1.findConnectionsTo(arg2);
+              const connections = findConnectionsTo(arg1, arg2);
 
               // Should find exactly as many connections as shared statements
               expect(connections.length).toBe(sharedStatements.length);
@@ -608,7 +635,7 @@ describe('AtomicArgument Entity', () => {
       const conclusion = createTestStatement('Test conclusion');
       const createdAt = 1000;
       const modifiedAt = 2000;
-      const sideLabels: SideLabels = { left: 'Test', right: 'Label' };
+      const sideLabels = { left: 'Test', right: 'Label' };
 
       const result = AtomicArgument.reconstruct(
         id,

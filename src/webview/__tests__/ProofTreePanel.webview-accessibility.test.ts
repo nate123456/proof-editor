@@ -10,15 +10,22 @@ import type { DocumentQueryService } from '../../application/services/DocumentQu
 import type { ProofApplicationService } from '../../application/services/ProofApplicationService.js';
 import type { ProofVisualizationService } from '../../application/services/ProofVisualizationService.js';
 import type { ViewStateManager } from '../../application/services/ViewStateManager.js';
+import { MessageType } from '../../domain/shared/value-objects/enums.js';
+import { WebviewId } from '../../domain/shared/value-objects/identifiers.js';
 import type { YAMLSerializer } from '../../infrastructure/repositories/yaml/YAMLSerializer.js';
 import type { BootstrapController } from '../../presentation/controllers/BootstrapController.js';
 import { ProofTreePanel } from '../ProofTreePanel.js';
 import type { TreeRenderer } from '../TreeRenderer.js';
 import { webviewScript } from './webview-script-utils';
-import { createBasicWebviewHTML, JSDOM, setupMockVSCodeAPI } from './webview-test-utils';
+import {
+  createBasicWebviewHTML,
+  JSDOM,
+  type MockJSDOMImpl,
+  setupMockVSCodeAPI,
+} from './webview-test-utils';
 
 describe('ProofTreePanel Webview Accessibility and Keyboard Navigation', () => {
-  let dom: JSDOM;
+  let dom: MockJSDOMImpl;
   let window: Window & typeof globalThis;
   let document: Document;
   let mockVSCode: any;
@@ -30,7 +37,7 @@ describe('ProofTreePanel Webview Accessibility and Keyboard Navigation', () => {
       `<script>${webviewScript}</script></body>`,
     );
 
-    dom = new JSDOM(htmlWithScript);
+    dom = new JSDOM(htmlWithScript) as MockJSDOMImpl;
     window = dom.window as any;
     document = window.document;
 
@@ -341,8 +348,13 @@ describe('ProofTreePanel - Panel-Level Accessibility', () => {
       onDidReceiveMessage: vi.fn(),
     };
 
+    const webviewIdResult = WebviewId.create('test-panel-accessibility');
+    if (webviewIdResult.isErr()) {
+      throw new Error('Failed to create WebviewId');
+    }
+
     const mockWebviewPanel: WebviewPanel = {
-      id: 'test-panel-accessibility',
+      id: webviewIdResult.value,
       webview: mockWebview,
       onDidDispose: vi.fn(),
       reveal: vi.fn(),

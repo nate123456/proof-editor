@@ -6,6 +6,19 @@
  */
 
 import { vi } from 'vitest';
+import {
+  AtomicArgumentId,
+  Dimensions,
+  ErrorCode,
+  ErrorMessage,
+  ErrorSeverity,
+  NodeCount,
+  NodeId,
+  Position2D,
+  SideLabel,
+  StatementId,
+  TreeId,
+} from '../../../../domain/shared/value-objects/index.js';
 import type { DocumentDTO, DocumentStatsDTO } from '../../document-queries.js';
 
 // Mock repository interfaces
@@ -55,7 +68,6 @@ export function createTestDocumentDTO(overrides?: Partial<DocumentDTO>): Documen
     createdAt: '2023-01-01T00:00:00.000Z',
     modifiedAt: '2023-01-01T00:00:00.000Z',
     statements: {},
-    orderedSets: {},
     atomicArguments: {},
     trees: {},
     ...overrides,
@@ -99,32 +111,19 @@ export function createComplexDocumentDTO(documentId: string): DocumentDTO {
         },
       ]),
     ),
-    orderedSets: Object.fromEntries(
-      Array.from({ length: 5 }, (_, i) => [
-        `set_${i}`,
-        {
-          id: `set_${i}`,
-          statementIds: [`stmt_${i}`, `stmt_${i + 1}`],
-          usageCount: 1,
-          usedBy: [
-            {
-              argumentId: `arg_${i}`,
-              usage: 'premise' as const,
-            },
-          ],
-        },
-      ]),
-    ),
     atomicArguments: Object.fromEntries(
       Array.from({ length: 5 }, (_, i) => [
         `arg_${i}`,
         {
-          id: `arg_${i}`,
-          premiseIds: `set_premise_${i}`,
-          conclusionIds: `set_conclusion_${i}`,
+          id: AtomicArgumentId.fromString(`arg_${i}`).value,
+          premiseIds: [
+            StatementId.fromString(`stmt_${i}`).value,
+            StatementId.fromString(`stmt_${i + 1}`).value,
+          ],
+          conclusionIds: [StatementId.fromString(`stmt_conclusion_${i}`).value],
           sideLabels: {
-            left: `Rule ${i}`,
-            right: `Reference ${i}`,
+            left: SideLabel.create(`Rule ${i}`).value,
+            right: SideLabel.create(`Reference ${i}`).value,
           },
         },
       ]),
@@ -133,11 +132,11 @@ export function createComplexDocumentDTO(documentId: string): DocumentDTO {
       Array.from({ length: 3 }, (_, i) => [
         `tree_${i}`,
         {
-          id: `tree_${i}`,
-          position: { x: i * 100, y: i * 200 },
-          bounds: { width: 800, height: 600 },
-          nodeCount: 5 + i,
-          rootNodeIds: [`node_root_${i}`],
+          id: TreeId.create(`tree_${i}`).value,
+          position: Position2D.create(i * 100, i * 200).value,
+          bounds: Dimensions.create(800, 600).value,
+          nodeCount: NodeCount.create(5 + i).value,
+          rootNodeIds: [NodeId.create(`node_root_${i}`).value],
         },
       ]),
     ),
@@ -167,19 +166,25 @@ export function createProblematicDocumentStats(): DocumentStatsDTO {
       isValid: false,
       errors: [
         {
-          code: 'MULTIPLE_CYCLES',
-          message: 'Multiple circular dependencies detected',
-          severity: 'error',
+          code: ErrorCode.create('MULTIPLE_CYCLES').isOk()
+            ? ErrorCode.create('MULTIPLE_CYCLES').value.value
+            : 'MULTIPLE_CYCLES',
+          message: ErrorMessage.create('Multiple circular dependencies detected').value,
+          severity: ErrorSeverity.ERROR,
         },
         {
-          code: 'EXCESSIVE_UNUSED_STATEMENTS',
-          message: '20 unused statements found - consider cleanup',
-          severity: 'warning',
+          code: ErrorCode.create('EXCESSIVE_UNUSED_STATEMENTS').isOk()
+            ? ErrorCode.create('EXCESSIVE_UNUSED_STATEMENTS').value.value
+            : 'EXCESSIVE_UNUSED_STATEMENTS',
+          message: ErrorMessage.create('20 unused statements found - consider cleanup').value,
+          severity: ErrorSeverity.WARNING,
         },
         {
-          code: 'PERFORMANCE_WARNING',
-          message: 'Document size may impact performance',
-          severity: 'info',
+          code: ErrorCode.create('PERFORMANCE_WARNING').isOk()
+            ? ErrorCode.create('PERFORMANCE_WARNING').value.value
+            : 'PERFORMANCE_WARNING',
+          message: ErrorMessage.create('Document size may impact performance').value,
+          severity: ErrorSeverity.INFO,
         },
       ],
     },

@@ -85,13 +85,7 @@ export class ProofTreeQueryService {
       };
 
       // Add position if available
-      const position = node.getPosition?.();
-      if (position) {
-        dto.position = {
-          x: position.getX(),
-          y: position.getY(),
-        };
-      }
+      // Note: Node entity doesn't have getPosition method - position is calculated during layout
 
       // Add argument details if requested
       if (query.includeArguments) {
@@ -162,13 +156,7 @@ export class ProofTreeQueryService {
       };
 
       // Add position if available
-      const position = node.getPosition?.();
-      if (position) {
-        dto.position = {
-          x: position.getX(),
-          y: position.getY(),
-        };
-      }
+      // Note: Node entity doesn't have getPosition method - position is calculated during layout
 
       // Add argument details if requested
       if (query.includeArguments) {
@@ -197,12 +185,18 @@ export class ProofTreeQueryService {
       const attachment = node.getAttachment();
       if (!attachment) continue;
 
-      connections.push({
+      const connection: NodeConnectionDTO = {
         fromNodeId: nodeId.getValue(),
         toNodeId: parentId.getValue(),
         premisePosition: attachment.getPremisePosition(),
-        fromPosition: attachment.getFromPosition(),
-      });
+      };
+
+      const fromPos = attachment.getFromPosition();
+      if (fromPos !== undefined) {
+        connection.fromPosition = fromPos;
+      }
+
+      connections.push(connection);
     }
 
     // Calculate metrics
@@ -263,13 +257,7 @@ export class ProofTreeQueryService {
       };
 
       // Add position if available
-      const position = node.getPosition?.();
-      if (position) {
-        dto.position = {
-          x: position.getX(),
-          y: position.getY(),
-        };
-      }
+      // Note: Node entity doesn't have getPosition method - position is calculated during layout
 
       // Add argument details if requested
       if (query.includeArguments) {
@@ -286,12 +274,18 @@ export class ProofTreeQueryService {
         const parentId = node.getParentNodeId();
         const attachment = node.getAttachment();
         if (parentId && attachment) {
-          connections.push({
+          const connection: NodeConnectionDTO = {
             fromNodeId: nodeId.getValue(),
             toNodeId: parentId.getValue(),
             premisePosition: attachment.getPremisePosition(),
-            fromPosition: attachment.getFromPosition(),
-          });
+          };
+
+          const fromPos = attachment.getFromPosition();
+          if (fromPos !== undefined) {
+            connection.fromPosition = fromPos;
+          }
+
+          connections.push(connection);
         }
       }
     }

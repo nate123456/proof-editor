@@ -6,7 +6,7 @@ import { webviewScript } from './webview-script-utils';
 import { createBasicWebviewHTML, JSDOM, setupMockVSCodeAPI } from './webview-test-utils';
 
 describe('ProofTreePanel Webview Property-Based Testing with Fast-Check', () => {
-  let dom: JSDOM;
+  let dom: InstanceType<typeof JSDOM>;
   let window: Window & typeof globalThis;
   let document: Document;
   let mockVSCode: any;
@@ -83,6 +83,8 @@ describe('ProofTreePanel Webview Property-Based Testing with Fast-Check', () => 
           if (zoomValue >= 0.5 && zoomValue <= 3) {
             expect(result).toBe(zoomValue);
           }
+
+          return true;
         },
       ),
       { numRuns: 20 },
@@ -372,7 +374,7 @@ describe('ProofTreePanel Webview Property-Based Testing with Fast-Check', () => 
 
             // Verify the premises content matches expectations
             const call = mockVSCode.postMessage.mock.calls.find(
-              (call) => call[0]?.type === 'createArgument',
+              (call: any) => call[0]?.type === 'createArgument',
             );
             if (call && expectedPremises.length > 0) {
               expect(call[0].premises).toEqual(expectedPremises);

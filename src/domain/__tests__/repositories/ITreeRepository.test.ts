@@ -15,7 +15,7 @@ import { Tree } from '../../entities/Tree';
 import { RepositoryError } from '../../errors/DomainErrors';
 import type { ITreeRepository } from '../../repositories/ITreeRepository';
 import { DocumentId, PhysicalProperties, Position2D, TreeId } from '../../shared/value-objects';
-import { treeIdFactory } from '../factories';
+import { treeIdFactory } from './factories';
 
 // Mock implementation of ITreeRepository for testing
 class MockTreeRepository implements ITreeRepository {

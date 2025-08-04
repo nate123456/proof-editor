@@ -8,7 +8,7 @@ import type { IAtomicArgumentRepository } from '../../repositories/IAtomicArgume
 import type { IOrderedSetRepository } from '../../repositories/IOrderedSetRepository';
 import { ValidationError } from '../../shared/result';
 import type { AtomicArgumentId } from '../../shared/value-objects';
-import { atomicArgumentIdFactory, nodeIdFactory, orderedSetIdFactory } from '../factories';
+import { atomicArgumentIdFactory, nodeIdFactory, orderedSetIdFactory } from './factories';
 
 describe('Tree Argument Analysis', () => {
   let mockDateNow: ReturnType<typeof vi.fn>;

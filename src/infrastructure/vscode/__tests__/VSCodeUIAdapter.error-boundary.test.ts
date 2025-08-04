@@ -21,6 +21,7 @@ import type {
   ProgressTask,
   QuickPickItem,
 } from '../../../application/ports/IUIPort.js';
+import { NotificationMessage } from '../../../domain/shared/value-objects/index.js';
 import { VSCodeUIAdapter } from '../VSCodeUIAdapter.js';
 
 // Mock VS Code module with comprehensive error injection capabilities
@@ -464,7 +465,10 @@ describe('VSCodeUIAdapter Error Boundary', () => {
 
       // This should not throw, but the callback will crash internally
       expect(() => {
-        adapter.showInformation('Test message', crashingAction);
+        const msgResult = NotificationMessage.create('Test message');
+        if (msgResult.isOk()) {
+          adapter.showInformation(msgResult.value, crashingAction);
+        }
       }).not.toThrow();
 
       // Wait for async callback execution
@@ -483,7 +487,10 @@ describe('VSCodeUIAdapter Error Boundary', () => {
       });
 
       expect(() => {
-        adapter.showWarning('Test warning', ...invalidActions);
+        const msgResult = NotificationMessage.create('Test warning');
+        if (msgResult.isOk()) {
+          adapter.showWarning(msgResult.value, ...invalidActions);
+        }
       }).not.toThrow(); // Should handle gracefully
     });
 
@@ -505,7 +512,10 @@ describe('VSCodeUIAdapter Error Boundary', () => {
 
       expect(() => {
         for (let i = 0; i < 100; i++) {
-          adapter.showError(`Error ${i}`);
+          const msgResult = NotificationMessage.create(`Error ${i}`);
+          if (msgResult.isOk()) {
+            adapter.showError(msgResult.value);
+          }
         }
       }).not.toThrow(); // Should handle gracefully without crashing
     });
@@ -518,7 +528,10 @@ describe('VSCodeUIAdapter Error Boundary', () => {
       });
 
       expect(() => {
-        adapter.showInformation(longMessage);
+        const msgResult = NotificationMessage.create(longMessage);
+        if (msgResult.isOk()) {
+          adapter.showInformation(msgResult.value);
+        }
       }).not.toThrow();
     });
   });

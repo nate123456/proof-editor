@@ -310,7 +310,7 @@ export class TypedUITheme {
 
     const fontSizeResult = FontSize.create(theme.fonts.size);
     if (fontSizeResult.isErr()) {
-      return fontSizeResult;
+      return err(fontSizeResult.error);
     }
 
     return ok(
@@ -402,7 +402,7 @@ export class TypedUICapabilities {
         capabilities.screenDimensions.height,
       );
       if (dimensionsResult.isErr()) {
-        return dimensionsResult;
+        return err(dimensionsResult.error);
       }
       screenDimensions = dimensionsResult.value;
     }
@@ -472,7 +472,7 @@ export function createWriteFileOperation(
 ): Result<{ filePath: FilePath; content: string | Buffer }, ValidationError> {
   const pathResult = FilePath.create(filePath);
   if (pathResult.isErr()) {
-    return pathResult;
+    return err(pathResult.error);
   }
 
   if (typeof content === 'string' && content.length > 100000000) {

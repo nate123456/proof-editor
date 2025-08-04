@@ -8,6 +8,17 @@ import type {
 } from '../../application/dtos/view-dtos.js';
 import type { AtomicArgumentDTO } from '../../application/queries/shared-types.js';
 import type { StatementDTO } from '../../application/queries/statement-queries.js';
+import { Version } from '../../domain/shared/value-objects/content.js';
+import {
+  AtomicArgumentId,
+  Dimensions,
+  DocumentId,
+  NodeId,
+  Position2D,
+  SideLabel,
+  StatementId,
+  TreeId,
+} from '../../domain/shared/value-objects/index.js';
 import { TreeRenderer } from '../TreeRenderer.js';
 
 describe('TreeRenderer (DTO-based)', () => {
@@ -104,7 +115,7 @@ describe('TreeRenderer (DTO-based)', () => {
               createRenderedNodeDTO({
                 id: 'n1',
                 position: { x: 100, y: 100 },
-                sideLabel: 'Modus Ponens',
+                sideLabel: 'Modus Ponens' as any,
               }),
             ],
             connections: [],
@@ -151,7 +162,10 @@ describe('TreeRenderer (DTO-based)', () => {
             nodes: [
               createRenderedNodeDTO({
                 id: 'n1',
-                position: { x: 100, y: 100 },
+                position: (() => {
+                  const result = Position2D.create(100, 100);
+                  return result.isOk() ? result.value : Position2D.origin();
+                })(),
                 premises: [createStatementDTO('s1', longContent)],
                 conclusions: [],
               }),
@@ -223,13 +237,19 @@ describe('TreeRenderer (DTO-based)', () => {
               nodes: [
                 createRenderedNodeDTO({
                   id: 'n2',
-                  position: { x: 200, y: 200 },
+                  position: (() => {
+                    const result = Position2D.create(200, 200);
+                    return result.isOk() ? result.value : Position2D.origin();
+                  })(),
                 }),
               ],
               connections: [],
             },
             {
-              position: { x: 500, y: 300 },
+              position: (() => {
+                const result = Position2D.create(500, 300);
+                return result.isOk() ? result.value : Position2D.origin();
+              })(),
             },
           ),
         ],
@@ -271,23 +291,35 @@ describe('TreeRenderer (DTO-based)', () => {
             nodes: [
               createRenderedNodeDTO({
                 id: 'n1',
-                position: { x: 100, y: 100 },
+                position: (() => {
+                  const result = Position2D.create(100, 100);
+                  return result.isOk() ? result.value : Position2D.origin();
+                })(),
                 premises: [
                   createStatementDTO('s1', 'All men are mortal'),
                   createStatementDTO('s2', 'Socrates is a man'),
                 ],
                 conclusions: [createStatementDTO('s3', 'Socrates is mortal')],
-                sideLabel: 'Universal Instantiation',
+                ...(() => {
+                  const result = SideLabel.create('Universal Instantiation');
+                  return result.isOk() ? { sideLabel: result.value } : {};
+                })(),
               }),
               createRenderedNodeDTO({
                 id: 'n2',
-                position: { x: 100, y: 300 },
+                position: (() => {
+                  const result = Position2D.create(100, 300);
+                  return result.isOk() ? result.value : Position2D.origin();
+                })(),
                 premises: [
                   createStatementDTO('s3', 'Socrates is mortal'),
                   createStatementDTO('s4', 'All mortals die'),
                 ],
                 conclusions: [createStatementDTO('s5', 'Socrates will die')],
-                sideLabel: 'Modus Ponens',
+                ...(() => {
+                  const result = SideLabel.create('Modus Ponens');
+                  return result.isOk() ? { sideLabel: result.value } : {};
+                })(),
               }),
             ],
             connections: [
@@ -315,7 +347,10 @@ describe('TreeRenderer (DTO-based)', () => {
   describe('SVG structure validation', () => {
     test('generates valid SVG with proper dimensions', () => {
       const visualization = createProofVisualizationDTO({
-        totalDimensions: { width: 800, height: 600 },
+        totalDimensions: (() => {
+          const result = Dimensions.create(800, 600);
+          return result.isOk() ? result.value : Dimensions.fullHD();
+        })(),
         trees: [],
       });
 
@@ -350,7 +385,7 @@ describe('TreeRenderer (DTO-based)', () => {
             nodes: [
               createRenderedNodeDTO({
                 id: 'n1',
-                position: { x: 0, y: 0 },
+                position: Position2D.origin(),
               }),
             ],
             connections: [],
@@ -369,10 +404,23 @@ describe('TreeRenderer (DTO-based)', () => {
 
   describe('error handling and edge cases', () => {
     test('handles visualization with zero dimensions', () => {
-      const visualization = createProofVisualizationDTO({
-        totalDimensions: { width: 0, height: 0 },
+      // Since Dimensions doesn't allow zero values, we need to test this differently
+      // by creating a custom DTO that bypasses the value object validation
+      const visualization = {
+        documentId: (() => {
+          const result = DocumentId.fromString('test-doc');
+          if (result.isErr()) throw new Error('Failed to create DocumentId');
+          return result.value;
+        })(),
+        version: (() => {
+          const result = Version.create(1);
+          if (result.isErr()) throw new Error('Failed to create Version');
+          return result.value;
+        })(),
         trees: [],
-      });
+        totalDimensions: { getWidth: () => 0, getHeight: () => 0 } as any,
+        isEmpty: false,
+      } as ProofVisualizationDTO;
 
       const svg = renderer.generateSVG(visualization);
 
@@ -385,11 +433,18 @@ describe('TreeRenderer (DTO-based)', () => {
         trees: [
           createTreeRenderDTO('tree1', {
             nodes: [
-              createRenderedNodeDTO({
-                id: 'n1',
-                position: { x: 0, y: 0 },
-                dimensions: { width: 0, height: 0 },
-              }),
+              {
+                id: (() => {
+                  const result = NodeId.fromString('n1');
+                  if (result.isErr()) throw new Error('Failed to create NodeId');
+                  return result.value;
+                })(),
+                position: Position2D.origin(),
+                dimensions: { getWidth: () => 0, getHeight: () => 0 } as any,
+                argument: createAtomicArgumentDTO(),
+                premises: [],
+                conclusions: [],
+              } as RenderedNodeDTO,
             ],
             connections: [],
           }),
@@ -409,7 +464,10 @@ describe('TreeRenderer (DTO-based)', () => {
             nodes: [
               createRenderedNodeDTO({
                 id: 'n1',
-                position: { x: 100, y: 100 },
+                position: (() => {
+                  const result = Position2D.create(100, 100);
+                  return result.isOk() ? result.value : Position2D.origin();
+                })(),
                 premises: [],
                 conclusions: [],
               }),
@@ -430,11 +488,26 @@ describe('TreeRenderer (DTO-based)', () => {
 function createProofVisualizationDTO(
   overrides: Partial<ProofVisualizationDTO> = {},
 ): ProofVisualizationDTO {
+  const documentIdResult = DocumentId.fromString('test-doc');
+  if (documentIdResult.isErr()) {
+    throw new Error('Failed to create test DocumentId');
+  }
+
+  const dimensionsResult = Dimensions.create(400, 200);
+  if (dimensionsResult.isErr()) {
+    throw new Error('Failed to create test dimensions');
+  }
+
+  const versionResult = Version.create(1);
+  if (versionResult.isErr()) {
+    throw new Error('Failed to create test Version');
+  }
+
   return {
-    documentId: 'test-doc',
-    version: 1,
+    documentId: documentIdResult.value,
+    version: versionResult.value,
     trees: [],
-    totalDimensions: { width: 400, height: 200 },
+    totalDimensions: dimensionsResult.value,
     isEmpty: false,
     ...overrides,
   };
@@ -442,54 +515,239 @@ function createProofVisualizationDTO(
 
 function createTreeRenderDTO(
   id: string,
-  layout: Partial<TreeLayoutDTO> = {},
-  overrides: Partial<TreeRenderDTO> = {},
+  layout: Partial<
+    Omit<TreeLayoutDTO, 'dimensions'> & {
+      dimensions?: { width: number; height: number } | Dimensions;
+    }
+  > = {},
+  overrides: Partial<
+    Omit<TreeRenderDTO, 'position' | 'bounds'> & {
+      position?: { x: number; y: number } | Position2D;
+      bounds?: { width: number; height: number } | Dimensions;
+    }
+  > = {},
 ): TreeRenderDTO {
+  const treeIdResult = TreeId.fromString(id);
+  if (treeIdResult.isErr()) {
+    throw new Error('Failed to create test TreeId');
+  }
+
+  const positionResult = Position2D.create(0, 0);
+  if (positionResult.isErr()) {
+    throw new Error('Failed to create test position');
+  }
+
+  const dimensionsResult = Dimensions.create(400, 200);
+  if (dimensionsResult.isErr()) {
+    throw new Error('Failed to create test dimensions');
+  }
+
+  let position: Position2D;
+  if (overrides.position) {
+    if ('getX' in overrides.position) {
+      position = overrides.position as Position2D;
+    } else {
+      const posResult = Position2D.create(overrides.position.x, overrides.position.y);
+      if (posResult.isErr()) {
+        throw new Error('Failed to create position from coordinates');
+      }
+      position = posResult.value;
+    }
+  } else {
+    position = positionResult.value;
+  }
+
+  let dimensions: Dimensions;
+  if (layout.dimensions) {
+    if ('getWidth' in layout.dimensions) {
+      dimensions = layout.dimensions as Dimensions;
+    } else {
+      const dimResult = Dimensions.create(layout.dimensions.width, layout.dimensions.height);
+      if (dimResult.isErr()) {
+        throw new Error('Failed to create dimensions');
+      }
+      dimensions = dimResult.value;
+    }
+  } else {
+    dimensions = dimensionsResult.value;
+  }
+
+  let bounds: Dimensions;
+  if (overrides.bounds) {
+    if ('getWidth' in overrides.bounds) {
+      bounds = overrides.bounds as Dimensions;
+    } else {
+      const boundsResult = Dimensions.create(overrides.bounds.width, overrides.bounds.height);
+      if (boundsResult.isErr()) {
+        throw new Error('Failed to create bounds');
+      }
+      bounds = boundsResult.value;
+    }
+  } else {
+    bounds = dimensionsResult.value;
+  }
+
+  const { position: _, bounds: __, ...restOverrides } = overrides;
+  const { dimensions: ___, ...restLayout } = layout;
+
   return {
-    id,
-    position: { x: 0, y: 0 },
+    id: treeIdResult.value,
+    position,
     layout: {
       nodes: [],
       connections: [],
-      dimensions: { width: 400, height: 200 },
-      ...layout,
+      dimensions,
+      ...restLayout,
     },
-    bounds: { width: 400, height: 200 },
-    ...overrides,
+    bounds,
+    ...restOverrides,
   };
 }
 
-function createRenderedNodeDTO(overrides: Partial<RenderedNodeDTO> = {}): RenderedNodeDTO {
-  return {
-    id: 'test-node',
-    position: { x: 0, y: 0 },
-    dimensions: { width: 220, height: 120 },
-    argument: createAtomicArgumentDTO(),
-    premises: [],
-    conclusions: [],
-    ...overrides,
+function createRenderedNodeDTO(
+  overrides: Partial<Omit<RenderedNodeDTO, 'id' | 'position'>> & {
+    id?: string | NodeId;
+    position?: { x: number; y: number } | Position2D;
+  } = {},
+): RenderedNodeDTO {
+  let nodeId: NodeId;
+  if (typeof overrides.id === 'string') {
+    const nodeIdResult = NodeId.fromString(overrides.id);
+    if (nodeIdResult.isErr()) {
+      throw new Error('Failed to create test NodeId');
+    }
+    nodeId = nodeIdResult.value;
+  } else if (overrides.id) {
+    nodeId = overrides.id;
+  } else {
+    const defaultResult = NodeId.fromString('test-node');
+    if (defaultResult.isErr()) {
+      throw new Error('Failed to create default NodeId');
+    }
+    nodeId = defaultResult.value;
+  }
+
+  let position: Position2D;
+  if (overrides.position) {
+    if ('getX' in overrides.position) {
+      position = overrides.position as Position2D;
+    } else {
+      const posResult = Position2D.create(overrides.position.x, overrides.position.y);
+      if (posResult.isErr()) {
+        throw new Error('Failed to create position from coordinates');
+      }
+      position = posResult.value;
+    }
+  } else {
+    position = Position2D.origin();
+  }
+
+  const dimensionsResult = Dimensions.create(220, 120);
+  if (dimensionsResult.isErr()) {
+    throw new Error('Failed to create test dimensions');
+  }
+
+  const {
+    id: _,
+    position: __,
+    dimensions: ___,
+    argument: ____,
+    premises: _____,
+    conclusions: ______,
+    sideLabel: _______,
+    ...restOverrides
+  } = overrides;
+
+  const result: RenderedNodeDTO = {
+    id: nodeId,
+    position,
+    dimensions: overrides.dimensions || dimensionsResult.value,
+    argument: overrides.argument || createAtomicArgumentDTO(),
+    premises: overrides.premises || [],
+    conclusions: overrides.conclusions || [],
+    ...restOverrides,
   };
+
+  if (overrides.sideLabel !== undefined) {
+    result.sideLabel = overrides.sideLabel;
+  }
+
+  return result;
 }
 
-function createConnectionDTO(overrides: Partial<ConnectionDTO> = {}): ConnectionDTO {
+function createConnectionDTO(
+  overrides: Partial<Omit<ConnectionDTO, 'fromNodeId' | 'toNodeId'>> & {
+    fromNodeId?: string | NodeId;
+    toNodeId?: string | NodeId;
+  } = {},
+): ConnectionDTO {
+  let fromNodeId: NodeId;
+  let toNodeId: NodeId;
+
+  if (typeof overrides.fromNodeId === 'string') {
+    const fromNodeIdResult = NodeId.fromString(overrides.fromNodeId);
+    if (fromNodeIdResult.isErr()) {
+      throw new Error('Failed to create test fromNodeId');
+    }
+    fromNodeId = fromNodeIdResult.value;
+  } else if (overrides.fromNodeId) {
+    fromNodeId = overrides.fromNodeId as any;
+  } else {
+    const defaultResult = NodeId.fromString('n1');
+    if (defaultResult.isErr()) {
+      throw new Error('Failed to create default fromNodeId');
+    }
+    fromNodeId = defaultResult.value;
+  }
+
+  if (typeof overrides.toNodeId === 'string') {
+    const toNodeIdResult = NodeId.fromString(overrides.toNodeId);
+    if (toNodeIdResult.isErr()) {
+      throw new Error('Failed to create test toNodeId');
+    }
+    toNodeId = toNodeIdResult.value;
+  } else if (overrides.toNodeId) {
+    toNodeId = overrides.toNodeId as any;
+  } else {
+    const defaultResult = NodeId.fromString('n2');
+    if (defaultResult.isErr()) {
+      throw new Error('Failed to create default toNodeId');
+    }
+    toNodeId = defaultResult.value;
+  }
+
+  const { fromNodeId: _, toNodeId: __, ...restOverrides } = overrides;
+
   return {
-    fromNodeId: 'n1',
-    toNodeId: 'n2',
-    fromPosition: 0,
-    toPosition: 0,
-    coordinates: {
+    fromNodeId,
+    toNodeId,
+    fromPosition: overrides.fromPosition ?? 0,
+    toPosition: overrides.toPosition ?? 0,
+    coordinates: overrides.coordinates || {
       startX: 0,
       startY: 0,
       endX: 100,
       endY: 100,
     },
-    ...overrides,
+    ...restOverrides,
   };
 }
 
-function createStatementDTO(id: string, content: string): StatementDTO {
+function createStatementDTO(id: string | StatementId, content: string): StatementDTO {
+  let statementId: StatementId;
+
+  if (typeof id === 'string') {
+    const statementIdResult = StatementId.fromString(id);
+    if (statementIdResult.isErr()) {
+      throw new Error('Failed to create test StatementId');
+    }
+    statementId = statementIdResult.value;
+  } else {
+    statementId = id;
+  }
+
   return {
-    id,
+    id: statementId as any,
     content,
     usageCount: 0,
     createdAt: new Date().toISOString(),
@@ -498,9 +756,26 @@ function createStatementDTO(id: string, content: string): StatementDTO {
 }
 
 function createAtomicArgumentDTO(): AtomicArgumentDTO {
+  const argIdResult = AtomicArgumentId.fromString('test-arg');
+  if (argIdResult.isErr()) {
+    throw new Error('Failed to create test AtomicArgumentId');
+  }
+
   return {
-    id: 'test-arg',
-    premiseIds: 'os1',
-    conclusionIds: 'os2',
+    id: argIdResult.value,
+    premiseIds: [
+      (() => {
+        const result = StatementId.fromString('stmt-1');
+        if (result.isErr()) throw new Error('Failed to create StatementId');
+        return result.value;
+      })(),
+    ],
+    conclusionIds: [
+      (() => {
+        const result = StatementId.fromString('stmt-2');
+        if (result.isErr()) throw new Error('Failed to create StatementId');
+        return result.value;
+      })(),
+    ],
   };
 }

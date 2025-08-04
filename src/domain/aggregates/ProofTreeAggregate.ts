@@ -14,7 +14,7 @@ import {
   type AtomicArgumentId,
   Attachment,
   type NodeId,
-  Position2D,
+  type Position2D,
   ProofTreeId,
 } from '../shared/value-objects/index.js';
 
@@ -24,7 +24,7 @@ export interface NodeCreationData {
 }
 
 export interface SpatialLayout {
-  offset: Position2D;
+  offset: { x: number; y: number };
   scale: number;
 }
 
@@ -50,7 +50,7 @@ export class ProofTreeAggregate {
   }
 
   static createNew(
-    initialLayout: SpatialLayout = { offset: Position2D.origin(), scale: 1.0 },
+    initialLayout: SpatialLayout = { offset: { x: 0, y: 0 }, scale: 1.0 },
   ): Result<ProofTreeAggregate, ValidationError> {
     const nodes = new Map<NodeId, Node>();
     const treeId = ProofTreeId.generate();
@@ -61,7 +61,7 @@ export class ProofTreeAggregate {
       new ProofTreeCreated(treeId.getValue(), {
         treeId,
         initialLayout: {
-          offset: { x: initialLayout.offset.getX(), y: initialLayout.offset.getY() },
+          offset: { x: initialLayout.offset.x, y: initialLayout.offset.y },
           scale: initialLayout.scale,
         },
       }),
@@ -245,10 +245,13 @@ export class ProofTreeAggregate {
     }
 
     const previousPosition = {
-      x: this.spatialLayout.offset.getX(),
-      y: this.spatialLayout.offset.getY(),
+      x: this.spatialLayout.offset.x,
+      y: this.spatialLayout.offset.y,
     };
-    this.spatialLayout.offset = newPosition;
+    this.spatialLayout = {
+      offset: { x: newPosition.getX(), y: newPosition.getY() },
+      scale: this.spatialLayout.scale,
+    };
     this.incrementVersion();
 
     this.uncommittedEvents.push(

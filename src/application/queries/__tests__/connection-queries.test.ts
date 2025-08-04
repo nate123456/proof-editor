@@ -9,7 +9,7 @@ import fc from 'fast-check';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   atomicArgumentFactory,
-  orderedSetFactory,
+  orderedSetIdFactory,
 } from '../../../domain/__tests__/factories/index.js';
 import { ValidationError } from '../../../domain/shared/result.js';
 import type {
@@ -58,7 +58,9 @@ describe('Connection Query Execution Tests', () => {
 
       const argument1 = atomicArgumentFactory.build();
       const argument2 = atomicArgumentFactory.build();
-      const sharedOrderedSet = orderedSetFactory.build();
+      const sharedOrderedSet = {
+        getId: () => ({ getValue: () => orderedSetIdFactory.build() }),
+      };
 
       mockRepositories.argumentRepository.findByProofId.mockResolvedValue([argument1, argument2]);
       mockRepositories.orderedSetRepository.findSharedSets.mockResolvedValue([sharedOrderedSet]);
@@ -94,7 +96,9 @@ describe('Connection Query Execution Tests', () => {
       };
 
       const connectedArgument = atomicArgumentFactory.build();
-      const sharedOrderedSet = orderedSetFactory.build();
+      const sharedOrderedSet = {
+        getId: () => ({ getValue: () => orderedSetIdFactory.build() }),
+      };
 
       const expectedConnections: ConnectionDTO[] = [
         {
@@ -120,7 +124,9 @@ describe('Connection Query Execution Tests', () => {
 
     it('should find connections for specific ordered set', async () => {
       // Arrange
-      const targetOrderedSet = orderedSetFactory.build();
+      const targetOrderedSet = {
+        getId: () => ({ getValue: () => orderedSetIdFactory.build() }),
+      };
       const query: FindConnectionsQuery = {
         documentId: 'doc_orderedset',
         orderedSetId: targetOrderedSet.getId().getValue(),

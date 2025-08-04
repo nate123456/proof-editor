@@ -10,6 +10,16 @@ import type {
   IFileSystemPort,
   StoredDocument,
 } from '../../application/ports/IFileSystemPort.js';
+import {
+  DocumentContent,
+  type DocumentId,
+  ErrorCode,
+  ErrorMessage,
+  FileName,
+  FilePath,
+  FileSize,
+  Timestamp,
+} from '../../domain/shared/value-objects/index.js';
 
 export class VSCodeFileSystemAdapter implements IFileSystemPort {
   private readonly storedDocuments = new Map<string, StoredDocument>();
@@ -21,42 +31,37 @@ export class VSCodeFileSystemAdapter implements IFileSystemPort {
     }
   }
 
-  async readFile(path: string): Promise<Result<string, FileSystemError>> {
+  async readFile(path: FilePath): Promise<Result<DocumentContent, FileSystemError>> {
     try {
       if (!vscode.workspace?.fs) {
-        return err({
-          code: 'UNKNOWN',
-          message: 'VS Code workspace.fs is not available',
-          path,
-        });
+        return err(this.createError('UNKNOWN', 'VS Code workspace.fs is not available', path));
       }
       if (!vscode.Uri?.file) {
-        return err({
-          code: 'UNKNOWN',
-          message: 'VS Code Uri.file is not available',
-          path,
-        });
+        return err(this.createError('UNKNOWN', 'VS Code Uri.file is not available', path));
       }
-      const uri = vscode.Uri.file(path);
+      const uri = vscode.Uri.file(path.getValue());
       const content = await vscode.workspace.fs.readFile(uri);
       const text = new TextDecoder('utf-8').decode(content);
-      return ok(text);
+      const documentContent = DocumentContent.create(text);
+      if (documentContent.isErr()) {
+        return err(this.createError('INVALID_CONTENT', documentContent.error.message, path));
+      }
+      return ok(documentContent.value);
     } catch (error) {
       return err(this.mapError(error, path));
     }
   }
 
-  async writeFile(path: string, content: string): Promise<Result<void, FileSystemError>> {
+  async writeFile(
+    path: FilePath,
+    content: DocumentContent,
+  ): Promise<Result<void, FileSystemError>> {
     try {
       if (!vscode.workspace?.fs) {
-        return err({
-          code: 'UNKNOWN',
-          message: 'VS Code workspace.fs is not available',
-          path,
-        });
+        return err(this.createError('UNKNOWN', 'VS Code workspace.fs is not available', path));
       }
-      const uri = vscode.Uri.file(path);
-      const buffer = new TextEncoder().encode(content);
+      const uri = vscode.Uri.file(path.getValue());
+      const buffer = new TextEncoder().encode(content.getValue());
       await vscode.workspace.fs.writeFile(uri, buffer);
       return ok(undefined);
     } catch (error) {
@@ -64,16 +69,12 @@ export class VSCodeFileSystemAdapter implements IFileSystemPort {
     }
   }
 
-  async exists(path: string): Promise<Result<boolean, FileSystemError>> {
+  async exists(path: FilePath): Promise<Result<boolean, FileSystemError>> {
     try {
       if (!vscode.workspace?.fs) {
-        return err({
-          code: 'UNKNOWN',
-          message: 'VS Code workspace.fs is not available',
-          path,
-        });
+        return err(this.createError('UNKNOWN', 'VS Code workspace.fs is not available', path));
       }
-      const uri = vscode.Uri.file(path);
+      const uri = vscode.Uri.file(path.getValue());
       const stat = await vscode.workspace.fs.stat(uri);
       return ok(stat !== undefined);
     } catch (error) {
@@ -84,16 +85,12 @@ export class VSCodeFileSystemAdapter implements IFileSystemPort {
     }
   }
 
-  async delete(path: string): Promise<Result<void, FileSystemError>> {
+  async delete(path: FilePath): Promise<Result<void, FileSystemError>> {
     try {
       if (!vscode.workspace?.fs) {
-        return err({
-          code: 'UNKNOWN',
-          message: 'VS Code workspace.fs is not available',
-          path,
-        });
+        return err(this.createError('UNKNOWN', 'VS Code workspace.fs is not available', path));
       }
-      const uri = vscode.Uri.file(path);
+      const uri = vscode.Uri.file(path.getValue());
       await vscode.workspace.fs.delete(uri, { recursive: false, useTrash: true });
       return ok(undefined);
     } catch (error) {
@@ -101,32 +98,37 @@ export class VSCodeFileSystemAdapter implements IFileSystemPort {
     }
   }
 
-  async readDirectory(path: string): Promise<Result<FileInfo[], FileSystemError>> {
+  async readDirectory(path: FilePath): Promise<Result<FileInfo[], FileSystemError>> {
     try {
       if (!vscode.workspace?.fs) {
-        return err({
-          code: 'UNKNOWN',
-          message: 'VS Code workspace.fs is not available',
-          path,
-        });
+        return err(this.createError('UNKNOWN', 'VS Code workspace.fs is not available', path));
       }
-      const uri = vscode.Uri.file(path);
+      const uri = vscode.Uri.file(path.getValue());
       const entries = await vscode.workspace.fs.readDirectory(uri);
 
-      const fileInfos: FileInfo[] = await Promise.all(
-        entries.map(async ([name, type]) => {
+      const fileInfos: FileInfo[] = [];
+      for (const [name, type] of entries) {
+        try {
           const entryUri = vscode.Uri.joinPath(uri, name);
           const stat = await vscode.workspace.fs.stat(entryUri);
 
-          return {
-            path: entryUri.fsPath,
-            name,
-            isDirectory: type === vscode.FileType.Directory,
-            size: stat.size,
-            modifiedAt: new Date(stat.mtime),
-          };
-        }),
-      );
+          const filePath = FilePath.create(entryUri.fsPath);
+          const fileName = FileName.create(name);
+          const fileSize = FileSize.create(stat.size);
+
+          if (filePath.isOk() && fileName.isOk() && fileSize.isOk()) {
+            fileInfos.push({
+              path: filePath.value,
+              name: fileName.value,
+              isDirectory: type === vscode.FileType.Directory,
+              size: fileSize.value,
+              modifiedAt: new Date(stat.mtime),
+            });
+          }
+        } catch {
+          // Skip files we can't stat
+        }
+      }
 
       return ok(fileInfos);
     } catch (error) {
@@ -134,16 +136,12 @@ export class VSCodeFileSystemAdapter implements IFileSystemPort {
     }
   }
 
-  async createDirectory(path: string): Promise<Result<void, FileSystemError>> {
+  async createDirectory(path: FilePath): Promise<Result<void, FileSystemError>> {
     try {
       if (!vscode.workspace?.fs) {
-        return err({
-          code: 'UNKNOWN',
-          message: 'VS Code workspace.fs is not available',
-          path,
-        });
+        return err(this.createError('UNKNOWN', 'VS Code workspace.fs is not available', path));
       }
-      const uri = vscode.Uri.file(path);
+      const uri = vscode.Uri.file(path.getValue());
       await vscode.workspace.fs.createDirectory(uri);
       return ok(undefined);
     } catch (error) {
@@ -151,7 +149,7 @@ export class VSCodeFileSystemAdapter implements IFileSystemPort {
     }
   }
 
-  watch(path: string, callback: (event: FileChangeEvent) => void): Disposable {
+  watch(path: FilePath, callback: (event: FileChangeEvent) => void): Disposable {
     if (!vscode.workspace?.createFileSystemWatcher) {
       // Return a no-op disposable if workspace is not available
       return {
@@ -161,7 +159,7 @@ export class VSCodeFileSystemAdapter implements IFileSystemPort {
       };
     }
 
-    const uri = vscode.Uri.file(path);
+    const uri = vscode.Uri.file(path.getValue());
     const watcher = vscode.workspace.createFileSystemWatcher(
       new vscode.RelativePattern(uri, '**/*'),
     );
@@ -170,19 +168,28 @@ export class VSCodeFileSystemAdapter implements IFileSystemPort {
 
     disposables.push(
       watcher.onDidCreate((uri) => {
-        callback({ type: 'created', path: uri.fsPath });
+        const filePath = FilePath.create(uri.fsPath);
+        if (filePath.isOk()) {
+          callback({ type: 'created', path: filePath.value });
+        }
       }),
     );
 
     disposables.push(
       watcher.onDidChange((uri) => {
-        callback({ type: 'changed', path: uri.fsPath });
+        const filePath = FilePath.create(uri.fsPath);
+        if (filePath.isOk()) {
+          callback({ type: 'changed', path: filePath.value });
+        }
       }),
     );
 
     disposables.push(
       watcher.onDidDelete((uri) => {
-        callback({ type: 'deleted', path: uri.fsPath });
+        const filePath = FilePath.create(uri.fsPath);
+        if (filePath.isOk()) {
+          callback({ type: 'deleted', path: filePath.value });
+        }
       }),
     );
 
@@ -201,41 +208,32 @@ export class VSCodeFileSystemAdapter implements IFileSystemPort {
     };
   }
 
-  async getStoredDocument(id: string): Promise<Result<StoredDocument | null, FileSystemError>> {
+  async getStoredDocument(id: DocumentId): Promise<Result<StoredDocument | null, FileSystemError>> {
     try {
-      const doc = this.storedDocuments.get(id);
+      const doc = this.storedDocuments.get(id.getValue());
       return ok(doc || null);
     } catch (error) {
-      return err({
-        code: 'UNKNOWN',
-        message: `Failed to retrieve stored document: ${error}`,
-      });
+      return err(this.createError('UNKNOWN', `Failed to retrieve stored document: ${error}`));
     }
   }
 
   async storeDocument(doc: StoredDocument): Promise<Result<void, FileSystemError>> {
     try {
-      this.storedDocuments.set(doc.id, doc);
+      this.storedDocuments.set(doc.id.getValue(), doc);
       await this.saveStoredDocuments();
       return ok(undefined);
     } catch (error) {
-      return err({
-        code: 'QUOTA_EXCEEDED',
-        message: `Failed to store document: ${error}`,
-      });
+      return err(this.createError('QUOTA_EXCEEDED', `Failed to store document: ${error}`));
     }
   }
 
-  async deleteStoredDocument(id: string): Promise<Result<void, FileSystemError>> {
+  async deleteStoredDocument(id: DocumentId): Promise<Result<void, FileSystemError>> {
     try {
-      this.storedDocuments.delete(id);
+      this.storedDocuments.delete(id.getValue());
       await this.saveStoredDocuments();
       return ok(undefined);
     } catch (error) {
-      return err({
-        code: 'UNKNOWN',
-        message: `Failed to delete stored document: ${error}`,
-      });
+      return err(this.createError('UNKNOWN', `Failed to delete stored document: ${error}`));
     }
   }
 
@@ -244,21 +242,24 @@ export class VSCodeFileSystemAdapter implements IFileSystemPort {
       const metadata = Array.from(this.storedDocuments.values()).map((doc) => doc.metadata);
       return ok(metadata);
     } catch (error) {
-      return err({
-        code: 'UNKNOWN',
-        message: `Failed to list stored documents: ${error}`,
-      });
+      return err(this.createError('UNKNOWN', `Failed to list stored documents: ${error}`));
     }
   }
 
   capabilities(): FileSystemCapabilities {
-    return {
+    const maxFileSizeResult = FileSize.create(100 * 1024 * 1024); // 100MB
+    const result: FileSystemCapabilities = {
       canWatch: true,
       canAccessArbitraryPaths: true,
-      maxFileSize: 100 * 1024 * 1024, // 100MB
       supportsOfflineStorage: true,
       persistence: 'permanent',
     };
+
+    if (maxFileSizeResult.isOk()) {
+      result.maxFileSize = maxFileSizeResult.value;
+    }
+
+    return result;
   }
 
   private loadStoredDocuments(): void {
@@ -273,8 +274,9 @@ export class VSCodeFileSystemAdapter implements IFileSystemPort {
         this.context.globalState.get<Record<string, StoredDocument>>(this.storageKey, {}) || {};
       this.storedDocuments.clear();
       Object.entries(stored).forEach(([id, doc]) => {
-        // Convert stored dates back to Date objects
-        doc.metadata.modifiedAt = new Date(doc.metadata.modifiedAt);
+        // Convert stored dates back to Timestamp objects
+        const timestamp = Timestamp.fromDate(new Date(doc.metadata.modifiedAt as any));
+        doc.metadata.modifiedAt = timestamp;
         this.storedDocuments.set(id, doc);
       });
     } catch (_error) {
@@ -293,48 +295,90 @@ export class VSCodeFileSystemAdapter implements IFileSystemPort {
     await this.context.globalState.update(this.storageKey, toStore);
   }
 
-  private mapError(error: unknown, path?: string): FileSystemError {
+  private mapError(error: unknown, path?: FilePath): FileSystemError {
     if (this.isFileNotFoundError(error)) {
-      const result: FileSystemError = {
-        code: 'NOT_FOUND',
-        message: `File not found: ${path}`,
-      };
-      if (path !== undefined) {
-        result.path = path;
-      }
-      return result;
+      return this.createError('NOT_FOUND', `File not found: ${path?.getValue()}`, path);
     }
 
     if (this.isPermissionError(error)) {
-      const result: FileSystemError = {
-        code: 'PERMISSION_DENIED',
-        message: `Permission denied: ${path}`,
-      };
-      if (path !== undefined) {
-        result.path = path;
-      }
-      return result;
+      return this.createError('PERMISSION_DENIED', `Permission denied: ${path?.getValue()}`, path);
     }
 
     if (this.isDiskFullError(error)) {
-      const result: FileSystemError = {
-        code: 'DISK_FULL',
-        message: 'No space left on device',
-      };
-      if (path !== undefined) {
-        result.path = path;
-      }
-      return result;
+      return this.createError('DISK_FULL', 'No space left on device', path);
     }
 
-    const result: FileSystemError = {
-      code: 'UNKNOWN',
-      message: error instanceof Error ? error.message : String(error),
-    };
-    if (path !== undefined) {
-      result.path = path;
+    return this.createError(
+      'UNKNOWN',
+      error instanceof Error ? error.message : String(error),
+      path,
+    );
+  }
+
+  private createError(code: string, message: string, path?: FilePath): FileSystemError {
+    const errorCode = ErrorCode.create(code);
+    const errorMessage = ErrorMessage.create(message);
+
+    if (errorCode.isErr()) {
+      // Fallback to basic error if value objects fail
+      const fallbackCode = ErrorCode.create('UNKNOWN');
+      const fallbackMessage = ErrorMessage.create('Unknown error');
+      if (fallbackCode.isErr() || fallbackMessage.isErr()) {
+        // Ultimate fallback - create minimal valid value objects
+        const minimalCode = ErrorCode.create('U');
+        const minimalMessage = ErrorMessage.create('Error');
+        const error: FileSystemError = {
+          code: minimalCode.isOk() ? minimalCode.value : ({} as ErrorCode),
+          message: minimalMessage.isOk() ? minimalMessage.value : ({} as ErrorMessage),
+        };
+        if (path) {
+          error.path = path;
+        }
+        return error;
+      }
+      const error: FileSystemError = {
+        code: fallbackCode.value,
+        message: fallbackMessage.value,
+      };
+      if (path) {
+        error.path = path;
+      }
+      return error;
     }
-    return result;
+
+    if (errorMessage.isErr()) {
+      // Truncate or fix message if it's invalid
+      const truncatedMessage = message.substring(0, 200);
+      const fallbackMessage = ErrorMessage.create(truncatedMessage);
+      if (fallbackMessage.isErr()) {
+        const minimalMessage = ErrorMessage.create('Error');
+        const error: FileSystemError = {
+          code: errorCode.value,
+          message: minimalMessage.isOk() ? minimalMessage.value : ({} as ErrorMessage),
+        };
+        if (path) {
+          error.path = path;
+        }
+        return error;
+      }
+      const error: FileSystemError = {
+        code: errorCode.value,
+        message: fallbackMessage.value,
+      };
+      if (path) {
+        error.path = path;
+      }
+      return error;
+    }
+
+    const error: FileSystemError = {
+      code: errorCode.value,
+      message: errorMessage.value,
+    };
+    if (path) {
+      error.path = path;
+    }
+    return error;
   }
 
   private isFileNotFoundError(error: unknown): boolean {

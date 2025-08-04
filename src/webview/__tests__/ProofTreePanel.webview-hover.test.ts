@@ -5,7 +5,7 @@ import { webviewScript } from './webview-script-utils';
 import { createBasicWebviewHTML, JSDOM, setupMockVSCodeAPI } from './webview-test-utils';
 
 describe('ProofTreePanel Webview Hover and Tooltip Features', () => {
-  let dom: JSDOM;
+  let dom: InstanceType<typeof JSDOM>;
   let window: Window & typeof globalThis;
   let document: Document;
   let _mockVSCode: any;
@@ -44,7 +44,7 @@ describe('ProofTreePanel Webview Hover and Tooltip Features', () => {
       window.initializeInteractiveFeatures = () => {
         // Basic implementation for hover effects
         document.querySelectorAll('.statement-group').forEach((element) => {
-          element.addEventListener('mouseenter', function () {
+          element.addEventListener('mouseenter', function (this: HTMLElement) {
             const statementId = this.getAttribute('data-statement-id');
             document
               .querySelectorAll(`[data-statement-id="${statementId}"] .statement-text`)
@@ -67,7 +67,7 @@ describe('ProofTreePanel Webview Hover and Tooltip Features', () => {
         });
 
         document.querySelectorAll('.connection-group').forEach((element) => {
-          element.addEventListener('mouseenter', function () {
+          element.addEventListener('mouseenter', function (this: HTMLElement) {
             const fromNode = this.getAttribute('data-from-node');
             const toNode = this.getAttribute('data-to-node');
             const connLine = this.querySelector('.connection-line');
@@ -90,7 +90,7 @@ describe('ProofTreePanel Webview Hover and Tooltip Features', () => {
         });
 
         document.querySelectorAll('.argument-node-group').forEach((element) => {
-          element.addEventListener('mouseenter', function () {
+          element.addEventListener('mouseenter', function (this: HTMLElement) {
             const nodeId = this.getAttribute('data-node-id');
             const argId = this.getAttribute('data-argument-id');
             this.classList.add('node-highlighted');
@@ -101,7 +101,7 @@ describe('ProofTreePanel Webview Hover and Tooltip Features', () => {
             document.body.appendChild(tooltip);
           });
 
-          element.addEventListener('mouseleave', function () {
+          element.addEventListener('mouseleave', function (this: HTMLElement) {
             this.classList.remove('node-highlighted');
             document.querySelectorAll('.tooltip').forEach((el) => el.remove());
           });

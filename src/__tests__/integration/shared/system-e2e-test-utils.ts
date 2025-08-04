@@ -69,7 +69,7 @@ import type { IViewStatePort } from '../../../application/ports/IViewStatePort.j
 import type { DocumentQueryService } from '../../../application/services/DocumentQueryService.js';
 import type { ProofVisualizationService } from '../../../application/services/ProofVisualizationService.js';
 import type { ViewStateManager } from '../../../application/services/ViewStateManager.js';
-import { ProofTransactionService } from '../../../domain/services/ProofTransactionService.js';
+import type { ProofTransactionService } from '../../../domain/services/ProofTransactionService.js';
 import { StatementFlowService } from '../../../domain/services/StatementFlowService.js';
 import { TreeStructureService } from '../../../domain/services/TreeStructureService.js';
 import { ValidationError } from '../../../domain/shared/result.js';
@@ -106,7 +106,6 @@ export {
   initializeContainer,
   TOKENS,
   ProofTreePanelManager,
-  ProofTransactionService,
   StatementFlowService,
   TreeStructureService,
 };
@@ -125,6 +124,7 @@ export type {
   DocumentController,
   ValidationController,
   TreeRenderer,
+  ProofTransactionService,
 };
 
 // Performance and memory tracking

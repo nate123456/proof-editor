@@ -11,6 +11,11 @@ import type { IPlatformPort } from '../../application/ports/IPlatformPort.js';
 import type { IUIPort } from '../../application/ports/IUIPort.js';
 import type { AtomicArgumentDTO } from '../../application/queries/shared-types.js';
 import type { CrossContextOrchestrationService } from '../../application/services/CrossContextOrchestrationService.js';
+import {
+  AtomicArgumentId,
+  SideLabel,
+  StatementId,
+} from '../../domain/shared/value-objects/index.js';
 import { TOKENS } from '../../infrastructure/di/tokens.js';
 import type { IController, ViewResponse } from './IController.js';
 
@@ -76,10 +81,8 @@ export class ArgumentController implements IController {
   constructor(
     @inject(TOKENS.CrossContextOrchestrationService)
     private readonly orchestrationService: CrossContextOrchestrationService,
-    @inject(TOKENS.IPlatformPort)
-    private readonly platform: IPlatformPort,
-    @inject(TOKENS.IUIPort)
-    private readonly ui: IUIPort,
+    @inject(TOKENS.IPlatformPort) private readonly platform: IPlatformPort,
+    @inject(TOKENS.IUIPort) private readonly ui: IUIPort,
   ) {}
 
   async initialize(): Promise<Result<void, ValidationApplicationError>> {
@@ -195,8 +198,8 @@ export class ArgumentController implements IController {
       const _command: UpdateAtomicArgumentCommand = {
         documentId: documentId.trim(),
         argumentId: argumentId.trim(),
-        premiseIds: premiseIds || null,
-        conclusionIds: conclusionIds || null,
+        ...(premiseIds && { premiseStatementIds: premiseIds }),
+        ...(conclusionIds && { conclusionStatementIds: conclusionIds }),
       };
 
       // Mock implementation
@@ -345,13 +348,33 @@ export class ArgumentController implements IController {
       }
 
       // Mock implementation
+      const argIdResult = AtomicArgumentId.create(argumentId.trim());
+      if (argIdResult.isErr()) {
+        return err(new ValidationApplicationError('Invalid argument ID'));
+      }
+
+      const stmt1Result = StatementId.create('stmt-1');
+      const stmt2Result = StatementId.create('stmt-2');
+      const stmt3Result = StatementId.create('stmt-3');
+
+      if (stmt1Result.isErr() || stmt2Result.isErr() || stmt3Result.isErr()) {
+        return err(new ValidationApplicationError('Failed to create statement IDs'));
+      }
+
+      const leftLabelResult = SideLabel.create('Modus Ponens');
+      const rightLabelResult = SideLabel.create('Classical Logic');
+
+      if (leftLabelResult.isErr() || rightLabelResult.isErr()) {
+        return err(new ValidationApplicationError('Failed to create side labels'));
+      }
+
       const mockAtomicArgumentDTO: AtomicArgumentDTO = {
-        id: argumentId.trim(),
-        premiseIds: ['stmt-1', 'stmt-2'],
-        conclusionIds: ['stmt-3'],
+        id: argIdResult.value,
+        premiseIds: [stmt1Result.value, stmt2Result.value],
+        conclusionIds: [stmt3Result.value],
         sideLabels: {
-          left: 'Modus Ponens',
-          right: 'Classical Logic',
+          left: leftLabelResult.value,
+          right: rightLabelResult.value,
         },
       };
 
@@ -387,22 +410,48 @@ export class ArgumentController implements IController {
       }
 
       // Mock implementation
+      const arg1Id = AtomicArgumentId.create('arg-1');
+      const arg2Id = AtomicArgumentId.create('arg-2');
+      const arg3Id = AtomicArgumentId.create('arg-3');
+
+      const stmt1 = StatementId.create('stmt-1');
+      const stmt2 = StatementId.create('stmt-2');
+      const stmt3 = StatementId.create('stmt-3');
+      const stmt4 = StatementId.create('stmt-4');
+      const stmt5 = StatementId.create('stmt-5');
+
+      const leftLabel = SideLabel.create('Modus Ponens');
+
+      if (
+        arg1Id.isErr() ||
+        arg2Id.isErr() ||
+        arg3Id.isErr() ||
+        stmt1.isErr() ||
+        stmt2.isErr() ||
+        stmt3.isErr() ||
+        stmt4.isErr() ||
+        stmt5.isErr() ||
+        leftLabel.isErr()
+      ) {
+        return err(new ValidationApplicationError('Failed to create mock data'));
+      }
+
       const mockArguments: AtomicArgumentDTO[] = [
         {
-          id: 'arg-1',
-          premiseIds: ['stmt-1', 'stmt-2'],
-          conclusionIds: ['stmt-3'],
-          sideLabels: { left: 'Modus Ponens' },
+          id: arg1Id.value,
+          premiseIds: [stmt1.value, stmt2.value],
+          conclusionIds: [stmt3.value],
+          sideLabels: { left: leftLabel.value },
         },
         {
-          id: 'arg-2',
-          premiseIds: ['stmt-4'],
+          id: arg2Id.value,
+          premiseIds: [stmt4.value],
           conclusionIds: [], // Incomplete
         },
         {
-          id: 'arg-3',
+          id: arg3Id.value,
           premiseIds: [],
-          conclusionIds: ['stmt-5'],
+          conclusionIds: [stmt5.value],
         },
       ];
 
@@ -415,7 +464,7 @@ export class ArgumentController implements IController {
       }
       if (options?.unconnected) {
         // Mock: consider args without connections as unconnected
-        filteredArguments = filteredArguments.filter((a) => a.id === 'arg-3'); // Mock filter
+        filteredArguments = filteredArguments.filter((a) => a.id.getValue() === 'arg-3'); // Mock filter
       }
 
       const viewArguments = filteredArguments.map((a) => this.mapAtomicArgumentToViewDTO(a));
@@ -551,15 +600,29 @@ export class ArgumentController implements IController {
   // =============================
 
   private mapAtomicArgumentToViewDTO(atomicArgumentDto: AtomicArgumentDTO): ArgumentViewDTO {
-    return {
-      id: atomicArgumentDto.id,
-      premiseStatements: atomicArgumentDto.premiseIds, // Use actual premise IDs
-      conclusionStatements: atomicArgumentDto.conclusionIds, // Use actual conclusion IDs
+    const result: ArgumentViewDTO = {
+      id: atomicArgumentDto.id.getValue(),
+      premiseStatements: atomicArgumentDto.premiseIds.map((id) => id.getValue()),
+      conclusionStatements: atomicArgumentDto.conclusionIds.map((id) => id.getValue()),
       isComplete:
         atomicArgumentDto.premiseIds.length > 0 && atomicArgumentDto.conclusionIds.length > 0,
       connectionCount: 1, // Mock count
       lastModified: new Date().toISOString(),
-      ...(atomicArgumentDto.sideLabels && { sideLabels: atomicArgumentDto.sideLabels }),
     };
+
+    if (atomicArgumentDto.sideLabels) {
+      const sideLabels: { left?: string; right?: string } = {};
+      if (atomicArgumentDto.sideLabels.left) {
+        sideLabels.left = atomicArgumentDto.sideLabels.left.getValue();
+      }
+      if (atomicArgumentDto.sideLabels.right) {
+        sideLabels.right = atomicArgumentDto.sideLabels.right.getValue();
+      }
+      if (sideLabels.left || sideLabels.right) {
+        result.sideLabels = sideLabels;
+      }
+    }
+
+    return result;
   }
 }

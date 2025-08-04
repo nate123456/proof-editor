@@ -21,15 +21,18 @@ export function documentToDTO(
   trees: Tree[] = [],
   includeStats = false,
 ): DocumentDTO {
+  // Create query service from the aggregate
+  const queryService = aggregate.createQueryService();
+
   // Convert statements to DTOs
   const statementDTOs: Record<string, ReturnType<typeof statementToDTO>> = {};
-  for (const [id, statement] of aggregate.getStatements()) {
+  for (const [id, statement] of queryService.getStatements()) {
     statementDTOs[id.getValue()] = statementToDTO(statement);
   }
 
   // Convert atomic arguments to DTOs
   const atomicArgumentDTOs: Record<string, ReturnType<typeof atomicArgumentToDTO>> = {};
-  for (const [id, argument] of aggregate.getArguments()) {
+  for (const [id, argument] of queryService.getArguments()) {
     atomicArgumentDTOs[id.getValue()] = atomicArgumentToDTO(argument);
   }
 
@@ -40,8 +43,8 @@ export function documentToDTO(
   }
 
   const dto: DocumentDTO = {
-    id: aggregate.getId().getValue(),
-    version: aggregate.getVersion(),
+    id: queryService.getId().getValue(),
+    version: queryService.getVersion(),
     createdAt: new Date().toISOString(), // ProofAggregate doesn't track timestamps currently
     modifiedAt: new Date().toISOString(), // ProofAggregate doesn't track timestamps currently
     statements: statementDTOs,
@@ -202,9 +205,12 @@ export function documentFromDTO(
  * Creates document statistics
  */
 function createDocumentStats(aggregate: ProofAggregate, trees: Tree[]): DocumentStatsDTO {
+  // Create query service from the aggregate
+  const queryService = aggregate.createQueryService();
+
   // Find unused statements
   const unusedStatements: string[] = [];
-  for (const [id, statement] of aggregate.getStatements()) {
+  for (const [id, statement] of queryService.getStatements()) {
     if (statement.getUsageCount() === 0) {
       unusedStatements.push(id.getValue());
     }
@@ -216,7 +222,7 @@ function createDocumentStats(aggregate: ProofAggregate, trees: Tree[]): Document
 
   // For now, we'll consider all arguments as potentially unconnected
   // In a real implementation, we'd check which arguments are referenced by nodes in trees
-  for (const [id] of aggregate.getArguments()) {
+  for (const [id] of queryService.getArguments()) {
     if (!argumentsInTrees.has(id.getValue())) {
       unconnectedArguments.push(id.getValue());
     }
@@ -224,7 +230,7 @@ function createDocumentStats(aggregate: ProofAggregate, trees: Tree[]): Document
 
   // Count connections by finding arguments that share statements
   let connectionCount = 0;
-  const argumentList = Array.from(aggregate.getArguments().values());
+  const argumentList = Array.from(queryService.getArguments().values());
   for (let i = 0; i < argumentList.length; i++) {
     for (let j = i + 1; j < argumentList.length; j++) {
       const arg1 = argumentList[i];
@@ -232,16 +238,22 @@ function createDocumentStats(aggregate: ProofAggregate, trees: Tree[]): Document
       if (!arg1 || !arg2) continue;
 
       // Check if arg1's conclusions appear in arg2's premises
-      const connections = arg1.findConnectionsTo(arg2);
-      if (connections.length > 0) {
-        connectionCount += connections.length;
+      const arg1Conclusions = arg1.getConclusions();
+      const arg2Premises = arg2.getPremises();
+
+      for (const conclusion of arg1Conclusions) {
+        for (const premise of arg2Premises) {
+          if (conclusion.getId().equals(premise.getId())) {
+            connectionCount++;
+          }
+        }
       }
     }
   }
 
   return {
-    statementCount: aggregate.getStatements().size,
-    argumentCount: aggregate.getArguments().size,
+    statementCount: queryService.getStatements().size,
+    argumentCount: queryService.getArguments().size,
     treeCount: trees.length,
     connectionCount,
     unusedStatements,

@@ -8,7 +8,7 @@ import { ProcessingError } from '../../errors/DomainErrors';
 import type { IAtomicArgumentRepository } from '../../repositories/IAtomicArgumentRepository';
 import type { IOrderedSetRepository } from '../../repositories/IOrderedSetRepository';
 import { type AtomicArgumentId, NodeId, Position2D } from '../../shared/value-objects';
-import { atomicArgumentIdFactory, nodeIdFactory, orderedSetIdFactory } from '../factories';
+import { atomicArgumentIdFactory, nodeIdFactory, orderedSetIdFactory } from './factories';
 
 describe('Tree Performance and Edge Cases', () => {
   let mockDateNow: ReturnType<typeof vi.fn>;

@@ -9,6 +9,15 @@ import type {
 } from '../../application/dtos/view-dtos.js';
 import type { AtomicArgumentDTO } from '../../application/queries/shared-types.js';
 import type { StatementDTO } from '../../application/queries/statement-queries.js';
+import { SideLabel, Version } from '../../domain/shared/value-objects/content.js';
+import { Dimensions, Position2D } from '../../domain/shared/value-objects/geometry.js';
+import {
+  AtomicArgumentId,
+  DocumentId,
+  NodeId,
+  StatementId,
+  TreeId,
+} from '../../domain/shared/value-objects/identifiers.js';
 import { TreeRenderer } from '../TreeRenderer.js';
 
 describe('TreeRenderer', () => {
@@ -18,10 +27,18 @@ describe('TreeRenderer', () => {
   beforeEach(() => {
     renderer = new TreeRenderer();
     mockVisualizationDTO = {
-      documentId: 'test-doc-id',
-      version: 1,
+      documentId: DocumentId.create('test-doc-id').match(
+        (id) => id,
+        () => {
+          throw new Error('Failed to create DocumentId');
+        },
+      ),
+      version: Version.create(1).unwrapOr(Version.initial()),
       trees: [],
-      totalDimensions: { width: 400, height: 200 },
+      totalDimensions: Dimensions.create(400, 200).match(
+        (dims) => dims,
+        () => Dimensions.fullHD(),
+      ),
       isEmpty: true,
     };
   });
@@ -97,40 +114,66 @@ describe('TreeRenderer', () => {
       ];
 
       const atomicArgument: AtomicArgumentDTO = {
-        id: 'arg1',
-        premiseIds: 'os1',
-        conclusionIds: 'os2',
-        sideLabels: { left: 'Modus Ponens' },
+        id: AtomicArgumentId.create('arg1').unwrapOr(AtomicArgumentId.generate()),
+        premiseIds: [
+          StatementId.create('s1').unwrapOr(StatementId.generate()),
+          StatementId.create('s2').unwrapOr(StatementId.generate()),
+        ],
+        conclusionIds: [StatementId.create('s3').unwrapOr(StatementId.generate())],
+        sideLabels: {
+          left: SideLabel.create('Modus Ponens').match(
+            (label) => label,
+            () => {
+              throw new Error('Failed to create SideLabel');
+            },
+          ),
+        },
       };
 
+      const modusSideLabel = SideLabel.create('Modus Ponens').match(
+        (label) => label,
+        () => {
+          throw new Error('Failed to create SideLabel');
+        },
+      );
       const renderedNode: RenderedNodeDTO = {
-        id: 'n1',
-        position: { x: 50, y: 50 },
-        dimensions: { width: 200, height: 100 },
+        id: NodeId.create('n1').unwrapOr(NodeId.generate()),
+        position: Position2D.create(50, 50).unwrapOr(Position2D.origin()),
+        dimensions: Dimensions.create(200, 100).unwrapOr(Dimensions.fullHD()),
         argument: atomicArgument,
         premises: statements,
         conclusions: conclusions,
-        sideLabel: 'Modus Ponens',
+        sideLabel: modusSideLabel,
       };
 
       const treeLayout: TreeLayoutDTO = {
         nodes: [renderedNode],
         connections: [],
-        dimensions: { width: 300, height: 200 },
+        dimensions: Dimensions.create(300, 200).unwrapOr(Dimensions.fullHD()),
       };
 
       const treeRender: TreeRenderDTO = {
-        id: 'tree1',
-        position: { x: 100, y: 100 },
+        id: TreeId.create('tree1').match(
+          (id) => id,
+          () => {
+            throw new Error('Failed to create TreeId');
+          },
+        ),
+        position: Position2D.create(100, 100).unwrapOr(Position2D.origin()),
         layout: treeLayout,
-        bounds: { width: 300, height: 200 },
+        bounds: Dimensions.create(300, 200).unwrapOr(Dimensions.fullHD()),
       };
 
       mockVisualizationDTO = {
-        documentId: 'test-doc-id',
-        version: 1,
+        documentId: DocumentId.create('test-doc-id').match(
+          (id) => id,
+          () => {
+            throw new Error('Failed to create DocumentId');
+          },
+        ),
+        version: Version.create(1).unwrapOr(Version.initial()),
         trees: [treeRender],
-        totalDimensions: { width: 500, height: 400 },
+        totalDimensions: Dimensions.create(500, 400).unwrapOr(Dimensions.fullHD()),
         isEmpty: false,
       };
 
@@ -157,32 +200,47 @@ describe('TreeRenderer', () => {
     it('should handle multiple trees with different positions', () => {
       // Create multiple tree DTOs with different positions
       const tree1: TreeRenderDTO = {
-        id: 'tree1',
-        position: { x: 50, y: 100 },
+        id: TreeId.create('tree1').match(
+          (id) => id,
+          () => {
+            throw new Error('Failed to create TreeId');
+          },
+        ),
+        position: Position2D.create(50, 100).unwrapOr(Position2D.origin()),
         layout: {
           nodes: [],
           connections: [],
-          dimensions: { width: 200, height: 150 },
+          dimensions: Dimensions.create(200, 150).unwrapOr(Dimensions.fullHD()),
         },
-        bounds: { width: 200, height: 150 },
+        bounds: Dimensions.create(200, 150).unwrapOr(Dimensions.fullHD()),
       };
 
       const tree2: TreeRenderDTO = {
-        id: 'tree2',
-        position: { x: 300, y: 200 },
+        id: TreeId.create('tree2').match(
+          (id) => id,
+          () => {
+            throw new Error('Failed to create TreeId');
+          },
+        ),
+        position: Position2D.create(300, 200).unwrapOr(Position2D.origin()),
         layout: {
           nodes: [],
           connections: [],
-          dimensions: { width: 200, height: 150 },
+          dimensions: Dimensions.create(200, 150).unwrapOr(Dimensions.fullHD()),
         },
-        bounds: { width: 200, height: 150 },
+        bounds: Dimensions.create(200, 150).unwrapOr(Dimensions.fullHD()),
       };
 
       mockVisualizationDTO = {
-        documentId: 'test-doc-id',
-        version: 1,
+        documentId: DocumentId.create('test-doc-id').match(
+          (id) => id,
+          () => {
+            throw new Error('Failed to create DocumentId');
+          },
+        ),
+        version: Version.create(1).unwrapOr(Version.initial()),
         trees: [tree1, tree2],
-        totalDimensions: { width: 600, height: 400 },
+        totalDimensions: Dimensions.create(600, 400).unwrapOr(Dimensions.fullHD()),
         isEmpty: false,
       };
 
@@ -198,21 +256,31 @@ describe('TreeRenderer', () => {
     it('should handle empty trees in layout calculation', () => {
       // Create empty tree DTO
       const emptyTree: TreeRenderDTO = {
-        id: 'emptyTree',
-        position: { x: 100, y: 200 },
+        id: TreeId.create('emptyTree').match(
+          (id) => id,
+          () => {
+            throw new Error('Failed to create TreeId');
+          },
+        ),
+        position: Position2D.create(100, 200).unwrapOr(Position2D.origin()),
         layout: {
           nodes: [],
           connections: [],
-          dimensions: { width: 100, height: 100 },
+          dimensions: Dimensions.create(100, 100).unwrapOr(Dimensions.fullHD()),
         },
-        bounds: { width: 100, height: 100 },
+        bounds: Dimensions.create(100, 100).unwrapOr(Dimensions.fullHD()),
       };
 
       mockVisualizationDTO = {
-        documentId: 'test-doc-id',
-        version: 1,
+        documentId: DocumentId.create('test-doc-id').match(
+          (id) => id,
+          () => {
+            throw new Error('Failed to create DocumentId');
+          },
+        ),
+        version: Version.create(1).unwrapOr(Version.initial()),
         trees: [emptyTree],
-        totalDimensions: { width: 300, height: 400 },
+        totalDimensions: Dimensions.create(300, 400).unwrapOr(Dimensions.fullHD()),
         isEmpty: false,
       };
 
@@ -225,21 +293,31 @@ describe('TreeRenderer', () => {
     it('should handle empty tree with potential node structure', () => {
       // Create tree DTO that represents an empty tree structure
       const emptyTreeWithStructure: TreeRenderDTO = {
-        id: 'emptyTreeWithChildren',
-        position: { x: 100, y: 200 },
+        id: TreeId.create('emptyTreeWithChildren').match(
+          (id) => id,
+          () => {
+            throw new Error('Failed to create TreeId');
+          },
+        ),
+        position: Position2D.create(100, 200).unwrapOr(Position2D.origin()),
         layout: {
           nodes: [], // No actual nodes but layout structure exists
           connections: [],
-          dimensions: { width: 150, height: 100 },
+          dimensions: Dimensions.create(150, 100).unwrapOr(Dimensions.fullHD()),
         },
-        bounds: { width: 150, height: 100 },
+        bounds: Dimensions.create(150, 100).unwrapOr(Dimensions.fullHD()),
       };
 
       mockVisualizationDTO = {
-        documentId: 'test-doc-id',
-        version: 1,
+        documentId: DocumentId.create('test-doc-id').match(
+          (id) => id,
+          () => {
+            throw new Error('Failed to create DocumentId');
+          },
+        ),
+        version: Version.create(1).unwrapOr(Version.initial()),
         trees: [emptyTreeWithStructure],
-        totalDimensions: { width: 300, height: 350 },
+        totalDimensions: Dimensions.create(300, 350).unwrapOr(Dimensions.fullHD()),
         isEmpty: false,
       };
 
@@ -257,13 +335,13 @@ describe('TreeRenderer', () => {
     it('should render empty statements with italic placeholder', () => {
       // Create a node with empty premise statements
       const emptyPremiseNode: RenderedNodeDTO = {
-        id: 'n1',
-        position: { x: 50, y: 50 },
-        dimensions: { width: 200, height: 100 },
+        id: NodeId.create('n1').unwrapOr(NodeId.generate()),
+        position: Position2D.create(50, 50).unwrapOr(Position2D.origin()),
+        dimensions: Dimensions.create(200, 100).unwrapOr(Dimensions.fullHD()),
         argument: {
-          id: 'arg1',
-          premiseIds: 'empty',
-          conclusionIds: 'conclusions',
+          id: AtomicArgumentId.create('arg1').unwrapOr(AtomicArgumentId.generate()),
+          premiseIds: [],
+          conclusionIds: [StatementId.create('c1').unwrapOr(StatementId.generate())],
           sideLabels: {},
         },
         premises: [], // Empty premises
@@ -276,25 +354,34 @@ describe('TreeRenderer', () => {
             modifiedAt: new Date().toISOString(),
           },
         ],
-        sideLabel: '',
       };
 
       const treeWithEmptyPremises: TreeRenderDTO = {
-        id: 'tree1',
-        position: { x: 100, y: 100 },
+        id: TreeId.create('tree1').match(
+          (id) => id,
+          () => {
+            throw new Error('Failed to create TreeId');
+          },
+        ),
+        position: Position2D.create(100, 100).unwrapOr(Position2D.origin()),
         layout: {
           nodes: [emptyPremiseNode],
           connections: [],
-          dimensions: { width: 300, height: 200 },
+          dimensions: Dimensions.create(300, 200).unwrapOr(Dimensions.fullHD()),
         },
-        bounds: { width: 300, height: 200 },
+        bounds: Dimensions.create(300, 200).unwrapOr(Dimensions.fullHD()),
       };
 
       mockVisualizationDTO = {
-        documentId: 'test-doc-id',
-        version: 1,
+        documentId: DocumentId.create('test-doc-id').match(
+          (id) => id,
+          () => {
+            throw new Error('Failed to create DocumentId');
+          },
+        ),
+        version: Version.create(1).unwrapOr(Version.initial()),
         trees: [treeWithEmptyPremises],
-        totalDimensions: { width: 500, height: 400 },
+        totalDimensions: Dimensions.create(500, 400).unwrapOr(Dimensions.fullHD()),
         isEmpty: false,
       };
 
@@ -307,13 +394,17 @@ describe('TreeRenderer', () => {
     it('should render multiple statements with proper line spacing', () => {
       // Create DTOs with multiple statements
       const multipleStatementsNode: RenderedNodeDTO = {
-        id: 'n1',
-        position: { x: 50, y: 50 },
-        dimensions: { width: 250, height: 150 },
+        id: NodeId.create('n1').unwrapOr(NodeId.generate()),
+        position: Position2D.create(50, 50).unwrapOr(Position2D.origin()),
+        dimensions: Dimensions.create(250, 150).unwrapOr(Dimensions.fullHD()),
         argument: {
-          id: 'arg1',
-          premiseIds: 'premises',
-          conclusionIds: 'conclusions',
+          id: AtomicArgumentId.create('arg1').unwrapOr(AtomicArgumentId.generate()),
+          premiseIds: [
+            StatementId.create('s1').unwrapOr(StatementId.generate()),
+            StatementId.create('s2').unwrapOr(StatementId.generate()),
+            StatementId.create('s3').unwrapOr(StatementId.generate()),
+          ],
+          conclusionIds: [StatementId.create('c1').unwrapOr(StatementId.generate())],
           sideLabels: {},
         },
         premises: [
@@ -348,25 +439,34 @@ describe('TreeRenderer', () => {
             modifiedAt: new Date().toISOString(),
           },
         ],
-        sideLabel: '',
       };
 
       const treeWithMultipleStatements: TreeRenderDTO = {
-        id: 'tree1',
-        position: { x: 100, y: 100 },
+        id: TreeId.create('tree1').match(
+          (id) => id,
+          () => {
+            throw new Error('Failed to create TreeId');
+          },
+        ),
+        position: Position2D.create(100, 100).unwrapOr(Position2D.origin()),
         layout: {
           nodes: [multipleStatementsNode],
           connections: [],
-          dimensions: { width: 350, height: 250 },
+          dimensions: Dimensions.create(350, 250).unwrapOr(Dimensions.fullHD()),
         },
-        bounds: { width: 350, height: 250 },
+        bounds: Dimensions.create(350, 250).unwrapOr(Dimensions.fullHD()),
       };
 
       mockVisualizationDTO = {
-        documentId: 'test-doc-id',
-        version: 1,
+        documentId: DocumentId.create('test-doc-id').match(
+          (id) => id,
+          () => {
+            throw new Error('Failed to create DocumentId');
+          },
+        ),
+        version: Version.create(1).unwrapOr(Version.initial()),
         trees: [treeWithMultipleStatements],
-        totalDimensions: { width: 550, height: 450 },
+        totalDimensions: Dimensions.create(550, 450).unwrapOr(Dimensions.fullHD()),
         isEmpty: false,
       };
 
@@ -384,13 +484,13 @@ describe('TreeRenderer', () => {
     it('should render connections between parent and child nodes', () => {
       // Create parent and child nodes with a connection
       const parentNode: RenderedNodeDTO = {
-        id: 'parent',
-        position: { x: 50, y: 50 },
-        dimensions: { width: 200, height: 100 },
+        id: NodeId.create('parent').unwrapOr(NodeId.generate()),
+        position: Position2D.create(50, 50).unwrapOr(Position2D.origin()),
+        dimensions: Dimensions.create(200, 100).unwrapOr(Dimensions.fullHD()),
         argument: {
-          id: 'parentArg',
-          premiseIds: 'parentPremises',
-          conclusionIds: 'shared',
+          id: AtomicArgumentId.create('parentArg').unwrapOr(AtomicArgumentId.generate()),
+          premiseIds: [StatementId.create('pp').unwrapOr(StatementId.generate())],
+          conclusionIds: [StatementId.create('shared').unwrapOr(StatementId.generate())],
           sideLabels: {},
         },
         premises: [
@@ -411,17 +511,16 @@ describe('TreeRenderer', () => {
             modifiedAt: new Date().toISOString(),
           },
         ],
-        sideLabel: '',
       };
 
       const childNode: RenderedNodeDTO = {
-        id: 'child',
-        position: { x: 50, y: 200 },
-        dimensions: { width: 200, height: 100 },
+        id: NodeId.create('child').unwrapOr(NodeId.generate()),
+        position: Position2D.create(50, 200).unwrapOr(Position2D.origin()),
+        dimensions: Dimensions.create(200, 100).unwrapOr(Dimensions.fullHD()),
         argument: {
-          id: 'childArg',
-          premiseIds: 'shared',
-          conclusionIds: 'childConclusions',
+          id: AtomicArgumentId.create('childArg').unwrapOr(AtomicArgumentId.generate()),
+          premiseIds: [StatementId.create('shared').unwrapOr(StatementId.generate())],
+          conclusionIds: [StatementId.create('cc').unwrapOr(StatementId.generate())],
           sideLabels: {},
         },
         premises: [
@@ -442,12 +541,11 @@ describe('TreeRenderer', () => {
             modifiedAt: new Date().toISOString(),
           },
         ],
-        sideLabel: '',
       };
 
       const connection: ConnectionDTO = {
-        fromNodeId: 'parent',
-        toNodeId: 'child',
+        fromNodeId: NodeId.create('parent').unwrapOr(NodeId.generate()),
+        toNodeId: NodeId.create('child').unwrapOr(NodeId.generate()),
         fromPosition: 0,
         toPosition: 0,
         coordinates: {
@@ -459,21 +557,31 @@ describe('TreeRenderer', () => {
       };
 
       const treeWithConnections: TreeRenderDTO = {
-        id: 'tree1',
-        position: { x: 100, y: 100 },
+        id: TreeId.create('tree1').match(
+          (id) => id,
+          () => {
+            throw new Error('Failed to create TreeId');
+          },
+        ),
+        position: Position2D.create(100, 100).unwrapOr(Position2D.origin()),
         layout: {
           nodes: [parentNode, childNode],
           connections: [connection],
-          dimensions: { width: 300, height: 350 },
+          dimensions: Dimensions.create(300, 350).unwrapOr(Dimensions.fullHD()),
         },
-        bounds: { width: 300, height: 350 },
+        bounds: Dimensions.create(300, 350).unwrapOr(Dimensions.fullHD()),
       };
 
       mockVisualizationDTO = {
-        documentId: 'test-doc-id',
-        version: 1,
+        documentId: DocumentId.create('test-doc-id').match(
+          (id) => id,
+          () => {
+            throw new Error('Failed to create DocumentId');
+          },
+        ),
+        version: Version.create(1).unwrapOr(Version.initial()),
         trees: [treeWithConnections],
-        totalDimensions: { width: 500, height: 550 },
+        totalDimensions: Dimensions.create(500, 550).unwrapOr(Dimensions.fullHD()),
         isEmpty: false,
       };
 
@@ -490,8 +598,8 @@ describe('TreeRenderer', () => {
     it('should handle missing nodes in connections gracefully', () => {
       // Create a connection that references non-existent nodes
       const invalidConnection: ConnectionDTO = {
-        fromNodeId: 'missingNode1',
-        toNodeId: 'missingNode2',
+        fromNodeId: NodeId.create('missingNode1').unwrapOr(NodeId.generate()),
+        toNodeId: NodeId.create('missingNode2').unwrapOr(NodeId.generate()),
         fromPosition: 0,
         toPosition: 0,
         coordinates: {
@@ -503,21 +611,31 @@ describe('TreeRenderer', () => {
       };
 
       const treeWithInvalidConnection: TreeRenderDTO = {
-        id: 'tree1',
-        position: { x: 100, y: 100 },
+        id: TreeId.create('tree1').match(
+          (id) => id,
+          () => {
+            throw new Error('Failed to create TreeId');
+          },
+        ),
+        position: Position2D.create(100, 100).unwrapOr(Position2D.origin()),
         layout: {
           nodes: [], // No nodes
           connections: [invalidConnection],
-          dimensions: { width: 300, height: 300 },
+          dimensions: Dimensions.create(300, 300).unwrapOr(Dimensions.fullHD()),
         },
-        bounds: { width: 300, height: 300 },
+        bounds: Dimensions.create(300, 300).unwrapOr(Dimensions.fullHD()),
       };
 
       mockVisualizationDTO = {
-        documentId: 'test-doc-id',
-        version: 1,
+        documentId: DocumentId.create('test-doc-id').match(
+          (id) => id,
+          () => {
+            throw new Error('Failed to create DocumentId');
+          },
+        ),
+        version: Version.create(1).unwrapOr(Version.initial()),
         trees: [treeWithInvalidConnection],
-        totalDimensions: { width: 500, height: 500 },
+        totalDimensions: Dimensions.create(500, 500).unwrapOr(Dimensions.fullHD()),
         isEmpty: false,
       };
 
@@ -531,36 +649,45 @@ describe('TreeRenderer', () => {
     it('should handle empty connections gracefully', () => {
       // Create a tree with no connections
       const nodeWithoutConnections: RenderedNodeDTO = {
-        id: 'n1',
-        position: { x: 50, y: 50 },
-        dimensions: { width: 200, height: 100 },
+        id: NodeId.create('n1').unwrapOr(NodeId.generate()),
+        position: Position2D.create(50, 50).unwrapOr(Position2D.origin()),
+        dimensions: Dimensions.create(200, 100).unwrapOr(Dimensions.fullHD()),
         argument: {
-          id: 'arg1',
-          premiseIds: 'nonExistent',
-          conclusionIds: 'empty',
+          id: AtomicArgumentId.create('arg1').unwrapOr(AtomicArgumentId.generate()),
+          premiseIds: [],
+          conclusionIds: [],
           sideLabels: {},
         },
         premises: [], // Empty premises
         conclusions: [], // Empty conclusions
-        sideLabel: '',
       };
 
       const treeWithoutConnections: TreeRenderDTO = {
-        id: 'tree1',
-        position: { x: 100, y: 100 },
+        id: TreeId.create('tree1').match(
+          (id) => id,
+          () => {
+            throw new Error('Failed to create TreeId');
+          },
+        ),
+        position: Position2D.create(100, 100).unwrapOr(Position2D.origin()),
         layout: {
           nodes: [nodeWithoutConnections],
           connections: [], // No connections
-          dimensions: { width: 300, height: 200 },
+          dimensions: Dimensions.create(300, 200).unwrapOr(Dimensions.fullHD()),
         },
-        bounds: { width: 300, height: 200 },
+        bounds: Dimensions.create(300, 200).unwrapOr(Dimensions.fullHD()),
       };
 
       mockVisualizationDTO = {
-        documentId: 'test-doc-id',
-        version: 1,
+        documentId: DocumentId.create('test-doc-id').match(
+          (id) => id,
+          () => {
+            throw new Error('Failed to create DocumentId');
+          },
+        ),
+        version: Version.create(1).unwrapOr(Version.initial()),
         trees: [treeWithoutConnections],
-        totalDimensions: { width: 500, height: 400 },
+        totalDimensions: Dimensions.create(500, 400).unwrapOr(Dimensions.fullHD()),
         isEmpty: false,
       };
 
@@ -577,13 +704,13 @@ describe('TreeRenderer', () => {
     it('should truncate long text properly', () => {
       // Create a node with long statement content
       const nodeWithLongText: RenderedNodeDTO = {
-        id: 'n1',
-        position: { x: 50, y: 50 },
-        dimensions: { width: 150, height: 100 }, // Narrow width to force truncation
+        id: NodeId.create('n1').unwrapOr(NodeId.generate()),
+        position: Position2D.create(50, 50).unwrapOr(Position2D.origin()),
+        dimensions: Dimensions.create(150, 100).unwrapOr(Dimensions.fullHD()), // Narrow width to force truncation
         argument: {
-          id: 'arg1',
-          premiseIds: 'longSet',
-          conclusionIds: 'longSet',
+          id: AtomicArgumentId.create('arg1').unwrapOr(AtomicArgumentId.generate()),
+          premiseIds: [StatementId.create('long').unwrapOr(StatementId.generate())],
+          conclusionIds: [StatementId.create('long').unwrapOr(StatementId.generate())],
           sideLabels: {},
         },
         premises: [
@@ -606,25 +733,34 @@ describe('TreeRenderer', () => {
             modifiedAt: new Date().toISOString(),
           },
         ],
-        sideLabel: '',
       };
 
       const treeWithLongText: TreeRenderDTO = {
-        id: 'tree1',
-        position: { x: 100, y: 100 },
+        id: TreeId.create('tree1').match(
+          (id) => id,
+          () => {
+            throw new Error('Failed to create TreeId');
+          },
+        ),
+        position: Position2D.create(100, 100).unwrapOr(Position2D.origin()),
         layout: {
           nodes: [nodeWithLongText],
           connections: [],
-          dimensions: { width: 250, height: 200 },
+          dimensions: Dimensions.create(250, 200).unwrapOr(Dimensions.fullHD()),
         },
-        bounds: { width: 250, height: 200 },
+        bounds: Dimensions.create(250, 200).unwrapOr(Dimensions.fullHD()),
       };
 
       mockVisualizationDTO = {
-        documentId: 'test-doc-id',
-        version: 1,
+        documentId: DocumentId.create('test-doc-id').match(
+          (id) => id,
+          () => {
+            throw new Error('Failed to create DocumentId');
+          },
+        ),
+        version: Version.create(1).unwrapOr(Version.initial()),
         trees: [treeWithLongText],
-        totalDimensions: { width: 450, height: 400 },
+        totalDimensions: Dimensions.create(450, 400).unwrapOr(Dimensions.fullHD()),
         isEmpty: false,
       };
 
@@ -637,13 +773,13 @@ describe('TreeRenderer', () => {
     it('should escape XML special characters', () => {
       // Use shorter text so special characters aren't truncated
       const nodeWithSpecialChars: RenderedNodeDTO = {
-        id: 'n1',
-        position: { x: 50, y: 50 },
-        dimensions: { width: 200, height: 100 },
+        id: NodeId.create('n1').unwrapOr(NodeId.generate()),
+        position: Position2D.create(50, 50).unwrapOr(Position2D.origin()),
+        dimensions: Dimensions.create(200, 100).unwrapOr(Dimensions.fullHD()),
         argument: {
-          id: 'arg1',
-          premiseIds: 'specialSet',
-          conclusionIds: 'specialSet',
+          id: AtomicArgumentId.create('arg1').unwrapOr(AtomicArgumentId.generate()),
+          premiseIds: [StatementId.create('special').unwrapOr(StatementId.generate())],
+          conclusionIds: [StatementId.create('special').unwrapOr(StatementId.generate())],
           sideLabels: {},
         },
         premises: [
@@ -664,25 +800,34 @@ describe('TreeRenderer', () => {
             modifiedAt: new Date().toISOString(),
           },
         ],
-        sideLabel: '',
       };
 
       const treeWithSpecialChars: TreeRenderDTO = {
-        id: 'tree1',
-        position: { x: 100, y: 100 },
+        id: TreeId.create('tree1').match(
+          (id) => id,
+          () => {
+            throw new Error('Failed to create TreeId');
+          },
+        ),
+        position: Position2D.create(100, 100).unwrapOr(Position2D.origin()),
         layout: {
           nodes: [nodeWithSpecialChars],
           connections: [],
-          dimensions: { width: 300, height: 200 },
+          dimensions: Dimensions.create(300, 200).unwrapOr(Dimensions.fullHD()),
         },
-        bounds: { width: 300, height: 200 },
+        bounds: Dimensions.create(300, 200).unwrapOr(Dimensions.fullHD()),
       };
 
       mockVisualizationDTO = {
-        documentId: 'test-doc-id',
-        version: 1,
+        documentId: DocumentId.create('test-doc-id').match(
+          (id) => id,
+          () => {
+            throw new Error('Failed to create DocumentId');
+          },
+        ),
+        version: Version.create(1).unwrapOr(Version.initial()),
         trees: [treeWithSpecialChars],
-        totalDimensions: { width: 500, height: 400 },
+        totalDimensions: Dimensions.create(500, 400).unwrapOr(Dimensions.fullHD()),
         isEmpty: false,
       };
 
@@ -698,21 +843,31 @@ describe('TreeRenderer', () => {
 
     it('should handle empty trees gracefully', () => {
       const emptyTree: TreeRenderDTO = {
-        id: 'tree1',
-        position: { x: 100, y: 100 },
+        id: TreeId.create('tree1').match(
+          (id) => id,
+          () => {
+            throw new Error('Failed to create TreeId');
+          },
+        ),
+        position: Position2D.create(100, 100).unwrapOr(Position2D.origin()),
         layout: {
           nodes: [],
           connections: [],
-          dimensions: { width: 100, height: 100 },
+          dimensions: Dimensions.create(100, 100).unwrapOr(Dimensions.fullHD()),
         },
-        bounds: { width: 100, height: 100 },
+        bounds: Dimensions.create(100, 100).unwrapOr(Dimensions.fullHD()),
       };
 
       mockVisualizationDTO = {
-        documentId: 'test-doc-id',
-        version: 1,
+        documentId: DocumentId.create('test-doc-id').match(
+          (id) => id,
+          () => {
+            throw new Error('Failed to create DocumentId');
+          },
+        ),
+        version: Version.create(1).unwrapOr(Version.initial()),
         trees: [emptyTree],
-        totalDimensions: { width: 300, height: 300 },
+        totalDimensions: Dimensions.create(300, 300).unwrapOr(Dimensions.fullHD()),
         isEmpty: false,
       };
 
@@ -732,13 +887,15 @@ describe('TreeRenderer', () => {
       // Create 50 nodes with statements
       for (let i = 0; i < 50; i++) {
         nodes.push({
-          id: `n${i}`,
-          position: { x: (i % 10) * 220, y: Math.floor(i / 10) * 120 },
-          dimensions: { width: 200, height: 100 },
+          id: NodeId.create(`n${i}`).unwrapOr(NodeId.generate()),
+          position: Position2D.create((i % 10) * 220, Math.floor(i / 10) * 120).unwrapOr(
+            Position2D.origin(),
+          ),
+          dimensions: Dimensions.create(200, 100).unwrapOr(Dimensions.fullHD()),
           argument: {
-            id: `arg${i}`,
-            premiseIds: `premises${i}`,
-            conclusionIds: `conclusions${i}`,
+            id: AtomicArgumentId.create(`arg${i}`).unwrapOr(AtomicArgumentId.generate()),
+            premiseIds: [StatementId.create(`s${i}`).unwrapOr(StatementId.generate())],
+            conclusionIds: [StatementId.create(`c${i}`).unwrapOr(StatementId.generate())],
             sideLabels: {},
           },
           premises: [
@@ -759,26 +916,35 @@ describe('TreeRenderer', () => {
               modifiedAt: new Date().toISOString(),
             },
           ],
-          sideLabel: '',
         });
       }
 
       const largeTree: TreeRenderDTO = {
-        id: 'largeTree',
-        position: { x: 0, y: 0 },
+        id: TreeId.create('largeTree').match(
+          (id) => id,
+          () => {
+            throw new Error('Failed to create TreeId');
+          },
+        ),
+        position: Position2D.create(0, 0).unwrapOr(Position2D.origin()),
         layout: {
           nodes,
           connections: [],
-          dimensions: { width: 2200, height: 600 },
+          dimensions: Dimensions.create(2200, 600).unwrapOr(Dimensions.fullHD()),
         },
-        bounds: { width: 2200, height: 600 },
+        bounds: Dimensions.create(2200, 600).unwrapOr(Dimensions.fullHD()),
       };
 
       mockVisualizationDTO = {
-        documentId: 'test-doc-id',
-        version: 1,
+        documentId: DocumentId.create('test-doc-id').match(
+          (id) => id,
+          () => {
+            throw new Error('Failed to create DocumentId');
+          },
+        ),
+        version: Version.create(1).unwrapOr(Version.initial()),
         trees: [largeTree],
-        totalDimensions: { width: 2200, height: 600 },
+        totalDimensions: Dimensions.create(2200, 600).unwrapOr(Dimensions.fullHD()),
         isEmpty: false,
       };
 
@@ -793,36 +959,45 @@ describe('TreeRenderer', () => {
     it('should handle malformed tree data gracefully', () => {
       // Create tree with problematic node data
       const malformedNode: RenderedNodeDTO = {
-        id: 'malformedNode',
-        position: { x: 50, y: 50 },
-        dimensions: { width: 200, height: 100 },
+        id: NodeId.create('malformedNode').unwrapOr(NodeId.generate()),
+        position: Position2D.create(50, 50).unwrapOr(Position2D.origin()),
+        dimensions: Dimensions.create(200, 100).unwrapOr(Dimensions.fullHD()),
         argument: {
-          id: 'nonExistentArg',
-          premiseIds: 'missingPremises',
-          conclusionIds: 'missingConclusions',
+          id: AtomicArgumentId.create('nonExistentArg').unwrapOr(AtomicArgumentId.generate()),
+          premiseIds: [],
+          conclusionIds: [],
           sideLabels: {},
         },
         premises: [], // Empty but references non-existent set
         conclusions: [], // Empty but references non-existent set
-        sideLabel: '',
       };
 
       const malformedTree: TreeRenderDTO = {
-        id: 'malformedTree',
-        position: { x: 100, y: 100 },
+        id: TreeId.create('malformedTree').match(
+          (id) => id,
+          () => {
+            throw new Error('Failed to create TreeId');
+          },
+        ),
+        position: Position2D.create(100, 100).unwrapOr(Position2D.origin()),
         layout: {
           nodes: [malformedNode],
           connections: [],
-          dimensions: { width: 300, height: 200 },
+          dimensions: Dimensions.create(300, 200).unwrapOr(Dimensions.fullHD()),
         },
-        bounds: { width: 300, height: 200 },
+        bounds: Dimensions.create(300, 200).unwrapOr(Dimensions.fullHD()),
       };
 
       mockVisualizationDTO = {
-        documentId: 'test-doc-id',
-        version: 1,
+        documentId: DocumentId.create('test-doc-id').match(
+          (id) => id,
+          () => {
+            throw new Error('Failed to create DocumentId');
+          },
+        ),
+        version: Version.create(1).unwrapOr(Version.initial()),
         trees: [malformedTree],
-        totalDimensions: { width: 500, height: 400 },
+        totalDimensions: Dimensions.create(500, 400).unwrapOr(Dimensions.fullHD()),
         isEmpty: false,
       };
 
@@ -836,15 +1011,20 @@ describe('TreeRenderer', () => {
       // Test XSS prevention and XML escaping
       const dangerousContent = '<script>&\'alert("xss")</script>"<>\n\t';
       const dangerousNode: RenderedNodeDTO = {
-        id: 'dangerousNode',
-        position: { x: 50, y: 50 },
-        dimensions: { width: 200, height: 100 },
+        id: NodeId.create('dangerousNode').unwrapOr(NodeId.generate()),
+        position: Position2D.create(50, 50).unwrapOr(Position2D.origin()),
+        dimensions: Dimensions.create(200, 100).unwrapOr(Dimensions.fullHD()),
         argument: {
-          id: 'dangerousArg',
-          premiseIds: 'dangerousSet',
-          conclusionIds: 'dangerousSet',
+          id: AtomicArgumentId.create('dangerousArg').unwrapOr(AtomicArgumentId.generate()),
+          premiseIds: [StatementId.create('dangerous').unwrapOr(StatementId.generate())],
+          conclusionIds: [StatementId.create('dangerous').unwrapOr(StatementId.generate())],
           sideLabels: {
-            left: '<script>alert("label")</script>',
+            left: SideLabel.create('<script>alert("label")</script>').match(
+              (label) => label,
+              () => {
+                throw new Error('Failed to create SideLabel');
+              },
+            ),
           },
         },
         premises: [
@@ -865,25 +1045,41 @@ describe('TreeRenderer', () => {
             modifiedAt: new Date().toISOString(),
           },
         ],
-        sideLabel: '<script>alert("label")</script>',
+        ...(() => {
+          const label = SideLabel.create('<script>alert("label")</script>').match(
+            (label) => label,
+            () => undefined,
+          );
+          return label ? { sideLabel: label } : {};
+        })(),
       };
 
       const dangerousTree: TreeRenderDTO = {
-        id: 'dangerousTree',
-        position: { x: 100, y: 100 },
+        id: TreeId.create('dangerousTree').match(
+          (id) => id,
+          () => {
+            throw new Error('Failed to create TreeId');
+          },
+        ),
+        position: Position2D.create(100, 100).unwrapOr(Position2D.origin()),
         layout: {
           nodes: [dangerousNode],
           connections: [],
-          dimensions: { width: 300, height: 200 },
+          dimensions: Dimensions.create(300, 200).unwrapOr(Dimensions.fullHD()),
         },
-        bounds: { width: 300, height: 200 },
+        bounds: Dimensions.create(300, 200).unwrapOr(Dimensions.fullHD()),
       };
 
       mockVisualizationDTO = {
-        documentId: 'test-doc-id',
-        version: 1,
+        documentId: DocumentId.create('test-doc-id').match(
+          (id) => id,
+          () => {
+            throw new Error('Failed to create DocumentId');
+          },
+        ),
+        version: Version.create(1).unwrapOr(Version.initial()),
         trees: [dangerousTree],
-        totalDimensions: { width: 500, height: 400 },
+        totalDimensions: Dimensions.create(500, 400).unwrapOr(Dimensions.fullHD()),
         isEmpty: false,
       };
 
@@ -900,13 +1096,13 @@ describe('TreeRenderer', () => {
     it('should handle extreme coordinate values in tree positioning', () => {
       // Test with extreme coordinate values
       const extremeNode: RenderedNodeDTO = {
-        id: 'extremeNode',
-        position: { x: -999999, y: 999999 },
-        dimensions: { width: 200, height: 100 },
+        id: NodeId.create('extremeNode').unwrapOr(NodeId.generate()),
+        position: Position2D.create(-999999, 999999).unwrapOr(Position2D.origin()),
+        dimensions: Dimensions.create(200, 100).unwrapOr(Dimensions.fullHD()),
         argument: {
-          id: 'extremeArg',
-          premiseIds: 'extremeSet',
-          conclusionIds: 'extremeSet',
+          id: AtomicArgumentId.create('extremeArg').unwrapOr(AtomicArgumentId.generate()),
+          premiseIds: [StatementId.create('extreme').unwrapOr(StatementId.generate())],
+          conclusionIds: [StatementId.create('extreme').unwrapOr(StatementId.generate())],
           sideLabels: {},
         },
         premises: [
@@ -927,25 +1123,34 @@ describe('TreeRenderer', () => {
             modifiedAt: new Date().toISOString(),
           },
         ],
-        sideLabel: '',
       };
 
       const extremeTree: TreeRenderDTO = {
-        id: 'extremeTree',
-        position: { x: -999999, y: 999999 },
+        id: TreeId.create('extremeTree').match(
+          (id) => id,
+          () => {
+            throw new Error('Failed to create TreeId');
+          },
+        ),
+        position: Position2D.create(-999999, 999999).unwrapOr(Position2D.origin()),
         layout: {
           nodes: [extremeNode],
           connections: [],
-          dimensions: { width: 2000000, height: 2000000 },
+          dimensions: Dimensions.create(2000000, 2000000).unwrapOr(Dimensions.fullHD()),
         },
-        bounds: { width: 2000000, height: 2000000 },
+        bounds: Dimensions.create(2000000, 2000000).unwrapOr(Dimensions.fullHD()),
       };
 
       mockVisualizationDTO = {
-        documentId: 'test-doc-id',
-        version: 1,
+        documentId: DocumentId.create('test-doc-id').match(
+          (id) => id,
+          () => {
+            throw new Error('Failed to create DocumentId');
+          },
+        ),
+        version: Version.create(1).unwrapOr(Version.initial()),
         trees: [extremeTree],
-        totalDimensions: { width: 2000000, height: 2000000 },
+        totalDimensions: Dimensions.create(2000000, 2000000).unwrapOr(Dimensions.fullHD()),
         isEmpty: false,
       };
 
@@ -960,36 +1165,45 @@ describe('TreeRenderer', () => {
     it('should handle rendering with no statements but existing structure', () => {
       // Create structure without any actual statement content
       const emptyStructureNode: RenderedNodeDTO = {
-        id: 'emptyNode',
-        position: { x: 50, y: 50 },
-        dimensions: { width: 200, height: 100 },
+        id: NodeId.create('emptyNode').unwrapOr(NodeId.generate()),
+        position: Position2D.create(50, 50).unwrapOr(Position2D.origin()),
+        dimensions: Dimensions.create(200, 100).unwrapOr(Dimensions.fullHD()),
         argument: {
-          id: 'emptyArg',
-          premiseIds: 'empty',
-          conclusionIds: 'empty',
+          id: AtomicArgumentId.create('emptyArg').unwrapOr(AtomicArgumentId.generate()),
+          premiseIds: [],
+          conclusionIds: [],
           sideLabels: {},
         },
         premises: [], // No statements
         conclusions: [], // No statements
-        sideLabel: '',
       };
 
       const emptyStructureTree: TreeRenderDTO = {
-        id: 'emptyTree',
-        position: { x: 0, y: 0 },
+        id: TreeId.create('emptyTree').match(
+          (id) => id,
+          () => {
+            throw new Error('Failed to create TreeId');
+          },
+        ),
+        position: Position2D.create(0, 0).unwrapOr(Position2D.origin()),
         layout: {
           nodes: [emptyStructureNode],
           connections: [],
-          dimensions: { width: 300, height: 200 },
+          dimensions: Dimensions.create(300, 200).unwrapOr(Dimensions.fullHD()),
         },
-        bounds: { width: 300, height: 200 },
+        bounds: Dimensions.create(300, 200).unwrapOr(Dimensions.fullHD()),
       };
 
       mockVisualizationDTO = {
-        documentId: 'test-doc-id',
-        version: 1,
+        documentId: DocumentId.create('test-doc-id').match(
+          (id) => id,
+          () => {
+            throw new Error('Failed to create DocumentId');
+          },
+        ),
+        version: Version.create(1).unwrapOr(Version.initial()),
         trees: [emptyStructureTree],
-        totalDimensions: { width: 300, height: 200 },
+        totalDimensions: Dimensions.create(300, 200).unwrapOr(Dimensions.fullHD()),
         isEmpty: false,
       };
 
@@ -1002,15 +1216,26 @@ describe('TreeRenderer', () => {
 
     it('should handle complex tree hierarchies with deep nesting', () => {
       // Create a complex tree with multiple levels of reasoning
+      const sideLabel = SideLabel.create('Rule 1').match(
+        (label) => label,
+        () => undefined,
+      );
       const parentNode: RenderedNodeDTO = {
-        id: 'parent',
-        position: { x: 50, y: 50 },
-        dimensions: { width: 200, height: 100 },
+        id: NodeId.create('parent').unwrapOr(NodeId.generate()),
+        position: Position2D.create(50, 50).unwrapOr(Position2D.origin()),
+        dimensions: Dimensions.create(200, 100).unwrapOr(Dimensions.fullHD()),
         argument: {
-          id: 'arg1',
-          premiseIds: 'set1',
-          conclusionIds: 'set2',
-          sideLabels: { left: 'Rule 1' },
+          id: AtomicArgumentId.create('arg1').unwrapOr(AtomicArgumentId.generate()),
+          premiseIds: [StatementId.create('s0').unwrapOr(StatementId.generate())],
+          conclusionIds: [StatementId.create('s1').unwrapOr(StatementId.generate())],
+          sideLabels: {
+            left: SideLabel.create('Rule 1').match(
+              (label) => label,
+              () => {
+                throw new Error('Failed to create SideLabel');
+              },
+            ),
+          },
         },
         premises: [
           {
@@ -1030,18 +1255,29 @@ describe('TreeRenderer', () => {
             modifiedAt: new Date().toISOString(),
           },
         ],
-        sideLabel: 'Rule 1',
+        ...(sideLabel && { sideLabel }),
       };
 
+      const childSideLabel = SideLabel.create('Rule 2').match(
+        (label) => label,
+        () => undefined,
+      );
       const childNode: RenderedNodeDTO = {
-        id: 'child',
-        position: { x: 50, y: 200 },
-        dimensions: { width: 200, height: 100 },
+        id: NodeId.create('child').unwrapOr(NodeId.generate()),
+        position: Position2D.create(50, 200).unwrapOr(Position2D.origin()),
+        dimensions: Dimensions.create(200, 100).unwrapOr(Dimensions.fullHD()),
         argument: {
-          id: 'arg2',
-          premiseIds: 'set2',
-          conclusionIds: 'set3',
-          sideLabels: { left: 'Rule 2' },
+          id: AtomicArgumentId.create('arg2').unwrapOr(AtomicArgumentId.generate()),
+          premiseIds: [StatementId.create('s1').unwrapOr(StatementId.generate())],
+          conclusionIds: [StatementId.create('s2').unwrapOr(StatementId.generate())],
+          sideLabels: {
+            left: SideLabel.create('Rule 2').match(
+              (label) => label,
+              () => {
+                throw new Error('Failed to create SideLabel');
+              },
+            ),
+          },
         },
         premises: [
           {
@@ -1061,12 +1297,12 @@ describe('TreeRenderer', () => {
             modifiedAt: new Date().toISOString(),
           },
         ],
-        sideLabel: 'Rule 2',
+        ...(childSideLabel && { sideLabel: childSideLabel }),
       };
 
       const connection: ConnectionDTO = {
-        fromNodeId: 'parent',
-        toNodeId: 'child',
+        fromNodeId: NodeId.create('parent').unwrapOr(NodeId.generate()),
+        toNodeId: NodeId.create('child').unwrapOr(NodeId.generate()),
         fromPosition: 0,
         toPosition: 0,
         coordinates: {
@@ -1078,21 +1314,31 @@ describe('TreeRenderer', () => {
       };
 
       const hierarchicalTree: TreeRenderDTO = {
-        id: 'hierarchicalTree',
-        position: { x: 100, y: 100 },
+        id: TreeId.create('hierarchicalTree').match(
+          (id) => id,
+          () => {
+            throw new Error('Failed to create TreeId');
+          },
+        ),
+        position: Position2D.create(100, 100).unwrapOr(Position2D.origin()),
         layout: {
           nodes: [parentNode, childNode],
           connections: [connection],
-          dimensions: { width: 300, height: 350 },
+          dimensions: Dimensions.create(300, 350).unwrapOr(Dimensions.fullHD()),
         },
-        bounds: { width: 300, height: 350 },
+        bounds: Dimensions.create(300, 350).unwrapOr(Dimensions.fullHD()),
       };
 
       mockVisualizationDTO = {
-        documentId: 'test-doc-id',
-        version: 1,
+        documentId: DocumentId.create('test-doc-id').match(
+          (id) => id,
+          () => {
+            throw new Error('Failed to create DocumentId');
+          },
+        ),
+        version: Version.create(1).unwrapOr(Version.initial()),
         trees: [hierarchicalTree],
-        totalDimensions: { width: 500, height: 550 },
+        totalDimensions: Dimensions.create(500, 550).unwrapOr(Dimensions.fullHD()),
         isEmpty: false,
       };
 
@@ -1111,16 +1357,25 @@ describe('TreeRenderer', () => {
   describe('side labels', () => {
     it('should render side labels when present', () => {
       // Create node with side label
+      const ruleSideLabel = SideLabel.create('Rule Name').match(
+        (label) => label,
+        () => undefined,
+      );
       const nodeWithSideLabel: RenderedNodeDTO = {
-        id: 'n1',
-        position: { x: 50, y: 50 },
-        dimensions: { width: 200, height: 100 },
+        id: NodeId.create('n1').unwrapOr(NodeId.generate()),
+        position: Position2D.create(50, 50).unwrapOr(Position2D.origin()),
+        dimensions: Dimensions.create(200, 100).unwrapOr(Dimensions.fullHD()),
         argument: {
-          id: 'arg1',
-          premiseIds: 'os1',
-          conclusionIds: 'os2',
+          id: AtomicArgumentId.create('arg1').unwrapOr(AtomicArgumentId.generate()),
+          premiseIds: [StatementId.create('s1').unwrapOr(StatementId.generate())],
+          conclusionIds: [StatementId.create('s2').unwrapOr(StatementId.generate())],
           sideLabels: {
-            left: 'Rule Name',
+            left: SideLabel.create('Rule Name').match(
+              (label) => label,
+              () => {
+                throw new Error('Failed to create SideLabel');
+              },
+            ),
           },
         },
         premises: [
@@ -1141,25 +1396,35 @@ describe('TreeRenderer', () => {
             modifiedAt: new Date().toISOString(),
           },
         ],
-        sideLabel: 'Rule Name',
+        ...(ruleSideLabel && { sideLabel: ruleSideLabel }),
       };
 
       const treeWithSideLabel: TreeRenderDTO = {
-        id: 'tree1',
-        position: { x: 100, y: 200 },
+        id: TreeId.create('tree1').match(
+          (id) => id,
+          () => {
+            throw new Error('Failed to create TreeId');
+          },
+        ),
+        position: Position2D.create(100, 200).unwrapOr(Position2D.origin()),
         layout: {
           nodes: [nodeWithSideLabel],
           connections: [],
-          dimensions: { width: 300, height: 200 },
+          dimensions: Dimensions.create(300, 200).unwrapOr(Dimensions.fullHD()),
         },
-        bounds: { width: 300, height: 200 },
+        bounds: Dimensions.create(300, 200).unwrapOr(Dimensions.fullHD()),
       };
 
       mockVisualizationDTO = {
-        documentId: 'test-doc-id',
-        version: 1,
+        documentId: DocumentId.create('test-doc-id').match(
+          (id) => id,
+          () => {
+            throw new Error('Failed to create DocumentId');
+          },
+        ),
+        version: Version.create(1).unwrapOr(Version.initial()),
         trees: [treeWithSideLabel],
-        totalDimensions: { width: 500, height: 500 },
+        totalDimensions: Dimensions.create(500, 500).unwrapOr(Dimensions.fullHD()),
         isEmpty: false,
       };
 
@@ -1172,13 +1437,13 @@ describe('TreeRenderer', () => {
     it('should handle missing side labels gracefully', () => {
       // Create node without side label
       const nodeWithoutSideLabel: RenderedNodeDTO = {
-        id: 'n1',
-        position: { x: 50, y: 50 },
-        dimensions: { width: 200, height: 100 },
+        id: NodeId.create('n1').unwrapOr(NodeId.generate()),
+        position: Position2D.create(50, 50).unwrapOr(Position2D.origin()),
+        dimensions: Dimensions.create(200, 100).unwrapOr(Dimensions.fullHD()),
         argument: {
-          id: 'arg1',
-          premiseIds: 'os1',
-          conclusionIds: 'os2',
+          id: AtomicArgumentId.create('arg1').unwrapOr(AtomicArgumentId.generate()),
+          premiseIds: [StatementId.create('s1').unwrapOr(StatementId.generate())],
+          conclusionIds: [StatementId.create('s2').unwrapOr(StatementId.generate())],
           sideLabels: {}, // No side labels
         },
         premises: [
@@ -1199,25 +1464,35 @@ describe('TreeRenderer', () => {
             modifiedAt: new Date().toISOString(),
           },
         ],
-        sideLabel: '', // Empty side label
+        // No sideLabel property when empty
       };
 
       const treeWithoutSideLabel: TreeRenderDTO = {
-        id: 'tree1',
-        position: { x: 100, y: 200 },
+        id: TreeId.create('tree1').match(
+          (id) => id,
+          () => {
+            throw new Error('Failed to create TreeId');
+          },
+        ),
+        position: Position2D.create(100, 200).unwrapOr(Position2D.origin()),
         layout: {
           nodes: [nodeWithoutSideLabel],
           connections: [],
-          dimensions: { width: 300, height: 200 },
+          dimensions: Dimensions.create(300, 200).unwrapOr(Dimensions.fullHD()),
         },
-        bounds: { width: 300, height: 200 },
+        bounds: Dimensions.create(300, 200).unwrapOr(Dimensions.fullHD()),
       };
 
       mockVisualizationDTO = {
-        documentId: 'test-doc-id',
-        version: 1,
+        documentId: DocumentId.create('test-doc-id').match(
+          (id) => id,
+          () => {
+            throw new Error('Failed to create DocumentId');
+          },
+        ),
+        version: Version.create(1).unwrapOr(Version.initial()),
         trees: [treeWithoutSideLabel],
-        totalDimensions: { width: 500, height: 500 },
+        totalDimensions: Dimensions.create(500, 500).unwrapOr(Dimensions.fullHD()),
         isEmpty: false,
       };
 

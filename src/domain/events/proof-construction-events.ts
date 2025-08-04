@@ -1,4 +1,4 @@
-import { Result } from 'neverthrow';
+import { err, ok, type Result } from 'neverthrow';
 import type { ValidationError } from '../shared/result.js';
 import type {
   AtomicArgumentId,
@@ -275,9 +275,9 @@ export class TypedTreePosition {
   static create(x: number, y: number): Result<TypedTreePosition, ValidationError> {
     const positionResult = Position2D.create(x, y);
     if (positionResult.isErr()) {
-      return positionResult;
+      return err(positionResult.error);
     }
-    return Result.ok(new TypedTreePosition(positionResult.value));
+    return ok(new TypedTreePosition(positionResult.value));
   }
 
   static fromPosition2D(position: Position2D): TypedTreePosition {
@@ -318,25 +318,25 @@ export class TypedTreePhysicalProperties {
   }): Result<TypedTreePhysicalProperties, ValidationError> {
     const spacingXResult = Spacing.create(props.spacingX);
     if (spacingXResult.isErr()) {
-      return spacingXResult;
+      return err(spacingXResult.error);
     }
 
     const spacingYResult = Spacing.create(props.spacingY);
     if (spacingYResult.isErr()) {
-      return spacingYResult;
+      return err(spacingYResult.error);
     }
 
     const minWidthResult = NodeDimension.create(props.minWidth);
     if (minWidthResult.isErr()) {
-      return minWidthResult;
+      return err(minWidthResult.error);
     }
 
     const minHeightResult = NodeDimension.create(props.minHeight);
     if (minHeightResult.isErr()) {
-      return minHeightResult;
+      return err(minHeightResult.error);
     }
 
-    return Result.ok(
+    return ok(
       new TypedTreePhysicalProperties(
         props.layoutStyle,
         spacingXResult.value,

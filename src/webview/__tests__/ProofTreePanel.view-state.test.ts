@@ -236,16 +236,16 @@ describe('ProofTreePanel View State Management', () => {
 
       // Mock DocumentViewStateManager methods through prototype
       vi.spyOn(DocumentViewStateManager.prototype, 'getViewportState').mockResolvedValue(
-        ok(mockViewport),
+        ok(mockViewport as any),
       );
       vi.spyOn(DocumentViewStateManager.prototype, 'getPanelState').mockResolvedValue(
-        ok(mockPanel),
+        ok(mockPanel as any),
       );
       vi.spyOn(DocumentViewStateManager.prototype, 'getSelectionState').mockResolvedValue(
-        ok(mockSelection),
+        ok(mockSelection as any),
       );
       vi.spyOn(DocumentViewStateManager.prototype, 'getThemeState').mockResolvedValue(
-        ok(mockTheme),
+        ok(mockTheme as any),
       );
 
       const result = await ProofTreePanel.createWithServices(
@@ -338,7 +338,7 @@ describe('ProofTreePanel View State Management', () => {
       const mockViewport = { zoom: 1.5, pan: { x: 100, y: 200 }, center: { x: 50, y: 75 } };
 
       vi.spyOn(DocumentViewStateManager.prototype, 'getViewportState').mockResolvedValue(
-        ok(mockViewport),
+        ok(mockViewport as any),
       );
       vi.spyOn(DocumentViewStateManager.prototype, 'getPanelState').mockResolvedValue(
         err(new ValidationError('Panel state error')),
@@ -598,7 +598,7 @@ describe('ProofTreePanel View State Management', () => {
       // Should not throw when processing message with error
       if (messageHandler) {
         expect(() =>
-          messageHandler({
+          messageHandler?.({
             type: 'viewportChanged',
             viewport: { zoom: 1.0, pan: { x: 0, y: 0 }, center: { x: 0, y: 0 } },
           }),
@@ -634,21 +634,21 @@ describe('ProofTreePanel View State Management', () => {
       if (messageHandler) {
         // Should handle malformed viewport data gracefully
         expect(() =>
-          messageHandler({
+          messageHandler?.({
             type: 'viewportChanged',
             viewport: 'not an object',
           }),
         ).not.toThrow();
 
         expect(() =>
-          messageHandler({
+          messageHandler?.({
             type: 'viewportChanged',
             viewport: null,
           }),
         ).not.toThrow();
 
         expect(() =>
-          messageHandler({
+          messageHandler?.({
             type: 'viewportChanged',
             // Missing viewport property
           }),
@@ -691,7 +691,7 @@ describe('ProofTreePanel View State Management', () => {
 
       if (messageHandler) {
         expect(() =>
-          messageHandler({
+          messageHandler?.({
             type: 'viewportChanged',
             viewport: { zoom: 1.0, pan: { x: 0, y: 0 }, center: { x: 0, y: 0 } },
           }),

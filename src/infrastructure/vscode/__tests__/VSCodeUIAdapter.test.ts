@@ -1,4 +1,14 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
+import {
+  ActionLabel,
+  DialogPrompt,
+  DialogTitle,
+  ErrorMessage,
+  NotificationMessage,
+  PlaceholderText,
+  ViewType,
+  WebviewId,
+} from '../../../domain/shared/value-objects/index.js';
 import { VSCodeUIAdapter } from '../VSCodeUIAdapter.js';
 
 // Mock vscode module
@@ -37,9 +47,17 @@ describe('VSCodeUIAdapter', () => {
       const vscode = await import('vscode');
       vi.mocked(vscode.window.showInputBox).mockResolvedValue('test input');
 
+      const promptResult = DialogPrompt.create('Enter value');
+      const placeholderResult = PlaceholderText.create('placeholder');
+
+      expect(promptResult.isOk()).toBe(true);
+      expect(placeholderResult.isOk()).toBe(true);
+
+      if (!promptResult.isOk() || !placeholderResult.isOk()) return;
+
       const result = await adapter.showInputBox({
-        prompt: 'Enter value',
-        placeholder: 'placeholder',
+        prompt: promptResult.value,
+        placeholder: placeholderResult.value,
       });
 
       expect(result.isOk()).toBe(true);
@@ -52,8 +70,12 @@ describe('VSCodeUIAdapter', () => {
       const vscode = await import('vscode');
       vi.mocked(vscode.window.showInputBox).mockResolvedValue(undefined);
 
+      const promptResult = DialogPrompt.create('Enter value');
+      expect(promptResult.isOk()).toBe(true);
+      if (!promptResult.isOk()) return;
+
       const result = await adapter.showInputBox({
-        prompt: 'Enter value',
+        prompt: promptResult.value,
       });
 
       expect(result.isOk()).toBe(true);
@@ -66,8 +88,12 @@ describe('VSCodeUIAdapter', () => {
       const vscode = await import('vscode');
       vi.mocked(vscode.window.showInputBox).mockRejectedValue(new Error('Input failed'));
 
+      const promptResult = DialogPrompt.create('Enter value');
+      expect(promptResult.isOk()).toBe(true);
+      if (!promptResult.isOk()) return;
+
       const result = await adapter.showInputBox({
-        prompt: 'Enter value',
+        prompt: promptResult.value,
       });
 
       expect(result.isErr()).toBe(true);
@@ -82,11 +108,21 @@ describe('VSCodeUIAdapter', () => {
       const validateInput = vi.fn().mockReturnValue(null);
       vi.mocked(vscode.window.showInputBox).mockResolvedValue('test');
 
+      const titleResult = DialogTitle.create('Test Title');
+      const promptResult = DialogPrompt.create('Enter value');
+      const placeholderResult = PlaceholderText.create('placeholder');
+
+      expect(titleResult.isOk()).toBe(true);
+      expect(promptResult.isOk()).toBe(true);
+      expect(placeholderResult.isOk()).toBe(true);
+
+      if (!titleResult.isOk() || !promptResult.isOk() || !placeholderResult.isOk()) return;
+
       await adapter.showInputBox({
-        title: 'Test Title',
-        prompt: 'Enter value',
+        title: titleResult.value,
+        prompt: promptResult.value,
         value: 'default',
-        placeholder: 'placeholder',
+        placeholder: placeholderResult.value,
         password: true,
         validateInput,
       });
@@ -154,9 +190,17 @@ describe('VSCodeUIAdapter', () => {
       const vscode = await import('vscode');
       vi.mocked(vscode.window.showInformationMessage).mockResolvedValue('OK' as any);
 
+      const titleResult = DialogTitle.create('Confirm');
+      const messageResult = ErrorMessage.create('Are you sure?');
+
+      expect(titleResult.isOk()).toBe(true);
+      expect(messageResult.isOk()).toBe(true);
+
+      if (!titleResult.isOk() || !messageResult.isOk()) return;
+
       const result = await adapter.showConfirmation({
-        title: 'Confirm',
-        message: 'Are you sure?',
+        title: titleResult.value,
+        message: messageResult.value,
       });
 
       expect(result.isOk()).toBe(true);
@@ -169,9 +213,17 @@ describe('VSCodeUIAdapter', () => {
       const vscode = await import('vscode');
       vi.mocked(vscode.window.showInformationMessage).mockResolvedValue('Cancel' as any);
 
+      const titleResult = DialogTitle.create('Confirm');
+      const messageResult = ErrorMessage.create('Are you sure?');
+
+      expect(titleResult.isOk()).toBe(true);
+      expect(messageResult.isOk()).toBe(true);
+
+      if (!titleResult.isOk() || !messageResult.isOk()) return;
+
       const result = await adapter.showConfirmation({
-        title: 'Confirm',
-        message: 'Are you sure?',
+        title: titleResult.value,
+        message: messageResult.value,
       });
 
       expect(result.isOk()).toBe(true);
@@ -184,11 +236,29 @@ describe('VSCodeUIAdapter', () => {
       const vscode = await import('vscode');
       vi.mocked(vscode.window.showInformationMessage).mockResolvedValue('Yes' as any);
 
+      const titleResult = DialogTitle.create('Confirm');
+      const messageResult = ErrorMessage.create('Are you sure?');
+      const confirmLabelResult = ActionLabel.create('Yes');
+      const cancelLabelResult = ActionLabel.create('No');
+
+      expect(titleResult.isOk()).toBe(true);
+      expect(messageResult.isOk()).toBe(true);
+      expect(confirmLabelResult.isOk()).toBe(true);
+      expect(cancelLabelResult.isOk()).toBe(true);
+
+      if (
+        !titleResult.isOk() ||
+        !messageResult.isOk() ||
+        !confirmLabelResult.isOk() ||
+        !cancelLabelResult.isOk()
+      )
+        return;
+
       const result = await adapter.showConfirmation({
-        title: 'Confirm',
-        message: 'Are you sure?',
-        confirmLabel: 'Yes',
-        cancelLabel: 'No',
+        title: titleResult.value,
+        message: messageResult.value,
+        confirmLabel: confirmLabelResult.value,
+        cancelLabel: cancelLabelResult.value,
       });
 
       expect(vscode.window.showInformationMessage).toHaveBeenCalledWith(
@@ -211,8 +281,12 @@ describe('VSCodeUIAdapter', () => {
       const mockUris = [{ fsPath: '/path/to/file1.txt' }, { fsPath: '/path/to/file2.txt' }];
       vi.mocked(vscode.window.showOpenDialog).mockResolvedValue(mockUris as any);
 
+      const titleResult = DialogTitle.create('Open Files');
+      expect(titleResult.isOk()).toBe(true);
+      if (!titleResult.isOk()) return;
+
       const result = await adapter.showOpenDialog({
-        title: 'Open Files',
+        title: titleResult.value,
         canSelectMany: true,
       });
 
@@ -241,8 +315,12 @@ describe('VSCodeUIAdapter', () => {
       const mockUri = { fsPath: '/path/to/save.txt' };
       vi.mocked(vscode.window.showSaveDialog).mockResolvedValue(mockUri as any);
 
+      const titleResult = DialogTitle.create('Save File');
+      expect(titleResult.isOk()).toBe(true);
+      if (!titleResult.isOk()) return;
+
       const result = await adapter.showSaveDialog({
-        title: 'Save File',
+        title: titleResult.value,
       });
 
       expect(result.isOk()).toBe(true);
@@ -268,9 +346,11 @@ describe('VSCodeUIAdapter', () => {
     test('showInformation without actions', async () => {
       const vscode = await import('vscode');
 
-      adapter.showInformation('Test message');
-
-      expect(vscode.window.showInformationMessage).toHaveBeenCalledWith('Test message');
+      const msgResult = NotificationMessage.create('Test message');
+      if (msgResult.isOk()) {
+        adapter.showInformation(msgResult.value);
+        expect(vscode.window.showInformationMessage).toHaveBeenCalledWith('Test message');
+      }
     });
 
     test('showInformation with actions', async () => {
@@ -278,9 +358,18 @@ describe('VSCodeUIAdapter', () => {
       const callback = vi.fn();
       vi.mocked(vscode.window.showInformationMessage).mockResolvedValue('Action 1' as any);
 
-      adapter.showInformation('Test message', { label: 'Action 1', callback });
+      const msgResult = NotificationMessage.create('Test message');
+      if (msgResult.isOk()) {
+        const labelResult = ActionLabel.create('Action 1');
+        expect(labelResult.isOk()).toBe(true);
+        if (!labelResult.isOk()) return;
 
-      expect(vscode.window.showInformationMessage).toHaveBeenCalledWith('Test message', 'Action 1');
+        adapter.showInformation(msgResult.value, { label: labelResult.value, callback });
+        expect(vscode.window.showInformationMessage).toHaveBeenCalledWith(
+          'Test message',
+          'Action 1',
+        );
+      }
 
       // Wait for async handling
       await new Promise((resolve) => setTimeout(resolve, 0));
@@ -290,17 +379,21 @@ describe('VSCodeUIAdapter', () => {
     test('showWarning calls correct VS Code method', async () => {
       const vscode = await import('vscode');
 
-      adapter.showWarning('Warning message');
-
-      expect(vscode.window.showWarningMessage).toHaveBeenCalledWith('Warning message');
+      const msgResult = NotificationMessage.create('Warning message');
+      if (msgResult.isOk()) {
+        adapter.showWarning(msgResult.value);
+        expect(vscode.window.showWarningMessage).toHaveBeenCalledWith('Warning message');
+      }
     });
 
     test('showError calls correct VS Code method', async () => {
       const vscode = await import('vscode');
 
-      adapter.showError('Error message');
-
-      expect(vscode.window.showErrorMessage).toHaveBeenCalledWith('Error message');
+      const msgResult = NotificationMessage.create('Error message');
+      if (msgResult.isOk()) {
+        adapter.showError(msgResult.value);
+        expect(vscode.window.showErrorMessage).toHaveBeenCalledWith('Error message');
+      }
     });
   });
 
@@ -315,8 +408,12 @@ describe('VSCodeUIAdapter', () => {
         return task(mockProgress, mockToken);
       });
 
+      const titleResult = DialogTitle.create('Processing...');
+      expect(titleResult.isOk()).toBe(true);
+      if (!titleResult.isOk()) return;
+
       const result = await adapter.showProgress(
-        { title: 'Processing...', location: 'notification' },
+        { title: titleResult.value, location: 'notification' },
         mockTask,
       );
 
@@ -349,10 +446,20 @@ describe('VSCodeUIAdapter', () => {
       };
       vi.mocked(vscode.window.createWebviewPanel).mockReturnValue(mockPanel as any);
 
+      const idResult = WebviewId.create('test-panel');
+      const titleResult = DialogTitle.create('Test Panel');
+      const viewTypeResult = ViewType.create('test.view');
+
+      expect(idResult.isOk()).toBe(true);
+      expect(titleResult.isOk()).toBe(true);
+      expect(viewTypeResult.isOk()).toBe(true);
+
+      if (!idResult.isOk() || !titleResult.isOk() || !viewTypeResult.isOk()) return;
+
       const panel = adapter.createWebviewPanel({
-        id: 'test-panel',
-        title: 'Test Panel',
-        viewType: 'test.view',
+        id: idResult.value,
+        title: titleResult.value,
+        viewType: viewTypeResult.value,
         enableScripts: true,
       });
 

@@ -69,6 +69,12 @@ export enum MessageType {
   RESTORE_PANEL_STATE = 'restorePanelState',
   RESTORE_SELECTION_STATE = 'restoreSelectionState',
   RESTORE_THEME_STATE = 'restoreThemeState',
+  VIEWPORT_CHANGED = 'viewportChanged',
+  PANEL_STATE_CHANGED = 'panelStateChanged',
+  SELECTION_CHANGED = 'selectionChanged',
+  CREATE_ARGUMENT = 'createArgument',
+  ADD_STATEMENT = 'addStatement',
+  MOVE_NODE = 'moveNode',
 }
 
 export enum OperationType {

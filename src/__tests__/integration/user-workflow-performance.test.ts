@@ -9,6 +9,14 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import * as vscode from 'vscode';
 import type { IFileSystemPort } from '../../application/ports/IFileSystemPort.js';
 import type { DocumentQueryService } from '../../application/services/DocumentQueryService.js';
+import {
+  DocumentContent,
+  DocumentId,
+  DocumentVersion,
+  FileSize,
+  Timestamp,
+  Title,
+} from '../../domain/shared/value-objects/index.js';
 import { activate, deactivate } from '../../extension/extension.js';
 import {
   type ApplicationContainer,
@@ -484,17 +492,18 @@ describe('User Workflow Performance Tests', () => {
 
         // Save document
         const fileSystemPort = container.resolve<IFileSystemPort>(TOKENS.IFileSystemPort);
+        const docId = `perf-test-${workflow.persona.toLowerCase().replace(' ', '-')}`;
         const saveDoc = {
-          id: `perf-test-${workflow.persona.toLowerCase().replace(' ', '-')}`,
-          content,
+          id: DocumentId.create(docId)._unsafeUnwrap(),
+          content: DocumentContent.create(content)._unsafeUnwrap(),
           metadata: {
-            id: `perf-test-${workflow.persona.toLowerCase().replace(' ', '-')}`,
-            title: `Performance Test - ${workflow.persona}`,
-            modifiedAt: new Date(),
-            size: content.length,
+            id: DocumentId.create(docId)._unsafeUnwrap(),
+            title: Title.create(`Performance Test - ${workflow.persona}`)._unsafeUnwrap(),
+            modifiedAt: Timestamp.fromDate(new Date()),
+            size: FileSize.create(content.length)._unsafeUnwrap(),
             syncStatus: 'synced' as const,
           },
-          version: 1,
+          version: DocumentVersion.create(1)._unsafeUnwrap(),
         };
 
         const saveResult = await fileSystemPort.storeDocument(saveDoc);
@@ -626,17 +635,18 @@ trees:
         expect(parseResult.isOk()).toBe(true);
 
         // Store document
+        const docId = `concurrent-test-${index}`;
         const doc = {
-          id: `concurrent-test-${index}`,
-          content,
+          id: DocumentId.create(docId)._unsafeUnwrap(),
+          content: DocumentContent.create(content)._unsafeUnwrap(),
           metadata: {
-            id: `concurrent-test-${index}`,
-            title: `Concurrent Test ${persona.name}`,
-            modifiedAt: new Date(),
-            size: content.length,
+            id: DocumentId.create(docId)._unsafeUnwrap(),
+            title: Title.create(`Concurrent Test ${persona.name}`)._unsafeUnwrap(),
+            modifiedAt: Timestamp.fromDate(new Date()),
+            size: FileSize.create(content.length)._unsafeUnwrap(),
             syncStatus: 'synced' as const,
           },
-          version: 1,
+          version: DocumentVersion.create(1)._unsafeUnwrap(),
         };
 
         const storeResult = await fileSystemPort.storeDocument(doc);
@@ -668,7 +678,11 @@ trees:
 
       // Simulate extended session with multiple document operations
       for (let i = 0; i < 10; i++) {
-        const persona = USER_PERSONAS[i % USER_PERSONAS.length];
+        const personaIndex = i % USER_PERSONAS.length;
+        const persona = USER_PERSONAS[personaIndex];
+        if (!persona) {
+          throw new Error(`No persona found at index ${personaIndex}`);
+        }
         const content = generatePersonaContent(persona);
         userMocks.mockDocument.getText.mockReturnValue(content);
 
@@ -680,7 +694,11 @@ trees:
       }
 
       // After extended session, operations should still be responsive
-      const finalContent = generatePersonaContent(USER_PERSONAS[0]);
+      const firstPersona = USER_PERSONAS[0];
+      if (!firstPersona) {
+        throw new Error('No user personas available');
+      }
+      const finalContent = generatePersonaContent(firstPersona);
       userMocks.mockDocument.getText.mockReturnValue(finalContent);
 
       const startTime = Date.now();

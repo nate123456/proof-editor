@@ -17,7 +17,7 @@ import { RepositoryError } from '../../errors/DomainErrors';
 import type { IOrderedSetRepository } from '../../repositories/IOrderedSetRepository';
 import type { QueryOptions } from '../../shared/repository-types';
 import { OrderedSetId, type StatementId } from '../../shared/value-objects';
-import { orderedSetIdFactory, statementContentFactory } from '../factories';
+import { orderedSetIdFactory, statementContentFactory } from './factories';
 
 // Mock implementation of IOrderedSetRepository for testing
 class MockOrderedSetRepository implements IOrderedSetRepository {

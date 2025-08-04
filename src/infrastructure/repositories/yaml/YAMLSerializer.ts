@@ -1,6 +1,7 @@
 import * as yaml from 'js-yaml';
 import { err, ok, type Result } from 'neverthrow';
 import type { ProofDocument } from '../../../domain/aggregates/ProofDocument.js';
+import type { ProofDocumentQueryService } from '../../../domain/queries/ProofDocumentQueryService.js';
 import { ValidationError } from '../../../domain/shared/result.js';
 
 interface YAMLProofDocument {
@@ -39,17 +40,18 @@ export class YAMLSerializer {
 
   async serialize(document: ProofDocument): Promise<Result<string, ValidationError>> {
     try {
+      const queryService = document.createQueryService();
       const yamlDoc: YAMLProofDocument = {
-        version: document.getVersion(),
+        version: queryService.getVersion(),
         metadata: {
-          id: document.getId().getValue(),
-          createdAt: document.getCreatedAt().toISOString(),
-          modifiedAt: document.getModifiedAt().toISOString(),
+          id: queryService.getId().getValue(),
+          createdAt: queryService.getCreatedAt().toISOString(),
+          modifiedAt: queryService.getModifiedAt().toISOString(),
           schemaVersion: this.SCHEMA_VERSION,
         },
-        statements: this.serializeStatements(document),
-        atomicArguments: this.serializeAtomicArguments(document),
-        trees: this.serializeTrees(document),
+        statements: this.serializeStatements(queryService),
+        atomicArguments: this.serializeAtomicArguments(queryService),
+        trees: this.serializeTrees(queryService),
       };
 
       // Handle empty documents properly for bootstrap-first design
@@ -81,20 +83,22 @@ export class YAMLSerializer {
     }
   }
 
-  private serializeStatements(document: ProofDocument): Record<string, string> {
+  private serializeStatements(queryService: ProofDocumentQueryService): Record<string, string> {
     const statements: Record<string, string> = {};
 
-    for (const statement of document.getAllStatements()) {
+    for (const statement of queryService.getAllStatements()) {
       statements[statement.getId().getValue()] = statement.getContent();
     }
 
     return statements;
   }
 
-  private serializeAtomicArguments(document: ProofDocument): Record<string, YAMLAtomicArgument> {
+  private serializeAtomicArguments(
+    queryService: ProofDocumentQueryService,
+  ): Record<string, YAMLAtomicArgument> {
     const args: Record<string, YAMLAtomicArgument> = {};
 
-    for (const argument of document.getAllAtomicArguments()) {
+    for (const argument of queryService.getAllAtomicArguments()) {
       const yamlArg: YAMLAtomicArgument = {
         premises: argument.getPremises().map((stmt) => stmt.getId().getValue()),
         conclusions: argument.getConclusions().map((stmt) => stmt.getId().getValue()),
@@ -114,7 +118,7 @@ export class YAMLSerializer {
     return args;
   }
 
-  private serializeTrees(_document: ProofDocument): Record<string, YAMLTree> {
+  private serializeTrees(_queryService: ProofDocumentQueryService): Record<string, YAMLTree> {
     const trees: Record<string, YAMLTree> = {};
 
     // Note: Trees are stored in ProofTreeAggregate, not ProofDocument

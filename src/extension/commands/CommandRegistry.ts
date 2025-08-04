@@ -1,6 +1,7 @@
 import { err, ok, type Result } from 'neverthrow';
 import * as vscode from 'vscode';
 import type { IUIPort } from '../../application/ports/IUIPort.js';
+import { NotificationMessage } from '../../domain/shared/value-objects/index.js';
 import type { ApplicationContainer } from '../../infrastructure/di/container.js';
 import { TOKENS } from '../../infrastructure/di/tokens.js';
 import type { ValidationController } from '../../validation/ValidationController.js';
@@ -50,7 +51,12 @@ export class CommandRegistry {
         await showProofTreeForDocument(activeEditor, this.container);
       } else {
         const uiPort = this.container.resolve<IUIPort>(TOKENS.IUIPort);
-        uiPort.showWarning('Please open a .proof file to view the tree visualization.');
+        const warningResult = NotificationMessage.create(
+          'Please open a .proof file to view the tree visualization.',
+        );
+        if (warningResult.isOk()) {
+          uiPort.showWarning(warningResult.value);
+        }
       }
     });
 
@@ -107,7 +113,12 @@ export class CommandRegistry {
       validationController.validateDocumentImmediate(documentInfo);
     } catch (error) {
       const uiPort = this.container.resolve<IUIPort>(TOKENS.IUIPort);
-      uiPort.showError(`Undo failed: ${error instanceof Error ? error.message : String(error)}`);
+      const errorResult = NotificationMessage.create(
+        `Undo failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      if (errorResult.isOk()) {
+        uiPort.showError(errorResult.value);
+      }
     }
   }
 
@@ -131,7 +142,12 @@ export class CommandRegistry {
       validationController.validateDocumentImmediate(documentInfo);
     } catch (error) {
       const uiPort = this.container.resolve<IUIPort>(TOKENS.IUIPort);
-      uiPort.showError(`Redo failed: ${error instanceof Error ? error.message : String(error)}`);
+      const errorResult = NotificationMessage.create(
+        `Redo failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      if (errorResult.isOk()) {
+        uiPort.showError(errorResult.value);
+      }
     }
   }
 

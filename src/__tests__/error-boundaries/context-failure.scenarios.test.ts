@@ -16,7 +16,12 @@
 import { err, ok, type Result } from 'neverthrow';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type * as vscode from 'vscode';
-import { DialogTitle, ViewType, WebviewId } from '../../domain/shared/value-objects/index.js';
+import {
+  DialogTitle,
+  FilePath,
+  ViewType,
+  WebviewId,
+} from '../../domain/shared/value-objects/index.js';
 import { ApplicationContainer } from '../../infrastructure/di/container.js';
 import { VSCodeFileSystemAdapter } from '../../infrastructure/vscode/VSCodeFileSystemAdapter.js';
 import { VSCodePlatformAdapter } from '../../infrastructure/vscode/VSCodePlatformAdapter.js';
@@ -206,7 +211,11 @@ describe('Context Failure Scenarios', () => {
           (mockContext as { workspaceState?: vscode.Memento | undefined }).workspaceState =
             undefined;
 
-          return await adapter.readFile('/test/file.md');
+          const filePath = FilePath.create('/test/file.md');
+          if (filePath.isErr()) {
+            return err(filePath.error);
+          }
+          return await adapter.readFile(filePath.value);
         } catch (error) {
           return err(error as Error);
         }

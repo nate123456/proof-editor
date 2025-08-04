@@ -5,7 +5,7 @@ import { webviewScript } from './webview-script-utils';
 import { createBasicWebviewHTML, JSDOM, setupMockVSCodeAPI } from './webview-test-utils';
 
 describe('ProofTreePanel Webview Error Handling and Edge Cases', () => {
-  let dom: JSDOM;
+  let dom: InstanceType<typeof JSDOM>;
   let window: Window & typeof globalThis;
   let document: Document;
   let mockVSCode: any;
@@ -252,8 +252,8 @@ describe('ProofTreePanel Webview Error Handling and Edge Cases', () => {
     }
 
     // Should still have valid zoom state
-    expect(window.currentZoom).toBeGreaterThan(0);
-    expect(window.currentZoom).toBeLessThanOrEqual(5);
+    expect((window as any).currentZoom).toBeGreaterThan(0);
+    expect((window as any).currentZoom).toBeLessThanOrEqual(5);
   });
 
   it('should handle missing webview functions gracefully', () => {
@@ -284,7 +284,7 @@ describe('ProofTreePanel Webview Error Handling and Edge Cases', () => {
     expect(container.innerHTML).toContain('editable-statement');
 
     // Corrupt the current editor state
-    window.currentEditor = {
+    (window as any).currentEditor = {
       element: null as any,
       target: null as any,
       originalContent: null as any,
@@ -293,10 +293,10 @@ describe('ProofTreePanel Webview Error Handling and Edge Cases', () => {
 
     // Try to finish editing
     expect(() => {
-      window.finishEditing(true);
+      (window as any).finishEditing(true);
     }).not.toThrow();
 
     // Should have cleaned up
-    expect(window.currentEditor).toBeNull();
+    expect((window as any).currentEditor).toBeNull();
   });
 });

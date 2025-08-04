@@ -1,5 +1,12 @@
 import { err, ok } from 'neverthrow';
 import { describe, expect, test, vi } from 'vitest';
+import {
+  Architecture,
+  Dimensions,
+  ErrorCode,
+  ErrorMessage,
+  PlatformVersion,
+} from '../../../domain/shared/value-objects/index.js';
 import type {
   DisplayCapabilities,
   Disposable,
@@ -32,11 +39,16 @@ describe('IPlatformPort Interface Contract', () => {
   describe('Platform Information', () => {
     test('getPlatformInfo returns PlatformInfo', () => {
       const mockPort = createMockPlatformPort();
+      const versionResult = PlatformVersion.create('1.85.0');
+      const archResult = Architecture.create('arm64');
+      if (versionResult.isErr() || archResult.isErr()) {
+        throw new Error('Failed to create platform info values');
+      }
       const platformInfo: PlatformInfo = {
         type: 'vscode',
-        version: '1.85.0',
+        version: versionResult.value,
         os: 'macos',
-        arch: 'arm64',
+        arch: archResult.value,
         isDebug: false,
       };
 
@@ -44,9 +56,9 @@ describe('IPlatformPort Interface Contract', () => {
 
       const result = mockPort.getPlatformInfo();
       expect(result.type).toBe('vscode');
-      expect(result.version).toBe('1.85.0');
+      expect(result.version.getValue()).toBe('1.85.0');
       expect(result.os).toBe('macos');
-      expect(result.arch).toBe('arm64');
+      expect(result.arch.getValue()).toBe('arm64');
       expect(result.isDebug).toBe(false);
     });
 
@@ -60,11 +72,16 @@ describe('IPlatformPort Interface Contract', () => {
       ];
 
       platformTypes.forEach((type) => {
+        const versionResult = PlatformVersion.create('1.0.0');
+        const archResult = Architecture.create('x64');
+        if (versionResult.isErr() || archResult.isErr()) {
+          throw new Error('Failed to create platform info values');
+        }
         const platformInfo: PlatformInfo = {
           type,
-          version: '1.0.0',
+          version: versionResult.value,
           os: type === 'mobile' ? 'ios' : 'linux',
-          arch: 'x64',
+          arch: archResult.value,
           isDebug: true,
         };
 
@@ -85,11 +102,16 @@ describe('IPlatformPort Interface Contract', () => {
       ];
 
       osTypes.forEach((os) => {
+        const versionResult = PlatformVersion.create('1.0.0');
+        const archResult = Architecture.create('x64');
+        if (versionResult.isErr() || archResult.isErr()) {
+          throw new Error('Failed to create platform info values');
+        }
         const platformInfo: PlatformInfo = {
           type: 'desktop',
-          version: '1.0.0',
+          version: versionResult.value,
           os,
-          arch: 'x64',
+          arch: archResult.value,
           isDebug: false,
         };
 
@@ -163,9 +185,12 @@ describe('IPlatformPort Interface Contract', () => {
   describe('Display Capabilities', () => {
     test('getDisplayCapabilities returns DisplayCapabilities', () => {
       const mockPort = createMockPlatformPort();
+      const dimensionsResult = Dimensions.create(1920, 1080);
+      if (dimensionsResult.isErr()) {
+        throw new Error('Failed to create dimensions');
+      }
       const displayCapabilities: DisplayCapabilities = {
-        screenWidth: 1920,
-        screenHeight: 1080,
+        screenDimensions: dimensionsResult.value,
         devicePixelRatio: 2.0,
         colorDepth: 24,
         isHighContrast: false,
@@ -175,8 +200,8 @@ describe('IPlatformPort Interface Contract', () => {
       vi.mocked(mockPort.getDisplayCapabilities).mockReturnValue(displayCapabilities);
 
       const result = mockPort.getDisplayCapabilities();
-      expect(result.screenWidth).toBe(1920);
-      expect(result.screenHeight).toBe(1080);
+      expect(result.screenDimensions.getWidth()).toBe(1920);
+      expect(result.screenDimensions.getHeight()).toBe(1080);
       expect(result.devicePixelRatio).toBe(2.0);
       expect(result.colorDepth).toBe(24);
       expect(result.isHighContrast).toBe(false);
@@ -185,9 +210,12 @@ describe('IPlatformPort Interface Contract', () => {
 
     test('getDisplayCapabilities handles high DPI displays', () => {
       const mockPort = createMockPlatformPort();
+      const dimensionsResult = Dimensions.create(2560, 1600);
+      if (dimensionsResult.isErr()) {
+        throw new Error('Failed to create dimensions');
+      }
       const highDpiCapabilities: DisplayCapabilities = {
-        screenWidth: 2560,
-        screenHeight: 1600,
+        screenDimensions: dimensionsResult.value,
         devicePixelRatio: 3.0,
         colorDepth: 32,
         isHighContrast: false,
@@ -203,9 +231,12 @@ describe('IPlatformPort Interface Contract', () => {
 
     test('getDisplayCapabilities handles accessibility settings', () => {
       const mockPort = createMockPlatformPort();
+      const dimensionsResult = Dimensions.create(1024, 768);
+      if (dimensionsResult.isErr()) {
+        throw new Error('Failed to create dimensions');
+      }
       const accessibilityCapabilities: DisplayCapabilities = {
-        screenWidth: 1024,
-        screenHeight: 768,
+        screenDimensions: dimensionsResult.value,
         devicePixelRatio: 1.0,
         colorDepth: 24,
         isHighContrast: true,
@@ -280,9 +311,14 @@ describe('IPlatformPort Interface Contract', () => {
     test('openExternal returns Result<void, PlatformError>', async () => {
       const mockPort = createMockPlatformPort();
       const successResult = ok(undefined);
+      const errorCodeResult = ErrorCode.create('NOT_SUPPORTED');
+      const errorMessageResult = ErrorMessage.create('External links not supported');
+      if (errorCodeResult.isErr() || errorMessageResult.isErr()) {
+        throw new Error('Failed to create error values');
+      }
       const errorResult = err({
-        code: 'NOT_SUPPORTED',
-        message: 'External links not supported',
+        code: errorCodeResult.value,
+        message: errorMessageResult.value,
       } as PlatformError);
 
       vi.mocked(mockPort.openExternal).mockResolvedValueOnce(successResult);
@@ -294,16 +330,21 @@ describe('IPlatformPort Interface Contract', () => {
       const result2 = await mockPort.openExternal('https://blocked.com');
       expect(result2.isErr()).toBe(true);
       if (result2.isErr()) {
-        expect(result2.error.code).toBe('NOT_SUPPORTED');
+        expect(result2.error.code.getValue()).toBe('NOT_SUPPORTED');
       }
     });
 
     test('copyToClipboard returns Result<void, PlatformError>', async () => {
       const mockPort = createMockPlatformPort();
       const successResult = ok(undefined);
+      const errorCodeResult = ErrorCode.create('PERMISSION_DENIED');
+      const errorMessageResult = ErrorMessage.create('Clipboard access denied');
+      if (errorCodeResult.isErr() || errorMessageResult.isErr()) {
+        throw new Error('Failed to create error values');
+      }
       const errorResult = err({
-        code: 'PERMISSION_DENIED',
-        message: 'Clipboard access denied',
+        code: errorCodeResult.value,
+        message: errorMessageResult.value,
       } as PlatformError);
 
       vi.mocked(mockPort.copyToClipboard).mockResolvedValueOnce(successResult);
@@ -315,7 +356,7 @@ describe('IPlatformPort Interface Contract', () => {
       const result2 = await mockPort.copyToClipboard('restricted text');
       expect(result2.isErr()).toBe(true);
       if (result2.isErr()) {
-        expect(result2.error.code).toBe('PERMISSION_DENIED');
+        expect(result2.error.code.getValue()).toBe('PERMISSION_DENIED');
       }
     });
 
@@ -323,9 +364,14 @@ describe('IPlatformPort Interface Contract', () => {
       const mockPort = createMockPlatformPort();
       const successResult = ok('clipboard content');
       const emptyResult = ok(null);
+      const errorCodeResult = ErrorCode.create('PLATFORM_ERROR');
+      const errorMessageResult = ErrorMessage.create('Clipboard read error');
+      if (errorCodeResult.isErr() || errorMessageResult.isErr()) {
+        throw new Error('Failed to create error values');
+      }
       const errorResult = err({
-        code: 'PLATFORM_ERROR',
-        message: 'Clipboard read error',
+        code: errorCodeResult.value,
+        message: errorMessageResult.value,
       } as PlatformError);
 
       vi.mocked(mockPort.readFromClipboard).mockResolvedValueOnce(successResult);
@@ -389,9 +435,14 @@ describe('IPlatformPort Interface Contract', () => {
       const successResult = ok('stored value');
       const defaultResult = ok('default value');
       const undefinedResult = ok(undefined);
+      const errorCodeResult = ErrorCode.create('PLATFORM_ERROR');
+      const errorMessageResult = ErrorMessage.create('Storage error');
+      if (errorCodeResult.isErr() || errorMessageResult.isErr()) {
+        throw new Error('Failed to create error values');
+      }
       const errorResult = err({
-        code: 'PLATFORM_ERROR',
-        message: 'Storage error',
+        code: errorCodeResult.value,
+        message: errorMessageResult.value,
       } as PlatformError);
 
       vi.mocked(mockPort.getStorageValue).mockResolvedValueOnce(successResult);
@@ -424,9 +475,14 @@ describe('IPlatformPort Interface Contract', () => {
     test('setStorageValue returns Result<void, PlatformError>', async () => {
       const mockPort = createMockPlatformPort();
       const successResult = ok(undefined);
+      const errorCodeResult = ErrorCode.create('PLATFORM_ERROR');
+      const errorMessageResult = ErrorMessage.create('Storage write error');
+      if (errorCodeResult.isErr() || errorMessageResult.isErr()) {
+        throw new Error('Failed to create error values');
+      }
       const errorResult = err({
-        code: 'PLATFORM_ERROR',
-        message: 'Storage write error',
+        code: errorCodeResult.value,
+        message: errorMessageResult.value,
       } as PlatformError);
 
       vi.mocked(mockPort.setStorageValue).mockResolvedValueOnce(successResult);
@@ -442,9 +498,14 @@ describe('IPlatformPort Interface Contract', () => {
     test('deleteStorageValue returns Result<void, PlatformError>', async () => {
       const mockPort = createMockPlatformPort();
       const successResult = ok(undefined);
+      const errorCodeResult = ErrorCode.create('PLATFORM_ERROR');
+      const errorMessageResult = ErrorMessage.create('Storage delete error');
+      if (errorCodeResult.isErr() || errorMessageResult.isErr()) {
+        throw new Error('Failed to create error values');
+      }
       const errorResult = err({
-        code: 'PLATFORM_ERROR',
-        message: 'Storage delete error',
+        code: errorCodeResult.value,
+        message: errorMessageResult.value,
       } as PlatformError);
 
       vi.mocked(mockPort.deleteStorageValue).mockResolvedValueOnce(successResult);
@@ -488,23 +549,33 @@ describe('IPlatformPort Interface Contract', () => {
       const errorCodes = ['NOT_SUPPORTED', 'PERMISSION_DENIED', 'PLATFORM_ERROR'] as const;
 
       errorCodes.forEach((code) => {
+        const errorCodeResult = ErrorCode.create(code);
+        const errorMessageResult = ErrorMessage.create(`Test error: ${code}`);
+        if (errorCodeResult.isErr() || errorMessageResult.isErr()) {
+          throw new Error('Failed to create error values');
+        }
         const error: PlatformError = {
-          code,
-          message: `Test error: ${code}`,
+          code: errorCodeResult.value,
+          message: errorMessageResult.value,
         };
 
-        expect(error.code).toBe(code);
+        expect(error.code.getValue()).toBe(code);
         expect(error.message).toBeDefined();
       });
     });
 
     test('PlatformError message is always required', () => {
+      const errorCodeResult = ErrorCode.create('PLATFORM_ERROR');
+      const errorMessageResult = ErrorMessage.create('Required message');
+      if (errorCodeResult.isErr() || errorMessageResult.isErr()) {
+        throw new Error('Failed to create error values');
+      }
       const error: PlatformError = {
-        code: 'PLATFORM_ERROR',
-        message: 'Required message',
+        code: errorCodeResult.value,
+        message: errorMessageResult.value,
       };
 
-      expect(error.message).toBe('Required message');
+      expect(error.message.getValue()).toBe('Required message');
     });
   });
 
@@ -513,11 +584,16 @@ describe('IPlatformPort Interface Contract', () => {
       const mockPort = createMockPlatformPort();
 
       // Mock desktop platform
+      const versionResult = PlatformVersion.create('1.85.0');
+      const archResult = Architecture.create('x64');
+      if (versionResult.isErr() || archResult.isErr()) {
+        throw new Error('Failed to create platform info values');
+      }
       vi.mocked(mockPort.getPlatformInfo).mockReturnValue({
         type: 'vscode',
-        version: '1.85.0',
+        version: versionResult.value,
         os: 'windows',
-        arch: 'x64',
+        arch: archResult.value,
         isDebug: false,
       });
 
@@ -544,11 +620,16 @@ describe('IPlatformPort Interface Contract', () => {
       const mockPort = createMockPlatformPort();
 
       // Mock mobile platform
+      const versionResult = PlatformVersion.create('1.0.0');
+      const archResult = Architecture.create('arm64');
+      if (versionResult.isErr() || archResult.isErr()) {
+        throw new Error('Failed to create platform info values');
+      }
       vi.mocked(mockPort.getPlatformInfo).mockReturnValue({
         type: 'mobile',
-        version: '1.0.0',
+        version: versionResult.value,
         os: 'ios',
-        arch: 'arm64',
+        arch: archResult.value,
         isDebug: false,
       });
 
@@ -579,11 +660,16 @@ describe('IPlatformPort Interface Contract', () => {
       const mockPort = createMockPlatformPort();
 
       // Mock web platform
+      const versionResult = PlatformVersion.create('1.0.0');
+      const archResult = Architecture.create('x64');
+      if (versionResult.isErr() || archResult.isErr()) {
+        throw new Error('Failed to create platform info values');
+      }
       vi.mocked(mockPort.getPlatformInfo).mockReturnValue({
         type: 'web',
-        version: '1.0.0',
+        version: versionResult.value,
         os: 'linux',
-        arch: 'x64',
+        arch: archResult.value,
         isDebug: false,
       });
 

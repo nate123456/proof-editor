@@ -62,6 +62,9 @@ describe('Document Lifecycle Events', () => {
       onDidCreate: vi.fn(() => ({ dispose: vi.fn() })),
       onDidDelete: vi.fn(() => ({ dispose: vi.fn() })),
       dispose: vi.fn(),
+      ignoreCreateEvents: false,
+      ignoreChangeEvents: false,
+      ignoreDeleteEvents: false,
     });
   });
 

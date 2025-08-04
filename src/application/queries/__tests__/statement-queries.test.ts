@@ -9,7 +9,7 @@ import fc from 'fast-check';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   atomicArgumentFactory,
-  orderedSetFactory,
+  orderedSetIdFactory,
   statementFactory,
 } from '../../../domain/__tests__/factories/index.js';
 import { Statement } from '../../../domain/entities/Statement.js';
@@ -318,12 +318,14 @@ describe('Statement Query Execution Tests', () => {
       };
 
       const statement = statementFactory.build();
-      const orderedSet1 = orderedSetFactory
-        .transient({ statementIds: [statement.getId()] })
-        .build();
-      const orderedSet2 = orderedSetFactory
-        .transient({ statementIds: [statement.getId()] })
-        .build();
+      const orderedSet1 = {
+        getId: () => ({ getValue: () => orderedSetIdFactory.build() }),
+        statementIds: [statement.getId()],
+      };
+      const orderedSet2 = {
+        getId: () => ({ getValue: () => orderedSetIdFactory.build() }),
+        statementIds: [statement.getId()],
+      };
 
       const argument1 = atomicArgumentFactory
         .transient({

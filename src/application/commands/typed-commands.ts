@@ -1,5 +1,4 @@
 import { err, ok, type Result } from 'neverthrow';
-import type { SideLabels } from '../../domain/entities/AtomicArgument.js';
 import type { ValidationError } from '../../domain/shared/result.js';
 import {
   AtomicArgumentId,
@@ -8,6 +7,7 @@ import {
   Position2D,
   PremisePosition,
   SideLabel,
+  SideLabels,
   StatementContent,
   StatementId,
   TreeId,
@@ -50,10 +50,7 @@ export class TypedSideLabels {
   }
 
   toDomain(): SideLabels {
-    return {
-      left: this.left,
-      right: this.right,
-    };
+    return SideLabels.create(this.left, this.right);
   }
 
   getLeft(): SideLabel | undefined {

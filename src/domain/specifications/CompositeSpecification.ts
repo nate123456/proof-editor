@@ -44,14 +44,14 @@ export class AndSpecification<T> extends CompositeSpecification<T> {
     return this.left.isSatisfiedBy(entity) && this.right.isSatisfiedBy(entity);
   }
 
-  reasonForDissatisfaction(entity: T): string | null {
+  override reasonForDissatisfaction(entity: T): string | null {
     const leftReason = this.left.reasonForDissatisfaction?.(entity);
     const rightReason = this.right.reasonForDissatisfaction?.(entity);
 
     if (leftReason && rightReason) {
       return `Both conditions failed: ${leftReason} AND ${rightReason}`;
     }
-    return leftReason || rightReason;
+    return leftReason || rightReason || null;
   }
 }
 
@@ -70,7 +70,7 @@ export class OrSpecification<T> extends CompositeSpecification<T> {
     return this.left.isSatisfiedBy(entity) || this.right.isSatisfiedBy(entity);
   }
 
-  reasonForDissatisfaction(entity: T): string | null {
+  override reasonForDissatisfaction(entity: T): string | null {
     if (this.isSatisfiedBy(entity)) {
       return null;
     }
@@ -94,7 +94,7 @@ export class NotSpecification<T> extends CompositeSpecification<T> {
     return !this.specification.isSatisfiedBy(entity);
   }
 
-  reasonForDissatisfaction(entity: T): string | null {
+  override reasonForDissatisfaction(entity: T): string | null {
     return this.isSatisfiedBy(entity) ? null : 'Negated condition was satisfied';
   }
 }

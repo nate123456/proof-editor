@@ -1045,7 +1045,10 @@ describe('CRDTTransformationService', () => {
       expect(stats.transformableOperations).toBeLessThanOrEqual(stats.totalOperations);
 
       // Intractable operations should not be counted as transformable
-      if (stats.complexityDistribution.INTRACTABLE > 0) {
+      if (
+        stats.complexityDistribution.INTRACTABLE &&
+        stats.complexityDistribution.INTRACTABLE > 0
+      ) {
         expect(stats.transformableOperations).toBeLessThan(stats.totalOperations);
       }
     });

@@ -349,8 +349,8 @@ export class OperationTransformationService implements IOperationTransformationS
   }
 
   private areOperationTypesCompatible(
-    _sourceType: IOperation['getOperationType'],
-    _targetType: IOperation['getOperationType'],
+    _sourceType: ReturnType<IOperation['getOperationType']>,
+    _targetType: ReturnType<IOperation['getOperationType']>,
   ): boolean {
     // Most operations can be transformed, let the transformation logic handle specifics
     return true;

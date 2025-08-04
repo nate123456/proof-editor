@@ -6,6 +6,18 @@
  */
 
 import { beforeEach, describe, expect, it } from 'vitest';
+import {
+  AtomicArgumentId,
+  Dimensions,
+  ErrorCode,
+  ErrorMessage,
+  ErrorSeverity,
+  NodeCount,
+  NodeId,
+  Position2D,
+  StatementId,
+  TreeId,
+} from '../../../domain/shared/value-objects/index.js';
 import type { DocumentDTO, GetDocumentStateQuery } from '../document-queries.js';
 import {
   createMockDocumentService,
@@ -43,24 +55,16 @@ describe('Document Query Performance', () => {
           },
         ]),
       ),
-      orderedSets: Object.fromEntries(
-        Array.from({ length: 5000 }, (_, i) => [
-          `set_${i}`,
-          {
-            id: `set_${i}`,
-            statementIds: [`stmt_${i}`, `stmt_${i + 1}`],
-            usageCount: 1,
-            usedBy: [],
-          },
-        ]),
-      ),
       atomicArguments: Object.fromEntries(
         Array.from({ length: 5000 }, (_, i) => [
           `arg_${i}`,
           {
-            id: `arg_${i}`,
-            premiseIds: `set_${i}`,
-            conclusionIds: `set_${i + 1}`,
+            id: AtomicArgumentId.fromString(`arg_${i}`).value,
+            premiseIds: [
+              StatementId.fromString(`stmt_${i}`).value,
+              StatementId.fromString(`stmt_${i + 1}`).value,
+            ],
+            conclusionIds: [StatementId.fromString(`stmt_${i + 2}`).value],
           },
         ]),
       ),
@@ -68,10 +72,10 @@ describe('Document Query Performance', () => {
         Array.from({ length: 50 }, (_, i) => [
           `tree_${i}`,
           {
-            id: `tree_${i}`,
-            position: { x: i * 100, y: i * 100 },
-            nodeCount: 100,
-            rootNodeIds: Array.from({ length: 5 }, (_, j) => `node_${i}_${j}`),
+            id: TreeId.create(`tree_${i}`).value,
+            position: Position2D.create(i * 100, i * 100).value,
+            nodeCount: NodeCount.create(100).value,
+            rootNodeIds: Array.from({ length: 5 }, (_, j) => NodeId.create(`node_${i}_${j}`).value),
           },
         ]),
       ),
@@ -109,11 +113,11 @@ describe('Document Query Performance', () => {
         Array.from({ length: 10 }, (_, i) => [
           `tree_${i}`,
           {
-            id: `tree_${i}`,
-            position: { x: 0, y: i * 1000 },
-            nodeCount: 1000,
-            rootNodeIds: [`root_${i}`],
-            bounds: { width: 5000, height: 10000 },
+            id: TreeId.create(`tree_${i}`).value,
+            position: Position2D.create(0, i * 1000).value,
+            nodeCount: NodeCount.create(1000).value,
+            rootNodeIds: [NodeId.create(`root_${i}`).value],
+            bounds: Dimensions.create(5000, 10000).value,
           },
         ]),
       ),
@@ -126,9 +130,11 @@ describe('Document Query Performance', () => {
           isValid: true,
           errors: [
             {
-              code: 'DEEP_NESTING',
-              message: 'Tree depth exceeds recommended limits',
-              severity: 'warning',
+              code: ErrorCode.create('DEEP_NESTING').isOk()
+                ? ErrorCode.create('DEEP_NESTING').value.value
+                : 'DEEP_NESTING',
+              message: ErrorMessage.create('Tree depth exceeds recommended limits').value,
+              severity: ErrorSeverity.WARNING,
             },
           ],
         },

@@ -6,7 +6,8 @@
  */
 
 import fc from 'fast-check';
-import type { SideLabels } from '../../entities/AtomicArgument.js';
+import { expect } from 'vitest';
+import { SideLabel, SideLabels } from '../../shared/value-objects/index.js';
 import { atomicArgumentIdFactory, statementFactory } from '../factories/index.js';
 
 // Common test constants
@@ -19,10 +20,24 @@ export const validSideLabelsArbitrary = fc
     right: fc.option(fc.string({ minLength: 1, maxLength: 100 })),
   })
   .map((labels) => {
-    const result: SideLabels = {};
-    if (labels.left !== null) result.left = labels.left;
-    if (labels.right !== null) result.right = labels.right;
-    return result;
+    let left: SideLabel | undefined;
+    let right: SideLabel | undefined;
+
+    if (labels.left !== null) {
+      const leftResult = SideLabel.create(labels.left);
+      if (leftResult.isOk()) {
+        left = leftResult.value;
+      }
+    }
+
+    if (labels.right !== null) {
+      const rightResult = SideLabel.create(labels.right);
+      if (rightResult.isOk()) {
+        right = rightResult.value;
+      }
+    }
+
+    return SideLabels.create(left, right);
   });
 
 // Fast-check arbitraries for factory replacements

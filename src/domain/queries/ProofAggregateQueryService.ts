@@ -82,7 +82,7 @@ export class ProofAggregateQueryService {
   findConnectionsTo(targetArgumentId: AtomicArgumentId): Array<{
     sourceArgument: AtomicArgument;
     targetArgument: AtomicArgument;
-    connections: Array<{ sourceStatement: Statement; targetStatement: Statement }>;
+    connections: Array<{ statement: Statement; fromConclusionPosition: number }>;
   }> {
     const targetArgument = this.argumentsMap.get(targetArgumentId);
     if (!targetArgument) {
@@ -92,7 +92,7 @@ export class ProofAggregateQueryService {
     const connections: Array<{
       sourceArgument: AtomicArgument;
       targetArgument: AtomicArgument;
-      connections: Array<{ sourceStatement: Statement; targetStatement: Statement }>;
+      connections: Array<{ statement: Statement; fromConclusionPosition: number }>;
     }> = [];
 
     for (const sourceArgument of this.argumentsMap.values()) {

@@ -13,6 +13,7 @@ import { err, ok } from 'neverthrow';
 import { describe, expect, it, vi } from 'vitest';
 
 import { ValidationError } from '../shared/result.js';
+import { StatementContent } from '../shared/value-objects/index.js';
 import { statementContentFactory, testScenarios } from './factories/index.js';
 
 // Example interface for demonstration
@@ -52,8 +53,8 @@ describe('Modern TDD Stack Integration', () => {
     it('should generate realistic domain-specific test data', () => {
       const content = statementContentFactory.build();
       expect(content).toBeTruthy();
-      expect(typeof content).toBe('string');
-      expect(content.length).toBeGreaterThan(0);
+      expect(content).toBeInstanceOf(StatementContent);
+      expect(content.getValue().length).toBeGreaterThan(0);
     });
 
     it('should provide realistic test scenarios', () => {
@@ -106,8 +107,9 @@ describe('Modern TDD Stack Integration', () => {
   describe('Custom domain matchers', () => {
     it('should use validation error matcher', () => {
       const error = new ValidationError('Test validation error');
-      expect(error).toBeValidationError();
-      expect(error).toBeValidationError('validation');
+      // Custom matchers would be defined in test setup
+      expect(error).toBeInstanceOf(ValidationError);
+      expect(error.message).toContain('validation');
     });
 
     it('should demonstrate domain-specific assertions', () => {
@@ -125,6 +127,7 @@ describe('Modern TDD Stack Integration', () => {
         processContent: vi.fn(),
       };
       const testContent = statementContentFactory.build();
+      const contentString = testContent.getValue();
 
       // Setup mock behavior
       const validateInputMock = vi.mocked(mockService.validateInput);
@@ -137,16 +140,16 @@ describe('Modern TDD Stack Integration', () => {
       });
 
       // Execute business logic
-      const isValid = mockService.validateInput(testContent);
+      const isValid = mockService.validateInput(contentString);
       expect(isValid).toBe(true);
 
-      const result = await mockService.processContent(testContent);
+      const result = await mockService.processContent(contentString);
       expect(result.processed).toBe(true);
       expect(result.id).toBeTruthy();
 
       // Verify interactions
-      expect(validateInputMock).toHaveBeenCalledWith(testContent);
-      expect(processContentMock).toHaveBeenCalledWith(testContent);
+      expect(validateInputMock).toHaveBeenCalledWith(contentString);
+      expect(processContentMock).toHaveBeenCalledWith(contentString);
     });
   });
 });

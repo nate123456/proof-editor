@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Tree } from '../../entities/Tree';
-import { nodeIdFactory } from '../factories';
+import { nodeIdFactory } from './factories';
 
 /**
  * Tree Entity Integration Tests

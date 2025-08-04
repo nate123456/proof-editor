@@ -10,7 +10,7 @@
  * - View state per-document isolation
  */
 
-import { err, ok } from 'neverthrow';
+import { err, ok, type Result } from 'neverthrow';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ValidationApplicationError } from '../../application/dtos/operation-results.js';
 import { createProofVisualizationDTO } from '../../application/dtos/view-dtos.js';
@@ -21,7 +21,18 @@ import type { IDocumentIdService } from '../../application/services/DocumentIdSe
 import type { DocumentQueryService } from '../../application/services/DocumentQueryService.js';
 import type { ProofVisualizationService } from '../../application/services/ProofVisualizationService.js';
 import { ValidationError } from '../../domain/shared/result.js';
+import { Version } from '../../domain/shared/value-objects/content.js';
+import { Dimensions } from '../../domain/shared/value-objects/geometry.js';
+import { DocumentId } from '../../domain/shared/value-objects/identifiers.js';
 import { ProofTreePanel } from '../ProofTreePanel.js';
+
+// Helper function to unwrap Result types in tests
+function unwrap<T>(result: Result<T, any>): T {
+  if (result.isErr()) {
+    throw new Error(`Failed to unwrap Result: ${result.error}`);
+  }
+  return result.value;
+}
 
 describe('ProofTreePanel Multi-Document Integration Tests', () => {
   let mockDocumentQueryService: ReturnType<typeof vi.mocked<DocumentQueryService>>;
@@ -258,12 +269,14 @@ describe('ProofTreePanel Multi-Document Integration Tests', () => {
     } as any;
 
     // Setup document-specific parsing behavior
-    mockDocumentQueryService.parseDocumentContent.mockImplementation((content) => {
-      const doc = Object.values(documents).find((d) => d.content === content);
-      return Promise.resolve(
-        doc ? ok(doc.parsedData) : err(new ValidationApplicationError('Unknown document')),
-      );
-    });
+    mockDocumentQueryService.parseDocumentContent.mockImplementation(
+      (content: string): Promise<any> => {
+        const doc = Object.values(documents).find((d) => d.content === content);
+        return Promise.resolve(
+          doc ? ok(doc.parsedData) : err(new ValidationApplicationError('Unknown document')),
+        );
+      },
+    );
 
     // Setup document-specific visualization
     mockVisualizationService.generateVisualization.mockImplementation((parsedData) => {
@@ -271,10 +284,10 @@ describe('ProofTreePanel Multi-Document Integration Tests', () => {
       return doc
         ? ok(
             createProofVisualizationDTO(
-              doc.parsedData.id,
-              1,
+              unwrap(DocumentId.fromString(doc.parsedData.id)),
+              unwrap(Version.create(1)),
               [],
-              { width: 800, height: 600 },
+              unwrap(Dimensions.create(800, 600)),
               true,
             ),
           )
@@ -381,11 +394,17 @@ describe('ProofTreePanel Multi-Document Integration Tests', () => {
       // The content should contain valid SVG regardless of exact match
       const hasDoc1Content = updateTreeCalls.some(
         (call) =>
-          call[1]?.content?.includes('svg') || call[1]?.content === documents.doc1.svgContent,
+          (typeof call[1]?.content === 'object' &&
+            call[1]?.content?.getValue?.()?.includes('svg')) ||
+          (typeof call[1]?.content === 'object' &&
+            call[1]?.content?.getValue?.() === documents.doc1.svgContent),
       );
       const hasDoc2Content = updateTreeCalls.some(
         (call) =>
-          call[1]?.content?.includes('svg') || call[1]?.content === documents.doc2.svgContent,
+          (typeof call[1]?.content === 'object' &&
+            call[1]?.content?.getValue?.()?.includes('svg')) ||
+          (typeof call[1]?.content === 'object' &&
+            call[1]?.content?.getValue?.() === documents.doc2.svgContent),
       );
 
       expect(hasDoc1Content || hasDoc2Content).toBe(true);
@@ -401,50 +420,58 @@ describe('ProofTreePanel Multi-Document Integration Tests', () => {
       );
 
       // Setup parsing for generated documents
-      mockDocumentQueryService.parseDocumentContent.mockImplementation((content) => {
-        const index = documentContents.indexOf(content);
-        if (index >= 0) {
-          return Promise.resolve(
-            ok({
-              id: `document${index}`,
-              version: 1,
-              createdAt: '2025-01-01T00:00:00.000Z',
-              modifiedAt: '2025-01-01T00:00:00.000Z',
-              statements: {
-                [`stmt${index}`]: {
-                  id: `stmt${index}`,
-                  content: `Statement ${index}`,
-                  usageCount: 1,
-                  createdAt: '2025-01-01T00:00:00.000Z',
-                  modifiedAt: '2025-01-01T00:00:00.000Z',
+      mockDocumentQueryService.parseDocumentContent.mockImplementation(
+        (content: string): Promise<any> => {
+          const index = documentContents.indexOf(content);
+          if (index >= 0) {
+            return Promise.resolve(
+              ok({
+                id: `document${index}`,
+                version: 1,
+                createdAt: '2025-01-01T00:00:00.000Z',
+                modifiedAt: '2025-01-01T00:00:00.000Z',
+                statements: {
+                  [`stmt${index}`]: {
+                    id: `stmt${index}`,
+                    content: `Statement ${index}`,
+                    usageCount: 1,
+                    createdAt: '2025-01-01T00:00:00.000Z',
+                    modifiedAt: '2025-01-01T00:00:00.000Z',
+                  },
+                  [`stmt${index + 100}`]: {
+                    id: `stmt${index + 100}`,
+                    content: `Conclusion ${index}`,
+                    usageCount: 1,
+                    createdAt: '2025-01-01T00:00:00.000Z',
+                    modifiedAt: '2025-01-01T00:00:00.000Z',
+                  },
                 },
-                [`stmt${index + 100}`]: {
-                  id: `stmt${index + 100}`,
-                  content: `Conclusion ${index}`,
-                  usageCount: 1,
-                  createdAt: '2025-01-01T00:00:00.000Z',
-                  modifiedAt: '2025-01-01T00:00:00.000Z',
+                orderedSets: {},
+                atomicArguments: {
+                  [`arg${index}`]: {
+                    id: `arg${index}`,
+                    premiseIds: `pset${index}`,
+                    conclusionIds: `cset${index}`,
+                  },
                 },
-              },
-              orderedSets: {},
-              atomicArguments: {
-                [`arg${index}`]: {
-                  id: `arg${index}`,
-                  premiseIds: `pset${index}`,
-                  conclusionIds: `cset${index}`,
-                },
-              },
-              trees: {},
-            }),
-          );
-        }
-        return Promise.resolve(err(new ValidationApplicationError('Unknown document')));
-      });
+                trees: {},
+              }),
+            );
+          }
+          return Promise.resolve(err(new ValidationApplicationError('Unknown document')));
+        },
+      );
 
       // Setup visualization service to return success for any call
       mockVisualizationService.generateVisualization.mockImplementation((parsedData) => {
         return ok(
-          createProofVisualizationDTO(parsedData.id, 1, [], { width: 800, height: 600 }, true),
+          createProofVisualizationDTO(
+            unwrap(DocumentId.fromString(parsedData.id)),
+            unwrap(Version.create(1)),
+            [],
+            unwrap(Dimensions.create(800, 600)),
+            true,
+          ),
         );
       });
 
@@ -544,17 +571,19 @@ describe('ProofTreePanel Multi-Document Integration Tests', () => {
 
       // Create a call counter to track which call we're on
       let callCount = 0;
-      mockDocumentQueryService.parseDocumentContent.mockImplementation(() => {
-        callCount++;
-        if (callCount === 1) {
-          return Promise.resolve(ok(documents.doc1.parsedData));
-        } else if (callCount === 2) {
-          return Promise.resolve(err(new ValidationApplicationError('Parse error for doc2')));
-        } else if (callCount === 3) {
-          return Promise.resolve(ok(documents.doc3.parsedData));
-        }
-        return Promise.resolve(err(new ValidationApplicationError('Unexpected call')));
-      });
+      mockDocumentQueryService.parseDocumentContent.mockImplementation(
+        (_content: string): Promise<any> => {
+          callCount++;
+          if (callCount === 1) {
+            return Promise.resolve(ok(documents.doc1.parsedData));
+          } else if (callCount === 2) {
+            return Promise.resolve(err(new ValidationApplicationError('Parse error for doc2')));
+          } else if (callCount === 3) {
+            return Promise.resolve(ok(documents.doc3.parsedData));
+          }
+          return Promise.resolve(err(new ValidationApplicationError('Unexpected call')));
+        },
+      );
 
       // Act
       const results = await Promise.all([
@@ -794,12 +823,24 @@ describe('ProofTreePanel Multi-Document Integration Tests', () => {
       mockVisualizationService.generateVisualization
         .mockReturnValueOnce(
           ok(
-            createProofVisualizationDTO(updatedData1.id, 1, [], { width: 800, height: 600 }, true),
+            createProofVisualizationDTO(
+              unwrap(DocumentId.fromString(updatedData1.id)),
+              unwrap(Version.create(1)),
+              [],
+              unwrap(Dimensions.create(800, 600)),
+              true,
+            ),
           ),
         )
         .mockReturnValueOnce(
           ok(
-            createProofVisualizationDTO(updatedData2.id, 1, [], { width: 800, height: 600 }, true),
+            createProofVisualizationDTO(
+              unwrap(DocumentId.fromString(updatedData2.id)),
+              unwrap(Version.create(1)),
+              [],
+              unwrap(Dimensions.create(800, 600)),
+              true,
+            ),
           ),
         );
 
@@ -836,7 +877,7 @@ describe('ProofTreePanel Multi-Document Integration Tests', () => {
       const invalidContent = 'invalid: yaml: content:::';
       mockDocumentQueryService.parseDocumentContent
         .mockResolvedValueOnce(err(new ValidationApplicationError('Parse error for doc1')))
-        .mockResolvedValueOnce(ok(documents.doc2.parsedData));
+        .mockResolvedValueOnce(ok(documents.doc2.parsedData as any));
 
       // Act
       const result1 = await panel1.updateContent(invalidContent);
@@ -927,23 +968,33 @@ describe('ProofTreePanel Multi-Document Integration Tests', () => {
       const updateContents = ['updated content 1', 'updated content 2', 'updated content 3'];
 
       // Setup mock responses for concurrent updates
-      mockDocumentQueryService.parseDocumentContent.mockImplementation((content) => {
-        const index = updateContents.indexOf(content);
-        return Promise.resolve(
-          ok({
-            id: `updated${index}`,
-            version: 1,
-            createdAt: '2025-01-01T00:00:00.000Z',
-            modifiedAt: '2025-01-01T00:00:00.000Z',
-            statements: {},
-            orderedSets: {},
-            atomicArguments: {},
-            trees: {},
-          }),
-        );
-      });
+      mockDocumentQueryService.parseDocumentContent.mockImplementation(
+        (content: string): Promise<any> => {
+          const index = updateContents.indexOf(content);
+          return Promise.resolve(
+            ok({
+              id: `updated${index}`,
+              version: 1,
+              createdAt: '2025-01-01T00:00:00.000Z',
+              modifiedAt: '2025-01-01T00:00:00.000Z',
+              statements: {},
+              orderedSets: {},
+              atomicArguments: {},
+              trees: {},
+            }),
+          );
+        },
+      );
       mockVisualizationService.generateVisualization.mockReturnValue(
-        ok(createProofVisualizationDTO('test', 1, [], { width: 800, height: 600 }, true)),
+        ok(
+          createProofVisualizationDTO(
+            unwrap(DocumentId.fromString('test')),
+            unwrap(Version.create(1)),
+            [],
+            unwrap(Dimensions.create(800, 600)),
+            true,
+          ),
+        ),
       );
       mockRenderer.generateSVG.mockReturnValue('<svg>Updated</svg>');
 
@@ -1201,15 +1252,25 @@ describe('ProofTreePanel Multi-Document Integration Tests', () => {
         },
       }));
 
-      mockDocumentQueryService.parseDocumentContent.mockImplementation((content) => {
-        const doc = documentData.find((d) => d.content === content);
-        return doc
-          ? Promise.resolve(ok(doc.parsedData))
-          : Promise.resolve(err(new ValidationApplicationError('Unknown')));
-      });
+      mockDocumentQueryService.parseDocumentContent.mockImplementation(
+        (content: string): Promise<any> => {
+          const doc = documentData.find((d) => d.content === content);
+          return doc
+            ? Promise.resolve(ok(doc.parsedData))
+            : Promise.resolve(err(new ValidationApplicationError('Unknown')));
+        },
+      );
 
       mockVisualizationService.generateVisualization.mockReturnValue(
-        ok(createProofVisualizationDTO('test', 1, [], { width: 800, height: 600 }, true)),
+        ok(
+          createProofVisualizationDTO(
+            unwrap(DocumentId.fromString('test')),
+            unwrap(Version.create(1)),
+            [],
+            unwrap(Dimensions.create(800, 600)),
+            true,
+          ),
+        ),
       );
       mockRenderer.generateSVG.mockReturnValue('<svg>Test</svg>');
 
@@ -1335,7 +1396,15 @@ describe('ProofTreePanel Multi-Document Integration Tests', () => {
         }),
       );
       mockVisualizationService.generateVisualization.mockReturnValue(
-        ok(createProofVisualizationDTO('test', 1, [], { width: 800, height: 600 }, true)),
+        ok(
+          createProofVisualizationDTO(
+            unwrap(DocumentId.fromString('test')),
+            unwrap(Version.create(1)),
+            [],
+            unwrap(Dimensions.create(800, 600)),
+            true,
+          ),
+        ),
       );
       mockRenderer.generateSVG.mockReturnValue('<svg>Test</svg>');
 
@@ -1433,9 +1502,9 @@ describe('ProofTreePanel Multi-Document Integration Tests', () => {
       const invalidContent = 'invalid: yaml: content:::';
 
       mockDocumentQueryService.parseDocumentContent
-        .mockResolvedValueOnce(ok(documents.doc1.parsedData))
+        .mockResolvedValueOnce(ok(documents.doc1.parsedData as any))
         .mockResolvedValueOnce(err(new ValidationApplicationError('Parse error')))
-        .mockResolvedValueOnce(ok(documents.doc3.parsedData));
+        .mockResolvedValueOnce(ok(documents.doc3.parsedData as any));
 
       // Act
       const results = await Promise.all([
@@ -1550,7 +1619,7 @@ describe('ProofTreePanel Multi-Document Integration Tests', () => {
       // Setup service error for first panel only
       mockDocumentQueryService.parseDocumentContent
         .mockResolvedValueOnce(err(new ValidationApplicationError('Service error')))
-        .mockResolvedValueOnce(ok(documents.doc2.parsedData));
+        .mockResolvedValueOnce(ok(documents.doc2.parsedData as any));
 
       // Act - Update content for both panels
       const updateResults = await Promise.all([

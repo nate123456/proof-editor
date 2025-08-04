@@ -17,6 +17,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as vscode from 'vscode';
 import type { StoredDocument } from '../../../application/ports/IFileSystemPort.js';
+import { NotificationMessage } from '../../../domain/shared/value-objects/index.js';
 import { VSCodeFileSystemAdapter } from '../VSCodeFileSystemAdapter.js';
 import { VSCodeUIAdapter } from '../VSCodeUIAdapter.js';
 
@@ -279,7 +280,10 @@ describe('Platform Compatibility Edge Cases', () => {
         }
 
         expect(() => {
-          uiAdapter.showError('Extension host crashed');
+          const msgResult = NotificationMessage.create('Extension host crashed');
+          if (msgResult.isOk()) {
+            uiAdapter.showError(msgResult.value);
+          }
         }).not.toThrow(); // Should handle gracefully, not throw
       } finally {
         // Restore original methods
@@ -449,7 +453,10 @@ describe('Platform Compatibility Edge Cases', () => {
       });
 
       expect(() => {
-        uiAdapter.showWarning('Extension loaded from unknown developer');
+        const msgResult = NotificationMessage.create('Extension loaded from unknown developer');
+        if (msgResult.isOk()) {
+          uiAdapter.showWarning(msgResult.value);
+        }
       }).toThrow('blocked by Gatekeeper');
     });
 

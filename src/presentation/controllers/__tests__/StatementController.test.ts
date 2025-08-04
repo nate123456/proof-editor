@@ -55,7 +55,7 @@ describe('StatementController', () => {
         'stmt-789': createMockStatement('stmt-789', 'All humans are mortal', 3),
         'stmt-unused': createMockStatement('stmt-unused', 'Unused statement', 0),
       },
-      orderedSets: {},
+      // OrderedSets are handled internally by the domain layer
       atomicArguments: {},
       trees: {},
     };

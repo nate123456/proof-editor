@@ -16,7 +16,13 @@
 import { err, ok, type Result } from 'neverthrow';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type * as vscode from 'vscode';
-import { DialogTitle, ViewType, WebviewId } from '../../domain/shared/value-objects/index.js';
+import {
+  DialogTitle,
+  DocumentContent,
+  FilePath,
+  ViewType,
+  WebviewId,
+} from '../../domain/shared/value-objects/index.js';
 import { ApplicationContainer } from '../../infrastructure/di/container.js';
 import { YAMLDeserializer } from '../../infrastructure/repositories/yaml/YAMLDeserializer.js';
 import { YAMLSerializer } from '../../infrastructure/repositories/yaml/YAMLSerializer.js';
@@ -169,7 +175,11 @@ describe('Infrastructure Layer Resilience', () => {
       );
 
       // Act - repository should handle file system failures
-      const result = await adapter.readFile('/test/document.md');
+      const filePath = FilePath.create('/test/document.md');
+      if (filePath.isErr()) {
+        return;
+      }
+      const result = await adapter.readFile(filePath.value);
 
       // Assert - failure contained as Result
       expect(result.isErr()).toBe(true);
@@ -188,7 +198,11 @@ describe('Infrastructure Layer Resilience', () => {
       vi.mocked(mockVscode.workspace.fs.readFile).mockResolvedValue(corruptedContent);
 
       // Act - adapter should detect corruption
-      const result = await adapter.readFile('/test/corrupted.md');
+      const filePath = FilePath.create('/test/corrupted.md');
+      if (filePath.isErr()) {
+        return;
+      }
+      const result = await adapter.readFile(filePath.value);
 
       // Assert - may succeed with corrupted data or detect corruption
       expect(result).toBeDefined();
@@ -322,7 +336,11 @@ describe('Infrastructure Layer Resilience', () => {
       const adapter = new VSCodeFileSystemAdapter(mockExtensionContext);
 
       // Start an operation
-      const operationPromise = adapter.readFile('/test.md');
+      const filePath = FilePath.create('/test.md');
+      if (filePath.isErr()) {
+        return;
+      }
+      const operationPromise = adapter.readFile(filePath.value);
 
       // Simulate context disposal by modifying internal state
       const contextState = mockExtensionContext as any;
@@ -347,7 +365,15 @@ describe('Infrastructure Layer Resilience', () => {
       );
 
       // Act - write operation should handle disk space failure
-      const result = await adapter.writeFile('/test.md', 'large content');
+      const filePath = FilePath.create('/test.md');
+      if (filePath.isErr()) {
+        return;
+      }
+      const content = DocumentContent.create('large content');
+      if (content.isErr()) {
+        throw new Error('Invalid content');
+      }
+      const result = await adapter.writeFile(filePath.value, content.value);
 
       // Assert - disk space error handled gracefully
       expect(result.isErr()).toBe(true);
@@ -369,7 +395,11 @@ describe('Infrastructure Layer Resilience', () => {
       );
 
       // Act - read operation should handle permission errors
-      const result = await adapter.readFile('/protected/file.md');
+      const filePath = FilePath.create('/protected/file.md');
+      if (filePath.isErr()) {
+        return;
+      }
+      const result = await adapter.readFile(filePath.value);
 
       // Assert - permission error handled with clear messaging
       expect(result.isErr()).toBe(true);
@@ -393,7 +423,11 @@ describe('Infrastructure Layer Resilience', () => {
       });
 
       // Act - operation should timeout gracefully
-      const result = await adapter.readFile('/network/remote/file.md');
+      const filePath = FilePath.create('/network/remote/file.md');
+      if (filePath.isErr()) {
+        return;
+      }
+      const result = await adapter.readFile(filePath.value);
 
       // Assert - timeout handled as error
       expect(result.isErr()).toBe(true);
@@ -417,10 +451,20 @@ describe('Infrastructure Layer Resilience', () => {
       });
 
       // Act - multiple concurrent write attempts
+      const filePath = FilePath.create('/shared.md');
+      if (filePath.isErr()) {
+        return;
+      }
+      const content1 = DocumentContent.create('content1');
+      const content2 = DocumentContent.create('content2');
+      const content3 = DocumentContent.create('content3');
+      if (content1.isErr() || content2.isErr() || content3.isErr()) {
+        throw new Error('Invalid content');
+      }
       const operations = [
-        adapter.writeFile('/shared.md', 'content1'),
-        adapter.writeFile('/shared.md', 'content2'),
-        adapter.writeFile('/shared.md', 'content3'),
+        adapter.writeFile(filePath.value, content1.value),
+        adapter.writeFile(filePath.value, content2.value),
+        adapter.writeFile(filePath.value, content3.value),
       ];
 
       const results = await Promise.allSettled(operations);

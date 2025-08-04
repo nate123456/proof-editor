@@ -1,6 +1,5 @@
 import { err, ok, type Result } from 'neverthrow';
 
-import type { OrderedSet } from '../entities/OrderedSet.js';
 import type { Statement } from '../entities/Statement.js';
 import {
   OperationError,
@@ -8,15 +7,16 @@ import {
   type ProofOperationType,
 } from '../interfaces/IProofTransaction.js';
 import { ValidationError } from '../shared/result.js';
+import type { StatementCollection } from '../shared/value-objects/collections.js';
 
 export interface CreateStatementRequest {
   readonly content: string;
-  readonly targetOrderedSet?: OrderedSet;
+  readonly targetCollection?: StatementCollection;
 }
 
 export interface DeleteStatementRequest {
   readonly statement: Statement;
-  readonly sourceOrderedSet?: OrderedSet;
+  readonly sourceCollection?: StatementCollection;
 }
 
 export class CreateStatementOperation extends ProofOperation {
@@ -42,7 +42,7 @@ export class CreateStatementOperation extends ProofOperation {
 
   async execute(): Promise<Result<void, OperationError>> {
     try {
-      const { content, targetOrderedSet } = this.request;
+      const { content, targetCollection } = this.request;
 
       const statementResult = await import('../entities/Statement.js').then((module) =>
         module.Statement.create(content),
@@ -61,12 +61,12 @@ export class CreateStatementOperation extends ProofOperation {
 
       this.createdStatement = statementResult.value;
 
-      if (targetOrderedSet) {
-        const addResult = targetOrderedSet.addStatement(this.createdStatement.getId());
+      if (targetCollection) {
+        const addResult = targetCollection.add(this.createdStatement);
         if (addResult.isErr()) {
           return err(
             new OperationError(
-              `Failed to add statement to ordered set: ${addResult.error.message}`,
+              `Failed to add statement to collection: ${addResult.error.message}`,
               this.operationType,
               this.operationId,
               addResult.error,
@@ -92,10 +92,10 @@ export class CreateStatementOperation extends ProofOperation {
 
   async compensate(): Promise<Result<void, OperationError>> {
     try {
-      const { targetOrderedSet } = this.request;
+      const { targetCollection } = this.request;
 
-      if (this.createdStatement && targetOrderedSet) {
-        targetOrderedSet.removeStatement(this.createdStatement.getId());
+      if (this.createdStatement && targetCollection) {
+        targetCollection.remove(this.createdStatement.getId());
         this.createdStatement.decrementUsage();
       }
 
@@ -125,14 +125,14 @@ export class DeleteStatementOperation extends ProofOperation {
   }
 
   validate(): Result<void, ValidationError> {
-    const { statement, sourceOrderedSet } = this.request;
+    const { statement, sourceCollection } = this.request;
 
     if (!statement) {
       return err(new ValidationError('Statement is required for deletion'));
     }
 
-    if (sourceOrderedSet && !sourceOrderedSet.containsStatement(statement.getId())) {
-      return err(new ValidationError('Statement not found in specified ordered set'));
+    if (sourceCollection && !sourceCollection.contains(statement.getId())) {
+      return err(new ValidationError('Statement not found in specified collection'));
     }
 
     return ok(undefined);
@@ -140,16 +140,16 @@ export class DeleteStatementOperation extends ProofOperation {
 
   async execute(): Promise<Result<void, OperationError>> {
     try {
-      const { statement, sourceOrderedSet } = this.request;
+      const { statement, sourceCollection } = this.request;
 
       this.originalUsageCount = statement.getUsageCount();
 
-      if (sourceOrderedSet) {
-        const removeResult = sourceOrderedSet.removeStatement(statement.getId());
+      if (sourceCollection) {
+        const removeResult = sourceCollection.remove(statement.getId());
         if (removeResult.isErr()) {
           return err(
             new OperationError(
-              `Failed to remove statement from ordered set: ${removeResult.error.message}`,
+              `Failed to remove statement from collection: ${removeResult.error.message}`,
               this.operationType,
               this.operationId,
               removeResult.error,
@@ -159,7 +159,7 @@ export class DeleteStatementOperation extends ProofOperation {
 
         const decrementResult = statement.decrementUsage();
         if (decrementResult.isErr()) {
-          sourceOrderedSet.addStatement(statement.getId());
+          sourceCollection.add(statement);
           return err(
             new OperationError(
               `Failed to decrement statement usage: ${decrementResult.error.message}`,
@@ -186,10 +186,10 @@ export class DeleteStatementOperation extends ProofOperation {
 
   async compensate(): Promise<Result<void, OperationError>> {
     try {
-      const { statement, sourceOrderedSet } = this.request;
+      const { statement, sourceCollection } = this.request;
 
-      if (sourceOrderedSet) {
-        sourceOrderedSet.addStatement(statement.getId());
+      if (sourceCollection) {
+        sourceCollection.add(statement);
 
         while (statement.getUsageCount() < this.originalUsageCount) {
           statement.incrementUsage();

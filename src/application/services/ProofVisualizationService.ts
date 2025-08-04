@@ -1,6 +1,14 @@
 import { err, ok, type Result } from 'neverthrow';
 import { inject, injectable } from 'tsyringe';
 import { ValidationError } from '../../domain/shared/result.js';
+import {
+  Dimensions,
+  DocumentId,
+  MaxNodeCount,
+  MaxTreeCount,
+  Position2D,
+  Version,
+} from '../../domain/shared/value-objects/index.js';
 import { TOKENS } from '../../infrastructure/di/tokens.js';
 import type { ProofVisualizationConfig, ProofVisualizationDTO } from '../dtos/view-dtos.js';
 import type { DocumentDTO } from '../queries/document-queries.js';
@@ -18,8 +26,8 @@ export class ProofVisualizationService {
       canvasMargin: 50,
     },
     performance: {
-      maxTreesRendered: 50,
-      maxNodesPerTree: 100,
+      maxTreesRendered: MaxTreeCount.default(),
+      maxNodesPerTree: MaxNodeCount.default(),
       enableVirtualization: true,
     },
     visual: {
@@ -67,11 +75,26 @@ export class ProofVisualizationService {
       // Apply post-processing enhancements
       const enhancedTrees = this.applyVisualEnhancements(trees, visualizationConfig);
 
+      const totalDimensionsResult = Dimensions.create(
+        totalDimensions.width,
+        totalDimensions.height,
+      );
+      if (totalDimensionsResult.isErr()) {
+        return err(totalDimensionsResult.error);
+      }
+      const documentIdResult = DocumentId.create(document.id);
+      if (documentIdResult.isErr()) {
+        return err(documentIdResult.error);
+      }
+      const versionResult = Version.create(document.version);
+      if (versionResult.isErr()) {
+        return err(versionResult.error);
+      }
       return ok({
-        documentId: document.id,
-        version: document.version,
+        documentId: documentIdResult.value,
+        version: versionResult.value,
         trees: enhancedTrees,
-        totalDimensions,
+        totalDimensions: totalDimensionsResult.value,
         isEmpty,
       });
     } catch (error) {
@@ -125,20 +148,20 @@ export class ProofVisualizationService {
     config: ProofVisualizationConfig,
   ): Result<void, ValidationError> {
     const treeCount = Object.keys(document.trees).length;
-    if (treeCount > config.performance.maxTreesRendered) {
+    if (treeCount > config.performance.maxTreesRendered.getValue()) {
       return err(
         new ValidationError(
-          `Document contains ${treeCount} trees, exceeding maximum of ${config.performance.maxTreesRendered}. Use optimized visualization instead.`,
+          `Document contains ${treeCount} trees, exceeding maximum of ${config.performance.maxTreesRendered.getValue()}. Use optimized visualization instead.`,
         ),
       );
     }
 
     // Validate each tree doesn't exceed node limits
     for (const [treeId, tree] of Object.entries(document.trees)) {
-      if (tree.nodeCount > config.performance.maxNodesPerTree) {
+      if (tree.nodeCount.getValue() > config.performance.maxNodesPerTree.getValue()) {
         return err(
           new ValidationError(
-            `Tree ${treeId} contains ${tree.nodeCount} nodes, exceeding maximum of ${config.performance.maxNodesPerTree}.`,
+            `Tree ${treeId} contains ${tree.nodeCount} nodes, exceeding maximum of ${config.performance.maxNodesPerTree.getValue()}.`,
           ),
         );
       }
@@ -158,8 +181,8 @@ export class ProofVisualizationService {
       return { width: 400, height: 200 };
     }
 
-    const maxWidth = Math.max(...trees.map((t) => t.bounds.width));
-    const totalHeight = trees.reduce((sum, t) => sum + t.bounds.height, 0);
+    const maxWidth = Math.max(...trees.map((t) => t.bounds.getWidth()));
+    const totalHeight = trees.reduce((sum, t) => sum + t.bounds.getHeight(), 0);
     const spacingBetweenTrees = (trees.length - 1) * this.defaultConfig.layout.treeSpacing;
 
     return {
@@ -216,12 +239,16 @@ export class ProofVisualizationService {
     tree: import('../queries/shared-types.js').TreeDTO,
     viewport: { width: number; height: number; offsetX: number; offsetY: number },
   ): boolean {
-    const treeBounds = tree.bounds || { width: 400, height: 200 };
+    const defaultBoundsResult = Dimensions.create(400, 200);
+    if (defaultBoundsResult.isErr()) {
+      return false; // Treat as not in viewport if we can't create default bounds
+    }
+    const treeBounds = tree.bounds || defaultBoundsResult.value;
 
-    const treeLeft = tree.position.x;
-    const treeRight = tree.position.x + treeBounds.width;
-    const treeTop = tree.position.y;
-    const treeBottom = tree.position.y + treeBounds.height;
+    const treeLeft = tree.position.getX();
+    const treeRight = tree.position.getX() + treeBounds.getWidth();
+    const treeTop = tree.position.getY();
+    const treeBottom = tree.position.getY() + treeBounds.getHeight();
 
     const viewportLeft = viewport.offsetX;
     const viewportRight = viewport.offsetX + viewport.width;
@@ -282,13 +309,13 @@ export class ProofVisualizationService {
       let largestTree = { id: '', nodeCount: 0 };
 
       for (const [treeId, tree] of Object.entries(document.trees)) {
-        totalNodes += tree.nodeCount;
+        totalNodes += tree.nodeCount.getValue();
         // Estimate connections as nodeCount - rootNodeCount for tree structures
-        const treeConnections = Math.max(0, tree.nodeCount - tree.rootNodeIds.length);
+        const treeConnections = Math.max(0, tree.nodeCount.getValue() - tree.rootNodeIds.length);
         totalConnections += treeConnections;
 
-        if (tree.nodeCount > largestTree.nodeCount) {
-          largestTree = { id: treeId, nodeCount: tree.nodeCount };
+        if (tree.nodeCount.getValue() > largestTree.nodeCount) {
+          largestTree = { id: treeId, nodeCount: tree.nodeCount.getValue() };
         }
       }
 

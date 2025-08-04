@@ -18,7 +18,7 @@ export class AtomicArgumentPremiseCountSpecification extends CompositeSpecificat
     return argument.getPremiseCount() === this.expectedCount;
   }
 
-  reasonForDissatisfaction(argument: AtomicArgument): string | null {
+  override reasonForDissatisfaction(argument: AtomicArgument): string | null {
     return this.isSatisfiedBy(argument)
       ? null
       : `Expected ${this.expectedCount} premises, but got ${argument.getPremiseCount()}`;
@@ -37,7 +37,7 @@ export class AtomicArgumentConclusionCountSpecification extends CompositeSpecifi
     return argument.getConclusionCount() === this.expectedCount;
   }
 
-  reasonForDissatisfaction(argument: AtomicArgument): string | null {
+  override reasonForDissatisfaction(argument: AtomicArgument): string | null {
     return this.isSatisfiedBy(argument)
       ? null
       : `Expected ${this.expectedCount} conclusions, but got ${argument.getConclusionCount()}`;
@@ -61,7 +61,7 @@ export class AtomicArgumentReferencesStatementSpecification extends CompositeSpe
     );
   }
 
-  reasonForDissatisfaction(argument: AtomicArgument): string | null {
+  override reasonForDissatisfaction(argument: AtomicArgument): string | null {
     return this.isSatisfiedBy(argument)
       ? null
       : `Argument does not reference statement with ID ${this.statementId.toString()}`;
@@ -80,7 +80,7 @@ export class AtomicArgumentUsesPremiseSpecification extends CompositeSpecificati
     return argument.getPremises().some((statement) => statement.getId().equals(this.statementId));
   }
 
-  reasonForDissatisfaction(argument: AtomicArgument): string | null {
+  override reasonForDissatisfaction(argument: AtomicArgument): string | null {
     return this.isSatisfiedBy(argument)
       ? null
       : `Argument does not use statement ${this.statementId.toString()} as premise`;
@@ -101,7 +101,7 @@ export class AtomicArgumentHasConclusionSpecification extends CompositeSpecifica
       .some((statement) => statement.getContent() === this.conclusionContent);
   }
 
-  reasonForDissatisfaction(argument: AtomicArgument): string | null {
+  override reasonForDissatisfaction(argument: AtomicArgument): string | null {
     return this.isSatisfiedBy(argument)
       ? null
       : `Argument does not have conclusion with content "${this.conclusionContent}"`;
@@ -131,7 +131,7 @@ export class AtomicArgumentComplexitySpecification extends CompositeSpecificatio
     return 'expert';
   }
 
-  reasonForDissatisfaction(argument: AtomicArgument): string | null {
+  override reasonForDissatisfaction(argument: AtomicArgument): string | null {
     return this.isSatisfiedBy(argument)
       ? null
       : `Argument complexity is ${this.calculateComplexity(argument)}, expected ${this.complexityLevel}`;
@@ -154,7 +154,7 @@ export class AtomicArgumentDateRangeSpecification extends CompositeSpecification
     return createdAt >= this.fromDate && createdAt <= this.toDate;
   }
 
-  reasonForDissatisfaction(argument: AtomicArgument): string | null {
+  override reasonForDissatisfaction(argument: AtomicArgument): string | null {
     return this.isSatisfiedBy(argument)
       ? null
       : `Argument created at ${new Date(argument.getCreatedAt())} is outside date range`;
@@ -170,7 +170,7 @@ export class AtomicArgumentHasLabelsSpecification extends CompositeSpecification
     return labels.left !== undefined || labels.right !== undefined;
   }
 
-  reasonForDissatisfaction(argument: AtomicArgument): string | null {
+  override reasonForDissatisfaction(argument: AtomicArgument): string | null {
     return this.isSatisfiedBy(argument) ? null : 'Argument has no side labels';
   }
 }
@@ -191,7 +191,7 @@ export class AtomicArgumentHasSpecificLabelSpecification extends CompositeSpecif
     return labels[this.side] === this.labelText;
   }
 
-  reasonForDissatisfaction(argument: AtomicArgument): string | null {
+  override reasonForDissatisfaction(argument: AtomicArgument): string | null {
     return this.isSatisfiedBy(argument)
       ? null
       : `Argument does not have "${this.labelText}" on ${this.side} side`;
@@ -206,7 +206,7 @@ export class EmptyAtomicArgumentSpecification extends CompositeSpecification<Ato
     return argument.getPremiseCount() === 0 && argument.getConclusionCount() === 0;
   }
 
-  reasonForDissatisfaction(argument: AtomicArgument): string | null {
+  override reasonForDissatisfaction(argument: AtomicArgument): string | null {
     return this.isSatisfiedBy(argument) ? null : 'Argument is not empty';
   }
 }
@@ -219,7 +219,7 @@ export class CompleteAtomicArgumentSpecification extends CompositeSpecification<
     return argument.getPremiseCount() > 0 && argument.getConclusionCount() > 0;
   }
 
-  reasonForDissatisfaction(argument: AtomicArgument): string | null {
+  override reasonForDissatisfaction(argument: AtomicArgument): string | null {
     if (this.isSatisfiedBy(argument)) return null;
 
     if (argument.getPremiseCount() === 0) {

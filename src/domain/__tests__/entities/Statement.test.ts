@@ -459,11 +459,8 @@ describe('Statement Entity', () => {
 
             if (result.isOk()) {
               const statement = result.value;
-              const wordCount = statement.getWordCount();
               const contentObj = statement.getContentObject();
-
-              expect(wordCount).toBe(contentObj.wordCount);
-              expect(wordCount).toBeGreaterThanOrEqual(1);
+              expect(contentObj.wordCount).toBeGreaterThanOrEqual(1);
             }
           }),
         );

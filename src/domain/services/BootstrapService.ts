@@ -11,11 +11,8 @@ import {
   BootstrapArgumentPopulated,
 } from '../events/bootstrap-events.js';
 import { ValidationError } from '../shared/result.js';
-import {
-  type AtomicArgumentId,
-  Position2D,
-  type StatementId,
-} from '../shared/value-objects/index.js';
+import type { AtomicArgumentId, StatementId } from '../shared/value-objects/index.js';
+import { TreePosition } from '../value-objects/TreePosition.js';
 
 /**
  * Handles bootstrap scenarios where users start from nothing.
@@ -36,7 +33,8 @@ export class BootstrapService {
       return err(emptyArgIdResult.error);
     }
 
-    const emptyArg = proofAggregate.getArguments().get(emptyArgIdResult.value);
+    const queryService = proofAggregate.createQueryService();
+    const emptyArg = queryService.getArgument(emptyArgIdResult.value);
     if (!emptyArg) {
       return err(new ValidationError('Failed to retrieve created argument'));
     }
@@ -47,13 +45,13 @@ export class BootstrapService {
     let updatedTreeAggregate: ProofTreeAggregate | undefined;
 
     if (treeAggregate) {
-      const positionResult = Position2D.create(100, 100);
+      const positionResult = TreePosition.create(100, 100);
       if (positionResult.isErr()) {
         return err(positionResult.error);
       }
 
       // Trees need a document ID - use the proof aggregate ID
-      const treeResult = Tree.create(proofAggregate.getId().getValue(), positionResult.value);
+      const treeResult = Tree.create(queryService.getId().getValue(), positionResult.value);
       if (treeResult.isErr()) {
         return err(treeResult.error);
       }
@@ -67,7 +65,7 @@ export class BootstrapService {
       updatedTreeAggregate = newTreeAggregateResult.value;
 
       // Add the node to the tree aggregate
-      const argumentIds = new Set(proofAggregate.getArguments().keys());
+      const argumentIds = new Set(queryService.getArguments().keys());
       const addNodeResult = updatedTreeAggregate.addNode(
         {
           argumentId: emptyArg.getId(),
@@ -79,7 +77,8 @@ export class BootstrapService {
       }
 
       // Get the created node
-      const createdNode = updatedTreeAggregate.getNodes().get(addNodeResult.value);
+      const treeQueryService = updatedTreeAggregate.createQueryService();
+      const createdNode = treeQueryService.getNode(addNodeResult.value);
       if (!createdNode) {
         return err(new ValidationError('Failed to retrieve created node'));
       }
@@ -88,7 +87,7 @@ export class BootstrapService {
 
     // Emit bootstrap event
     const event = new BootstrapArgumentCreated(
-      proofAggregate.getId().getValue(),
+      queryService.getId().getValue(),
       emptyArg.getId(),
       tree?.getId(),
     );
@@ -114,7 +113,8 @@ export class BootstrapService {
     premiseContents: string[],
     conclusionContents: string[],
   ): Result<PopulationResult, ValidationError> {
-    const argument = proofAggregate.getArguments().get(argumentId);
+    const queryService = proofAggregate.createQueryService();
+    const argument = queryService.getArgument(argumentId);
     if (!argument) {
       return err(new ValidationError('Argument not found'));
     }
@@ -135,7 +135,7 @@ export class BootstrapService {
       }
       premiseStatementIds.push(statementIdResult.value);
 
-      const statement = proofAggregate.getStatements().get(statementIdResult.value);
+      const statement = queryService.getStatement(statementIdResult.value);
       if (!statement) {
         return err(new ValidationError('Failed to retrieve created statement'));
       }
@@ -152,7 +152,7 @@ export class BootstrapService {
       }
       conclusionStatementIds.push(statementIdResult.value);
 
-      const statement = proofAggregate.getStatements().get(statementIdResult.value);
+      const statement = queryService.getStatement(statementIdResult.value);
       if (!statement) {
         return err(new ValidationError('Failed to retrieve created statement'));
       }
@@ -168,7 +168,7 @@ export class BootstrapService {
       return err(newArgumentIdResult.error);
     }
 
-    const newArgument = proofAggregate.getArguments().get(newArgumentIdResult.value);
+    const newArgument = queryService.getArgument(newArgumentIdResult.value);
     if (!newArgument) {
       return err(new ValidationError('Failed to retrieve created argument'));
     }
@@ -178,7 +178,7 @@ export class BootstrapService {
 
     // Emit populated event
     const event = new BootstrapArgumentPopulated(
-      proofAggregate.getId().getValue(),
+      queryService.getId().getValue(),
       argumentId,
       newArgumentIdResult.value,
       premiseStatements.length,
@@ -203,9 +203,11 @@ export class BootstrapService {
     proofAggregate: ProofAggregate,
     treeAggregate?: ProofTreeAggregate,
   ): BootstrapStatus {
-    const statementCount = proofAggregate.getStatements().size;
-    const argumentCount = proofAggregate.getArguments().size;
-    const treeCount = treeAggregate?.getNodes().size ?? 0;
+    const queryService = proofAggregate.createQueryService();
+    const statementCount = queryService.getStatementCount();
+    const argumentCount = queryService.getArgumentCount();
+    const treeQueryService = treeAggregate?.createQueryService();
+    const treeCount = treeQueryService?.getNodeCount() ?? 0;
 
     if (statementCount === 0 && argumentCount === 0) {
       return {
@@ -217,7 +219,7 @@ export class BootstrapService {
 
     if (argumentCount === 1 && statementCount === 0) {
       // Check if the single argument is empty
-      const argument = Array.from(proofAggregate.getArguments().values())[0];
+      const argument = queryService.getAllArguments()[0];
       if (argument?.isBootstrapArgument()) {
         return {
           isBootstrap: true,

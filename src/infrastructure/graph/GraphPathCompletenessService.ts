@@ -1,6 +1,5 @@
 import { DirectedGraph } from 'graphology';
 import { bidirectional } from 'graphology-shortest-path';
-import { allSimplePaths } from 'graphology-simple-path';
 import { err, ok, type Result } from 'neverthrow';
 import type { AtomicArgument } from '../../domain/entities/AtomicArgument.js';
 import { ProcessingError } from '../../domain/errors/DomainErrors.js';
@@ -67,10 +66,10 @@ export class GraphPathCompletenessService implements IPathCompletenessService {
     const startId = startArgumentId.getValue();
     const endId = endArgumentId.getValue();
 
-    // Use graphology's path finding algorithms
+    // Use custom path finding algorithm
     try {
       // Find all simple paths
-      const allPaths = allSimplePaths(graph.value, startId, endId);
+      const allPaths = this.findAllSimplePaths(graph.value, startId, endId);
 
       if (allPaths.length === 0) {
         return err(new ProcessingError('No path exists between arguments'));
@@ -216,7 +215,7 @@ export class GraphPathCompletenessService implements IPathCompletenessService {
 
     const missing: AtomicArgumentId[] = [];
     const gaps: Array<{ from: AtomicArgumentId; to: AtomicArgumentId }> = [];
-    const argumentSetIds = new Set(partialArgumentSet.map((id) => id.getValue()));
+    const argumentSetIds = new Set<string>(partialArgumentSet.map((id) => id.getValue()));
 
     for (let i = 0; i < partialArgumentSet.length; i++) {
       for (let j = i + 1; j < partialArgumentSet.length; j++) {
@@ -231,10 +230,14 @@ export class GraphPathCompletenessService implements IPathCompletenessService {
           if (path && path.length > 2) {
             for (let k = 1; k < path.length - 1; k++) {
               const intermediateId = path[k];
-              if (intermediateId && !argumentSetIds.has(intermediateId)) {
-                const argIdResult = AtomicArgumentId.create(intermediateId);
-                if (argIdResult.isOk() && !missing.some((id) => id.equals(argIdResult.value))) {
-                  missing.push(argIdResult.value);
+              if (intermediateId) {
+                const argIdResult = AtomicArgumentId.create(intermediateId as string);
+                if (argIdResult.isOk()) {
+                  // Check if this ID is already in the argument set
+                  const isInSet = argumentSetIds.has(intermediateId);
+                  if (!isInSet && !missing.some((id) => id.equals(argIdResult.value))) {
+                    missing.push(argIdResult.value);
+                  }
                 }
               }
             }
@@ -321,25 +324,36 @@ export class GraphPathCompletenessService implements IPathCompletenessService {
 
     // Load arguments
     for (const argId of argumentIds) {
-      const argument = await this.atomicArgumentRepo.findById(argId);
-      if (!argument) {
-        return err(new ProcessingError(`Argument ${argId.getValue()} not found`));
+      const argumentResult = await this.atomicArgumentRepo.findById(argId);
+      if (argumentResult.isErr()) {
+        return err(
+          new ProcessingError(
+            `Argument ${argId.getValue()} not found: ${argumentResult.error.message}`,
+          ),
+        );
       }
-      argumentMap.set(argId.getValue(), argument);
+      argumentMap.set(argId.getValue(), argumentResult.value);
       graph.addNode(argId.getValue());
     }
 
     // Add edges based on premise-conclusion relationships
     for (const [consumerId, consumer] of argumentMap) {
-      const premiseSet = consumer.getPremiseSet();
+      const premises = consumer.getPremises();
 
-      if (premiseSet) {
+      if (premises && premises.length > 0) {
         for (const [providerId, provider] of argumentMap) {
           if (providerId === consumerId) continue;
 
-          const conclusionSet = provider.getConclusionSet();
-          if (conclusionSet && premiseSet && conclusionSet.equals(premiseSet)) {
-            graph.addDirectedEdge(providerId, consumerId);
+          const conclusions = provider.getConclusions();
+          if (conclusions && conclusions.length > 0) {
+            // Check if any conclusion matches any premise
+            const hasConnection = conclusions.some((conclusion) =>
+              premises.some((premise) => conclusion.getId().equals(premise.getId())),
+            );
+
+            if (hasConnection) {
+              graph.addDirectedEdge(providerId, consumerId);
+            }
           }
         }
       }
@@ -352,9 +366,14 @@ export class GraphPathCompletenessService implements IPathCompletenessService {
    * Build global argument dependency graph.
    */
   private async buildGlobalArgumentGraph(): Promise<Result<DirectedGraph, ProcessingError>> {
-    const allArguments = await this.atomicArgumentRepo.findAll();
-    const argumentIds = allArguments.map((arg) => arg.getId());
+    const allArgumentsResult = await this.atomicArgumentRepo.findAll();
+    if (allArgumentsResult.isErr()) {
+      return err(
+        new ProcessingError(`Failed to load arguments: ${allArgumentsResult.error.message}`),
+      );
+    }
 
+    const argumentIds = allArgumentsResult.value.map((arg) => arg.getId());
     return this.buildArgumentDependencyGraph(argumentIds);
   }
 
@@ -366,7 +385,7 @@ export class GraphPathCompletenessService implements IPathCompletenessService {
     graph: DirectedGraph,
   ): Promise<AtomicArgumentId[]> {
     const missing: AtomicArgumentId[] = [];
-    const argumentSetIds = new Set(argumentSet.map((id) => id.getValue()));
+    const argumentSetIds = new Set<string>(argumentSet.map((id) => id.getValue()));
 
     // Check all pairs for missing intermediate nodes
     for (let i = 0; i < argumentSet.length; i++) {
@@ -384,10 +403,14 @@ export class GraphPathCompletenessService implements IPathCompletenessService {
             // There are intermediate nodes
             for (let k = 1; k < path.length - 1; k++) {
               const intermediateId = path[k];
-              if (intermediateId && !argumentSetIds.has(intermediateId)) {
-                const argIdResult = AtomicArgumentId.create(intermediateId);
-                if (argIdResult.isOk() && !missing.some((id) => id.equals(argIdResult.value))) {
-                  missing.push(argIdResult.value);
+              if (intermediateId) {
+                const argIdResult = AtomicArgumentId.create(intermediateId as string);
+                if (argIdResult.isOk()) {
+                  // Check if this ID is already in the argument set
+                  const isInSet = argumentSetIds.has(intermediateId);
+                  if (!isInSet && !missing.some((id) => id.equals(argIdResult.value))) {
+                    missing.push(argIdResult.value);
+                  }
                 }
               }
             }
@@ -408,12 +431,16 @@ export class GraphPathCompletenessService implements IPathCompletenessService {
     argumentIds: AtomicArgumentId[],
   ): Promise<Result<void, ProcessingError>> {
     for (const argumentId of argumentIds) {
-      const argument = await this.atomicArgumentRepo.findById(argumentId);
-      if (!argument) {
-        return err(new ProcessingError(`Argument ${argumentId.getValue()} not found`));
+      const argumentResult = await this.atomicArgumentRepo.findById(argumentId);
+      if (argumentResult.isErr()) {
+        return err(
+          new ProcessingError(
+            `Argument ${argumentId.getValue()} not found: ${argumentResult.error.message}`,
+          ),
+        );
       }
 
-      if (!argument.isComplete()) {
+      if (!argumentResult.value.isComplete()) {
         return err(new ProcessingError(`Argument ${argumentId.getValue()} is incomplete`));
       }
     }
@@ -438,15 +465,28 @@ export class GraphPathCompletenessService implements IPathCompletenessService {
     }
 
     // Check if arguments exist and can connect
-    const fromArgument = await this.atomicArgumentRepo.findById(fromId);
-    const toArgument = await this.atomicArgumentRepo.findById(toId);
+    const fromArgumentResult = await this.atomicArgumentRepo.findById(fromId);
+    const toArgumentResult = await this.atomicArgumentRepo.findById(toId);
 
-    if (!fromArgument || !toArgument) {
+    if (fromArgumentResult.isErr() || toArgumentResult.isErr()) {
       return { isValid: false, reason: 'One or both arguments not found' };
     }
 
-    if (fromArgument.canConnectTo(toArgument)) {
-      return { isValid: true };
+    // Check if arguments can connect by finding connections between them
+    const fromArgument = fromArgumentResult.value;
+    const toArgument = toArgumentResult.value;
+
+    // Check if they share any statements in a way that allows connection
+    const fromConclusions = fromArgument.getConclusions();
+    const toPremises = toArgument.getPremises();
+
+    // Check if any conclusion from 'from' matches any premise in 'to'
+    for (const conclusion of fromConclusions) {
+      for (const premise of toPremises) {
+        if (conclusion.equals(premise)) {
+          return { isValid: true };
+        }
+      }
     }
 
     return { isValid: false, reason: 'No shared ordered set reference' };
@@ -466,14 +506,14 @@ export class GraphPathCompletenessService implements IPathCompletenessService {
     const firstArgument = argumentIds[0];
     if (!firstArgument) return [];
 
-    const queue = [firstArgument.getValue()];
+    const queue: string[] = [firstArgument.getValue()];
 
     while (queue.length > 0) {
       const current = queue.shift();
       if (!current || visited.has(current)) continue;
 
       visited.add(current);
-      const nodeIdResult = AtomicArgumentId.create(current);
+      const nodeIdResult = AtomicArgumentId.create(current as string);
       if (nodeIdResult.isOk()) {
         minimal.push(nodeIdResult.value);
       }
@@ -546,5 +586,34 @@ export class GraphPathCompletenessService implements IPathCompletenessService {
     }
 
     return levels;
+  }
+
+  /**
+   * Find all simple paths between two nodes in a directed graph.
+   * A simple path is a path with no repeated nodes.
+   */
+  private findAllSimplePaths(graph: DirectedGraph, start: string, end: string): string[][] {
+    const paths: string[][] = [];
+    const visited = new Set<string>();
+
+    const dfsPath = (current: string, path: string[]) => {
+      if (current === end) {
+        paths.push([...path]);
+        return;
+      }
+
+      visited.add(current);
+
+      for (const neighbor of graph.outNeighbors(current)) {
+        if (!visited.has(neighbor)) {
+          dfsPath(neighbor, [...path, neighbor]);
+        }
+      }
+
+      visited.delete(current);
+    };
+
+    dfsPath(start, [start]);
+    return paths;
   }
 }

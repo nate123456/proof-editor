@@ -34,16 +34,6 @@ export class YAMLValidator {
       }
     }
 
-    // Validate orderedSets section
-    if (data.orderedSets !== undefined) {
-      const orderedSetsValidation = this.validateOrderedSets(data.orderedSets);
-      if (orderedSetsValidation.isErr()) {
-        errors.push(...orderedSetsValidation.error);
-      } else {
-        result.orderedSets = orderedSetsValidation.value;
-      }
-    }
-
     // Validate atomicArguments section
     if (data.atomicArguments !== undefined) {
       const atomicArgumentsValidation = this.validateAtomicArguments(data.atomicArguments);
@@ -289,71 +279,10 @@ export class YAMLValidator {
     return errors.length > 0 ? err(errors) : ok(result);
   }
 
-  private validateOrderedSets(
-    orderedSets: unknown,
-  ): Result<Record<string, string[]>, ParseError[]> {
-    const errors: ParseError[] = [];
-
-    // Handle null/undefined as empty valid section
-    if (orderedSets === null || orderedSets === undefined) {
-      return ok({});
-    }
-
-    if (typeof orderedSets !== 'object') {
-      errors.push({
-        type: ParseErrorType.INVALID_STRUCTURE,
-        message: 'OrderedSets section must be an object',
-        section: 'orderedSets',
-      });
-      return err(errors);
-    }
-
-    const orderedSetsObj = orderedSets as Record<string, unknown>;
-    const result: Record<string, string[]> = {};
-
-    for (const [id, setArray] of Object.entries(orderedSetsObj)) {
-      if (!Array.isArray(setArray)) {
-        errors.push({
-          type: ParseErrorType.INVALID_ORDERED_SET,
-          message: `Ordered set must be an array, got ${typeof setArray}`,
-          section: 'orderedSets',
-          reference: id,
-        });
-        continue;
-      }
-
-      const validStatements: string[] = [];
-      for (const [index, statement] of setArray.entries()) {
-        if (typeof statement !== 'string') {
-          errors.push({
-            type: ParseErrorType.INVALID_ORDERED_SET,
-            message: `Statement at index ${index} must be a string, got ${typeof statement}`,
-            section: 'orderedSets',
-            reference: id,
-          });
-          continue;
-        }
-        if (statement.trim().length === 0) {
-          errors.push({
-            type: ParseErrorType.INVALID_ORDERED_SET,
-            message: `Statement at index ${index} cannot be empty`,
-            section: 'orderedSets',
-            reference: id,
-          });
-          continue;
-        }
-        validStatements.push(statement.trim());
-      }
-      result[id] = validStatements;
-    }
-
-    return errors.length > 0 ? err(errors) : ok(result);
-  }
-
   private validateAtomicArguments(
     atomicArguments: unknown,
   ): Result<
-    Record<string, { premises?: string; conclusions?: string; sideLabel?: string }>,
+    Record<string, { premises?: string[]; conclusions?: string[]; sideLabel?: string }>,
     ParseError[]
   > {
     const errors: ParseError[] = [];
@@ -373,8 +302,10 @@ export class YAMLValidator {
     }
 
     const atomicArgumentsObj = atomicArguments as Record<string, unknown>;
-    const result: Record<string, { premises?: string; conclusions?: string; sideLabel?: string }> =
-      {};
+    const result: Record<
+      string,
+      { premises?: string[]; conclusions?: string[]; sideLabel?: string }
+    > = {};
 
     for (const [id, argumentSpec] of Object.entries(atomicArgumentsObj)) {
       // Handle null case (bootstrap arguments with only comments)
@@ -394,33 +325,77 @@ export class YAMLValidator {
       }
 
       const spec = argumentSpec as Record<string, unknown>;
-      const resultSpec: { premises?: string; conclusions?: string; sideLabel?: string } = {};
+      const resultSpec: { premises?: string[]; conclusions?: string[]; sideLabel?: string } = {};
 
-      // Validate premises reference
+      // Validate premises array
       if (spec.premises !== undefined) {
-        if (typeof spec.premises !== 'string') {
+        if (!Array.isArray(spec.premises)) {
           errors.push({
             type: ParseErrorType.INVALID_ATOMIC_ARGUMENT,
-            message: `Premises must be a string reference, got ${typeof spec.premises}`,
+            message: `Premises must be an array, got ${typeof spec.premises}`,
             section: 'atomicArguments',
             reference: id,
           });
         } else {
-          resultSpec.premises = spec.premises.trim();
+          const validPremises: string[] = [];
+          for (const [index, premise] of spec.premises.entries()) {
+            if (typeof premise !== 'string') {
+              errors.push({
+                type: ParseErrorType.INVALID_ATOMIC_ARGUMENT,
+                message: `Premise at index ${index} must be a string, got ${typeof premise}`,
+                section: 'atomicArguments',
+                reference: id,
+              });
+              continue;
+            }
+            if (premise.trim().length === 0) {
+              errors.push({
+                type: ParseErrorType.INVALID_ATOMIC_ARGUMENT,
+                message: `Premise at index ${index} cannot be empty`,
+                section: 'atomicArguments',
+                reference: id,
+              });
+              continue;
+            }
+            validPremises.push(premise.trim());
+          }
+          resultSpec.premises = validPremises;
         }
       }
 
-      // Validate conclusions reference
+      // Validate conclusions array
       if (spec.conclusions !== undefined) {
-        if (typeof spec.conclusions !== 'string') {
+        if (!Array.isArray(spec.conclusions)) {
           errors.push({
             type: ParseErrorType.INVALID_ATOMIC_ARGUMENT,
-            message: `Conclusions must be a string reference, got ${typeof spec.conclusions}`,
+            message: `Conclusions must be an array, got ${typeof spec.conclusions}`,
             section: 'atomicArguments',
             reference: id,
           });
         } else {
-          resultSpec.conclusions = spec.conclusions.trim();
+          const validConclusions: string[] = [];
+          for (const [index, conclusion] of spec.conclusions.entries()) {
+            if (typeof conclusion !== 'string') {
+              errors.push({
+                type: ParseErrorType.INVALID_ATOMIC_ARGUMENT,
+                message: `Conclusion at index ${index} must be a string, got ${typeof conclusion}`,
+                section: 'atomicArguments',
+                reference: id,
+              });
+              continue;
+            }
+            if (conclusion.trim().length === 0) {
+              errors.push({
+                type: ParseErrorType.INVALID_ATOMIC_ARGUMENT,
+                message: `Conclusion at index ${index} cannot be empty`,
+                section: 'atomicArguments',
+                reference: id,
+              });
+              continue;
+            }
+            validConclusions.push(conclusion.trim());
+          }
+          resultSpec.conclusions = validConclusions;
         }
       }
 

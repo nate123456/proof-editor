@@ -1,7 +1,7 @@
 import { err, ok, type Result } from 'neverthrow';
 import type { AtomicArgument } from '../entities/AtomicArgument.js';
 import { ProcessingError } from '../errors/DomainErrors.js';
-import { AtomicArgumentId, type OrderedSetId } from '../shared/value-objects/index.js';
+import { AtomicArgumentId, type StatementId } from '../shared/value-objects/index.js';
 import type {
   ArgumentCycle,
   CycleDetection,
@@ -12,7 +12,7 @@ import type {
 export class CycleDetectionService implements ICycleDetectionService {
   /**
    * Check if connecting two arguments would create a logical cycle.
-   * Traces through argument dependencies via OrderedSet connections.
+   * Traces through argument dependencies via statement connections.
    */
   wouldCreateCycle(
     provider: AtomicArgument,
@@ -134,7 +134,7 @@ export class CycleDetectionService implements ICycleDetectionService {
             cycles.push({
               argumentIds: component,
               length: component.length,
-              sharedOrderedSets: this.findSharedSetsInCycle(component, argumentMap),
+              sharedStatements: this.findSharedStatementsInCycle(component, argumentMap),
             });
           }
         }
@@ -201,7 +201,7 @@ export class CycleDetectionService implements ICycleDetectionService {
   }
 
   /**
-   * Build dependency graph based on OrderedSet connections.
+   * Build dependency graph based on statement connections.
    * An argument depends on arguments that provide its premises.
    */
   private buildLogicalDependencyGraph(
@@ -211,15 +211,21 @@ export class CycleDetectionService implements ICycleDetectionService {
 
     for (const [consumerId, consumer] of argumentMap) {
       const deps: AtomicArgumentId[] = [];
-      const premiseSet = consumer.getPremiseSet();
+      const consumerPremises = consumer.getPremises();
 
-      if (premiseSet) {
-        // Find arguments that provide this premise set
+      if (consumerPremises.length > 0) {
+        // Find arguments that provide statements needed by this consumer
         for (const [providerId, provider] of argumentMap) {
           if (providerId === consumerId) continue;
 
-          const conclusionSet = provider.getConclusionSet();
-          if (conclusionSet && premiseSet && conclusionSet.equals(premiseSet)) {
+          const providerConclusions = provider.getConclusions();
+
+          // Check if any of the provider's conclusions match any of the consumer's premises
+          const hasConnection = consumerPremises.some((premise) =>
+            providerConclusions.some((conclusion) => conclusion.getId().equals(premise.getId())),
+          );
+
+          if (hasConnection) {
             deps.push(provider.getId());
           }
         }
@@ -232,13 +238,14 @@ export class CycleDetectionService implements ICycleDetectionService {
   }
 
   /**
-   * Find OrderedSets involved in a cycle.
+   * Find statements involved in a cycle.
    */
-  private findSharedSetsInCycle(
+  private findSharedStatementsInCycle(
     cycleArgs: AtomicArgumentId[],
     argumentMap: Map<string, AtomicArgument>,
-  ): OrderedSetId[] {
-    const sharedSets: OrderedSetId[] = [];
+  ): StatementId[] {
+    const sharedStatements: StatementId[] = [];
+    const seenStatements = new Set<string>();
 
     for (let i = 0; i < cycleArgs.length; i++) {
       const currentId = cycleArgs[i];
@@ -251,15 +258,24 @@ export class CycleDetectionService implements ICycleDetectionService {
       const next = argumentMap.get(nextId.getValue());
 
       if (current && next) {
-        const currentConclusion = current.getConclusionSet();
-        const nextPremise = next.getPremiseSet();
+        const currentConclusions = current.getConclusions();
+        const nextPremises = next.getPremises();
 
-        if (currentConclusion && nextPremise && currentConclusion.equals(nextPremise)) {
-          sharedSets.push(currentConclusion);
+        // Find shared statements between current's conclusions and next's premises
+        for (const conclusion of currentConclusions) {
+          for (const premise of nextPremises) {
+            if (conclusion.getId().equals(premise.getId())) {
+              const statementIdStr = conclusion.getId().getValue();
+              if (!seenStatements.has(statementIdStr)) {
+                seenStatements.add(statementIdStr);
+                sharedStatements.push(conclusion.getId());
+              }
+            }
+          }
         }
       }
     }
 
-    return sharedSets;
+    return sharedStatements;
   }
 }

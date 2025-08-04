@@ -133,6 +133,10 @@ export class TreeId extends ValueObject<BrandedTreeId> {
   static fromString(value: string): Result<TreeId, ValidationError> {
     return TreeId.create(value);
   }
+
+  static generate(): TreeId {
+    return new TreeId(randomUUID());
+  }
 }
 
 export class DocumentId extends ValueObject<BrandedDocumentId> {
@@ -263,6 +267,10 @@ export class ProofDocumentId extends ValueObject<BrandedProofDocumentId> {
 
   static fromString(value: string): Result<ProofDocumentId, ValidationError> {
     return ProofDocumentId.create(value);
+  }
+
+  static generate(): ProofDocumentId {
+    return new ProofDocumentId(randomUUID());
   }
 }
 

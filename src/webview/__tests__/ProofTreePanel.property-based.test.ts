@@ -15,7 +15,7 @@
 import 'reflect-metadata';
 
 import fc from 'fast-check';
-import { err, ok } from 'neverthrow';
+import { err, ok, type Result } from 'neverthrow';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ValidationApplicationError } from '../../application/dtos/operation-results.js';
@@ -27,10 +27,20 @@ import type { ProofApplicationService } from '../../application/services/ProofAp
 import type { ProofVisualizationService } from '../../application/services/ProofVisualizationService.js';
 import type { ViewStateManager } from '../../application/services/ViewStateManager.js';
 import { ValidationError } from '../../domain/shared/result.js';
+import { MessageType } from '../../domain/shared/value-objects/enums.js';
+import { WebviewId } from '../../domain/shared/value-objects/identifiers.js';
 import type { YAMLSerializer } from '../../infrastructure/repositories/yaml/YAMLSerializer.js';
 import type { BootstrapController } from '../../presentation/controllers/BootstrapController.js';
 import { ProofTreePanel } from '../ProofTreePanel.js';
 import type { TreeRenderer } from '../TreeRenderer.js';
+
+// Helper function to unwrap Result types in tests
+function unwrap<T>(result: Result<T, any>): T {
+  if (result.isErr()) {
+    throw new Error(`Failed to unwrap Result: ${result.error}`);
+  }
+  return result.value;
+}
 
 // ============================================================================
 // ADVANCED ARBITRARIES FOR REALISTIC DATA GENERATION
@@ -186,7 +196,7 @@ const contentVariations = () =>
 
 function createPropertyTestMocks() {
   const mockWebviewPanel: WebviewPanel = {
-    id: 'property-test-panel',
+    id: unwrap(WebviewId.create('property-test-panel')),
     webview: {
       html: '',
       onDidReceiveMessage: vi.fn(),
@@ -486,8 +496,8 @@ describe('ProofTreePanel - Property-Based Testing', () => {
               expect(() =>
                 messageHandler({
                   type: 'viewportChanged',
-                  viewport: viewportConfig,
-                }),
+                  data: { viewport: viewportConfig },
+                } as any),
               ).not.toThrow();
             }
           }
@@ -528,8 +538,8 @@ describe('ProofTreePanel - Property-Based Testing', () => {
               // INVARIANT: Panel state changes are handled gracefully
               expect(() =>
                 messageHandler({
-                  type: 'panelStateChanged',
-                  panel: panelConfig,
+                  type: MessageType.PANEL_STATE_CHANGED,
+                  ...panelConfig,
                 }),
               ).not.toThrow();
             }
@@ -571,8 +581,8 @@ describe('ProofTreePanel - Property-Based Testing', () => {
               // INVARIANT: Selection changes never cause system failure
               expect(() =>
                 messageHandler({
-                  type: 'selectionChanged',
-                  selection: selectionConfig,
+                  type: MessageType.SELECTION_CHANGED,
+                  ...selectionConfig,
                 }),
               ).not.toThrow();
             }
@@ -798,7 +808,7 @@ describe('ProofTreePanel - Property-Based Testing', () => {
                   messageHandler({
                     type: 'addStatement',
                     statementType,
-                    content,
+                    content: content,
                   }),
                 ).not.toThrow();
               }
@@ -988,7 +998,9 @@ describe('ProofTreePanel - Property-Based Testing', () => {
               if (changeViewState && messageHandler) {
                 await messageHandler({
                   type: 'viewportChanged',
-                  viewport: { zoom: 1.5, pan: { x: 100, y: 200 }, center: { x: 0, y: 0 } },
+                  zoom: 1.5,
+                  pan: { x: 100, y: 200 },
+                  center: { x: 0, y: 0 },
                 });
               }
 

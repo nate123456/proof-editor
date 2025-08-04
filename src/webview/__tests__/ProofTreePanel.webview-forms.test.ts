@@ -5,7 +5,7 @@ import { webviewScript } from './webview-script-utils';
 import { createBasicWebviewHTML, JSDOM, setupMockVSCodeAPI } from './webview-test-utils';
 
 describe('ProofTreePanel Webview Form Management and Validation', () => {
-  let dom: JSDOM;
+  let dom: InstanceType<typeof JSDOM>;
   let window: Window & typeof globalThis;
   let document: Document;
   let mockVSCode: any;

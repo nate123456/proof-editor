@@ -115,32 +115,32 @@ export class TypedTreeLayoutConfig {
   }): Result<TypedTreeLayoutConfig, ValidationError> {
     const nodeWidthResult = NodeDimension.create(config.nodeWidth);
     if (nodeWidthResult.isErr()) {
-      return nodeWidthResult;
+      return err(nodeWidthResult.error);
     }
 
     const nodeHeightResult = NodeDimension.create(config.nodeHeight);
     if (nodeHeightResult.isErr()) {
-      return nodeHeightResult;
+      return err(nodeHeightResult.error);
     }
 
     const verticalSpacingResult = Spacing.create(config.verticalSpacing);
     if (verticalSpacingResult.isErr()) {
-      return verticalSpacingResult;
+      return err(verticalSpacingResult.error);
     }
 
     const horizontalSpacingResult = Spacing.create(config.horizontalSpacing);
     if (horizontalSpacingResult.isErr()) {
-      return horizontalSpacingResult;
+      return err(horizontalSpacingResult.error);
     }
 
     const treeSpacingResult = Spacing.create(config.treeSpacing);
     if (treeSpacingResult.isErr()) {
-      return treeSpacingResult;
+      return err(treeSpacingResult.error);
     }
 
     const canvasMarginResult = Margin.create(config.canvasMargin);
     if (canvasMarginResult.isErr()) {
-      return canvasMarginResult;
+      return err(canvasMarginResult.error);
     }
 
     return ok(
@@ -156,13 +156,33 @@ export class TypedTreeLayoutConfig {
   }
 
   static default(): TypedTreeLayoutConfig {
+    // Create value objects with safe defaults - these should never fail
+    const nodeWidth = NodeDimension.fromNumber(220);
+    const nodeHeight = NodeDimension.fromNumber(120);
+    const verticalSpacing = Spacing.fromNumber(180);
+    const horizontalSpacing = Spacing.fromNumber(280);
+    const treeSpacing = Spacing.fromNumber(150);
+    const canvasMargin = Margin.fromNumber(50);
+
+    // Since these are valid defaults, we can safely unwrap
+    if (
+      nodeWidth.isErr() ||
+      nodeHeight.isErr() ||
+      verticalSpacing.isErr() ||
+      horizontalSpacing.isErr() ||
+      treeSpacing.isErr() ||
+      canvasMargin.isErr()
+    ) {
+      throw new Error('Failed to create default TypedTreeLayoutConfig with valid values');
+    }
+
     return new TypedTreeLayoutConfig(
-      NodeDimension.fromNumber(220).value,
-      NodeDimension.fromNumber(120).value,
-      Spacing.fromNumber(180).value,
-      Spacing.fromNumber(280).value,
-      Spacing.fromNumber(150).value,
-      Margin.fromNumber(50).value,
+      nodeWidth.value,
+      nodeHeight.value,
+      verticalSpacing.value,
+      horizontalSpacing.value,
+      treeSpacing.value,
+      canvasMargin.value,
     );
   }
 
@@ -768,25 +788,42 @@ export function toRawTreeRenderDTO(dto: TreeRenderDTO): RawTreeRenderDTO {
 }
 
 export function toRawRenderedNodeDTO(dto: RenderedNodeDTO): RawRenderedNodeDTO {
-  return {
+  const sideLabels = dto.argument.sideLabels
+    ? (() => {
+        const labels: { left?: string; right?: string } = {};
+        const leftValue = dto.argument.sideLabels.left?.getValue();
+        const rightValue = dto.argument.sideLabels.right?.getValue();
+        if (leftValue !== undefined) labels.left = leftValue;
+        if (rightValue !== undefined) labels.right = rightValue;
+        return Object.keys(labels).length > 0 ? labels : undefined;
+      })()
+    : undefined;
+
+  const argument: RawRenderedNodeDTO['argument'] = {
+    id: dto.argument.id.getValue(),
+    premiseIds: dto.argument.premiseIds.map((id) => id.getValue()),
+    conclusionIds: dto.argument.conclusionIds.map((id) => id.getValue()),
+  };
+
+  if (sideLabels !== undefined) {
+    argument.sideLabels = sideLabels;
+  }
+
+  const result: RawRenderedNodeDTO = {
     id: dto.id.getValue(),
     position: { x: dto.position.getX(), y: dto.position.getY() },
     dimensions: { width: dto.dimensions.getWidth(), height: dto.dimensions.getHeight() },
-    argument: {
-      id: dto.argument.id.getValue(),
-      premiseIds: dto.argument.premiseIds.map((id) => id.getValue()),
-      conclusionIds: dto.argument.conclusionIds.map((id) => id.getValue()),
-      sideLabels: dto.argument.sideLabels
-        ? {
-            left: dto.argument.sideLabels.left?.getValue(),
-            right: dto.argument.sideLabels.right?.getValue(),
-          }
-        : undefined,
-    },
+    argument,
     premises: dto.premises,
     conclusions: dto.conclusions,
-    sideLabel: dto.sideLabel?.getValue(),
   };
+
+  const sideLabelValue = dto.sideLabel?.getValue();
+  if (sideLabelValue !== undefined) {
+    result.sideLabel = sideLabelValue;
+  }
+
+  return result;
 }
 
 export function toRawConnectionDTO(dto: ConnectionDTO): RawConnectionDTO {

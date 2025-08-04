@@ -2,7 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Tree } from '../../entities/Tree';
 import { ValidationError } from '../../shared/result';
-import { PhysicalProperties, Position2D } from '../../shared/value-objects';
+import { PhysicalProperties } from '../../shared/value-objects';
+import { TreePosition } from '../../value-objects/TreePosition';
 
 describe('Tree Spatial Behavior', () => {
   let mockDateNow: ReturnType<typeof vi.fn>;
@@ -33,7 +34,7 @@ describe('Tree Spatial Behavior', () => {
 
     describe('moveTo', () => {
       it('should move tree to new position', () => {
-        const newPositionResult = Position2D.create(100, 200);
+        const newPositionResult = TreePosition.create(100, 200);
         expect(newPositionResult.isOk()).toBe(true);
 
         if (newPositionResult.isOk()) {
@@ -44,7 +45,7 @@ describe('Tree Spatial Behavior', () => {
       });
 
       it('should update modified time when moving', () => {
-        const newPositionResult = Position2D.create(50, 75);
+        const newPositionResult = TreePosition.create(50, 75);
         expect(newPositionResult.isOk()).toBe(true);
 
         if (newPositionResult.isOk()) {
@@ -61,21 +62,21 @@ describe('Tree Spatial Behavior', () => {
 
     describe('moveBy', () => {
       it('should move tree by offset', () => {
-        const initialPositionResult = Position2D.create(100, 200);
+        const initialPositionResult = TreePosition.create(100, 200);
         expect(initialPositionResult.isOk()).toBe(true);
 
         if (initialPositionResult.isOk()) {
           const moveToResult = tree.moveTo(initialPositionResult.value);
           expect(moveToResult.isOk()).toBe(true);
 
-          const offsetResult = Position2D.create(50, -25);
+          const offsetResult = TreePosition.create(50, -25);
           expect(offsetResult.isOk()).toBe(true);
 
           if (offsetResult.isOk()) {
             const result = tree.moveBy(offsetResult.value);
             expect(result.isOk()).toBe(true);
 
-            const expectedPositionResult = Position2D.create(150, 175);
+            const expectedPositionResult = TreePosition.create(150, 175);
             expect(expectedPositionResult.isOk()).toBe(true);
 
             if (expectedPositionResult.isOk()) {
@@ -86,21 +87,21 @@ describe('Tree Spatial Behavior', () => {
       });
 
       it('should handle negative offsets', () => {
-        const initialPositionResult = Position2D.create(100, 200);
+        const initialPositionResult = TreePosition.create(100, 200);
         expect(initialPositionResult.isOk()).toBe(true);
 
         if (initialPositionResult.isOk()) {
           const moveToResult = tree.moveTo(initialPositionResult.value);
           expect(moveToResult.isOk()).toBe(true);
 
-          const offsetResult = Position2D.create(-50, -100);
+          const offsetResult = TreePosition.create(-50, -100);
           expect(offsetResult.isOk()).toBe(true);
 
           if (offsetResult.isOk()) {
             const result = tree.moveBy(offsetResult.value);
             expect(result.isOk()).toBe(true);
 
-            const expectedPositionResult = Position2D.create(50, 100);
+            const expectedPositionResult = TreePosition.create(50, 100);
             expect(expectedPositionResult.isOk()).toBe(true);
 
             if (expectedPositionResult.isOk()) {
@@ -111,7 +112,7 @@ describe('Tree Spatial Behavior', () => {
       });
 
       it('should fail with invalid offset resulting in invalid position', () => {
-        const offsetResult = Position2D.create(-1, 0);
+        const offsetResult = TreePosition.create(-1, 0);
         expect(offsetResult.isOk()).toBe(true);
 
         if (offsetResult.isOk()) {
@@ -131,7 +132,7 @@ describe('Tree Spatial Behavior', () => {
       });
 
       it('should return false for different position', () => {
-        const differentPositionResult = Position2D.create(100, 200);
+        const differentPositionResult = TreePosition.create(100, 200);
         expect(differentPositionResult.isOk()).toBe(true);
 
         if (differentPositionResult.isOk()) {
@@ -210,7 +211,7 @@ describe('Tree Spatial Behavior', () => {
         tree2 = result2.value;
 
         // Position tree1 at (0, 0)
-        const position1Result = Position2D.create(0, 0);
+        const position1Result = TreePosition.create(0, 0);
         expect(position1Result.isOk()).toBe(true);
         if (position1Result.isOk()) {
           const moveResult = tree1.moveTo(position1Result.value);
@@ -218,7 +219,7 @@ describe('Tree Spatial Behavior', () => {
         }
 
         // Position tree2 at (100, 100)
-        const position2Result = Position2D.create(100, 100);
+        const position2Result = TreePosition.create(100, 100);
         expect(position2Result.isOk()).toBe(true);
         if (position2Result.isOk()) {
           const moveResult = tree2.moveTo(position2Result.value);
@@ -255,7 +256,7 @@ describe('Tree Spatial Behavior', () => {
       });
 
       it('should return updated bounds after moving', () => {
-        const newPositionResult = Position2D.create(50, 75);
+        const newPositionResult = TreePosition.create(50, 75);
         expect(newPositionResult.isOk()).toBe(true);
 
         if (newPositionResult.isOk()) {
@@ -300,7 +301,7 @@ describe('Tree Spatial Behavior', () => {
         const initialPosition = tree.getPosition();
 
         // Move to a new position
-        const newPositionResult = Position2D.create(100, 200);
+        const newPositionResult = TreePosition.create(100, 200);
         expect(newPositionResult.isOk()).toBe(true);
 
         if (newPositionResult.isOk()) {
@@ -364,7 +365,7 @@ describe('Tree Spatial Behavior', () => {
         expect(initialDistance).toBe(0);
 
         // Move tree2 to (300, 400)
-        const newPositionResult = Position2D.create(300, 400);
+        const newPositionResult = TreePosition.create(300, 400);
         expect(newPositionResult.isOk()).toBe(true);
 
         if (newPositionResult.isOk()) {

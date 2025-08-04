@@ -7,11 +7,8 @@ import {
 import type { IUIPort } from '../../../application/ports/IUIPort.js';
 import { ProofDocument } from '../../../domain/aggregates/ProofDocument.js';
 import type { DomainEvent } from '../../../domain/events/base-event.js';
-import type {
-  OrderedSetBecameShared,
-  OrderedSetCreated,
-  StatementCreated,
-} from '../../../domain/events/proof-document-events.js';
+import type { StatementCreated } from '../../../domain/events/proof-document-events.js';
+import { StatementContent } from '../../../domain/shared/value-objects/index.js';
 import {
   MockTreeViewRenderer,
   ProofTreeController,
@@ -73,8 +70,10 @@ describe('EventBus Integration - Complete Event Flow', () => {
   test('complete aggregate event flow - domain to presentation', async () => {
     // Create aggregate and generate events
     const document = ProofDocument.create();
-    document.createStatement('Statement 1');
-    document.createStatement('Statement 2');
+    const content1 = StatementContent.create('Statement 1');
+    const content2 = StatementContent.create('Statement 2');
+    if (content1.isOk()) document.createStatement(content1.value);
+    if (content2.isOk()) document.createStatement(content2.value);
 
     // Publish events and verify complete flow
     const uncommittedEvents = document.getUncommittedEvents();
@@ -92,10 +91,10 @@ describe('EventBus Integration - Complete Event Flow', () => {
     const statement1Id = (capturedEvents[1] as StatementCreated).eventData.statementId;
     const statement2Id = (capturedEvents[2] as StatementCreated).eventData.statementId;
 
-    expect(usageTracker.getUsageCount(statement1Id)).toBe(0);
-    expect(usageTracker.getUsageCount(statement2Id)).toBe(0);
-    expect(usageTracker.getStatementContent(statement1Id)).toBe('Statement 1');
-    expect(usageTracker.getStatementContent(statement2Id)).toBe('Statement 2');
+    expect(usageTracker.getUsageCount(statement1Id.getValue())).toBe(0);
+    expect(usageTracker.getUsageCount(statement2Id.getValue())).toBe(0);
+    expect(usageTracker.getStatementContent(statement1Id.getValue())).toBe('Statement 1');
+    expect(usageTracker.getStatementContent(statement2Id.getValue())).toBe('Statement 2');
 
     // Verify presentation layer received events
     const addStatementOps = mockRenderer.getOperations('addStatement');
@@ -107,9 +106,12 @@ describe('EventBus Integration - Complete Event Flow', () => {
   test('connection tracking via shared OrderedSets', async () => {
     // Create a document with statements and arguments that share OrderedSets
     const document = ProofDocument.create();
-    const stmt1Result = document.createStatement('All men are mortal');
-    const stmt2Result = document.createStatement('Socrates is a man');
-    const stmt3Result = document.createStatement('Socrates is mortal');
+    const content1 = StatementContent.create('All men are mortal');
+    const content2 = StatementContent.create('Socrates is a man');
+    const content3 = StatementContent.create('Socrates is mortal');
+    const stmt1Result = content1.isOk() ? document.createStatement(content1.value) : null;
+    const stmt2Result = content2.isOk() ? document.createStatement(content2.value) : null;
+    const stmt3Result = content3.isOk() ? document.createStatement(content3.value) : null;
 
     expect(stmt1Result.isOk()).toBe(true);
     expect(stmt2Result.isOk()).toBe(true);
@@ -118,26 +120,17 @@ describe('EventBus Integration - Complete Event Flow', () => {
       throw new Error('Test setup failed');
     }
 
-    // Create an OrderedSet that will be shared
-    const sharedSetResult = document.createOrderedSet([stmt3Result.value.getId()]);
-    expect(sharedSetResult.isOk()).toBe(true);
-    if (!sharedSetResult.isOk()) throw new Error('Test setup failed');
-
-    // Create arguments that use the shared set
-    const premiseSetResult = document.createOrderedSet([
-      stmt1Result.value.getId(),
-      stmt2Result.value.getId(),
-    ]);
-    expect(premiseSetResult.isOk()).toBe(true);
-    if (!premiseSetResult.isOk()) throw new Error('Test setup failed');
-
-    const arg1Result = document.createAtomicArgument(premiseSetResult.value, sharedSetResult.value);
+    // Create atomic arguments that share statements
+    const arg1Result = document.createAtomicArgument(
+      [stmt1Result.value, stmt2Result.value], // premises
+      [stmt3Result.value], // conclusions
+    );
     expect(arg1Result.isOk()).toBe(true);
     if (!arg1Result.isOk()) throw new Error('Test setup failed');
 
     const arg2Result = document.createAtomicArgument(
-      sharedSetResult.value, // This makes the set shared
-      null,
+      [stmt3Result.value], // This statement is shared as premise
+      [], // No conclusions
     );
     expect(arg2Result.isOk()).toBe(true);
     if (!arg2Result.isOk()) throw new Error('Test setup failed');
@@ -147,32 +140,35 @@ describe('EventBus Integration - Complete Event Flow', () => {
     await eventBus.publish(uncommittedEvents);
     document.markEventsAsCommitted();
 
-    // Verify OrderedSetBecameShared event was generated
+    // Verify atomic argument created events were generated
     const capturedEvents = eventBus.getCapturedEvents();
-    const sharedEvents = capturedEvents.filter(
-      (e) => e.eventType === 'OrderedSetBecameShared',
-    ) as OrderedSetBecameShared[];
+    const argEvents = capturedEvents.filter((e) => e.eventType === 'AtomicArgumentCreated');
 
-    expect(sharedEvents).toHaveLength(1);
-    expect(sharedEvents[0]?.eventData.orderedSetId).toBe(sharedSetResult.value.getId().getValue());
+    expect(argEvents).toHaveLength(2);
 
-    // Verify connection tracker recorded the connection
-    const sharedSetId = sharedSetResult.value.getId().getValue();
-    const connections = connectionTracker.getSharedConnections(sharedSetId);
-    expect(connections).toHaveLength(2);
-    expect(connections).toContain(arg1Result.value.getId().getValue());
-    expect(connections).toContain(arg2Result.value.getId().getValue());
+    // Verify connection tracker recorded the connections via shared statements
+    const connectedArgs1 = connectionTracker.findConnectedArguments(
+      arg1Result.value.getId().getValue(),
+    );
+    expect(connectedArgs1).toHaveLength(1);
+    expect(connectedArgs1[0]?.argumentId).toBe(arg2Result.value.getId().getValue());
+    expect(connectedArgs1[0]?.sharedStatements).toContain(stmt3Result.value.getId().getValue());
 
-    // Verify presentation layer showed connection visualization
-    const connectionOps = mockRenderer.getOperations('showConnectionVisualization');
-    expect(connectionOps).toHaveLength(1);
-    expect(connectionOps[0]?.data.orderedSetId).toBe(sharedSetId);
+    // Verify arguments using the shared statement
+    const argsUsingStmt3 = connectionTracker.getArgumentsUsingStatement(
+      stmt3Result.value.getId().getValue(),
+    );
+    expect(argsUsingStmt3).toHaveLength(2);
+    expect(argsUsingStmt3.map((a) => a.argumentId)).toContain(arg1Result.value.getId().getValue());
+    expect(argsUsingStmt3.map((a) => a.argumentId)).toContain(arg2Result.value.getId().getValue());
   });
 
   test('usage tracking through OrderedSet creation', async () => {
     const document = ProofDocument.create();
-    const stmt1Result = document.createStatement('Premise statement');
-    const stmt2Result = document.createStatement('Conclusion statement');
+    const content1 = StatementContent.create('Premise statement');
+    const content2 = StatementContent.create('Conclusion statement');
+    const stmt1Result = content1.isOk() ? document.createStatement(content1.value) : null;
+    const stmt2Result = content2.isOk() ? document.createStatement(content2.value) : null;
 
     expect(stmt1Result.isOk()).toBe(true);
     expect(stmt2Result.isOk()).toBe(true);
@@ -180,12 +176,12 @@ describe('EventBus Integration - Complete Event Flow', () => {
       throw new Error('Test setup failed');
     }
 
-    // Create OrderedSet using the statements
-    const orderedSetResult = document.createOrderedSet([
-      stmt1Result.value.getId(),
-      stmt2Result.value.getId(),
-    ]);
-    expect(orderedSetResult.isOk()).toBe(true);
+    // Create atomic argument using the statements
+    const argResult = document.createAtomicArgument(
+      [stmt1Result.value], // premise
+      [stmt2Result.value], // conclusion
+    );
+    expect(argResult.isOk()).toBe(true);
 
     // Publish events
     const uncommittedEvents = document.getUncommittedEvents();
@@ -213,7 +209,8 @@ describe('EventBus Integration - Complete Event Flow', () => {
 
   test('event metrics tracking throughout flow', async () => {
     const document = ProofDocument.create();
-    document.createStatement('Test statement');
+    const content = StatementContent.create('Test statement');
+    if (content.isOk()) document.createStatement(content.value);
 
     // Verify initial metrics
     let metrics = eventBus.getMetrics();
@@ -239,7 +236,8 @@ describe('EventBus Integration - Complete Event Flow', () => {
     eventBus.subscribe('StatementCreated', failingHandler);
 
     const document = ProofDocument.create();
-    document.createStatement('Test statement');
+    const content = StatementContent.create('Test statement');
+    if (content.isOk()) document.createStatement(content.value);
 
     // Publish events - should not throw despite failing handler
     const uncommittedEvents = document.getUncommittedEvents();
@@ -268,9 +266,12 @@ describe('EventBus Integration - Complete Event Flow', () => {
     });
 
     const document = ProofDocument.create();
-    document.createStatement('Statement 1');
-    document.createStatement('Statement 2');
-    document.createStatement('Statement 3');
+    const content1 = StatementContent.create('Statement 1');
+    const content2 = StatementContent.create('Statement 2');
+    const content3 = StatementContent.create('Statement 3');
+    if (content1.isOk()) document.createStatement(content1.value);
+    if (content2.isOk()) document.createStatement(content2.value);
+    if (content3.isOk()) document.createStatement(content3.value);
 
     // Publish events
     const uncommittedEvents = document.getUncommittedEvents();
@@ -326,26 +327,30 @@ describe('EventBus Integration - Complete Event Flow', () => {
   test('complete CQRS flow - write operations trigger read model updates', async () => {
     // Start with empty read models
     expect(usageTracker.getUsageStats().totalStatements).toBe(0);
-    expect(connectionTracker.getAllSharedOrderedSets()).toHaveLength(0);
+    expect(connectionTracker.getConnectionStats().totalConnections).toBe(0);
 
     // Execute write operations (domain commands)
     const document = ProofDocument.create();
-    const stmt1Result = document.createStatement('Write model statement 1');
-    const stmt2Result = document.createStatement('Write model statement 2');
+    const content1 = StatementContent.create('Write model statement 1');
+    const content2 = StatementContent.create('Write model statement 2');
+    const stmt1Result = content1.isOk() ? document.createStatement(content1.value) : null;
+    const stmt2Result = content2.isOk() ? document.createStatement(content2.value) : null;
     expect(stmt1Result.isOk()).toBe(true);
     expect(stmt2Result.isOk()).toBe(true);
     if (!stmt1Result.isOk() || !stmt2Result.isOk()) {
       throw new Error('Test setup failed');
     }
 
-    const orderedSetResult = document.createOrderedSet([stmt1Result.value.getId()]);
-    expect(orderedSetResult.isOk()).toBe(true);
-    if (!orderedSetResult.isOk()) throw new Error('Test setup failed');
-
-    const arg1Result = document.createAtomicArgument(orderedSetResult.value, null);
+    const arg1Result = document.createAtomicArgument(
+      [stmt1Result.value], // premises
+      [], // no conclusions
+    );
     expect(arg1Result.isOk()).toBe(true);
 
-    const arg2Result = document.createAtomicArgument(orderedSetResult.value, null);
+    const arg2Result = document.createAtomicArgument(
+      [stmt1Result.value], // same premise - creates connection
+      [], // no conclusions
+    );
     expect(arg2Result.isOk()).toBe(true);
 
     // Publish events to update read models
@@ -359,11 +364,12 @@ describe('EventBus Integration - Complete Event Flow', () => {
     expect(usageStats.usedStatements).toBe(1); // Only stmt1 is used
     expect(usageStats.unusedStatements).toBe(1); // stmt2 is unused
 
-    const sharedSets = connectionTracker.getAllSharedOrderedSets();
-    expect(sharedSets).toHaveLength(1);
-
-    const orderedSetId = orderedSetResult.value.getId().getValue();
-    const connections = connectionTracker.getSharedConnections(orderedSetId);
-    expect(connections).toHaveLength(2); // Both arguments use the same set
+    // Verify connection tracker shows both arguments using the same statement
+    const argsUsingStmt1 = connectionTracker.getArgumentsUsingStatement(
+      stmt1Result.value.getId().getValue(),
+    );
+    expect(argsUsingStmt1).toHaveLength(2); // Both arguments use stmt1
+    expect(argsUsingStmt1.map((a) => a.argumentId)).toContain(arg1Result.value.getId().getValue());
+    expect(argsUsingStmt1.map((a) => a.argumentId)).toContain(arg2Result.value.getId().getValue());
   });
 });

@@ -5,6 +5,13 @@ import type { IUIPort } from '../../application/ports/IUIPort.js';
 import type { IViewStatePort } from '../../application/ports/IViewStatePort.js';
 import type { DocumentViewStateManager } from '../../application/services/DocumentViewStateManager.js';
 import { ValidationError } from '../../domain/shared/result.js';
+import {
+  DialogTitle,
+  DocumentContent,
+  FilePath,
+  NotificationMessage,
+  PlaceholderText,
+} from '../../domain/shared/value-objects/index.js';
 import type { ProofTreePanelManager } from '../../webview/ProofTreePanelManager.js';
 
 /**
@@ -93,13 +100,19 @@ export class DocumentController {
           document.getText(),
         );
         if (updateResult.isErr()) {
-          this.uiPort.showWarning(
+          const warningResult = NotificationMessage.create(
             `Failed to update panel for ${fileName}: ${updateResult.error.message}`,
           );
+          if (warningResult.isOk()) {
+            this.uiPort.showWarning(warningResult.value);
+          }
         }
       }
 
-      this.uiPort.showInformation(`Proof Editor: Working with ${fileName}`);
+      const infoResult = NotificationMessage.create(`Proof Editor: Working with ${fileName}`);
+      if (infoResult.isOk()) {
+        this.uiPort.showInformation(infoResult.value);
+      }
 
       // Delegate to appropriate command/query handlers
       // No business logic here - just coordinate between UI and application layer
@@ -107,7 +120,10 @@ export class DocumentController {
 
       return ok(undefined);
     } catch (error) {
-      this.uiPort.showError('Failed to process document opening');
+      const errorResult = NotificationMessage.create('Failed to process document opening');
+      if (errorResult.isOk()) {
+        this.uiPort.showError(errorResult.value);
+      }
       return err(
         new ValidationError(
           `Failed to handle document opened: ${error instanceof Error ? error.message : String(error)}`,
@@ -194,7 +210,12 @@ export class DocumentController {
         const clearResult = await documentState.viewStateManager.clearDocumentState();
         if (clearResult.isErr()) {
           // Log error but don't fail the close operation
-          this.uiPort.showWarning(`Failed to clear view state for ${document.fileName}`);
+          const warningResult = NotificationMessage.create(
+            `Failed to clear view state for ${document.fileName}`,
+          );
+          if (warningResult.isOk()) {
+            this.uiPort.showWarning(warningResult.value);
+          }
         }
       }
 
@@ -236,12 +257,18 @@ export class DocumentController {
         `Platform: ${platformInfo.type} v${platformInfo.version}`,
         `OS: ${platformInfo.os} (${platformInfo.arch})`,
         `Input: ${inputCaps.primaryInput}`,
-        `Display: ${displayCaps.screenWidth}x${displayCaps.screenHeight}`,
+        `Display: ${displayCaps.screenDimensions.getWidth()}x${displayCaps.screenDimensions.getHeight()}`,
       ].join('\n');
 
-      this.uiPort.showInformation(info);
+      const infoResult = NotificationMessage.create(info);
+      if (infoResult.isOk()) {
+        this.uiPort.showInformation(infoResult.value);
+      }
     } catch (_error) {
-      this.uiPort.showError('Failed to retrieve platform information');
+      const errorResult = NotificationMessage.create('Failed to retrieve platform information');
+      if (errorResult.isOk()) {
+        this.uiPort.showError(errorResult.value);
+      }
       // Error: DocumentController.showPlatformInfo
     }
   }
@@ -253,9 +280,15 @@ export class DocumentController {
     const result = await this.platformPort.copyToClipboard(text);
 
     if (result.isOk()) {
-      this.uiPort.showInformation('Copied to clipboard');
+      const infoResult = NotificationMessage.create('Copied to clipboard');
+      if (infoResult.isOk()) {
+        this.uiPort.showInformation(infoResult.value);
+      }
     } else {
-      this.uiPort.showError(`Failed to copy: ${result.error.message}`);
+      const errorResult = NotificationMessage.create(`Failed to copy: ${result.error.message}`);
+      if (errorResult.isOk()) {
+        this.uiPort.showError(errorResult.value);
+      }
     }
   }
 
@@ -268,7 +301,10 @@ export class DocumentController {
     if (result.isOk()) {
       return result.value;
     } else {
-      this.uiPort.showError(`Failed to paste: ${result.error.message}`);
+      const errorResult = NotificationMessage.create(`Failed to paste: ${result.error.message}`);
+      if (errorResult.isOk()) {
+        this.uiPort.showError(errorResult.value);
+      }
       return null;
     }
   }
@@ -286,16 +322,33 @@ export class DocumentController {
       ];
 
       const result = await this.uiPort.showQuickPick(themes, {
-        title: 'Choose Theme',
-        placeHolder: 'Select a theme preference',
+        title: DialogTitle.create('Choose Theme').unwrapOr(
+          (() => {
+            const settingsTitle = DialogTitle.create('Settings');
+            if (settingsTitle.isOk()) return settingsTitle.value;
+            const defaultTitle = DialogTitle.create('Default');
+            if (defaultTitle.isOk()) return defaultTitle.value;
+            // This should never happen as 'Default' is a valid title
+            throw new Error('Failed to create dialog title');
+          })(),
+        ),
+        placeHolder: PlaceholderText.create('Select a theme preference').unwrapOr(
+          PlaceholderText.empty(),
+        ),
       });
 
       if (result.isOk() && result.value) {
-        this.uiPort.showInformation(`Selected: ${result.value.label}`);
+        const infoResult = NotificationMessage.create(`Selected: ${result.value.label}`);
+        if (infoResult.isOk()) {
+          this.uiPort.showInformation(infoResult.value);
+        }
         // Delegate to application layer for actual preference storage
       }
     } catch (_error) {
-      this.uiPort.showError('Failed to show settings');
+      const errorResult = NotificationMessage.create('Failed to show settings');
+      if (errorResult.isOk()) {
+        this.uiPort.showError(errorResult.value);
+      }
       // Error: DocumentController.showSettings
     }
   }
@@ -317,7 +370,20 @@ export class DocumentController {
       }
 
       // Use file system port for saving
-      const saveResult = await this.fileSystemPort.writeFile(document.fileName, document.getText());
+      const filePathResult = FilePath.create(document.fileName);
+      if (filePathResult.isErr()) {
+        return err(new ValidationError('Invalid file path for auto-save'));
+      }
+
+      const contentResult = DocumentContent.create(document.getText());
+      if (contentResult.isErr()) {
+        return err(new ValidationError('Invalid document content for auto-save'));
+      }
+
+      const saveResult = await this.fileSystemPort.writeFile(
+        filePathResult.value,
+        contentResult.value,
+      );
       if (saveResult.isErr()) {
         return err(new ValidationError(`Auto-save failed: ${saveResult.error.message}`));
       }
@@ -354,9 +420,16 @@ export class DocumentController {
         { label: 'Cancel', description: 'Cancel closing the document' },
       ];
 
+      const titleResult = DialogTitle.create(`Save changes to ${fileName}?`);
+      const placeholderResult = PlaceholderText.create('Your document has unsaved changes');
+
+      if (titleResult.isErr() || placeholderResult.isErr()) {
+        return err(new ValidationError('Failed to create dialog options'));
+      }
+
       const result = await this.uiPort.showQuickPick(options, {
-        title: `Save changes to ${fileName}?`,
-        placeHolder: 'Your document has unsaved changes',
+        title: titleResult.value,
+        placeHolder: placeholderResult.value,
       });
 
       if (result.isErr()) {
@@ -370,7 +443,20 @@ export class DocumentController {
 
       if (result.value.label === 'Save') {
         // Trigger save through file system
-        const saveResult = await this.fileSystemPort.writeFile(document.fileName, ''); // Content would need to be passed
+        const filePathResult = FilePath.create(document.fileName);
+        if (filePathResult.isErr()) {
+          return err(new ValidationError('Invalid file path'));
+        }
+
+        const contentResult = DocumentContent.create(''); // Content would need to be passed
+        if (contentResult.isErr()) {
+          return err(new ValidationError('Invalid document content'));
+        }
+
+        const saveResult = await this.fileSystemPort.writeFile(
+          filePathResult.value,
+          contentResult.value,
+        );
         if (saveResult.isErr()) {
           return err(new ValidationError(`Save failed: ${saveResult.error.message}`));
         }
@@ -492,9 +578,19 @@ export class DocumentController {
 
     // Trigger auto-save if enabled
     if (documentState.autoSaveEnabled) {
+      const filePathResult = FilePath.create(documentUri.replace('file://', ''));
+      if (filePathResult.isErr()) {
+        return err(new ValidationError('Invalid file path'));
+      }
+
+      const contentResult = DocumentContent.create(newContent);
+      if (contentResult.isErr()) {
+        return err(new ValidationError('Invalid document content'));
+      }
+
       const saveResult = await this.fileSystemPort.writeFile(
-        documentUri.replace('file://', ''),
-        newContent,
+        filePathResult.value,
+        contentResult.value,
       );
       if (saveResult.isOk()) {
         documentState.isDirty = false;

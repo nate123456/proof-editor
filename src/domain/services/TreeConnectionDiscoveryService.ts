@@ -64,11 +64,12 @@ export class TreeConnectionDiscoveryService {
     nodeIds: readonly NodeId[],
     atomicArgumentRepo: IAtomicArgumentRepository,
   ): Promise<Result<TreeConnectionIntegrityReport, ProcessingError>> {
-    const argument = await atomicArgumentRepo.findById(argumentId);
-    if (!argument) {
+    const argumentResult = await atomicArgumentRepo.findById(argumentId);
+    if (argumentResult.isErr()) {
       return err(new ProcessingError('Argument not found'));
     }
 
+    const argument = argumentResult.value;
     const argumentInTree = this.isArgumentInTree(argumentId, nodeIds);
     if (!argumentInTree) {
       return err(new ProcessingError('Argument not part of this tree'));
@@ -105,7 +106,12 @@ export class TreeConnectionDiscoveryService {
     nodeIds: readonly NodeId[],
     atomicArgumentRepo: IAtomicArgumentRepository,
   ): Promise<AtomicArgument[]> {
-    const allArguments = await atomicArgumentRepo.findAll();
+    const allArgumentsResult = await atomicArgumentRepo.findAll();
+    if (allArgumentsResult.isErr()) {
+      return [];
+    }
+
+    const allArguments = allArgumentsResult.value;
     const treeArguments: AtomicArgument[] = [];
 
     for (const argument of allArguments) {

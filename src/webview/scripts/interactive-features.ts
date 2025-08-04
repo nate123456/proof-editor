@@ -33,9 +33,9 @@ let currentEditor: {
 } | null = null;
 
 interface DragData {
-  statementId?: string;
-  statementType?: string;
-  nodeId?: string;
+  statementId?: string | null;
+  statementType?: string | null;
+  nodeId?: string | null;
 }
 
 let dragState: {
@@ -354,12 +354,14 @@ function handleStatementEdit(event: Event): void {
 
   if (!statementId || !originalContent) return;
 
-  startInlineEdit(element, originalContent, {
+  const metadata: EditorMetadata = {
     type: 'statement',
     statementId,
-    nodeId,
-    statementType,
-  });
+  };
+  if (nodeId) metadata.nodeId = nodeId;
+  if (statementType) metadata.statementType = statementType;
+
+  startInlineEdit(element, originalContent, metadata);
 }
 
 /**
@@ -533,24 +535,27 @@ function setupDragAndDrop(): void {
  * Set up dragging for statement elements
  */
 function setupStatementDrag(element: Element): void {
-  (element as HTMLElement).draggable = true;
-  element.addEventListener('dragstart', handleStatementDragStart);
-  element.addEventListener('dragend', handleDragEnd);
+  const htmlElement = element as HTMLElement;
+  htmlElement.draggable = true;
+  htmlElement.addEventListener('dragstart', handleStatementDragStart);
+  htmlElement.addEventListener('dragend', handleDragEnd);
 }
 
 /**
  * Set up dragging for node drag handles
  */
 function setupNodeDrag(handle: Element): void {
-  handle.addEventListener('mousedown', handleNodeDragStart);
+  const htmlHandle = handle as HTMLElement;
+  htmlHandle.addEventListener('mousedown', handleNodeDragStart);
 }
 
 /**
  * Set up drop zones
  */
 function setupDropZone(zone: Element): void {
-  zone.addEventListener('dragenter', handleDragEnter);
-  zone.addEventListener('dragleave', handleDragLeave);
+  const htmlZone = zone as HTMLElement;
+  htmlZone.addEventListener('dragenter', handleDragEnter);
+  htmlZone.addEventListener('dragleave', handleDragLeave);
 }
 
 /**
@@ -702,7 +707,7 @@ function handleDragEnter(event: DragEvent): void {
 
     // Determine if this is a valid drop
     const dropType = zone.getAttribute('data-drop-type');
-    const isValid = isValidDrop(dragState.data?.statementType, dropType);
+    const isValid = isValidDrop(dragState.data?.statementType || undefined, dropType);
     zone.classList.add(isValid ? 'valid' : 'invalid');
   }
 }
@@ -745,7 +750,10 @@ function showCompatibleDropZones(_statementType: string): void {
 /**
  * Check if a drop is valid
  */
-function isValidDrop(sourceType: string | undefined, targetType: string | null): boolean {
+function isValidDrop(
+  sourceType: string | undefined,
+  targetType: string | null | undefined,
+): boolean {
   // Premises can be dropped on premise zones, conclusions on conclusion zones
   return sourceType === targetType;
 }
@@ -912,8 +920,9 @@ function setupBranchingInteractions(): void {
  * Set up branching interactions for a statement element
  */
 function setupStatementBranching(element: Element): void {
-  element.addEventListener('contextmenu', handleStatementContextMenu);
-  element.addEventListener('mouseup', handleStatementSelection);
+  const htmlElement = element as HTMLElement;
+  htmlElement.addEventListener('contextmenu', handleStatementContextMenu);
+  htmlElement.addEventListener('mouseup', handleStatementSelection);
 }
 
 /**
@@ -1168,7 +1177,7 @@ interface ProofTreeWindow extends Window {
   hideBranchingContextMenu: typeof hideBranchingContextMenu;
 }
 
-const proofWindow = window as ProofTreeWindow;
+const proofWindow = window as unknown as ProofTreeWindow;
 proofWindow.zoomIn = zoomIn;
 proofWindow.zoomOut = zoomOut;
 proofWindow.resetView = resetView;

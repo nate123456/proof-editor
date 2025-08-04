@@ -52,3 +52,5 @@ yarn-error.log*
 playwright-report/
 
 test-results/
+
+src/webview/__tests__/webview-window.d.ts

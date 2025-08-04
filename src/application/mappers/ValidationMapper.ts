@@ -1,3 +1,11 @@
+import {
+  AtomicArgumentId,
+  ErrorCode,
+  ErrorMessage,
+  ErrorSeverity,
+  NodeId,
+  TreeId,
+} from '../../domain/index.js';
 import type { ValidationError } from '../../domain/shared/result.js';
 import type { ValidationErrorDTO } from '../queries/shared-types.js';
 
@@ -6,10 +14,24 @@ import type { ValidationErrorDTO } from '../queries/shared-types.js';
  */
 export function validationErrorToDTO(error: ValidationError): ValidationErrorDTO {
   const location = extractLocation(error);
+  const codeResult = ErrorCode.create(getErrorCode(error));
+  const messageResult = ErrorMessage.create(error.message);
+
+  if (!codeResult.isOk() || !messageResult.isOk()) {
+    // Fallback to safe defaults
+    const defaultCode = ErrorCode.create('UNKNOWN_ERROR');
+    const defaultMessage = ErrorMessage.create('Unknown error');
+    return {
+      code: defaultCode.isOk() ? defaultCode.value : (null as any),
+      message: defaultMessage.isOk() ? defaultMessage.value : (null as any),
+      severity: ErrorSeverity.ERROR,
+      ...(location && { location }),
+    };
+  }
 
   return {
-    code: getErrorCode(error),
-    message: error.message,
+    code: codeResult.value,
+    message: messageResult.value,
     severity: getSeverity(error),
     ...(location && { location }),
   };
@@ -65,7 +87,7 @@ function getErrorCode(error: ValidationError): string {
 /**
  * Determines severity based on error type
  */
-function getSeverity(error: ValidationError): 'error' | 'warning' | 'info' {
+function getSeverity(error: ValidationError): ErrorSeverity {
   const message = error.message.toLowerCase();
 
   // Critical errors
@@ -75,16 +97,16 @@ function getSeverity(error: ValidationError): 'error' | 'warning' | 'info' {
     message.includes('invalid') ||
     message.includes('cannot')
   ) {
-    return 'error';
+    return ErrorSeverity.ERROR;
   }
 
   // Warnings
   if (message.includes('unused') || message.includes('empty') || message.includes('should')) {
-    return 'warning';
+    return ErrorSeverity.WARNING;
   }
 
   // Info
-  return 'info';
+  return ErrorSeverity.INFO;
 }
 
 /**
@@ -101,19 +123,28 @@ function extractLocation(error: ValidationError): ValidationErrorDTO['location']
   const argumentIdMatch = message.match(/argument[:\s]+(\w+)/i);
 
   if (treeIdMatch || nodeIdMatch || argumentIdMatch) {
-    const location: { treeId?: string; nodeId?: string; argumentId?: string } = {};
+    const location: { treeId?: TreeId; nodeId?: NodeId; argumentId?: AtomicArgumentId } = {};
 
     if (treeIdMatch?.[1]) {
-      location.treeId = treeIdMatch[1];
+      const treeIdResult = TreeId.create(treeIdMatch[1]);
+      if (treeIdResult.isOk()) {
+        location.treeId = treeIdResult.value;
+      }
     }
     if (nodeIdMatch?.[1]) {
-      location.nodeId = nodeIdMatch[1];
+      const nodeIdResult = NodeId.create(nodeIdMatch[1]);
+      if (nodeIdResult.isOk()) {
+        location.nodeId = nodeIdResult.value;
+      }
     }
     if (argumentIdMatch?.[1]) {
-      location.argumentId = argumentIdMatch[1];
+      const argumentIdResult = AtomicArgumentId.create(argumentIdMatch[1]);
+      if (argumentIdResult.isOk()) {
+        location.argumentId = argumentIdResult.value;
+      }
     }
 
-    return location;
+    return Object.keys(location).length > 0 ? location : undefined;
   }
 
   return undefined;
@@ -129,11 +160,12 @@ export function groupErrorsByType(errors: ValidationError[]): Map<string, Valida
     const dto = validationErrorToDTO(error);
     const code = dto.code;
 
-    if (!grouped.has(code)) {
-      grouped.set(code, []);
+    const codeValue = code.getValue();
+    if (!grouped.has(codeValue)) {
+      grouped.set(codeValue, []);
     }
 
-    grouped.get(code)?.push(dto);
+    grouped.get(codeValue)?.push(dto);
   }
 
   return grouped;
@@ -144,7 +176,7 @@ export function groupErrorsByType(errors: ValidationError[]): Map<string, Valida
  */
 export function filterErrorsBySeverity(
   errors: ValidationErrorDTO[],
-  severity: 'error' | 'warning' | 'info',
+  severity: ErrorSeverity,
 ): ValidationErrorDTO[] {
   return errors.filter((error) => error.severity === severity);
 }

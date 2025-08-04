@@ -1,5 +1,14 @@
 import { err, ok, type Result } from 'neverthrow';
 import { ValidationError } from '../../domain/shared/result.js';
+import {
+  FontFamily,
+  FontSize,
+  NodeId,
+  PanelSize,
+  Position2D,
+  TreeId,
+  ZoomLevel,
+} from '../../domain/shared/value-objects/index.js';
 import type {
   Disposable,
   PanelState,
@@ -291,31 +300,90 @@ export class DocumentViewStateManager {
     createDefault: () => T,
   ): T {
     switch (stateType) {
-      case 'selection':
+      case 'selection': {
+        const nodeIds: NodeId[] = [];
+        const treeIds: TreeId[] = [];
+
+        // Reconstruct NodeId value objects
+        const storedNodeIds = (stored.selectedNodes as string[]) || [];
+        for (const id of storedNodeIds) {
+          const nodeIdResult = NodeId.create(id);
+          if (nodeIdResult.isOk()) {
+            nodeIds.push(nodeIdResult.value);
+          }
+        }
+
+        // Reconstruct TreeId value objects
+        const storedTreeIds = (stored.selectedTrees as string[]) || [];
+        for (const id of storedTreeIds) {
+          const treeIdResult = TreeId.create(id);
+          if (treeIdResult.isOk()) {
+            treeIds.push(treeIdResult.value);
+          }
+        }
+
         return createSelectionState(
-          (stored.selectedNodes as string[]) || [],
+          nodeIds,
           (stored.selectedStatements as string[]) || [],
-          (stored.selectedTrees as string[]) || [],
+          treeIds,
         ) as T;
-      case 'viewport':
-        return createViewportState(
-          (stored.zoom as number) || 1.0,
-          (stored.pan as { x: number; y: number }) || { x: 0, y: 0 },
-          (stored.center as { x: number; y: number }) || { x: 0, y: 0 },
-        ) as T;
-      case 'panel':
+      }
+      case 'viewport': {
+        // Reconstruct ZoomLevel
+        const storedZoom = (stored.zoom as number) || 1.0;
+        const zoomResult = ZoomLevel.create(storedZoom);
+        const zoom = zoomResult.isOk() ? zoomResult.value : ZoomLevel.normal();
+
+        // Reconstruct Position2D for pan
+        const storedPan = (stored.pan as { x: number; y: number }) || { x: 0, y: 0 };
+        const panResult = Position2D.create(storedPan.x, storedPan.y);
+        const pan = panResult.isOk() ? panResult.value : Position2D.origin();
+
+        // Reconstruct Position2D for center
+        const storedCenter = (stored.center as { x: number; y: number }) || { x: 0, y: 0 };
+        const centerResult = Position2D.create(storedCenter.x, storedCenter.y);
+        const center = centerResult.isOk() ? centerResult.value : Position2D.origin();
+
+        return createViewportState(zoom, pan, center) as T;
+      }
+      case 'panel': {
+        // Reconstruct PanelSize value objects
+        const panelSizes: Record<string, PanelSize> = {};
+        const storedSizes = (stored.panelSizes as Record<string, number>) || {};
+
+        for (const [key, value] of Object.entries(storedSizes)) {
+          const sizeResult = PanelSize.create(value);
+          if (sizeResult.isOk()) {
+            panelSizes[key] = sizeResult.value;
+          }
+        }
+
         return createPanelState(
           (stored.miniMapVisible as boolean) ?? true,
           (stored.sideLabelsVisible as boolean) ?? true,
           (stored.validationPanelVisible as boolean) ?? false,
-          (stored.panelSizes as Record<string, number>) || {},
+          panelSizes,
         ) as T;
-      case 'theme':
+      }
+      case 'theme': {
+        // Reconstruct FontSize
+        const storedFontSize = (stored.fontSize as number) || 14;
+        const fontSizeResult = FontSize.create(storedFontSize);
+        const fontSize = fontSizeResult.isOk() ? fontSizeResult.value : FontSize.default();
+
+        // Reconstruct FontFamily
+        const storedFontFamily = (stored.fontFamily as string) || 'default';
+        const fontFamilyResult = FontFamily.create(storedFontFamily);
+        const fontFamily = fontFamilyResult.isOk()
+          ? fontFamilyResult.value
+          : FontFamily.defaultSansSerif();
+
         return createThemeState(
           (stored.colorScheme as 'light' | 'dark' | 'auto') || 'auto',
-          (stored.fontSize as number) || 14,
-          (stored.fontFamily as string) || 'default',
+          fontSize,
+          fontFamily,
         ) as T;
+      }
       default:
         return createDefault();
     }

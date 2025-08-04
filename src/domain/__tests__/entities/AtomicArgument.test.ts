@@ -15,9 +15,9 @@
 import fc from 'fast-check';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { AtomicArgument, type SideLabels } from '../../entities/AtomicArgument.js';
+import { AtomicArgument } from '../../entities/AtomicArgument.js';
 import { ValidationError } from '../../shared/result.js';
-import { SideLabel } from '../../shared/value-objects/index.js';
+import { SideLabel, SideLabels } from '../../shared/value-objects/index.js';
 import { atomicArgumentIdFactory, statementFactory } from '../factories/index.js';
 
 // Property-based test generators for AtomicArgument domain
@@ -27,10 +27,24 @@ const validSideLabelsArbitrary = fc
     right: fc.option(fc.string({ minLength: 1, maxLength: 100 })),
   })
   .map((labels) => {
-    const result: SideLabels = {};
-    if (labels.left !== null) result.left = labels.left;
-    if (labels.right !== null) result.right = labels.right;
-    return result;
+    let left: SideLabel | undefined;
+    let right: SideLabel | undefined;
+
+    if (labels.left !== null) {
+      const leftResult = SideLabel.create(labels.left);
+      if (leftResult.isOk()) {
+        left = leftResult.value;
+      }
+    }
+
+    if (labels.right !== null) {
+      const rightResult = SideLabel.create(labels.right);
+      if (rightResult.isOk()) {
+        right = rightResult.value;
+      }
+    }
+
+    return SideLabels.create(left, right);
   });
 
 // Fast-check arbitraries for factory replacements
@@ -131,7 +145,7 @@ describe('AtomicArgument Entity', () => {
         expect(rightLabel.isOk()).toBe(true);
 
         if (leftLabel.isOk() && rightLabel.isOk()) {
-          const sideLabels: SideLabels = { left: leftLabel.value, right: rightLabel.value };
+          const sideLabels = SideLabels.create(leftLabel.value, rightLabel.value);
           const result = AtomicArgument.create([], [], sideLabels);
           expect(result.isOk()).toBe(true);
 
@@ -427,7 +441,7 @@ describe('AtomicArgument Entity', () => {
       expect(rightLabel.isOk()).toBe(true);
 
       if (leftLabel.isOk() && rightLabel.isOk()) {
-        const sideLabels: SideLabels = { left: leftLabel.value, right: rightLabel.value };
+        const sideLabels = SideLabels.create(leftLabel.value, rightLabel.value);
         const result = AtomicArgument.create([], [], sideLabels);
         expect(result.isOk()).toBe(true);
 
@@ -733,7 +747,7 @@ describe('AtomicArgument Entity', () => {
       expect(rightLabel.isOk()).toBe(true);
 
       if (leftLabel.isOk() && rightLabel.isOk()) {
-        const sideLabels: SideLabels = { left: leftLabel.value, right: rightLabel.value };
+        const sideLabels = SideLabels.create(leftLabel.value, rightLabel.value);
         const result = AtomicArgument.create(premises, conclusions, sideLabels);
         expect(result.isOk()).toBe(true);
 

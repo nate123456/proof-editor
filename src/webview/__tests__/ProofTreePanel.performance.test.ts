@@ -29,6 +29,8 @@ import type { DocumentQueryService } from '../../application/services/DocumentQu
 import type { ProofApplicationService } from '../../application/services/ProofApplicationService.js';
 import type { ProofVisualizationService } from '../../application/services/ProofVisualizationService.js';
 import type { ViewStateManager } from '../../application/services/ViewStateManager.js';
+import { MessageType } from '../../domain/shared/value-objects/enums.js';
+import { WebviewId } from '../../domain/shared/value-objects/identifiers.js';
 import type { YAMLSerializer } from '../../infrastructure/repositories/yaml/YAMLSerializer.js';
 import type { BootstrapController } from '../../presentation/controllers/BootstrapController.js';
 import { ProofTreePanel } from '../ProofTreePanel.js';
@@ -197,7 +199,7 @@ const ContentGenerators = {
  */
 function createPerformanceMocks() {
   const mockWebviewPanel: WebviewPanel = {
-    id: 'performance-test-panel',
+    id: WebviewId.create('performance-test-panel').unwrapOr(null as any),
     webview: {
       html: '',
       onDidReceiveMessage: vi.fn(),
@@ -595,7 +597,7 @@ describe('ProofTreePanel - Performance Testing', () => {
 
           for (const interaction of interactions) {
             const startTime = performance.now();
-            await messageHandler(interaction);
+            await messageHandler(interaction as any);
             const endTime = performance.now();
 
             const duration = endTime - startTime;
@@ -648,9 +650,9 @@ describe('ProofTreePanel - Performance Testing', () => {
         if (messageHandler) {
           const startTime = performance.now();
           await messageHandler({
-            type: 'viewportChanged',
+            type: MessageType.VIEWPORT_CHANGED,
             viewport: { zoom: 2.0, pan: { x: 0, y: 0 }, center: { x: 0, y: 0 } },
-          });
+          } as any);
           const endTime = performance.now();
 
           const interactionTime = endTime - startTime;
@@ -842,7 +844,7 @@ describe('ProofTreePanel - Performance Testing', () => {
           }));
 
           const startTime = performance.now();
-          await Promise.all(concurrentMessages.map((msg) => messageHandler(msg)));
+          await Promise.all(concurrentMessages.map((msg) => messageHandler(msg as any)));
           const endTime = performance.now();
 
           const totalTime = endTime - startTime;
@@ -938,10 +940,10 @@ describe('ProofTreePanel - Performance Testing', () => {
             operations.push(
               Promise.resolve(
                 messageHandler({
-                  type: 'addStatement',
+                  type: MessageType.ADD_STATEMENT,
                   statementType: i % 2 === 0 ? 'premise' : 'conclusion',
                   content: `Rapid statement ${i}`,
-                }),
+                } as any),
               ),
             );
           }

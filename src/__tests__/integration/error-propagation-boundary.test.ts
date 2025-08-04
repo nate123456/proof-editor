@@ -14,8 +14,14 @@ import { err, ok } from 'neverthrow';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ValidationError } from '../../contexts/language-intelligence/domain/errors/DomainErrors.js';
+import { ArgumentStructureAnalyzer } from '../../contexts/language-intelligence/domain/services/analyzers/ArgumentStructureAnalyzer.js';
+import { ProofPatternAnalyzer } from '../../contexts/language-intelligence/domain/services/analyzers/ProofPatternAnalyzer.js';
+import { MistakeDetector } from '../../contexts/language-intelligence/domain/services/detectors/MistakeDetector.js';
+import { LogicalStructureHelper } from '../../contexts/language-intelligence/domain/services/helpers/LogicalStructureHelper.js';
+import { PatternSuggestionHelper } from '../../contexts/language-intelligence/domain/services/helpers/PatternSuggestionHelper.js';
 // Language Intelligence Context
 import { LogicValidationService } from '../../contexts/language-intelligence/domain/services/LogicValidationService.js';
+import { PatternMatcher } from '../../contexts/language-intelligence/domain/services/matchers/PatternMatcher.js';
 import { PatternRecognitionService } from '../../contexts/language-intelligence/domain/services/PatternRecognitionService.js';
 import { ValidationLevel } from '../../contexts/language-intelligence/domain/value-objects/ValidationLevel.js';
 // Package Ecosystem Context
@@ -34,7 +40,7 @@ import { OperationCoordinationService } from '../../contexts/synchronization/dom
 import { StatementFlowService } from '../../domain/services/StatementFlowService.js';
 import { TreeStructureService } from '../../domain/services/TreeStructureService.js';
 // Shared
-import { SourceLocation } from '../../domain/shared/index.js';
+import { SourceLocation } from '../../domain/shared/analysis-types.js';
 // Test utilities
 import {
   createLanguagePackage,
@@ -138,9 +144,25 @@ describe('Error Propagation and Domain Boundary Tests', () => {
 
     // Initialize language intelligence services
     const testPackage = createLanguagePackage();
+
+    // Create dependencies for PatternRecognitionService
+    const proofAnalyzer = new ProofPatternAnalyzer();
+    const argumentAnalyzer = new ArgumentStructureAnalyzer();
+    const mistakeDetector = new MistakeDetector();
+    const patternMatcher = new PatternMatcher();
+    const logicalHelper = new LogicalStructureHelper();
+    const suggestionHelper = new PatternSuggestionHelper();
+
     languageIntelligenceServices = {
       validation: new LogicValidationService(),
-      patternRecognition: new PatternRecognitionService(),
+      patternRecognition: new PatternRecognitionService(
+        proofAnalyzer,
+        argumentAnalyzer,
+        mistakeDetector,
+        patternMatcher,
+        logicalHelper,
+        suggestionHelper,
+      ),
       testPackage,
     };
 

@@ -95,8 +95,13 @@ proof:
         expect(atomicArguments.size).toBe(1);
         const arg1 = atomicArguments.get('arg1');
         expect(arg1).toBeDefined();
-        // Note: The test expectations for premises/conclusions need to be updated
-        // based on how AtomicArgument actually works with OrderedSets
+        // Verify the atomic argument has correct premises and conclusions
+        if (arg1) {
+          const premises = arg1.getPremises();
+          const conclusions = arg1.getConclusions();
+          expect(premises).toHaveLength(2);
+          expect(conclusions).toHaveLength(1);
+        }
 
         // Statements are already domain entities from the parser
         expect(statements.size).toBe(3);

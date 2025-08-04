@@ -1,7 +1,7 @@
 import { err, type Result } from 'neverthrow';
 import { ValidationError } from '../shared/result.js';
 import type { StatementContent } from '../shared/value-objects/index.js';
-import { DefaultStrategyConfiguration } from '../value-objects/DefaultStrategyConfiguration.js';
+import { createDefaultStrategyConfiguration } from '../value-objects/DefaultStrategyConfiguration.js';
 import { ProofStrategy } from '../value-objects/ProofStrategy.js';
 import {
   type ComplexityAssessment,
@@ -14,7 +14,15 @@ export class ProofStrategyAnalysisService {
   private readonly configuration: StrategyConfiguration;
 
   constructor(configuration?: StrategyConfiguration) {
-    this.configuration = configuration ?? DefaultStrategyConfiguration.create();
+    if (configuration) {
+      this.configuration = configuration;
+    } else {
+      const defaultConfigResult = createDefaultStrategyConfiguration();
+      if (defaultConfigResult.isErr()) {
+        throw new Error('Failed to create default strategy configuration');
+      }
+      this.configuration = defaultConfigResult.value;
+    }
   }
 
   analyzeProofStrategies(
@@ -43,8 +51,8 @@ export class ProofStrategyAnalysisService {
           rule.description,
           rule.confidence,
           rule.difficulty,
-          rule.steps,
-          rule.applicableRules,
+          [...rule.steps],
+          [...rule.applicableRules],
         );
 
         if (strategyResult.isOk()) {

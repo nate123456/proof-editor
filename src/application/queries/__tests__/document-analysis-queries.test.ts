@@ -6,6 +6,13 @@
  */
 
 import { beforeEach, describe, expect, it } from 'vitest';
+import {
+  AtomicArgumentId,
+  ErrorCode,
+  ErrorMessage,
+  ErrorSeverity,
+  TreeId,
+} from '../../../domain/shared/value-objects/index.js';
 import type { AnalyzeProofStructureQuery, DocumentStatsDTO } from '../document-queries.js';
 import {
   createMockDocumentService,
@@ -36,19 +43,31 @@ describe('AnalyzeProofStructureQuery Execution', () => {
         isValid: false,
         errors: [
           {
-            code: 'INCOMPLETE_PROOF_CHAIN',
-            message: 'Proof chain has gaps - missing intermediate steps',
-            severity: 'error',
+            code: ErrorCode.create('INCOMPLETE_PROOF_CHAIN').isOk()
+              ? ErrorCode.create('INCOMPLETE_PROOF_CHAIN').value.value
+              : 'INCOMPLETE_PROOF_CHAIN',
+            message: ErrorMessage.create('Proof chain has gaps - missing intermediate steps').isOk()
+              ? ErrorMessage.create('Proof chain has gaps - missing intermediate steps').value.value
+              : 'Proof chain has gaps - missing intermediate steps',
+            severity: ErrorSeverity.ERROR,
             location: {
-              treeId: 'tree_main',
+              treeId: TreeId.create('tree_main').isOk()
+                ? TreeId.create('tree_main').value.value
+                : 'tree_main',
             },
           },
           {
-            code: 'MISSING_PREMISES',
-            message: 'Argument has undefined premises',
-            severity: 'error',
+            code: ErrorCode.create('MISSING_PREMISES').isOk()
+              ? ErrorCode.create('MISSING_PREMISES').value.value
+              : 'MISSING_PREMISES',
+            message: ErrorMessage.create('Argument has undefined premises').isOk()
+              ? ErrorMessage.create('Argument has undefined premises').value.value
+              : 'Argument has undefined premises',
+            severity: ErrorSeverity.ERROR,
             location: {
-              argumentId: 'arg_incomplete',
+              argumentId: AtomicArgumentId.fromString('arg_incomplete').isOk()
+                ? AtomicArgumentId.fromString('arg_incomplete').value.value
+                : 'arg_incomplete',
             },
           },
         ],
@@ -91,19 +110,31 @@ describe('AnalyzeProofStructureQuery Execution', () => {
         isValid: false,
         errors: [
           {
-            code: 'LOGICAL_CONTRADICTION',
-            message: 'Contradictory statements in argument chain',
-            severity: 'error',
+            code: ErrorCode.create('LOGICAL_CONTRADICTION').isOk()
+              ? ErrorCode.create('LOGICAL_CONTRADICTION').value.value
+              : 'LOGICAL_CONTRADICTION',
+            message: ErrorMessage.create('Contradictory statements in argument chain').isOk()
+              ? ErrorMessage.create('Contradictory statements in argument chain').value.value
+              : 'Contradictory statements in argument chain',
+            severity: ErrorSeverity.ERROR,
             location: {
-              argumentId: 'arg_contradiction_1',
+              argumentId: AtomicArgumentId.fromString('arg_contradiction_1').isOk()
+                ? AtomicArgumentId.fromString('arg_contradiction_1').value.value
+                : 'arg_contradiction_1',
             },
           },
           {
-            code: 'INCONSISTENT_PREMISES',
-            message: 'Premises contradict each other',
-            severity: 'error',
+            code: ErrorCode.create('INCONSISTENT_PREMISES').isOk()
+              ? ErrorCode.create('INCONSISTENT_PREMISES').value.value
+              : 'INCONSISTENT_PREMISES',
+            message: ErrorMessage.create('Premises contradict each other').isOk()
+              ? ErrorMessage.create('Premises contradict each other').value.value
+              : 'Premises contradict each other',
+            severity: ErrorSeverity.ERROR,
             location: {
-              argumentId: 'arg_inconsistent',
+              argumentId: AtomicArgumentId.fromString('arg_inconsistent').isOk()
+                ? AtomicArgumentId.fromString('arg_inconsistent').value.value
+                : 'arg_inconsistent',
             },
           },
         ],
@@ -139,22 +170,36 @@ describe('AnalyzeProofStructureQuery Execution', () => {
         isValid: true,
         errors: [
           {
-            code: 'HIGH_COMPLEXITY',
-            message: 'Proof has high cognitive complexity - consider simplification',
-            severity: 'info',
+            code: ErrorCode.create('HIGH_COMPLEXITY').isOk()
+              ? ErrorCode.create('HIGH_COMPLEXITY').value.value
+              : 'HIGH_COMPLEXITY',
+            message: ErrorMessage.create(
+              'Proof has high cognitive complexity - consider simplification',
+            ).value,
+            severity: ErrorSeverity.INFO,
           },
           {
-            code: 'DEEP_NESTING',
-            message: 'Argument chains exceed recommended depth',
-            severity: 'warning',
+            code: ErrorCode.create('DEEP_NESTING').isOk()
+              ? ErrorCode.create('DEEP_NESTING').value.value
+              : 'DEEP_NESTING',
+            message: ErrorMessage.create('Argument chains exceed recommended depth').isOk()
+              ? ErrorMessage.create('Argument chains exceed recommended depth').value.value
+              : 'Argument chains exceed recommended depth',
+            severity: ErrorSeverity.WARNING,
             location: {
-              treeId: 'tree_deep',
+              treeId: TreeId.create('tree_deep').isOk()
+                ? TreeId.create('tree_deep').value.value
+                : 'tree_deep',
             },
           },
           {
-            code: 'PERFORMANCE_IMPACT',
-            message: 'Large document may impact rendering performance',
-            severity: 'info',
+            code: ErrorCode.create('PERFORMANCE_IMPACT').isOk()
+              ? ErrorCode.create('PERFORMANCE_IMPACT').value.value
+              : 'PERFORMANCE_IMPACT',
+            message: ErrorMessage.create('Large document may impact rendering performance').isOk()
+              ? ErrorMessage.create('Large document may impact rendering performance').value.value
+              : 'Large document may impact rendering performance',
+            severity: ErrorSeverity.INFO,
           },
         ],
       },
@@ -190,9 +235,12 @@ describe('AnalyzeProofStructureQuery Execution', () => {
           isValid: false,
           errors: [
             {
-              code: 'ANALYSIS_TIMEOUT',
-              message: 'Analysis timed out - try smaller document sections',
-              severity: 'error',
+              code: ErrorCode.create('ANALYSIS_TIMEOUT').isOk()
+                ? ErrorCode.create('ANALYSIS_TIMEOUT').value.value
+                : 'ANALYSIS_TIMEOUT',
+              message: ErrorMessage.create('Analysis timed out - try smaller document sections')
+                .value,
+              severity: ErrorSeverity.ERROR,
             },
           ],
         },
@@ -257,9 +305,13 @@ describe('AnalyzeProofStructureQuery Execution', () => {
           isValid: true,
           errors: [
             {
-              code: `${analysisType.toUpperCase()}_CHECK`,
-              message: `${analysisType} analysis complete`,
-              severity: 'info',
+              code: ErrorCode.create(`${analysisType.toUpperCase()}_CHECK`).isOk()
+                ? ErrorCode.create(`${analysisType.toUpperCase()}_CHECK`).value.value
+                : `${analysisType.toUpperCase()}_CHECK`,
+              message: ErrorMessage.create(`${analysisType} analysis complete`).isOk()
+                ? ErrorMessage.create(`${analysisType} analysis complete`).value.value
+                : `${analysisType} analysis complete`,
+              severity: ErrorSeverity.INFO,
             },
           ],
         },

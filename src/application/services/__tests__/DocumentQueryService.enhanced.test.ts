@@ -1,9 +1,11 @@
 import { err, ok } from 'neverthrow';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { ProofAggregate } from '../../../domain/aggregates/ProofAggregate.js';
-import type { ProofDocument } from '../../../domain/aggregates/ProofDocument.js';
+import { ProofDocument } from '../../../domain/aggregates/ProofDocument.js';
+import { RepositoryError } from '../../../domain/errors/DomainErrors.js';
 import type { IProofDocumentRepository } from '../../../domain/repositories/IProofDocumentRepository.js';
 import { ValidationError } from '../../../domain/shared/result.js';
+import { ProofDocumentId } from '../../../domain/shared/value-objects/index.js';
 import { ParseFailureError } from '../../../parser/ParseError.js';
 import type { ProofFileParser } from '../../../parser/ProofFileParser.js';
 import { ValidationApplicationError } from '../../dtos/operation-results.js';
@@ -72,7 +74,9 @@ describe('DocumentQueryService - Enhanced Coverage', () => {
     });
 
     test('handles repository returning null document', async () => {
-      vi.mocked(mockRepository.findById).mockResolvedValue(null);
+      vi.mocked(mockRepository.findById).mockResolvedValue(
+        err(new RepositoryError('Document not found')),
+      );
 
       const result = await service.getDocumentById('valid-doc-id');
 
@@ -95,26 +99,28 @@ describe('DocumentQueryService - Enhanced Coverage', () => {
     });
 
     test('handles ProofDocument to ProofAggregate conversion failure', async () => {
-      const mockDocument = createMockProofDocument('test-doc');
+      // Create a mock document that will fail conversion
+      const mockDocument = createMockProofDocumentOld('test-doc');
 
-      // Mock the document so that ProofId.create fails with an empty string
-      vi.mocked(mockDocument.getId).mockReturnValue({
-        getValue: () => '', // Empty string should fail ProofId validation
-      } as any);
-      vi.mocked(mockRepository.findById).mockResolvedValue(mockDocument);
+      // Mock ProofAggregate.reconstruct to fail
+      vi.spyOn(ProofAggregate, 'reconstruct').mockReturnValue(
+        err(new ValidationError('Failed to reconstruct aggregate')),
+      );
+
+      vi.mocked(mockRepository.findById).mockResolvedValue(ok(mockDocument));
 
       const result = await service.getDocumentById('test-doc');
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
         expect(result.error).toBeInstanceOf(ValidationApplicationError);
-        expect(result.error.message).toContain('ProofId cannot be empty');
+        expect(result.error.message).toContain('Failed to convert ProofDocument to ProofAggregate');
       }
     });
 
     test('handles successful document retrieval and conversion', async () => {
       const mockDocument = createMockProofDocument('test-doc');
-      vi.mocked(mockRepository.findById).mockResolvedValue(mockDocument);
+      vi.mocked(mockRepository.findById).mockResolvedValue(ok(mockDocument));
 
       const result = await service.getDocumentById('test-doc');
 
@@ -123,7 +129,7 @@ describe('DocumentQueryService - Enhanced Coverage', () => {
         expect(result.value.id).toBe('test-doc');
         expect(result.value.version).toBe(1);
         expect(result.value.statements).toBeDefined();
-        expect(result.value.orderedSets).toBeDefined();
+        // OrderedSets are not exposed in DocumentDTO
         expect(result.value.atomicArguments).toBeDefined();
       }
     });
@@ -136,7 +142,9 @@ describe('DocumentQueryService - Enhanced Coverage', () => {
       expect(invalidResult.isErr()).toBe(true);
 
       // Test not found
-      vi.mocked(mockRepository.findById).mockResolvedValue(null);
+      vi.mocked(mockRepository.findById).mockResolvedValue(
+        err(new RepositoryError('Document not found')),
+      );
       const notFoundResult = await service.getDocumentWithStats('valid-doc-id');
       expect(notFoundResult.isErr()).toBe(true);
 
@@ -151,7 +159,7 @@ describe('DocumentQueryService - Enhanced Coverage', () => {
 
     test('retrieves document with statistics enabled', async () => {
       const mockDocument = createMockProofDocument('test-doc');
-      vi.mocked(mockRepository.findById).mockResolvedValue(mockDocument);
+      vi.mocked(mockRepository.findById).mockResolvedValue(ok(mockDocument));
 
       const result = await service.getDocumentWithStats('test-doc');
 
@@ -266,7 +274,7 @@ trees:
       if (result.isOk()) {
         expect(result.value.id).toBe('parsed-document');
         expect(result.value.statements).toBeDefined();
-        expect(result.value.orderedSets).toBeDefined();
+        // OrderedSets are not exposed in DocumentDTO
         expect(result.value.atomicArguments).toBeDefined();
         expect(result.value.trees).toBeDefined();
       }
@@ -351,7 +359,9 @@ trees:
     });
 
     test('handles document not found', async () => {
-      vi.mocked(mockRepository.findById).mockResolvedValue(null);
+      vi.mocked(mockRepository.findById).mockResolvedValue(
+        err(new RepositoryError('Document not found')),
+      );
 
       const result = await service.getDocumentMetadata('nonexistent-doc');
 
@@ -374,19 +384,25 @@ trees:
     });
 
     test('returns correct metadata for existing document', async () => {
-      const mockDocument = createMockProofDocument('test-doc');
+      const mockDocument = createMockProofDocumentOld('test-doc');
 
-      // Mock the document to return specific counts
-      vi.mocked(mockDocument.getAllStatements).mockReturnValue([
-        { getId: () => ({ getValue: () => 's1' }) },
-        { getId: () => ({ getValue: () => 's2' }) },
-      ] as any);
+      // Mock the document's query service to return specific counts
+      const mockQueryService = {
+        getId: vi.fn().mockReturnValue({ getValue: () => 'test-doc' }),
+        getVersion: vi.fn().mockReturnValue(1),
+        getAllStatements: vi
+          .fn()
+          .mockReturnValue([
+            { getId: () => ({ getValue: () => 's1' }) },
+            { getId: () => ({ getValue: () => 's2' }) },
+          ]),
+        getAllAtomicArguments: vi
+          .fn()
+          .mockReturnValue([{ getId: () => ({ getValue: () => 'arg1' }) }]),
+      };
+      vi.spyOn(mockDocument, 'createQueryService').mockReturnValue(mockQueryService as any);
 
-      vi.mocked(mockDocument.getAllAtomicArguments).mockReturnValue([
-        { getId: () => ({ getValue: () => 'arg1' }) },
-      ] as any);
-
-      vi.mocked(mockRepository.findById).mockResolvedValue(mockDocument);
+      vi.mocked(mockRepository.findById).mockResolvedValue(ok(mockDocument));
 
       const result = await service.getDocumentMetadata('test-doc');
 
@@ -403,11 +419,15 @@ trees:
     });
 
     test('handles documents with zero counts', async () => {
-      const mockDocument = createMockProofDocument('empty-doc');
+      const mockDocument = createMockProofDocumentOld('empty-doc');
 
-      vi.mocked(mockDocument.getAllStatements).mockReturnValue([]);
-      vi.mocked(mockDocument.getAllAtomicArguments).mockReturnValue([]);
-      vi.mocked(mockRepository.findById).mockResolvedValue(mockDocument);
+      // Mock empty query service
+      const mockQueryService = {
+        getAllStatements: vi.fn().mockReturnValue([]),
+        getAllAtomicArguments: vi.fn().mockReturnValue([]),
+      };
+      vi.spyOn(mockDocument, 'createQueryService').mockReturnValue(mockQueryService as any);
+      vi.mocked(mockRepository.findById).mockResolvedValue(ok(mockDocument));
 
       const result = await service.getDocumentMetadata('empty-doc');
 
@@ -430,7 +450,9 @@ trees:
     });
 
     test('returns false for non-existent document', async () => {
-      vi.mocked(mockRepository.findById).mockResolvedValue(null);
+      vi.mocked(mockRepository.findById).mockResolvedValue(
+        err(new RepositoryError('Document not found')),
+      );
 
       const result = await service.documentExists('nonexistent-doc');
 
@@ -442,7 +464,7 @@ trees:
 
     test('returns true for existing document', async () => {
       const mockDocument = createMockProofDocument('existing-doc');
-      vi.mocked(mockRepository.findById).mockResolvedValue(mockDocument);
+      vi.mocked(mockRepository.findById).mockResolvedValue(ok(mockDocument));
 
       const result = await service.documentExists('existing-doc');
 
@@ -539,7 +561,7 @@ trees:
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         expect(Object.keys(result.value.statements)).toHaveLength(3);
-        expect(Object.keys(result.value.orderedSets)).toHaveLength(2);
+        // OrderedSets are not exposed in DocumentDTO
         expect(Object.keys(result.value.atomicArguments)).toHaveLength(2);
         expect(Object.keys(result.value.trees)).toHaveLength(1);
       }
@@ -570,7 +592,7 @@ trees:
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         expect(result.value.statements).toBeDefined();
-        expect(result.value.orderedSets).toBeDefined();
+        // OrderedSets are not exposed in DocumentDTO
         expect(result.value.atomicArguments).toBeDefined();
         expect(result.value.trees).toBeDefined();
       }
@@ -580,7 +602,7 @@ trees:
   describe('convertProofDocumentToAggregate edge cases', () => {
     test('handles ProofDocument with invalid ProofId', async () => {
       const mockDocument = createMockProofDocument('invalid-proof-id-format');
-      vi.mocked(mockRepository.findById).mockResolvedValue(mockDocument);
+      vi.mocked(mockRepository.findById).mockResolvedValue(ok(mockDocument));
 
       const result = await service.getDocumentById('test-doc');
 
@@ -590,12 +612,15 @@ trees:
     });
 
     test('handles ProofDocument with empty collections', async () => {
-      const mockDocument = createMockProofDocument('empty-doc');
+      const mockDocument = createMockProofDocumentOld('empty-doc');
 
-      vi.mocked(mockDocument.getAllStatements).mockReturnValue([]);
-      vi.mocked(mockDocument.getAllAtomicArguments).mockReturnValue([]);
-      vi.mocked(mockDocument.getAllOrderedSets).mockReturnValue([]);
-      vi.mocked(mockRepository.findById).mockResolvedValue(mockDocument);
+      // Mock empty query service
+      const mockQueryService = {
+        getAllStatements: vi.fn().mockReturnValue([]),
+        getAllAtomicArguments: vi.fn().mockReturnValue([]),
+      };
+      vi.spyOn(mockDocument, 'createQueryService').mockReturnValue(mockQueryService as any);
+      vi.mocked(mockRepository.findById).mockResolvedValue(ok(mockDocument));
 
       const result = await service.getDocumentById('empty-doc');
 
@@ -614,7 +639,7 @@ trees:
         err(new ValidationError('Aggregate reconstruction failed')),
       );
 
-      vi.mocked(mockRepository.findById).mockResolvedValue(mockDocument);
+      vi.mocked(mockRepository.findById).mockResolvedValue(ok(mockDocument));
 
       const result = await service.getDocumentById('test-doc');
 
@@ -668,6 +693,14 @@ trees:
 
 // Helper functions for creating mock objects
 function createMockProofDocument(id: string): ProofDocument {
+  const docIdResult = ProofDocumentId.create(id);
+  if (docIdResult.isErr()) throw new Error('Failed to create document ID');
+  const documentResult = ProofDocument.createBootstrap(docIdResult.value);
+  if (documentResult.isErr()) throw new Error('Failed to create test document');
+  return documentResult.value;
+}
+
+function createMockProofDocumentOld(id: string): ProofDocument {
   return {
     getId: vi.fn().mockReturnValue({ getValue: () => id }),
     getVersion: vi.fn().mockReturnValue(1),

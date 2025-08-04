@@ -1,6 +1,6 @@
 import type * as vscode from 'vscode';
 import type { IExportService } from '../../application/ports/IExportService.js';
-import type { IFileSystemPort } from '../../application/ports/IFileSystemPort.js';
+import type { IFileSystemPort, StoredDocument } from '../../application/ports/IFileSystemPort.js';
 import type { IUIPort } from '../../application/ports/IUIPort.js';
 import type { IViewStatePort } from '../../application/ports/IViewStatePort.js';
 import type { IDocumentIdService } from '../../application/services/DocumentIdService.js';
@@ -8,6 +8,15 @@ import type { DocumentQueryService } from '../../application/services/DocumentQu
 import type { ProofApplicationService } from '../../application/services/ProofApplicationService.js';
 import type { ProofVisualizationService } from '../../application/services/ProofVisualizationService.js';
 import type { ViewStateManager } from '../../application/services/ViewStateManager.js';
+import {
+  DocumentContent,
+  DocumentId,
+  DocumentVersion,
+  FileSize,
+  NotificationMessage,
+  Timestamp,
+  Title,
+} from '../../domain/shared/value-objects/index.js';
 import type { ApplicationContainer } from '../../infrastructure/di/container.js';
 import { TOKENS } from '../../infrastructure/di/tokens.js';
 import type { YAMLSerializer } from '../../infrastructure/repositories/yaml/YAMLSerializer.js';
@@ -64,7 +73,12 @@ export async function showProofTreeForDocument(
     );
 
     if (createResult.isErr()) {
-      uiPort.showError(`Failed to display proof tree: ${createResult.error.message}`);
+      const errorResult = NotificationMessage.create(
+        `Failed to display proof tree: ${createResult.error.message}`,
+      );
+      if (errorResult.isOk()) {
+        uiPort.showError(errorResult.value);
+      }
       return;
     }
 
@@ -77,11 +91,19 @@ export async function showProofTreeForDocument(
 
     if (associateResult.isErr()) {
       // Panel created but association failed - not critical, just log
-      uiPort.showWarning(`Panel association failed: ${associateResult.error.message}`);
+      const warningResult = NotificationMessage.create(
+        `Panel association failed: ${associateResult.error.message}`,
+      );
+      if (warningResult.isOk()) {
+        uiPort.showWarning(warningResult.value);
+      }
     }
   } catch (_error) {
     const uiPort = container.resolve<IUIPort>(TOKENS.IUIPort);
-    uiPort.showError('Failed to display proof tree visualization');
+    const errorResult = NotificationMessage.create('Failed to display proof tree visualization');
+    if (errorResult.isOk()) {
+      uiPort.showError(errorResult.value);
+    }
   }
 }
 
@@ -112,11 +134,37 @@ export async function autoSaveProofDocument(
       syncStatus: 'synced' as const,
     };
 
-    const storedDocument = {
-      id: documentMetadata.id,
-      content: editor.document.getText(),
-      metadata: documentMetadata,
-      version: 1,
+    // Create branded types for StoredDocument
+    const documentIdResult = DocumentId.create(documentMetadata.id);
+    const contentResult = DocumentContent.create(editor.document.getText());
+    const titleResult = Title.create(documentMetadata.title);
+    const timestampResult = Timestamp.create(documentMetadata.modifiedAt.getTime());
+    const fileSizeResult = FileSize.create(documentMetadata.size);
+    const versionResult = DocumentVersion.create(1);
+
+    if (
+      documentIdResult.isErr() ||
+      contentResult.isErr() ||
+      titleResult.isErr() ||
+      timestampResult.isErr() ||
+      fileSizeResult.isErr() ||
+      versionResult.isErr()
+    ) {
+      // Auto-save failures are logged internally
+      return;
+    }
+
+    const storedDocument: StoredDocument = {
+      id: documentIdResult.value,
+      content: contentResult.value,
+      metadata: {
+        id: documentIdResult.value,
+        title: titleResult.value,
+        modifiedAt: timestampResult.value,
+        size: fileSizeResult.value,
+        syncStatus: documentMetadata.syncStatus,
+      },
+      version: versionResult.value,
     };
 
     // Store for offline access

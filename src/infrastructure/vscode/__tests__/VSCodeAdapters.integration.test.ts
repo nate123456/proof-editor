@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 import type { IFileSystemPort } from '../../../application/ports/IFileSystemPort.js';
 import type { IPlatformPort } from '../../../application/ports/IPlatformPort.js';
 import type { IUIPort } from '../../../application/ports/IUIPort.js';
+import { NotificationMessage } from '../../../domain/shared/value-objects/index.js';
 // We'll import ApplicationContainer dynamically in the test
 import { TOKENS } from '../../di/tokens.js';
 
@@ -331,7 +332,10 @@ describe('VSCode Adapters Integration', () => {
         ) {}
 
         handleDocumentOpened() {
-          return this.uiPort.showInformation('Document opened');
+          const msgResult = NotificationMessage.create('Document opened');
+          if (msgResult.isOk()) {
+            return this.uiPort.showInformation(msgResult.value);
+          }
         }
 
         showPlatformInfo() {

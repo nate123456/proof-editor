@@ -395,7 +395,6 @@ describe('Repository Registration', () => {
         TOKENS.IProofDocumentRepository,
         TOKENS.IAtomicArgumentRepository,
         TOKENS.IStatementRepository,
-        TOKENS.IOrderedSetRepository,
         TOKENS.ITreeRepository,
         TOKENS.INodeRepository,
         TOKENS.IPackageRepository,

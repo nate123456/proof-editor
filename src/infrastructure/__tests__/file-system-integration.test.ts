@@ -16,7 +16,61 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as vscode from 'vscode';
 import type { FileChangeEvent, StoredDocument } from '../../application/ports/IFileSystemPort.js';
+import {
+  DocumentContent,
+  DocumentId,
+  DocumentVersion,
+  FilePath,
+  FileSize,
+  Timestamp,
+  Title,
+} from '../../domain/shared/value-objects/index.js';
 import { VSCodeFileSystemAdapter } from '../vscode/VSCodeFileSystemAdapter.js';
+
+// Helper to create FilePath value objects
+const createFilePath = (path: string): FilePath => {
+  const result = FilePath.create(path);
+  if (result.isErr()) throw new Error(`Invalid file path: ${path}`);
+  return result.value;
+};
+
+// Helper to create DocumentContent value objects
+const createDocumentContent = (content: string): DocumentContent => {
+  const result = DocumentContent.create(content);
+  if (result.isErr()) throw new Error(`Invalid content: ${content}`);
+  return result.value;
+};
+
+// Helper to create other value objects
+const createDocumentId = (id: string): DocumentId => {
+  const result = DocumentId.create(id);
+  if (result.isErr()) throw new Error(`Invalid document id: ${id}`);
+  return result.value;
+};
+
+const createDocumentVersion = (version: number): DocumentVersion => {
+  const result = DocumentVersion.create(version);
+  if (result.isErr()) throw new Error(`Invalid version: ${version}`);
+  return result.value;
+};
+
+const createTitle = (title: string): Title => {
+  const result = Title.create(title);
+  if (result.isErr()) throw new Error(`Invalid title: ${title}`);
+  return result.value;
+};
+
+const createTimestamp = (timestamp: number): Timestamp => {
+  const result = Timestamp.create(timestamp);
+  if (result.isErr()) throw new Error(`Invalid timestamp: ${timestamp}`);
+  return result.value;
+};
+
+const createFileSize = (size: number): FileSize => {
+  const result = FileSize.create(size);
+  if (result.isErr()) throw new Error(`Invalid file size: ${size}`);
+  return result.value;
+};
 
 // Mock VS Code with comprehensive file system API
 vi.mock('vscode', () => ({
@@ -155,13 +209,13 @@ statements:
         vi.mocked(vscode.workspace.fs.readFile).mockResolvedValue(encodedContent);
 
         // Act
-        const result = await adapter.readFile(testPath);
+        const result = await adapter.readFile(createFilePath(testPath));
 
         // Assert
         expect(result.isOk()).toBe(true);
         if (result.isOk()) {
-          expect(result.value).toBe(testCase.content);
-          expect(result.value.length).toBeGreaterThanOrEqual(testCase.size - 100); // Allow some variance
+          expect(result.value).toEqual(createDocumentContent(testCase.content));
+          expect(result.value.getValue().length).toBeGreaterThanOrEqual(testCase.size - 100); // Allow some variance
         }
       }
     });
@@ -185,7 +239,10 @@ trees: []
       vi.mocked(vscode.workspace.fs.writeFile).mockResolvedValue(undefined);
 
       // Act
-      const result = await adapter.writeFile(testPath, unicodeContent);
+      const result = await adapter.writeFile(
+        createFilePath(testPath),
+        createDocumentContent(unicodeContent),
+      );
 
       // Assert
       expect(result.isOk()).toBe(true);
@@ -232,12 +289,12 @@ trees: []
         if (!content) {
           throw new Error(`Test content not found for index ${index}`);
         }
-        return adapter.writeFile(path, content);
+        return adapter.writeFile(createFilePath(path), createDocumentContent(content));
       });
       const writeResults = await Promise.all(writePromises);
 
       // Act - Concurrent read operations
-      const readPromises = testPaths.map((path) => adapter.readFile(path));
+      const readPromises = testPaths.map((path) => adapter.readFile(createFilePath(path)));
       const readResults = await Promise.all(readPromises);
 
       const endTime = Date.now();
@@ -285,7 +342,7 @@ trees: []
       });
 
       // Act
-      const result = await adapter.readDirectory(testPath);
+      const result = await adapter.readDirectory(createFilePath(testPath));
 
       // Assert
       expect(result.isOk()).toBe(true);
@@ -294,18 +351,22 @@ trees: []
         expect(fileInfos).toHaveLength(7);
 
         // Verify file type detection
-        const proofFiles = fileInfos.filter((info) => info.name.endsWith('.proof'));
+        const proofFiles = fileInfos.filter((info) => info.name.getValue().endsWith('.proof'));
         expect(proofFiles).toHaveLength(5); // Including .hidden.proof, very long name, and symlink
 
         const directories = fileInfos.filter((info) => info.isDirectory);
         expect(directories).toHaveLength(1);
-        expect(directories[0]?.name).toBe('subfolder');
+        expect(directories[0]?.name.getValue()).toBe('subfolder');
 
         // Verify metadata
         fileInfos.forEach((info) => {
           expect(info.path).toBeDefined();
-          expect(info.size).toBeGreaterThan(0);
-          expect(info.modifiedAt).toBeInstanceOf(Date);
+          if (info.size) {
+            expect(info.size.getValue()).toBeGreaterThan(0);
+          }
+          if (info.modifiedAt) {
+            expect(info.modifiedAt).toBeInstanceOf(Date);
+          }
         });
       }
     });
@@ -322,7 +383,9 @@ trees: []
       vi.mocked(vscode.workspace.fs.createDirectory).mockResolvedValue(undefined);
 
       // Act
-      const results = await Promise.all(nestedPaths.map((path) => adapter.createDirectory(path)));
+      const results = await Promise.all(
+        nestedPaths.map((path) => adapter.createDirectory(createFilePath(path))),
+      );
 
       // Assert
       expect(results.every((result) => result.isOk())).toBe(true);
@@ -337,7 +400,7 @@ trees: []
       const eventCallback = vi.fn();
 
       // Act
-      const disposable = adapter.watch(testPath, eventCallback);
+      const disposable = adapter.watch(createFilePath(testPath), eventCallback);
 
       // Assert
       expect(vscode.workspace.createFileSystemWatcher).toHaveBeenCalledWith(
@@ -363,7 +426,7 @@ trees: []
       const events: FileChangeEvent[] = [];
       const eventCallback = (event: FileChangeEvent) => events.push(event);
 
-      adapter.watch(testPath, eventCallback);
+      adapter.watch(createFilePath(testPath), eventCallback);
 
       const changeEvents = [
         { type: 'created' as const, path: '/test/rapid_changes/file1.proof' },
@@ -423,7 +486,7 @@ trees: []
       const eventCallback = vi.fn();
 
       // Act
-      const disposable = adapter.watch(testPath, eventCallback);
+      const disposable = adapter.watch(createFilePath(testPath), eventCallback);
 
       // Verify watcher is active
       expect(mockFileWatcher.onDidCreate).toHaveBeenCalled();
@@ -449,30 +512,32 @@ trees: []
     it('should handle large document storage with compression', async () => {
       // Arrange
       const largeDocument: StoredDocument = {
-        id: 'large-doc',
-        content: generateLargeProofDocument(100000), // 100KB
-        version: 1,
+        id: createDocumentId('large-doc'),
+        content: createDocumentContent(generateLargeProofDocument(100000)), // 100KB
+        version: createDocumentVersion(1),
         metadata: {
-          id: 'large-doc',
-          title: 'Large Test Document',
-          modifiedAt: new Date(),
-          size: 100000,
+          id: createDocumentId('large-doc'),
+          title: createTitle('Large Test Document'),
+          modifiedAt: createTimestamp(Date.now()),
+          size: createFileSize(100000),
           syncStatus: 'synced',
         },
       };
 
       // Act
       const storeResult = await adapter.storeDocument(largeDocument);
-      const retrieveResult = await adapter.getStoredDocument('large-doc');
+      const retrieveResult = await adapter.getStoredDocument(createDocumentId('large-doc'));
 
       // Assert
       expect(storeResult.isOk()).toBe(true);
       expect(retrieveResult.isOk()).toBe(true);
 
       if (retrieveResult.isOk() && retrieveResult.value) {
-        expect(retrieveResult.value.id).toBe(largeDocument.id);
-        expect(retrieveResult.value.content).toBe(largeDocument.content);
-        expect(retrieveResult.value.metadata.size).toBe(largeDocument.metadata.size);
+        expect(retrieveResult.value.id.getValue()).toBe(largeDocument.id.getValue());
+        expect(retrieveResult.value.content.getValue()).toBe(largeDocument.content.getValue());
+        expect(retrieveResult.value.metadata.size.getValue()).toBe(
+          largeDocument.metadata.size.getValue(),
+        );
       }
 
       // Verify storage was called with correct data
@@ -488,14 +553,14 @@ trees: []
       // Arrange
       const documentCount = 15;
       const documents: StoredDocument[] = Array.from({ length: documentCount }, (_, i) => ({
-        id: `doc-${i}`,
-        content: generateLargeProofDocument(5000 + i * 1000),
-        version: 1,
+        id: createDocumentId(`doc-${i}`),
+        content: createDocumentContent(generateLargeProofDocument(5000 + i * 1000)),
+        version: createDocumentVersion(1),
         metadata: {
-          id: `doc-${i}`,
-          title: `Document ${i}`,
-          modifiedAt: new Date(Date.now() - i * 60000), // Different timestamps
-          size: 5000 + i * 1000,
+          id: createDocumentId(`doc-${i}`),
+          title: createTitle(`Document ${i}`),
+          modifiedAt: createTimestamp(Date.now() - i * 60000), // Different timestamps
+          size: createFileSize(5000 + i * 1000),
           syncStatus: 'synced' as const,
         },
       }));
@@ -521,8 +586,8 @@ trees: []
       // Verify data integrity
       retrieveResults.forEach((result, index) => {
         if (result.isOk() && result.value) {
-          expect(result.value.id).toBe(documents[index]?.id);
-          expect(result.value.content).toBe(documents[index]?.content);
+          expect(result.value.id.getValue()).toBe(documents[index]?.id.getValue());
+          expect(result.value.content.getValue()).toBe(documents[index]?.content.getValue());
         }
       });
 
@@ -537,14 +602,14 @@ trees: []
     it('should handle document storage with metadata preservation', async () => {
       // Arrange
       const testDocument: StoredDocument = {
-        id: 'metadata-test',
-        content: 'test content with metadata',
-        version: 3,
+        id: createDocumentId('metadata-test'),
+        content: createDocumentContent('test content with metadata'),
+        version: createDocumentVersion(3),
         metadata: {
-          id: 'metadata-test',
-          title: 'Test Document with Metadata',
-          modifiedAt: new Date('2023-12-01T10:30:00Z'),
-          size: 25,
+          id: createDocumentId('metadata-test'),
+          title: createTitle('Test Document with Metadata'),
+          modifiedAt: createTimestamp(new Date('2023-12-01T10:30:00Z').getTime()),
+          size: createFileSize(25),
           syncStatus: 'pending',
           tags: ['test', 'metadata'],
           author: 'Test User',
@@ -559,7 +624,7 @@ trees: []
 
       // Simulate context restart by creating new adapter
       const newAdapter = new VSCodeFileSystemAdapter(mockContext);
-      const retrieveResult = await newAdapter.getStoredDocument('metadata-test');
+      const retrieveResult = await newAdapter.getStoredDocument(createDocumentId('metadata-test'));
 
       // Assert
       expect(storeResult.isOk()).toBe(true);
@@ -567,11 +632,13 @@ trees: []
 
       if (retrieveResult.isOk() && retrieveResult.value) {
         const retrieved = retrieveResult.value;
-        expect(retrieved.id).toBe(testDocument.id);
-        expect(retrieved.version).toBe(testDocument.version);
-        expect(retrieved.metadata.id).toBe(testDocument.metadata.id);
-        expect(retrieved.metadata.title).toBe(testDocument.metadata.title);
-        expect(retrieved.metadata.modifiedAt).toEqual(testDocument.metadata.modifiedAt);
+        expect(retrieved.id.getValue()).toBe(testDocument.id.getValue());
+        expect(retrieved.version.getValue()).toBe(testDocument.version.getValue());
+        expect(retrieved.metadata.id.getValue()).toBe(testDocument.metadata.id.getValue());
+        expect(retrieved.metadata.title.getValue()).toBe(testDocument.metadata.title.getValue());
+        expect(retrieved.metadata.modifiedAt.getValue()).toEqual(
+          testDocument.metadata.modifiedAt.getValue(),
+        );
         expect(retrieved.metadata.syncStatus).toBe(testDocument.metadata.syncStatus);
         expect((retrieved.metadata as any).tags).toEqual(['test', 'metadata']);
         expect((retrieved.metadata as any).author).toBe('Test User');
@@ -613,7 +680,7 @@ trees: []
         vi.mocked(vscode.workspace.fs.readFile).mockRejectedValue(testCase.error);
 
         // Act
-        const result = await adapter.readFile(testPath);
+        const result = await adapter.readFile(createFilePath(testPath));
 
         // Assert
         expect(result.isErr()).toBe(true);
@@ -634,11 +701,11 @@ trees: []
         .mockResolvedValueOnce(new TextEncoder().encode(testContent));
 
       // Act - First attempt fails
-      const failResult = await adapter.readFile(testPath);
+      const failResult = await adapter.readFile(createFilePath(testPath));
       expect(failResult.isErr()).toBe(true);
 
       // Act - Second attempt succeeds
-      const successResult = await adapter.readFile(testPath);
+      const successResult = await adapter.readFile(createFilePath(testPath));
 
       // Assert
       expect(successResult.isOk()).toBe(true);
@@ -650,14 +717,14 @@ trees: []
     it('should handle storage quota exceeded scenarios', async () => {
       // Arrange
       const largeDocument: StoredDocument = {
-        id: 'quota-test',
-        content: generateLargeProofDocument(10000000), // 10MB
-        version: 1,
+        id: createDocumentId('quota-test'),
+        content: createDocumentContent(generateLargeProofDocument(10000000)), // 10MB
+        version: createDocumentVersion(1),
         metadata: {
-          id: 'quota-test',
-          title: 'Large Document for Quota Test',
-          modifiedAt: new Date(),
-          size: 10000000,
+          id: createDocumentId('quota-test'),
+          title: createTitle('Large Document for Quota Test'),
+          modifiedAt: createTimestamp(Date.now()),
+          size: createFileSize(10000000),
           syncStatus: 'synced',
         },
       };
@@ -701,8 +768,8 @@ trees: []
       const newAdapter = new VSCodeFileSystemAdapter(mockContext);
 
       // Act
-      const corruptedResult = await newAdapter.getStoredDocument('corrupted-doc');
-      const partialResult = await newAdapter.getStoredDocument('partial-doc');
+      const corruptedResult = await newAdapter.getStoredDocument(createDocumentId('corrupted-doc'));
+      const partialResult = await newAdapter.getStoredDocument(createDocumentId('partial-doc'));
       const listResult = await newAdapter.listStoredDocuments();
 
       // Assert - Should handle corruption gracefully
@@ -713,8 +780,8 @@ trees: []
 
       expect(partialResult.isOk()).toBe(true);
       if (partialResult.isOk() && partialResult.value) {
-        expect(partialResult.value.id).toBe('partial-doc');
-        expect(partialResult.value.metadata.modifiedAt).toBeInstanceOf(Date);
+        expect(partialResult.value.id.getValue()).toBe('partial-doc');
+        expect(partialResult.value.metadata.modifiedAt).toBeInstanceOf(Timestamp);
       }
 
       expect(listResult.isOk()).toBe(true);
@@ -746,8 +813,11 @@ trees: []
       const startTime = Date.now();
 
       // Act
-      const writeResult = await adapter.writeFile(testPath, mockLargeContent);
-      const readResult = await adapter.readFile(testPath);
+      const writeResult = await adapter.writeFile(
+        createFilePath(testPath),
+        createDocumentContent(mockLargeContent),
+      );
+      const readResult = await adapter.readFile(createFilePath(testPath));
 
       const endTime = Date.now();
       const duration = endTime - startTime;
@@ -766,14 +836,14 @@ trees: []
       // Arrange
       const documentCount = 100;
       const documents: StoredDocument[] = Array.from({ length: documentCount }, (_, i) => ({
-        id: `perf-doc-${i}`,
-        content: generateLargeProofDocument(1000 + i * 100),
-        version: 1,
+        id: createDocumentId(`perf-doc-${i}`),
+        content: createDocumentContent(generateLargeProofDocument(1000 + i * 100)),
+        version: createDocumentVersion(1),
         metadata: {
-          id: `perf-doc-${i}`,
-          title: `Performance Test Document ${i}`,
-          modifiedAt: new Date(Date.now() - i * 1000),
-          size: 1000 + i * 100,
+          id: createDocumentId(`perf-doc-${i}`),
+          title: createTitle(`Performance Test Document ${i}`),
+          modifiedAt: createTimestamp(Date.now() - i * 1000),
+          size: createFileSize(1000 + i * 100),
           syncStatus: 'synced' as const,
         },
       }));
@@ -806,8 +876,8 @@ trees: []
 
         // Verify metadata is properly preserved
         listResult.value.forEach((metadata, index) => {
-          expect(metadata.id).toBe(`perf-doc-${index}`);
-          expect(metadata.size).toBe(1000 + index * 100);
+          expect(metadata.id.getValue()).toBe(`perf-doc-${index}`);
+          expect(metadata.size.getValue()).toBe(1000 + index * 100);
         });
       }
     });
@@ -816,14 +886,14 @@ trees: []
       // Arrange
       const concurrentOperations = 25;
       const testDocument: StoredDocument = {
-        id: 'concurrent-test',
-        content: 'initial content',
-        version: 1,
+        id: createDocumentId('concurrent-test'),
+        content: createDocumentContent('initial content'),
+        version: createDocumentVersion(1),
         metadata: {
-          id: 'concurrent-test',
-          title: 'Concurrent Access Test',
-          modifiedAt: new Date(),
-          size: 15,
+          id: createDocumentId('concurrent-test'),
+          title: createTitle('Concurrent Access Test'),
+          modifiedAt: createTimestamp(Date.now()),
+          size: createFileSize(15),
           syncStatus: 'synced',
         },
       };
@@ -835,17 +905,17 @@ trees: []
       const operations = Array.from({ length: concurrentOperations }, async (_, i) => {
         if (i % 3 === 0) {
           // Read operation
-          return adapter.getStoredDocument('concurrent-test');
+          return adapter.getStoredDocument(createDocumentId('concurrent-test'));
         } else if (i % 3 === 1) {
           // Write operation
           const updatedDoc = {
             ...testDocument,
-            content: `updated content ${i}`,
-            version: testDocument.version + 1,
+            content: createDocumentContent(`updated content ${i}`),
+            version: createDocumentVersion(testDocument.version.getValue() + 1),
             metadata: {
               ...testDocument.metadata,
-              modifiedAt: new Date(),
-              size: `updated content ${i}`.length,
+              modifiedAt: createTimestamp(Date.now()),
+              size: createFileSize(`updated content ${i}`.length),
             },
           };
           return adapter.storeDocument(updatedDoc);
@@ -861,11 +931,11 @@ trees: []
       expect(results.every((result) => result.isOk())).toBe(true);
 
       // Verify final state is consistent
-      const finalResult = await adapter.getStoredDocument('concurrent-test');
+      const finalResult = await adapter.getStoredDocument(createDocumentId('concurrent-test'));
       expect(finalResult.isOk()).toBe(true);
       if (finalResult.isOk() && finalResult.value) {
-        expect(finalResult.value.id).toBe('concurrent-test');
-        expect(finalResult.value.content).toContain('content'); // Should contain some valid content
+        expect(finalResult.value.id.getValue()).toBe('concurrent-test');
+        expect(finalResult.value.content.getValue()).toContain('content'); // Should contain some valid content
       }
     });
 
@@ -876,14 +946,14 @@ trees: []
 
         // Create multiple large documents to simulate memory pressure
         const largeDocuments = Array.from({ length: 10 }, (_, i) => ({
-          id: `memory-test-${i}`,
-          content: generateLargeProofDocument(50000), // 50KB each
-          version: 1,
+          id: createDocumentId(`memory-test-${i}`),
+          content: createDocumentContent(generateLargeProofDocument(50000)), // 50KB each
+          version: createDocumentVersion(1),
           metadata: {
-            id: `memory-test-${i}`,
-            title: `Memory Test Document ${i}`,
-            modifiedAt: new Date(),
-            size: 50000,
+            id: createDocumentId(`memory-test-${i}`),
+            title: createTitle(`Memory Test Document ${i}`),
+            modifiedAt: createTimestamp(Date.now()),
+            size: createFileSize(50000),
             syncStatus: 'synced' as const,
           },
         }));
@@ -939,8 +1009,11 @@ trees: []
         vi.mocked(vscode.workspace.fs.writeFile).mockResolvedValue(undefined);
 
         // Act
-        const writeResult = await adapter.writeFile(testCase.path, testContent);
-        const readResult = await adapter.readFile(testCase.path);
+        const writeResult = await adapter.writeFile(
+          createFilePath(testCase.path),
+          createDocumentContent(testContent),
+        );
+        const readResult = await adapter.readFile(createFilePath(testCase.path));
 
         // Assert
         expect(writeResult.isOk()).toBe(true);
@@ -976,8 +1049,11 @@ trees: []
         vi.mocked(vscode.workspace.fs.writeFile).mockResolvedValue(undefined);
 
         // Act
-        const writeResult = await adapter.writeFile(testPath, testContent);
-        const readResult = await adapter.readFile(testPath);
+        const writeResult = await adapter.writeFile(
+          createFilePath(testPath),
+          createDocumentContent(testContent),
+        );
+        const readResult = await adapter.readFile(createFilePath(testPath));
 
         // Assert
         expect(writeResult.isOk()).toBe(true);
@@ -1009,7 +1085,7 @@ trees: []
 
       // Act & Assert - Test capabilities are used correctly
       if (capabilities.canWatch) {
-        const watcher = adapter.watch('/test', () => {
+        const watcher = adapter.watch(createFilePath('/test'), () => {
           // Test callback - intentionally empty
         });
         expect(watcher).toBeDefined();
@@ -1019,14 +1095,14 @@ trees: []
 
       if (capabilities.supportsOfflineStorage) {
         const testDoc: StoredDocument = {
-          id: 'capability-test',
-          content: 'test content',
-          version: 1,
+          id: createDocumentId('capability-test'),
+          content: createDocumentContent('test content'),
+          version: createDocumentVersion(1),
           metadata: {
-            id: 'capability-test',
-            title: 'Capability Test',
-            modifiedAt: new Date(),
-            size: 12,
+            id: createDocumentId('capability-test'),
+            title: createTitle('Capability Test'),
+            modifiedAt: createTimestamp(Date.now()),
+            size: createFileSize(12),
             syncStatus: 'synced',
           },
         };
@@ -1040,7 +1116,7 @@ trees: []
           new TextEncoder().encode('arbitrary path content'),
         );
 
-        const result = await adapter.readFile('/arbitrary/path/test.proof');
+        const result = await adapter.readFile(createFilePath('/arbitrary/path/test.proof'));
         expect(result.isOk()).toBe(true);
       }
     });

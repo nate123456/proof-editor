@@ -8,7 +8,7 @@
 import { faker } from '@faker-js/faker';
 import { Factory } from 'fishery';
 import { ProofDocument } from '../../aggregates/ProofDocument.js';
-import { AtomicArgument, type SideLabels } from '../../entities/AtomicArgument.js';
+import { AtomicArgument } from '../../entities/AtomicArgument.js';
 import { Node } from '../../entities/Node.js';
 import { Statement } from '../../entities/Statement.js';
 import { Tree } from '../../entities/Tree.js';
@@ -22,9 +22,13 @@ import {
   PhysicalProperties,
   Position2D,
   ProofDocumentId,
+  SideLabel,
+  SideLabels,
+  StatementContent,
   StatementId,
   TreeId,
 } from '../../shared/value-objects/index.js';
+import { TreePosition } from '../../value-objects/TreePosition.js';
 
 // Factory for creating StatementId value objects
 export const statementIdFactory = Factory.define<StatementId>(() => {
@@ -71,8 +75,8 @@ export const proofDocumentIdFactory = Factory.define<ProofDocumentId>(() => {
   return result.value;
 });
 
-// Factory for creating realistic statement content
-export const statementContentFactory = Factory.define<string>(({ sequence }) => {
+// Factory for creating realistic statement content strings
+export const statementContentStringFactory = Factory.define<string>(({ sequence }) => {
   const contentTypes = [
     () => `All ${faker.word.noun()}s are ${faker.word.adjective()}`,
     () => `If ${faker.word.verb()} then ${faker.word.verb()}`,
@@ -83,6 +87,41 @@ export const statementContentFactory = Factory.define<string>(({ sequence }) => 
   ];
 
   return faker.helpers.arrayElement(contentTypes)();
+});
+
+// Factory for creating StatementContent value objects
+export const statementContentFactory = Factory.define<StatementContent>(() => {
+  const content = statementContentStringFactory.build();
+  const result = StatementContent.create(content);
+  if (result.isErr()) {
+    throw result.error;
+  }
+  return result.value;
+});
+
+// Factory for creating SideLabel value objects
+export const sideLabelFactory = Factory.define<SideLabel>(() => {
+  const label = faker.helpers.arrayElement([
+    'Modus Ponens',
+    'Modus Tollens',
+    'Hypothetical Syllogism',
+    'Disjunctive Syllogism',
+    'Assumption',
+    'Given',
+    'Definition',
+    faker.word.noun(),
+  ]);
+  const result = SideLabel.create(label);
+  if (result.isErr()) {
+    throw result.error;
+  }
+  return result.value;
+});
+
+// Factory for creating OrderedSetId value objects
+// Note: OrderedSetId doesn't exist in the codebase, using string as placeholder
+export const orderedSetIdFactory = Factory.define<string>(() => {
+  return faker.string.uuid();
 });
 
 // Test data configurations for different scenarios
@@ -114,7 +153,7 @@ export const testScenarios = {
 
 // Helper functions for creating test data
 export const createTestStatements = (count = 5) => {
-  return Array.from({ length: count }, () => statementContentFactory.build());
+  return Array.from({ length: count }, () => statementContentStringFactory.build());
 };
 
 export const createTestIds = (count = 3) => ({
@@ -139,7 +178,7 @@ export const proofTestData = {
 
 // Factory for creating Statement entities
 export const statementFactory = Factory.define<Statement>(({ sequence: _sequence }) => {
-  const content = statementContentFactory.build();
+  const content = statementContentStringFactory.build();
   const result = Statement.create(content);
   if (result.isErr()) {
     throw result.error;
@@ -149,14 +188,17 @@ export const statementFactory = Factory.define<Statement>(({ sequence: _sequence
 
 // Factory for creating SideLabels
 export const sideLabelsFactory = Factory.define<SideLabels>(() => {
-  const result: SideLabels = {};
+  let left: SideLabel | undefined;
+  let right: SideLabel | undefined;
+
   if (faker.helpers.maybe(() => true, { probability: 0.3 })) {
-    result.left = faker.word.noun();
+    left = sideLabelFactory.build();
   }
   if (faker.helpers.maybe(() => true, { probability: 0.3 })) {
-    result.right = faker.word.adjective();
+    right = sideLabelFactory.build();
   }
-  return result;
+
+  return SideLabels.create(left, right);
 });
 
 // Factory for creating AtomicArgument entities
@@ -183,6 +225,17 @@ export const position2DFactory = Factory.define<Position2D>(() => {
   const x = faker.number.float({ min: -1000, max: 1000 });
   const y = faker.number.float({ min: -1000, max: 1000 });
   const result = Position2D.create(x, y);
+  if (result.isErr()) {
+    throw result.error;
+  }
+  return result.value;
+});
+
+// Factory for creating TreePosition value objects
+export const treePositionFactory = Factory.define<TreePosition>(() => {
+  const x = faker.number.float({ min: -1000, max: 1000 });
+  const y = faker.number.float({ min: -1000, max: 1000 });
+  const result = TreePosition.create(x, y);
   if (result.isErr()) {
     throw result.error;
   }
@@ -232,12 +285,12 @@ export const physicalPropertiesFactory = Factory.define<PhysicalProperties>(() =
 export const treeFactory = Factory.define<Tree>(({ transientParams }) => {
   const {
     documentId = faker.string.uuid(),
-    position = position2DFactory.build(),
+    position = treePositionFactory.build(),
     physicalProperties = physicalPropertiesFactory.build(),
     title,
   } = transientParams as {
     documentId?: string;
-    position?: Position2D;
+    position?: TreePosition;
     physicalProperties?: PhysicalProperties;
     title?: string;
   };
@@ -315,9 +368,9 @@ export const proofDocumentFactory = Factory.define<ProofDocument>(({ transientPa
   const doc = ProofDocument.create();
 
   // Add some statements
-  const statement1 = doc.createStatement('All men are mortal');
-  const statement2 = doc.createStatement('Socrates is a man');
-  const statement3 = doc.createStatement('Socrates is mortal');
+  const statement1 = doc.createStatementFromString('All men are mortal');
+  const statement2 = doc.createStatementFromString('Socrates is a man');
+  const statement3 = doc.createStatementFromString('Socrates is mortal');
 
   if (statement1.isErr() || statement2.isErr() || statement3.isErr()) {
     throw new Error('Failed to create test statements');

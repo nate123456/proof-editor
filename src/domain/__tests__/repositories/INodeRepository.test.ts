@@ -18,7 +18,7 @@ import { Statement } from '../../entities/Statement';
 import { RepositoryError } from '../../errors/DomainErrors';
 import type { INodeRepository } from '../../repositories/INodeRepository';
 import { Attachment, NodeId, type TreeId } from '../../shared/value-objects';
-import { nodeIdFactory, statementContentFactory, treeIdFactory } from '../factories';
+import { nodeIdFactory, statementContentFactory, treeIdFactory } from './factories';
 
 // Mock implementation of INodeRepository for testing
 class MockNodeRepository implements INodeRepository {

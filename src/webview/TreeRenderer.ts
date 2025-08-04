@@ -11,10 +11,11 @@ import type { StatementDTO } from '../application/queries/statement-queries.js';
 export class TreeRenderer {
   generateSVG(visualization: ProofVisualizationDTO): string {
     if (visualization.isEmpty) {
-      return this.generateEmptyMessage(visualization.totalDimensions.height);
+      return this.generateEmptyMessage(visualization.totalDimensions.getHeight());
     }
 
-    const { width, height } = visualization.totalDimensions;
+    const width = visualization.totalDimensions.getWidth();
+    const height = visualization.totalDimensions.getHeight();
     const svgElements: string[] = [];
 
     // Generate SVG for each tree
@@ -78,35 +79,30 @@ export class TreeRenderer {
     if (tree.layout?.nodes) {
       for (const node of tree.layout.nodes) {
         if (node) {
-          elements.push(this.renderNode(node, tree.position));
+          elements.push(this.renderNode(node));
         }
       }
     }
 
     // Handle malformed position data
-    const posX = typeof tree.position?.x === 'number' ? tree.position.x : 0;
-    const posY = typeof tree.position?.y === 'number' ? tree.position.y : 0;
+    const posX = tree.position ? tree.position.getX() : 0;
+    const posY = tree.position ? tree.position.getY() : 0;
 
     return `<g class="tree" transform="translate(${posX}, ${posY})">${elements.join('\n')}</g>`;
   }
 
-  private renderNode(node: RenderedNodeDTO, _treePosition: { x: number; y: number }): string {
-    if (
-      !node ||
-      !node.position ||
-      typeof node.position.x !== 'number' ||
-      typeof node.position.y !== 'number'
-    ) {
+  private renderNode(node: RenderedNodeDTO): string {
+    if (!node || !node.position) {
       return '';
     }
 
     const elements: string[] = [];
-    const nodeX = node.position.x;
-    const nodeY = node.position.y;
+    const nodeX = node.position.getX();
+    const nodeY = node.position.getY();
 
     // Node group
     elements.push(
-      `<g class="argument-node-group" data-node-id="${node.id}" data-argument-id="arg-${node.id}">`,
+      `<g class="argument-node-group" data-node-id="${node.id.getValue()}" data-argument-id="arg-${node.id.getValue()}">`,
     );
 
     // Implication line
@@ -134,7 +130,7 @@ export class TreeRenderer {
             nodeY - (index + 1) * 25,
             'premise',
             index,
-            node.id,
+            node.id.getValue(),
           ),
         );
       });
@@ -156,36 +152,37 @@ export class TreeRenderer {
             nodeY + 30 + index * 25,
             'conclusion',
             index,
-            node.id,
+            node.id.getValue(),
           ),
         );
       });
     }
 
     // Side labels
-    const sideLabel = node.sideLabel || node.argument?.sideLabels?.left || '';
-    if (sideLabel) {
+    const sideLabelValue =
+      node.sideLabel?.getValue() || node.argument?.sideLabels?.left?.getValue() || '';
+    if (sideLabelValue) {
       elements.push(`
         <text class="side-label editable-label" x="${nodeX - 50}" y="${nodeY + 20}" 
-              data-node-id="${node.id}" data-label-type="side">
-          ${this.escapeXml(sideLabel)}
+              data-node-id="${node.id.getValue()}" data-label-type="side">
+          ${this.escapeXml(sideLabelValue)}
         </text>
       `);
     }
 
     // Drag handle
     elements.push(
-      `<rect class="drag-handle interactive-node" x="${nodeX + 140}" y="${nodeY - 10}" width="10" height="10" fill="var(--vscode-descriptionForeground)" opacity="0.3" data-node-id="${node.id}" />`,
+      `<rect class="drag-handle interactive-node" x="${nodeX + 140}" y="${nodeY - 10}" width="10" height="10" fill="var(--vscode-descriptionForeground)" opacity="0.3" data-node-id="${node.id.getValue()}" />`,
     );
 
     // Drop zones
-    const nodeWidth = node.dimensions?.width ?? 150;
-    const nodeHeight = node.dimensions?.height ?? 20;
+    const nodeWidth = node.dimensions ? node.dimensions.getWidth() : 150;
+    const nodeHeight = node.dimensions ? node.dimensions.getHeight() : 20;
     elements.push(
-      `<rect class="drop-zone" x="${nodeX}" y="${nodeY - 50}" width="${nodeWidth}" height="${nodeHeight}" data-drop-type="premise" data-node-id="${node.id}" />`,
+      `<rect class="drop-zone" x="${nodeX}" y="${nodeY - 50}" width="${nodeWidth}" height="${nodeHeight}" data-drop-type="premise" data-node-id="${node.id.getValue()}" />`,
     );
     elements.push(
-      `<rect class="drop-zone" x="${nodeX}" y="${nodeY + 50}" width="${nodeWidth}" height="${nodeHeight}" data-drop-type="conclusion" data-node-id="${node.id}" />`,
+      `<rect class="drop-zone" x="${nodeX}" y="${nodeY + 50}" width="${nodeWidth}" height="${nodeHeight}" data-drop-type="conclusion" data-node-id="${node.id.getValue()}" />`,
     );
 
     elements.push('</g>');
@@ -220,11 +217,11 @@ export class TreeRenderer {
     const fromY = connection.coordinates.startY;
     const toX = connection.coordinates.endX;
     const toY = connection.coordinates.endY;
-    const fromNode = connection.fromNodeId;
-    const toNode = connection.toNodeId;
+    const fromNodeId = connection.fromNodeId.getValue();
+    const toNodeId = connection.toNodeId.getValue();
 
     return `
-      <g class="connection-group" data-connection-id="${fromNode}-${toNode}">
+      <g class="connection-group" data-connection-id="${fromNodeId}-${toNodeId}">
         <line class="connection-hit-area" 
               x1="${fromX}" y1="${fromY}" 
               x2="${toX}" y2="${toY}"
@@ -232,7 +229,7 @@ export class TreeRenderer {
         <line class="connection-line interactive-connection" 
               x1="${fromX}" y1="${fromY}" 
               x2="${toX}" y2="${toY}"
-              data-from-node="${fromNode}" data-to-node="${toNode}" />
+              data-from-node="${fromNodeId}" data-to-node="${toNodeId}" />
       </g>
     `;
   }

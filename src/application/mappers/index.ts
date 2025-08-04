@@ -6,11 +6,6 @@ export {
 } from './AtomicArgumentMapper.js';
 export { documentToDTO } from './DocumentMapper.js';
 export {
-  createUsageInfo,
-  orderedSetsToDTOs,
-  orderedSetToDTO,
-} from './OrderedSetMapper.js';
-export {
   statementsToDomains,
   statementsToDTOs,
   statementToDomain,

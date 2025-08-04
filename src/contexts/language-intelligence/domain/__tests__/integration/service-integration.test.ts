@@ -33,8 +33,40 @@ describe('Language Intelligence Context - Service Integration', () => {
   beforeEach(() => {
     // Initialize services
     logicValidationService = new LogicValidationService();
-    patternRecognitionService = new PatternRecognitionService();
-    educationalFeedbackService = new EducationalFeedbackService();
+
+    // Mock dependencies for PatternRecognitionService
+    const mockProofAnalyzer = {} as any;
+    const mockArgumentAnalyzer = {} as any;
+    const mockMistakeDetector = {} as any;
+    const mockPatternMatcher = {} as any;
+    const mockLogicalHelper = {} as any;
+    const mockSuggestionHelper = {} as any;
+
+    patternRecognitionService = new PatternRecognitionService(
+      mockProofAnalyzer,
+      mockArgumentAnalyzer,
+      mockMistakeDetector,
+      mockPatternMatcher,
+      mockLogicalHelper,
+      mockSuggestionHelper,
+    );
+
+    // Mock dependencies for EducationalFeedbackService
+    const mockHintGenerator = {} as any;
+    const mockGuidanceProvider = {} as any;
+    const mockStrategyAdvisor = {} as any;
+    const mockContentAdapter = {} as any;
+    const mockProblemGenerator = {} as any;
+    const mockConceptAnalyzer = {} as any;
+
+    educationalFeedbackService = new EducationalFeedbackService(
+      mockHintGenerator,
+      mockGuidanceProvider,
+      mockStrategyAdvisor,
+      mockContentAdapter,
+      mockProblemGenerator,
+      mockConceptAnalyzer,
+    );
 
     // Create test language package with correct parameters
     const capabilities = LanguageCapabilities.propositionalOnly();

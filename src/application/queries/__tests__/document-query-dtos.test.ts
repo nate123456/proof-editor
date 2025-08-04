@@ -6,6 +6,16 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import {
+  AtomicArgumentId,
+  Dimensions,
+  NodeCount,
+  NodeId,
+  Position2D,
+  SideLabel,
+  StatementId,
+  TreeId,
+} from '../../../domain/shared/value-objects/index.js';
 import type {
   AnalyzeProofStructureQuery,
   DocumentDTO,
@@ -256,7 +266,6 @@ describe('DocumentDTO Structure', () => {
       createdAt: '2023-01-01T00:00:00.000Z',
       modifiedAt: '2023-01-01T00:00:00.000Z',
       statements: {},
-      orderedSets: {},
       atomicArguments: {},
       trees: {},
     };
@@ -266,7 +275,6 @@ describe('DocumentDTO Structure', () => {
     expect(document.createdAt).toBe('2023-01-01T00:00:00.000Z');
     expect(document.modifiedAt).toBe('2023-01-01T00:00:00.000Z');
     expect(document.statements).toEqual({});
-    expect(document.orderedSets).toEqual({});
     expect(document.atomicArguments).toEqual({});
     expect(document.trees).toEqual({});
     expect(document.stats).toBeUndefined();
@@ -294,37 +302,27 @@ describe('DocumentDTO Structure', () => {
           modifiedAt: '2023-01-01T01:00:00.000Z',
         },
       },
-      orderedSets: {
-        set_1: {
-          id: 'set_1',
-          statementIds: ['stmt_1', 'stmt_2'],
-          usageCount: 1,
-          usedBy: [
-            {
-              argumentId: 'arg_1',
-              usage: 'premise',
-            },
-          ],
-        },
-      },
       atomicArguments: {
         arg_1: {
-          id: 'arg_1',
-          premiseIds: ['stmt_1', 'stmt_2'],
+          id: AtomicArgumentId.fromString('arg_1').value,
+          premiseIds: [
+            StatementId.fromString('stmt_1').value,
+            StatementId.fromString('stmt_2').value,
+          ],
           conclusionIds: [],
           sideLabels: {
-            left: 'Modus Ponens',
-            right: 'Classical Logic',
+            left: SideLabel.create('Modus Ponens').value,
+            right: SideLabel.create('Classical Logic').value,
           },
         },
       },
       trees: {
         tree_1: {
-          id: 'tree_1',
-          position: { x: 100, y: 200 },
-          bounds: { width: 500, height: 300 },
-          nodeCount: 3,
-          rootNodeIds: ['node_1'],
+          id: TreeId.create('tree_1').value,
+          position: Position2D.create(100, 200).value,
+          bounds: Dimensions.create(500, 300).value,
+          nodeCount: NodeCount.create(3).value,
+          rootNodeIds: [NodeId.create('node_1').value],
         },
       },
     };
@@ -332,12 +330,10 @@ describe('DocumentDTO Structure', () => {
     expect(document.id).toBe('doc_populated');
     expect(document.version).toBe(5);
     expect(Object.keys(document.statements)).toHaveLength(2);
-    expect(Object.keys(document.orderedSets)).toHaveLength(1);
     expect(Object.keys(document.atomicArguments)).toHaveLength(1);
     expect(Object.keys(document.trees)).toHaveLength(1);
 
     expect(document.statements.stmt_1?.content).toBe('All men are mortal');
-    expect(document.orderedSets.set_1?.statementIds).toEqual(['stmt_1', 'stmt_2']);
     expect(document.atomicArguments.arg_1?.premiseIds).toEqual(['stmt_1', 'stmt_2']);
     expect(document.trees.tree_1?.nodeCount).toBe(3);
   });
@@ -349,7 +345,6 @@ describe('DocumentDTO Structure', () => {
       createdAt: '2023-01-01T00:00:00.000Z',
       modifiedAt: '2023-01-01T00:00:00.000Z',
       statements: {},
-      orderedSets: {},
       atomicArguments: {},
       trees: {},
     };
@@ -364,7 +359,6 @@ describe('DocumentDTO Structure', () => {
       createdAt: '2023-01-01T00:00:00.000Z',
       modifiedAt: '2023-01-01T00:00:00.000Z',
       statements: {},
-      orderedSets: {},
       atomicArguments: {},
       trees: {},
     };
@@ -387,7 +381,6 @@ describe('DocumentDTO Structure', () => {
         createdAt: timestamp,
         modifiedAt: timestamp,
         statements: {},
-        orderedSets: {},
         atomicArguments: {},
         trees: {},
       };

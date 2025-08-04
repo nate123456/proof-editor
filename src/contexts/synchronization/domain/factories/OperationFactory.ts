@@ -79,7 +79,11 @@ export class OperationFactory implements IOperationFactory {
           return err(vectorClockResult.error);
         }
         vectorClock = vectorClockResult.value;
-        vectorClock.increment(deviceIdResult.value);
+        const incrementResult = vectorClock.incrementForDevice(deviceIdResult.value);
+        if (incrementResult.isErr()) {
+          return err(incrementResult.error);
+        }
+        vectorClock = incrementResult.value;
       }
 
       // Handle parent operation ID
@@ -169,8 +173,12 @@ export class OperationFactory implements IOperationFactory {
       if (vectorClockResult.isErr()) {
         return err(vectorClockResult.error);
       }
-      const vectorClock = vectorClockResult.value;
-      vectorClock.increment(deviceId);
+      let vectorClock = vectorClockResult.value;
+      const incrementResult = vectorClock.incrementForDevice(deviceId);
+      if (incrementResult.isErr()) {
+        return err(incrementResult.error);
+      }
+      vectorClock = incrementResult.value;
 
       return Operation.create(
         operationIdResult.value,

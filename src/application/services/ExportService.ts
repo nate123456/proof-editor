@@ -1,26 +1,25 @@
 import { err, ok, type Result } from 'neverthrow';
-import { inject, injectable } from 'tsyringe';
 import { ValidationError } from '../../domain/shared/result.js';
-import { TOKENS } from '../../infrastructure/di/tokens.js';
+import {
+  DialogTitle,
+  DocumentContent,
+  FileExtensionList,
+  FilePath,
+  FilterName,
+} from '../../domain/shared/value-objects/index.js';
 import type { YAMLSerializer } from '../../infrastructure/repositories/yaml/YAMLSerializer.js';
 import type { TreeRenderer } from '../../webview/TreeRenderer.js';
 import type { ExportOptions, ExportResult, IExportService } from '../ports/IExportService.js';
-import type { IUIPort } from '../ports/IUIPort.js';
+import type { FileFilter, IUIPort } from '../ports/IUIPort.js';
 import type { DocumentQueryService } from './DocumentQueryService.js';
 import type { ProofVisualizationService } from './ProofVisualizationService.js';
 
-@injectable()
 export class ExportService implements IExportService {
   constructor(
-    @inject(TOKENS.DocumentQueryService)
     private readonly documentQueryService: DocumentQueryService,
-    @inject(TOKENS.ProofVisualizationService)
     private readonly visualizationService: ProofVisualizationService,
-    @inject(TOKENS.YAMLSerializer)
     private readonly yamlSerializer: YAMLSerializer,
-    @inject(TOKENS.TreeRenderer)
     private readonly treeRenderer: TreeRenderer,
-    @inject(TOKENS.IUIPort)
     private readonly uiPort: IUIPort,
   ) {}
 
@@ -52,7 +51,7 @@ export class ExportService implements IExportService {
       // Get document data
       const documentResult = await this.documentQueryService.getDocumentById(documentId);
       if (documentResult.isErr()) {
-        return err(documentResult.error);
+        return err(new ValidationError(documentResult.error.message));
       }
 
       const document = documentResult.value;
@@ -93,10 +92,15 @@ export class ExportService implements IExportService {
       const { filename, content } = exportResult.value;
 
       // Show save dialog
+      const titleResult = DialogTitle.create('Export Proof Document');
+      if (titleResult.isErr()) {
+        return err(new ValidationError('Failed to create dialog title'));
+      }
+
       const saveDialogResult = await this.uiPort.showSaveDialog({
         defaultFilename: filename,
         filters: this.getFileFilters(options.format),
-        title: 'Export Proof Document',
+        title: titleResult.value,
       });
 
       if (saveDialogResult.isErr()) {
@@ -110,8 +114,24 @@ export class ExportService implements IExportService {
         return err(new ValidationError('Export cancelled by user'));
       }
 
+      // Create FilePath value object
+      const filePathResult = FilePath.create(filePath);
+      if (filePathResult.isErr()) {
+        return err(new ValidationError(`Invalid file path: ${filePathResult.error.message}`));
+      }
+
       // Write file
-      const writeResult = await this.uiPort.writeFile(filePath, content);
+      // Content is either a string (for text formats) or Buffer (for binary formats)
+      const documentContent =
+        typeof content === 'string' ? DocumentContent.create(content) : ok(content as Buffer);
+
+      if (documentContent.isErr()) {
+        return err(
+          new ValidationError(`Invalid document content: ${documentContent.error.message}`),
+        );
+      }
+
+      const writeResult = await this.uiPort.writeFile(filePathResult.value, documentContent.value);
       if (writeResult.isErr()) {
         return err(
           new ValidationError(`Failed to save exported file: ${writeResult.error.message}`),
@@ -313,13 +333,6 @@ export class ExportService implements IExportService {
       statements[id] = statement.content;
     }
 
-    // Convert ordered sets
-    yamlData.orderedSets = {};
-    const orderedSets = yamlData.orderedSets as Record<string, string[]>;
-    for (const [id, orderedSet] of Object.entries(document.orderedSets)) {
-      orderedSets[id] = orderedSet.statementIds;
-    }
-
     // Convert atomic arguments
     yamlData.atomicArguments = {};
     const atomicArguments = yamlData.atomicArguments as Record<string, unknown>;
@@ -445,20 +458,42 @@ ${300 + svgContent.length}
     return ['yaml', 'pdf', 'json', 'svg'].includes(format as ExportOptions['format']);
   }
 
-  private getFileFilters(
-    format: ExportOptions['format'],
-  ): Array<{ name: string; extensions: string[] }> {
+  private getFileFilters(format: ExportOptions['format']): FileFilter[] {
+    const createFilter = (name: string, extensions: string[]): FileFilter | null => {
+      const nameResult = FilterName.create(name);
+      const extensionsResult = FileExtensionList.create(extensions);
+
+      if (nameResult.isErr() || extensionsResult.isErr()) {
+        return null;
+      }
+
+      return {
+        name: nameResult.value,
+        extensions: extensionsResult.value,
+      };
+    };
+
     switch (format) {
-      case 'yaml':
-        return [{ name: 'Proof Files', extensions: ['proof'] }];
-      case 'json':
-        return [{ name: 'JSON Files', extensions: ['json'] }];
-      case 'svg':
-        return [{ name: 'SVG Files', extensions: ['svg'] }];
-      case 'pdf':
-        return [{ name: 'PDF Files', extensions: ['pdf'] }];
-      default:
-        return [{ name: 'All Files', extensions: ['*'] }];
+      case 'yaml': {
+        const filter = createFilter('Proof Files', ['proof']);
+        return filter ? [filter] : [];
+      }
+      case 'json': {
+        const filter = createFilter('JSON Files', ['json']);
+        return filter ? [filter] : [];
+      }
+      case 'svg': {
+        const filter = createFilter('SVG Files', ['svg']);
+        return filter ? [filter] : [];
+      }
+      case 'pdf': {
+        const filter = createFilter('PDF Files', ['pdf']);
+        return filter ? [filter] : [];
+      }
+      default: {
+        const filter = createFilter('All Files', ['*']);
+        return filter ? [filter] : [];
+      }
     }
   }
 }

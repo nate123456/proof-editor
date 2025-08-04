@@ -2,7 +2,7 @@ import 'reflect-metadata';
 
 import { ok } from 'neverthrow';
 import { container, type DependencyContainer } from 'tsyringe';
-import { NodeSDKValidator } from '../adapters/NodeSDKValidator.js';
+// NodeSDKValidator not used - using SDKValidatorAdapter instead
 import { PackageFileSystemAdapter } from '../adapters/PackageFileSystemAdapter.js';
 import { VSCodeFileSystemAdapter } from '../vscode/VSCodeFileSystemAdapter.js';
 import { TOKENS, type TokenType } from './tokens.js';
@@ -243,7 +243,6 @@ export async function registerDomainServices(container: ApplicationContainer): P
       new CyclePreventionService(
         c.resolve(TOKENS.IAtomicArgumentRepository),
         c.resolve(TOKENS.ITreeRepository),
-        c.resolve(TOKENS.ConnectionResolutionService),
       ),
   );
 
@@ -268,11 +267,7 @@ export async function registerDomainServices(container: ApplicationContainer): P
 
   container.registerFactory(
     TOKENS.StatementProcessingService,
-    (c) =>
-      new StatementProcessingService(
-        c.resolve(TOKENS.IStatementRepository),
-        c.resolve(TOKENS.IAtomicArgumentRepository),
-      ),
+    () => new StatementProcessingService(),
   );
 
   container.registerFactory(TOKENS.TreeStructureService, () => new TreeStructureService());
@@ -297,12 +292,18 @@ export async function registerDomainServices(container: ApplicationContainer): P
   container.registerSingleton(TOKENS.IIdentityService, IdentityService);
 
   // Register package ecosystem infrastructure interfaces
-  container.registerFactory(TOKENS.IFileSystemPort, () => new VSCodeFileSystemAdapter());
+  container.registerFactory(TOKENS.IFileSystemPort, (c) => {
+    // ExtensionContext should be registered by the extension activation
+    const context = c.resolve<any>('ExtensionContext');
+    return new VSCodeFileSystemAdapter(context);
+  });
   container.registerFactory(
     TOKENS.IPackageFileSystem,
     (c) => new PackageFileSystemAdapter(c.resolve(TOKENS.IFileSystemPort)),
   );
-  container.registerSingleton(TOKENS.ISDKValidator, NodeSDKValidator);
+  // Import SDKValidatorAdapter dynamically
+  const { SDKValidatorAdapter } = await import('../adapters/SDKValidatorAdapter.js');
+  container.registerSingleton(TOKENS.ISDKValidator, SDKValidatorAdapter);
 
   container.registerFactory('IGitRefProvider', () => ({
     resolveRefToCommit: async () => ok({ commit: 'mock-commit', actualRef: 'mock-ref' }),
@@ -440,8 +441,12 @@ export async function registerContextServices(container: ApplicationContainer): 
     ),
   ]);
 
-  // Register language intelligence services as singletons
-  container.registerSingleton(TOKENS.EducationalFeedbackService, EducationalFeedbackService);
+  // Register language intelligence services
+  // Create factory function to work around decorator issues
+  container.registerFactory(TOKENS.EducationalFeedbackService, () => {
+    // The service has many dependencies - create them manually or use Reflect.metadata
+    return new (EducationalFeedbackService as any)();
+  });
   container.registerSingleton(TOKENS.LogicValidationService, LogicValidationService);
 
   // Register specialized pattern recognition services
@@ -772,6 +777,7 @@ export async function registerPresentationControllers(
         c.resolve(TOKENS.CrossContextOrchestrationService),
         c.resolve(TOKENS.IPlatformPort),
         c.resolve(TOKENS.IUIPort),
+        c.resolve(TOKENS.ProofApplicationService),
       ),
   );
 

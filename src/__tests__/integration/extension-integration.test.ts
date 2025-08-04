@@ -157,6 +157,8 @@ vi.mock('../../infrastructure/di/container.js', () => ({
   },
 }));
 
+import type { IDocumentIdService } from '../../application/services/DocumentIdService.js';
+import type { ExportService } from '../../application/services/ExportService.js';
 // Core Domain Services
 import { StatementFlowService } from '../../domain/services/StatementFlowService.js';
 import { TreeStructureService } from '../../domain/services/TreeStructureService.js';
@@ -521,8 +523,8 @@ proof:
           expect.any(Object), // bootstrapController
           expect.any(Object), // proofApplicationService
           expect.any(Object), // yamlSerializer
-          expect.any(Object), // exportService
-          expect.any(Object), // documentIdService
+          expect.any(Object) as unknown as ExportService, // exportService
+          expect.any(Object) as unknown as IDocumentIdService, // documentIdService
         );
       }
     });
@@ -718,8 +720,8 @@ proof:
           expect.any(Object), // bootstrapController
           expect.any(Object), // proofApplicationService
           expect.any(Object), // yamlSerializer
-          expect.any(Object), // exportService
-          expect.any(Object), // documentIdService
+          expect.any(Object) as unknown as ExportService, // exportService
+          expect.any(Object) as unknown as IDocumentIdService, // documentIdService
         );
       }
     });
@@ -1367,8 +1369,8 @@ proof:
           expect.any(Object), // bootstrapController
           expect.any(Object), // proofApplicationService
           expect.any(Object), // yamlSerializer
-          expect.any(Object), // exportService
-          expect.any(Object), // documentIdService
+          expect.any(Object) as unknown as ExportService, // exportService
+          expect.any(Object) as unknown as IDocumentIdService, // documentIdService
         );
       }
 

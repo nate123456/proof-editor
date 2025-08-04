@@ -1,9 +1,11 @@
 import { err, ok } from 'neverthrow';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { ProofDocument } from '../../../domain/aggregates/ProofDocument.js';
+import { RepositoryError } from '../../../domain/errors/DomainErrors.js';
 import type { DomainEvent } from '../../../domain/events/base-event.js';
 import type { IProofDocumentRepository } from '../../../domain/repositories/IProofDocumentRepository.js';
 import { ValidationError } from '../../../domain/shared/result.js';
+import { ProofDocumentId, StatementContent } from '../../../domain/shared/value-objects/index.js';
 import { createTestEventBus } from '../../../infrastructure/events/EventBus.js';
 import { ProofApplicationService } from '../ProofApplicationService.js';
 
@@ -45,10 +47,11 @@ describe('ProofApplicationService Event Integration', () => {
 
     test('handles invalid document ID in updateStatement', async () => {
       // Act
+      const contentResult = StatementContent.create('Valid content');
       const result = await service.updateStatement({
         documentId: '', // Invalid empty ID
         statementId: 'valid-statement-id',
-        content: 'Valid content',
+        content: contentResult.isOk() ? contentResult.value : ('Valid content' as any),
       });
 
       // Assert
@@ -92,8 +95,8 @@ describe('ProofApplicationService Event Integration', () => {
       const result = await service.updateAtomicArgument({
         documentId: '', // Invalid empty ID
         argumentId: 'valid-argument-id',
-        premiseIds: null,
-        conclusionIds: null,
+        premiseStatementIds: [],
+        conclusionStatementIds: [],
       });
 
       // Assert
@@ -119,17 +122,31 @@ describe('ProofApplicationService Event Integration', () => {
 
     test('handles document not found in all operations', async () => {
       // Arrange
-      vi.mocked(mockRepository.findById).mockResolvedValue(null);
+      vi.mocked(mockRepository.findById).mockResolvedValue(
+        err(new RepositoryError('Document not found')),
+      );
       const validDocumentId = 'valid-document-id';
 
       // Test all operations return document not found error
       const operations = [
-        () => service.createStatement({ documentId: validDocumentId, content: 'test' }),
+        () =>
+          service.createStatement({
+            documentId: validDocumentId,
+            content: (() => {
+              const result = StatementContent.create('test');
+              if (result.isErr()) throw new Error('Failed to create content');
+              return result.value;
+            })(),
+          }),
         () =>
           service.updateStatement({
             documentId: validDocumentId,
             statementId: 'stmt1',
-            content: 'test',
+            content: (() => {
+              const result = StatementContent.create('test');
+              if (result.isErr()) throw new Error('Failed to create content');
+              return result.value;
+            })(),
           }),
         () => service.deleteStatement({ documentId: validDocumentId, statementId: 'stmt1' }),
         () =>
@@ -142,8 +159,8 @@ describe('ProofApplicationService Event Integration', () => {
           service.updateAtomicArgument({
             documentId: validDocumentId,
             argumentId: 'arg1',
-            premiseIds: null,
-            conclusionIds: null,
+            premiseStatementIds: [],
+            conclusionStatementIds: [],
           }),
         () => service.deleteAtomicArgument({ documentId: validDocumentId, argumentId: 'arg1' }),
       ];
@@ -159,12 +176,16 @@ describe('ProofApplicationService Event Integration', () => {
 
     test('handles repository save failures in all operations', async () => {
       // Arrange
-      const document = ProofDocument.create();
-      const documentId = document.getId().getValue();
+      const docIdResult = ProofDocumentId.create('test-doc');
+      if (docIdResult.isErr()) throw new Error('Failed to create document ID');
+      const documentResult = ProofDocument.createBootstrap(docIdResult.value);
+      if (documentResult.isErr()) throw new Error('Failed to create test document');
+      const document = documentResult.value;
+      const documentId = 'test-doc';
 
       // Create test statement and argument for operations that need them
       const statementResult = document.createStatement('Test statement');
-      const argumentResult = document.createAtomicArgument(null, null);
+      const argumentResult = document.createAtomicArgument([], []);
       expect(statementResult.isOk()).toBe(true);
       expect(argumentResult.isOk()).toBe(true);
       if (!statementResult.isOk() || !argumentResult.isOk()) return;
@@ -172,13 +193,30 @@ describe('ProofApplicationService Event Integration', () => {
       const statementId = statementResult.value.getId().getValue();
       const argumentId = argumentResult.value.getId().getValue();
 
-      vi.mocked(mockRepository.findById).mockResolvedValue(document);
-      vi.mocked(mockRepository.save).mockResolvedValue(err(new ValidationError('Save failed')));
+      vi.mocked(mockRepository.findById).mockResolvedValue(ok(document));
+      vi.mocked(mockRepository.save).mockResolvedValue(err(new RepositoryError('Save failed')));
 
       // Test all operations handle save failures
       const operations = [
-        () => service.createStatement({ documentId, content: 'new statement' }),
-        () => service.updateStatement({ documentId, statementId, content: 'updated' }),
+        () =>
+          service.createStatement({
+            documentId,
+            content: (() => {
+              const result = StatementContent.create('new statement');
+              if (result.isErr()) throw new Error('Failed to create content');
+              return result.value;
+            })(),
+          }),
+        () =>
+          service.updateStatement({
+            documentId,
+            statementId,
+            content: (() => {
+              const result = StatementContent.create('updated');
+              if (result.isErr()) throw new Error('Failed to create content');
+              return result.value;
+            })(),
+          }),
         () => service.deleteStatement({ documentId, statementId }),
         () =>
           service.createAtomicArgument({
@@ -190,8 +228,8 @@ describe('ProofApplicationService Event Integration', () => {
           service.updateAtomicArgument({
             documentId,
             argumentId,
-            premiseIds: null,
-            conclusionIds: null,
+            premiseStatementIds: [],
+            conclusionStatementIds: [],
           }),
         () => service.deleteAtomicArgument({ documentId, argumentId }),
       ];
@@ -209,10 +247,14 @@ describe('ProofApplicationService Event Integration', () => {
   describe('createStatement', () => {
     test('publishes events after successful command', async () => {
       // Arrange
-      const document = ProofDocument.create();
-      const documentId = document.getId().getValue();
+      const docIdResult = ProofDocumentId.create('test-doc');
+      if (docIdResult.isErr()) throw new Error('Failed to create document ID');
+      const documentResult = ProofDocument.createBootstrap(docIdResult.value);
+      if (documentResult.isErr()) throw new Error('Failed to create test document');
+      const document = documentResult.value;
+      const documentId = 'test-doc';
 
-      vi.mocked(mockRepository.findById).mockResolvedValue(document);
+      vi.mocked(mockRepository.findById).mockResolvedValue(ok(document));
       vi.mocked(mockRepository.save).mockResolvedValue(ok(undefined));
 
       // Capture published events
@@ -240,11 +282,15 @@ describe('ProofApplicationService Event Integration', () => {
 
     test('does not publish events if save fails', async () => {
       // Arrange
-      const document = ProofDocument.create();
-      const documentId = document.getId().getValue();
+      const docIdResult = ProofDocumentId.create('test-doc');
+      if (docIdResult.isErr()) throw new Error('Failed to create document ID');
+      const documentResult = ProofDocument.createBootstrap(docIdResult.value);
+      if (documentResult.isErr()) throw new Error('Failed to create test document');
+      const document = documentResult.value;
+      const documentId = 'test-doc';
 
-      vi.mocked(mockRepository.findById).mockResolvedValue(document);
-      vi.mocked(mockRepository.save).mockResolvedValue(err(new ValidationError('Save failed')));
+      vi.mocked(mockRepository.findById).mockResolvedValue(ok(document));
+      vi.mocked(mockRepository.save).mockResolvedValue(err(new RepositoryError('Save failed')));
 
       const capturedEvents: DomainEvent[] = [];
       eventBus.subscribeAll((event) => {
@@ -268,7 +314,9 @@ describe('ProofApplicationService Event Integration', () => {
 
     test('returns error if document not found', async () => {
       // Arrange
-      vi.mocked(mockRepository.findById).mockResolvedValue(null);
+      vi.mocked(mockRepository.findById).mockResolvedValue(
+        err(new RepositoryError('Document not found')),
+      );
 
       // Act
       const result = await service.createStatement({
@@ -299,10 +347,14 @@ describe('ProofApplicationService Event Integration', () => {
 
     test('returns error if domain operation fails', async () => {
       // Arrange
-      const document = ProofDocument.create();
-      const documentId = document.getId().getValue();
+      const docIdResult = ProofDocumentId.create('test-doc');
+      if (docIdResult.isErr()) throw new Error('Failed to create document ID');
+      const documentResult = ProofDocument.createBootstrap(docIdResult.value);
+      if (documentResult.isErr()) throw new Error('Failed to create test document');
+      const document = documentResult.value;
+      const documentId = 'test-doc';
 
-      vi.mocked(mockRepository.findById).mockResolvedValue(document);
+      vi.mocked(mockRepository.findById).mockResolvedValue(ok(document));
 
       // Act - empty content should fail domain validation
       const result = await service.createStatement({
@@ -321,10 +373,14 @@ describe('ProofApplicationService Event Integration', () => {
   describe('Statement Operations - Additional Error Cases', () => {
     test('handles invalid statement ID in updateStatement', async () => {
       // Arrange
-      const document = ProofDocument.create();
-      const documentId = document.getId().getValue();
+      const docIdResult = ProofDocumentId.create('test-doc');
+      if (docIdResult.isErr()) throw new Error('Failed to create document ID');
+      const documentResult = ProofDocument.createBootstrap(docIdResult.value);
+      if (documentResult.isErr()) throw new Error('Failed to create test document');
+      const document = documentResult.value;
+      const documentId = 'test-doc';
 
-      vi.mocked(mockRepository.findById).mockResolvedValue(document);
+      vi.mocked(mockRepository.findById).mockResolvedValue(ok(document));
 
       // Act
       const result = await service.updateStatement({
@@ -342,10 +398,14 @@ describe('ProofApplicationService Event Integration', () => {
 
     test('handles invalid statement ID in deleteStatement', async () => {
       // Arrange
-      const document = ProofDocument.create();
-      const documentId = document.getId().getValue();
+      const docIdResult = ProofDocumentId.create('test-doc');
+      if (docIdResult.isErr()) throw new Error('Failed to create document ID');
+      const documentResult = ProofDocument.createBootstrap(docIdResult.value);
+      if (documentResult.isErr()) throw new Error('Failed to create test document');
+      const document = documentResult.value;
+      const documentId = 'test-doc';
 
-      vi.mocked(mockRepository.findById).mockResolvedValue(document);
+      vi.mocked(mockRepository.findById).mockResolvedValue(ok(document));
 
       // Act
       const result = await service.deleteStatement({
@@ -362,15 +422,21 @@ describe('ProofApplicationService Event Integration', () => {
 
     test('handles domain operation failure in updateStatement', async () => {
       // Arrange
-      const document = ProofDocument.create();
-      const statementResult = document.createStatement('Original content');
+      const docIdResult = ProofDocumentId.create('test-doc');
+      if (docIdResult.isErr()) throw new Error('Failed to create document ID');
+      const documentResult = ProofDocument.createBootstrap(docIdResult.value);
+      if (documentResult.isErr()) throw new Error('Failed to create test document');
+      const document = documentResult.value;
+      const contentResult = StatementContent.create('Original content');
+      if (contentResult.isErr()) throw new Error('Failed to create content');
+      const statementResult = document.createStatement(contentResult.value);
       expect(statementResult.isOk()).toBe(true);
       if (!statementResult.isOk()) return;
 
-      const documentId = document.getId().getValue();
+      const documentId = 'test-doc';
       const statementId = statementResult.value.getId().getValue();
 
-      vi.mocked(mockRepository.findById).mockResolvedValue(document);
+      vi.mocked(mockRepository.findById).mockResolvedValue(ok(document));
 
       // Mock domain operation to fail
       vi.spyOn(document, 'updateStatement').mockReturnValue(
@@ -393,15 +459,15 @@ describe('ProofApplicationService Event Integration', () => {
 
     test('handles domain operation failure in deleteStatement', async () => {
       // Arrange
-      const document = ProofDocument.create();
+      const document = createTestProofDocument();
       const statementResult = document.createStatement('To be deleted');
       expect(statementResult.isOk()).toBe(true);
       if (!statementResult.isOk()) return;
 
-      const documentId = document.getId().getValue();
+      const documentId = 'test-doc';
       const statementId = statementResult.value.getId().getValue();
 
-      vi.mocked(mockRepository.findById).mockResolvedValue(document);
+      vi.mocked(mockRepository.findById).mockResolvedValue(ok(document));
 
       // Mock domain operation to fail
       vi.spyOn(document, 'deleteStatement').mockReturnValue(
@@ -423,10 +489,14 @@ describe('ProofApplicationService Event Integration', () => {
 
     test('handles domain operation failure in createStatement', async () => {
       // Arrange
-      const document = ProofDocument.create();
-      const documentId = document.getId().getValue();
+      const docIdResult = ProofDocumentId.create('test-doc');
+      if (docIdResult.isErr()) throw new Error('Failed to create document ID');
+      const documentResult = ProofDocument.createBootstrap(docIdResult.value);
+      if (documentResult.isErr()) throw new Error('Failed to create test document');
+      const document = documentResult.value;
+      const documentId = 'test-doc';
 
-      vi.mocked(mockRepository.findById).mockResolvedValue(document);
+      vi.mocked(mockRepository.findById).mockResolvedValue(ok(document));
 
       // Mock domain operation to fail
       vi.spyOn(document, 'createStatement').mockReturnValue(
@@ -434,9 +504,11 @@ describe('ProofApplicationService Event Integration', () => {
       );
 
       // Act
+      const contentResult = StatementContent.create('Valid content');
+      if (contentResult.isErr()) throw new Error('Failed to create content');
       const result = await service.createStatement({
         documentId,
-        content: 'Valid content',
+        content: contentResult.value,
       });
 
       // Assert
@@ -450,18 +522,20 @@ describe('ProofApplicationService Event Integration', () => {
   describe('updateStatement', () => {
     test('publishes events after successful update', async () => {
       // Arrange
-      const document = ProofDocument.create();
-      const statementResult = document.createStatement('Original content');
+      const document = createTestProofDocument();
+      const contentResult = StatementContent.create('Original content');
+      if (contentResult.isErr()) throw new Error('Failed to create content');
+      const statementResult = document.createStatement(contentResult.value);
       expect(statementResult.isOk()).toBe(true);
       if (!statementResult.isOk()) return;
 
-      const documentId = document.getId().getValue();
+      const documentId = 'test-doc';
       if (!statementResult.isOk()) {
         throw new Error('Test setup failed - statement creation should have succeeded');
       }
       const statementId = statementResult.value.getId().getValue();
 
-      vi.mocked(mockRepository.findById).mockResolvedValue(document);
+      vi.mocked(mockRepository.findById).mockResolvedValue(ok(document));
       vi.mocked(mockRepository.save).mockResolvedValue(ok(undefined));
 
       const capturedEvents: DomainEvent[] = [];
@@ -471,10 +545,12 @@ describe('ProofApplicationService Event Integration', () => {
       });
 
       // Act
+      const contentResult = StatementContent.create('Updated content');
+      if (contentResult.isErr()) throw new Error('Failed to create content');
       const result = await service.updateStatement({
         documentId,
         statementId,
-        content: 'Updated content',
+        content: contentResult.value,
       });
 
       // Assert
@@ -489,31 +565,33 @@ describe('ProofApplicationService Event Integration', () => {
 
     test('returns error if statement is in use', async () => {
       // Arrange
-      const document = ProofDocument.create();
+      const document = createTestProofDocument();
       const statementResult = document.createStatement('Used statement');
       expect(statementResult.isOk()).toBe(true);
       if (!statementResult.isOk()) return;
 
-      // Create an OrderedSet that uses the statement
+      // Create an atomic argument that uses the statement
       if (!statementResult.isOk()) {
         throw new Error('Test setup failed - statement creation should have succeeded');
       }
-      const orderedSetResult = document.createOrderedSet([statementResult.value.getId()]);
-      expect(orderedSetResult.isOk()).toBe(true);
+      const argResult = document.createAtomicArgument([statementResult.value], []);
+      expect(argResult.isOk()).toBe(true);
 
-      const documentId = document.getId().getValue();
+      const documentId = 'test-doc';
       if (!statementResult.isOk()) {
         throw new Error('Test setup failed - statement creation should have succeeded');
       }
       const statementId = statementResult.value.getId().getValue();
 
-      vi.mocked(mockRepository.findById).mockResolvedValue(document);
+      vi.mocked(mockRepository.findById).mockResolvedValue(ok(document));
 
       // Act
+      const contentResult = StatementContent.create('Updated content');
+      if (contentResult.isErr()) throw new Error('Failed to create content');
       const result = await service.updateStatement({
         documentId,
         statementId,
-        content: 'Updated content',
+        content: contentResult.value,
       });
 
       // Assert
@@ -527,18 +605,18 @@ describe('ProofApplicationService Event Integration', () => {
   describe('deleteStatement', () => {
     test('publishes events after successful deletion', async () => {
       // Arrange
-      const document = ProofDocument.create();
+      const document = createTestProofDocument();
       const statementResult = document.createStatement('To be deleted');
       expect(statementResult.isOk()).toBe(true);
       if (!statementResult.isOk()) return;
 
-      const documentId = document.getId().getValue();
+      const documentId = 'test-doc';
       if (!statementResult.isOk()) {
         throw new Error('Test setup failed - statement creation should have succeeded');
       }
       const statementId = statementResult.value.getId().getValue();
 
-      vi.mocked(mockRepository.findById).mockResolvedValue(document);
+      vi.mocked(mockRepository.findById).mockResolvedValue(ok(document));
       vi.mocked(mockRepository.save).mockResolvedValue(ok(undefined));
 
       const capturedEvents: DomainEvent[] = [];
@@ -564,25 +642,25 @@ describe('ProofApplicationService Event Integration', () => {
 
     test('returns error if statement is in use', async () => {
       // Arrange
-      const document = ProofDocument.create();
+      const document = createTestProofDocument();
       const statementResult = document.createStatement('Used statement');
       expect(statementResult.isOk()).toBe(true);
       if (!statementResult.isOk()) return;
 
-      // Create an OrderedSet that uses the statement
+      // Create an atomic argument that uses the statement
       if (!statementResult.isOk()) {
         throw new Error('Test setup failed - statement creation should have succeeded');
       }
-      const orderedSetResult = document.createOrderedSet([statementResult.value.getId()]);
-      expect(orderedSetResult.isOk()).toBe(true);
+      const argResult = document.createAtomicArgument([statementResult.value], []);
+      expect(argResult.isOk()).toBe(true);
 
-      const documentId = document.getId().getValue();
+      const documentId = 'test-doc';
       if (!statementResult.isOk()) {
         throw new Error('Test setup failed - statement creation should have succeeded');
       }
       const statementId = statementResult.value.getId().getValue();
 
-      vi.mocked(mockRepository.findById).mockResolvedValue(document);
+      vi.mocked(mockRepository.findById).mockResolvedValue(ok(document));
 
       // Act
       const result = await service.deleteStatement({
@@ -601,10 +679,14 @@ describe('ProofApplicationService Event Integration', () => {
   describe('createAtomicArgument', () => {
     test('publishes events after successful creation with no statements', async () => {
       // Arrange
-      const document = ProofDocument.create();
-      const documentId = document.getId().getValue();
+      const docIdResult = ProofDocumentId.create('test-doc');
+      if (docIdResult.isErr()) throw new Error('Failed to create document ID');
+      const documentResult = ProofDocument.createBootstrap(docIdResult.value);
+      if (documentResult.isErr()) throw new Error('Failed to create test document');
+      const document = documentResult.value;
+      const documentId = 'test-doc';
 
-      vi.mocked(mockRepository.findById).mockResolvedValue(document);
+      vi.mocked(mockRepository.findById).mockResolvedValue(ok(document));
       vi.mocked(mockRepository.save).mockResolvedValue(ok(undefined));
 
       const capturedEvents: DomainEvent[] = [];
@@ -632,7 +714,7 @@ describe('ProofApplicationService Event Integration', () => {
 
     test('creates OrderedSets and argument with statements', async () => {
       // Arrange
-      const document = ProofDocument.create();
+      const document = createTestProofDocument();
       const statement1Result = document.createStatement('Premise 1');
       const statement2Result = document.createStatement('Conclusion 1');
       expect(statement1Result.isOk()).toBe(true);
@@ -640,11 +722,11 @@ describe('ProofApplicationService Event Integration', () => {
       if (!statement1Result.isOk() || !statement2Result.isOk())
         throw new Error('Test setup failed');
 
-      const documentId = document.getId().getValue();
+      const documentId = 'test-doc';
       const statement1Id = statement1Result.value.getId().getValue();
       const statement2Id = statement2Result.value.getId().getValue();
 
-      vi.mocked(mockRepository.findById).mockResolvedValue(document);
+      vi.mocked(mockRepository.findById).mockResolvedValue(ok(document));
       vi.mocked(mockRepository.save).mockResolvedValue(ok(undefined));
 
       const capturedEvents: DomainEvent[] = [];
@@ -675,10 +757,14 @@ describe('ProofApplicationService Event Integration', () => {
 
     test('creates argument with side labels', async () => {
       // Arrange
-      const document = ProofDocument.create();
-      const documentId = document.getId().getValue();
+      const docIdResult = ProofDocumentId.create('test-doc');
+      if (docIdResult.isErr()) throw new Error('Failed to create document ID');
+      const documentResult = ProofDocument.createBootstrap(docIdResult.value);
+      if (documentResult.isErr()) throw new Error('Failed to create test document');
+      const document = documentResult.value;
+      const documentId = 'test-doc';
 
-      vi.mocked(mockRepository.findById).mockResolvedValue(document);
+      vi.mocked(mockRepository.findById).mockResolvedValue(ok(document));
       vi.mocked(mockRepository.save).mockResolvedValue(ok(undefined));
 
       const capturedEvents: DomainEvent[] = [];
@@ -706,10 +792,14 @@ describe('ProofApplicationService Event Integration', () => {
 
     test('returns error if premise statement ID is invalid', async () => {
       // Arrange
-      const document = ProofDocument.create();
-      const documentId = document.getId().getValue();
+      const docIdResult = ProofDocumentId.create('test-doc');
+      if (docIdResult.isErr()) throw new Error('Failed to create document ID');
+      const documentResult = ProofDocument.createBootstrap(docIdResult.value);
+      if (documentResult.isErr()) throw new Error('Failed to create test document');
+      const document = documentResult.value;
+      const documentId = 'test-doc';
 
-      vi.mocked(mockRepository.findById).mockResolvedValue(document);
+      vi.mocked(mockRepository.findById).mockResolvedValue(ok(document));
 
       // Act
       const result = await service.createAtomicArgument({
@@ -727,10 +817,14 @@ describe('ProofApplicationService Event Integration', () => {
 
     test('returns error if conclusion statement ID is invalid', async () => {
       // Arrange
-      const document = ProofDocument.create();
-      const documentId = document.getId().getValue();
+      const docIdResult = ProofDocumentId.create('test-doc');
+      if (docIdResult.isErr()) throw new Error('Failed to create document ID');
+      const documentResult = ProofDocument.createBootstrap(docIdResult.value);
+      if (documentResult.isErr()) throw new Error('Failed to create test document');
+      const document = documentResult.value;
+      const documentId = 'test-doc';
 
-      vi.mocked(mockRepository.findById).mockResolvedValue(document);
+      vi.mocked(mockRepository.findById).mockResolvedValue(ok(document));
 
       // Act
       const result = await service.createAtomicArgument({
@@ -748,19 +842,19 @@ describe('ProofApplicationService Event Integration', () => {
 
     test('returns error if premise OrderedSet creation fails', async () => {
       // Arrange
-      const document = ProofDocument.create();
+      const document = createTestProofDocument();
       const statementResult = document.createStatement('Test statement');
       expect(statementResult.isOk()).toBe(true);
       if (!statementResult.isOk()) return;
 
-      const documentId = document.getId().getValue();
+      const documentId = 'test-doc';
       const statementId = statementResult.value.getId().getValue();
 
-      vi.mocked(mockRepository.findById).mockResolvedValue(document);
+      vi.mocked(mockRepository.findById).mockResolvedValue(ok(document));
 
-      // Mock createOrderedSet to fail
-      vi.spyOn(document, 'createOrderedSet').mockReturnValue(
-        err(new ValidationError('OrderedSet creation failed')),
+      // Mock that statement creation fails when creating atomic argument
+      vi.spyOn(document, 'createStatementFromString').mockReturnValue(
+        err(new ValidationError('Statement creation failed')),
       );
 
       // Act
@@ -779,19 +873,19 @@ describe('ProofApplicationService Event Integration', () => {
 
     test('returns error if conclusion OrderedSet creation fails', async () => {
       // Arrange
-      const document = ProofDocument.create();
+      const document = createTestProofDocument();
       const statementResult = document.createStatement('Test statement');
       expect(statementResult.isOk()).toBe(true);
       if (!statementResult.isOk()) return;
 
-      const documentId = document.getId().getValue();
+      const documentId = 'test-doc';
       const statementId = statementResult.value.getId().getValue();
 
-      vi.mocked(mockRepository.findById).mockResolvedValue(document);
+      vi.mocked(mockRepository.findById).mockResolvedValue(ok(document));
 
-      // Mock createOrderedSet to fail on conclusion
-      vi.spyOn(document, 'createOrderedSet').mockReturnValue(
-        err(new ValidationError('Conclusion OrderedSet creation failed')),
+      // Mock that statement creation fails when creating atomic argument
+      vi.spyOn(document, 'createStatementFromString').mockReturnValue(
+        err(new ValidationError('Statement creation failed')),
       );
 
       // Act
@@ -810,17 +904,17 @@ describe('ProofApplicationService Event Integration', () => {
 
     test('returns error if atomic argument creation fails', async () => {
       // Arrange
-      const document = ProofDocument.create();
+      const document = createTestProofDocument();
 
       // Create many arguments to potentially trigger limit
       for (let i = 0; i < 10; i++) {
-        const argResult = document.createAtomicArgument(null, null);
+        const argResult = document.createAtomicArgument([], []);
         expect(argResult.isOk()).toBe(true);
       }
 
-      const documentId = document.getId().getValue();
+      const documentId = 'test-doc';
 
-      vi.mocked(mockRepository.findById).mockResolvedValue(document);
+      vi.mocked(mockRepository.findById).mockResolvedValue(ok(document));
 
       // Mock domain operation to fail
       const originalCreate = document.createAtomicArgument;
@@ -847,10 +941,14 @@ describe('ProofApplicationService Event Integration', () => {
 
     test('returns error if side label update fails', async () => {
       // Arrange
-      const document = ProofDocument.create();
-      const documentId = document.getId().getValue();
+      const docIdResult = ProofDocumentId.create('test-doc');
+      if (docIdResult.isErr()) throw new Error('Failed to create document ID');
+      const documentResult = ProofDocument.createBootstrap(docIdResult.value);
+      if (documentResult.isErr()) throw new Error('Failed to create test document');
+      const document = documentResult.value;
+      const documentId = 'test-doc';
 
-      vi.mocked(mockRepository.findById).mockResolvedValue(document);
+      vi.mocked(mockRepository.findById).mockResolvedValue(ok(document));
 
       // Mock createAtomicArgument to return a mocked argument that fails label update
       const mockArgument = {
@@ -879,10 +977,14 @@ describe('ProofApplicationService Event Integration', () => {
 
     test('returns error if statement not found', async () => {
       // Arrange
-      const document = ProofDocument.create();
-      const documentId = document.getId().getValue();
+      const docIdResult = ProofDocumentId.create('test-doc');
+      if (docIdResult.isErr()) throw new Error('Failed to create document ID');
+      const documentResult = ProofDocument.createBootstrap(docIdResult.value);
+      if (documentResult.isErr()) throw new Error('Failed to create test document');
+      const document = documentResult.value;
+      const documentId = 'test-doc';
 
-      vi.mocked(mockRepository.findById).mockResolvedValue(document);
+      vi.mocked(mockRepository.findById).mockResolvedValue(ok(document));
 
       // Act
       const result = await service.createAtomicArgument({
@@ -902,8 +1004,8 @@ describe('ProofApplicationService Event Integration', () => {
   describe('updateAtomicArgument', () => {
     test('publishes events after successful update', async () => {
       // Arrange
-      const document = ProofDocument.create();
-      const argumentResult = document.createAtomicArgument(null, null);
+      const document = createTestProofDocument();
+      const argumentResult = document.createAtomicArgument([], []);
       expect(argumentResult.isOk()).toBe(true);
       if (!argumentResult.isOk()) return;
 
@@ -914,21 +1016,15 @@ describe('ProofApplicationService Event Integration', () => {
       if (!statement1Result.isOk()) {
         throw new Error('Test setup failed - statement creation should have succeeded');
       }
-      const orderedSetResult = document.createOrderedSet([statement1Result.value.getId()]);
-      expect(orderedSetResult.isOk()).toBe(true);
-      if (!orderedSetResult.isOk()) return;
+      // No need to create ordered set - atomic arguments handle this internally
 
-      const documentId = document.getId().getValue();
+      const documentId = 'test-doc';
       if (!argumentResult.isOk()) {
         throw new Error('Test setup failed - argument creation should have succeeded');
       }
       const argumentId = argumentResult.value.getId().getValue();
-      if (!orderedSetResult.isOk()) {
-        throw new Error('Test setup failed - ordered set creation should have succeeded');
-      }
-      const orderedSetId = orderedSetResult.value.getId().getValue();
 
-      vi.mocked(mockRepository.findById).mockResolvedValue(document);
+      vi.mocked(mockRepository.findById).mockResolvedValue(ok(document));
       vi.mocked(mockRepository.save).mockResolvedValue(ok(undefined));
 
       const capturedEvents: DomainEvent[] = [];
@@ -941,8 +1037,8 @@ describe('ProofApplicationService Event Integration', () => {
       const result = await service.updateAtomicArgument({
         documentId,
         argumentId,
-        premiseIds: orderedSetId,
-        conclusionIds: null,
+        premiseStatementIds: [],
+        conclusionStatementIds: [],
       });
 
       // Assert
@@ -951,22 +1047,27 @@ describe('ProofApplicationService Event Integration', () => {
       // Should have AtomicArgumentUpdated event
       const updateEvents = capturedEvents.filter((e) => e.eventType === 'AtomicArgumentUpdated');
       expect(updateEvents).toHaveLength(1);
-      expect(updateEvents[0]?.eventData.premiseIds).toContain(orderedSetId);
+      // Premises should be empty as we passed empty array
+      expect(updateEvents[0]?.eventData.premiseIds).toEqual([]);
     });
 
     test('returns error if argument not found', async () => {
       // Arrange
-      const document = ProofDocument.create();
-      const documentId = document.getId().getValue();
+      const docIdResult = ProofDocumentId.create('test-doc');
+      if (docIdResult.isErr()) throw new Error('Failed to create document ID');
+      const documentResult = ProofDocument.createBootstrap(docIdResult.value);
+      if (documentResult.isErr()) throw new Error('Failed to create test document');
+      const document = documentResult.value;
+      const documentId = 'test-doc';
 
-      vi.mocked(mockRepository.findById).mockResolvedValue(document);
+      vi.mocked(mockRepository.findById).mockResolvedValue(ok(document));
 
       // Act
       const result = await service.updateAtomicArgument({
         documentId,
         argumentId: 'non-existent',
-        premiseIds: null,
-        conclusionIds: null,
+        premiseStatementIds: [],
+        conclusionStatementIds: [],
       });
 
       // Assert
@@ -978,17 +1079,21 @@ describe('ProofApplicationService Event Integration', () => {
 
     test('returns error if invalid argument ID in updateAtomicArgument', async () => {
       // Arrange
-      const document = ProofDocument.create();
-      const documentId = document.getId().getValue();
+      const docIdResult = ProofDocumentId.create('test-doc');
+      if (docIdResult.isErr()) throw new Error('Failed to create document ID');
+      const documentResult = ProofDocument.createBootstrap(docIdResult.value);
+      if (documentResult.isErr()) throw new Error('Failed to create test document');
+      const document = documentResult.value;
+      const documentId = 'test-doc';
 
-      vi.mocked(mockRepository.findById).mockResolvedValue(document);
+      vi.mocked(mockRepository.findById).mockResolvedValue(ok(document));
 
       // Act
       const result = await service.updateAtomicArgument({
         documentId,
         argumentId: '', // Invalid empty argument ID
-        premiseIds: null,
-        conclusionIds: null,
+        premiseStatementIds: [],
+        conclusionStatementIds: [],
       });
 
       // Assert
@@ -1000,22 +1105,22 @@ describe('ProofApplicationService Event Integration', () => {
 
     test('returns error if invalid premise set ID in updateAtomicArgument', async () => {
       // Arrange
-      const document = ProofDocument.create();
-      const argumentResult = document.createAtomicArgument(null, null);
+      const document = createTestProofDocument();
+      const argumentResult = document.createAtomicArgument([], []);
       expect(argumentResult.isOk()).toBe(true);
       if (!argumentResult.isOk()) return;
 
-      const documentId = document.getId().getValue();
+      const documentId = 'test-doc';
       const argumentId = argumentResult.value.getId().getValue();
 
-      vi.mocked(mockRepository.findById).mockResolvedValue(document);
+      vi.mocked(mockRepository.findById).mockResolvedValue(ok(document));
 
       // Act - use non-UUID format to trigger validation error
       const result = await service.updateAtomicArgument({
         documentId,
         argumentId,
-        premiseIds: 'invalid-format', // Invalid non-UUID format
-        conclusionIds: null,
+        premiseStatementIds: ['invalid-format'], // Invalid non-UUID format
+        conclusionStatementIds: [],
       });
 
       // Assert
@@ -1027,22 +1132,22 @@ describe('ProofApplicationService Event Integration', () => {
 
     test('returns error if invalid conclusion set ID in updateAtomicArgument', async () => {
       // Arrange
-      const document = ProofDocument.create();
-      const argumentResult = document.createAtomicArgument(null, null);
+      const document = createTestProofDocument();
+      const argumentResult = document.createAtomicArgument([], []);
       expect(argumentResult.isOk()).toBe(true);
       if (!argumentResult.isOk()) return;
 
-      const documentId = document.getId().getValue();
+      const documentId = 'test-doc';
       const argumentId = argumentResult.value.getId().getValue();
 
-      vi.mocked(mockRepository.findById).mockResolvedValue(document);
+      vi.mocked(mockRepository.findById).mockResolvedValue(ok(document));
 
       // Act - use non-UUID format to trigger validation error
       const result = await service.updateAtomicArgument({
         documentId,
         argumentId,
-        premiseIds: null,
-        conclusionIds: 'invalid-format', // Invalid non-UUID format
+        premiseStatementIds: [],
+        conclusionStatementIds: ['invalid-format'], // Invalid non-UUID format
       });
 
       // Assert
@@ -1054,22 +1159,22 @@ describe('ProofApplicationService Event Integration', () => {
 
     test('returns error if premise OrderedSet not found', async () => {
       // Arrange
-      const document = ProofDocument.create();
-      const argumentResult = document.createAtomicArgument(null, null);
+      const document = createTestProofDocument();
+      const argumentResult = document.createAtomicArgument([], []);
       expect(argumentResult.isOk()).toBe(true);
       if (!argumentResult.isOk()) return;
 
-      const documentId = document.getId().getValue();
+      const documentId = 'test-doc';
       const argumentId = argumentResult.value.getId().getValue();
 
-      vi.mocked(mockRepository.findById).mockResolvedValue(document);
+      vi.mocked(mockRepository.findById).mockResolvedValue(ok(document));
 
       // Act
       const result = await service.updateAtomicArgument({
         documentId,
         argumentId,
-        premiseIds: 'non-existent',
-        conclusionIds: null,
+        premiseStatementIds: ['non-existent'],
+        conclusionStatementIds: [],
       });
 
       // Assert
@@ -1081,22 +1186,22 @@ describe('ProofApplicationService Event Integration', () => {
 
     test('returns error if conclusion OrderedSet not found', async () => {
       // Arrange
-      const document = ProofDocument.create();
-      const argumentResult = document.createAtomicArgument(null, null);
+      const document = createTestProofDocument();
+      const argumentResult = document.createAtomicArgument([], []);
       expect(argumentResult.isOk()).toBe(true);
       if (!argumentResult.isOk()) return;
 
-      const documentId = document.getId().getValue();
+      const documentId = 'test-doc';
       const argumentId = argumentResult.value.getId().getValue();
 
-      vi.mocked(mockRepository.findById).mockResolvedValue(document);
+      vi.mocked(mockRepository.findById).mockResolvedValue(ok(document));
 
       // Act
       const result = await service.updateAtomicArgument({
         documentId,
         argumentId,
-        premiseIds: null,
-        conclusionIds: 'non-existent',
+        premiseStatementIds: [],
+        conclusionStatementIds: ['non-existent'],
       });
 
       // Assert
@@ -1108,15 +1213,15 @@ describe('ProofApplicationService Event Integration', () => {
 
     test('returns error if domain update operation fails', async () => {
       // Arrange
-      const document = ProofDocument.create();
-      const argumentResult = document.createAtomicArgument(null, null);
+      const document = createTestProofDocument();
+      const argumentResult = document.createAtomicArgument([], []);
       expect(argumentResult.isOk()).toBe(true);
       if (!argumentResult.isOk()) return;
 
-      const documentId = document.getId().getValue();
+      const documentId = 'test-doc';
       const argumentId = argumentResult.value.getId().getValue();
 
-      vi.mocked(mockRepository.findById).mockResolvedValue(document);
+      vi.mocked(mockRepository.findById).mockResolvedValue(ok(document));
 
       // Mock domain operation to fail
       vi.spyOn(document, 'updateAtomicArgument').mockReturnValue(
@@ -1127,8 +1232,8 @@ describe('ProofApplicationService Event Integration', () => {
       const result = await service.updateAtomicArgument({
         documentId,
         argumentId,
-        premiseIds: null,
-        conclusionIds: null,
+        premiseStatementIds: [],
+        conclusionStatementIds: [],
       });
 
       // Assert
@@ -1142,15 +1247,15 @@ describe('ProofApplicationService Event Integration', () => {
   describe('deleteAtomicArgument', () => {
     test('publishes events after successful deletion', async () => {
       // Arrange
-      const document = ProofDocument.create();
-      const argumentResult = document.createAtomicArgument(null, null);
+      const document = createTestProofDocument();
+      const argumentResult = document.createAtomicArgument([], []);
       expect(argumentResult.isOk()).toBe(true);
       if (!argumentResult.isOk()) return;
 
-      const documentId = document.getId().getValue();
+      const documentId = 'test-doc';
       const argumentId = argumentResult.value.getId().getValue();
 
-      vi.mocked(mockRepository.findById).mockResolvedValue(document);
+      vi.mocked(mockRepository.findById).mockResolvedValue(ok(document));
       vi.mocked(mockRepository.save).mockResolvedValue(ok(undefined));
 
       const capturedEvents: DomainEvent[] = [];
@@ -1176,10 +1281,14 @@ describe('ProofApplicationService Event Integration', () => {
 
     test('returns error if invalid argument ID in deleteAtomicArgument', async () => {
       // Arrange
-      const document = ProofDocument.create();
-      const documentId = document.getId().getValue();
+      const docIdResult = ProofDocumentId.create('test-doc');
+      if (docIdResult.isErr()) throw new Error('Failed to create document ID');
+      const documentResult = ProofDocument.createBootstrap(docIdResult.value);
+      if (documentResult.isErr()) throw new Error('Failed to create test document');
+      const document = documentResult.value;
+      const documentId = 'test-doc';
 
-      vi.mocked(mockRepository.findById).mockResolvedValue(document);
+      vi.mocked(mockRepository.findById).mockResolvedValue(ok(document));
 
       // Act
       const result = await service.deleteAtomicArgument({
@@ -1196,15 +1305,15 @@ describe('ProofApplicationService Event Integration', () => {
 
     test('returns error if domain delete operation fails', async () => {
       // Arrange
-      const document = ProofDocument.create();
-      const argumentResult = document.createAtomicArgument(null, null);
+      const document = createTestProofDocument();
+      const argumentResult = document.createAtomicArgument([], []);
       expect(argumentResult.isOk()).toBe(true);
       if (!argumentResult.isOk()) return;
 
-      const documentId = document.getId().getValue();
+      const documentId = 'test-doc';
       const argumentId = argumentResult.value.getId().getValue();
 
-      vi.mocked(mockRepository.findById).mockResolvedValue(document);
+      vi.mocked(mockRepository.findById).mockResolvedValue(ok(document));
 
       // Mock domain operation to fail
       vi.spyOn(document, 'deleteAtomicArgument').mockReturnValue(
@@ -1226,10 +1335,14 @@ describe('ProofApplicationService Event Integration', () => {
 
     test('returns error if argument not found', async () => {
       // Arrange
-      const document = ProofDocument.create();
-      const documentId = document.getId().getValue();
+      const docIdResult = ProofDocumentId.create('test-doc');
+      if (docIdResult.isErr()) throw new Error('Failed to create document ID');
+      const documentResult = ProofDocument.createBootstrap(docIdResult.value);
+      if (documentResult.isErr()) throw new Error('Failed to create test document');
+      const document = documentResult.value;
+      const documentId = 'test-doc';
 
-      vi.mocked(mockRepository.findById).mockResolvedValue(document);
+      vi.mocked(mockRepository.findById).mockResolvedValue(ok(document));
 
       // Act
       const result = await service.deleteAtomicArgument({
@@ -1248,10 +1361,14 @@ describe('ProofApplicationService Event Integration', () => {
   describe('event bus error handling', () => {
     test('continues operation even if event publishing fails', async () => {
       // Arrange
-      const document = ProofDocument.create();
-      const documentId = document.getId().getValue();
+      const docIdResult = ProofDocumentId.create('test-doc');
+      if (docIdResult.isErr()) throw new Error('Failed to create document ID');
+      const documentResult = ProofDocument.createBootstrap(docIdResult.value);
+      if (documentResult.isErr()) throw new Error('Failed to create test document');
+      const document = documentResult.value;
+      const documentId = 'test-doc';
 
-      vi.mocked(mockRepository.findById).mockResolvedValue(document);
+      vi.mocked(mockRepository.findById).mockResolvedValue(ok(document));
       vi.mocked(mockRepository.save).mockResolvedValue(ok(undefined));
 
       // Mock event bus to throw error
@@ -1273,10 +1390,14 @@ describe('ProofApplicationService Event Integration', () => {
   describe('aggregate event lifecycle', () => {
     test('properly manages uncommitted events', async () => {
       // Arrange
-      const document = ProofDocument.create();
-      const documentId = document.getId().getValue();
+      const docIdResult = ProofDocumentId.create('test-doc');
+      if (docIdResult.isErr()) throw new Error('Failed to create document ID');
+      const documentResult = ProofDocument.createBootstrap(docIdResult.value);
+      if (documentResult.isErr()) throw new Error('Failed to create test document');
+      const document = documentResult.value;
+      const documentId = 'test-doc';
 
-      vi.mocked(mockRepository.findById).mockResolvedValue(document);
+      vi.mocked(mockRepository.findById).mockResolvedValue(ok(document));
       vi.mocked(mockRepository.save).mockResolvedValue(ok(undefined));
 
       // Verify document has uncommitted events after domain operation
@@ -1296,3 +1417,12 @@ describe('ProofApplicationService Event Integration', () => {
     });
   });
 });
+
+// Helper function to create a test ProofDocument
+function createTestProofDocument(id = 'test-doc'): ProofDocument {
+  const docIdResult = ProofDocumentId.create(id);
+  if (docIdResult.isErr()) throw new Error('Failed to create document ID');
+  const documentResult = ProofDocument.createBootstrap(docIdResult.value);
+  if (documentResult.isErr()) throw new Error('Failed to create test document');
+  return documentResult.value;
+}

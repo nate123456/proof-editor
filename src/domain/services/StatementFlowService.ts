@@ -1,6 +1,5 @@
 import { err, ok, type Result } from 'neverthrow';
 import { AtomicArgument } from '../entities/AtomicArgument.js';
-import { OrderedSet } from '../entities/OrderedSet.js';
 import { Statement } from '../entities/Statement.js';
 import type {
   IProofTransactionService,
@@ -17,119 +16,27 @@ import {
   type DeleteStatementRequest,
 } from '../operations/StatementOperations.js';
 import { ValidationError } from '../shared/result.js';
-import type { AtomicArgumentId, OrderedSetId } from '../shared/value-objects/index.js';
+import type { AtomicArgumentId } from '../shared/value-objects/index.js';
 
 export class StatementFlowService {
   constructor(private readonly transactionService?: IProofTransactionService) {}
+
   createStatementFromContent(content: string): Result<Statement, ValidationError> {
     return Statement.create(content);
   }
 
-  createOrderedSetFromStatements(statements: Statement[]): Result<OrderedSet, ValidationError> {
-    const statementIds = statements.map((statement) => statement.getId());
-    return OrderedSet.create(statementIds);
-  }
-
-  createEmptyOrderedSet(): Result<OrderedSet, ValidationError> {
-    return OrderedSet.create();
-  }
-
-  addStatementToOrderedSet(
-    orderedSet: OrderedSet,
-    statement: Statement,
-  ): Result<void, ValidationError> {
-    return orderedSet.addStatement(statement.getId());
-  }
-
-  addStatementToOrderedSetAndIncrementUsage(
-    orderedSet: OrderedSet,
-    statement: Statement,
-  ): Result<void, ValidationError> {
-    const addResult = orderedSet.addStatement(statement.getId());
-    if (addResult.isOk()) {
-      statement.incrementUsage();
-    }
-    return addResult;
-  }
-
-  removeStatementFromOrderedSet(
-    orderedSet: OrderedSet,
-    statement: Statement,
-  ): Result<void, ValidationError> {
-    return orderedSet.removeStatement(statement.getId());
-  }
-
-  removeStatementFromOrderedSetAndDecrementUsage(
-    orderedSet: OrderedSet,
-    statement: Statement,
-  ): Result<void, ValidationError> {
-    const removeResult = orderedSet.removeStatement(statement.getId());
-    if (removeResult.isOk()) {
-      return statement.decrementUsage();
-    }
-    return removeResult;
-  }
-
-  createAtomicArgumentWithSets(
-    premiseSet?: OrderedSet,
-    conclusionSet?: OrderedSet,
+  createAtomicArgumentFromStatements(
+    premiseStatements: Statement[],
+    conclusionStatements: Statement[],
   ): Result<AtomicArgument, ValidationError> {
-    const argument = AtomicArgument.create(premiseSet?.getId(), conclusionSet?.getId());
-
-    if (argument.isOk()) {
-      const argumentEntity = argument.value;
-
-      if (premiseSet) {
-        premiseSet.addAtomicArgumentReference(argumentEntity.getId(), 'premise');
-      }
-
-      if (conclusionSet) {
-        conclusionSet.addAtomicArgumentReference(argumentEntity.getId(), 'conclusion');
-      }
-    }
-
-    return argument;
-  }
-
-  connectAtomicArgumentsBySharedSet(
-    parentArg: AtomicArgument,
-    childArg: AtomicArgument,
-    sharedSet: OrderedSet,
-  ): Result<void, ValidationError> {
-    const parentConclusionRef = parentArg.getConclusionSet();
-    const childPremiseRef = childArg.getPremiseSet();
-
-    if (!parentConclusionRef || !childPremiseRef) {
-      return err(new ValidationError('Both arguments must have the relevant ordered sets'));
-    }
-
-    if (
-      !parentConclusionRef.equals(sharedSet.getId()) ||
-      !childPremiseRef.equals(sharedSet.getId())
-    ) {
-      return err(new ValidationError('Shared set must match both argument references'));
-    }
-
-    return ok(undefined);
+    return AtomicArgument.create(premiseStatements, conclusionStatements);
   }
 
   createBranchFromArgumentConclusion(
     parentArg: AtomicArgument,
-    conclusionSet: OrderedSet,
+    conclusionIndex: number = 0,
   ): Result<AtomicArgument, ValidationError> {
-    if (!parentArg.getConclusionSet()?.equals(conclusionSet.getId())) {
-      return err(new ValidationError('Conclusion set must match parent argument'));
-    }
-
-    const childArgResult = parentArg.createBranchFromConclusion();
-    if (childArgResult.isErr()) {
-      return childArgResult;
-    }
-
-    const childArg = childArgResult.value;
-    conclusionSet.addAtomicArgumentReference(childArg.getId(), 'premise');
-
-    return ok(childArg);
+    return parentArg.createBranchFromConclusion(conclusionIndex);
   }
 
   findDirectlyConnectedArguments(
@@ -184,37 +91,30 @@ export class StatementFlowService {
   validateStatementFlow(
     fromArgument: AtomicArgument,
     toArgument: AtomicArgument,
-    orderedSets: Map<OrderedSetId, OrderedSet>,
   ): Result<void, ValidationError> {
-    const fromConclusionRef = fromArgument.getConclusionSet();
-    const toPremiseRef = toArgument.getPremiseSet();
+    // Check if arguments can connect via shared statements
+    const fromConclusions = fromArgument.getConclusions();
+    const toPremises = toArgument.getPremises();
 
-    if (!fromConclusionRef || !toPremiseRef) {
-      return err(new ValidationError('Both arguments must have relevant ordered sets for flow'));
-    }
+    // For flow to be valid, at least one conclusion statement from the first argument
+    // must match a premise statement in the second argument
+    const hasSharedStatement = fromConclusions.some((conclusion) =>
+      toPremises.some((premise) => premise.getId().equals(conclusion.getId())),
+    );
 
-    if (!fromConclusionRef.equals(toPremiseRef)) {
-      return err(new ValidationError('Arguments are not connected by shared ordered set'));
-    }
-
-    const sharedSet = orderedSets.get(fromConclusionRef);
-    if (!sharedSet) {
-      return err(new ValidationError('Shared ordered set not found'));
-    }
-
-    if (sharedSet.isEmpty()) {
-      return err(new ValidationError('Cannot flow through empty ordered set'));
+    if (!hasSharedStatement) {
+      return err(new ValidationError('Arguments are not connected by shared statements'));
     }
 
     return ok(undefined);
   }
 
   canStatementsFlowBetween(fromArgument: AtomicArgument, toArgument: AtomicArgument): boolean {
-    const fromConclusionRef = fromArgument.getConclusionSet();
-    const toPremiseRef = toArgument.getPremiseSet();
+    const fromConclusions = fromArgument.getConclusions();
+    const toPremises = toArgument.getPremises();
 
-    return (
-      fromConclusionRef !== null && toPremiseRef !== null && fromConclusionRef.equals(toPremiseRef)
+    return fromConclusions.some((conclusion) =>
+      toPremises.some((premise) => premise.getId().equals(conclusion.getId())),
     );
   }
 
@@ -259,31 +159,6 @@ export class StatementFlowService {
     }
 
     return null;
-  }
-
-  async createAtomicConnectionWithTransaction(
-    request: ConnectionRequest,
-  ): Promise<Result<void, TransactionError | ValidationError>> {
-    if (!this.transactionService) {
-      return err(new ValidationError('Transaction service not available'));
-    }
-
-    return this.transactionService.executeInTransaction(async (transaction) => {
-      const validationResult = this.connectAtomicArgumentsBySharedSet(
-        request.parentArgument,
-        request.childArgument,
-        request.sharedSet,
-      );
-
-      if (validationResult.isErr()) {
-        return err(validationResult.error);
-      }
-
-      const createOp = new CreateConnectionOperation(request);
-      transaction.addOperation(createOp);
-
-      return ok(undefined);
-    });
   }
 
   async createStatementWithTransaction(
@@ -355,19 +230,9 @@ export class StatementFlowService {
         conclusionStatements.push(statement);
       }
 
-      const premiseSetResult = this.createOrderedSetFromStatements(premiseStatements);
-      if (premiseSetResult.isErr()) {
-        return err(premiseSetResult.error);
-      }
-
-      const conclusionSetResult = this.createOrderedSetFromStatements(conclusionStatements);
-      if (conclusionSetResult.isErr()) {
-        return err(conclusionSetResult.error);
-      }
-
-      const argumentResult = this.createAtomicArgumentWithSets(
-        premiseSetResult.value,
-        conclusionSetResult.value,
+      const argumentResult = this.createAtomicArgumentFromStatements(
+        premiseStatements,
+        conclusionStatements,
       );
 
       if (argumentResult.isErr()) {

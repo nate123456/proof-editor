@@ -2,8 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Tree } from '../../entities/Tree';
 import { ValidationError } from '../../shared/result';
-import { PhysicalProperties, Position2D } from '../../shared/value-objects';
-import { nodeIdFactory, treeIdFactory } from '../factories';
+import { PhysicalProperties } from '../../shared/value-objects';
+import { TreePosition } from '../../value-objects/TreePosition';
+import { nodeIdFactory, treeIdFactory } from './factories';
 
 describe('Tree Lifecycle', () => {
   let mockDateNow: ReturnType<typeof vi.fn>;
@@ -43,7 +44,7 @@ describe('Tree Lifecycle', () => {
 
       it('should create a tree with all parameters', () => {
         const documentId = 'doc-456';
-        const positionResult = Position2D.create(100, 200);
+        const positionResult = TreePosition.create(100, 200);
         const propertiesResult = PhysicalProperties.create(
           'bottom-up',
           50,
@@ -166,7 +167,7 @@ describe('Tree Lifecycle', () => {
       it('should reconstruct a tree with all data', () => {
         const treeId = treeIdFactory.build();
         const documentId = 'doc-reconstruct-full';
-        const positionResult = Position2D.create(300, 400);
+        const positionResult = TreePosition.create(300, 400);
         const propertiesResult = PhysicalProperties.create(
           'top-down',
           75,

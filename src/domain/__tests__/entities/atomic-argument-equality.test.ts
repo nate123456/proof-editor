@@ -11,63 +11,95 @@ describe('Equality and Comparison', () => {
       const premises = [statementFactory.build(), statementFactory.build()];
       const conclusions = [statementFactory.build()];
 
-      const argument1 = AtomicArgument.create(premises, conclusions).value;
-      const argument2 = AtomicArgument.create(premises, conclusions).value;
+      const result1 = AtomicArgument.create(premises, conclusions);
+      const result2 = AtomicArgument.create(premises, conclusions);
 
-      // Same properties but different identities
-      expect(argument1.equals(argument2)).toBe(false);
-      expect(argument1.equals(argument1)).toBe(true);
-      expect(argument2.equals(argument2)).toBe(true);
+      expect(result1.isOk()).toBe(true);
+      expect(result2.isOk()).toBe(true);
+
+      if (result1.isOk() && result2.isOk()) {
+        const argument1 = result1.value;
+        const argument2 = result2.value;
+
+        // Same properties but different identities
+        expect(argument1.equals(argument2)).toBe(false);
+        expect(argument1.equals(argument1)).toBe(true);
+        expect(argument2.equals(argument2)).toBe(true);
+      }
     });
 
     it('should maintain equality after modifications', () => {
       const premises = [statementFactory.build()];
       const conclusions = [statementFactory.build()];
-      const argument = AtomicArgument.create(premises, conclusions).value;
+      const result = AtomicArgument.create(premises, conclusions);
+      expect(result.isOk()).toBe(true);
 
-      const originalSelf = argument;
+      if (result.isOk()) {
+        const argument = result.value;
 
-      // Modify the argument
-      argument.updateSideLabels({ left: 'Modified' });
+        const originalSelf = argument;
 
-      // Identity should remain the same
-      expect(argument.equals(originalSelf)).toBe(true);
-      expect(originalSelf.equals(argument)).toBe(true);
+        // Modify the argument
+        argument.updateSideLabels({ left: 'Modified' });
+
+        // Identity should remain the same
+        expect(argument.equals(originalSelf)).toBe(true);
+        expect(originalSelf.equals(argument)).toBe(true);
+      }
     });
 
     it('should handle different argument configurations', () => {
       // Complete arguments
-      const complete1 = AtomicArgument.create(
+      const complete1Result = AtomicArgument.create(
         [statementFactory.build()],
         [statementFactory.build()],
-      ).value;
-      const complete2 = AtomicArgument.create(
+      );
+      const complete2Result = AtomicArgument.create(
         [statementFactory.build()],
         [statementFactory.build()],
-      ).value;
+      );
 
       // Incomplete arguments
-      const incomplete1 = AtomicArgument.create([statementFactory.build()], []).value;
-      const incomplete2 = AtomicArgument.create([], [statementFactory.build()]).value;
+      const incomplete1Result = AtomicArgument.create([statementFactory.build()], []);
+      const incomplete2Result = AtomicArgument.create([], [statementFactory.build()]);
 
-      // Each instance should only equal itself
-      expect(complete1.equals(complete1)).toBe(true);
-      expect(complete1.equals(complete2)).toBe(false);
-      expect(incomplete1.equals(incomplete1)).toBe(true);
-      expect(incomplete1.equals(incomplete2)).toBe(false);
+      expect(complete1Result.isOk()).toBe(true);
+      expect(complete2Result.isOk()).toBe(true);
+      expect(incomplete1Result.isOk()).toBe(true);
+      expect(incomplete2Result.isOk()).toBe(true);
+
+      if (
+        complete1Result.isOk() &&
+        complete2Result.isOk() &&
+        incomplete1Result.isOk() &&
+        incomplete2Result.isOk()
+      ) {
+        const complete1 = complete1Result.value;
+        const complete2 = complete2Result.value;
+        const incomplete1 = incomplete1Result.value;
+        const incomplete2 = incomplete2Result.value;
+
+        // Each instance should only equal itself
+        expect(complete1.equals(complete1)).toBe(true);
+        expect(complete1.equals(complete2)).toBe(false);
+        expect(incomplete1.equals(incomplete1)).toBe(true);
+        expect(incomplete1.equals(incomplete2)).toBe(false);
+      }
     });
   });
 
   describe('equality properties', () => {
     it('should satisfy reflexivity property', () => {
-      const argument1 = AtomicArgument.create(
-        [statementFactory.build()],
-        [statementFactory.build()],
-      ).value;
-      const argument2 = AtomicArgument.create(
-        [statementFactory.build()],
-        [statementFactory.build()],
-      ).value;
+      const result1 = AtomicArgument.create([statementFactory.build()], [statementFactory.build()]);
+      const result2 = AtomicArgument.create([statementFactory.build()], [statementFactory.build()]);
+
+      expect(result1.isOk()).toBe(true);
+      expect(result2.isOk()).toBe(true);
+
+      if (!result1.isOk() || !result2.isOk()) return;
+
+      const argument1 = result1.value;
+      const argument2 = result2.value;
 
       // Each argument should equal itself
       expect(argument1.equals(argument1)).toBe(true);
@@ -76,20 +108,24 @@ describe('Equality and Comparison', () => {
 
     it('should satisfy symmetry property', () => {
       // Since equality is identity-based, only same object equals itself
-      const argument = AtomicArgument.create(
-        [statementFactory.build()],
-        [statementFactory.build()],
-      ).value;
+      const result = AtomicArgument.create([statementFactory.build()], [statementFactory.build()]);
+
+      expect(result.isOk()).toBe(true);
+      if (!result.isOk()) return;
+
+      const argument = result.value;
 
       // Self-equality is symmetric
       expect(argument.equals(argument)).toBe(true);
     });
 
     it('should handle null/undefined comparison gracefully', () => {
-      const argument = AtomicArgument.create(
-        [statementFactory.build()],
-        [statementFactory.build()],
-      ).value;
+      const result = AtomicArgument.create([statementFactory.build()], [statementFactory.build()]);
+
+      expect(result.isOk()).toBe(true);
+      if (!result.isOk()) return;
+
+      const argument = result.value;
 
       // Should handle comparison with null/undefined gracefully
       expect(argument.equals(null as any)).toBe(false);

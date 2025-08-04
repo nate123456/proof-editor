@@ -17,7 +17,7 @@ export class StatementContentSpecification extends CompositeSpecification<Statem
     return statement.getContent() === this.expectedContent;
   }
 
-  reasonForDissatisfaction(statement: Statement): string | null {
+  override reasonForDissatisfaction(statement: Statement): string | null {
     return this.isSatisfiedBy(statement)
       ? null
       : `Expected content "${this.expectedContent}", but got "${statement.getContent()}"`;
@@ -51,7 +51,7 @@ export class StatementPatternSpecification extends CompositeSpecification<Statem
     return regex.test(content);
   }
 
-  reasonForDissatisfaction(statement: Statement): string | null {
+  override reasonForDissatisfaction(statement: Statement): string | null {
     return this.isSatisfiedBy(statement)
       ? null
       : `Content "${statement.getContent()}" does not match pattern ${this.pattern}`;
@@ -87,7 +87,7 @@ export class StatementLogicalStructureSpecification extends CompositeSpecificati
     }
   }
 
-  reasonForDissatisfaction(statement: Statement): string | null {
+  override reasonForDissatisfaction(statement: Statement): string | null {
     return this.isSatisfiedBy(statement)
       ? null
       : `Statement does not have logical structure type: ${this.structureType}`;
@@ -106,7 +106,7 @@ export class StatementUsageSpecification extends CompositeSpecification<Statemen
     return statement.getUsageCount() >= this.minUsage;
   }
 
-  reasonForDissatisfaction(statement: Statement): string | null {
+  override reasonForDissatisfaction(statement: Statement): string | null {
     return this.isSatisfiedBy(statement)
       ? null
       : `Usage count ${statement.getUsageCount()} is below minimum ${this.minUsage}`;
@@ -126,7 +126,7 @@ export class StatementKeywordSpecification extends CompositeSpecification<Statem
     return this.keywords.some((keyword) => content.includes(keyword.toLowerCase()));
   }
 
-  reasonForDissatisfaction(statement: Statement): string | null {
+  override reasonForDissatisfaction(statement: Statement): string | null {
     return this.isSatisfiedBy(statement)
       ? null
       : `Statement does not contain any of the keywords: ${this.keywords.join(', ')}`;
@@ -149,7 +149,7 @@ export class StatementDateRangeSpecification extends CompositeSpecification<Stat
     return createdAt >= this.fromDate && createdAt <= this.toDate;
   }
 
-  reasonForDissatisfaction(statement: Statement): string | null {
+  override reasonForDissatisfaction(statement: Statement): string | null {
     return this.isSatisfiedBy(statement)
       ? null
       : `Statement created at ${new Date(statement.getCreatedAt())} is outside date range`;
@@ -164,7 +164,7 @@ export class UnusedStatementSpecification extends CompositeSpecification<Stateme
     return !statement.isInUse();
   }
 
-  reasonForDissatisfaction(statement: Statement): string | null {
+  override reasonForDissatisfaction(statement: Statement): string | null {
     return this.isSatisfiedBy(statement)
       ? null
       : `Statement is in use with count ${statement.getUsageCount()}`;
@@ -179,7 +179,7 @@ export class StatementHasContentSpecification extends CompositeSpecification<Sta
     return statement.hasContent();
   }
 
-  reasonForDissatisfaction(statement: Statement): string | null {
+  override reasonForDissatisfaction(statement: Statement): string | null {
     return this.isSatisfiedBy(statement) ? null : 'Statement has no content';
   }
 }

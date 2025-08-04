@@ -1,12 +1,20 @@
 import { err, ok } from 'neverthrow';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
-import type { IFileSystemPort } from '../../../application/ports/IFileSystemPort.js';
+import type {
+  FileSystemError,
+  IFileSystemPort,
+} from '../../../application/ports/IFileSystemPort.js';
 import type { IPlatformPort } from '../../../application/ports/IPlatformPort.js';
 import type { IUIPort } from '../../../application/ports/IUIPort.js';
 import type { CrossContextOrchestrationService } from '../../../application/services/CrossContextOrchestrationService.js';
 import type { DocumentOrchestrationService } from '../../../application/services/DocumentOrchestrationService.js';
 import type { DocumentQueryService } from '../../../application/services/DocumentQueryService.js';
 import type { ProofVisualizationService } from '../../../application/services/ProofVisualizationService.js';
+import {
+  DocumentContent,
+  ErrorCode,
+  ErrorMessage,
+} from '../../../domain/shared/value-objects/index.js';
 import type { YAMLSerializer } from '../../../infrastructure/repositories/yaml/YAMLSerializer.js';
 import { ProofDocumentController } from '../ProofDocumentController.js';
 
@@ -43,7 +51,7 @@ describe('ProofDocumentController', () => {
             createdAt: new Date().toISOString(),
             modifiedAt: new Date().toISOString(),
             statements: {},
-            orderedSets: {},
+            // OrderedSets are handled internally by the domain layer
             atomicArguments: {},
             trees: {},
             stats: {
@@ -70,7 +78,7 @@ describe('ProofDocumentController', () => {
             createdAt: new Date().toISOString(),
             modifiedAt: new Date().toISOString(),
             statements: {},
-            orderedSets: {},
+            // OrderedSets are handled internally by the domain layer
             atomicArguments: {},
             trees: {},
             stats: {
@@ -92,11 +100,15 @@ describe('ProofDocumentController', () => {
     } as unknown as DocumentQueryService);
 
     mockFileSystem = vi.mocked<IFileSystemPort>({
-      readFile: vi
-        .fn()
-        .mockResolvedValue(
-          ok('# Mock YAML content\nstatements: {}\natomicArguments: {}\ntrees: {}'),
-        ),
+      readFile: vi.fn().mockResolvedValue(() => {
+        const contentResult = DocumentContent.create(
+          '# Mock YAML content\nstatements: {}\natomicArguments: {}\ntrees: {}',
+        );
+        if (contentResult.isErr()) {
+          throw new Error('Failed to create document content');
+        }
+        return ok(contentResult.value);
+      })(),
       writeFile: vi.fn().mockResolvedValue(ok(undefined)),
       exists: vi.fn().mockResolvedValue(ok(true)),
       delete: vi.fn().mockResolvedValue(ok(undefined)),
@@ -315,9 +327,22 @@ describe('ProofDocumentController', () => {
 
     test('handles unexpected errors gracefully', async () => {
       // Force an error by making the file system readFile fail
-      mockFileSystem.readFile.mockResolvedValueOnce(
-        err({ code: 'NOT_FOUND', message: 'File system error' }),
-      );
+      const errorCode = ErrorCode.create('NOT_FOUND');
+      if (errorCode.isErr()) {
+        throw new Error('Failed to create error code');
+      }
+
+      const errorMessage = ErrorMessage.create('File system error');
+      if (errorMessage.isErr()) {
+        throw new Error('Failed to create error message');
+      }
+
+      const fileSystemError: FileSystemError = {
+        code: errorCode.value,
+        message: errorMessage.value,
+      };
+
+      mockFileSystem.readFile.mockResolvedValueOnce(err(fileSystemError));
 
       const result = await controller.loadDocument('/valid/path');
 
@@ -327,9 +352,13 @@ describe('ProofDocumentController', () => {
       }
 
       // Restore the original mock
-      mockFileSystem.readFile.mockResolvedValue(
-        ok('# Mock YAML content\nstatements: {}\natomicArguments: {}\ntrees: {}'),
+      const contentResult = DocumentContent.create(
+        '# Mock YAML content\nstatements: {}\natomicArguments: {}\ntrees: {}',
       );
+      if (contentResult.isErr()) {
+        throw new Error('Failed to create document content');
+      }
+      mockFileSystem.readFile.mockResolvedValue(ok(contentResult.value));
     });
   });
 

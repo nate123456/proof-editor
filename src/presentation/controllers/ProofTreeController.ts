@@ -8,6 +8,12 @@ import type {
 import { mapToApplicationEvent } from '../../application/dtos/event-dtos.js';
 import type { IUIPort } from '../../application/ports/IUIPort.js';
 import type { DomainEvent } from '../../domain/events/base-event.js';
+import {
+  DialogTitle,
+  NotificationMessage,
+  ViewType,
+  WebviewId,
+} from '../../domain/shared/value-objects/index.js';
 import type { Disposable, EventBus } from '../../infrastructure/events/EventBus.js';
 
 /**
@@ -53,13 +59,24 @@ export class ProofTreeController {
       // No business logic here - just coordinate between UI and application layer
 
       // For now, show a status message
-      this.uiPort.showInformation('Displaying proof tree visualization...');
+      const infoResult = NotificationMessage.create('Displaying proof tree visualization...');
+      if (infoResult.isOk()) {
+        this.uiPort.showInformation(infoResult.value);
+      }
 
       // Create webview panel using UI abstraction
+      const idResult = WebviewId.create('proof-tree-view');
+      const titleResult = DialogTitle.create('Proof Tree');
+      const viewTypeResult = ViewType.create('proofEditorTreeView');
+
+      if (idResult.isErr() || titleResult.isErr() || viewTypeResult.isErr()) {
+        return err(new Error('Failed to create webview panel options'));
+      }
+
       const _panel = this.uiPort.createWebviewPanel({
-        id: 'proof-tree-view',
-        title: 'Proof Tree',
-        viewType: 'proofEditor.treeView',
+        id: idResult.value,
+        title: titleResult.value,
+        viewType: viewTypeResult.value,
         enableScripts: true,
         retainContextWhenHidden: true,
       });
@@ -74,7 +91,10 @@ export class ProofTreeController {
 
       return ok(undefined);
     } catch (error) {
-      this.uiPort.showError('Failed to display proof tree');
+      const errorResult = NotificationMessage.create('Failed to display proof tree');
+      if (errorResult.isOk()) {
+        this.uiPort.showError(errorResult.value);
+      }
       // Error: ProofTreeController.showProofTreeForDocument
       return err(error as Error);
     }

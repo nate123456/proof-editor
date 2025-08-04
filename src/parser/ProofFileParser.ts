@@ -2,9 +2,8 @@ import * as yaml from 'js-yaml';
 import { err, ok, type Result } from 'neverthrow';
 import { inject, injectable } from 'tsyringe';
 
-import { AtomicArgument } from '../domain/entities/AtomicArgument.js';
+import { AtomicArgument, SideLabels } from '../domain/entities/AtomicArgument.js';
 import { Node } from '../domain/entities/Node.js';
-import { OrderedSet } from '../domain/entities/OrderedSet.js';
 import { Statement } from '../domain/entities/Statement.js';
 import { Tree } from '../domain/entities/Tree.js';
 import type { ValidationError } from '../domain/shared/result.js';
@@ -12,9 +11,9 @@ import {
   AtomicArgumentId,
   Attachment,
   NodeId,
-  Position2D,
   StatementId,
-} from '../domain/shared/value-objects.js';
+} from '../domain/shared/value-objects/index.js';
+import { TreePosition } from '../domain/value-objects/TreePosition.js';
 import { TOKENS } from '../infrastructure/di/tokens.js';
 import { type ParseError, ParseErrorType, ParseFailureError } from './ParseError.js';
 import type { NodeSpec, ProofDocument } from './ProofDocument.js';
@@ -66,7 +65,6 @@ export class ProofFileParser {
     // Phase 3: Create domain objects in dependency order
     const document: ProofDocument = {
       statements: new Map(),
-      orderedSets: new Map(),
       atomicArguments: new Map(),
       trees: new Map(),
       nodes: new Map(),
@@ -84,23 +82,11 @@ export class ProofFileParser {
       }
     }
 
-    // Phase 3b: Create OrderedSets (depends on Statements)
-    if (structure.orderedSets) {
-      const orderedSetsResult = this.createOrderedSets(structure.orderedSets, document.statements);
-      if (orderedSetsResult.isErr()) {
-        errors.push(...orderedSetsResult.error);
-      } else {
-        orderedSetsResult.value.forEach((orderedSet, id) => {
-          document.orderedSets.set(id, orderedSet);
-        });
-      }
-    }
-
-    // Phase 3c: Create AtomicArguments (depends on OrderedSets)
+    // Phase 3b: Create AtomicArguments (depends on Statements)
     if (structure.atomicArguments) {
       const atomicArgumentsResult = this.createAtomicArguments(
         structure.atomicArguments,
-        document.orderedSets,
+        document.statements,
       );
       if (atomicArgumentsResult.isErr()) {
         errors.push(...atomicArgumentsResult.error);
@@ -111,7 +97,7 @@ export class ProofFileParser {
       }
     }
 
-    // Phase 3d: Create Arguments from new format (depends on Statements)
+    // Phase 3c: Create Arguments from new format (depends on Statements)
     if (structure.arguments) {
       const argumentsResult = this.createArguments(structure.arguments, document.statements);
       if (argumentsResult.isErr()) {
@@ -123,7 +109,7 @@ export class ProofFileParser {
       }
     }
 
-    // Phase 3e: Create Trees and Nodes (depends on Arguments)
+    // Phase 3d: Create Trees and Nodes (depends on Arguments)
     if (structure.trees) {
       const treesResult = this.createTreesAndNodes(structure.trees, document.atomicArguments);
       if (treesResult.isErr()) {
@@ -173,108 +159,78 @@ export class ProofFileParser {
     return errors.length > 0 ? err(errors) : ok(statements);
   }
 
-  private createOrderedSets(
-    orderedSetsData: Record<string, string[]>,
-    statements: Map<string, Statement>,
-  ): Result<Map<string, OrderedSet>, ParseError[]> {
-    const errors: ParseError[] = [];
-    const orderedSets = new Map<string, OrderedSet>();
-
-    for (const [id, statementIds] of Object.entries(orderedSetsData)) {
-      const validStatementIds: StatementId[] = [];
-
-      for (const statementId of statementIds) {
-        if (!statements.has(statementId)) {
-          errors.push({
-            type: ParseErrorType.MISSING_REFERENCE,
-            message: `Statement '${statementId}' referenced in ordered set '${id}' but not defined in statements section`,
-            section: 'orderedSets',
-            reference: id,
-          });
-          continue;
-        }
-
-        const statementIdResult = StatementId.create(statementId);
-        if (statementIdResult.isErr()) {
-          errors.push({
-            type: ParseErrorType.INVALID_ORDERED_SET,
-            message: `Invalid statement ID '${statementId}': ${statementIdResult.error.message}`,
-            section: 'orderedSets',
-            reference: id,
-          });
-          continue;
-        }
-
-        validStatementIds.push(statementIdResult.value);
-      }
-
-      if (validStatementIds.length > 0) {
-        const orderedSetResult = OrderedSet.create(validStatementIds);
-        if (orderedSetResult.isErr()) {
-          errors.push({
-            type: ParseErrorType.INVALID_ORDERED_SET,
-            message: `Failed to create ordered set: ${orderedSetResult.error.message}`,
-            section: 'orderedSets',
-            reference: id,
-          });
-          continue;
-        }
-
-        orderedSets.set(id, orderedSetResult.value);
-      }
-    }
-
-    return errors.length > 0 ? err(errors) : ok(orderedSets);
-  }
-
   private createAtomicArguments(
     atomicArgumentsData: Record<
       string,
-      { premises?: string; conclusions?: string; sideLabel?: string }
+      { premises?: string[]; conclusions?: string[]; sideLabel?: string }
     >,
-    orderedSets: Map<string, OrderedSet>,
+    statements: Map<string, Statement>,
   ): Result<Map<string, AtomicArgument>, ParseError[]> {
     const errors: ParseError[] = [];
     const atomicArguments = new Map<string, AtomicArgument>();
 
     for (const [id, argSpec] of Object.entries(atomicArgumentsData)) {
-      // Validate premise reference
+      const premiseStatements: Statement[] = [];
+      const conclusionStatements: Statement[] = [];
+
+      // Validate and collect premise statements
       if (argSpec.premises) {
-        if (!orderedSets.has(argSpec.premises)) {
-          errors.push({
-            type: ParseErrorType.MISSING_REFERENCE,
-            message: `Ordered set '${argSpec.premises}' referenced as premises in argument '${id}' but not defined in orderedSets section`,
-            section: 'atomicArguments',
-            reference: id,
-          });
+        for (const statementId of argSpec.premises) {
+          if (!statements.has(statementId)) {
+            errors.push({
+              type: ParseErrorType.MISSING_REFERENCE,
+              message: `Statement '${statementId}' referenced as premise in argument '${id}' but not defined in statements section`,
+              section: 'atomicArguments',
+              reference: id,
+            });
+            continue;
+          }
+          const statement = statements.get(statementId);
+          if (statement) {
+            premiseStatements.push(statement);
+          }
         }
       }
 
-      // Validate conclusion reference
+      // Validate and collect conclusion statements
       if (argSpec.conclusions) {
-        if (!orderedSets.has(argSpec.conclusions)) {
-          errors.push({
-            type: ParseErrorType.MISSING_REFERENCE,
-            message: `Ordered set '${argSpec.conclusions}' referenced as conclusions in argument '${id}' but not defined in orderedSets section`,
-            section: 'atomicArguments',
-            reference: id,
-          });
+        for (const statementId of argSpec.conclusions) {
+          if (!statements.has(statementId)) {
+            errors.push({
+              type: ParseErrorType.MISSING_REFERENCE,
+              message: `Statement '${statementId}' referenced as conclusion in argument '${id}' but not defined in statements section`,
+              section: 'atomicArguments',
+              reference: id,
+            });
+            continue;
+          }
+          const statement = statements.get(statementId);
+          if (statement) {
+            conclusionStatements.push(statement);
+          }
         }
       }
 
       // Create atomic argument with side labels
-      const sideLabels = argSpec.sideLabel ? { left: argSpec.sideLabel } : {};
-
-      // Get the OrderedSet IDs from the map
-      const premiseOrderedSet = argSpec.premises ? orderedSets.get(argSpec.premises) : undefined;
-      const conclusionOrderedSet = argSpec.conclusions
-        ? orderedSets.get(argSpec.conclusions)
-        : undefined;
+      let sideLabelsObj = SideLabels.empty();
+      if (argSpec.sideLabel) {
+        const sideLabelsResult = SideLabels.fromStrings({ left: argSpec.sideLabel });
+        if (sideLabelsResult.isErr()) {
+          errors.push({
+            type: ParseErrorType.INVALID_ATOMIC_ARGUMENT,
+            message: `Invalid side label: ${sideLabelsResult.error.message}`,
+            section: 'atomicArguments',
+            reference: id,
+          });
+          continue;
+        }
+        sideLabelsObj = sideLabelsResult.value;
+      }
 
       const atomicArgumentResult = AtomicArgument.create(
-        premiseOrderedSet?.getId(),
-        conclusionOrderedSet?.getId(),
-        sideLabels,
+        premiseStatements,
+        conclusionStatements,
+        sideLabelsObj,
       );
 
       if (atomicArgumentResult.isErr()) {
@@ -309,12 +265,11 @@ export class ProofFileParser {
 
     // Handle object format (verbose syntax)
     for (const [id, argSpec] of Object.entries(argumentsData)) {
-      let premiseSet: OrderedSet | undefined;
-      let conclusionSet: OrderedSet | undefined;
+      const premiseStatements: Statement[] = [];
+      const conclusionStatements: Statement[] = [];
 
-      // Create premise OrderedSet from inline array
+      // Collect premise statements
       if (argSpec.premises && argSpec.premises.length > 0) {
-        const validPremiseIds: StatementId[] = [];
         for (const statementId of argSpec.premises) {
           if (!statements.has(statementId)) {
             errors.push({
@@ -326,38 +281,15 @@ export class ProofFileParser {
             continue;
           }
 
-          const statementIdResult = StatementId.create(statementId);
-          if (statementIdResult.isErr()) {
-            errors.push({
-              type: ParseErrorType.INVALID_ARGUMENT,
-              message: `Invalid premise statement ID '${statementId}': ${statementIdResult.error.message}`,
-              section: 'arguments',
-              reference: id,
-            });
-            continue;
-          }
-
-          validPremiseIds.push(statementIdResult.value);
-        }
-
-        if (validPremiseIds.length > 0) {
-          const premiseSetResult = OrderedSet.create(validPremiseIds);
-          if (premiseSetResult.isErr()) {
-            errors.push({
-              type: ParseErrorType.INVALID_ARGUMENT,
-              message: `Failed to create premise set for argument '${id}': ${premiseSetResult.error.message}`,
-              section: 'arguments',
-              reference: id,
-            });
-          } else {
-            premiseSet = premiseSetResult.value;
+          const statement = statements.get(statementId);
+          if (statement) {
+            premiseStatements.push(statement);
           }
         }
       }
 
-      // Create conclusion OrderedSet from inline array
+      // Collect conclusion statements
       if (argSpec.conclusions && argSpec.conclusions.length > 0) {
-        const validConclusionIds: StatementId[] = [];
         for (const statementId of argSpec.conclusions) {
           if (!statements.has(statementId)) {
             errors.push({
@@ -369,41 +301,33 @@ export class ProofFileParser {
             continue;
           }
 
-          const statementIdResult = StatementId.create(statementId);
-          if (statementIdResult.isErr()) {
-            errors.push({
-              type: ParseErrorType.INVALID_ARGUMENT,
-              message: `Invalid conclusion statement ID '${statementId}': ${statementIdResult.error.message}`,
-              section: 'arguments',
-              reference: id,
-            });
-            continue;
-          }
-
-          validConclusionIds.push(statementIdResult.value);
-        }
-
-        if (validConclusionIds.length > 0) {
-          const conclusionSetResult = OrderedSet.create(validConclusionIds);
-          if (conclusionSetResult.isErr()) {
-            errors.push({
-              type: ParseErrorType.INVALID_ARGUMENT,
-              message: `Failed to create conclusion set for argument '${id}': ${conclusionSetResult.error.message}`,
-              section: 'arguments',
-              reference: id,
-            });
-          } else {
-            conclusionSet = conclusionSetResult.value;
+          const statement = statements.get(statementId);
+          if (statement) {
+            conclusionStatements.push(statement);
           }
         }
       }
 
       // Create atomic argument with side labels
-      const sideLabels = argSpec.sideLabel ? { left: argSpec.sideLabel } : {};
+      let sideLabelsObj = SideLabels.empty();
+      if (argSpec.sideLabel) {
+        const sideLabelsResult = SideLabels.fromStrings({ left: argSpec.sideLabel });
+        if (sideLabelsResult.isErr()) {
+          errors.push({
+            type: ParseErrorType.INVALID_ARGUMENT,
+            message: `Invalid side label: ${sideLabelsResult.error.message}`,
+            section: 'arguments',
+            reference: id,
+          });
+          continue;
+        }
+        sideLabelsObj = sideLabelsResult.value;
+      }
+
       const atomicArgumentResult = AtomicArgument.create(
-        premiseSet?.getId(),
-        conclusionSet?.getId(),
-        sideLabels,
+        premiseStatements,
+        conclusionStatements,
+        sideLabelsObj,
       );
 
       if (atomicArgumentResult.isErr()) {
@@ -478,10 +402,9 @@ export class ProofFileParser {
         premises = [];
       }
 
-      // Create premise OrderedSet
-      let premiseSet: OrderedSet | undefined;
+      // Collect premise statements
+      const premiseStatements: Statement[] = [];
       if (premises.length > 0) {
-        const validPremiseIds: StatementId[] = [];
         for (const statementId of premises) {
           if (!statements.has(statementId)) {
             errors.push({
@@ -493,39 +416,16 @@ export class ProofFileParser {
             continue;
           }
 
-          const statementIdResult = StatementId.create(statementId);
-          if (statementIdResult.isErr()) {
-            errors.push({
-              type: ParseErrorType.INVALID_ARGUMENT,
-              message: `Invalid premise statement ID '${statementId}': ${statementIdResult.error.message}`,
-              section: 'arguments',
-              reference: `argument-${index}`,
-            });
-            continue;
-          }
-
-          validPremiseIds.push(statementIdResult.value);
-        }
-
-        if (validPremiseIds.length > 0) {
-          const premiseSetResult = OrderedSet.create(validPremiseIds);
-          if (premiseSetResult.isErr()) {
-            errors.push({
-              type: ParseErrorType.INVALID_ARGUMENT,
-              message: `Failed to create premise set for argument at index ${index}: ${premiseSetResult.error.message}`,
-              section: 'arguments',
-              reference: `argument-${index}`,
-            });
-          } else {
-            premiseSet = premiseSetResult.value;
+          const statement = statements.get(statementId);
+          if (statement) {
+            premiseStatements.push(statement);
           }
         }
       }
 
-      // Create conclusion OrderedSet
-      let conclusionSet: OrderedSet | undefined;
+      // Collect conclusion statements
+      const conclusionStatements: Statement[] = [];
       if (conclusionsValue.length > 0) {
-        const validConclusionIds: StatementId[] = [];
         for (const statementId of conclusionsValue) {
           if (!statements.has(statementId)) {
             errors.push({
@@ -537,40 +437,18 @@ export class ProofFileParser {
             continue;
           }
 
-          const statementIdResult = StatementId.create(statementId);
-          if (statementIdResult.isErr()) {
-            errors.push({
-              type: ParseErrorType.INVALID_ARGUMENT,
-              message: `Invalid conclusion statement ID '${statementId}': ${statementIdResult.error.message}`,
-              section: 'arguments',
-              reference: `argument-${index}`,
-            });
-            continue;
-          }
-
-          validConclusionIds.push(statementIdResult.value);
-        }
-
-        if (validConclusionIds.length > 0) {
-          const conclusionSetResult = OrderedSet.create(validConclusionIds);
-          if (conclusionSetResult.isErr()) {
-            errors.push({
-              type: ParseErrorType.INVALID_ARGUMENT,
-              message: `Failed to create conclusion set for argument at index ${index}: ${conclusionSetResult.error.message}`,
-              section: 'arguments',
-              reference: `argument-${index}`,
-            });
-          } else {
-            conclusionSet = conclusionSetResult.value;
+          const statement = statements.get(statementId);
+          if (statement) {
+            conclusionStatements.push(statement);
           }
         }
       }
 
       // Create atomic argument (no side labels for concise format)
       const atomicArgumentResult = AtomicArgument.create(
-        premiseSet?.getId(),
-        conclusionSet?.getId(),
-        {},
+        premiseStatements,
+        conclusionStatements,
+        SideLabels.empty(),
       );
 
       if (atomicArgumentResult.isErr()) {
@@ -607,8 +485,8 @@ export class ProofFileParser {
     for (const [treeId, treeSpec] of Object.entries(treesData)) {
       // Create tree with position
       const position = treeSpec.offset
-        ? Position2D.create(treeSpec.offset.x, treeSpec.offset.y)
-        : Position2D.create(0, 0);
+        ? TreePosition.create(treeSpec.offset.x, treeSpec.offset.y)
+        : ok(TreePosition.origin());
 
       if (position.isErr()) {
         errors.push({

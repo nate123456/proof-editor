@@ -13,6 +13,17 @@ import type { DocumentQueryService } from '../../application/services/DocumentQu
 import type { ProofApplicationService } from '../../application/services/ProofApplicationService.js';
 import type { ProofVisualizationService } from '../../application/services/ProofVisualizationService.js';
 import type { ViewStateManager } from '../../application/services/ViewStateManager.js';
+import { SideLabel, Version } from '../../domain/shared/value-objects/content.js';
+import { Dimensions, Position2D } from '../../domain/shared/value-objects/geometry.js';
+import {
+  AtomicArgumentId,
+  DocumentId,
+  NodeId,
+  StatementId,
+  TreeId,
+  WebviewId,
+} from '../../domain/shared/value-objects/identifiers.js';
+import { NodeCount } from '../../domain/shared/value-objects/validation.js';
 import { createTestContainer, resetContainer } from '../../infrastructure/di/container.js';
 import { TOKENS } from '../../infrastructure/di/tokens.js';
 import type { YAMLSerializer } from '../../infrastructure/repositories/yaml/YAMLSerializer.js';
@@ -36,7 +47,7 @@ describe('ProofTreePanel Enhanced Integration Tests', () => {
   let _mockDocumentIdService: IDocumentIdService;
 
   const testDocumentDTO: DocumentDTO = {
-    id: 'test-doc-1',
+    id: DocumentId.fromString('doc-1').unwrapOr(null as any),
     version: 1,
     createdAt: '2023-01-01T00:00:00Z',
     modifiedAt: '2023-01-01T00:00:00Z',
@@ -56,49 +67,43 @@ describe('ProofTreePanel Enhanced Integration Tests', () => {
         modifiedAt: '2023-01-01T00:00:00Z',
       },
     },
-    orderedSets: {
-      os1: {
-        id: 'os1',
-        statementIds: ['s1', 's2'],
-        usageCount: 1,
-        usedBy: [{ argumentId: 'arg1', usage: 'premise' as const }],
-      },
-    },
     atomicArguments: {
       arg1: {
-        id: 'arg1',
-        premiseIds: 'os1',
-        conclusionIds: 'os2',
-        sideLabels: { left: 'Modus Ponens' },
+        id: AtomicArgumentId.fromString('arg-1').unwrapOr(null as any),
+        premiseIds: [StatementId.fromString('stmt-1').unwrapOr(null as any)],
+        conclusionIds: [StatementId.fromString('stmt-2').unwrapOr(null as any)],
+        sideLabels: {
+          left: SideLabel.create('Modus Ponens').unwrapOr(null as any),
+        },
       },
     },
     trees: {
       tree1: {
-        id: 'tree1',
-        position: { x: 100, y: 100 },
-        bounds: { width: 300, height: 200 },
-        nodeCount: 1,
-        rootNodeIds: ['n1'],
+        id: TreeId.fromString('tree-1').unwrapOr(null as any),
+        position: Position2D.create(100, 100).unwrapOr(Position2D.origin()),
+        bounds: Dimensions.create(300, 200).unwrapOr(Dimensions.fullHD()),
+        nodeCount: NodeCount.create(1).unwrapOr(NodeCount.zero()),
+        rootNodeIds: [NodeId.fromString('node-1').unwrapOr(null as any)],
       },
     },
   };
 
   const testVisualizationDTO: ProofVisualizationDTO = {
-    documentId: 'test-doc-1',
-    version: 1,
+    documentId: DocumentId.fromString('doc-1').unwrapOr(null as any),
+    version: Version.create(1).unwrapOr(null as any),
     trees: [
       {
-        id: 'tree1',
-        position: { x: 100, y: 100 },
+        id: TreeId.fromString('tree-1').unwrapOr(null as any),
+        position: Position2D.create(100, 100).unwrapOr(Position2D.origin()),
         layout: {
           nodes: [],
           connections: [],
-          dimensions: { width: 300, height: 200 },
+          dimensions: Dimensions.create(300, 200).unwrapOr(Dimensions.fullHD()),
         },
-        bounds: { width: 300, height: 200 },
+        bounds: Dimensions.create(300, 200).unwrapOr(Dimensions.fullHD()),
       },
     ],
-    totalDimensions: { width: 500, height: 400 },
+    totalDimensions: Dimensions.create(500, 400).unwrapOr(Dimensions.fullHD()),
     isEmpty: false,
   };
 
@@ -109,7 +114,7 @@ describe('ProofTreePanel Enhanced Integration Tests', () => {
 
     // Create mock webview panel
     mockWebviewPanel = {
-      id: 'test-panel',
+      id: WebviewId.create('webview-1').unwrapOr(null as any),
       webview: {
         html: '',
         onDidReceiveMessage: vi.fn(() => ({ dispose: vi.fn() })),

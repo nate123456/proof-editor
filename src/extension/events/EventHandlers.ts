@@ -1,6 +1,7 @@
 import { err, ok, type Result } from 'neverthrow';
 import * as vscode from 'vscode';
 import type { IUIPort } from '../../application/ports/IUIPort.js';
+import { NotificationMessage } from '../../domain/shared/value-objects/index.js';
 import type { ApplicationContainer } from '../../infrastructure/di/container.js';
 import { TOKENS } from '../../infrastructure/di/tokens.js';
 import type { DocumentController } from '../../presentation/controllers/DocumentController.js';
@@ -59,9 +60,12 @@ export class EventHandlers {
             this.validationController.validateDocumentImmediate(documentInfo);
           } catch (error) {
             const uiPort = this.container.resolve<IUIPort>(TOKENS.IUIPort);
-            uiPort.showError(
+            const errorResult = NotificationMessage.create(
               `Validation failed: ${error instanceof Error ? error.message : String(error)}`,
             );
+            if (errorResult.isOk()) {
+              uiPort.showError(errorResult.value);
+            }
           }
         }
       },
@@ -94,9 +98,12 @@ export class EventHandlers {
           this.validationController.validateDocumentDebounced(documentInfo);
         } catch (error) {
           const uiPort = this.container.resolve<IUIPort>(TOKENS.IUIPort);
-          uiPort.showError(
+          const errorResult = NotificationMessage.create(
             `Validation failed: ${error instanceof Error ? error.message : String(error)}`,
           );
+          if (errorResult.isOk()) {
+            uiPort.showError(errorResult.value);
+          }
         }
       }
     });
@@ -123,9 +130,12 @@ export class EventHandlers {
           this.validationController.validateDocumentImmediate(documentInfo);
         } catch (error) {
           const uiPort = this.container.resolve<IUIPort>(TOKENS.IUIPort);
-          uiPort.showError(
+          const errorResult = NotificationMessage.create(
             `Validation failed: ${error instanceof Error ? error.message : String(error)}`,
           );
+          if (errorResult.isOk()) {
+            uiPort.showError(errorResult.value);
+          }
         }
       }
     });

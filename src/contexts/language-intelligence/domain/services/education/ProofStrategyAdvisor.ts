@@ -193,7 +193,7 @@ export class ProofStrategyAdvisor {
   private assessDirectProofViability(_premises: string[], conclusions: string[]): boolean {
     // Direct proof is generally viable unless the conclusion is a negation
     // or the premises don't seem to lead directly to the conclusion
-    return conclusions.length === 1 && !conclusions[0].startsWith('¬');
+    return conclusions.length === 1 && !conclusions[0]?.startsWith('¬');
   }
 
   private assessContradictionSuitability(_premises: string[], conclusions: string[]): boolean {

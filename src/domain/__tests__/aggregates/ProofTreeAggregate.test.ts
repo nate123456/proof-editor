@@ -459,8 +459,8 @@ describe('ProofTreeAggregate', () => {
 
                 const queryService = tree.createQueryService();
                 const layout = queryService.getSpatialLayout();
-                expect(layout.offset.getX()).toBe(50);
-                expect(layout.offset.getY()).toBe(75);
+                expect(layout.offset.x).toBe(50);
+                expect(layout.offset.y).toBe(75);
               }
             }
           }

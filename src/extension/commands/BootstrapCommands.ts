@@ -2,6 +2,12 @@ import { err, ok, type Result } from 'neverthrow';
 import * as vscode from 'vscode';
 import type { IFileSystemPort } from '../../application/ports/IFileSystemPort.js';
 import type { IUIPort } from '../../application/ports/IUIPort.js';
+import {
+  ActionLabel,
+  DocumentContent,
+  FilePath,
+  NotificationMessage,
+} from '../../domain/shared/value-objects/index.js';
 import type { ApplicationContainer } from '../../infrastructure/di/container.js';
 import { TOKENS } from '../../infrastructure/di/tokens.js';
 import type { BootstrapController } from '../../presentation/controllers/BootstrapController.js';
@@ -43,7 +49,10 @@ export class BootstrapCommands {
         // Get the current workspace folder for the new document
         const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
         if (!workspaceFolder) {
-          uiPort.showWarning('Please open a workspace folder first.');
+          const warningResult = NotificationMessage.create('Please open a workspace folder first.');
+          if (warningResult.isOk()) {
+            uiPort.showWarning(warningResult.value);
+          }
           return;
         }
 
@@ -74,7 +83,12 @@ export class BootstrapCommands {
           // Initialize empty document through bootstrap controller
           const result = await bootstrapController.initializeEmptyDocument(documentName);
           if (result.isErr()) {
-            uiPort.showError(`Failed to create document: ${result.error.message}`);
+            const errorResult = NotificationMessage.create(
+              `Failed to create document: ${result.error.message}`,
+            );
+            if (errorResult.isOk()) {
+              uiPort.showError(errorResult.value);
+            }
             return;
           }
 
@@ -109,9 +123,35 @@ metadata:
 
           // Use file system port for writing the file with error handling
           const fileSystemPort = this.container.resolve<IFileSystemPort>(TOKENS.IFileSystemPort);
-          const writeResult = await fileSystemPort.writeFile(filePath.fsPath, content);
+          const filePathResult = FilePath.create(filePath.fsPath);
+          if (filePathResult.isErr()) {
+            const errorResult = NotificationMessage.create(`Invalid file path: ${filePath.fsPath}`);
+            if (errorResult.isOk()) {
+              uiPort.showError(errorResult.value);
+            }
+            return;
+          }
+          const contentResult = DocumentContent.create(content);
+          if (contentResult.isErr()) {
+            const errorResult = NotificationMessage.create(
+              `Invalid content: ${contentResult.error.message}`,
+            );
+            if (errorResult.isOk()) {
+              uiPort.showError(errorResult.value);
+            }
+            return;
+          }
+          const writeResult = await fileSystemPort.writeFile(
+            filePathResult.value,
+            contentResult.value,
+          );
           if (writeResult.isErr()) {
-            uiPort.showError(`Failed to write file: ${writeResult.error.message}`);
+            const errorResult = NotificationMessage.create(
+              `Failed to write file: ${writeResult.error.message}`,
+            );
+            if (errorResult.isOk()) {
+              uiPort.showError(errorResult.value);
+            }
             return;
           }
 
@@ -142,9 +182,12 @@ metadata:
             await vscode.commands.executeCommand('proofEditor.showBootstrapWorkflow');
           }
         } catch (error) {
-          uiPort.showError(
+          const errorResult = NotificationMessage.create(
             `Failed to create document: ${error instanceof Error ? error.message : String(error)}`,
           );
+          if (errorResult.isOk()) {
+            uiPort.showError(errorResult.value);
+          }
         }
       },
     );
@@ -160,7 +203,10 @@ metadata:
         const uiPort = this.container.resolve<IUIPort>(TOKENS.IUIPort);
 
         if (!activeEditor || activeEditor.document.languageId !== 'proof') {
-          uiPort.showWarning('Please open a .proof file first.');
+          const warningResult = NotificationMessage.create('Please open a .proof file first.');
+          if (warningResult.isOk()) {
+            uiPort.showWarning(warningResult.value);
+          }
           return;
         }
 
@@ -172,21 +218,34 @@ metadata:
           const result = await bootstrapController.createBootstrapArgument(documentId);
 
           if (result.isErr()) {
-            uiPort.showError(`Failed to create argument: ${result.error.message}`);
+            const errorResult = NotificationMessage.create(
+              `Failed to create argument: ${result.error.message}`,
+            );
+            if (errorResult.isOk()) {
+              uiPort.showError(errorResult.value);
+            }
             return;
           }
 
           const argumentData = result.value.data;
           if (argumentData) {
-            uiPort.showInformation(`Created empty argument: ${argumentData.argumentId}`, {
-              label: 'Populate Argument',
-              callback: () => vscode.commands.executeCommand('proofEditor.populateEmptyArgument'),
-            });
+            const infoResult = NotificationMessage.create(
+              `Created empty argument: ${argumentData.argumentId}`,
+            );
+            if (infoResult.isOk()) {
+              uiPort.showInformation(infoResult.value, {
+                label: ActionLabel.create('Populate Argument').unwrapOr(undefined as any),
+                callback: () => vscode.commands.executeCommand('proofEditor.populateEmptyArgument'),
+              });
+            }
           }
         } catch (error) {
-          uiPort.showError(
+          const errorResult = NotificationMessage.create(
             `Failed to create argument: ${error instanceof Error ? error.message : String(error)}`,
           );
+          if (errorResult.isOk()) {
+            uiPort.showError(errorResult.value);
+          }
         }
       },
     );
@@ -202,7 +261,10 @@ metadata:
         const uiPort = this.container.resolve<IUIPort>(TOKENS.IUIPort);
 
         if (!activeEditor || activeEditor.document.languageId !== 'proof') {
-          uiPort.showWarning('Please open a .proof file first.');
+          const warningResult = NotificationMessage.create('Please open a .proof file first.');
+          if (warningResult.isOk()) {
+            uiPort.showWarning(warningResult.value);
+          }
           return;
         }
 
@@ -261,21 +323,32 @@ metadata:
           );
 
           if (result.isErr()) {
-            uiPort.showError(`Failed to populate argument: ${result.error.message}`);
+            const errorResult = NotificationMessage.create(
+              `Failed to populate argument: ${result.error.message}`,
+            );
+            if (errorResult.isOk()) {
+              uiPort.showError(errorResult.value);
+            }
             return;
           }
 
           // Auto-save the document after successful argument creation
           await autoSaveProofDocument(activeEditor, this.container);
 
-          uiPort.showInformation('Argument populated successfully!', {
-            label: 'Show Bootstrap Workflow',
-            callback: () => vscode.commands.executeCommand('proofEditor.showBootstrapWorkflow'),
-          });
+          const infoResult = NotificationMessage.create('Argument populated successfully!');
+          if (infoResult.isOk()) {
+            uiPort.showInformation(infoResult.value, {
+              label: ActionLabel.create('Show Bootstrap Workflow').unwrapOr(undefined as any),
+              callback: () => vscode.commands.executeCommand('proofEditor.showBootstrapWorkflow'),
+            });
+          }
         } catch (error) {
-          uiPort.showError(
+          const errorResult = NotificationMessage.create(
             `Failed to populate argument: ${error instanceof Error ? error.message : String(error)}`,
           );
+          if (errorResult.isOk()) {
+            uiPort.showError(errorResult.value);
+          }
         }
       },
     );
@@ -291,7 +364,10 @@ metadata:
         const uiPort = this.container.resolve<IUIPort>(TOKENS.IUIPort);
 
         if (!activeEditor || activeEditor.document.languageId !== 'proof') {
-          uiPort.showWarning('Please open a .proof file first.');
+          const warningResult = NotificationMessage.create('Please open a .proof file first.');
+          if (warningResult.isOk()) {
+            uiPort.showWarning(warningResult.value);
+          }
           return;
         }
 
@@ -303,7 +379,12 @@ metadata:
           const result = await bootstrapController.getBootstrapWorkflow(documentId);
 
           if (result.isErr()) {
-            uiPort.showError(`Failed to get workflow: ${result.error.message}`);
+            const errorResult = NotificationMessage.create(
+              `Failed to get workflow: ${result.error.message}`,
+            );
+            if (errorResult.isOk()) {
+              uiPort.showError(errorResult.value);
+            }
             return;
           }
 
@@ -331,13 +412,19 @@ metadata:
                 }
               }
             } else {
-              uiPort.showInformation(message);
+              const infoResult = NotificationMessage.create(message);
+              if (infoResult.isOk()) {
+                uiPort.showInformation(infoResult.value);
+              }
             }
           }
         } catch (error) {
-          uiPort.showError(
+          const errorResult = NotificationMessage.create(
             `Failed to show workflow: ${error instanceof Error ? error.message : String(error)}`,
           );
+          if (errorResult.isOk()) {
+            uiPort.showError(errorResult.value);
+          }
         }
       },
     );
@@ -353,7 +440,10 @@ metadata:
         const uiPort = this.container.resolve<IUIPort>(TOKENS.IUIPort);
 
         if (!activeEditor || activeEditor.document.languageId !== 'proof') {
-          uiPort.showWarning('Please open a .proof file first.');
+          const warningResult = NotificationMessage.create('Please open a .proof file first.');
+          if (warningResult.isOk()) {
+            uiPort.showWarning(warningResult.value);
+          }
           return;
         }
 
@@ -367,7 +457,12 @@ metadata:
           const result = await bootstrapController.createEmptyImplicationLine(documentId, treeId);
 
           if (result.isErr()) {
-            uiPort.showError(`Failed to create implication line: ${result.error.message}`);
+            const errorResult = NotificationMessage.create(
+              `Failed to create implication line: ${result.error.message}`,
+            );
+            if (errorResult.isOk()) {
+              uiPort.showError(errorResult.value);
+            }
             return;
           }
 
@@ -380,18 +475,23 @@ metadata:
               ...lineData.displayFormat.conclusionLines,
             ].join('\n');
 
-            uiPort.showInformation(
+            const infoResult = NotificationMessage.create(
               `Created empty implication line:\n\n${display}\n\n${lineData.userInstructions}`,
-              {
-                label: 'Populate Argument',
-                callback: () => vscode.commands.executeCommand('proofEditor.populateEmptyArgument'),
-              },
             );
+            if (infoResult.isOk()) {
+              uiPort.showInformation(infoResult.value, {
+                label: ActionLabel.create('Populate Argument').unwrapOr(undefined as any),
+                callback: () => vscode.commands.executeCommand('proofEditor.populateEmptyArgument'),
+              });
+            }
           }
         } catch (error) {
-          uiPort.showError(
+          const errorResult = NotificationMessage.create(
             `Failed to create implication line: ${error instanceof Error ? error.message : String(error)}`,
           );
+          if (errorResult.isOk()) {
+            uiPort.showError(errorResult.value);
+          }
         }
       },
     );

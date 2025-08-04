@@ -8,9 +8,14 @@
 import fc from 'fast-check';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { AtomicArgument, type SideLabels } from '../../entities/AtomicArgument.js';
+import { AtomicArgument, SideLabels } from '../../entities/AtomicArgument.js';
 import { ValidationError } from '../../shared/result.js';
-import { atomicArgumentIdFactory, orderedSetIdFactory } from '../factories/index.js';
+import { SideLabel } from '../../shared/value-objects/index.js';
+import {
+  atomicArgumentIdFactory,
+  orderedSetIdFactory,
+  statementFactory,
+} from '../factories/index.js';
 import { expect as customExpect } from '../test-setup.js';
 
 // Property-based test generators for AtomicArgument domain
@@ -20,13 +25,21 @@ const validSideLabelsArbitrary = fc
     right: fc.option(fc.string({ minLength: 1, maxLength: 100 })),
   })
   .map((labels) => {
-    const result: SideLabels = {};
-    if (labels.left !== null) result.left = labels.left;
-    if (labels.right !== null) result.right = labels.right;
-    return result;
+    const leftLabel = labels.left !== null ? SideLabel.create(labels.left) : null;
+    const rightLabel = labels.right !== null ? SideLabel.create(labels.right) : null;
+
+    const left = leftLabel?.isOk() ? leftLabel.value : undefined;
+    const right = rightLabel?.isOk() ? rightLabel.value : undefined;
+
+    return SideLabels.create(left, right);
   });
 
 const orderedSetIdArbitrary = fc.constant(null).map(() => orderedSetIdFactory.build());
+
+const statementArrayArbitrary = fc.array(
+  fc.constant(null).map(() => statementFactory.build()),
+  { minLength: 0, maxLength: 5 },
+);
 
 describe('AtomicArgument Lifecycle', () => {
   let mockDateNow: ReturnType<typeof vi.fn>;
@@ -49,8 +62,8 @@ describe('AtomicArgument Lifecycle', () => {
         if (result.isOk()) {
           const argument = result.value;
           customExpect(argument).toBeValidAtomicArgument();
-          expect(argument.getPremiseSet()).toBeNull();
-          expect(argument.getConclusionSet()).toBeNull();
+          expect(argument.getPremises()).toEqual([]);
+          expect(argument.getConclusions()).toEqual([]);
           expect(argument.isBootstrapArgument()).toBe(true);
           expect(argument.isEmpty()).toBe(true);
           expect(argument.isComplete()).toBe(false);
@@ -62,18 +75,18 @@ describe('AtomicArgument Lifecycle', () => {
       });
 
       it('should create argument with premise set only', () => {
-        const premiseSetRef = orderedSetIdFactory.build();
-        const result = AtomicArgument.create(premiseSetRef);
+        const premises = [statementFactory.build()];
+        const result = AtomicArgument.create(premises);
 
         expect(result.isOk()).toBe(true);
         if (result.isOk()) {
           const argument = result.value;
-          expect(argument.getPremiseSet()).toBe(premiseSetRef);
-          expect(argument.getConclusionSet()).toBeNull();
+          expect(argument.getPremises()).toEqual(premises);
+          expect(argument.getConclusions()).toEqual([]);
           expect(argument.hasPremiseSet()).toBe(true);
           expect(argument.hasConclusionSet()).toBe(false);
-          expect(argument.hasEmptyPremiseSet()).toBe(false);
-          expect(argument.hasEmptyConclusionSet()).toBe(true);
+          expect(argument.getPremises().length === 0).toBe(false);
+          expect(argument.getConclusions().length === 0).toBe(true);
           expect(argument.isBootstrapArgument()).toBe(false);
           expect(argument.isEmpty()).toBe(false);
           expect(argument.isComplete()).toBe(false);
@@ -81,18 +94,18 @@ describe('AtomicArgument Lifecycle', () => {
       });
 
       it('should create argument with conclusion set only', () => {
-        const conclusionSetRef = orderedSetIdFactory.build();
-        const result = AtomicArgument.create(undefined, conclusionSetRef);
+        const conclusions = [statementFactory.build()];
+        const result = AtomicArgument.create([], conclusions);
 
         expect(result.isOk()).toBe(true);
         if (result.isOk()) {
           const argument = result.value;
-          expect(argument.getPremiseSet()).toBeNull();
-          expect(argument.getConclusionSet()).toBe(conclusionSetRef);
+          expect(argument.getPremises()).toEqual([]);
+          expect(argument.getConclusions()).toEqual(conclusions);
           expect(argument.hasPremiseSet()).toBe(false);
           expect(argument.hasConclusionSet()).toBe(true);
-          expect(argument.hasEmptyPremiseSet()).toBe(true);
-          expect(argument.hasEmptyConclusionSet()).toBe(false);
+          expect(argument.getPremises().length === 0).toBe(true);
+          expect(argument.getConclusions().length === 0).toBe(false);
           expect(argument.isBootstrapArgument()).toBe(false);
           expect(argument.isEmpty()).toBe(false);
           expect(argument.isComplete()).toBe(false);
@@ -100,15 +113,15 @@ describe('AtomicArgument Lifecycle', () => {
       });
 
       it('should create complete argument with both sets', () => {
-        const premiseSetRef = orderedSetIdFactory.build();
-        const conclusionSetRef = orderedSetIdFactory.build();
-        const result = AtomicArgument.create(premiseSetRef, conclusionSetRef);
+        const premises = [statementFactory.build()];
+        const conclusions = [statementFactory.build()];
+        const result = AtomicArgument.create(premises, conclusions);
 
         expect(result.isOk()).toBe(true);
         if (result.isOk()) {
           const argument = result.value;
-          expect(argument.getPremiseSet()).toBe(premiseSetRef);
-          expect(argument.getConclusionSet()).toBe(conclusionSetRef);
+          expect(argument.getPremises()).toEqual(premises);
+          expect(argument.getConclusions()).toEqual(conclusions);
           expect(argument.hasPremiseSet()).toBe(true);
           expect(argument.hasConclusionSet()).toBe(true);
           expect(argument.isBootstrapArgument()).toBe(false);
@@ -118,8 +131,15 @@ describe('AtomicArgument Lifecycle', () => {
       });
 
       it('should create arguments with side labels', () => {
-        const sideLabels: SideLabels = { left: 'Modus Ponens', right: 'Rule 1' };
-        const result = AtomicArgument.create(undefined, undefined, sideLabels);
+        const leftLabel = SideLabel.create('Modus Ponens');
+        const rightLabel = SideLabel.create('Rule 1');
+
+        expect(leftLabel.isOk()).toBe(true);
+        expect(rightLabel.isOk()).toBe(true);
+        if (!leftLabel.isOk() || !rightLabel.isOk()) return;
+
+        const sideLabels = SideLabels.create(leftLabel.value, rightLabel.value);
+        const result = AtomicArgument.create([], [], sideLabels);
 
         expect(result.isOk()).toBe(true);
         if (result.isOk()) {
@@ -144,25 +164,41 @@ describe('AtomicArgument Lifecycle', () => {
       });
     });
 
-    describe('createComplete factory method', () => {
+    describe('create factory method for complete arguments', () => {
       it('should create complete argument with both sets', () => {
-        const premiseSetRef = orderedSetIdFactory.build();
-        const conclusionSetRef = orderedSetIdFactory.build();
-        const argument = AtomicArgument.createComplete(premiseSetRef, conclusionSetRef);
+        const premises = [statementFactory.build()];
+        const conclusions = [statementFactory.build()];
+        const result = AtomicArgument.create(premises, conclusions);
 
-        expect(argument.getPremiseSet()).toBe(premiseSetRef);
-        expect(argument.getConclusionSet()).toBe(conclusionSetRef);
+        expect(result.isOk()).toBe(true);
+        if (!result.isOk()) return;
+
+        const argument = result.value;
+        expect(argument.getPremises()).toEqual(premises);
+        expect(argument.getConclusions()).toEqual(conclusions);
         expect(argument.isComplete()).toBe(true);
         expect(argument.isBootstrapArgument()).toBe(false);
       });
 
       it('should create complete argument with side labels', () => {
-        const premiseSetRef = orderedSetIdFactory.build();
-        const conclusionSetRef = orderedSetIdFactory.build();
-        const sideLabels: SideLabels = { left: 'Complete', right: 'Arg' };
-        const argument = AtomicArgument.createComplete(premiseSetRef, conclusionSetRef, sideLabels);
+        const premises = [statementFactory.build()];
+        const conclusions = [statementFactory.build()];
 
-        expect(argument.getSideLabels()).toEqual(sideLabels);
+        const leftLabel = SideLabel.create('Complete');
+        const rightLabel = SideLabel.create('Arg');
+
+        expect(leftLabel.isOk()).toBe(true);
+        expect(rightLabel.isOk()).toBe(true);
+        if (!leftLabel.isOk() || !rightLabel.isOk()) return;
+
+        const sideLabels = SideLabels.create(leftLabel.value, rightLabel.value);
+        const result = AtomicArgument.create(premises, conclusions, sideLabels);
+
+        expect(result.isOk()).toBe(true);
+        if (!result.isOk()) return;
+
+        const argument = result.value;
+        expect(argument.getSideLabels()).toEqual({ left: 'Complete', right: 'Arg' });
         expect(argument.isComplete()).toBe(true);
       });
     });
@@ -171,25 +207,29 @@ describe('AtomicArgument Lifecycle', () => {
       it('should handle all valid creation parameter combinations', () => {
         fc.assert(
           fc.property(
-            fc.option(orderedSetIdArbitrary),
-            fc.option(orderedSetIdArbitrary),
+            statementArrayArbitrary,
+            statementArrayArbitrary,
             validSideLabelsArbitrary,
-            (premiseRef, conclusionRef, sideLabels) => {
-              const result = AtomicArgument.create(
-                premiseRef === null ? undefined : premiseRef,
-                conclusionRef === null ? undefined : conclusionRef,
-                sideLabels,
-              );
+            (premises, conclusions, sideLabels) => {
+              const result = AtomicArgument.create(premises, conclusions, sideLabels);
 
               expect(result.isOk()).toBe(true);
               if (result.isOk()) {
                 const argument = result.value;
                 customExpect(argument).toBeValidAtomicArgument();
-                expect(argument.getPremiseSet()).toBe(premiseRef ?? null);
-                expect(argument.getConclusionSet()).toBe(conclusionRef ?? null);
-                expect(argument.isBootstrapArgument()).toBe(!premiseRef && !conclusionRef);
-                expect(argument.isComplete()).toBe(!!premiseRef && !!conclusionRef);
-                expect(argument.getSideLabels()).toEqual(sideLabels);
+                expect(argument.getPremises()).toEqual(premises);
+                expect(argument.getConclusions()).toEqual(conclusions);
+                expect(argument.isBootstrapArgument()).toBe(
+                  premises.length === 0 && conclusions.length === 0,
+                );
+                expect(argument.isComplete()).toBe(premises.length > 0 && conclusions.length > 0);
+                // Check side labels
+                const retrievedLabels = argument.getSideLabels();
+                const expectedLeft = sideLabels.getLeft()?.getValue();
+                const expectedRight = sideLabels.getRight()?.getValue();
+
+                expect(retrievedLabels.left).toBe(expectedLeft);
+                expect(retrievedLabels.right).toBe(expectedRight);
               }
             },
           ),
@@ -202,16 +242,16 @@ describe('AtomicArgument Lifecycle', () => {
     describe('valid reconstruction cases', () => {
       it('should reconstruct arguments with all parameters', () => {
         const id = atomicArgumentIdFactory.build();
-        const premiseSetRef = orderedSetIdFactory.build();
-        const conclusionSetRef = orderedSetIdFactory.build();
+        const premises = [statementFactory.build()];
+        const conclusions = [statementFactory.build()];
         const createdAt = FIXED_TIMESTAMP - 1000;
         const modifiedAt = FIXED_TIMESTAMP;
-        const sideLabels: SideLabels = { left: 'Reconstructed', right: 'Test' };
+        const sideLabels = { left: 'Reconstructed', right: 'Test' };
 
         const result = AtomicArgument.reconstruct(
           id,
-          premiseSetRef,
-          conclusionSetRef,
+          premises,
+          conclusions,
           createdAt,
           modifiedAt,
           sideLabels,
@@ -221,8 +261,8 @@ describe('AtomicArgument Lifecycle', () => {
         if (result.isOk()) {
           const argument = result.value;
           expect(argument.getId()).toBe(id);
-          expect(argument.getPremiseSet()).toBe(premiseSetRef);
-          expect(argument.getConclusionSet()).toBe(conclusionSetRef);
+          expect(argument.getPremises()).toEqual(premises);
+          expect(argument.getConclusions()).toEqual(conclusions);
           expect(argument.getCreatedAt()).toBe(createdAt);
           expect(argument.getModifiedAt()).toBe(modifiedAt);
           expect(argument.getSideLabels()).toEqual(sideLabels);
@@ -268,8 +308,8 @@ describe('AtomicArgument Lifecycle', () => {
               if (result.isOk()) {
                 const argument = result.value;
                 expect(argument.getId()).toBe(id);
-                expect(argument.getPremiseSet()).toBe(premiseRef ?? null);
-                expect(argument.getConclusionSet()).toBe(conclusionRef ?? null);
+                expect(argument.getPremises()).toBe(premiseRef ?? null);
+                expect(argument.getConclusions()).toBe(conclusionRef ?? null);
                 expect(argument.getCreatedAt()).toBe(createdAt);
                 expect(argument.getModifiedAt()).toBe(modifiedAt);
               }

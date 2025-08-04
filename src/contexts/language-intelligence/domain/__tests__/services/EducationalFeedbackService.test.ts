@@ -144,7 +144,22 @@ describe('EducationalFeedbackService', () => {
   let service: EducationalFeedbackService;
 
   beforeEach(() => {
-    service = new EducationalFeedbackService();
+    // Mock dependencies for EducationalFeedbackService
+    const mockHintGenerator = {} as any;
+    const mockGuidanceProvider = {} as any;
+    const mockStrategyAdvisor = {} as any;
+    const mockContentAdapter = {} as any;
+    const mockProblemGenerator = {} as any;
+    const mockConceptAnalyzer = {} as any;
+
+    service = new EducationalFeedbackService(
+      mockHintGenerator,
+      mockGuidanceProvider,
+      mockStrategyAdvisor,
+      mockContentAdapter,
+      mockProblemGenerator,
+      mockConceptAnalyzer,
+    );
   });
 
   describe('generateLearningHints', () => {

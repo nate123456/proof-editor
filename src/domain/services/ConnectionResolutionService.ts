@@ -2,7 +2,7 @@ import { err, ok, type Result } from 'neverthrow';
 
 import type { AtomicArgument } from '../entities/AtomicArgument';
 import type { Statement } from '../entities/Statement';
-import type { ProcessingError } from '../errors/DomainErrors';
+import { ProcessingError } from '../errors/DomainErrors';
 import type { IAtomicArgumentRepository } from '../repositories/IAtomicArgumentRepository';
 import type { IStatementRepository } from '../repositories/IStatementRepository';
 import type { AtomicArgumentId } from '../shared/value-objects/index.js';
@@ -38,18 +38,26 @@ export class ConnectionResolutionService {
 
     for (const premise of premises) {
       const premisePos = premises.indexOf(premise);
-      const argumentsUsingStatement = await this.atomicArgumentRepo.findArgumentsUsingStatement(
+      const argumentsResult = await this.atomicArgumentRepo.findArgumentsUsingStatement(
         premise.getId(),
       );
 
-      for (const otherArg of argumentsUsingStatement) {
-        if (otherArg.equals(argument)) {
+      if (argumentsResult.isErr()) {
+        return err(
+          new ProcessingError(
+            `Failed to find arguments using statement: ${argumentsResult.error.message}`,
+          ),
+        );
+      }
+
+      for (const otherArg of argumentsResult.value) {
+        if (otherArg.getId().equals(argument.getId())) {
           continue;
         }
 
         const otherConclusions = otherArg.getConclusions();
         otherConclusions.forEach((conclusion, conclusionPos) => {
-          if (premise.equals(conclusion)) {
+          if (premise.getId().equals(conclusion.getId())) {
             connections.push({
               connectedArgument: otherArg,
               statement: premise,
@@ -77,18 +85,26 @@ export class ConnectionResolutionService {
 
     for (const conclusion of conclusions) {
       const conclusionPos = conclusions.indexOf(conclusion);
-      const argumentsUsingStatement = await this.atomicArgumentRepo.findArgumentsUsingStatement(
+      const argumentsResult = await this.atomicArgumentRepo.findArgumentsUsingStatement(
         conclusion.getId(),
       );
 
-      for (const otherArg of argumentsUsingStatement) {
-        if (otherArg.equals(argument)) {
+      if (argumentsResult.isErr()) {
+        return err(
+          new ProcessingError(
+            `Failed to find arguments using statement: ${argumentsResult.error.message}`,
+          ),
+        );
+      }
+
+      for (const otherArg of argumentsResult.value) {
+        if (otherArg.getId().equals(argument.getId())) {
           continue;
         }
 
         const otherPremises = otherArg.getPremises();
         otherPremises.forEach((premise, premisePos) => {
-          if (conclusion.equals(premise)) {
+          if (conclusion.getId().equals(premise.getId())) {
             connections.push({
               connectedArgument: otherArg,
               statement: conclusion,
@@ -123,220 +139,142 @@ export class ConnectionResolutionService {
     });
   }
 
-  async canArgumentsConnect(
-    sourceArg: AtomicArgument,
-    targetArg: AtomicArgument,
-  ): Promise<Result<boolean, ProcessingError>> {
-    if (sourceArg.equals(targetArg)) {
-      return ok(false);
-    }
-
-    const sourceConclusions = sourceArg.getConclusions();
-    const targetPremises = targetArg.getPremises();
-
-    if (sourceConclusions.length === 0 || targetPremises.length === 0) {
-      return ok(false);
-    }
-
-    for (const conclusion of sourceConclusions) {
-      for (const premise of targetPremises) {
-        if (conclusion.equals(premise)) {
-          return ok(true);
-        }
-      }
-    }
-
-    return ok(false);
-  }
-
-  async findArgumentsConnectedToStatement(
-    statement: Statement,
-  ): Promise<Result<AtomicArgument[], ProcessingError>> {
-    const connectedArguments = await this.atomicArgumentRepo.findArgumentsUsingStatement(
-      statement.getId(),
-    );
-
-    return ok(connectedArguments);
-  }
-
-  async findStatementConnectionsInArgument(
+  async countConnectionsForArgument(
     argument: AtomicArgument,
-    statement: Statement,
-  ): Promise<
-    Result<{ premisePositions: number[]; conclusionPositions: number[] }, ProcessingError>
-  > {
-    const premises = argument.getPremises();
-    const conclusions = argument.getConclusions();
-
-    const premisePositions: number[] = [];
-    const conclusionPositions: number[] = [];
-
-    premises.forEach((premise, index) => {
-      if (premise.equals(statement)) {
-        premisePositions.push(index);
-      }
-    });
-
-    conclusions.forEach((conclusion, index) => {
-      if (conclusion.equals(statement)) {
-        conclusionPositions.push(index);
-      }
-    });
-
-    return ok({ premisePositions, conclusionPositions });
-  }
-
-  async findConnectedArgumentPairs(): Promise<
-    Result<
-      Array<{ source: AtomicArgument; target: AtomicArgument; connections: StatementConnection[] }>,
-      ProcessingError
-    >
-  > {
-    const connectedPairs: Array<{
-      source: AtomicArgument;
-      target: AtomicArgument;
-      connections: StatementConnection[];
-    }> = [];
-
-    // Get all statements to find connected arguments efficiently
-    const allStatements = await this.statementRepo.findAll();
-    const processedPairs = new Set<string>();
-
-    for (const statement of allStatements) {
-      const argumentsUsingStatement = await this.atomicArgumentRepo.findArgumentsUsingStatement(
-        statement.getId(),
-      );
-
-      // Find connections between arguments that use the same statement
-      for (let i = 0; i < argumentsUsingStatement.length; i++) {
-        for (let j = i + 1; j < argumentsUsingStatement.length; j++) {
-          const sourceArg = argumentsUsingStatement[i];
-          const targetArg = argumentsUsingStatement[j];
-
-          const pairKey1 = `${sourceArg.getId().getValue()}-${targetArg.getId().getValue()}`;
-          const pairKey2 = `${targetArg.getId().getValue()}-${sourceArg.getId().getValue()}`;
-
-          if (processedPairs.has(pairKey1) || processedPairs.has(pairKey2)) {
-            continue;
-          }
-
-          const sourceToTargetConnections = sourceArg.findConnectionsTo(targetArg);
-          const targetToSourceConnections = targetArg.findConnectionsTo(sourceArg);
-
-          if (sourceToTargetConnections.length > 0) {
-            connectedPairs.push({
-              source: sourceArg,
-              target: targetArg,
-              connections: sourceToTargetConnections.map((conn) => ({
-                connectedArgument: targetArg,
-                statement: conn.statement,
-                fromPosition: conn.fromConclusionPosition,
-                toPosition: conn.toPremisePosition,
-                direction: 'outgoing' as const,
-              })),
-            });
-            processedPairs.add(pairKey1);
-          }
-
-          if (targetToSourceConnections.length > 0) {
-            connectedPairs.push({
-              source: targetArg,
-              target: sourceArg,
-              connections: targetToSourceConnections.map((conn) => ({
-                connectedArgument: sourceArg,
-                statement: conn.statement,
-                fromPosition: conn.fromConclusionPosition,
-                toPosition: conn.toPremisePosition,
-                direction: 'outgoing' as const,
-              })),
-            });
-            processedPairs.add(pairKey2);
-          }
-        }
-      }
-    }
-
-    return ok(connectedPairs);
-  }
-
-  async validateArgumentConnections(
-    argument: AtomicArgument,
-  ): Promise<Result<ConnectionValidationResult, ProcessingError>> {
+  ): Promise<Result<{ incoming: number; outgoing: number }, ProcessingError>> {
     const connectionsResult = await this.findAllConnectionsForArgument(argument);
     if (connectionsResult.isErr()) {
       return err(connectionsResult.error);
     }
 
-    const { incomingConnections, outgoingConnections } = connectionsResult.value;
-    const issues: ConnectionValidationIssue[] = [];
-
-    const incomingCount = incomingConnections.length;
-    const outgoingCount = outgoingConnections.length;
-
-    if (incomingCount === 0 && outgoingCount === 0 && !argument.isBootstrap()) {
-      issues.push({
-        type: 'isolated',
-        description: 'Argument has no connections to other arguments',
-        severity: 'warning',
-      });
-    }
-
-    const duplicateIncoming = this.findDuplicateConnections(incomingConnections);
-    const duplicateOutgoing = this.findDuplicateConnections(outgoingConnections);
-
-    if (duplicateIncoming.length > 0) {
-      issues.push({
-        type: 'duplicate_incoming',
-        description: `Found ${duplicateIncoming.length} duplicate incoming connections`,
-        severity: 'error',
-      });
-    }
-
-    if (duplicateOutgoing.length > 0) {
-      issues.push({
-        type: 'duplicate_outgoing',
-        description: `Found ${duplicateOutgoing.length} duplicate outgoing connections`,
-        severity: 'error',
-      });
-    }
-
+    const connections = connectionsResult.value;
     return ok({
-      argumentId: argument.getId(),
-      incomingConnectionCount: incomingCount,
-      outgoingConnectionCount: outgoingCount,
-      issues,
-      isValid: issues.filter((issue) => issue.severity === 'error').length === 0,
+      incoming: connections.incomingConnections.length,
+      outgoing: connections.outgoingConnections.length,
     });
   }
 
-  private findDuplicateConnections(connections: StatementConnection[]): StatementConnection[] {
-    const seen = new Set<string>();
-    const duplicates: StatementConnection[] = [];
+  async findPotentialProviders(
+    argumentId: AtomicArgumentId,
+  ): Promise<Result<AtomicArgument[], ProcessingError>> {
+    const argumentResult = await this.atomicArgumentRepo.findById(argumentId);
+    if (argumentResult.isErr()) {
+      return err(new ProcessingError(`Failed to get argument: ${argumentResult.error.message}`));
+    }
 
-    for (const connection of connections) {
-      const key = `${connection.connectedArgument.getId().getValue()}-${connection.statement.getId().getValue()}-${connection.fromPosition}-${connection.toPosition}`;
+    const argument = argumentResult.value;
+    const premises = argument.getPremises();
+    const providers: AtomicArgument[] = [];
 
-      if (seen.has(key)) {
-        duplicates.push(connection);
-      } else {
-        seen.add(key);
+    for (const premise of premises) {
+      const candidatesResult = await this.atomicArgumentRepo.findArgumentsUsingStatement(
+        premise.getId(),
+      );
+
+      if (candidatesResult.isErr()) {
+        return err(
+          new ProcessingError(`Failed to find candidates: ${candidatesResult.error.message}`),
+        );
+      }
+
+      for (const candidate of candidatesResult.value) {
+        if (candidate.getId().equals(argumentId)) {
+          continue;
+        }
+
+        // Check if this candidate provides the premise as a conclusion
+        const hasAsPremise = candidate
+          .getConclusions()
+          .some((conclusion) => conclusion.getId().equals(premise.getId()));
+
+        if (hasAsPremise && !providers.some((p) => p.getId().equals(candidate.getId()))) {
+          providers.push(candidate);
+        }
       }
     }
 
-    return duplicates;
+    return ok(providers);
   }
-}
 
-export interface ConnectionValidationIssue {
-  type: 'isolated' | 'duplicate_incoming' | 'duplicate_outgoing' | 'circular' | 'orphaned';
-  description: string;
-  severity: 'error' | 'warning' | 'info';
-}
+  async findPotentialConsumers(
+    argumentId: AtomicArgumentId,
+  ): Promise<Result<AtomicArgument[], ProcessingError>> {
+    const argumentResult = await this.atomicArgumentRepo.findById(argumentId);
+    if (argumentResult.isErr()) {
+      return err(new ProcessingError(`Failed to get argument: ${argumentResult.error.message}`));
+    }
 
-export interface ConnectionValidationResult {
-  argumentId: AtomicArgumentId;
-  incomingConnectionCount: number;
-  outgoingConnectionCount: number;
-  issues: ConnectionValidationIssue[];
-  isValid: boolean;
+    const argument = argumentResult.value;
+    const conclusions = argument.getConclusions();
+    const consumers: AtomicArgument[] = [];
+
+    for (const conclusion of conclusions) {
+      const candidatesResult = await this.atomicArgumentRepo.findArgumentsUsingStatement(
+        conclusion.getId(),
+      );
+
+      if (candidatesResult.isErr()) {
+        return err(
+          new ProcessingError(`Failed to find candidates: ${candidatesResult.error.message}`),
+        );
+      }
+
+      for (const candidate of candidatesResult.value) {
+        if (candidate.getId().equals(argumentId)) {
+          continue;
+        }
+
+        // Check if this candidate uses the conclusion as a premise
+        const hasAsPremise = candidate
+          .getPremises()
+          .some((premise) => premise.getId().equals(conclusion.getId()));
+
+        if (hasAsPremise && !consumers.some((c) => c.getId().equals(candidate.getId()))) {
+          consumers.push(candidate);
+        }
+      }
+    }
+
+    return ok(consumers);
+  }
+
+  async findCommonConnections(
+    arg1: AtomicArgument,
+    arg2: AtomicArgument,
+  ): Promise<
+    Result<
+      { sharedProviders: AtomicArgument[]; sharedConsumers: AtomicArgument[] },
+      ProcessingError
+    >
+  > {
+    const providers1Result = await this.findPotentialProviders(arg1.getId());
+    if (providers1Result.isErr()) {
+      return err(providers1Result.error);
+    }
+
+    const providers2Result = await this.findPotentialProviders(arg2.getId());
+    if (providers2Result.isErr()) {
+      return err(providers2Result.error);
+    }
+
+    const consumers1Result = await this.findPotentialConsumers(arg1.getId());
+    if (consumers1Result.isErr()) {
+      return err(consumers1Result.error);
+    }
+
+    const consumers2Result = await this.findPotentialConsumers(arg2.getId());
+    if (consumers2Result.isErr()) {
+      return err(consumers2Result.error);
+    }
+
+    const sharedProviders = providers1Result.value.filter((p1) =>
+      providers2Result.value.some((p2) => p1.getId().equals(p2.getId())),
+    );
+
+    const sharedConsumers = consumers1Result.value.filter((c1) =>
+      consumers2Result.value.some((c2) => c1.getId().equals(c2.getId())),
+    );
+
+    return ok({ sharedProviders, sharedConsumers });
+  }
 }

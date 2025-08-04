@@ -25,11 +25,12 @@ export class TreeTraversalService {
     argumentId: AtomicArgumentId,
     atomicArgumentRepo: IAtomicArgumentRepository,
   ): Promise<Result<TreeConnectionMap, ProcessingError>> {
-    const argument = await atomicArgumentRepo.findById(argumentId);
-    if (!argument) {
+    const argumentResult = await atomicArgumentRepo.findById(argumentId);
+    if (argumentResult.isErr()) {
       return err(new ProcessingError('Argument not found'));
     }
 
+    const argument = argumentResult.value;
     const parents = await this.findParentArguments(argument, atomicArgumentRepo);
     const children = await this.findChildArguments(argument, atomicArgumentRepo);
 
@@ -81,7 +82,12 @@ export class TreeTraversalService {
     argument: AtomicArgument,
     atomicArgumentRepo: IAtomicArgumentRepository,
   ): Promise<AtomicArgument[]> {
-    const allArguments = await atomicArgumentRepo.findAll();
+    const allArgumentsResult = await atomicArgumentRepo.findAll();
+    if (allArgumentsResult.isErr()) {
+      return [];
+    }
+
+    const allArguments = allArgumentsResult.value;
     const parentArguments: AtomicArgument[] = [];
 
     for (const otherArg of allArguments) {
@@ -100,7 +106,12 @@ export class TreeTraversalService {
     argument: AtomicArgument,
     atomicArgumentRepo: IAtomicArgumentRepository,
   ): Promise<AtomicArgument[]> {
-    const allArguments = await atomicArgumentRepo.findAll();
+    const allArgumentsResult = await atomicArgumentRepo.findAll();
+    if (allArgumentsResult.isErr()) {
+      return [];
+    }
+
+    const allArguments = allArgumentsResult.value;
     const childArguments: AtomicArgument[] = [];
 
     for (const otherArg of allArguments) {

@@ -1,6 +1,20 @@
 import { err, ok } from 'neverthrow';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { ValidationError } from '../../../domain/shared/result.js';
+import {
+  AtomicArgumentId,
+  Dimensions,
+  DocumentId,
+  ErrorCode,
+  ErrorMessage,
+  NodeCount,
+  NodeId,
+  Position2D,
+  SideLabel,
+  StatementId,
+  TreeId,
+  Version,
+} from '../../../domain/shared/value-objects/index.js';
 import type { YAMLSerializer } from '../../../infrastructure/repositories/yaml/YAMLSerializer.js';
 import type { TreeRenderer } from '../../../webview/TreeRenderer.js';
 import { ValidationApplicationError } from '../../dtos/operation-results.js';
@@ -47,35 +61,60 @@ describe('ExportService', () => {
         modifiedAt: '2023-01-01T00:00:00.000Z',
       },
     },
-    orderedSets: {
-      os1: {
-        id: 'os1',
-        statementIds: ['s1', 's2'],
-        usageCount: 1,
-        usedBy: [{ argumentId: 'arg1', usage: 'premise' }],
-      },
-      os2: {
-        id: 'os2',
-        statementIds: ['s3'],
-        usageCount: 1,
-        usedBy: [{ argumentId: 'arg1', usage: 'conclusion' }],
-      },
-    },
     atomicArguments: {
       arg1: {
-        id: 'arg1',
-        premiseIds: 'os1',
-        conclusionIds: 'os2',
-        sideLabels: { left: 'Modus Ponens' },
+        id: (() => {
+          const r = AtomicArgumentId.create('arg1');
+          return r.isOk() ? r.value : ('arg1' as any);
+        })(),
+        premiseIds: [
+          (() => {
+            const r = StatementId.create('s1');
+            return r.isOk() ? r.value : ('s1' as any);
+          })(),
+          (() => {
+            const r = StatementId.create('s2');
+            return r.isOk() ? r.value : ('s2' as any);
+          })(),
+        ],
+        conclusionIds: [
+          (() => {
+            const r = StatementId.create('s3');
+            return r.isOk() ? r.value : ('s3' as any);
+          })(),
+        ],
+        sideLabels: (() => {
+          const r = SideLabel.create('Modus Ponens');
+          if (r.isOk()) return { left: r.value };
+          return {};
+        })(),
       },
     },
     trees: {
       tree1: {
-        id: 'tree1',
-        position: { x: 100, y: 100 },
-        bounds: { width: 400, height: 200 },
-        nodeCount: 1,
-        rootNodeIds: ['n1'],
+        id: (() => {
+          const r = TreeId.create('tree1');
+          return r.isOk() ? r.value : ('tree1' as any);
+        })(),
+        position: (() => {
+          const r = Position2D.create(100, 100);
+          if (!r.isOk()) throw new Error('Failed to create test Position2D');
+          return r.value;
+        })(),
+        ...(() => {
+          const r = Dimensions.create(400, 200);
+          return r.isOk() ? { bounds: r.value } : {};
+        })(),
+        nodeCount: (() => {
+          const r = NodeCount.create(1);
+          return r.isOk() ? r.value : (1 as any);
+        })(),
+        rootNodeIds: [
+          (() => {
+            const r = NodeId.create('n1');
+            return r.isOk() ? r.value : ('n1' as any);
+          })(),
+        ],
       },
     },
   };
@@ -207,11 +246,15 @@ trees:
       const documentId = 'test-doc-id';
       const options: ExportOptions = { format: 'pdf', includeVisualization: true };
 
+      const docIdResult = DocumentId.create('test-doc-id');
+      const dimensionsResult = Dimensions.create(800, 600);
+
+      const versionResult = Version.create(1);
       const mockVisualization = {
-        documentId: 'test-doc-id',
-        version: 1,
+        documentId: docIdResult.isOk() ? docIdResult.value : ('test-doc-id' as any),
+        version: versionResult.isOk() ? versionResult.value : (1 as any),
         trees: [],
-        totalDimensions: { width: 800, height: 600 },
+        totalDimensions: dimensionsResult.isOk() ? dimensionsResult.value : undefined,
         isEmpty: false,
       };
 
@@ -277,11 +320,15 @@ trees:
       const documentId = 'test-doc-id';
       const options: ExportOptions = { format: 'svg' };
 
+      const docIdResult = DocumentId.create('test-doc-id');
+      const dimensionsResult = Dimensions.create(800, 600);
+
+      const versionResult = Version.create(1);
       const mockVisualization = {
-        documentId: 'test-doc-id',
-        version: 1,
+        documentId: docIdResult.isOk() ? docIdResult.value : ('test-doc-id' as any),
+        version: versionResult.isOk() ? versionResult.value : (1 as any),
         trees: [],
-        totalDimensions: { width: 800, height: 600 },
+        totalDimensions: dimensionsResult.isOk() ? dimensionsResult.value : undefined,
         isEmpty: false,
       };
 
@@ -357,7 +404,16 @@ trees:
         ok({ filePath: expectedFilePath, cancelled: false }),
       );
       mockUIPort.writeFile.mockResolvedValue(
-        err({ code: 'PLATFORM_ERROR', message: 'Write failed' }),
+        err({
+          code: (() => {
+            const r = ErrorCode.create('PLATFORM_ERROR');
+            return r.isOk() ? r.value : ('PLATFORM_ERROR' as any);
+          })(),
+          message: (() => {
+            const r = ErrorMessage.create('Write failed');
+            return r.isOk() ? r.value : ('Write failed' as any);
+          })(),
+        }),
       );
 
       const result = await service.saveToFile(documentId, options);

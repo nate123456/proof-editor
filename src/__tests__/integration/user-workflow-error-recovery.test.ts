@@ -508,7 +508,11 @@ trees:
       );
 
       // Start with valid content
-      const validContent = generatePersonaContent(USER_PERSONAS[0]);
+      const firstPersona = USER_PERSONAS[0];
+      if (!firstPersona) {
+        throw new Error('No user personas available');
+      }
+      const validContent = generatePersonaContent(firstPersona);
       userMocks.mockDocument.getText.mockReturnValue(validContent);
 
       const initialResult = await documentQueryService.parseDocumentContent(validContent);

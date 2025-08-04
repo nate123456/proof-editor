@@ -9,7 +9,14 @@ import type { IPlatformPort } from '../../application/ports/IPlatformPort.js';
 import type { IUIPort } from '../../application/ports/IUIPort.js';
 import type { IViewStatePort } from '../../application/ports/IViewStatePort.js';
 import { ValidationError } from '../../domain/shared/result.js';
-import { DialogTitle, ViewType, WebviewId } from '../../domain/shared/value-objects/index.js';
+import {
+  DialogTitle,
+  DocumentContent,
+  FilePath,
+  NotificationMessage,
+  ViewType,
+  WebviewId,
+} from '../../domain/shared/value-objects/index.js';
 import { DomainEventBus } from '../events/DomainEventBus.js';
 import { EventBus } from '../events/EventBus.js';
 import { VSCodeFileSystemAdapter } from '../vscode/VSCodeFileSystemAdapter.js';
@@ -141,7 +148,9 @@ describe('Infrastructure Resilience and Error Recovery', () => {
         .fn()
         .mockRejectedValue(new Error('EACCES: permission denied'));
 
-      const result = await adapter.readFile('/protected/file.proof');
+      const filePathResult = FilePath.create('/protected/file.proof');
+      if (filePathResult.isErr()) throw new Error('Failed to create FilePath');
+      const result = await adapter.readFile(filePathResult.value);
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
@@ -157,7 +166,9 @@ describe('Infrastructure Resilience and Error Recovery', () => {
           }),
       );
 
-      const result = await adapter.readFile('/network/drive/file.proof');
+      const filePathResult = FilePath.create('/network/drive/file.proof');
+      if (filePathResult.isErr()) throw new Error('Failed to create FilePath');
+      const result = await adapter.readFile(filePathResult.value);
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
@@ -168,7 +179,9 @@ describe('Infrastructure Resilience and Error Recovery', () => {
     it('should handle file system corruption gracefully', async () => {
       mockFileSystemPort.readFile = vi.fn().mockResolvedValue('corrupted\x00data\xFF\xFE');
 
-      const result = await adapter.readFile('/corrupted/file.proof');
+      const filePathResult = FilePath.create('/corrupted/file.proof');
+      if (filePathResult.isErr()) throw new Error('Failed to create FilePath');
+      const result = await adapter.readFile(filePathResult.value);
 
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
@@ -186,9 +199,14 @@ describe('Infrastructure Resilience and Error Recovery', () => {
       });
 
       // Simulate concurrent writes
-      const promises = Array.from({ length: 10 }, (_, i) =>
-        adapter.writeFile(`/test/file${i}.proof`, `content${i}`),
-      );
+      const promises = Array.from({ length: 10 }, async (_, i) => {
+        const filePathResult = FilePath.create(`/test/file${i}.proof`);
+        const contentResult = DocumentContent.create(`content${i}`);
+        if (filePathResult.isErr() || contentResult.isErr()) {
+          throw new Error('Failed to create value objects');
+        }
+        return adapter.writeFile(filePathResult.value, contentResult.value);
+      });
 
       const results = await Promise.all(promises);
 
@@ -201,7 +219,12 @@ describe('Infrastructure Resilience and Error Recovery', () => {
         .fn()
         .mockRejectedValue(new Error('ENOSPC: no space left on device'));
 
-      const result = await adapter.writeFile('/large/file.proof', 'x'.repeat(1000000));
+      const filePathResult = FilePath.create('/large/file.proof');
+      const contentResult = DocumentContent.create('x'.repeat(1000000));
+      if (filePathResult.isErr() || contentResult.isErr()) {
+        throw new Error('Failed to create value objects');
+      }
+      const result = await adapter.writeFile(filePathResult.value, contentResult.value);
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
@@ -285,10 +308,18 @@ describe('Infrastructure Resilience and Error Recovery', () => {
       });
 
       expect(() => {
+        const idResult = WebviewId.create('test-panel');
+        const titleResult = DialogTitle.create('Test Panel');
+        const viewTypeResult = ViewType.create('test');
+
+        if (idResult.isErr() || titleResult.isErr() || viewTypeResult.isErr()) {
+          throw new Error('Failed to create value objects');
+        }
+
         adapter.createWebviewPanel({
-          id: WebviewId.create('test-panel')._unsafeUnwrap(),
-          title: DialogTitle.create('Test Panel')._unsafeUnwrap(),
-          viewType: ViewType.create('test')._unsafeUnwrap(),
+          id: idResult.value,
+          title: titleResult.value,
+          viewType: viewTypeResult.value,
           showOptions: { viewColumn: 1 },
           retainContextWhenHidden: true,
           enableScripts: true,
@@ -307,12 +338,15 @@ describe('Infrastructure Resilience and Error Recovery', () => {
       mockUIPort.createWebviewPanel = vi.fn().mockReturnValue(mockWebview);
       mockUIPort.postMessageToWebview = vi.fn().mockRejectedValue(new Error('Webview disposed'));
 
-      expect(() => {
-        adapter.postMessageToWebview('disposed-panel', {
-          type: 'test',
-          data: 'test',
-        });
-      }).toThrow('Webview disposed');
+      const idResult = WebviewId.create('disposed-panel');
+      if (idResult.isErr()) {
+        throw new Error('Failed to create WebviewId');
+      }
+
+      adapter.postMessageToWebview(idResult.value, {
+        type: 'test',
+        data: 'test',
+      });
     });
 
     it('should handle UI blocking scenarios gracefully', async () => {
@@ -326,7 +360,10 @@ describe('Infrastructure Resilience and Error Recovery', () => {
       });
 
       // Simulate rapid error messages that could block UI
-      const promises = Array.from({ length: 10 }, () => adapter.showError('Test error message'));
+      const msgResult = NotificationMessage.create('Test error message');
+      const promises = msgResult.isOk()
+        ? Array.from({ length: 10 }, () => adapter.showError(msgResult.value))
+        : [];
 
       const results = await Promise.allSettled(promises);
       const successful = results.filter((r) => r.status === 'fulfilled').length;

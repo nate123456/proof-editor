@@ -148,7 +148,7 @@ export class ConnectionCollection extends ValueObject<Map<string, Connection[]>>
     return this.value.size === 0;
   }
 
-  equals(other: ConnectionCollection): boolean {
+  override equals(other: ConnectionCollection): boolean {
     if (this.value.size !== other.value.size) {
       return false;
     }
@@ -162,6 +162,9 @@ export class ConnectionCollection extends ValueObject<Map<string, Connection[]>>
       for (let i = 0; i < connections.length; i++) {
         const conn = connections[i];
         const otherConn = otherConnections[i];
+        if (!conn || !otherConn) {
+          return false;
+        }
         if (
           !conn.from.equals(otherConn.from) ||
           !conn.to.equals(otherConn.to) ||

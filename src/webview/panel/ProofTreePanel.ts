@@ -8,6 +8,8 @@ import type { ProofApplicationService } from '../../application/services/ProofAp
 import type { ProofVisualizationService } from '../../application/services/ProofVisualizationService.js';
 import type { ViewStateManager } from '../../application/services/ViewStateManager.js';
 import { ValidationError } from '../../domain/shared/result.js';
+import { WebviewId } from '../../domain/shared/value-objects/identifiers.js';
+import { DialogTitle, ViewType } from '../../domain/shared/value-objects/ui.js';
 import { getContainer } from '../../infrastructure/di/container.js';
 import { TOKENS } from '../../infrastructure/di/tokens.js';
 import type { YAMLSerializer } from '../../infrastructure/repositories/yaml/YAMLSerializer.js';
@@ -127,10 +129,20 @@ export class ProofTreePanel {
       const documentName = documentUri.split('/').pop() || 'Unknown Document';
 
       // Create webview panel through platform abstraction
+      const webviewIdResult = WebviewId.create(panelId);
+      if (webviewIdResult.isErr()) {
+        return err(webviewIdResult.error);
+      }
+
+      const titleResult = DialogTitle.create(`Proof Tree: ${documentName}`);
+      if (titleResult.isErr()) {
+        return err(titleResult.error);
+      }
+
       const webviewPanel = uiPort.createWebviewPanel({
-        id: panelId,
-        title: `Proof Tree: ${documentName}`,
-        viewType: 'proofTreeVisualization',
+        id: webviewIdResult.value,
+        title: titleResult.value,
+        viewType: ViewType.proofTreeVisualization(),
         showOptions: {
           viewColumn: 1,
           preserveFocus: false,

@@ -1,5 +1,17 @@
 import { err, ok } from 'neverthrow';
 import { describe, expect, test, vi } from 'vitest';
+import {
+  DocumentContent,
+  DocumentId,
+  DocumentVersion,
+  ErrorCode,
+  ErrorMessage,
+  FileName,
+  FilePath,
+  FileSize,
+  Timestamp,
+  Title,
+} from '../../../domain/shared/value-objects/index.js';
 import type {
   Disposable,
   DocumentMetadata,
@@ -31,29 +43,33 @@ function createMockFileSystemPort(): IFileSystemPort {
 
 describe('IFileSystemPort Interface Contract', () => {
   describe('Basic File Operations', () => {
-    test('readFile returns Result<string, FileSystemError>', async () => {
+    test('readFile returns Result<DocumentContent, FileSystemError>', async () => {
       const mockPort = createMockFileSystemPort();
-      const successResult = ok('file content');
+      const successResult = ok(DocumentContent.create('file content').unwrapOr(null)!);
       const errorResult = err({
-        code: 'NOT_FOUND',
-        message: 'File not found',
-        path: '/test/path',
+        code: ErrorCode.create('NOT_FOUND').unwrapOr(null)!,
+        message: ErrorMessage.create('File not found').unwrapOr(null)!,
+        path: FilePath.create('/test/path').unwrapOr(null)!,
       } as FileSystemError);
 
       vi.mocked(mockPort.readFile).mockResolvedValueOnce(successResult);
       vi.mocked(mockPort.readFile).mockResolvedValueOnce(errorResult);
 
-      const result1 = await mockPort.readFile('/existing/file.txt');
+      const result1 = await mockPort.readFile(
+        FilePath.create('/existing/file.txt').unwrapOr(null)!,
+      );
       expect(result1.isOk()).toBe(true);
       if (result1.isOk()) {
-        expect(result1.value).toBe('file content');
+        expect(result1.value.getValue()).toBe('file content');
       }
 
-      const result2 = await mockPort.readFile('/nonexistent/file.txt');
+      const result2 = await mockPort.readFile(
+        FilePath.create('/nonexistent/file.txt').unwrapOr(null)!,
+      );
       expect(result2.isErr()).toBe(true);
       if (result2.isErr()) {
-        expect(result2.error.code).toBe('NOT_FOUND');
-        expect(result2.error.path).toBe('/test/path');
+        expect(result2.error.code.getValue()).toBe('NOT_FOUND');
+        expect(result2.error.path?.getValue()).toBe('/test/path');
       }
     });
 
@@ -61,21 +77,27 @@ describe('IFileSystemPort Interface Contract', () => {
       const mockPort = createMockFileSystemPort();
       const successResult = ok(undefined);
       const errorResult = err({
-        code: 'PERMISSION_DENIED',
-        message: 'Access denied',
-        path: '/readonly/file.txt',
+        code: ErrorCode.create('PERMISSION_DENIED').unwrapOr(null)!,
+        message: ErrorMessage.create('Access denied').unwrapOr(null)!,
+        path: FilePath.create('/readonly/file.txt').unwrapOr(null)!,
       } as FileSystemError);
 
       vi.mocked(mockPort.writeFile).mockResolvedValueOnce(successResult);
       vi.mocked(mockPort.writeFile).mockResolvedValueOnce(errorResult);
 
-      const result1 = await mockPort.writeFile('/writable/file.txt', 'content');
+      const result1 = await mockPort.writeFile(
+        FilePath.create('/writable/file.txt').unwrapOr(null)!,
+        DocumentContent.create('content').unwrapOr(null)!,
+      );
       expect(result1.isOk()).toBe(true);
 
-      const result2 = await mockPort.writeFile('/readonly/file.txt', 'content');
+      const result2 = await mockPort.writeFile(
+        FilePath.create('/readonly/file.txt').unwrapOr(null)!,
+        DocumentContent.create('content').unwrapOr(null)!,
+      );
       expect(result2.isErr()).toBe(true);
       if (result2.isErr()) {
-        expect(result2.error.code).toBe('PERMISSION_DENIED');
+        expect(result2.error.code.getValue()).toBe('PERMISSION_DENIED');
       }
     });
 
@@ -84,27 +106,29 @@ describe('IFileSystemPort Interface Contract', () => {
       const existsResult = ok(true);
       const notExistsResult = ok(false);
       const errorResult = err({
-        code: 'PERMISSION_DENIED',
-        message: 'Cannot access path',
+        code: ErrorCode.create('PERMISSION_DENIED').unwrapOr(null)!,
+        message: ErrorMessage.create('Cannot access path').unwrapOr(null)!,
       } as FileSystemError);
 
       vi.mocked(mockPort.exists).mockResolvedValueOnce(existsResult);
       vi.mocked(mockPort.exists).mockResolvedValueOnce(notExistsResult);
       vi.mocked(mockPort.exists).mockResolvedValueOnce(errorResult);
 
-      const result1 = await mockPort.exists('/existing/file.txt');
+      const result1 = await mockPort.exists(FilePath.create('/existing/file.txt').unwrapOr(null)!);
       expect(result1.isOk()).toBe(true);
       if (result1.isOk()) {
         expect(result1.value).toBe(true);
       }
 
-      const result2 = await mockPort.exists('/nonexistent/file.txt');
+      const result2 = await mockPort.exists(
+        FilePath.create('/nonexistent/file.txt').unwrapOr(null)!,
+      );
       expect(result2.isOk()).toBe(true);
       if (result2.isOk()) {
         expect(result2.value).toBe(false);
       }
 
-      const result3 = await mockPort.exists('/restricted/path');
+      const result3 = await mockPort.exists(FilePath.create('/restricted/path').unwrapOr(null)!);
       expect(result3.isErr()).toBe(true);
     });
 
@@ -112,17 +136,19 @@ describe('IFileSystemPort Interface Contract', () => {
       const mockPort = createMockFileSystemPort();
       const successResult = ok(undefined);
       const errorResult = err({
-        code: 'NOT_FOUND',
-        message: 'File not found',
+        code: ErrorCode.create('NOT_FOUND').unwrapOr(null)!,
+        message: ErrorMessage.create('File not found').unwrapOr(null)!,
       } as FileSystemError);
 
       vi.mocked(mockPort.delete).mockResolvedValueOnce(successResult);
       vi.mocked(mockPort.delete).mockResolvedValueOnce(errorResult);
 
-      const result1 = await mockPort.delete('/existing/file.txt');
+      const result1 = await mockPort.delete(FilePath.create('/existing/file.txt').unwrapOr(null)!);
       expect(result1.isOk()).toBe(true);
 
-      const result2 = await mockPort.delete('/nonexistent/file.txt');
+      const result2 = await mockPort.delete(
+        FilePath.create('/nonexistent/file.txt').unwrapOr(null)!,
+      );
       expect(result2.isErr()).toBe(true);
     });
   });
@@ -132,15 +158,15 @@ describe('IFileSystemPort Interface Contract', () => {
       const mockPort = createMockFileSystemPort();
       const files: FileInfo[] = [
         {
-          path: '/dir/file1.txt',
-          name: 'file1.txt',
+          path: FilePath.create('/dir/file1.txt').unwrapOr(null)!,
+          name: FileName.create('file1.txt').unwrapOr(null)!,
           isDirectory: false,
-          size: 100,
+          size: FileSize.create(100).unwrapOr(null)!,
           modifiedAt: new Date('2023-01-01'),
         },
         {
-          path: '/dir/subdir',
-          name: 'subdir',
+          path: FilePath.create('/dir/subdir').unwrapOr(null)!,
+          name: FileName.create('subdir').unwrapOr(null)!,
           isDirectory: true,
           modifiedAt: new Date('2023-01-02'),
         },
@@ -148,23 +174,25 @@ describe('IFileSystemPort Interface Contract', () => {
 
       const successResult = ok(files);
       const errorResult = err({
-        code: 'NOT_FOUND',
-        message: 'Directory not found',
-        path: '/nonexistent',
+        code: ErrorCode.create('NOT_FOUND').unwrapOr(null)!,
+        message: ErrorMessage.create('Directory not found').unwrapOr(null)!,
+        path: FilePath.create('/nonexistent').unwrapOr(null)!,
       } as FileSystemError);
 
       vi.mocked(mockPort.readDirectory).mockResolvedValueOnce(successResult);
       vi.mocked(mockPort.readDirectory).mockResolvedValueOnce(errorResult);
 
-      const result1 = await mockPort.readDirectory('/existing/dir');
+      const result1 = await mockPort.readDirectory(
+        FilePath.create('/existing/dir').unwrapOr(null)!,
+      );
       expect(result1.isOk()).toBe(true);
       if (result1.isOk()) {
         expect(result1.value).toHaveLength(2);
-        expect(result1.value?.[0]?.name).toBe('file1.txt');
+        expect(result1.value?.[0]?.name.getValue()).toBe('file1.txt');
         expect(result1.value?.[1]?.isDirectory).toBe(true);
       }
 
-      const result2 = await mockPort.readDirectory('/nonexistent');
+      const result2 = await mockPort.readDirectory(FilePath.create('/nonexistent').unwrapOr(null)!);
       expect(result2.isErr()).toBe(true);
     });
 
@@ -172,17 +200,21 @@ describe('IFileSystemPort Interface Contract', () => {
       const mockPort = createMockFileSystemPort();
       const successResult = ok(undefined);
       const errorResult = err({
-        code: 'PERMISSION_DENIED',
-        message: 'Cannot create directory',
+        code: ErrorCode.create('PERMISSION_DENIED').unwrapOr(null)!,
+        message: ErrorMessage.create('Cannot create directory').unwrapOr(null)!,
       } as FileSystemError);
 
       vi.mocked(mockPort.createDirectory).mockResolvedValueOnce(successResult);
       vi.mocked(mockPort.createDirectory).mockResolvedValueOnce(errorResult);
 
-      const result1 = await mockPort.createDirectory('/writable/newdir');
+      const result1 = await mockPort.createDirectory(
+        FilePath.create('/writable/newdir').unwrapOr(null)!,
+      );
       expect(result1.isOk()).toBe(true);
 
-      const result2 = await mockPort.createDirectory('/readonly/newdir');
+      const result2 = await mockPort.createDirectory(
+        FilePath.create('/readonly/newdir').unwrapOr(null)!,
+      );
       expect(result2.isErr()).toBe(true);
     });
   });
@@ -193,7 +225,7 @@ describe('IFileSystemPort Interface Contract', () => {
       const mockDisposable = { dispose: vi.fn() } as Disposable;
 
       // Mock the optional watch method
-      mockPort.watch = (path: string, callback: (event: FileChangeEvent) => void) => {
+      mockPort.watch = (path: FilePath, callback: (event: FileChangeEvent) => void) => {
         // Simulate a file change event
         setTimeout(() => {
           callback({
@@ -205,9 +237,12 @@ describe('IFileSystemPort Interface Contract', () => {
       };
 
       let receivedEvent: FileChangeEvent | null = null;
-      const disposable = mockPort.watch?.('/test/path', (event) => {
-        receivedEvent = event;
-      });
+      const disposable = mockPort.watch?.(
+        FilePath.create('/test/path').unwrapOr(null)!,
+        (event) => {
+          receivedEvent = event;
+        },
+      );
 
       expect(disposable).toBeDefined();
       expect(mockDisposable.dispose).toBeDefined();
@@ -216,7 +251,7 @@ describe('IFileSystemPort Interface Contract', () => {
       setTimeout(() => {
         expect(receivedEvent).not.toBeNull();
         expect(receivedEvent?.type).toBe('changed');
-        expect(receivedEvent?.path).toBe('/test/path');
+        expect(receivedEvent?.path.getValue()).toBe('/test/path');
       }, 10);
     });
 
@@ -234,64 +269,68 @@ describe('IFileSystemPort Interface Contract', () => {
     test('getStoredDocument returns Result<StoredDocument | null, FileSystemError>', async () => {
       const mockPort = createMockFileSystemPort();
       const document: StoredDocument = {
-        id: 'doc1',
-        content: 'document content',
+        id: DocumentId.create('doc1').unwrapOr(null)!,
+        content: DocumentContent.create('document content').unwrapOr(null)!,
         metadata: {
-          id: 'doc1',
-          title: 'Test Document',
-          modifiedAt: new Date('2023-01-01'),
-          size: 16,
+          id: DocumentId.create('doc1').unwrapOr(null)!,
+          title: Title.create('Test Document').unwrapOr(null)!,
+          modifiedAt: Timestamp.fromDate(new Date('2023-01-01')),
+          size: FileSize.create(16).unwrapOr(null)!,
           syncStatus: 'local',
         },
-        version: 1,
+        version: DocumentVersion.create(1).unwrapOr(null)!,
       };
 
       const foundResult = ok(document);
       const notFoundResult = ok(null);
       const errorResult = err({
-        code: 'UNKNOWN',
-        message: 'Storage error',
+        code: ErrorCode.create('UNKNOWN').unwrapOr(null)!,
+        message: ErrorMessage.create('Storage error').unwrapOr(null)!,
       } as FileSystemError);
 
       vi.mocked(mockPort.getStoredDocument).mockResolvedValueOnce(foundResult);
       vi.mocked(mockPort.getStoredDocument).mockResolvedValueOnce(notFoundResult);
       vi.mocked(mockPort.getStoredDocument).mockResolvedValueOnce(errorResult);
 
-      const result1 = await mockPort.getStoredDocument('doc1');
+      const result1 = await mockPort.getStoredDocument(DocumentId.create('doc1').unwrapOr(null)!);
       expect(result1.isOk()).toBe(true);
       if (result1.isOk()) {
-        expect(result1.value?.id).toBe('doc1');
-        expect(result1.value?.content).toBe('document content');
+        expect(result1.value?.id.getValue()).toBe('doc1');
+        expect(result1.value?.content.getValue()).toBe('document content');
       }
 
-      const result2 = await mockPort.getStoredDocument('nonexistent');
+      const result2 = await mockPort.getStoredDocument(
+        DocumentId.create('nonexistent').unwrapOr(null)!,
+      );
       expect(result2.isOk()).toBe(true);
       if (result2.isOk()) {
         expect(result2.value).toBeNull();
       }
 
-      const result3 = await mockPort.getStoredDocument('error-doc');
+      const result3 = await mockPort.getStoredDocument(
+        DocumentId.create('error-doc').unwrapOr(null)!,
+      );
       expect(result3.isErr()).toBe(true);
     });
 
     test('storeDocument returns Result<void, FileSystemError>', async () => {
       const mockPort = createMockFileSystemPort();
       const document: StoredDocument = {
-        id: 'doc1',
-        content: 'document content',
+        id: DocumentId.create('doc1').unwrapOr(null)!,
+        content: DocumentContent.create('document content').unwrapOr(null)!,
         metadata: {
-          id: 'doc1',
-          title: 'Test Document',
-          modifiedAt: new Date(),
-          size: 16,
+          id: DocumentId.create('doc1').unwrapOr(null)!,
+          title: Title.create('Test Document').unwrapOr(null)!,
+          modifiedAt: Timestamp.now(),
+          size: FileSize.create(16).unwrapOr(null)!,
         },
-        version: 1,
+        version: DocumentVersion.create(1).unwrapOr(null)!,
       };
 
       const successResult = ok(undefined);
       const errorResult = err({
-        code: 'QUOTA_EXCEEDED',
-        message: 'Storage quota exceeded',
+        code: ErrorCode.create('QUOTA_EXCEEDED').unwrapOr(null)!,
+        message: ErrorMessage.create('Storage quota exceeded').unwrapOr(null)!,
       } as FileSystemError);
 
       vi.mocked(mockPort.storeDocument).mockResolvedValueOnce(successResult);
@@ -303,7 +342,7 @@ describe('IFileSystemPort Interface Contract', () => {
       const result2 = await mockPort.storeDocument(document);
       expect(result2.isErr()).toBe(true);
       if (result2.isErr()) {
-        expect(result2.error.code).toBe('QUOTA_EXCEEDED');
+        expect(result2.error.code.getValue()).toBe('QUOTA_EXCEEDED');
       }
     });
 
@@ -311,17 +350,21 @@ describe('IFileSystemPort Interface Contract', () => {
       const mockPort = createMockFileSystemPort();
       const successResult = ok(undefined);
       const errorResult = err({
-        code: 'NOT_FOUND',
-        message: 'Document not found',
+        code: ErrorCode.create('NOT_FOUND').unwrapOr(null)!,
+        message: ErrorMessage.create('Document not found').unwrapOr(null)!,
       } as FileSystemError);
 
       vi.mocked(mockPort.deleteStoredDocument).mockResolvedValueOnce(successResult);
       vi.mocked(mockPort.deleteStoredDocument).mockResolvedValueOnce(errorResult);
 
-      const result1 = await mockPort.deleteStoredDocument('doc1');
+      const result1 = await mockPort.deleteStoredDocument(
+        DocumentId.create('doc1').unwrapOr(null)!,
+      );
       expect(result1.isOk()).toBe(true);
 
-      const result2 = await mockPort.deleteStoredDocument('nonexistent');
+      const result2 = await mockPort.deleteStoredDocument(
+        DocumentId.create('nonexistent').unwrapOr(null)!,
+      );
       expect(result2.isErr()).toBe(true);
     });
 
@@ -329,25 +372,25 @@ describe('IFileSystemPort Interface Contract', () => {
       const mockPort = createMockFileSystemPort();
       const metadata: DocumentMetadata[] = [
         {
-          id: 'doc1',
-          title: 'Document 1',
-          modifiedAt: new Date('2023-01-01'),
-          size: 100,
+          id: DocumentId.create('doc1').unwrapOr(null)!,
+          title: Title.create('Document 1').unwrapOr(null)!,
+          modifiedAt: Timestamp.fromDate(new Date('2023-01-01')),
+          size: FileSize.create(100).unwrapOr(null)!,
           syncStatus: 'local',
         },
         {
-          id: 'doc2',
-          title: 'Document 2',
-          modifiedAt: new Date('2023-01-02'),
-          size: 200,
+          id: DocumentId.create('doc2').unwrapOr(null)!,
+          title: Title.create('Document 2').unwrapOr(null)!,
+          modifiedAt: Timestamp.fromDate(new Date('2023-01-02')),
+          size: FileSize.create(200).unwrapOr(null)!,
           syncStatus: 'synced',
         },
       ];
 
       const successResult = ok(metadata);
       const errorResult = err({
-        code: 'UNKNOWN',
-        message: 'Storage error',
+        code: ErrorCode.create('UNKNOWN').unwrapOr(null)!,
+        message: ErrorMessage.create('Storage error').unwrapOr(null)!,
       } as FileSystemError);
 
       vi.mocked(mockPort.listStoredDocuments).mockResolvedValueOnce(successResult);
@@ -357,7 +400,7 @@ describe('IFileSystemPort Interface Contract', () => {
       expect(result1.isOk()).toBe(true);
       if (result1.isOk()) {
         expect(result1.value).toHaveLength(2);
-        expect(result1.value?.[0]?.id).toBe('doc1');
+        expect(result1.value?.[0]?.id.getValue()).toBe('doc1');
         expect(result1.value?.[1]?.syncStatus).toBe('synced');
       }
 
@@ -372,7 +415,7 @@ describe('IFileSystemPort Interface Contract', () => {
       const capabilities: FileSystemCapabilities = {
         canWatch: true,
         canAccessArbitraryPaths: false,
-        maxFileSize: 1024 * 1024,
+        maxFileSize: FileSize.create(1024 * 1024).unwrapOr(null)!,
         supportsOfflineStorage: true,
         persistence: 'session',
       };
@@ -382,7 +425,7 @@ describe('IFileSystemPort Interface Contract', () => {
       const result = mockPort.capabilities();
       expect(result.canWatch).toBe(true);
       expect(result.canAccessArbitraryPaths).toBe(false);
-      expect(result.maxFileSize).toBe(1024 * 1024);
+      expect(result.maxFileSize?.getValue()).toBe(1024 * 1024);
       expect(result.supportsOfflineStorage).toBe(true);
       expect(result.persistence).toBe('session');
     });
@@ -423,12 +466,12 @@ describe('IFileSystemPort Interface Contract', () => {
 
       errorCodes.forEach((code) => {
         const error: FileSystemError = {
-          code,
-          message: `Test error: ${code}`,
-          path: '/test/path',
+          code: ErrorCode.create(code).unwrapOr(null)!,
+          message: ErrorMessage.create(`Test error: ${code}`).unwrapOr(null)!,
+          path: FilePath.create('/test/path').unwrapOr(null)!,
         };
 
-        expect(error.code).toBe(code);
+        expect(error.code.getValue()).toBe(code);
         expect(error.message).toBeDefined();
         expect(error.path).toBeDefined();
       });
@@ -436,8 +479,8 @@ describe('IFileSystemPort Interface Contract', () => {
 
     test('FileSystemError path is optional', () => {
       const error: FileSystemError = {
-        code: 'UNKNOWN',
-        message: 'Generic error',
+        code: ErrorCode.create('UNKNOWN').unwrapOr(null)!,
+        message: ErrorMessage.create('Generic error').unwrapOr(null)!,
       };
 
       expect(error.path).toBeUndefined();
@@ -447,24 +490,24 @@ describe('IFileSystemPort Interface Contract', () => {
   describe('Type Safety', () => {
     test('FileInfo structure is well-typed', () => {
       const fileInfo: FileInfo = {
-        path: '/test/file.txt',
-        name: 'file.txt',
+        path: FilePath.create('/test/file.txt').unwrapOr(null)!,
+        name: FileName.create('file.txt').unwrapOr(null)!,
         isDirectory: false,
-        size: 1024,
+        size: FileSize.create(1024).unwrapOr(null)!,
         modifiedAt: new Date(),
       };
 
-      expect(fileInfo.path).toBe('/test/file.txt');
-      expect(fileInfo.name).toBe('file.txt');
+      expect(fileInfo.path.getValue()).toBe('/test/file.txt');
+      expect(fileInfo.name.getValue()).toBe('file.txt');
       expect(fileInfo.isDirectory).toBe(false);
-      expect(fileInfo.size).toBe(1024);
+      expect(fileInfo.size?.getValue()).toBe(1024);
       expect(fileInfo.modifiedAt).toBeInstanceOf(Date);
     });
 
     test('FileInfo optional fields can be undefined', () => {
       const minimalFileInfo: FileInfo = {
-        path: '/test/file.txt',
-        name: 'file.txt',
+        path: FilePath.create('/test/file.txt').unwrapOr(null)!,
+        name: FileName.create('file.txt').unwrapOr(null)!,
         isDirectory: false,
       };
 
@@ -474,37 +517,37 @@ describe('IFileSystemPort Interface Contract', () => {
 
     test('StoredDocument structure is well-typed', () => {
       const document: StoredDocument = {
-        id: 'doc1',
-        content: 'content',
+        id: DocumentId.create('doc1').unwrapOr(null)!,
+        content: DocumentContent.create('content').unwrapOr(null)!,
         metadata: {
-          id: 'doc1',
-          title: 'Test',
-          modifiedAt: new Date(),
-          size: 7,
+          id: DocumentId.create('doc1').unwrapOr(null)!,
+          title: Title.create('Test').unwrapOr(null)!,
+          modifiedAt: Timestamp.now(),
+          size: FileSize.create(7).unwrapOr(null)!,
         },
-        version: 1,
+        version: DocumentVersion.create(1).unwrapOr(null)!,
       };
 
-      expect(document.id).toBe('doc1');
-      expect(document.content).toBe('content');
-      expect(document.metadata.id).toBe('doc1');
-      expect(document.version).toBe(1);
+      expect(document.id.getValue()).toBe('doc1');
+      expect(document.content.getValue()).toBe('content');
+      expect(document.metadata.id.getValue()).toBe('doc1');
+      expect(document.version.getValue()).toBe(1);
     });
 
     test('DocumentMetadata syncStatus is optional', () => {
       const metadataWithSync: DocumentMetadata = {
-        id: 'doc1',
-        title: 'Test',
-        modifiedAt: new Date(),
-        size: 100,
+        id: DocumentId.create('doc1').unwrapOr(null)!,
+        title: Title.create('Test').unwrapOr(null)!,
+        modifiedAt: Timestamp.now(),
+        size: FileSize.create(100).unwrapOr(null)!,
         syncStatus: 'conflict',
       };
 
       const metadataWithoutSync: DocumentMetadata = {
-        id: 'doc2',
-        title: 'Test 2',
-        modifiedAt: new Date(),
-        size: 200,
+        id: DocumentId.create('doc2').unwrapOr(null)!,
+        title: Title.create('Test 2').unwrapOr(null)!,
+        modifiedAt: Timestamp.now(),
+        size: FileSize.create(200).unwrapOr(null)!,
       };
 
       expect(metadataWithSync.syncStatus).toBe('conflict');

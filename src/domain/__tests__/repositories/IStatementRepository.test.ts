@@ -21,7 +21,7 @@ import type {
   UsageMetrics,
 } from '../../shared/repository-types';
 import type { StatementId } from '../../shared/value-objects';
-import { statementContentFactory, statementIdFactory } from '../factories';
+import { statementContentFactory, statementIdFactory } from './factories';
 
 // Mock implementation of IStatementRepository for testing
 class MockStatementRepository implements IStatementRepository {

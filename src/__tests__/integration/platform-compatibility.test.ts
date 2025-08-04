@@ -18,6 +18,7 @@ import {
   DocumentVersion,
   FileSize,
   NotificationMessage,
+  Timestamp,
   Title,
   ViewType,
   WebviewId,
@@ -497,7 +498,7 @@ describe('Platform Compatibility Integration Tests', () => {
         metadata: {
           id: docIdResult.value,
           title: titleResult.value,
-          modifiedAt: new Date(),
+          modifiedAt: Timestamp.now(),
           size: sizeResult.value,
           syncStatus: 'synced' as const,
         },
@@ -544,7 +545,7 @@ describe('Platform Compatibility Integration Tests', () => {
         metadata: {
           id: docIdResult.value,
           title: titleResult.value,
-          modifiedAt: new Date(),
+          modifiedAt: Timestamp.now(),
           size: sizeResult.value,
           syncStatus: 'synced' as const,
         },
@@ -597,7 +598,7 @@ describe('Platform Compatibility Integration Tests', () => {
         metadata: {
           id: docIdResult.value,
           title: titleResult.value,
-          modifiedAt: new Date(),
+          modifiedAt: Timestamp.now(),
           size: sizeResult.value,
           syncStatus: 'synced' as const,
         },
@@ -800,7 +801,7 @@ describe('Platform Compatibility Integration Tests', () => {
         metadata: {
           id: docIdResult.value,
           title: titleResult.value,
-          modifiedAt: new Date(),
+          modifiedAt: Timestamp.now(),
           size: sizeResult.value,
           syncStatus: 'synced' as const,
         },
@@ -901,7 +902,7 @@ describe('Platform Compatibility Integration Tests', () => {
         metadata: {
           id: docIdResult.value,
           title: titleResult.value,
-          modifiedAt: new Date(),
+          modifiedAt: Timestamp.now(),
           size: sizeResult.value,
           syncStatus: 'synced' as const,
         },

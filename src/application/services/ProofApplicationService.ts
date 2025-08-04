@@ -1,4 +1,6 @@
 import { err, ok, type Result } from 'neverthrow';
+import type { AtomicArgument } from '../../domain/entities/AtomicArgument.js';
+import type { Statement } from '../../domain/entities/Statement.js';
 import type { IProofDocumentRepository } from '../../domain/repositories/IProofDocumentRepository.js';
 import { ValidationError } from '../../domain/shared/result.js';
 import {
@@ -51,13 +53,14 @@ export class ProofApplicationService {
       return err(documentIdResult.error);
     }
 
-    const document = await this.repository.findById(documentIdResult.value);
-    if (!document) {
-      return err(new ValidationError('Document not found'));
+    const documentResult = await this.repository.findById(documentIdResult.value);
+    if (documentResult.isErr()) {
+      return err(new ValidationError(`Document not found: ${documentResult.error.message}`));
     }
+    const document = documentResult.value;
 
     // Execute domain operation
-    const result = document.createStatement(command.content);
+    const result = document.createStatementFromString(command.content);
     if (result.isErr()) {
       return err(result.error);
     }
@@ -89,10 +92,11 @@ export class ProofApplicationService {
       return err(documentIdResult.error);
     }
 
-    const document = await this.repository.findById(documentIdResult.value);
-    if (!document) {
-      return err(new ValidationError('Document not found'));
+    const documentResult = await this.repository.findById(documentIdResult.value);
+    if (documentResult.isErr()) {
+      return err(new ValidationError(`Document not found: ${documentResult.error.message}`));
     }
+    const document = documentResult.value;
 
     // Parse statement ID
     const statementIdResult = StatementId.create(command.statementId);
@@ -101,7 +105,7 @@ export class ProofApplicationService {
     }
 
     // Execute domain operation
-    const result = document.updateStatement(statementIdResult.value, command.content);
+    const result = document.updateStatementFromString(statementIdResult.value, command.content);
     if (result.isErr()) {
       return err(result.error);
     }
@@ -130,10 +134,11 @@ export class ProofApplicationService {
       return err(documentIdResult.error);
     }
 
-    const document = await this.repository.findById(documentIdResult.value);
-    if (!document) {
-      return err(new ValidationError('Document not found'));
+    const documentResult = await this.repository.findById(documentIdResult.value);
+    if (documentResult.isErr()) {
+      return err(new ValidationError(`Document not found: ${documentResult.error.message}`));
     }
+    const document = documentResult.value;
 
     // Parse statement ID
     const statementIdResult = StatementId.create(command.statementId);
@@ -173,19 +178,21 @@ export class ProofApplicationService {
       return err(documentIdResult.error);
     }
 
-    const document = await this.repository.findById(documentIdResult.value);
-    if (!document) {
-      return err(new ValidationError('Document not found'));
+    const documentResult = await this.repository.findById(documentIdResult.value);
+    if (documentResult.isErr()) {
+      return err(new ValidationError(`Document not found: ${documentResult.error.message}`));
     }
+    const document = documentResult.value;
 
     // Collect premise statements
     const premises: Statement[] = [];
+    const queryService = document.createQueryService();
     for (const premiseId of command.premiseStatementIds) {
       const statementIdResult = StatementId.create(premiseId);
       if (statementIdResult.isErr()) {
         return err(statementIdResult.error);
       }
-      const statement = document.getStatement(statementIdResult.value);
+      const statement = queryService.getStatement(statementIdResult.value);
       if (!statement) {
         return err(new ValidationError(`Premise statement ${premiseId} not found`));
       }
@@ -199,7 +206,7 @@ export class ProofApplicationService {
       if (statementIdResult.isErr()) {
         return err(statementIdResult.error);
       }
-      const statement = document.getStatement(statementIdResult.value);
+      const statement = queryService.getStatement(statementIdResult.value);
       if (!statement) {
         return err(new ValidationError(`Conclusion statement ${conclusionId} not found`));
       }
@@ -246,10 +253,11 @@ export class ProofApplicationService {
       return err(documentIdResult.error);
     }
 
-    const document = await this.repository.findById(documentIdResult.value);
-    if (!document) {
-      return err(new ValidationError('Document not found'));
+    const documentResult = await this.repository.findById(documentIdResult.value);
+    if (documentResult.isErr()) {
+      return err(new ValidationError(`Document not found: ${documentResult.error.message}`));
     }
+    const document = documentResult.value;
 
     // Parse argument ID
     const argumentIdResult = AtomicArgumentId.create(command.argumentId);
@@ -258,7 +266,8 @@ export class ProofApplicationService {
     }
 
     // Get existing argument to preserve unchanged statements
-    const existingArgument = document.getArgument(argumentIdResult.value);
+    const queryService = document.createQueryService();
+    const existingArgument = queryService.getArgument(argumentIdResult.value);
     if (!existingArgument) {
       return err(new ValidationError('Atomic argument not found'));
     }
@@ -271,7 +280,7 @@ export class ProofApplicationService {
         if (statementIdResult.isErr()) {
           return err(statementIdResult.error);
         }
-        const statement = document.getStatement(statementIdResult.value);
+        const statement = queryService.getStatement(statementIdResult.value);
         if (!statement) {
           return err(new ValidationError(`Premise statement ${premiseId} not found`));
         }
@@ -289,7 +298,7 @@ export class ProofApplicationService {
         if (statementIdResult.isErr()) {
           return err(statementIdResult.error);
         }
-        const statement = document.getStatement(statementIdResult.value);
+        const statement = queryService.getStatement(statementIdResult.value);
         if (!statement) {
           return err(new ValidationError(`Conclusion statement ${conclusionId} not found`));
         }
@@ -331,10 +340,11 @@ export class ProofApplicationService {
       return err(documentIdResult.error);
     }
 
-    const document = await this.repository.findById(documentIdResult.value);
-    if (!document) {
-      return err(new ValidationError('Document not found'));
+    const documentResult = await this.repository.findById(documentIdResult.value);
+    if (documentResult.isErr()) {
+      return err(new ValidationError(`Document not found: ${documentResult.error.message}`));
     }
+    const document = documentResult.value;
 
     // Parse argument ID
     const argumentIdResult = AtomicArgumentId.create(command.argumentId);
@@ -374,10 +384,11 @@ export class ProofApplicationService {
       return err(documentIdResult.error);
     }
 
-    const document = await this.repository.findById(documentIdResult.value);
-    if (!document) {
-      return err(new ValidationError('Document not found'));
+    const documentResult = await this.repository.findById(documentIdResult.value);
+    if (documentResult.isErr()) {
+      return err(new ValidationError(`Document not found: ${documentResult.error.message}`));
     }
+    const document = documentResult.value;
 
     // Parse argument ID
     const argumentIdResult = AtomicArgumentId.create(command.argumentId);
@@ -386,7 +397,8 @@ export class ProofApplicationService {
     }
 
     // Get the atomic argument
-    const argument = document.getArgument(argumentIdResult.value);
+    const queryService = document.createQueryService();
+    const argument = queryService.getArgument(argumentIdResult.value);
     if (!argument) {
       return err(new ValidationError('Atomic argument not found'));
     }
@@ -433,10 +445,11 @@ export class ProofApplicationService {
       return err(documentIdResult.error);
     }
 
-    const document = await this.repository.findById(documentIdResult.value);
-    if (!document) {
-      return err(new ValidationError('Document not found'));
+    const documentResult = await this.repository.findById(documentIdResult.value);
+    if (documentResult.isErr()) {
+      return err(new ValidationError(`Document not found: ${documentResult.error.message}`));
     }
+    const document = documentResult.value;
 
     // Parse tree ID
     const treeIdResult = TreeId.create(command.treeId);
@@ -466,10 +479,11 @@ export class ProofApplicationService {
       return err(documentIdResult.error);
     }
 
-    const document = await this.repository.findById(documentIdResult.value);
-    if (!document) {
-      return err(new ValidationError('Document not found'));
+    const documentResult = await this.repository.findById(documentIdResult.value);
+    if (documentResult.isErr()) {
+      return err(new ValidationError(`Document not found: ${documentResult.error.message}`));
     }
+    const document = documentResult.value;
 
     // Parse source argument ID
     const sourceArgumentIdResult = AtomicArgumentId.create(command.sourceArgumentId);
@@ -478,7 +492,8 @@ export class ProofApplicationService {
     }
 
     // Get source argument
-    const sourceArgument = document.getArgument(sourceArgumentIdResult.value);
+    const queryService = document.createQueryService();
+    const sourceArgument = queryService.getArgument(sourceArgumentIdResult.value);
     if (!sourceArgument) {
       return err(new ValidationError('Source argument not found'));
     }
@@ -494,27 +509,26 @@ export class ProofApplicationService {
     }
 
     // Create new argument based on branch type
-    let newArgument: Result<
-      import('../../domain/entities/AtomicArgument.js').AtomicArgument,
-      ValidationError
-    >;
+    let createResult: Result<AtomicArgument, ValidationError>;
 
     if (command.position === 'conclusion') {
       // Branch from conclusion: new argument has the statement as premise
-      newArgument = sourceArgument.createBranchFromConclusion(matchingStatement.value.index);
+      const conclusion = sourceArgument.getConclusionAt(matchingStatement.value.index);
+      if (!conclusion) {
+        return err(new ValidationError('Conclusion not found at specified index'));
+      }
+      createResult = document.createAtomicArgument([conclusion], []);
     } else {
       // Branch to premise: new argument has the statement as conclusion
-      newArgument = sourceArgument.createBranchToPremise(matchingStatement.value.index);
+      const premise = sourceArgument.getPremiseAt(matchingStatement.value.index);
+      if (!premise) {
+        return err(new ValidationError('Premise not found at specified index'));
+      }
+      createResult = document.createAtomicArgument([], [premise]);
     }
 
-    if (newArgument.isErr()) {
-      return err(newArgument.error);
-    }
-
-    // Add the new argument to the document
-    const addResult = document.addArgument(newArgument.value);
-    if (addResult.isErr()) {
-      return err(addResult.error);
+    if (createResult.isErr()) {
+      return err(createResult.error);
     }
 
     // Save aggregate
@@ -528,7 +542,7 @@ export class ProofApplicationService {
     await this.eventBus.publish(events);
     document.markEventsAsCommitted();
 
-    return ok(atomicArgumentToDTO(newArgument.value));
+    return ok(atomicArgumentToDTO(createResult.value));
   }
 
   /**

@@ -64,6 +64,9 @@ describe('Document Event Error Handling', () => {
       onDidCreate: vi.fn(() => ({ dispose: vi.fn() })),
       onDidDelete: vi.fn(() => ({ dispose: vi.fn() })),
       dispose: vi.fn(),
+      ignoreCreateEvents: false,
+      ignoreChangeEvents: false,
+      ignoreDeleteEvents: false,
     });
   });
 

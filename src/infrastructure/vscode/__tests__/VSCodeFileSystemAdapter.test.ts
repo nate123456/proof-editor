@@ -13,6 +13,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as vscode from 'vscode';
 import type { StoredDocument } from '../../../application/ports/IFileSystemPort.js';
+import {
+  DocumentContent,
+  DocumentId,
+  DocumentVersion,
+  FileSize,
+  Timestamp,
+  Title,
+} from '../../../domain/shared/value-objects/index.js';
 import { VSCodeFileSystemAdapter } from '../VSCodeFileSystemAdapter.js';
 
 // Mock VS Code module
@@ -109,14 +117,14 @@ describe('VSCodeFileSystemAdapter', () => {
     it('should load existing stored documents from global state', () => {
       const existingDocs = {
         doc1: {
-          id: 'doc1',
-          content: 'test content',
-          version: 1,
+          id: DocumentId.create('doc1'),
+          content: DocumentContent.create('test content'),
+          version: DocumentVersion.create(1),
           metadata: {
-            id: 'doc1',
-            title: 'Test Document',
-            modifiedAt: '2023-01-01T00:00:00.000Z',
-            size: 12,
+            id: DocumentId.create('doc1'),
+            title: Title.create('Test Document'),
+            modifiedAt: Timestamp.create(new Date('2023-01-01T00:00:00.000Z')),
+            size: FileSize.create(12),
           },
         },
       };
@@ -548,14 +556,14 @@ describe('VSCodeFileSystemAdapter', () => {
   describe('stored document management', () => {
     it('should get stored document', async () => {
       const testDoc: StoredDocument = {
-        id: 'test-doc',
-        content: 'test content',
-        version: 1,
+        id: DocumentId.create('test-doc'),
+        content: DocumentContent.create('test content'),
+        version: DocumentVersion.create(1),
         metadata: {
-          id: 'test-doc',
-          title: 'Test Document',
-          modifiedAt: new Date('2023-01-01'),
-          size: 12,
+          id: DocumentId.create('test-doc'),
+          title: Title.create('Test Document'),
+          modifiedAt: Timestamp.create(new Date('2023-01-01')),
+          size: FileSize.create(12),
         },
       };
 
@@ -581,14 +589,14 @@ describe('VSCodeFileSystemAdapter', () => {
 
     it('should store document and save to global state', async () => {
       const testDoc: StoredDocument = {
-        id: 'new-doc',
-        content: 'new content',
-        version: 1,
+        id: DocumentId.create('new-doc'),
+        content: DocumentContent.create('new content'),
+        version: DocumentVersion.create(1),
         metadata: {
-          id: 'new-doc',
-          title: 'New Document',
-          modifiedAt: new Date('2023-01-01'),
-          size: 11,
+          id: DocumentId.create('new-doc'),
+          title: Title.create('New Document'),
+          modifiedAt: Timestamp.create(new Date('2023-01-01')),
+          size: FileSize.create(11),
         },
       };
 
@@ -605,14 +613,14 @@ describe('VSCodeFileSystemAdapter', () => {
 
     it('should delete stored document and update global state', async () => {
       const testDoc: StoredDocument = {
-        id: 'to-delete',
-        content: 'content',
-        version: 1,
+        id: DocumentId.create('to-delete'),
+        content: DocumentContent.create('content'),
+        version: DocumentVersion.create(1),
         metadata: {
-          id: 'to-delete',
-          title: 'Document to Delete',
-          modifiedAt: new Date('2023-01-01'),
-          size: 7,
+          id: DocumentId.create('to-delete'),
+          title: Title.create('Document to Delete'),
+          modifiedAt: Timestamp.create(new Date('2023-01-01')),
+          size: FileSize.create(7),
         },
       };
 
@@ -628,32 +636,32 @@ describe('VSCodeFileSystemAdapter', () => {
     it('should list stored documents metadata', async () => {
       const testDocs: StoredDocument[] = [
         {
-          id: 'doc1',
-          content: 'content1',
-          version: 1,
+          id: DocumentId.create('doc1'),
+          content: DocumentContent.create('content1'),
+          version: DocumentVersion.create(1),
           metadata: {
-            id: 'doc1',
-            title: 'Doc 1',
-            modifiedAt: new Date('2023-01-01'),
-            size: 8,
+            id: DocumentId.create('doc1'),
+            title: Title.create('Doc 1'),
+            modifiedAt: Timestamp.create(new Date('2023-01-01')),
+            size: FileSize.create(8),
           },
         },
         {
-          id: 'doc2',
-          content: 'content2',
-          version: 1,
+          id: DocumentId.create('doc2'),
+          content: DocumentContent.create('content2'),
+          version: DocumentVersion.create(1),
           metadata: {
-            id: 'doc2',
-            title: 'Doc 2',
-            modifiedAt: new Date('2023-01-02'),
-            size: 8,
+            id: DocumentId.create('doc2'),
+            title: Title.create('Doc 2'),
+            modifiedAt: Timestamp.create(new Date('2023-01-02')),
+            size: FileSize.create(8),
           },
         },
       ];
 
       // Store documents
       testDocs.forEach((doc) => {
-        (adapter as any).storedDocuments.set(doc.id, doc);
+        (adapter as any).storedDocuments.set(doc.id.value, doc);
       });
 
       const result = await adapter.listStoredDocuments();
@@ -669,14 +677,14 @@ describe('VSCodeFileSystemAdapter', () => {
 
     it('should handle storage errors gracefully', async () => {
       const testDoc: StoredDocument = {
-        id: 'error-doc',
-        content: 'content',
-        version: 1,
+        id: DocumentId.create('error-doc'),
+        content: DocumentContent.create('content'),
+        version: DocumentVersion.create(1),
         metadata: {
-          id: 'error-doc',
-          title: 'Error Document',
-          modifiedAt: new Date('2023-01-01'),
-          size: 7,
+          id: DocumentId.create('error-doc'),
+          title: Title.create('Error Document'),
+          modifiedAt: Timestamp.create(new Date('2023-01-01')),
+          size: FileSize.create(7),
         },
       };
 

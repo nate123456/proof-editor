@@ -34,15 +34,11 @@ export function validateStatementUsage(
   hasNodes = false,
 ): Result<void, ConsistencyError> {
   try {
-    // Count total set references in arguments
-    let totalSetReferences = 0;
+    // Count total statement references in arguments
+    let totalStatementReferences = 0;
     for (const argument of Array.from(argumentsMap.values())) {
-      if (argument.getPremiseSet()) {
-        totalSetReferences++;
-      }
-      if (argument.getConclusionSet()) {
-        totalSetReferences++;
-      }
+      totalStatementReferences += argument.getPremiseCount();
+      totalStatementReferences += argument.getConclusionCount();
     }
 
     // Calculate total usage across all statements
@@ -51,11 +47,11 @@ export function validateStatementUsage(
       totalStatementUsage += statement.getUsageCount();
     }
 
-    // If there are set references, the total usage should match
-    if (totalSetReferences !== totalStatementUsage) {
+    // If there are statement references, the total usage should match
+    if (totalStatementReferences !== totalStatementUsage) {
       return err(
         new ConsistencyError('Statement usage count mismatch', {
-          expectedTotalUsage: totalSetReferences,
+          expectedTotalUsage: totalStatementReferences,
           actualTotalUsage: totalStatementUsage,
         }),
       );
@@ -94,7 +90,9 @@ export function validateArgumentConnections(
           continue;
         }
 
-        if (argument.canConnectTo(otherArgument)) {
+        // Check if this argument can connect to the other
+        const connections = argument.findConnectionsTo(otherArgument);
+        if (connections.length > 0) {
           connectionGraph.get(argumentId)?.push(otherArgumentId);
         }
       }
@@ -110,14 +108,18 @@ export function validateArgumentConnections(
     }
 
     for (const argument of Array.from(argumentsMap.values())) {
-      const premiseSetId = argument.getPremiseSet();
-      const conclusionSetId = argument.getConclusionSet();
+      const premises = argument.getPremises();
+      const conclusions = argument.getConclusions();
 
-      if (premiseSetId && conclusionSetId && premiseSetId.equals(conclusionSetId)) {
+      // Check if any premise is also a conclusion in the same argument
+      const hasSamePremiseAndConclusion = premises.some((premise) =>
+        conclusions.some((conclusion) => premise.getId().equals(conclusion.getId())),
+      );
+
+      if (hasSamePremiseAndConclusion) {
         return err(
-          new ConsistencyError('Argument has same premise and conclusion set', {
+          new ConsistencyError('Argument has statement that is both premise and conclusion', {
             argumentId: argument.getId().getValue(),
-            setId: premiseSetId.getValue(),
           }),
         );
       }

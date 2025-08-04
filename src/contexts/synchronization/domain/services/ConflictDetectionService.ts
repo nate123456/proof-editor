@@ -225,7 +225,7 @@ export class ConflictDetectionService implements IConflictDetectionService {
       const payload2 = operation2.getPayload().getData();
 
       if (this.hasSemanticContentModification(payload1, payload2)) {
-        const result = ConflictType.semanticConflict();
+        const result = ConflictType.semantic();
         if (result.isErr()) {
           return err(result.error);
         }
@@ -266,7 +266,7 @@ export class ConflictDetectionService implements IConflictDetectionService {
     const operationCount = conflict.operations.length;
 
     // Deletion conflicts are always high severity
-    if (conflictType === 'DELETION') {
+    if (conflictType === 'DELETION_CONFLICT') {
       return 'HIGH';
     }
 
@@ -276,7 +276,7 @@ export class ConflictDetectionService implements IConflictDetectionService {
     }
 
     // Structural conflicts depend on operation count
-    if (conflictType === 'STRUCTURAL') {
+    if (conflictType === 'STRUCTURAL_CONFLICT') {
       return operationCount > 2 ? 'HIGH' : 'MEDIUM';
     }
 
@@ -306,7 +306,7 @@ export class ConflictDetectionService implements IConflictDetectionService {
     }
 
     // Structural conflicts are moderate
-    if (conflictType === 'STRUCTURAL') {
+    if (conflictType === 'STRUCTURAL_CONFLICT') {
       return 'MODERATE';
     }
 

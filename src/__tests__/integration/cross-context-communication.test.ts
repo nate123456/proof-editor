@@ -16,7 +16,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 // Language Intelligence Context
 import { InferenceRule } from '../../contexts/language-intelligence/domain/entities/InferenceRule.js';
 import { LanguagePackage } from '../../contexts/language-intelligence/domain/entities/LanguagePackage.js';
+import { ArgumentStructureAnalyzer } from '../../contexts/language-intelligence/domain/services/analyzers/ArgumentStructureAnalyzer.js';
+import { ProofPatternAnalyzer } from '../../contexts/language-intelligence/domain/services/analyzers/ProofPatternAnalyzer.js';
+import { MistakeDetector } from '../../contexts/language-intelligence/domain/services/detectors/MistakeDetector.js';
+import { LogicalStructureHelper } from '../../contexts/language-intelligence/domain/services/helpers/LogicalStructureHelper.js';
+import { PatternSuggestionHelper } from '../../contexts/language-intelligence/domain/services/helpers/PatternSuggestionHelper.js';
 import { LogicValidationService } from '../../contexts/language-intelligence/domain/services/LogicValidationService.js';
+import { PatternMatcher } from '../../contexts/language-intelligence/domain/services/matchers/PatternMatcher.js';
 import { PatternRecognitionService } from '../../contexts/language-intelligence/domain/services/PatternRecognitionService.js';
 import { LanguageCapabilities } from '../../contexts/language-intelligence/domain/value-objects/LanguageCapabilities.js';
 import { RulePattern } from '../../contexts/language-intelligence/domain/value-objects/RulePattern.js';
@@ -45,6 +51,8 @@ import { LogicalTimestamp } from '../../contexts/synchronization/domain/value-ob
 import { OperationId } from '../../contexts/synchronization/domain/value-objects/OperationId.js';
 import { OperationPayload } from '../../contexts/synchronization/domain/value-objects/OperationPayload.js';
 import { OperationType } from '../../contexts/synchronization/domain/value-objects/OperationType.js';
+import type { IAtomicArgumentRepository } from '../../domain/repositories/IAtomicArgumentRepository.js';
+import { ConnectionResolutionService } from '../../domain/services/ConnectionResolutionService.js';
 import { PathCompletenessService } from '../../domain/services/PathCompletenessService.js';
 // Core Domain
 import { StatementFlowService } from '../../domain/services/StatementFlowService.js';
@@ -293,7 +301,10 @@ describe('Cross-Context Communication Integration', () => {
     const coreServices = {
       statementFlow: new StatementFlowService(),
       treeStructure: new TreeStructureService(),
-      pathCompleteness: new PathCompletenessService({} as any, {} as any),
+      pathCompleteness: new PathCompletenessService(
+        {} as IAtomicArgumentRepository,
+        new ConnectionResolutionService({} as any, {} as any),
+      ),
     };
 
     // Create test language package
@@ -329,9 +340,24 @@ describe('Cross-Context Communication Integration', () => {
       }
     }
 
+    // Create dependencies for PatternRecognitionService
+    const proofAnalyzer = new ProofPatternAnalyzer();
+    const argumentAnalyzer = new ArgumentStructureAnalyzer();
+    const mistakeDetector = new MistakeDetector();
+    const patternMatcher = new PatternMatcher();
+    const logicalHelper = new LogicalStructureHelper();
+    const suggestionHelper = new PatternSuggestionHelper();
+
     const languageIntelligence = {
       validation: new LogicValidationService(),
-      patternRecognition: new PatternRecognitionService(),
+      patternRecognition: new PatternRecognitionService(
+        proofAnalyzer,
+        argumentAnalyzer,
+        mistakeDetector,
+        patternMatcher,
+        logicalHelper,
+        suggestionHelper,
+      ),
       defaultPackage: testLanguagePackage,
     };
 

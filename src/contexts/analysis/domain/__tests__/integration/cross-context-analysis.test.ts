@@ -126,11 +126,7 @@ describe('Cross-Context Analysis Integration', () => {
       mockAtomicRepo as any,
       mockConnectionServiceInstance,
     );
-    cyclePreventionService = new CyclePreventionService(
-      mockAtomicRepo as any,
-      mockTreeRepo as any,
-      mockConnectionServiceInstance,
-    );
+    cyclePreventionService = new CyclePreventionService(mockAtomicRepo as any, mockTreeRepo as any);
 
     // Mock cycle prevention to return valid results for testing
     vi.spyOn(cyclePreventionService, 'validateLogicalCyclePrevention').mockImplementation(
@@ -142,23 +138,51 @@ describe('Cross-Context Analysis Integration', () => {
       mockAtomicRepo as any,
       mockOrderedSetRepo as any,
     );
-    const mockStatementRepo = {
+    const _mockStatementRepo = {
       findById: vi.fn(),
       save: vi.fn(),
       delete: vi.fn(),
       exists: vi.fn(),
       findAll: vi.fn(),
     };
-    _statementProcessingService = new StatementProcessingService(
-      mockStatementRepo as any,
-      mockOrderedSetRepo as any,
-      mockAtomicRepo as any,
-    );
+    _statementProcessingService = new StatementProcessingService();
 
     // Initialize Language Intelligence Services
     logicValidationService = new LogicValidationService();
-    patternRecognitionService = new PatternRecognitionService();
-    educationalFeedbackService = new EducationalFeedbackService();
+
+    // Mock dependencies for PatternRecognitionService
+    const mockProofAnalyzer = {} as any;
+    const mockArgumentAnalyzer = {} as any;
+    const mockMistakeDetector = {} as any;
+    const mockPatternMatcher = {} as any;
+    const mockLogicalHelper = {} as any;
+    const mockSuggestionHelper = {} as any;
+
+    patternRecognitionService = new PatternRecognitionService(
+      mockProofAnalyzer,
+      mockArgumentAnalyzer,
+      mockMistakeDetector,
+      mockPatternMatcher,
+      mockLogicalHelper,
+      mockSuggestionHelper,
+    );
+
+    // Mock dependencies for EducationalFeedbackService
+    const mockHintGenerator = {} as any;
+    const mockGuidanceProvider = {} as any;
+    const mockStrategyAdvisor = {} as any;
+    const mockContentAdapter = {} as any;
+    const mockProblemGenerator = {} as any;
+    const mockConceptAnalyzer = {} as any;
+
+    educationalFeedbackService = new EducationalFeedbackService(
+      mockHintGenerator,
+      mockGuidanceProvider,
+      mockStrategyAdvisor,
+      mockContentAdapter,
+      mockProblemGenerator,
+      mockConceptAnalyzer,
+    );
 
     // Mock the validation service to return success for test scenarios
     vi.spyOn(logicValidationService, 'validateInference').mockImplementation(
@@ -406,58 +430,46 @@ describe('Cross-Context Analysis Integration', () => {
       expect(conclusion.isOk()).toBe(true);
 
       if (premise1.isOk() && premise2.isOk() && conclusion.isOk()) {
-        // Create ordered sets for the argument structure
-        const premiseSet = statementFlowService.createOrderedSetFromStatements([
-          premise1.value,
-          premise2.value,
-        ]);
-        const conclusionSet = statementFlowService.createOrderedSetFromStatements([
-          conclusion.value,
-        ]);
+        // Create atomic argument directly from statements
+        const argument = statementFlowService.createAtomicArgumentFromStatements(
+          [premise1.value, premise2.value],
+          [conclusion.value],
+        );
 
-        expect(premiseSet.isOk()).toBe(true);
-        expect(conclusionSet.isOk()).toBe(true);
+        expect(argument.isOk()).toBe(true);
 
-        if (premiseSet.isOk() && conclusionSet.isOk()) {
-          // Create atomic argument
-          const argument = statementFlowService.createAtomicArgumentWithSets(
-            premiseSet.value,
-            conclusionSet.value,
+        if (argument.isOk()) {
+          // Act - Validate the argument using Language Intelligence
+          const validationResult = logicValidationService.validateInference(
+            [premise1.value.getContent(), premise2.value.getContent()],
+            [conclusion.value.getContent()],
+            testLanguagePackage,
+            ValidationLevel.semantic(),
           );
 
-          expect(argument.isOk()).toBe(true);
+          // Analyze structural properties using Core Domain services
+          const allArguments = new Map();
+          allArguments.set(argument.value.getId(), argument.value);
 
-          if (argument.isOk()) {
-            // Act - Validate the argument using Language Intelligence
-            const validationResult = logicValidationService.validateInference(
-              [premise1.value.getContent(), premise2.value.getContent()],
-              [conclusion.value.getContent()],
-              testLanguagePackage,
-              ValidationLevel.semantic(),
-            );
+          const connectedArguments = statementFlowService.findAllConnectedArguments(
+            argument.value,
+            allArguments,
+          );
 
-            // Analyze structural properties using Core Domain services
-            const allArguments = new Map();
-            allArguments.set(argument.value.getId(), argument.value);
-
-            const connectedArguments = statementFlowService.findAllConnectedArguments(
-              argument.value,
-              allArguments,
-            );
-
-            // Assert
-            expect(validationResult.isOk()).toBe(true);
-            if (validationResult.isOk()) {
-              expect(validationResult.value.isValid()).toBe(true);
-            }
-
-            expect(connectedArguments.size).toBe(1);
-            expect(connectedArguments.has(argument.value)).toBe(true);
+          // Assert
+          expect(validationResult.isOk()).toBe(true);
+          if (validationResult.isOk()) {
+            expect(validationResult.value.isValid()).toBe(true);
           }
+
+          expect(connectedArguments.size).toBe(1);
+          expect(connectedArguments.has(argument.value)).toBe(true);
         }
       }
     });
+  });
 
+  describe('Cross-Context Data Flow', () => {
     it('should detect and resolve statement flow cycles across contexts', async () => {
       // Arrange - Create a potential cycle scenario
       const statement1 = statementFlowService.createStatementFromContent('P implies Q');
@@ -470,51 +482,50 @@ describe('Cross-Context Analysis Integration', () => {
 
       if (statement1.isOk() && statement2.isOk() && statement3.isOk()) {
         // Create a chain of arguments
-        const set1 = statementFlowService.createOrderedSetFromStatements([statement1.value]);
-        const set2 = statementFlowService.createOrderedSetFromStatements([statement2.value]);
-        const set3 = statementFlowService.createOrderedSetFromStatements([statement3.value]);
+        const arg1 = statementFlowService.createAtomicArgumentFromStatements(
+          [statement1.value],
+          [statement2.value],
+        );
+        const arg2 = statementFlowService.createAtomicArgumentFromStatements(
+          [statement2.value],
+          [statement3.value],
+        );
+        const arg3 = statementFlowService.createAtomicArgumentFromStatements(
+          [statement3.value],
+          [statement1.value],
+        );
 
-        expect(set1.isOk()).toBe(true);
-        expect(set2.isOk()).toBe(true);
-        expect(set3.isOk()).toBe(true);
+        expect(arg1.isOk()).toBe(true);
+        expect(arg2.isOk()).toBe(true);
+        expect(arg3.isOk()).toBe(true);
 
-        if (set1.isOk() && set2.isOk() && set3.isOk()) {
-          const arg1 = statementFlowService.createAtomicArgumentWithSets(set1.value, set2.value);
-          const arg2 = statementFlowService.createAtomicArgumentWithSets(set2.value, set3.value);
-          const arg3 = statementFlowService.createAtomicArgumentWithSets(set3.value, set1.value);
+        if (arg1.isOk() && arg2.isOk() && arg3.isOk()) {
+          const allArguments = new Map();
+          allArguments.set(arg1.value.getId(), arg1.value);
+          allArguments.set(arg2.value.getId(), arg2.value);
+          allArguments.set(arg3.value.getId(), arg3.value);
 
-          expect(arg1.isOk()).toBe(true);
-          expect(arg2.isOk()).toBe(true);
-          expect(arg3.isOk()).toBe(true);
+          // Act - Use cycle prevention service
+          const cycleResult = await cyclePreventionService.validateLogicalCyclePrevention(
+            arg1.value.getId(),
+            arg3.value.getId(),
+          );
 
-          if (arg1.isOk() && arg2.isOk() && arg3.isOk()) {
-            const allArguments = new Map();
-            allArguments.set(arg1.value.getId(), arg1.value);
-            allArguments.set(arg2.value.getId(), arg2.value);
-            allArguments.set(arg3.value.getId(), arg3.value);
+          // Validate the circular reasoning with Language Intelligence
+          const circularValidation = logicValidationService.validateInference(
+            [statement1.value.getContent()],
+            [statement1.value.getContent()], // Same statement as premise and conclusion
+            testLanguagePackage,
+            ValidationLevel.semantic(),
+          );
 
-            // Act - Use cycle prevention service
-            const cycleResult = await cyclePreventionService.validateLogicalCyclePrevention(
-              arg1.value.getId(),
-              arg3.value.getId(),
-            );
+          // Assert
+          expect(cycleResult.isOk()).toBe(true);
+          expect(circularValidation.isOk()).toBe(true);
 
-            // Validate the circular reasoning with Language Intelligence
-            const circularValidation = logicValidationService.validateInference(
-              [statement1.value.getContent()],
-              [statement1.value.getContent()], // Same statement as premise and conclusion
-              testLanguagePackage,
-              ValidationLevel.semantic(),
-            );
-
-            // Assert
-            expect(cycleResult.isOk()).toBe(true);
-            expect(circularValidation.isOk()).toBe(true);
-
-            if (circularValidation.isOk()) {
-              // Should detect the circular reasoning issue
-              expect(circularValidation.value.isValid()).toBe(false);
-            }
+          if (circularValidation.isOk()) {
+            // Should detect the circular reasoning issue
+            expect(circularValidation.value.isValid()).toBe(false);
           }
         }
       }
@@ -822,139 +833,123 @@ describe('Cross-Context Analysis Integration', () => {
         if (!statement0 || !statement1 || !statement2) {
           throw new Error('Expected statements not available');
         }
-        const premiseSet1 = statementFlowService.createOrderedSetFromStatements([
-          statement0,
-          statement1,
-        ]);
-        const conclusionSet1 = statementFlowService.createOrderedSetFromStatements([statement2]);
+        const arg1 = statementFlowService.createAtomicArgumentFromStatements(
+          [statement0, statement1],
+          [statement2],
+        );
+        if (arg1.isOk()) {
+          argumentsList.push(arg1.value);
+        }
+      }
 
-        if (premiseSet1.isOk() && conclusionSet1.isOk()) {
-          const arg1 = statementFlowService.createAtomicArgumentWithSets(
-            premiseSet1.value,
-            conclusionSet1.value,
-          );
-          if (arg1.isOk()) {
-            argumentsList.push(arg1.value);
-          }
+      // Second argument: Socrates mortal + Mortals finite → Socrates finite
+      const statement3 = validStatements[3];
+      const statement4 = validStatements[4];
+      if (!statement3 || !statement4) {
+        throw new Error('Expected statements not available');
+      }
+      const arg2 = statementFlowService.createAtomicArgumentFromStatements(
+        [statement2, statement3],
+        [statement4],
+      );
+      if (arg2.isOk()) {
+        argumentsList.push(arg2.value);
+      }
+
+      if (argumentsList.length === 2) {
+        // Act - Perform comprehensive analysis
+
+        // 1. Structural Analysis
+        const allArguments = new Map();
+        argumentsList.forEach((arg) => allArguments.set(arg.getId(), arg));
+
+        const pathResult = await pathCompletenessService.validatePathCompleteness(
+          argumentsList.map((arg) => arg.getId()),
+        );
+
+        // 2. Logic Validation
+        const statement0Content = validStatements[0]?.getContent();
+        const statement1Content = validStatements[1]?.getContent();
+        const statement2Content = validStatements[2]?.getContent();
+        const statement3Content = validStatements[3]?.getContent();
+        const statement4Content = validStatements[4]?.getContent();
+
+        if (
+          !statement0Content ||
+          !statement1Content ||
+          !statement2Content ||
+          !statement3Content ||
+          !statement4Content
+        ) {
+          throw new Error('Required statement content not available');
         }
 
-        // Second argument: Socrates mortal + Mortals finite → Socrates finite
-        const statement3 = validStatements[3];
-        const statement4 = validStatements[4];
-        if (!statement3 || !statement4) {
-          throw new Error('Expected statements not available');
-        }
-        const premiseSet2 = statementFlowService.createOrderedSetFromStatements([
-          statement2,
-          statement3,
-        ]);
-        const conclusionSet2 = statementFlowService.createOrderedSetFromStatements([statement4]);
+        const inference1Validation = logicValidationService.validateInference(
+          [statement0Content, statement1Content],
+          [statement2Content],
+          testLanguagePackage,
+          ValidationLevel.semantic(),
+        );
 
-        if (premiseSet2.isOk() && conclusionSet2.isOk()) {
-          const arg2 = statementFlowService.createAtomicArgumentWithSets(
-            premiseSet2.value,
-            conclusionSet2.value,
+        const inference2Validation = logicValidationService.validateInference(
+          [statement2Content, statement3Content],
+          [statement4Content],
+          testLanguagePackage,
+          ValidationLevel.semantic(),
+        );
+
+        // 3. Pattern Recognition
+        const patternResult = patternRecognitionService.recognizeProofPatterns(
+          validStatements.map((s) => s.getContent()),
+          [],
+          testLanguagePackage,
+        );
+
+        // 4. Educational Feedback
+        if (inference1Validation.isOk()) {
+          // Generate learning hints based on the validation result
+          const diagnostics = inference1Validation.value.getDiagnostics();
+          const feedbackResults = diagnostics.map((diagnostic) =>
+            educationalFeedbackService.generateLearningHints(
+              diagnostic,
+              testLanguagePackage,
+              'intermediate',
+            ),
           );
-          if (arg2.isOk()) {
-            argumentsList.push(arg2.value);
-          }
-        }
 
-        if (argumentsList.length === 2) {
-          // Act - Perform comprehensive analysis
-
-          // 1. Structural Analysis
-          const allArguments = new Map();
-          argumentsList.forEach((arg) => allArguments.set(arg.getId(), arg));
-
-          const pathResult = await pathCompletenessService.validatePathCompleteness(
-            argumentsList.map((arg) => arg.getId()),
-          );
-
-          // 2. Logic Validation
-          const statement0Content = validStatements[0]?.getContent();
-          const statement1Content = validStatements[1]?.getContent();
-          const statement2Content = validStatements[2]?.getContent();
-          const statement3Content = validStatements[3]?.getContent();
-          const statement4Content = validStatements[4]?.getContent();
+          // Assert - All analysis components should work together
+          expect(pathResult.isOk()).toBe(true);
+          const feedbackResult =
+            feedbackResults[0] ||
+            ok({
+              hints: [],
+              examples: [],
+              concepts: [],
+              resources: [],
+              estimatedLearningTime: 0,
+            });
+          expect(inference1Validation.isOk()).toBe(true);
+          expect(inference2Validation.isOk()).toBe(true);
+          expect(patternResult.isOk()).toBe(true);
+          expect(feedbackResult.isOk()).toBe(true);
 
           if (
-            !statement0Content ||
-            !statement1Content ||
-            !statement2Content ||
-            !statement3Content ||
-            !statement4Content
+            pathResult.isOk() &&
+            inference1Validation.isOk() &&
+            inference2Validation.isOk() &&
+            patternResult.isOk() &&
+            feedbackResult.isOk()
           ) {
-            throw new Error('Required statement content not available');
-          }
+            // Verify logical flow
+            expect(inference1Validation.value.isValid()).toBe(true);
+            expect(inference2Validation.value.isValid()).toBe(true);
 
-          const inference1Validation = logicValidationService.validateInference(
-            [statement0Content, statement1Content],
-            [statement2Content],
-            testLanguagePackage,
-            ValidationLevel.semantic(),
-          );
+            // Verify pattern recognition
+            expect(patternResult.value.recognizedPatterns.length).toBeGreaterThanOrEqual(0);
 
-          const inference2Validation = logicValidationService.validateInference(
-            [statement2Content, statement3Content],
-            [statement4Content],
-            testLanguagePackage,
-            ValidationLevel.semantic(),
-          );
-
-          // 3. Pattern Recognition
-          const patternResult = patternRecognitionService.recognizeProofPatterns(
-            validStatements.map((s) => s.getContent()),
-            [],
-            testLanguagePackage,
-          );
-
-          // 4. Educational Feedback
-          if (inference1Validation.isOk()) {
-            // Generate learning hints based on the validation result
-            const diagnostics = inference1Validation.value.getDiagnostics();
-            const feedbackResults = diagnostics.map((diagnostic) =>
-              educationalFeedbackService.generateLearningHints(
-                diagnostic,
-                testLanguagePackage,
-                'intermediate',
-              ),
-            );
-
-            // Assert - All analysis components should work together
-            expect(pathResult.isOk()).toBe(true);
-            const feedbackResult =
-              feedbackResults[0] ||
-              ok({
-                hints: [],
-                examples: [],
-                concepts: [],
-                resources: [],
-                estimatedLearningTime: 0,
-              });
-            expect(inference1Validation.isOk()).toBe(true);
-            expect(inference2Validation.isOk()).toBe(true);
-            expect(patternResult.isOk()).toBe(true);
-            expect(feedbackResult.isOk()).toBe(true);
-
-            if (
-              pathResult.isOk() &&
-              inference1Validation.isOk() &&
-              inference2Validation.isOk() &&
-              patternResult.isOk() &&
-              feedbackResult.isOk()
-            ) {
-              // Verify logical flow
-              expect(inference1Validation.value.isValid()).toBe(true);
-              expect(inference2Validation.value.isValid()).toBe(true);
-
-              // Verify pattern recognition
-              expect(patternResult.value.recognizedPatterns.length).toBeGreaterThanOrEqual(0);
-
-              // Verify educational feedback
-              expect(feedbackResult.value.hints).toBeDefined();
-              expect(feedbackResult.value.estimatedLearningTime).toBeGreaterThanOrEqual(0);
-            }
+            // Verify educational feedback
+            expect(feedbackResult.value.hints).toBeDefined();
+            expect(feedbackResult.value.estimatedLearningTime).toBeGreaterThanOrEqual(0);
           }
         }
       }

@@ -1,7 +1,18 @@
+import { ok } from 'neverthrow';
 import { beforeEach, describe, expect, test } from 'vitest';
+import {
+  AtomicArgumentId,
+  Dimensions,
+  NodeCount,
+  NodeId,
+  Position2D,
+  SideLabel,
+  StatementId,
+  TreeId,
+} from '../../../domain/shared/value-objects/index.js';
 import type { TreeLayoutConfig } from '../../dtos/view-dtos.js';
 import type { DocumentDTO } from '../../queries/document-queries.js';
-import type { AtomicArgumentDTO, OrderedSetDTO, TreeDTO } from '../../queries/shared-types.js';
+import type { AtomicArgumentDTO, TreeDTO } from '../../queries/shared-types.js';
 import type { StatementDTO } from '../../queries/statement-queries.js';
 import { TreeLayoutService } from '../TreeLayoutService.js';
 
@@ -49,12 +60,8 @@ describe('TreeLayoutService', () => {
           s1: createStatementDTO('s1', 'Statement 1'),
           s2: createStatementDTO('s2', 'Statement 2'),
         },
-        orderedSets: {
-          os1: createOrderedSetDTO('os1', ['s1']),
-          os2: createOrderedSetDTO('os2', ['s2']),
-        },
         atomicArguments: {
-          arg1: createAtomicArgumentDTO('arg1', 'os1', 'os2'),
+          arg1: createAtomicArgumentDTO('arg1', ['s1'], ['s2']),
         },
         trees: {
           tree1: createTreeDTO('tree1', { x: 100, y: 100 }, 1, ['n1']),
@@ -103,7 +110,7 @@ describe('TreeLayoutService', () => {
         },
       });
 
-      const customConfig: Partial<TreeLayoutConfig> = {
+      const customConfig = {
         nodeWidth: 300,
         nodeHeight: 150,
         canvasMargin: 100,
@@ -122,7 +129,7 @@ describe('TreeLayoutService', () => {
       // Create a document with inconsistent data
       const doc = createDocumentDTO({
         atomicArguments: {
-          arg1: createAtomicArgumentDTO('arg1', 'nonexistent-os', null),
+          arg1: createAtomicArgumentDTO('arg1', ['nonexistent-statement'], []),
         },
         trees: {
           tree1: createTreeDTO('tree1', { x: 100, y: 100 }, 1, ['n1']),
@@ -159,7 +166,7 @@ describe('TreeLayoutService', () => {
 
   describe('createConfig', () => {
     test('merges overrides with defaults', () => {
-      const overrides: Partial<TreeLayoutConfig> = {
+      const overrides = {
         nodeWidth: 300,
         canvasMargin: 100,
       };
@@ -190,11 +197,8 @@ describe('TreeLayoutService', () => {
         statements: {
           s1: createStatementDTO('s1', 'Root statement'),
         },
-        orderedSets: {
-          os1: createOrderedSetDTO('os1', ['s1']),
-        },
         atomicArguments: {
-          arg1: createAtomicArgumentDTO('arg1', null, 'os1'),
+          arg1: createAtomicArgumentDTO('arg1', [], ['s1']),
         },
         trees: {
           tree1: createTreeDTO('tree1', { x: 0, y: 0 }, 1, ['n1']),
@@ -213,7 +217,7 @@ describe('TreeLayoutService', () => {
     test('handles empty statements and ordered sets gracefully', () => {
       const doc = createDocumentDTO({
         atomicArguments: {
-          arg1: createAtomicArgumentDTO('arg1', null, null),
+          arg1: createAtomicArgumentDTO('arg1', [], []),
         },
         trees: {
           tree1: createTreeDTO('tree1', { x: 100, y: 100 }, 1, ['n1']),
@@ -301,7 +305,6 @@ function createDocumentDTO(overrides: Partial<DocumentDTO> = {}): DocumentDTO {
     createdAt: new Date().toISOString(),
     modifiedAt: new Date().toISOString(),
     statements: {},
-    orderedSets: {},
     atomicArguments: {},
     trees: {},
     ...overrides,
@@ -314,12 +317,28 @@ function createTreeDTO(
   nodeCount: number,
   rootNodeIds: string[],
 ): TreeDTO {
+  const treeIdResult = TreeId.create(id);
+  const positionResult = Position2D.create(position.x, position.y);
+  const nodeCountResult = NodeCount.create(nodeCount);
+  const nodeIdResults = rootNodeIds.map((nodeId) => NodeId.create(nodeId));
+  const dimensionsResult = Dimensions.create(400, 200);
+
+  if (
+    treeIdResult.isErr() ||
+    positionResult.isErr() ||
+    nodeCountResult.isErr() ||
+    nodeIdResults.some((r) => r.isErr()) ||
+    dimensionsResult.isErr()
+  ) {
+    throw new Error('Failed to create test TreeDTO');
+  }
+
   return {
-    id,
-    position,
-    bounds: { width: 400, height: 200 },
-    nodeCount,
-    rootNodeIds,
+    id: treeIdResult.value,
+    position: positionResult.value,
+    bounds: dimensionsResult.value,
+    nodeCount: nodeCountResult.value,
+    rootNodeIds: nodeIdResults.map((r) => r.value),
   };
 }
 
@@ -333,23 +352,28 @@ function createStatementDTO(id: string, content: string): StatementDTO {
   };
 }
 
-function createOrderedSetDTO(id: string, statementIds: string[]): OrderedSetDTO {
-  return {
-    id,
-    statementIds,
-    usageCount: 0,
-    usedBy: [],
-  };
-}
+// OrderedSetDTO is no longer used in the current codebase
 
 function createAtomicArgumentDTO(
   id: string,
-  premiseIds: string[],
-  conclusionIds: string[],
+  premiseIds: string[] | null,
+  conclusionIds: string[] | null,
 ): AtomicArgumentDTO {
+  const argumentIdResult = AtomicArgumentId.create(id);
+  if (argumentIdResult.isErr()) {
+    throw new Error('Failed to create test AtomicArgumentDTO');
+  }
+
+  const premiseIdResults = (premiseIds || []).map((id) => StatementId.create(id));
+  const conclusionIdResults = (conclusionIds || []).map((id) => StatementId.create(id));
+
+  if (premiseIdResults.some((r) => r.isErr()) || conclusionIdResults.some((r) => r.isErr())) {
+    throw new Error('Failed to create test statement IDs');
+  }
+
   return {
-    id,
-    premiseIds,
-    conclusionIds,
+    id: argumentIdResult.value,
+    premiseIds: premiseIdResults.map((r) => r.value),
+    conclusionIds: conclusionIdResults.map((r) => r.value),
   };
 }

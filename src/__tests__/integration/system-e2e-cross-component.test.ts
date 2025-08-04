@@ -6,6 +6,7 @@
  * event bus message flow, and state synchronization.
  */
 
+import { ProofTransactionService } from '../../domain/services/ProofTransactionService.js';
 import {
   type ApplicationContainer,
   activate,
@@ -21,7 +22,6 @@ import {
   type IViewStatePort,
   it,
   type PerformanceMetrics,
-  ProofTransactionService,
   StatementFlowService,
   TOKENS,
   TreeStructureService,
@@ -144,22 +144,42 @@ describe('System E2E - Cross-Component Integration Tests', () => {
       const fileSystemPort = container.resolve<IFileSystemPort>(TOKENS.IFileSystemPort);
       const uiPort = container.resolve<IUIPort>(TOKENS.IUIPort);
 
-      // Test file system operations trigger UI updates
-      const testDocument = {
-        id: 'test-doc',
-        content: generateComplexProofDocument(5, 3),
-        metadata: {
-          id: 'test-doc',
-          title: 'Test Document',
-          modifiedAt: new Date(),
-          size: 1000,
-          syncStatus: 'synced' as const,
-        },
-        version: 1,
-      };
+      // Import required value objects
+      const { DocumentId, DocumentContent, Title, Timestamp, FileSize, DocumentVersion } =
+        await import('../../domain/shared/value-objects/index.js');
 
-      const storeResult = await fileSystemPort.storeDocument(testDocument);
-      expect(storeResult.isOk()).toBe(true);
+      // Test file system operations trigger UI updates
+      const docId = DocumentId.create('test-doc');
+      const docContent = DocumentContent.create(generateComplexProofDocument(5, 3));
+      const docTitle = Title.create('Test Document');
+      const timestamp = Timestamp.create(Date.now());
+      const fileSize = FileSize.create(1000);
+      const docVersion = DocumentVersion.create(1);
+
+      if (
+        docId.isOk() &&
+        docContent.isOk() &&
+        docTitle.isOk() &&
+        timestamp.isOk() &&
+        fileSize.isOk() &&
+        docVersion.isOk()
+      ) {
+        const testDocument = {
+          id: docId.value,
+          content: docContent.value,
+          metadata: {
+            id: docId.value,
+            title: docTitle.value,
+            modifiedAt: timestamp.value,
+            size: fileSize.value,
+            syncStatus: 'synced' as const,
+          },
+          version: docVersion.value,
+        };
+
+        const storeResult = await fileSystemPort.storeDocument(testDocument);
+        expect(storeResult.isOk()).toBe(true);
+      }
 
       // Verify UI capabilities are available
       const capabilities = fileSystemPort.capabilities();
@@ -167,8 +187,13 @@ describe('System E2E - Cross-Component Integration Tests', () => {
       expect(capabilities.supportsOfflineStorage).toBe(true);
 
       // Test UI operations
-      uiPort.showInformation('Test message');
-      expect(vscode.window.showInformationMessage).toHaveBeenCalledWith('Test message');
+      const testMessage = await import('../../domain/shared/value-objects/ui.js').then((module) =>
+        module.NotificationMessage.create('Test message'),
+      );
+      if (testMessage.isOk()) {
+        uiPort.showInformation(testMessage.value);
+        expect(vscode.window.showInformationMessage).toHaveBeenCalledWith('Test message');
+      }
 
       performanceMetrics.operationCount++;
     });
@@ -177,21 +202,34 @@ describe('System E2E - Cross-Component Integration Tests', () => {
       const viewStateManager = container.resolve<ViewStateManager>(TOKENS.ViewStateManager);
       const viewStatePort = container.resolve<IViewStatePort>(TOKENS.IViewStatePort);
 
+      // Import required value objects for view state
+      const { ZoomLevel, Position2D } = await import('../../domain/shared/value-objects/index.js');
+
       // Test view state management integration
-      const testViewState = {
-        zoom: 1.5,
-        pan: { x: 100, y: 200 },
-        center: { x: 0, y: 0 },
-      };
+      const zoomResult = ZoomLevel.create(1.5);
+      const panResult = Position2D.create(100, 200);
+      const centerResult = Position2D.create(0, 0);
 
-      const updateResult = await viewStateManager.updateViewportState(testViewState);
-      expect(updateResult.isOk()).toBe(true);
+      if (zoomResult.isOk() && panResult.isOk() && centerResult.isOk()) {
+        const testViewState = {
+          zoom: zoomResult.value,
+          pan: panResult.value,
+          center: centerResult.value,
+        };
 
-      const retrieveResult = await viewStateManager.getViewportState();
-      expect(retrieveResult.isOk()).toBe(true);
+        const updateResult = await viewStateManager.updateViewportState(testViewState);
+        expect(updateResult.isOk()).toBe(true);
 
-      if (retrieveResult.isOk()) {
-        expect(retrieveResult.value).toEqual(testViewState);
+        const retrieveResult = await viewStateManager.getViewportState();
+        expect(retrieveResult.isOk()).toBe(true);
+
+        if (retrieveResult.isOk()) {
+          expect(retrieveResult.value.zoom.getValue()).toBe(1.5);
+          expect(retrieveResult.value.pan.getX()).toBe(100);
+          expect(retrieveResult.value.pan.getY()).toBe(200);
+          expect(retrieveResult.value.center.getX()).toBe(0);
+          expect(retrieveResult.value.center.getY()).toBe(0);
+        }
       }
 
       // Test port functionality (capabilities not available on interface)

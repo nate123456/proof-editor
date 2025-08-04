@@ -1,10 +1,17 @@
 import { err, ok, type Result } from 'neverthrow';
-import { inject, injectable } from 'tsyringe';
 import { ProofAggregate } from '../../domain/aggregates/ProofAggregate.js';
 import type { ProofDocument } from '../../domain/aggregates/ProofDocument.js';
 import type { IProofDocumentRepository } from '../../domain/repositories/IProofDocumentRepository.js';
-import { ProofDocumentId, ProofId } from '../../domain/shared/value-objects/index.js';
-import { TOKENS } from '../../infrastructure/di/tokens.js';
+import {
+  AtomicArgumentId,
+  Dimensions,
+  NodeCount,
+  Position2D,
+  ProofDocumentId,
+  ProofId,
+  SideLabel,
+  TreeId,
+} from '../../domain/shared/value-objects/index.js';
 import type { ProofFileParser } from '../../parser/ProofFileParser.js';
 import { ValidationApplicationError } from '../dtos/operation-results.js';
 import { documentToDTO } from '../mappers/DocumentMapper.js';
@@ -14,12 +21,9 @@ import type { DocumentDTO } from '../queries/document-queries.js';
  * Service for querying document data and converting to DTOs
  * Provides abstraction layer between views and domain repositories
  */
-@injectable()
 export class DocumentQueryService {
   constructor(
-    @inject(TOKENS.IProofDocumentRepository)
     private readonly documentRepository: IProofDocumentRepository,
-    @inject(TOKENS.ProofFileParser)
     private readonly parser: ProofFileParser,
   ) {}
 
@@ -35,10 +39,11 @@ export class DocumentQueryService {
         return err(new ValidationApplicationError(docIdResult.error.message));
       }
 
-      const document = await this.documentRepository.findById(docIdResult.value);
-      if (!document) {
+      const documentResult = await this.documentRepository.findById(docIdResult.value);
+      if (documentResult.isErr()) {
         return err(new ValidationApplicationError(`Document not found: ${documentId}`));
       }
+      const document = documentResult.value;
 
       // Convert ProofDocument to ProofAggregate
       const aggregateResult = this.convertProofDocumentToAggregate(document);
@@ -71,10 +76,11 @@ export class DocumentQueryService {
         return err(new ValidationApplicationError(docIdResult.error.message));
       }
 
-      const document = await this.documentRepository.findById(docIdResult.value);
-      if (!document) {
+      const documentResult = await this.documentRepository.findById(docIdResult.value);
+      if (documentResult.isErr()) {
         return err(new ValidationApplicationError(`Document not found: ${documentId}`));
       }
+      const document = documentResult.value;
 
       // Convert ProofDocument to ProofAggregate
       const aggregateResult = this.convertProofDocumentToAggregate(document);
@@ -187,18 +193,20 @@ export class DocumentQueryService {
         return err(new ValidationApplicationError(docIdResult.error.message));
       }
 
-      const document = await this.documentRepository.findById(docIdResult.value);
-      if (!document) {
+      const documentResult = await this.documentRepository.findById(docIdResult.value);
+      if (documentResult.isErr()) {
         return err(new ValidationApplicationError(`Document not found: ${documentId}`));
       }
+      const document = documentResult.value;
 
+      const queryService = document.createQueryService();
       return ok({
-        id: document.getId().getValue(),
-        version: document.getVersion(),
+        id: queryService.getId().getValue(),
+        version: queryService.getVersion(),
         createdAt: new Date().toISOString(), // ProofAggregate doesn't track timestamps currently
         modifiedAt: new Date().toISOString(), // ProofAggregate doesn't track timestamps currently
-        statementCount: document.getAllStatements().length,
-        argumentCount: document.getAllAtomicArguments().length,
+        statementCount: queryService.getAllStatements().length,
+        argumentCount: queryService.getAllAtomicArguments().length,
         treeCount: 0, // Would need tree repository integration
       });
     } catch (error) {
@@ -220,8 +228,8 @@ export class DocumentQueryService {
         return err(new ValidationApplicationError(docIdResult.error.message));
       }
 
-      const document = await this.documentRepository.findById(docIdResult.value);
-      return ok(document !== null);
+      const documentResult = await this.documentRepository.findById(docIdResult.value);
+      return ok(documentResult.isOk());
     } catch (error) {
       return err(
         new ValidationApplicationError(
@@ -251,16 +259,7 @@ export class DocumentQueryService {
       };
     }
 
-    // Convert ordered sets
-    const orderedSetDTOs: Record<string, import('../queries/shared-types.js').OrderedSetDTO> = {};
-    for (const [id, orderedSet] of proofDocument.orderedSets) {
-      orderedSetDTOs[id] = {
-        id: id,
-        statementIds: orderedSet.getStatementIds().map((sid) => sid.getValue()),
-        usageCount: 0, // Would need to calculate usage
-        usedBy: [], // Would need to calculate usage
-      };
-    }
+    // OrderedSets are internal to the domain and not exposed in DTOs
 
     // Convert atomic arguments
     const atomicArgumentDTOs: Record<
@@ -268,12 +267,43 @@ export class DocumentQueryService {
       import('../queries/shared-types.js').AtomicArgumentDTO
     > = {};
     for (const [id, argument] of proofDocument.atomicArguments) {
-      atomicArgumentDTOs[id] = {
-        id: id,
-        premiseIds: argument.getPremises().map((stmt) => stmt.getId().getValue()),
-        conclusionIds: argument.getConclusions().map((stmt) => stmt.getId().getValue()),
-        sideLabels: argument.getSideLabels(),
+      // Create AtomicArgumentId value object
+      const argumentIdResult = AtomicArgumentId.create(id);
+      if (argumentIdResult.isErr()) {
+        continue; // Skip invalid IDs
+      }
+
+      const dto: import('../queries/shared-types.js').AtomicArgumentDTO = {
+        id: argumentIdResult.value,
+        premiseIds: argument.getPremises().map((stmt) => stmt.getId()),
+        conclusionIds: argument.getConclusions().map((stmt) => stmt.getId()),
       };
+
+      // Convert side labels if present
+      const sideLabelsStrings = argument.getSideLabels();
+      if (sideLabelsStrings.left || sideLabelsStrings.right) {
+        const sideLabels: { left?: SideLabel; right?: SideLabel } = {};
+
+        if (sideLabelsStrings.left) {
+          const leftResult = SideLabel.create(sideLabelsStrings.left);
+          if (leftResult.isOk()) {
+            sideLabels.left = leftResult.value;
+          }
+        }
+
+        if (sideLabelsStrings.right) {
+          const rightResult = SideLabel.create(sideLabelsStrings.right);
+          if (rightResult.isOk()) {
+            sideLabels.right = rightResult.value;
+          }
+        }
+
+        if (sideLabels.left || sideLabels.right) {
+          dto.sideLabels = sideLabels;
+        }
+      }
+
+      atomicArgumentDTOs[id] = dto;
     }
 
     // Convert trees
@@ -282,18 +312,39 @@ export class DocumentQueryService {
       const position = tree.getPosition();
       const physicalProps = tree.getPhysicalProperties();
 
+      // Create TreeId value object
+      const treeIdResult = TreeId.create(id);
+      if (treeIdResult.isErr()) {
+        continue; // Skip invalid IDs
+      }
+
+      // Create Position2D value object
+      const position2DResult = Position2D.create(position.getX(), position.getY());
+      if (position2DResult.isErr()) {
+        continue; // Skip invalid positions
+      }
+
+      // Create Dimensions value object
+      const dimensionsResult = Dimensions.create(
+        physicalProps.getMinWidth(),
+        physicalProps.getMinHeight(),
+      );
+      if (dimensionsResult.isErr()) {
+        continue; // Skip invalid dimensions
+      }
+
+      // Create NodeCount value object
+      const nodeCountResult = NodeCount.create(tree.getNodeCount());
+      if (nodeCountResult.isErr()) {
+        continue; // Skip invalid node counts
+      }
+
       treeDTOs[id] = {
-        id: id,
-        position: {
-          x: position.getX(),
-          y: position.getY(),
-        },
-        bounds: {
-          width: physicalProps.getMinWidth(),
-          height: physicalProps.getMinHeight(),
-        },
-        nodeCount: tree.getNodeCount(),
-        rootNodeIds: tree.getNodeIds().map((nid) => nid.getValue()),
+        id: treeIdResult.value,
+        position: position2DResult.value,
+        bounds: dimensionsResult.value,
+        nodeCount: nodeCountResult.value,
+        rootNodeIds: [...tree.getNodeIds()], // Create a mutable copy
       };
     }
 
@@ -303,7 +354,6 @@ export class DocumentQueryService {
       createdAt: new Date().toISOString(),
       modifiedAt: new Date().toISOString(),
       statements: statementDTOs,
-      orderedSets: orderedSetDTOs,
       atomicArguments: atomicArgumentDTOs,
       trees: treeDTOs,
     };
@@ -368,36 +418,33 @@ export class DocumentQueryService {
   ): Result<ProofAggregate, ValidationApplicationError> {
     try {
       // Create a new ProofId from the document ID
-      const proofIdResult = ProofId.create(document.getId().getValue());
+      const queryService = document.createQueryService();
+      const proofIdResult = ProofId.create(queryService.getId().getValue());
       if (proofIdResult.isErr()) {
         return err(new ValidationApplicationError(proofIdResult.error.message));
       }
 
       // Convert statements to Map<StatementId, Statement>
       const statements = new Map();
-      for (const statement of document.getAllStatements()) {
+      for (const statement of queryService.getAllStatements()) {
         statements.set(statement.getId(), statement);
       }
 
       // Convert atomic arguments to Map<AtomicArgumentId, AtomicArgument>
       const atomicArguments = new Map();
-      for (const argument of document.getAllAtomicArguments()) {
+      for (const argument of queryService.getAllAtomicArguments()) {
         atomicArguments.set(argument.getId(), argument);
       }
 
-      // Convert ordered sets to Map<OrderedSetId, OrderedSet>
+      // OrderedSets are not directly accessible - would need to be extracted from arguments
       const orderedSets = new Map();
-      for (const orderedSet of document.getAllOrderedSets()) {
-        orderedSets.set(orderedSet.getId(), orderedSet);
-      }
 
       // Reconstruct the ProofAggregate
       const aggregateResult = ProofAggregate.reconstruct(
         proofIdResult.value,
         statements,
         atomicArguments,
-        orderedSets,
-        document.getVersion(),
+        queryService.getVersion(),
       );
 
       if (aggregateResult.isErr()) {

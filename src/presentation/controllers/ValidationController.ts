@@ -126,10 +126,8 @@ export class ValidationController implements IController {
   constructor(
     @inject(TOKENS.CrossContextOrchestrationService)
     private readonly orchestrationService: CrossContextOrchestrationService,
-    @inject(TOKENS.IPlatformPort)
-    private readonly platform: IPlatformPort,
-    @inject(TOKENS.IUIPort)
-    private readonly ui: IUIPort,
+    @inject(TOKENS.IPlatformPort) private readonly platform: IPlatformPort,
+    @inject(TOKENS.IUIPort) private readonly ui: IUIPort,
   ) {}
 
   async initialize(): Promise<Result<void, ValidationApplicationError>> {

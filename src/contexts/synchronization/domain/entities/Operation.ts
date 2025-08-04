@@ -707,7 +707,7 @@ export class Operation implements IOperation {
   private determineTransformationType(otherOperation: IOperation): TransformationType {
     if (
       this.operationType.getValue() === 'UPDATE_TREE_POSITION' ||
-      otherOperation.operationType.getValue() === 'UPDATE_TREE_POSITION'
+      otherOperation.getOperationType().getValue() === 'UPDATE_TREE_POSITION'
     ) {
       return 'POSITION_ADJUSTMENT';
     }
@@ -732,7 +732,7 @@ export class Operation implements IOperation {
       return 'HIGH';
     }
 
-    if (this.operationType.isDeletion() || otherOperation.operationType.isDeletion()) {
+    if (this.operationType.isDeletion() || otherOperation.getOperationType().isDeletion()) {
       return 'HIGH';
     }
 

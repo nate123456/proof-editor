@@ -19,44 +19,57 @@ export class StatementUsageTracker {
    * Handle StatementCreated events
    */
   handleStatementCreated(event: StatementCreated): void {
-    const statementId = event.eventData.statementId.getValue();
-    this.usageCounts.set(statementId, 0);
-    this.statementContent.set(statementId, event.eventData.content.getValue());
+    try {
+      const statementId = event.eventData.statementId.getValue();
+      this.usageCounts.set(statementId, 0);
+      this.statementContent.set(statementId, event.eventData.content.getValue());
+    } catch (_error) {}
   }
 
   /**
    * Handle StatementDeleted events
    */
   handleStatementDeleted(event: StatementDeleted): void {
-    const statementId = event.eventData.statementId.getValue();
-    this.usageCounts.delete(statementId);
-    this.statementContent.delete(statementId);
+    try {
+      const statementId = event.eventData.statementId.getValue();
+      this.usageCounts.delete(statementId);
+      this.statementContent.delete(statementId);
+    } catch (_error) {}
   }
 
   /**
    * Handle AtomicArgumentCreated events to increment usage counts
    */
   handleAtomicArgumentCreated(event: AtomicArgumentCreated): void {
-    const allStatementIds = [...event.eventData.premiseIds, ...event.eventData.conclusionIds];
+    try {
+      const premiseIds = event.eventData.premiseIds || [];
+      const conclusionIds = event.eventData.conclusionIds || [];
+      const allStatementIds = [...premiseIds, ...conclusionIds];
 
-    for (const statementId of allStatementIds) {
-      const id = statementId.getValue();
-      const current = this.usageCounts.get(id) || 0;
-      this.usageCounts.set(id, current + 1);
-    }
+      for (const statementId of allStatementIds) {
+        // Get the string value from the StatementId object
+        const id = statementId.getValue();
+        const current = this.usageCounts.get(id) || 0;
+        this.usageCounts.set(id, current + 1);
+      }
+    } catch (_error) {}
   }
 
   /**
    * Handle AtomicArgumentDeleted events to decrement usage counts
    */
   handleAtomicArgumentDeleted(event: AtomicArgumentDeleted): void {
-    const allStatementIds = [...event.eventData.premiseIds, ...event.eventData.conclusionIds];
+    try {
+      const premiseIds = event.eventData.premiseIds || [];
+      const conclusionIds = event.eventData.conclusionIds || [];
+      const allStatementIds = [...premiseIds, ...conclusionIds];
 
-    for (const statementId of allStatementIds) {
-      const id = statementId.getValue();
-      const current = this.usageCounts.get(id) || 0;
-      this.usageCounts.set(id, Math.max(0, current - 1));
-    }
+      for (const statementId of allStatementIds) {
+        const id = statementId.getValue();
+        const current = this.usageCounts.get(id) || 0;
+        this.usageCounts.set(id, Math.max(0, current - 1));
+      }
+    } catch (_error) {}
   }
 
   /**

@@ -1,6 +1,16 @@
 import { err, ok } from 'neverthrow';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ValidationError } from '../../../domain/shared/result.js';
+import {
+  FontFamily,
+  FontSize,
+  NodeId,
+  PanelSize,
+  Position2D,
+  StatementId,
+  TreeId,
+  ZoomLevel,
+} from '../../../domain/shared/value-objects/index.js';
 import type {
   PanelState,
   SelectionState,
@@ -71,10 +81,20 @@ describe('DocumentViewStateManager', () => {
 
     it('should load saved selection state', async () => {
       // Arrange
+      const node1 = NodeId.create('node1');
+      const node2 = NodeId.create('node2');
+      const stmt1 = StatementId.create('stmt1');
+      const stmt2 = StatementId.create('stmt2');
+      const tree1 = TreeId.create('tree1');
+
+      if (!node1.isOk() || !node2.isOk() || !stmt1.isOk() || !stmt2.isOk() || !tree1.isOk()) {
+        throw new Error('Failed to create test value objects');
+      }
+
       const savedState = {
-        selectedNodes: ['node1', 'node2'],
-        selectedStatements: ['stmt1', 'stmt2'],
-        selectedTrees: ['tree1'],
+        selectedNodes: [node1.value, node2.value],
+        selectedStatements: [stmt1.value, stmt2.value],
+        selectedTrees: [tree1.value],
       };
       mockPort.loadViewState.mockResolvedValue(ok(savedState));
 
@@ -92,10 +112,19 @@ describe('DocumentViewStateManager', () => {
 
     it('should update selection state successfully', async () => {
       // Arrange
+      const node3 = NodeId.create('node3');
+      const node4 = NodeId.create('node4');
+      const stmt3 = StatementId.create('stmt3');
+      const tree2 = TreeId.create('tree2');
+
+      if (!node3.isOk() || !node4.isOk() || !stmt3.isOk() || !tree2.isOk()) {
+        throw new Error('Failed to create test value objects');
+      }
+
       const newState: SelectionState = {
-        selectedNodes: ['node3', 'node4'],
-        selectedStatements: ['stmt3'],
-        selectedTrees: ['tree2'],
+        selectedNodes: [node3.value, node4.value],
+        selectedStatements: [stmt3.value.getValue()],
+        selectedTrees: [tree2.value],
       };
       const callback = vi.fn();
       const subscription = manager.subscribeToChanges(callback);
@@ -122,8 +151,8 @@ describe('DocumentViewStateManager', () => {
 
     it('should handle validation errors in selection state', async () => {
       // Arrange
-      const invalidState: SelectionState = {
-        selectedNodes: [''], // Invalid empty node ID
+      const invalidState: any = {
+        selectedNodes: [''], // Invalid empty node ID - intentionally invalid for test
         selectedStatements: [],
         selectedTrees: [],
       };
@@ -166,18 +195,28 @@ describe('DocumentViewStateManager', () => {
       // Assert
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
-        expect(result.value.zoom).toBe(1.0);
-        expect(result.value.pan).toEqual({ x: 0, y: 0 });
-        expect(result.value.center).toEqual({ x: 0, y: 0 });
+        expect(result.value.zoom.getValue()).toBe(1.0);
+        expect(result.value.pan.getX()).toBe(0);
+        expect(result.value.pan.getY()).toBe(0);
+        expect(result.value.center.getX()).toBe(0);
+        expect(result.value.center.getY()).toBe(0);
       }
     });
 
     it('should load saved viewport state', async () => {
       // Arrange
+      const zoom = ZoomLevel.create(2.5);
+      const pan = Position2D.create(100, 200);
+      const center = Position2D.create(50, 75);
+
+      if (!zoom.isOk() || !pan.isOk() || !center.isOk()) {
+        throw new Error('Failed to create test value objects');
+      }
+
       const savedState = {
-        zoom: 2.5,
-        pan: { x: 100, y: 200 },
-        center: { x: 50, y: 75 },
+        zoom: zoom.value,
+        pan: pan.value,
+        center: center.value,
       };
       mockPort.loadViewState.mockResolvedValue(ok(savedState));
 
@@ -187,18 +226,28 @@ describe('DocumentViewStateManager', () => {
       // Assert
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
-        expect(result.value.zoom).toBe(2.5);
-        expect(result.value.pan).toEqual({ x: 100, y: 200 });
-        expect(result.value.center).toEqual({ x: 50, y: 75 });
+        expect(result.value.zoom.getValue()).toBe(2.5);
+        expect(result.value.pan.getX()).toBe(100);
+        expect(result.value.pan.getY()).toBe(200);
+        expect(result.value.center.getX()).toBe(50);
+        expect(result.value.center.getY()).toBe(75);
       }
     });
 
     it('should update viewport state and notify observers', async () => {
       // Arrange
+      const zoom = ZoomLevel.create(1.5);
+      const pan = Position2D.create(50, 100);
+      const center = Position2D.create(25, 50);
+
+      if (!zoom.isOk() || !pan.isOk() || !center.isOk()) {
+        throw new Error('Failed to create test value objects');
+      }
+
       const newState: ViewportState = {
-        zoom: 1.5,
-        pan: { x: 50, y: 100 },
-        center: { x: 25, y: 50 },
+        zoom: zoom.value,
+        pan: pan.value,
+        center: center.value,
       };
       const callback = vi.fn();
       const subscription = manager.subscribeToChanges(callback);
@@ -221,10 +270,17 @@ describe('DocumentViewStateManager', () => {
 
     it('should validate viewport constraints', async () => {
       // Arrange
-      const invalidState: ViewportState = {
-        zoom: 0.05, // Below minimum
-        pan: { x: 0, y: 0 },
-        center: { x: 0, y: 0 },
+      const pan = Position2D.create(0, 0);
+      const center = Position2D.create(0, 0);
+
+      if (!pan.isOk() || !center.isOk()) {
+        throw new Error('Failed to create test value objects');
+      }
+
+      const invalidState: any = {
+        zoom: 0.05, // Below minimum - intentionally invalid for test
+        pan: pan.value,
+        center: center.value,
       };
       mockPort.saveViewState.mockResolvedValue(ok(undefined));
 
@@ -276,7 +332,8 @@ describe('DocumentViewStateManager', () => {
         expect(result.value.miniMapVisible).toBe(false);
         expect(result.value.sideLabelsVisible).toBe(true);
         expect(result.value.validationPanelVisible).toBe(true);
-        expect(result.value.panelSizes).toEqual({ validation: 300, miniMap: 150 });
+        expect(result.value.panelSizes.validation?.getValue()).toBe(300);
+        expect(result.value.panelSizes.miniMap?.getValue()).toBe(150);
       }
     });
 
@@ -286,7 +343,13 @@ describe('DocumentViewStateManager', () => {
         miniMapVisible: true,
         sideLabelsVisible: false,
         validationPanelVisible: true,
-        panelSizes: { validation: 400 },
+        panelSizes: {
+          validation: (() => {
+            const r = PanelSize.create(400);
+            if (!r.isOk()) throw new Error('Failed to create test PanelSize');
+            return r.value;
+          })(),
+        },
       };
       const callback = vi.fn();
       const subscription = manager.subscribeToChanges(callback);
@@ -313,7 +376,12 @@ describe('DocumentViewStateManager', () => {
         miniMapVisible: true,
         sideLabelsVisible: true,
         validationPanelVisible: true,
-        panelSizes: { validation: -100 }, // Negative size
+        panelSizes: {
+          validation: (() => {
+            const r = PanelSize.create(-100);
+            return r.isOk() ? r.value : (-100 as any);
+          })(),
+        }, // Negative size - intentionally invalid
       };
       mockPort.saveViewState.mockResolvedValue(ok(undefined));
 
@@ -349,10 +417,17 @@ describe('DocumentViewStateManager', () => {
 
     it('should load saved theme state', async () => {
       // Arrange
+      const fontSize = FontSize.create(16);
+      const fontFamily = FontFamily.create('Monaco');
+
+      if (!fontSize.isOk() || !fontFamily.isOk()) {
+        throw new Error('Failed to create test value objects');
+      }
+
       const savedState = {
         colorScheme: 'dark' as const,
-        fontSize: 16,
-        fontFamily: 'Monaco',
+        fontSize: fontSize.value,
+        fontFamily: fontFamily.value,
       };
       mockPort.loadViewState.mockResolvedValue(ok(savedState));
 
@@ -363,17 +438,24 @@ describe('DocumentViewStateManager', () => {
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         expect(result.value.colorScheme).toBe('dark');
-        expect(result.value.fontSize).toBe(16);
-        expect(result.value.fontFamily).toBe('Monaco');
+        expect(result.value.fontSize.getValue()).toBe(16);
+        expect(result.value.fontFamily.getValue()).toBe('Monaco');
       }
     });
 
     it('should update theme state globally', async () => {
       // Arrange
+      const fontSize = FontSize.create(18);
+      const fontFamily = FontFamily.create('Consolas');
+
+      if (!fontSize.isOk() || !fontFamily.isOk()) {
+        throw new Error('Failed to create test value objects');
+      }
+
       const newState: ThemeState = {
         colorScheme: 'light',
-        fontSize: 18,
-        fontFamily: 'Consolas',
+        fontSize: fontSize.value,
+        fontFamily: fontFamily.value,
       };
       const callback = vi.fn();
       const subscription = manager.subscribeToChanges(callback);
@@ -397,10 +479,13 @@ describe('DocumentViewStateManager', () => {
 
     it('should validate theme constraints', async () => {
       // Arrange
-      const invalidState: ThemeState = {
+      const invalidState: any = {
         colorScheme: 'light',
-        fontSize: 4, // Too small
-        fontFamily: 'Arial',
+        fontSize: 4, // Too small - intentionally invalid for test
+        fontFamily: (() => {
+          const r = FontFamily.create('Arial');
+          return r.isOk() ? r.value : undefined;
+        })(),
       };
       mockPort.saveViewState.mockResolvedValue(ok(undefined));
 
@@ -496,7 +581,10 @@ describe('DocumentViewStateManager', () => {
       const subscription3 = manager.subscribeToChanges(callback3);
 
       const newState: SelectionState = {
-        selectedNodes: ['node1'],
+        selectedNodes: (() => {
+          const r = NodeId.create('node1');
+          return r.isOk() ? [r.value] : [];
+        })(),
         selectedStatements: [],
         selectedTrees: [],
       };
@@ -525,7 +613,10 @@ describe('DocumentViewStateManager', () => {
       const subscription2 = manager.subscribeToChanges(normalCallback);
 
       const newState: SelectionState = {
-        selectedNodes: ['node1'],
+        selectedNodes: (() => {
+          const r = NodeId.create('node1');
+          return r.isOk() ? [r.value] : [];
+        })(),
         selectedStatements: [],
         selectedTrees: [],
       };
@@ -550,7 +641,10 @@ describe('DocumentViewStateManager', () => {
       subscription.dispose();
 
       const newState: SelectionState = {
-        selectedNodes: ['node1'],
+        selectedNodes: (() => {
+          const r = NodeId.create('node1');
+          return r.isOk() ? [r.value] : [];
+        })(),
         selectedStatements: [],
         selectedTrees: [],
       };
@@ -605,7 +699,10 @@ describe('DocumentViewStateManager', () => {
     it('should reconstruct selection state from partial data', async () => {
       // Arrange
       const partialState = {
-        selectedNodes: ['node1'],
+        selectedNodes: (() => {
+          const r = NodeId.create('node1');
+          return r.isOk() ? [r.value] : [];
+        })(),
         // Missing selectedStatements and selectedTrees
       };
       mockPort.loadViewState.mockResolvedValue(ok(partialState));
@@ -672,9 +769,30 @@ describe('DocumentViewStateManager', () => {
     it('should handle concurrent state updates', async () => {
       // Arrange
       const states: SelectionState[] = [
-        { selectedNodes: ['node1'], selectedStatements: [], selectedTrees: [] },
-        { selectedNodes: ['node2'], selectedStatements: [], selectedTrees: [] },
-        { selectedNodes: ['node3'], selectedStatements: [], selectedTrees: [] },
+        {
+          selectedNodes: (() => {
+            const r = NodeId.create('node1');
+            return r.isOk() ? [r.value] : [];
+          })(),
+          selectedStatements: [],
+          selectedTrees: [],
+        },
+        {
+          selectedNodes: (() => {
+            const r = NodeId.create('node2');
+            return r.isOk() ? [r.value] : [];
+          })(),
+          selectedStatements: [],
+          selectedTrees: [],
+        },
+        {
+          selectedNodes: (() => {
+            const r = NodeId.create('node3');
+            return r.isOk() ? [r.value] : [];
+          })(),
+          selectedStatements: [],
+          selectedTrees: [],
+        },
       ];
       mockPort.saveViewState.mockResolvedValue(ok(undefined));
 
@@ -691,14 +809,25 @@ describe('DocumentViewStateManager', () => {
     it('should handle concurrent different state type updates', async () => {
       // Arrange
       const selectionState: SelectionState = {
-        selectedNodes: ['node1'],
+        selectedNodes: (() => {
+          const r = NodeId.create('node1');
+          return r.isOk() ? [r.value] : [];
+        })(),
         selectedStatements: [],
         selectedTrees: [],
       };
+      const zoom = ZoomLevel.create(1.5);
+      const pan = Position2D.create(10, 20);
+      const center = Position2D.create(5, 10);
+
+      if (!zoom.isOk() || !pan.isOk() || !center.isOk()) {
+        throw new Error('Failed to create test value objects');
+      }
+
       const viewportState: ViewportState = {
-        zoom: 1.5,
-        pan: { x: 10, y: 20 },
-        center: { x: 5, y: 10 },
+        zoom: zoom.value,
+        pan: pan.value,
+        center: center.value,
       };
       mockPort.saveViewState.mockResolvedValue(ok(undefined));
 

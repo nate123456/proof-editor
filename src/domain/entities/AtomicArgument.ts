@@ -10,6 +10,9 @@ import {
 } from '../shared/value-objects/index.js';
 import type { Statement } from './Statement.js';
 
+// Re-export SideLabels for consumers of AtomicArgument
+export { SideLabels };
+
 export class AtomicArgument {
   private constructor(
     private readonly id: AtomicArgumentId,
@@ -338,6 +341,95 @@ export class AtomicArgument {
     }
 
     return AtomicArgument.create([conclusion], []);
+  }
+
+  createBranchToPremise(premiseIndex: number = 0): Result<AtomicArgument, ValidationError> {
+    const premise = this.getPremiseAt(premiseIndex);
+    if (!premise) {
+      return err(new ValidationError('Parent argument has no premise to branch to'));
+    }
+
+    return AtomicArgument.create([], [premise]);
+  }
+
+  isDirectlyConnectedTo(other: AtomicArgument): boolean {
+    // Check if any of this argument's conclusions appear in the other's premises
+    for (const conclusion of this.conclusions.toArray()) {
+      if (other.premises.contains(conclusion.getId())) {
+        return true;
+      }
+    }
+    // Check if any of the other argument's conclusions appear in this one's premises
+    for (const conclusion of other.conclusions.toArray()) {
+      if (this.premises.contains(conclusion.getId())) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  sharesStatementWith(other: AtomicArgument): boolean {
+    // Check if they share any premises
+    for (const premise of this.premises.toArray()) {
+      if (other.premises.contains(premise.getId()) || other.conclusions.contains(premise.getId())) {
+        return true;
+      }
+    }
+    // Check if they share any conclusions
+    for (const conclusion of this.conclusions.toArray()) {
+      if (
+        other.premises.contains(conclusion.getId()) ||
+        other.conclusions.contains(conclusion.getId())
+      ) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  findConnectionsTo(
+    other: AtomicArgument,
+  ): Array<{ statement: Statement; fromConclusionPosition: number }> {
+    const connections: Array<{ statement: Statement; fromConclusionPosition: number }> = [];
+
+    // Find statements where this argument's conclusions match the other's premises
+    this.conclusions.toArray().forEach((conclusion, index) => {
+      if (other.premises.contains(conclusion.getId())) {
+        connections.push({
+          statement: conclusion,
+          fromConclusionPosition: index,
+        });
+      }
+    });
+
+    return connections;
+  }
+
+  canConnectAt(conclusionIndex: number, target: AtomicArgument, premiseIndex: number): boolean {
+    const conclusion = this.getConclusionAt(conclusionIndex);
+    const targetPremise = target.getPremiseAt(premiseIndex);
+
+    if (!conclusion || !targetPremise) {
+      return false;
+    }
+
+    return conclusion.getId().equals(targetPremise.getId());
+  }
+
+  validateConnectionSafety(target: AtomicArgument): Result<boolean, ValidationError> {
+    if (this.equals(target)) {
+      return err(new ValidationError('Cannot connect argument to itself'));
+    }
+
+    if (this.conclusions.isEmpty()) {
+      return err(new ValidationError('Source argument has no conclusions'));
+    }
+
+    if (target.premises.isEmpty()) {
+      return err(new ValidationError('Target argument has no premises'));
+    }
+
+    return ok(true);
   }
 
   static fromFactory(

@@ -6,6 +6,14 @@
  */
 
 import {
+  DocumentContent,
+  DocumentId,
+  DocumentVersion,
+  FileSize,
+  Timestamp,
+  Title,
+} from '../../domain/shared/value-objects/index.js';
+import {
   type ApplicationContainer,
   activate,
   afterEach,
@@ -257,27 +265,48 @@ metadata:
       // Test document versioning and conflict resolution
       const fileSystemPort = container.resolve<IFileSystemPort>(TOKENS.IFileSystemPort);
 
+      const docId1Result = DocumentId.create('collab-proof');
+      const content1Result = DocumentContent.create(baseProof);
+      const title1Result = Title.create('Collaborative Proof');
+      const version1Result = DocumentVersion.create(1);
+
+      if (
+        !docId1Result.isOk() ||
+        !content1Result.isOk() ||
+        !title1Result.isOk() ||
+        !version1Result.isOk()
+      ) {
+        throw new Error('Failed to create value objects for document1');
+      }
+
       const document1 = {
-        id: 'collab-proof',
-        content: baseProof,
+        id: docId1Result.value,
+        content: content1Result.value,
         metadata: {
-          id: 'collab-proof',
-          title: 'Collaborative Proof',
-          modifiedAt: new Date(Date.now() - 1000),
-          size: baseProof.length,
+          id: docId1Result.value,
+          title: title1Result.value,
+          modifiedAt: Timestamp.fromDate(new Date(Date.now() - 1000)),
+          size: FileSize.fromNumber(baseProof.length).unwrapOr(FileSize.zero()),
           syncStatus: 'synced' as const,
         },
-        version: 1,
+        version: version1Result.value,
       };
+
+      const content2Result = DocumentContent.create(`${baseProof}\n# User 2 addition`);
+      const version2Result = DocumentVersion.create(2);
+
+      if (!content2Result.isOk() || !version2Result.isOk()) {
+        throw new Error('Failed to create value objects for document2');
+      }
 
       const document2 = {
         ...document1,
-        content: `${baseProof}\n# User 2 addition`,
+        content: content2Result.value,
         metadata: {
           ...document1.metadata,
-          modifiedAt: new Date(),
+          modifiedAt: Timestamp.now(),
         },
-        version: 2,
+        version: version2Result.value,
       };
 
       // Store initial version
@@ -289,12 +318,15 @@ metadata:
       expect(store2Result.isOk()).toBe(true);
 
       // Retrieve and verify versioning
-      const retrieveResult = await fileSystemPort.getStoredDocument('collab-proof');
-      expect(retrieveResult.isOk()).toBe(true);
+      const docIdResult = DocumentId.create('collab-proof');
+      if (docIdResult.isOk()) {
+        const retrieveResult = await fileSystemPort.getStoredDocument(docIdResult.value);
+        expect(retrieveResult.isOk()).toBe(true);
 
-      if (retrieveResult.isOk() && retrieveResult.value) {
-        expect(retrieveResult.value.version).toBe(2);
-        expect(retrieveResult.value.content).toContain('User 2 addition');
+        if (retrieveResult.isOk() && retrieveResult.value) {
+          expect(retrieveResult.value.version).toEqual(version2Result.value);
+          expect(retrieveResult.value.content).toEqual(content2Result.value);
+        }
       }
 
       performanceMetrics.operationCount++;

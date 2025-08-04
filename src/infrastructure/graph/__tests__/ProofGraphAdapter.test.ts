@@ -8,6 +8,7 @@ import type { IAtomicArgumentRepository } from '../../../domain/repositories/IAt
 import type { INodeRepository } from '../../../domain/repositories/INodeRepository.js';
 import {
   AtomicArgumentId,
+  type Attachment,
   NodeId,
   StatementId,
   TreeId,
@@ -22,7 +23,9 @@ describe('ProofGraphAdapter', () => {
 
   function createMockStatement(id: string): Statement {
     const statement = mock<Statement>();
-    statement.getId.mockReturnValue(StatementId.create(id).value);
+    const idResult = StatementId.create(id);
+    if (idResult.isErr()) throw new Error(`Invalid statement ID: ${id}`);
+    statement.getId.mockReturnValue(idResult.value);
     return statement;
   }
 
@@ -36,11 +39,11 @@ describe('ProofGraphAdapter', () => {
       const connections = [];
       for (let i = 0; i < conclusions.length; i++) {
         for (let j = 0; j < other.getPremises().length; j++) {
-          if (conclusions[i] === other.getPremises()[j]) {
+          const otherPremise = other.getPremises()[j];
+          if (otherPremise && conclusions[i] === otherPremise) {
             connections.push({
               statement: conclusions[i],
               fromConclusionPosition: i,
-              toPremisePosition: j,
             });
           }
         }
@@ -58,12 +61,16 @@ describe('ProofGraphAdapter', () => {
 
     // Setup mock tree
     mockTree = mock<Tree>();
-    mockTree.getId.mockReturnValue(TreeId.create('tree1').value);
-    mockTree.getNodeIds.mockReturnValue([
-      NodeId.create('node1').value,
-      NodeId.create('node2').value,
-      NodeId.create('node3').value,
-    ]);
+    const treeIdResult = TreeId.create('tree1');
+    if (treeIdResult.isErr()) throw new Error('Invalid tree ID');
+    mockTree.getId.mockReturnValue(treeIdResult.value);
+
+    const nodeIds = ['node1', 'node2', 'node3'].map((id) => {
+      const result = NodeId.create(id);
+      if (result.isErr()) throw new Error(`Invalid node ID: ${id}`);
+      return result.value;
+    });
+    mockTree.getNodeIds.mockReturnValue(nodeIds);
   });
 
   describe('buildGraphFromTree', () => {
@@ -73,24 +80,62 @@ describe('ProofGraphAdapter', () => {
       const node2 = mock<Node>();
       const node3 = mock<Node>();
 
-      node1.getArgumentId.mockReturnValue(AtomicArgumentId.create('arg1').value);
+      node1.getArgumentId.mockReturnValue(
+        (() => {
+          const r = AtomicArgumentId.create('arg1');
+          if (r.isErr()) throw new Error('Invalid ID');
+          return r.value;
+        })(),
+      );
       node1.isRoot.mockReturnValue(true);
       node1.isChild.mockReturnValue(false);
 
-      node2.getArgumentId.mockReturnValue(AtomicArgumentId.create('arg2').value);
+      node2.getArgumentId.mockReturnValue(
+        (() => {
+          const r = AtomicArgumentId.create('arg2');
+          if (r.isErr()) throw new Error('Invalid ID');
+          return r.value;
+        })(),
+      );
       node2.isRoot.mockReturnValue(false);
       node2.isChild.mockReturnValue(true);
-      node2.getParentNodeId.mockReturnValue(NodeId.create('node1').value);
+      node2.getParentNodeId.mockReturnValue(
+        (() => {
+          const r = NodeId.create('node1');
+          if (r.isErr()) throw new Error('Invalid ID');
+          return r.value;
+        })(),
+      );
 
-      node3.getArgumentId.mockReturnValue(AtomicArgumentId.create('arg3').value);
+      node3.getArgumentId.mockReturnValue(
+        (() => {
+          const r = AtomicArgumentId.create('arg3');
+          if (r.isErr()) throw new Error('Invalid ID');
+          return r.value;
+        })(),
+      );
       node3.isRoot.mockReturnValue(false);
       node3.isChild.mockReturnValue(true);
-      node3.getParentNodeId.mockReturnValue(NodeId.create('node1').value);
+      node3.getParentNodeId.mockReturnValue(
+        (() => {
+          const r = NodeId.create('node1');
+          if (r.isErr()) throw new Error('Invalid ID');
+          return r.value;
+        })(),
+      );
 
-      const mockAttachment = {
-        getPremisePosition: () => 0,
-        getFromPosition: () => undefined,
-      };
+      const mockAttachment = mock<Attachment>();
+      mockAttachment.getPremisePosition.mockReturnValue(0);
+      mockAttachment.getFromPosition.mockReturnValue(undefined);
+      mockAttachment.getParentNodeId.mockReturnValue(
+        (() => {
+          const r = NodeId.create('node1');
+          if (r.isErr()) throw new Error('Invalid ID');
+          return r.value;
+        })(),
+      );
+      mockAttachment.hasMultipleConclusionSource.mockReturnValue(false);
+      mockAttachment.equals.mockReturnValue(false);
       node2.getAttachment.mockReturnValue(mockAttachment);
       node3.getAttachment.mockReturnValue(mockAttachment);
 
@@ -153,7 +198,13 @@ describe('ProofGraphAdapter', () => {
     it('should handle missing arguments gracefully', async () => {
       // Arrange
       const node1 = mock<Node>();
-      node1.getArgumentId.mockReturnValue(AtomicArgumentId.create('arg1').value);
+      node1.getArgumentId.mockReturnValue(
+        (() => {
+          const r = AtomicArgumentId.create('arg1');
+          if (r.isErr()) throw new Error('Invalid ID');
+          return r.value;
+        })(),
+      );
       node1.isRoot.mockReturnValue(true);
       node1.isChild.mockReturnValue(false);
 
@@ -175,21 +226,45 @@ describe('ProofGraphAdapter', () => {
       const node1 = mock<Node>();
       const node2 = mock<Node>();
 
-      node1.getArgumentId.mockReturnValue(AtomicArgumentId.create('arg1').value);
+      node1.getArgumentId.mockReturnValue(
+        (() => {
+          const r = AtomicArgumentId.create('arg1');
+          if (r.isErr()) throw new Error('Invalid ID');
+          return r.value;
+        })(),
+      );
       node1.isRoot.mockReturnValue(true);
       node1.isChild.mockReturnValue(false);
-      node1.getPosition.mockReturnValue(null);
 
-      node2.getArgumentId.mockReturnValue(AtomicArgumentId.create('arg2').value);
+      node2.getArgumentId.mockReturnValue(
+        (() => {
+          const r = AtomicArgumentId.create('arg2');
+          if (r.isErr()) throw new Error('Invalid ID');
+          return r.value;
+        })(),
+      );
       node2.isRoot.mockReturnValue(false);
       node2.isChild.mockReturnValue(true);
-      node2.getParentNodeId.mockReturnValue(NodeId.create('node1').value);
-      node2.getPosition.mockReturnValue(null);
+      node2.getParentNodeId.mockReturnValue(
+        (() => {
+          const r = NodeId.create('node1');
+          if (r.isErr()) throw new Error('Invalid ID');
+          return r.value;
+        })(),
+      );
 
-      const mockAttachment = {
-        getPremisePosition: () => 0,
-        getFromPosition: () => undefined,
-      };
+      const mockAttachment = mock<Attachment>();
+      mockAttachment.getPremisePosition.mockReturnValue(0);
+      mockAttachment.getFromPosition.mockReturnValue(undefined);
+      mockAttachment.getParentNodeId.mockReturnValue(
+        (() => {
+          const r = NodeId.create('node1');
+          if (r.isErr()) throw new Error('Invalid ID');
+          return r.value;
+        })(),
+      );
+      mockAttachment.hasMultipleConclusionSource.mockReturnValue(false);
+      mockAttachment.equals.mockReturnValue(false);
       node2.getAttachment.mockReturnValue(mockAttachment);
 
       mockNodeRepository.findById.mockImplementation(async (nodeId: NodeId) => {
@@ -225,8 +300,16 @@ describe('ProofGraphAdapter', () => {
 
     it('should find path between connected nodes', () => {
       // Arrange
-      const fromNodeId = NodeId.create('node2').value;
-      const toNodeId = NodeId.create('node1').value;
+      const fromNodeId = (() => {
+        const r = NodeId.create('node2');
+        if (r.isErr()) throw new Error('Invalid ID');
+        return r.value;
+      })();
+      const toNodeId = (() => {
+        const r = NodeId.create('node1');
+        if (r.isErr()) throw new Error('Invalid ID');
+        return r.value;
+      })();
 
       // Act
       const pathResult = adapter.findPath(fromNodeId, toNodeId);
@@ -258,7 +341,11 @@ describe('ProofGraphAdapter', () => {
 
     it('should handle same source and target', () => {
       // Arrange
-      const nodeId = NodeId.create('node1').value;
+      const nodeId = (() => {
+        const r = NodeId.create('node1');
+        if (r.isErr()) throw new Error('Invalid ID');
+        return r.value;
+      })();
 
       // Act
       const pathResult = adapter.findPath(nodeId, nodeId);
@@ -278,24 +365,62 @@ describe('ProofGraphAdapter', () => {
       const node2 = mock<Node>();
       const node3 = mock<Node>();
 
-      node1.getArgumentId.mockReturnValue(AtomicArgumentId.create('arg1').value);
+      node1.getArgumentId.mockReturnValue(
+        (() => {
+          const r = AtomicArgumentId.create('arg1');
+          if (r.isErr()) throw new Error('Invalid ID');
+          return r.value;
+        })(),
+      );
       node1.isRoot.mockReturnValue(true);
       node1.isChild.mockReturnValue(false);
 
-      node2.getArgumentId.mockReturnValue(AtomicArgumentId.create('arg2').value);
+      node2.getArgumentId.mockReturnValue(
+        (() => {
+          const r = AtomicArgumentId.create('arg2');
+          if (r.isErr()) throw new Error('Invalid ID');
+          return r.value;
+        })(),
+      );
       node2.isRoot.mockReturnValue(false);
       node2.isChild.mockReturnValue(true);
-      node2.getParentNodeId.mockReturnValue(NodeId.create('node1').value);
+      node2.getParentNodeId.mockReturnValue(
+        (() => {
+          const r = NodeId.create('node1');
+          if (r.isErr()) throw new Error('Invalid ID');
+          return r.value;
+        })(),
+      );
 
-      node3.getArgumentId.mockReturnValue(AtomicArgumentId.create('arg3').value);
+      node3.getArgumentId.mockReturnValue(
+        (() => {
+          const r = AtomicArgumentId.create('arg3');
+          if (r.isErr()) throw new Error('Invalid ID');
+          return r.value;
+        })(),
+      );
       node3.isRoot.mockReturnValue(false);
       node3.isChild.mockReturnValue(true);
-      node3.getParentNodeId.mockReturnValue(NodeId.create('node2').value);
+      node3.getParentNodeId.mockReturnValue(
+        (() => {
+          const r = NodeId.create('node2');
+          if (r.isErr()) throw new Error('Invalid ID');
+          return r.value;
+        })(),
+      );
 
-      const mockAttachment = {
-        getPremisePosition: () => 0,
-        getFromPosition: () => undefined,
-      };
+      const mockAttachment = mock<Attachment>();
+      mockAttachment.getPremisePosition.mockReturnValue(0);
+      mockAttachment.getFromPosition.mockReturnValue(undefined);
+      mockAttachment.getParentNodeId.mockReturnValue(
+        (() => {
+          const r = NodeId.create('node1');
+          if (r.isErr()) throw new Error('Invalid ID');
+          return r.value;
+        })(),
+      );
+      mockAttachment.hasMultipleConclusionSource.mockReturnValue(false);
+      mockAttachment.equals.mockReturnValue(false);
       node2.getAttachment.mockReturnValue(mockAttachment);
       node3.getAttachment.mockReturnValue(mockAttachment);
 
@@ -338,7 +463,11 @@ describe('ProofGraphAdapter', () => {
 
     it('should get complete subtree from root', () => {
       // Arrange
-      const rootNodeId = NodeId.create('node1').value;
+      const rootNodeId = (() => {
+        const r = NodeId.create('node1');
+        if (r.isErr()) throw new Error('Invalid ID');
+        return r.value;
+      })();
 
       // Act
       const subtreeResult = adapter.getSubtree(rootNodeId);
@@ -356,7 +485,11 @@ describe('ProofGraphAdapter', () => {
 
     it('should respect max depth limit', () => {
       // Arrange
-      const rootNodeId = NodeId.create('node1').value;
+      const rootNodeId = (() => {
+        const r = NodeId.create('node1');
+        if (r.isErr()) throw new Error('Invalid ID');
+        return r.value;
+      })();
       const maxDepth = 1;
 
       // Act
@@ -377,7 +510,11 @@ describe('ProofGraphAdapter', () => {
 
     it('should return single node for max depth 0', () => {
       // Arrange
-      const rootNodeId = NodeId.create('node1').value;
+      const rootNodeId = (() => {
+        const r = NodeId.create('node1');
+        if (r.isErr()) throw new Error('Invalid ID');
+        return r.value;
+      })();
       const maxDepth = 0;
 
       // Act
@@ -400,20 +537,52 @@ describe('ProofGraphAdapter', () => {
       const node1 = mock<Node>();
       const node2 = mock<Node>();
 
-      node1.getArgumentId.mockReturnValue(AtomicArgumentId.create('arg1').value);
+      node1.getArgumentId.mockReturnValue(
+        (() => {
+          const r = AtomicArgumentId.create('arg1');
+          if (r.isErr()) throw new Error('Invalid ID');
+          return r.value;
+        })(),
+      );
       node1.isRoot.mockReturnValue(false);
       node1.isChild.mockReturnValue(true);
-      node1.getParentNodeId.mockReturnValue(NodeId.create('node2').value);
+      node1.getParentNodeId.mockReturnValue(
+        (() => {
+          const r = NodeId.create('node2');
+          if (r.isErr()) throw new Error('Invalid ID');
+          return r.value;
+        })(),
+      );
 
-      node2.getArgumentId.mockReturnValue(AtomicArgumentId.create('arg2').value);
+      node2.getArgumentId.mockReturnValue(
+        (() => {
+          const r = AtomicArgumentId.create('arg2');
+          if (r.isErr()) throw new Error('Invalid ID');
+          return r.value;
+        })(),
+      );
       node2.isRoot.mockReturnValue(false);
       node2.isChild.mockReturnValue(true);
-      node2.getParentNodeId.mockReturnValue(NodeId.create('node1').value);
+      node2.getParentNodeId.mockReturnValue(
+        (() => {
+          const r = NodeId.create('node1');
+          if (r.isErr()) throw new Error('Invalid ID');
+          return r.value;
+        })(),
+      );
 
-      const mockAttachment = {
-        getPremisePosition: () => 0,
-        getFromPosition: () => undefined,
-      };
+      const mockAttachment = mock<Attachment>();
+      mockAttachment.getPremisePosition.mockReturnValue(0);
+      mockAttachment.getFromPosition.mockReturnValue(undefined);
+      mockAttachment.getParentNodeId.mockReturnValue(
+        (() => {
+          const r = NodeId.create('node1');
+          if (r.isErr()) throw new Error('Invalid ID');
+          return r.value;
+        })(),
+      );
+      mockAttachment.hasMultipleConclusionSource.mockReturnValue(false);
+      mockAttachment.equals.mockReturnValue(false);
       node1.getAttachment.mockReturnValue(mockAttachment);
       node2.getAttachment.mockReturnValue(mockAttachment);
 
@@ -447,14 +616,28 @@ describe('ProofGraphAdapter', () => {
       });
 
       mockTree.getNodeIds.mockReturnValue([
-        NodeId.create('node1').value,
-        NodeId.create('node2').value,
+        (() => {
+          const r = NodeId.create('node1');
+          if (r.isErr()) throw new Error('Invalid ID');
+          return r.value;
+        })(),
+        (() => {
+          const r = NodeId.create('node2');
+          if (r.isErr()) throw new Error('Invalid ID');
+          return r.value;
+        })(),
       ]);
 
       await adapter.buildGraphFromTree(mockTree);
 
       // Act
-      const cycleResult = adapter.detectCycles(TreeId.create('tree1').value);
+      const cycleResult = adapter.detectCycles(
+        (() => {
+          const r = TreeId.create('tree1');
+          if (r.isErr()) throw new Error('Invalid ID');
+          return r.value;
+        })(),
+      );
 
       // Assert
       expect(cycleResult.isOk()).toBe(true);
@@ -468,19 +651,45 @@ describe('ProofGraphAdapter', () => {
       const node1 = mock<Node>();
       const node2 = mock<Node>();
 
-      node1.getArgumentId.mockReturnValue(AtomicArgumentId.create('arg1').value);
+      node1.getArgumentId.mockReturnValue(
+        (() => {
+          const r = AtomicArgumentId.create('arg1');
+          if (r.isErr()) throw new Error('Invalid ID');
+          return r.value;
+        })(),
+      );
       node1.isRoot.mockReturnValue(true);
       node1.isChild.mockReturnValue(false);
 
-      node2.getArgumentId.mockReturnValue(AtomicArgumentId.create('arg2').value);
+      node2.getArgumentId.mockReturnValue(
+        (() => {
+          const r = AtomicArgumentId.create('arg2');
+          if (r.isErr()) throw new Error('Invalid ID');
+          return r.value;
+        })(),
+      );
       node2.isRoot.mockReturnValue(false);
       node2.isChild.mockReturnValue(true);
-      node2.getParentNodeId.mockReturnValue(NodeId.create('node1').value);
+      node2.getParentNodeId.mockReturnValue(
+        (() => {
+          const r = NodeId.create('node1');
+          if (r.isErr()) throw new Error('Invalid ID');
+          return r.value;
+        })(),
+      );
 
-      const mockAttachment = {
-        getPremisePosition: () => 0,
-        getFromPosition: () => undefined,
-      };
+      const mockAttachment = mock<Attachment>();
+      mockAttachment.getPremisePosition.mockReturnValue(0);
+      mockAttachment.getFromPosition.mockReturnValue(undefined);
+      mockAttachment.getParentNodeId.mockReturnValue(
+        (() => {
+          const r = NodeId.create('node1');
+          if (r.isErr()) throw new Error('Invalid ID');
+          return r.value;
+        })(),
+      );
+      mockAttachment.hasMultipleConclusionSource.mockReturnValue(false);
+      mockAttachment.equals.mockReturnValue(false);
       node2.getAttachment.mockReturnValue(mockAttachment);
 
       mockNodeRepository.findById.mockImplementation(async (nodeId: NodeId) => {
@@ -512,14 +721,28 @@ describe('ProofGraphAdapter', () => {
       });
 
       mockTree.getNodeIds.mockReturnValue([
-        NodeId.create('node1').value,
-        NodeId.create('node2').value,
+        (() => {
+          const r = NodeId.create('node1');
+          if (r.isErr()) throw new Error('Invalid ID');
+          return r.value;
+        })(),
+        (() => {
+          const r = NodeId.create('node2');
+          if (r.isErr()) throw new Error('Invalid ID');
+          return r.value;
+        })(),
       ]);
 
       await adapter.buildGraphFromTree(mockTree);
 
       // Act
-      const cycleResult = adapter.detectCycles(TreeId.create('tree1').value);
+      const cycleResult = adapter.detectCycles(
+        (() => {
+          const r = TreeId.create('tree1');
+          if (r.isErr()) throw new Error('Invalid ID');
+          return r.value;
+        })(),
+      );
 
       // Assert
       expect(cycleResult.isOk()).toBe(true);
@@ -536,24 +759,62 @@ describe('ProofGraphAdapter', () => {
       const node2 = mock<Node>();
       const node3 = mock<Node>();
 
-      node1.getArgumentId.mockReturnValue(AtomicArgumentId.create('arg1').value);
+      node1.getArgumentId.mockReturnValue(
+        (() => {
+          const r = AtomicArgumentId.create('arg1');
+          if (r.isErr()) throw new Error('Invalid ID');
+          return r.value;
+        })(),
+      );
       node1.isRoot.mockReturnValue(true);
       node1.isChild.mockReturnValue(false);
 
-      node2.getArgumentId.mockReturnValue(AtomicArgumentId.create('arg2').value);
+      node2.getArgumentId.mockReturnValue(
+        (() => {
+          const r = AtomicArgumentId.create('arg2');
+          if (r.isErr()) throw new Error('Invalid ID');
+          return r.value;
+        })(),
+      );
       node2.isRoot.mockReturnValue(false);
       node2.isChild.mockReturnValue(true);
-      node2.getParentNodeId.mockReturnValue(NodeId.create('node1').value);
+      node2.getParentNodeId.mockReturnValue(
+        (() => {
+          const r = NodeId.create('node1');
+          if (r.isErr()) throw new Error('Invalid ID');
+          return r.value;
+        })(),
+      );
 
-      node3.getArgumentId.mockReturnValue(AtomicArgumentId.create('arg3').value);
+      node3.getArgumentId.mockReturnValue(
+        (() => {
+          const r = AtomicArgumentId.create('arg3');
+          if (r.isErr()) throw new Error('Invalid ID');
+          return r.value;
+        })(),
+      );
       node3.isRoot.mockReturnValue(false);
       node3.isChild.mockReturnValue(true);
-      node3.getParentNodeId.mockReturnValue(NodeId.create('node1').value);
+      node3.getParentNodeId.mockReturnValue(
+        (() => {
+          const r = NodeId.create('node1');
+          if (r.isErr()) throw new Error('Invalid ID');
+          return r.value;
+        })(),
+      );
 
-      const mockAttachment = {
-        getPremisePosition: () => 0,
-        getFromPosition: () => undefined,
-      };
+      const mockAttachment = mock<Attachment>();
+      mockAttachment.getPremisePosition.mockReturnValue(0);
+      mockAttachment.getFromPosition.mockReturnValue(undefined);
+      mockAttachment.getParentNodeId.mockReturnValue(
+        (() => {
+          const r = NodeId.create('node1');
+          if (r.isErr()) throw new Error('Invalid ID');
+          return r.value;
+        })(),
+      );
+      mockAttachment.hasMultipleConclusionSource.mockReturnValue(false);
+      mockAttachment.equals.mockReturnValue(false);
       node2.getAttachment.mockReturnValue(mockAttachment);
       node3.getAttachment.mockReturnValue(mockAttachment);
 
@@ -595,7 +856,13 @@ describe('ProofGraphAdapter', () => {
 
     it('should compute correct tree metrics', () => {
       // Act
-      const metricsResult = adapter.getTreeMetrics(TreeId.create('tree1').value);
+      const metricsResult = adapter.getTreeMetrics(
+        (() => {
+          const r = TreeId.create('tree1');
+          if (r.isErr()) throw new Error('Invalid ID');
+          return r.value;
+        })(),
+      );
 
       // Assert
       expect(metricsResult.isOk()).toBe(true);
@@ -610,7 +877,13 @@ describe('ProofGraphAdapter', () => {
 
     it('should return zero metrics for empty tree', () => {
       // Act
-      const metricsResult = adapter.getTreeMetrics(TreeId.create('nonexistent').value);
+      const metricsResult = adapter.getTreeMetrics(
+        (() => {
+          const r = TreeId.create('nonexistent');
+          if (r.isErr()) throw new Error('Invalid ID');
+          return r.value;
+        })(),
+      );
 
       // Assert
       expect(metricsResult.isOk()).toBe(true);
@@ -630,14 +903,32 @@ describe('ProofGraphAdapter', () => {
         const node1 = mock<Node>();
         const node2 = mock<Node>();
 
-        node1.getArgumentId.mockReturnValue(AtomicArgumentId.create('arg1').value);
+        node1.getArgumentId.mockReturnValue(
+          (() => {
+            const r = AtomicArgumentId.create('arg1');
+            if (r.isErr()) throw new Error('Invalid ID');
+            return r.value;
+          })(),
+        );
         node1.isRoot.mockReturnValue(true);
         node1.isChild.mockReturnValue(false);
 
-        node2.getArgumentId.mockReturnValue(AtomicArgumentId.create('arg2').value);
+        node2.getArgumentId.mockReturnValue(
+          (() => {
+            const r = AtomicArgumentId.create('arg2');
+            if (r.isErr()) throw new Error('Invalid ID');
+            return r.value;
+          })(),
+        );
         node2.isRoot.mockReturnValue(false);
         node2.isChild.mockReturnValue(true);
-        node2.getParentNodeId.mockReturnValue(NodeId.create('node1').value);
+        node2.getParentNodeId.mockReturnValue(
+          (() => {
+            const r = NodeId.create('node1');
+            if (r.isErr()) throw new Error('Invalid ID');
+            return r.value;
+          })(),
+        );
 
         const mockAttachment = {
           getPremisePosition: () => 0,
@@ -672,15 +963,45 @@ describe('ProofGraphAdapter', () => {
         });
 
         mockTree.getNodeIds.mockReturnValue([
-          NodeId.create('node1').value,
-          NodeId.create('node2').value,
+          (() => {
+            const r = NodeId.create('node1');
+            if (r.isErr()) throw new Error('Invalid ID');
+            return r.value;
+          })(),
+          (() => {
+            const r = NodeId.create('node2');
+            if (r.isErr()) throw new Error('Invalid ID');
+            return r.value;
+          })(),
         ]);
 
         await adapter.buildGraphFromTree(mockTree);
 
         const nodePairs = [
-          { from: NodeId.create('node1').value, to: NodeId.create('node2').value },
-          { from: NodeId.create('node2').value, to: NodeId.create('node1').value },
+          {
+            from: (() => {
+              const r = NodeId.create('node1');
+              if (r.isErr()) throw new Error('Invalid ID');
+              return r.value;
+            })(),
+            to: (() => {
+              const r = NodeId.create('node2');
+              if (r.isErr()) throw new Error('Invalid ID');
+              return r.value;
+            })(),
+          },
+          {
+            from: (() => {
+              const r = NodeId.create('node2');
+              if (r.isErr()) throw new Error('Invalid ID');
+              return r.value;
+            })(),
+            to: (() => {
+              const r = NodeId.create('node1');
+              if (r.isErr()) throw new Error('Invalid ID');
+              return r.value;
+            })(),
+          },
         ];
 
         const result = adapter.findPaths(nodePairs);
@@ -698,14 +1019,32 @@ describe('ProofGraphAdapter', () => {
         const node1 = mock<Node>();
         const node2 = mock<Node>();
 
-        node1.getArgumentId.mockReturnValue(AtomicArgumentId.create('arg1').value);
+        node1.getArgumentId.mockReturnValue(
+          (() => {
+            const r = AtomicArgumentId.create('arg1');
+            if (r.isErr()) throw new Error('Invalid ID');
+            return r.value;
+          })(),
+        );
         node1.isRoot.mockReturnValue(true);
         node1.isChild.mockReturnValue(false);
 
-        node2.getArgumentId.mockReturnValue(AtomicArgumentId.create('arg2').value);
+        node2.getArgumentId.mockReturnValue(
+          (() => {
+            const r = AtomicArgumentId.create('arg2');
+            if (r.isErr()) throw new Error('Invalid ID');
+            return r.value;
+          })(),
+        );
         node2.isRoot.mockReturnValue(false);
         node2.isChild.mockReturnValue(true);
-        node2.getParentNodeId.mockReturnValue(NodeId.create('node1').value);
+        node2.getParentNodeId.mockReturnValue(
+          (() => {
+            const r = NodeId.create('node1');
+            if (r.isErr()) throw new Error('Invalid ID');
+            return r.value;
+          })(),
+        );
 
         const mockAttachment = {
           getPremisePosition: () => 0,
@@ -740,15 +1079,45 @@ describe('ProofGraphAdapter', () => {
         });
 
         mockTree.getNodeIds.mockReturnValue([
-          NodeId.create('node1').value,
-          NodeId.create('node2').value,
+          (() => {
+            const r = NodeId.create('node1');
+            if (r.isErr()) throw new Error('Invalid ID');
+            return r.value;
+          })(),
+          (() => {
+            const r = NodeId.create('node2');
+            if (r.isErr()) throw new Error('Invalid ID');
+            return r.value;
+          })(),
         ]);
 
         await adapter.buildGraphFromTree(mockTree);
 
         const nodePairs = [
-          { nodeId1: NodeId.create('node1').value, nodeId2: NodeId.create('node2').value },
-          { nodeId1: NodeId.create('node2').value, nodeId2: NodeId.create('node1').value },
+          {
+            nodeId1: (() => {
+              const r = NodeId.create('node1');
+              if (r.isErr()) throw new Error('Invalid ID');
+              return r.value;
+            })(),
+            nodeId2: (() => {
+              const r = NodeId.create('node2');
+              if (r.isErr()) throw new Error('Invalid ID');
+              return r.value;
+            })(),
+          },
+          {
+            nodeId1: (() => {
+              const r = NodeId.create('node2');
+              if (r.isErr()) throw new Error('Invalid ID');
+              return r.value;
+            })(),
+            nodeId2: (() => {
+              const r = NodeId.create('node1');
+              if (r.isErr()) throw new Error('Invalid ID');
+              return r.value;
+            })(),
+          },
         ];
 
         const result = adapter.areNodesConnectedBatch(nodePairs);

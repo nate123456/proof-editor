@@ -12,7 +12,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AtomicArgument } from '../../entities/AtomicArgument.js';
-import { orderedSetIdFactory } from '../factories/index.js';
+import { SideLabels } from '../../shared/value-objects/index.js';
+import { statementFactory } from '../factories/index.js';
 import { expect as customExpect } from '../test-setup.js';
 import { FIXED_TIMESTAMP } from './atomic-argument-test-utils.js';
 
@@ -94,8 +95,8 @@ describe('Bootstrap and Population Methods', () => {
     });
 
     it('should return false for non-bootstrap arguments', () => {
-      const premiseSetRef = orderedSetIdFactory.build();
-      const result = AtomicArgument.create(premiseSetRef);
+      const premise = statementFactory.build();
+      const result = AtomicArgument.create([premise]);
       expect(result.isOk()).toBe(true);
 
       if (result.isOk()) {
@@ -107,50 +108,48 @@ describe('Bootstrap and Population Methods', () => {
     });
 
     it('should return false for complete arguments', () => {
-      const argument = AtomicArgument.createComplete(
-        orderedSetIdFactory.build(),
-        orderedSetIdFactory.build(),
-      );
-      expect(argument.canPopulate()).toBe(false);
-      expect(argument.isBootstrap()).toBe(false);
-    });
-
-    it('should track population capability through state transitions', () => {
-      const result = AtomicArgument.create();
+      const premise = statementFactory.build();
+      const conclusion = statementFactory.build();
+      const result = AtomicArgument.create([premise], [conclusion]);
       expect(result.isOk()).toBe(true);
 
       if (result.isOk()) {
         const argument = result.value;
-
-        // Initially can populate
-        expect(argument.canPopulate()).toBe(true);
-
-        // Add premise - no longer can populate
-        argument.setPremiseSetRef(orderedSetIdFactory.build());
         expect(argument.canPopulate()).toBe(false);
-
-        // Remove premise - can populate again
-        argument.setPremiseSetRef(null);
-        expect(argument.canPopulate()).toBe(true);
-
-        // Add conclusion - cannot populate
-        argument.setConclusionSetRef(orderedSetIdFactory.build());
-        expect(argument.canPopulate()).toBe(false);
-
-        // Clear everything - can populate again
-        argument.setConclusionSetRef(null);
-        expect(argument.canPopulate()).toBe(true);
+        expect(argument.isBootstrap()).toBe(false);
       }
+    });
+
+    it('should track population capability through state transitions', () => {
+      // Start with bootstrap argument
+      const bootstrapArg = AtomicArgument.createBootstrap();
+      expect(bootstrapArg.canPopulate()).toBe(true);
+
+      // Add premise - no longer can populate
+      const premise = statementFactory.build();
+      const addPremiseResult = bootstrapArg.addPremise(premise);
+      expect(addPremiseResult.isOk()).toBe(true);
+      expect(bootstrapArg.canPopulate()).toBe(false);
+
+      // Cannot revert to bootstrap once populated
+      // Create new bootstrap argument for further testing
+      const newBootstrap = AtomicArgument.createBootstrap();
+      expect(newBootstrap.canPopulate()).toBe(true);
+
+      // Add conclusion - cannot populate
+      const conclusion = statementFactory.build();
+      const addConclusionResult = newBootstrap.addConclusion(conclusion);
+      expect(addConclusionResult.isOk()).toBe(true);
+      expect(newBootstrap.canPopulate()).toBe(false);
     });
   });
 
   describe('isBootstrap alias method', () => {
     it('should work as alias for isBootstrapArgument', () => {
       const bootstrapResult = AtomicArgument.create();
-      const completeArgument = AtomicArgument.createComplete(
-        orderedSetIdFactory.build(),
-        orderedSetIdFactory.build(),
-      );
+      const premise = statementFactory.build();
+      const conclusion = statementFactory.build();
+      const completeResult = AtomicArgument.create([premise], [conclusion]);
 
       expect(bootstrapResult.isOk()).toBe(true);
       if (bootstrapResult.isOk()) {
@@ -159,22 +158,26 @@ describe('Bootstrap and Population Methods', () => {
         expect(bootstrap.isBootstrap()).toBe(true);
       }
 
-      expect(completeArgument.isBootstrap()).toBe(completeArgument.isBootstrapArgument());
-      expect(completeArgument.isBootstrap()).toBe(false);
+      expect(completeResult.isOk()).toBe(true);
+      if (completeResult.isOk()) {
+        const completeArgument = completeResult.value;
+        expect(completeArgument.isBootstrap()).toBe(completeArgument.isBootstrapArgument());
+        expect(completeArgument.isBootstrap()).toBe(false);
+      }
     });
 
     it('should maintain consistency across all bootstrap-related methods', () => {
       const testCases = [
         { desc: 'empty', create: () => AtomicArgument.create() },
-        { desc: 'premise only', create: () => AtomicArgument.create(orderedSetIdFactory.build()) },
+        { desc: 'premise only', create: () => AtomicArgument.create([statementFactory.build()]) },
         {
           desc: 'conclusion only',
-          create: () => AtomicArgument.create(undefined, orderedSetIdFactory.build()),
+          create: () => AtomicArgument.create([], [statementFactory.build()]),
         },
         {
           desc: 'complete',
           create: () =>
-            AtomicArgument.create(orderedSetIdFactory.build(), orderedSetIdFactory.build()),
+            AtomicArgument.create([statementFactory.build()], [statementFactory.build()]),
         },
       ];
 
@@ -204,18 +207,26 @@ describe('Bootstrap and Population Methods', () => {
 
   describe('bootstrap behavior edge cases', () => {
     it('should handle bootstrap with side labels', () => {
-      const result = AtomicArgument.create(undefined, undefined, {
+      const sideLabelsResult = SideLabels.fromStrings({
         left: 'Bootstrap',
         right: 'Label',
       });
-      expect(result.isOk()).toBe(true);
+      expect(sideLabelsResult.isOk()).toBe(true);
 
-      if (result.isOk()) {
-        const arg = result.value;
-        expect(arg.isBootstrap()).toBe(true);
-        expect(arg.canPopulate()).toBe(true);
-        expect(arg.hasSideLabels()).toBe(true);
-        expect(arg.getSideLabels()).toEqual({ left: 'Bootstrap', right: 'Label' });
+      if (sideLabelsResult.isOk()) {
+        const result = AtomicArgument.create([], [], sideLabelsResult.value);
+        expect(result.isOk()).toBe(true);
+
+        if (result.isOk()) {
+          const arg = result.value;
+          expect(arg.isBootstrap()).toBe(true);
+          expect(arg.canPopulate()).toBe(true);
+          expect(arg.hasSideLabels()).toBe(true);
+          expect(arg.hasSideLabels()).toBe(true);
+          const labels = arg.getSideLabels();
+          expect(labels.left).toBe('Bootstrap');
+          expect(labels.right).toBe('Label');
+        }
       }
     });
 
@@ -225,8 +236,13 @@ describe('Bootstrap and Population Methods', () => {
       expect(bootstrapArg.isBootstrap()).toBe(true);
 
       // Add side labels
-      const updateResult = bootstrapArg.updateSideLabels({ left: 'New Label' });
-      expect(updateResult.isOk()).toBe(true);
+      const newLabelsResult = SideLabels.fromStrings({ left: 'New Label' });
+      expect(newLabelsResult.isOk()).toBe(true);
+
+      if (newLabelsResult.isOk()) {
+        const updateResult = bootstrapArg.updateSideLabels({ left: 'New Label' });
+        expect(updateResult.isOk()).toBe(true);
+      }
 
       // Should still be bootstrap
       expect(bootstrapArg.isBootstrap()).toBe(true);
@@ -240,8 +256,11 @@ describe('Bootstrap and Population Methods', () => {
       // Initially bootstrap
       expect(bootstrapArg.isBootstrap()).toBe(true);
 
+      // Import statement at the top is already fixed
       // Add premise reference
-      bootstrapArg.setPremiseSetRef(orderedSetIdFactory.build());
+      const premise = statementFactory.build();
+      const addPremiseResult = bootstrapArg.addPremise(premise);
+      expect(addPremiseResult.isOk()).toBe(true);
 
       // No longer bootstrap
       expect(bootstrapArg.isBootstrap()).toBe(false);

@@ -19,6 +19,17 @@ import type {
   WebviewPanel,
   WebviewPanelOptions,
 } from '../../application/ports/IUIPort.js';
+import {
+  type DocumentContent,
+  ErrorCode,
+  ErrorMessage,
+  type FilePath,
+  FontFamily,
+  FontSize,
+  MessageLength,
+  type NotificationMessage,
+  type WebviewId,
+} from '../../domain/shared/value-objects/index.js';
 
 export class VSCodeUIAdapter implements IUIPort {
   constructor(private readonly context: vscode.ExtensionContext) {}
@@ -26,19 +37,34 @@ export class VSCodeUIAdapter implements IUIPort {
   async showInputBox(options: InputBoxOptions): Promise<Result<string | null, UIError>> {
     try {
       if (!vscode.window?.showInputBox) {
+        const errorCode = ErrorCode.create('PLATFORM_ERROR');
+        const errorMessage = ErrorMessage.create('VS Code window.showInputBox is not available');
+
+        if (errorCode.isErr() || errorMessage.isErr()) {
+          const fallbackCode = ErrorCode.create('UNKNOWN');
+          const fallbackMessage = ErrorMessage.create(
+            'VS Code window.showInputBox is not available',
+          );
+          return err({
+            code: fallbackCode.isOk() ? fallbackCode.value : ({} as ErrorCode),
+            message: fallbackMessage.isOk() ? fallbackMessage.value : ({} as ErrorMessage),
+          });
+        }
+
         return err({
-          code: 'PLATFORM_ERROR',
-          message: 'VS Code window.showInputBox is not available',
+          code: errorCode.value,
+          message: errorMessage.value,
         });
       }
 
       const inputBoxOptions: vscode.InputBoxOptions = {
-        prompt: options.prompt,
+        prompt: options.prompt.getValue(),
       };
 
-      if (options.title !== undefined) inputBoxOptions.title = options.title;
+      if (options.title !== undefined) inputBoxOptions.title = options.title.getValue();
       if (options.value !== undefined) inputBoxOptions.value = options.value;
-      if (options.placeholder !== undefined) inputBoxOptions.placeHolder = options.placeholder;
+      if (options.placeholder !== undefined)
+        inputBoxOptions.placeHolder = options.placeholder.getValue();
       if (options.password !== undefined) inputBoxOptions.password = options.password;
       if (options.validateInput)
         inputBoxOptions.validateInput = (value) => options.validateInput?.(value);
@@ -47,9 +73,23 @@ export class VSCodeUIAdapter implements IUIPort {
 
       return ok(result || null);
     } catch (error) {
+      const errorCode = ErrorCode.create('PLATFORM_ERROR');
+      const errorMessage = ErrorMessage.create(
+        error instanceof Error ? error.message : 'Input box failed',
+      );
+
+      if (errorCode.isErr() || errorMessage.isErr()) {
+        const fallbackCode = ErrorCode.create('UNKNOWN');
+        const fallbackMessage = ErrorMessage.create('Input box failed');
+        return err({
+          code: fallbackCode.isOk() ? fallbackCode.value : ({} as ErrorCode),
+          message: fallbackMessage.isOk() ? fallbackMessage.value : ({} as ErrorMessage),
+        });
+      }
+
       return err({
-        code: 'PLATFORM_ERROR',
-        message: error instanceof Error ? error.message : 'Input box failed',
+        code: errorCode.value,
+        message: errorMessage.value,
       });
     }
   }
@@ -60,10 +100,9 @@ export class VSCodeUIAdapter implements IUIPort {
   ): Promise<Result<T | null, UIError>> {
     try {
       if (!vscode.window?.showQuickPick) {
-        return err({
-          code: 'PLATFORM_ERROR',
-          message: 'VS Code window.showQuickPick is not available',
-        });
+        return err(
+          this.createUIError('PLATFORM_ERROR', 'VS Code window.showQuickPick is not available'),
+        );
       }
 
       const vscodeItems = items.map((item) => {
@@ -78,8 +117,9 @@ export class VSCodeUIAdapter implements IUIPort {
       });
 
       const quickPickOptions: vscode.QuickPickOptions = {};
-      if (options?.title !== undefined) quickPickOptions.title = options.title;
-      if (options?.placeHolder !== undefined) quickPickOptions.placeHolder = options.placeHolder;
+      if (options?.title !== undefined) quickPickOptions.title = options.title.getValue();
+      if (options?.placeHolder !== undefined)
+        quickPickOptions.placeHolder = options.placeHolder.getValue();
       if (options?.canPickMany !== undefined) quickPickOptions.canPickMany = options.canPickMany;
       if (options?.matchOnDescription !== undefined)
         quickPickOptions.matchOnDescription = options.matchOnDescription;
@@ -95,20 +135,24 @@ export class VSCodeUIAdapter implements IUIPort {
       // Return original item
       return ok((result as vscode.QuickPickItem & { originalItem: T }).originalItem);
     } catch (error) {
-      return err({
-        code: 'PLATFORM_ERROR',
-        message: error instanceof Error ? error.message : 'Quick pick failed',
-      });
+      return err(
+        this.createUIError(
+          'PLATFORM_ERROR',
+          error instanceof Error ? error.message : 'Quick pick failed',
+        ),
+      );
     }
   }
 
   async showConfirmation(options: ConfirmationOptions): Promise<Result<boolean, UIError>> {
     try {
       if (!vscode.window?.showInformationMessage) {
-        return err({
-          code: 'PLATFORM_ERROR',
-          message: 'VS Code window.showInformationMessage is not available',
-        });
+        return err(
+          this.createUIError(
+            'PLATFORM_ERROR',
+            'VS Code window.showInformationMessage is not available',
+          ),
+        );
       }
 
       const messageOptions: vscode.MessageOptions = {
@@ -117,28 +161,29 @@ export class VSCodeUIAdapter implements IUIPort {
       if (options.detail !== undefined) messageOptions.detail = options.detail;
 
       const result = await vscode.window.showInformationMessage(
-        options.message,
+        options.message.getValue(),
         messageOptions,
-        options.confirmLabel || 'OK',
-        options.cancelLabel || 'Cancel',
+        options.confirmLabel?.getValue() || 'OK',
+        options.cancelLabel?.getValue() || 'Cancel',
       );
 
-      return ok(result === (options.confirmLabel || 'OK'));
+      return ok(result === (options.confirmLabel?.getValue() || 'OK'));
     } catch (error) {
-      return err({
-        code: 'PLATFORM_ERROR',
-        message: error instanceof Error ? error.message : 'Confirmation dialog failed',
-      });
+      return err(
+        this.createUIError(
+          'PLATFORM_ERROR',
+          error instanceof Error ? error.message : 'Confirmation dialog failed',
+        ),
+      );
     }
   }
 
   async showOpenDialog(options: OpenDialogOptions): Promise<Result<string[] | null, UIError>> {
     try {
       if (!vscode.window?.showOpenDialog) {
-        return err({
-          code: 'PLATFORM_ERROR',
-          message: 'VS Code window.showOpenDialog is not available',
-        });
+        return err(
+          this.createUIError('PLATFORM_ERROR', 'VS Code window.showOpenDialog is not available'),
+        );
       }
 
       const openDialogOptions: vscode.OpenDialogOptions = {};
@@ -146,14 +191,19 @@ export class VSCodeUIAdapter implements IUIPort {
       if (options.defaultUri !== undefined)
         openDialogOptions.defaultUri = vscode.Uri.parse(options.defaultUri);
       if (options.filters !== undefined)
-        openDialogOptions.filters = this.mapFileFilters(options.filters);
+        openDialogOptions.filters = this.mapFileFilters(
+          options.filters.map((f) => ({
+            name: f.name.getValue(),
+            extensions: f.extensions.toArray() as string[],
+          })),
+        );
       if (options.canSelectMany !== undefined)
         openDialogOptions.canSelectMany = options.canSelectMany;
       if (options.canSelectFolders !== undefined)
         openDialogOptions.canSelectFolders = options.canSelectFolders;
       if (options.canSelectFiles !== undefined)
         openDialogOptions.canSelectFiles = options.canSelectFiles;
-      if (options.title !== undefined) openDialogOptions.title = options.title;
+      if (options.title !== undefined) openDialogOptions.title = options.title.getValue();
 
       const result = await vscode.window.showOpenDialog(openDialogOptions);
 
@@ -163,10 +213,12 @@ export class VSCodeUIAdapter implements IUIPort {
 
       return ok(result.map((uri) => uri.fsPath));
     } catch (error) {
-      return err({
-        code: 'PLATFORM_ERROR',
-        message: error instanceof Error ? error.message : 'Open dialog failed',
-      });
+      return err(
+        this.createUIError(
+          'PLATFORM_ERROR',
+          error instanceof Error ? error.message : 'Open dialog failed',
+        ),
+      );
     }
   }
 
@@ -175,10 +227,9 @@ export class VSCodeUIAdapter implements IUIPort {
   ): Promise<Result<{ filePath: string; cancelled: boolean }, UIError>> {
     try {
       if (!vscode.window?.showSaveDialog) {
-        return err({
-          code: 'PLATFORM_ERROR',
-          message: 'VS Code window.showSaveDialog is not available',
-        });
+        return err(
+          this.createUIError('PLATFORM_ERROR', 'VS Code window.showSaveDialog is not available'),
+        );
       }
 
       const saveDialogOptions: vscode.SaveDialogOptions = {};
@@ -186,9 +237,15 @@ export class VSCodeUIAdapter implements IUIPort {
       if (options.defaultUri !== undefined)
         saveDialogOptions.defaultUri = vscode.Uri.parse(options.defaultUri);
       if (options.filters !== undefined)
-        saveDialogOptions.filters = this.mapFileFilters(options.filters);
-      if (options.saveLabel !== undefined) saveDialogOptions.saveLabel = options.saveLabel;
-      if (options.title !== undefined) saveDialogOptions.title = options.title;
+        saveDialogOptions.filters = this.mapFileFilters(
+          options.filters.map((f) => ({
+            name: f.name.getValue(),
+            extensions: f.extensions.toArray() as string[],
+          })),
+        );
+      if (options.saveLabel !== undefined)
+        saveDialogOptions.saveLabel = options.saveLabel.getValue();
+      if (options.title !== undefined) saveDialogOptions.title = options.title.getValue();
 
       const result = await vscode.window.showSaveDialog(saveDialogOptions);
 
@@ -197,81 +254,89 @@ export class VSCodeUIAdapter implements IUIPort {
         cancelled: !result,
       });
     } catch (error) {
-      return err({
-        code: 'PLATFORM_ERROR',
-        message: error instanceof Error ? error.message : 'Save dialog failed',
-      });
+      return err(
+        this.createUIError(
+          'PLATFORM_ERROR',
+          error instanceof Error ? error.message : 'Save dialog failed',
+        ),
+      );
     }
   }
 
-  showInformation(message: string, ...actions: NotificationAction[]): void {
+  showInformation(message: NotificationMessage, ...actions: NotificationAction[]): void {
     try {
       if (!vscode.window?.showInformationMessage) {
         return;
       }
 
       if (actions.length === 0) {
-        vscode.window.showInformationMessage(message);
+        vscode.window.showInformationMessage(message.getValue());
       } else {
-        vscode.window
-          .showInformationMessage(message, ...actions.map((a) => a.label))
-          .then((selected) => {
-            const action = actions.find((a) => a.label === selected);
-            if (action) {
-              action.callback();
-            }
-          })
-          .catch(() => {
-            // Handle callback errors gracefully
-          });
+        void vscode.window
+          .showInformationMessage(message.getValue(), ...actions.map((a) => a.label.getValue()))
+          .then(
+            (selected) => {
+              const action = actions.find((a) => a.label.getValue() === selected);
+              if (action) {
+                action.callback();
+              }
+            },
+            () => {
+              // Handle callback errors gracefully
+            },
+          );
       }
     } catch {
       // Handle gracefully when notification system is unavailable
     }
   }
 
-  showWarning(message: string, ...actions: NotificationAction[]): void {
+  showWarning(message: NotificationMessage, ...actions: NotificationAction[]): void {
     if (!vscode.window?.showWarningMessage) {
       return;
     }
 
     if (actions.length === 0) {
-      vscode.window.showWarningMessage(message);
+      vscode.window.showWarningMessage(message.getValue());
     } else {
-      vscode.window
-        .showWarningMessage(message, ...actions.map((a) => a.label))
-        .then((selected) => {
-          const action = actions.find((a) => a.label === selected);
-          if (action) {
-            action.callback();
-          }
-        })
-        .catch(() => {
-          // Handle callback errors gracefully
-        });
+      void vscode.window
+        .showWarningMessage(message.getValue(), ...actions.map((a) => a.label.getValue()))
+        .then(
+          (selected) => {
+            const action = actions.find((a) => a.label.getValue() === selected);
+            if (action) {
+              action.callback();
+            }
+          },
+          () => {
+            // Handle callback errors gracefully
+          },
+        );
     }
   }
 
-  showError(message: string, ...actions: NotificationAction[]): void {
+  showError(message: NotificationMessage, ...actions: NotificationAction[]): void {
     if (!vscode.window?.showErrorMessage) {
       return;
     }
 
     try {
       if (actions.length === 0) {
-        vscode.window.showErrorMessage(message);
+        vscode.window.showErrorMessage(message.getValue());
       } else {
-        vscode.window
-          .showErrorMessage(message, ...actions.map((a) => a.label))
-          .then((selected) => {
-            const action = actions.find((a) => a.label === selected);
-            if (action) {
-              action.callback();
-            }
-          })
-          .catch(() => {
-            // Handle callback errors gracefully
-          });
+        void vscode.window
+          .showErrorMessage(message.getValue(), ...actions.map((a) => a.label.getValue()))
+          .then(
+            (selected) => {
+              const action = actions.find((a) => a.label.getValue() === selected);
+              if (action) {
+                action.callback();
+              }
+            },
+            () => {
+              // Handle callback errors gracefully
+            },
+          );
       }
     } catch (error: unknown) {
       // Only handle extension host crashes gracefully, let other errors propagate
@@ -292,7 +357,7 @@ export class VSCodeUIAdapter implements IUIPort {
     return vscode.window.withProgress(
       {
         location,
-        title: options.title,
+        title: options.title.getValue(),
         ...(options.cancellable !== undefined && { cancellable: options.cancellable }),
       },
       async (progress, token) => {
@@ -352,8 +417,8 @@ export class VSCodeUIAdapter implements IUIPort {
     }
 
     const panel = vscode.window.createWebviewPanel(
-      options.viewType,
-      options.title,
+      options.viewType.getValue(),
+      options.title.getValue(),
       options.showOptions?.viewColumn || vscode.ViewColumn.One,
       {
         ...(options.enableScripts !== undefined && { enableScripts: options.enableScripts }),
@@ -364,7 +429,7 @@ export class VSCodeUIAdapter implements IUIPort {
     );
 
     return {
-      id: options.id,
+      id: options.id.getValue() as unknown as WebviewId,
       webview: {
         html: '',
         onDidReceiveMessage: (callback: (message: WebviewMessage) => void) => {
@@ -410,7 +475,7 @@ export class VSCodeUIAdapter implements IUIPort {
     };
   }
 
-  postMessageToWebview(_panelId: string, _message: WebviewMessage): void {
+  postMessageToWebview(_panelId: WebviewId, _message: WebviewMessage): void {
     // Implementation depends on webview panel management
   }
 
@@ -431,9 +496,18 @@ export class VSCodeUIAdapter implements IUIPort {
         success: 'var(--vscode-terminal-ansiGreen)',
       },
       fonts: {
-        default: 'var(--vscode-font-family)',
-        monospace: 'var(--vscode-editor-font-family)',
-        size: 13, // VS Code default
+        default: (() => {
+          const result = FontFamily.create('var(--vscode-font-family)');
+          return result.isOk() ? result.value : ({} as FontFamily);
+        })(),
+        monospace: (() => {
+          const result = FontFamily.create('var(--vscode-editor-font-family)');
+          return result.isOk() ? result.value : ({} as FontFamily);
+        })(),
+        size: (() => {
+          const result = FontSize.create(13);
+          return result.isOk() ? result.value : ({} as FontSize);
+        })(), // VS Code default
       },
     };
   }
@@ -462,24 +536,31 @@ export class VSCodeUIAdapter implements IUIPort {
     };
   }
 
-  async writeFile(filePath: string, content: string | Buffer): Promise<Result<void, UIError>> {
+  async writeFile(
+    filePath: FilePath,
+    content: DocumentContent | Buffer,
+  ): Promise<Result<void, UIError>> {
     try {
       if (!vscode.workspace?.fs?.writeFile) {
-        return err({
-          code: 'PLATFORM_ERROR',
-          message: 'VS Code workspace.fs.writeFile is not available',
-        });
+        return err(
+          this.createUIError('PLATFORM_ERROR', 'VS Code workspace.fs.writeFile is not available'),
+        );
       }
 
-      const uri = vscode.Uri.file(filePath);
-      const data = typeof content === 'string' ? Buffer.from(content, 'utf8') : content;
+      const uri = vscode.Uri.file(filePath.getValue());
+      const data =
+        content instanceof Buffer
+          ? content
+          : Buffer.from((content as DocumentContent).getValue(), 'utf8');
       await vscode.workspace.fs.writeFile(uri, data);
       return ok(undefined);
     } catch (error) {
-      return err({
-        code: 'PLATFORM_ERROR',
-        message: error instanceof Error ? error.message : 'Failed to write file',
-      });
+      return err(
+        this.createUIError(
+          'PLATFORM_ERROR',
+          error instanceof Error ? error.message : 'Failed to write file',
+        ),
+      );
     }
   }
 
@@ -491,11 +572,64 @@ export class VSCodeUIAdapter implements IUIPort {
       supportsStatusBar: true,
       supportsWebviews: true,
       supportsThemes: true,
-      maxMessageLength: 1000, // VS Code reasonable limit
+      maxMessageLength: (() => {
+        const result = MessageLength.create(1000);
+        return result.isOk() ? result.value : ({} as MessageLength);
+      })(), // VS Code reasonable limit
     };
   }
 
   // Helper methods
+  private createUIError(code: string, message: string): UIError {
+    const errorCode = ErrorCode.create(code);
+    const errorMessage = ErrorMessage.create(message);
+
+    if (errorCode.isErr()) {
+      const fallbackCode = ErrorCode.create('UNKNOWN');
+      if (fallbackCode.isErr()) {
+        // Ultimate fallback - create minimal valid value object
+        const minimalCode = ErrorCode.create('U');
+        const minimalMessage = ErrorMessage.create('Error');
+        return {
+          code: minimalCode.isOk() ? minimalCode.value : ({} as ErrorCode),
+          message: minimalMessage.isOk() ? minimalMessage.value : ({} as ErrorMessage),
+        };
+      }
+      const validMessage = errorMessage.isOk()
+        ? errorMessage.value
+        : (() => {
+            const fallbackMsg = ErrorMessage.create('Unknown error');
+            return fallbackMsg.isOk() ? fallbackMsg.value : ({} as ErrorMessage);
+          })();
+      return {
+        code: fallbackCode.value,
+        message: validMessage,
+      };
+    }
+
+    if (errorMessage.isErr()) {
+      // Truncate or fix message if it's invalid
+      const truncatedMessage = message.substring(0, 200);
+      const fallbackMessage = ErrorMessage.create(truncatedMessage);
+      if (fallbackMessage.isErr()) {
+        const minimalMessage = ErrorMessage.create('Error');
+        return {
+          code: errorCode.value,
+          message: minimalMessage.isOk() ? minimalMessage.value : ({} as ErrorMessage),
+        };
+      }
+      return {
+        code: errorCode.value,
+        message: fallbackMessage.value,
+      };
+    }
+
+    return {
+      code: errorCode.value,
+      message: errorMessage.value,
+    };
+  }
+
   private mapFileFilters(filters: { name: string; extensions: string[] }[]) {
     const result: { [name: string]: string[] } = {};
     filters.forEach((filter) => {

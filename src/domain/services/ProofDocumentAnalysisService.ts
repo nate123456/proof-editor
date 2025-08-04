@@ -1,11 +1,18 @@
-import type { AtomicArgument, StatementConnection } from '../entities/AtomicArgument.js';
+import type { AtomicArgument } from '../entities/AtomicArgument.js';
+import type { Statement } from '../entities/Statement.js';
 import { type AtomicArgumentId, ConnectionType } from '../shared/value-objects/index.js';
+
+// Local type for connections returned by AtomicArgument.findConnectionsTo
+interface LocalStatementConnection {
+  statement: Statement;
+  fromConclusionPosition: number;
+}
 
 export interface ArgumentConnection {
   type: ConnectionType;
   fromId: AtomicArgumentId;
   toId: AtomicArgumentId;
-  connection: StatementConnection;
+  connection: LocalStatementConnection;
 }
 
 export interface DocumentStats {

@@ -18,11 +18,7 @@ import { RepositoryError } from '../../errors/DomainErrors';
 import type { IAtomicArgumentRepository } from '../../repositories/IAtomicArgumentRepository';
 import type { ComplexityLevel, QueryOptions } from '../../shared/repository-types';
 import type { AtomicArgumentId, OrderedSetId, StatementId } from '../../shared/value-objects';
-import {
-  atomicArgumentIdFactory,
-  orderedSetIdFactory,
-  statementContentFactory,
-} from '../factories';
+import { atomicArgumentIdFactory, orderedSetIdFactory, statementContentFactory } from './factories';
 
 // Mock implementation of IAtomicArgumentRepository for testing
 class MockAtomicArgumentRepository implements IAtomicArgumentRepository {

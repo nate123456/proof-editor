@@ -1,6 +1,5 @@
 import { describe, expect, test } from 'vitest';
 import { AtomicArgument } from '../../entities/AtomicArgument.js';
-import { OrderedSet } from '../../entities/OrderedSet.js';
 import { Statement } from '../../entities/Statement.js';
 import { AtomicArgumentId } from '../../shared/value-objects/index.js';
 import { CycleDetectionService } from '../CycleDetectionService.js';
@@ -26,30 +25,25 @@ describe('CycleDetectionService', () => {
     const stmt2 = stmt2Result.value;
     const stmt3 = stmt3Result.value;
 
-    // Create shared OrderedSets for connections
-    const set1Result = OrderedSet.create([stmt1.getId()]);
-    const set2Result = OrderedSet.create([stmt2.getId()]);
-    const set3Result = OrderedSet.create([stmt3.getId()]);
+    // Create arguments that would form a cycle:
+    // arg1: [stmt1] -> [stmt2]
+    // arg2: [stmt2] -> [stmt3]
+    // arg3: [stmt3] -> [stmt1] (closes the cycle)
+    const arg1Result = AtomicArgument.create([stmt1], [stmt2]);
+    const arg2Result = AtomicArgument.create([stmt2], [stmt3]);
+    const arg3Result = AtomicArgument.create([stmt3], [stmt1]);
 
-    expect(set1Result.isOk()).toBe(true);
-    expect(set2Result.isOk()).toBe(true);
-    expect(set3Result.isOk()).toBe(true);
+    expect(arg1Result.isOk()).toBe(true);
+    expect(arg2Result.isOk()).toBe(true);
+    expect(arg3Result.isOk()).toBe(true);
 
-    if (!set1Result.isOk() || !set2Result.isOk() || !set3Result.isOk()) {
-      throw new Error('Failed to create ordered sets');
+    if (!arg1Result.isOk() || !arg2Result.isOk() || !arg3Result.isOk()) {
+      throw new Error('Failed to create arguments');
     }
 
-    const set1 = set1Result.value;
-    const set2 = set2Result.value;
-    const set3 = set3Result.value;
-
-    // Create arguments that would form a cycle:
-    // arg1: set1 -> set2
-    // arg2: set2 -> set3
-    // arg3: set3 -> set1 (closes the cycle)
-    const arg1 = AtomicArgument.createComplete(set1.getId(), set2.getId());
-    const arg2 = AtomicArgument.createComplete(set2.getId(), set3.getId());
-    const arg3 = AtomicArgument.createComplete(set3.getId(), set1.getId());
+    const arg1 = arg1Result.value;
+    const arg2 = arg2Result.value;
+    const arg3 = arg3Result.value;
 
     const argumentMap = new Map([
       [arg1.getId().getValue(), arg1],
@@ -60,10 +54,13 @@ describe('CycleDetectionService', () => {
     // Check if connecting arg3 to arg1 would create cycle
     const result = service.wouldCreateCycle(arg3, arg1, argumentMap);
 
-    expect(result.hasCycle).toBe(true);
-    expect(result.cyclePath).toBeDefined();
-    expect(result.cyclePath?.length).toBe(3);
-    expect(result.description).toContain('Logical cycle detected');
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value.hasCycle).toBe(true);
+      expect(result.value.cyclePath).toBeDefined();
+      expect(result.value.cyclePath?.length).toBe(3);
+      expect(result.value.description).toContain('Logical cycle detected');
+    }
   });
 
   test('does not detect cycle in valid chain', () => {
@@ -86,26 +83,19 @@ describe('CycleDetectionService', () => {
     const stmt2 = stmt2Result.value;
     const stmt3 = stmt3Result.value;
 
-    // Create OrderedSets for linear chain
-    const set1Result = OrderedSet.create([stmt1.getId()]);
-    const set2Result = OrderedSet.create([stmt2.getId()]);
-    const set3Result = OrderedSet.create([stmt3.getId()]);
+    // Create linear chain: arg1 (P -> Q), arg2 (Q -> R)
+    const arg1Result = AtomicArgument.create([stmt1], [stmt2]);
+    const arg2Result = AtomicArgument.create([stmt2], [stmt3]);
 
-    expect(set1Result.isOk()).toBe(true);
-    expect(set2Result.isOk()).toBe(true);
-    expect(set3Result.isOk()).toBe(true);
+    expect(arg1Result.isOk()).toBe(true);
+    expect(arg2Result.isOk()).toBe(true);
 
-    if (!set1Result.isOk() || !set2Result.isOk() || !set3Result.isOk()) {
-      throw new Error('Failed to create ordered sets');
+    if (!arg1Result.isOk() || !arg2Result.isOk()) {
+      throw new Error('Failed to create arguments');
     }
 
-    const set1 = set1Result.value;
-    const set2 = set2Result.value;
-    const set3 = set3Result.value;
-
-    // Create linear chain: arg1 (P -> Q), arg2 (Q -> R)
-    const arg1 = AtomicArgument.createComplete(set1.getId(), set2.getId());
-    const arg2 = AtomicArgument.createComplete(set2.getId(), set3.getId());
+    const arg1 = arg1Result.value;
+    const arg2 = arg2Result.value;
 
     const argumentMap = new Map([
       [arg1.getId().getValue(), arg1],
@@ -115,9 +105,12 @@ describe('CycleDetectionService', () => {
     // Check if connecting arg1 to arg2 would create cycle (it shouldn't)
     const result = service.wouldCreateCycle(arg1, arg2, argumentMap);
 
-    expect(result.hasCycle).toBe(false);
-    expect(result.cyclePath).toBeUndefined();
-    expect(result.description).toBeUndefined();
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value.hasCycle).toBe(false);
+      expect(result.value.cyclePath).toBeUndefined();
+      expect(result.value.description).toBeUndefined();
+    }
   });
 
   test('finds all cycles in argument graph', () => {
@@ -137,23 +130,19 @@ describe('CycleDetectionService', () => {
     const stmt1 = stmt1Result.value;
     const stmt2 = stmt2Result.value;
 
-    // Create sets for simple cycle
-    const setXResult = OrderedSet.create([stmt1.getId()]);
-    const setYResult = OrderedSet.create([stmt2.getId()]);
+    // Create cycle: arg1 (X -> Y), arg2 (Y -> X)
+    const arg1Result = AtomicArgument.create([stmt1], [stmt2]);
+    const arg2Result = AtomicArgument.create([stmt2], [stmt1]);
 
-    expect(setXResult.isOk()).toBe(true);
-    expect(setYResult.isOk()).toBe(true);
+    expect(arg1Result.isOk()).toBe(true);
+    expect(arg2Result.isOk()).toBe(true);
 
-    if (!setXResult.isOk() || !setYResult.isOk()) {
-      throw new Error('Failed to create ordered sets');
+    if (!arg1Result.isOk() || !arg2Result.isOk()) {
+      throw new Error('Failed to create arguments');
     }
 
-    const setX = setXResult.value;
-    const setY = setYResult.value;
-
-    // Create cycle: arg1 (X -> Y), arg2 (Y -> X)
-    const arg1 = AtomicArgument.createComplete(setX.getId(), setY.getId());
-    const arg2 = AtomicArgument.createComplete(setY.getId(), setX.getId());
+    const arg1 = arg1Result.value;
+    const arg2 = arg2Result.value;
 
     const argumentMap = new Map([
       [arg1.getId().getValue(), arg1],
@@ -162,11 +151,14 @@ describe('CycleDetectionService', () => {
 
     const cycles = service.findAllCycles(argumentMap);
 
-    expect(cycles.length).toBeGreaterThan(0);
-    if (cycles[0]) {
-      expect(cycles[0].argumentIds.length).toBe(2);
-      expect(cycles[0].sharedOrderedSets).toBeDefined();
-      expect(cycles[0].sharedOrderedSets.length).toBeGreaterThan(0);
+    expect(cycles.isOk()).toBe(true);
+    if (cycles.isOk()) {
+      expect(cycles.value.length).toBeGreaterThan(0);
+      if (cycles.value[0]) {
+        expect(cycles.value[0].argumentIds.length).toBe(2);
+        expect(cycles.value[0].sharedStatements).toBeDefined();
+        expect(cycles.value[0].sharedStatements.length).toBeGreaterThan(0);
+      }
     }
   });
 
@@ -187,23 +179,9 @@ describe('CycleDetectionService', () => {
     const stmt1 = stmt1Result.value;
     const stmt2 = stmt2Result.value;
 
-    // Create sets
-    const set1Result = OrderedSet.create([stmt1.getId()]);
-    const set2Result = OrderedSet.create([stmt2.getId()]);
-
-    expect(set1Result.isOk()).toBe(true);
-    expect(set2Result.isOk()).toBe(true);
-
-    if (!set1Result.isOk() || !set2Result.isOk()) {
-      throw new Error('Failed to create ordered sets');
-    }
-
-    const set1 = set1Result.value;
-    const set2 = set2Result.value;
-
     // Create definitional arguments (no premises - bootstrap style)
-    const arg1Result = AtomicArgument.create(undefined, set1.getId());
-    const arg2Result = AtomicArgument.create(undefined, set2.getId());
+    const arg1Result = AtomicArgument.create([], [stmt1]);
+    const arg2Result = AtomicArgument.create([], [stmt2]);
 
     expect(arg1Result.isOk()).toBe(true);
     expect(arg2Result.isOk()).toBe(true);
@@ -218,7 +196,7 @@ describe('CycleDetectionService', () => {
     const cycle = {
       argumentIds: [arg1.getId(), arg2.getId()],
       length: 2,
-      sharedOrderedSets: [set1.getId(), set2.getId()],
+      sharedStatements: [stmt1.getId(), stmt2.getId()],
     };
 
     const argumentMap = new Map([
@@ -251,33 +229,26 @@ describe('CycleDetectionService', () => {
 
     const stmt1 = stmt1Result.value;
     const stmt2 = stmt2Result.value;
-    const stmt3 = stmt3Result.value;
-
-    // Create sets
-    const set1Result = OrderedSet.create([stmt1.getId()]);
-    const set2Result = OrderedSet.create([stmt2.getId()]);
-    const set3Result = OrderedSet.create([stmt3.getId()]);
-
-    expect(set1Result.isOk()).toBe(true);
-    expect(set2Result.isOk()).toBe(true);
-    expect(set3Result.isOk()).toBe(true);
-
-    if (!set1Result.isOk() || !set2Result.isOk() || !set3Result.isOk()) {
-      throw new Error('Failed to create ordered sets');
-    }
-
-    const set1 = set1Result.value;
-    const set2 = set2Result.value;
-    const _set3 = set3Result.value;
+    const _stmt3 = stmt3Result.value;
 
     // Create deductive arguments (have premises)
-    const arg1 = AtomicArgument.createComplete(set1.getId(), set2.getId());
-    const arg2 = AtomicArgument.createComplete(set2.getId(), set1.getId());
+    const arg1Result = AtomicArgument.create([stmt1], [stmt2]);
+    const arg2Result = AtomicArgument.create([stmt2], [stmt1]);
+
+    expect(arg1Result.isOk()).toBe(true);
+    expect(arg2Result.isOk()).toBe(true);
+
+    if (!arg1Result.isOk() || !arg2Result.isOk()) {
+      throw new Error('Failed to create arguments');
+    }
+
+    const arg1 = arg1Result.value;
+    const arg2 = arg2Result.value;
 
     const cycle = {
       argumentIds: [arg1.getId(), arg2.getId()],
       length: 2,
-      sharedOrderedSets: [set1.getId(), set2.getId()],
+      sharedStatements: [stmt1.getId(), stmt2.getId()],
     };
 
     const argumentMap = new Map([
@@ -297,7 +268,10 @@ describe('CycleDetectionService', () => {
 
     const cycles = service.findAllCycles(new Map());
 
-    expect(cycles).toHaveLength(0);
+    expect(cycles.isOk()).toBe(true);
+    if (cycles.isOk()) {
+      expect(cycles.value).toHaveLength(0);
+    }
   });
 
   test('handles arguments without connections', () => {
@@ -324,7 +298,10 @@ describe('CycleDetectionService', () => {
 
     const cycles = service.findAllCycles(argumentMap);
 
-    expect(cycles).toHaveLength(0);
+    expect(cycles.isOk()).toBe(true);
+    if (cycles.isOk()) {
+      expect(cycles.value).toHaveLength(0);
+    }
   });
 
   test('wouldCreateCycle handles early path termination', () => {
@@ -340,32 +317,27 @@ describe('CycleDetectionService', () => {
       const stmt1 = stmt1Result.value;
       const stmt2 = stmt2Result.value;
 
-      const set1Result = OrderedSet.create([stmt1.getId()]);
-      const set2Result = OrderedSet.create([stmt2.getId()]);
+      // Create arguments that don't form a cycle
+      const arg1Result = AtomicArgument.create([stmt1], [stmt2]);
+      const arg2Result = AtomicArgument.create([stmt2], []); // Only has premise
 
-      expect(set1Result.isOk() && set2Result.isOk()).toBe(true);
+      expect(arg1Result.isOk()).toBe(true);
+      expect(arg2Result.isOk()).toBe(true);
 
-      if (set1Result.isOk() && set2Result.isOk()) {
-        const set1 = set1Result.value;
-        const set2 = set2Result.value;
+      if (arg1Result.isOk() && arg2Result.isOk()) {
+        const arg1 = arg1Result.value;
+        const arg2 = arg2Result.value;
 
-        // Create arguments that don't form a cycle
-        const arg1 = AtomicArgument.createComplete(set1.getId(), set2.getId());
-        const arg2Result = AtomicArgument.create(set2.getId()); // Only has premise
+        const argumentMap = new Map([
+          [arg1.getId().getValue(), arg1],
+          [arg2.getId().getValue(), arg2],
+        ]);
 
-        expect(arg2Result.isOk()).toBe(true);
+        const result = service.wouldCreateCycle(arg1, arg2, argumentMap);
 
-        if (arg2Result.isOk()) {
-          const arg2 = arg2Result.value;
-
-          const argumentMap = new Map([
-            [arg1.getId().getValue(), arg1],
-            [arg2.getId().getValue(), arg2],
-          ]);
-
-          const result = service.wouldCreateCycle(arg1, arg2, argumentMap);
-
-          expect(result.hasCycle).toBe(false);
+        expect(result.isOk()).toBe(true);
+        if (result.isOk()) {
+          expect(result.value.hasCycle).toBe(false);
         }
       }
     }
@@ -394,31 +366,25 @@ describe('CycleDetectionService', () => {
     const stmt3 = stmt3Result.value;
     const stmt4 = stmt4Result.value;
 
-    // Create ordered sets
-    const setAResult = OrderedSet.create([stmt1.getId()]);
-    const setBResult = OrderedSet.create([stmt2.getId()]);
-    const setCResult = OrderedSet.create([stmt3.getId()]);
-    const setDResult = OrderedSet.create([stmt4.getId()]);
+    // Create diamond pattern: A->B, A->C, B->D, C->D
+    const argABResult = AtomicArgument.create([stmt1], [stmt2]);
+    const argACResult = AtomicArgument.create([stmt1], [stmt3]);
+    const argBDResult = AtomicArgument.create([stmt2], [stmt4]);
+    const argCDResult = AtomicArgument.create([stmt3], [stmt4]);
 
-    expect(setAResult.isOk()).toBe(true);
-    expect(setBResult.isOk()).toBe(true);
-    expect(setCResult.isOk()).toBe(true);
-    expect(setDResult.isOk()).toBe(true);
+    expect(argABResult.isOk()).toBe(true);
+    expect(argACResult.isOk()).toBe(true);
+    expect(argBDResult.isOk()).toBe(true);
+    expect(argCDResult.isOk()).toBe(true);
 
-    if (!setAResult.isOk() || !setBResult.isOk() || !setCResult.isOk() || !setDResult.isOk()) {
-      throw new Error('Failed to create ordered sets');
+    if (!argABResult.isOk() || !argACResult.isOk() || !argBDResult.isOk() || !argCDResult.isOk()) {
+      throw new Error('Failed to create arguments');
     }
 
-    const setA = setAResult.value;
-    const setB = setBResult.value;
-    const setC = setCResult.value;
-    const setD = setDResult.value;
-
-    // Create diamond pattern: A->B, A->C, B->D, C->D
-    const argAB = AtomicArgument.createComplete(setA.getId(), setB.getId());
-    const argAC = AtomicArgument.createComplete(setA.getId(), setC.getId());
-    const argBD = AtomicArgument.createComplete(setB.getId(), setD.getId());
-    const argCD = AtomicArgument.createComplete(setC.getId(), setD.getId());
+    const argAB = argABResult.value;
+    const argAC = argACResult.value;
+    const argBD = argBDResult.value;
+    const argCD = argCDResult.value;
 
     const _argumentMap = new Map([
       [argAB.getId().getValue(), argAB],
@@ -429,7 +395,11 @@ describe('CycleDetectionService', () => {
 
     // Test connecting D back to A, then checking if A->B would create a cycle
     // First add D->A to the argument map
-    const argDA = AtomicArgument.createComplete(setD.getId(), setA.getId());
+    const argDAResult = AtomicArgument.create([stmt4], [stmt1]);
+    expect(argDAResult.isOk()).toBe(true);
+    if (!argDAResult.isOk()) return;
+    const argDA = argDAResult.value;
+
     const extendedArgumentMap = new Map([
       [argAB.getId().getValue(), argAB],
       [argAC.getId().getValue(), argAC],
@@ -442,7 +412,10 @@ describe('CycleDetectionService', () => {
     const result = service.wouldCreateCycle(argAB, argBD, extendedArgumentMap);
 
     // This creates a cycle: A->B->D->A
-    expect(result.hasCycle).toBe(true);
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      expect(result.value.hasCycle).toBe(true);
+    }
   });
 
   test('findAllCycles handles invalid AtomicArgumentId creation', () => {
@@ -460,7 +433,10 @@ describe('CycleDetectionService', () => {
     // Should handle invalid ID gracefully
     const cycles = service.findAllCycles(argumentMap);
 
-    expect(cycles).toHaveLength(0);
+    expect(cycles.isOk()).toBe(true);
+    if (cycles.isOk()) {
+      expect(cycles.value).toHaveLength(0);
+    }
   });
 
   test('findAllCycles handles undefined lowlinks and indices', () => {
@@ -476,18 +452,15 @@ describe('CycleDetectionService', () => {
       const stmt1 = stmt1Result.value;
       const stmt2 = stmt2Result.value;
 
-      const set1Result = OrderedSet.create([stmt1.getId()]);
-      const set2Result = OrderedSet.create([stmt2.getId()]);
+      // Create arguments that form a strongly connected component
+      const arg1Result = AtomicArgument.create([stmt1], [stmt2]);
+      const arg2Result = AtomicArgument.create([stmt2], [stmt1]);
 
-      expect(set1Result.isOk() && set2Result.isOk()).toBe(true);
+      expect(arg1Result.isOk() && arg2Result.isOk()).toBe(true);
 
-      if (set1Result.isOk() && set2Result.isOk()) {
-        const set1 = set1Result.value;
-        const set2 = set2Result.value;
-
-        // Create arguments that form a strongly connected component
-        const arg1 = AtomicArgument.createComplete(set1.getId(), set2.getId());
-        const arg2 = AtomicArgument.createComplete(set2.getId(), set1.getId());
+      if (arg1Result.isOk() && arg2Result.isOk()) {
+        const arg1 = arg1Result.value;
+        const arg2 = arg2Result.value;
 
         const argumentMap = new Map([
           [arg1.getId().getValue(), arg1],
@@ -496,8 +469,11 @@ describe('CycleDetectionService', () => {
 
         const cycles = service.findAllCycles(argumentMap);
 
-        expect(cycles.length).toBeGreaterThan(0);
-        expect(cycles[0]?.argumentIds.length).toBe(2);
+        expect(cycles.isOk()).toBe(true);
+        if (cycles.isOk()) {
+          expect(cycles.value.length).toBeGreaterThan(0);
+          expect(cycles.value[0]?.argumentIds.length).toBe(2);
+        }
       }
     }
   });
@@ -516,7 +492,7 @@ describe('CycleDetectionService', () => {
       const cycle = {
         argumentIds: [validArg.getId(), nonExistentId],
         length: 2,
-        sharedOrderedSets: [],
+        sharedStatements: [],
       };
 
       const argumentMap = new Map([
@@ -548,44 +524,33 @@ describe('CycleDetectionService', () => {
       const stmt2 = stmt2Result.value;
       const stmt3 = stmt3Result.value;
 
-      const set1Result = OrderedSet.create([stmt1.getId()]);
-      const set2Result = OrderedSet.create([stmt2.getId()]);
-      const set3Result = OrderedSet.create([stmt3.getId()]);
+      // Create mixed arguments: one definitional, one deductive
+      const definitionalArgResult = AtomicArgument.create([], [stmt1]);
+      const deductiveArgResult = AtomicArgument.create([stmt2], [stmt3]);
 
-      expect(set1Result.isOk() && set2Result.isOk() && set3Result.isOk()).toBe(true);
+      expect(definitionalArgResult.isOk() && deductiveArgResult.isOk()).toBe(true);
 
-      if (set1Result.isOk() && set2Result.isOk() && set3Result.isOk()) {
-        const set1 = set1Result.value;
-        const set2 = set2Result.value;
-        const set3 = set3Result.value;
+      if (definitionalArgResult.isOk() && deductiveArgResult.isOk()) {
+        const definitionalArg = definitionalArgResult.value;
+        const deductiveArg = deductiveArgResult.value;
 
-        // Create mixed arguments: one definitional, one deductive
-        const definitionalArgResult = AtomicArgument.create(undefined, set1.getId());
-        const deductiveArg = AtomicArgument.createComplete(set2.getId(), set3.getId());
+        const cycle = {
+          argumentIds: [definitionalArg.getId(), deductiveArg.getId()],
+          length: 2,
+          sharedStatements: [],
+        };
 
-        expect(definitionalArgResult.isOk()).toBe(true);
+        const argumentMap = new Map([
+          [definitionalArg.getId().getValue(), definitionalArg],
+          [deductiveArg.getId().getValue(), deductiveArg],
+        ]);
 
-        if (definitionalArgResult.isOk()) {
-          const definitionalArg = definitionalArgResult.value;
+        const severity = service.analyzeCycleSeverity(cycle, argumentMap);
 
-          const cycle = {
-            argumentIds: [definitionalArg.getId(), deductiveArg.getId()],
-            length: 2,
-            sharedOrderedSets: [],
-          };
-
-          const argumentMap = new Map([
-            [definitionalArg.getId().getValue(), definitionalArg],
-            [deductiveArg.getId().getValue(), deductiveArg],
-          ]);
-
-          const severity = service.analyzeCycleSeverity(cycle, argumentMap);
-
-          // Mixed cycles should be high severity
-          expect(severity.severity).toBe('high');
-          expect(severity.isAcceptable).toBe(false);
-          expect(severity.reason).toContain('Circular logical dependencies');
-        }
+        // Mixed cycles should be high severity
+        expect(severity.severity).toBe('high');
+        expect(severity.isAcceptable).toBe(false);
+        expect(severity.reason).toContain('Circular logical dependencies');
       }
     }
   });
@@ -615,41 +580,34 @@ describe('CycleDetectionService', () => {
 
     if (stmt1Result.isOk()) {
       const stmt1 = stmt1Result.value;
-      const setResult = OrderedSet.create([stmt1.getId()]);
-      expect(setResult.isOk()).toBe(true);
+      // Create arguments: one with no premise, one with premise
+      const argNoPremiseResult = AtomicArgument.create([], [stmt1]);
+      const argWithPremiseResult = AtomicArgument.create([stmt1], []);
 
-      if (setResult.isOk()) {
-        const set = setResult.value;
+      expect(argNoPremiseResult.isOk() && argWithPremiseResult.isOk()).toBe(true);
 
-        // Create arguments: one with no premise, one with premise
-        const argNoPremiseResult = AtomicArgument.create(undefined, set.getId());
-        const argWithPremiseResult = AtomicArgument.create(set.getId());
+      if (argNoPremiseResult.isOk() && argWithPremiseResult.isOk()) {
+        const argNoPremise = argNoPremiseResult.value;
+        const argWithPremise = argWithPremiseResult.value;
 
-        expect(argNoPremiseResult.isOk() && argWithPremiseResult.isOk()).toBe(true);
+        const argumentMap = new Map([
+          [argNoPremise.getId().getValue(), argNoPremise],
+          [argWithPremise.getId().getValue(), argWithPremise],
+        ]);
 
-        if (argNoPremiseResult.isOk() && argWithPremiseResult.isOk()) {
-          const argNoPremise = argNoPremiseResult.value;
-          const argWithPremise = argWithPremiseResult.value;
+        // Access private method for testing
+        const graph = (service as any).buildLogicalDependencyGraph(argumentMap);
 
-          const argumentMap = new Map([
-            [argNoPremise.getId().getValue(), argNoPremise],
-            [argWithPremise.getId().getValue(), argWithPremise],
-          ]);
+        expect(graph).toBeInstanceOf(Map);
+        expect(graph.size).toBe(2);
 
-          // Access private method for testing
-          const graph = (service as any).buildLogicalDependencyGraph(argumentMap);
+        // Argument without premise should have no dependencies
+        const noPremiseDeps = graph.get(argNoPremise.getId().getValue());
+        expect(noPremiseDeps).toEqual([]);
 
-          expect(graph).toBeInstanceOf(Map);
-          expect(graph.size).toBe(2);
-
-          // Argument without premise should have no dependencies
-          const noPremiseDeps = graph.get(argNoPremise.getId().getValue());
-          expect(noPremiseDeps).toEqual([]);
-
-          // Argument with premise should have dependencies
-          const withPremiseDeps = graph.get(argWithPremise.getId().getValue());
-          expect(withPremiseDeps).toBeDefined();
-        }
+        // Argument with premise should have dependencies
+        const withPremiseDeps = graph.get(argWithPremise.getId().getValue());
+        expect(withPremiseDeps).toBeDefined();
       }
     }
   });

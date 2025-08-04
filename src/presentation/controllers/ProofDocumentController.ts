@@ -23,6 +23,7 @@ import type { CrossContextOrchestrationService } from '../../application/service
 import type { DocumentOrchestrationService } from '../../application/services/DocumentOrchestrationService.js';
 import type { DocumentQueryService } from '../../application/services/DocumentQueryService.js';
 import type { ProofVisualizationService } from '../../application/services/ProofVisualizationService.js';
+import { DocumentContent, FilePath } from '../../domain/shared/value-objects/index.js';
 import { TOKENS } from '../../infrastructure/di/tokens.js';
 import type { YAMLSerializer } from '../../infrastructure/repositories/yaml/YAMLSerializer.js';
 import type { IController, ViewResponse } from './IController.js';
@@ -78,16 +79,11 @@ export class ProofDocumentController implements IController {
     private readonly orchestrationService: CrossContextOrchestrationService,
     @inject(TOKENS.DocumentOrchestrationService)
     private readonly documentOrchestration: DocumentOrchestrationService,
-    @inject(TOKENS.DocumentQueryService)
-    private readonly documentQuery: DocumentQueryService,
-    @inject(TOKENS.IFileSystemPort)
-    private readonly fileSystem: IFileSystemPort,
-    @inject(TOKENS.IPlatformPort)
-    private readonly platform: IPlatformPort,
-    @inject(TOKENS.IUIPort)
-    private readonly ui: IUIPort,
-    @inject(TOKENS.YAMLSerializer)
-    private readonly yamlSerializer: YAMLSerializer,
+    @inject(TOKENS.DocumentQueryService) private readonly documentQuery: DocumentQueryService,
+    @inject(TOKENS.IFileSystemPort) private readonly fileSystem: IFileSystemPort,
+    @inject(TOKENS.IPlatformPort) private readonly platform: IPlatformPort,
+    @inject(TOKENS.IUIPort) private readonly ui: IUIPort,
+    @inject(TOKENS.YAMLSerializer) private readonly yamlSerializer: YAMLSerializer,
     @inject(TOKENS.ProofVisualizationService)
     private readonly visualizationService: ProofVisualizationService,
   ) {}
@@ -170,7 +166,12 @@ export class ProofDocumentController implements IController {
       const _command: LoadDocumentCommand = { path: path.trim() };
 
       // Use file system to read file content
-      const fileResult = await this.fileSystem.readFile(path.trim());
+      const filePathResult = FilePath.create(path.trim());
+      if (filePathResult.isErr()) {
+        return err(new ValidationApplicationError('Invalid file path'));
+      }
+
+      const fileResult = await this.fileSystem.readFile(filePathResult.value);
       if (fileResult.isErr()) {
         return err(
           new ValidationApplicationError(`Failed to read file: ${fileResult.error.message}`),
@@ -178,7 +179,9 @@ export class ProofDocumentController implements IController {
       }
 
       // Parse the document content
-      const parseResult = await this.documentOrchestration.parseDocument(fileResult.value);
+      const parseResult = await this.documentOrchestration.parseDocument(
+        fileResult.value.getValue(),
+      );
       if (parseResult.isErr()) {
         return err(
           new ValidationApplicationError(`Failed to parse document: ${parseResult.error.message}`),
@@ -276,7 +279,20 @@ atomicArguments: {}
 trees: {}
 `;
 
-        const saveResult = await this.fileSystem.writeFile(trimmedPath, minimalYaml);
+        const filePathResult = FilePath.create(trimmedPath);
+        if (filePathResult.isErr()) {
+          return err(new ValidationApplicationError('Invalid file path'));
+        }
+
+        const contentResult = DocumentContent.create(minimalYaml);
+        if (contentResult.isErr()) {
+          return err(new ValidationApplicationError('Invalid document content'));
+        }
+
+        const saveResult = await this.fileSystem.writeFile(
+          filePathResult.value,
+          contentResult.value,
+        );
         if (saveResult.isErr()) {
           return err(
             new ValidationApplicationError(`Failed to save file: ${saveResult.error.message}`),
@@ -431,16 +447,14 @@ trees: {}
               schemaVersion: '1.0.0',
             },
             statements: document.statements || {},
-            orderedSets: Object.fromEntries(
-              Object.entries(document.orderedSets || {}).map(([id, set]) => [id, set.statementIds]),
-            ),
+            // OrderedSets are handled internally by the domain layer
             atomicArguments: Object.fromEntries(
               Object.entries(document.atomicArguments || {}).map(([id, arg]) => [
                 id,
                 {
-                  premises: arg.premiseSetId,
-                  conclusions: arg.conclusionSetId,
-                  ...(arg.sideLabels?.left && { sideLabel: arg.sideLabels.left }),
+                  premises: arg.premiseIds.map((id) => id.getValue()),
+                  conclusions: arg.conclusionIds.map((id) => id.getValue()),
+                  ...(arg.sideLabels?.left && { sideLabel: arg.sideLabels.left.getValue() }),
                 },
               ]),
             ),
@@ -448,7 +462,10 @@ trees: {}
               Object.entries(document.trees || {}).map(([id, tree]) => [
                 id,
                 {
-                  offset: tree.position,
+                  offset: {
+                    x: tree.position.getX(),
+                    y: tree.position.getY(),
+                  },
                   nodes: {}, // Would need actual node structure
                 },
               ]),
@@ -485,16 +502,16 @@ trees: {}
 
           // Convert visualization to SVG
           const visualization = visualizationResult.value;
-          const svgWidth = visualization.totalDimensions.width;
-          const svgHeight = visualization.totalDimensions.height;
+          const svgWidth = visualization.totalDimensions.getWidth();
+          const svgHeight = visualization.totalDimensions.getHeight();
 
           let svgContent = `<svg width="${svgWidth}" height="${svgHeight}" xmlns="http://www.w3.org/2000/svg">`;
           svgContent += `<rect width="100%" height="100%" fill="white"/>`;
 
           // Add trees as basic rectangles (simplified visualization)
           for (const tree of visualization.trees) {
-            const x = tree.bounds.width / 2 - 50;
-            const y = tree.bounds.height / 2 - 25;
+            const x = tree.bounds.getWidth() / 2 - 50;
+            const y = tree.bounds.getHeight() / 2 - 25;
             svgContent += `<rect x="${x}" y="${y}" width="100" height="50" fill="lightblue" stroke="blue"/>`;
             svgContent += `<text x="${x + 50}" y="${y + 30}" text-anchor="middle" font-family="Arial" font-size="12">Tree ${tree.id}</text>`;
           }
@@ -663,8 +680,8 @@ trees: {}
       // Calculate average tree depth (simplified - would need actual tree analysis)
       const averageTreeDepth = totalTrees > 0 ? 2.5 : 0; // Placeholder calculation
 
-      // Calculate connection count from ordered sets
-      const connectionCount = Object.keys(document.orderedSets || {}).length;
+      // Calculate connection count from arguments
+      const connectionCount = totalArguments; // Simplified - each argument represents a connection
 
       // Calculate completeness score (simplified)
       const completenessScore = totalStatements > 0 && totalArguments > 0 ? 85 : 0;
@@ -728,9 +745,9 @@ trees: {}
           errorCount: status.errors?.length || 0,
           warningCount: 0, // Not tracked in current stats
           errors: (status.errors || []).map((error) => ({
-            code: error.code || 'VALIDATION_ERROR',
-            message: error.message || String(error),
-            severity: error.severity || ('error' as const),
+            code: error.code.getValue(),
+            message: error.message.getValue(),
+            severity: error.severity,
           })),
         };
       } else {
@@ -744,8 +761,6 @@ trees: {}
         // Check for basic consistency
         const statements = Object.keys(document.statements || {}).length;
         const atomicArguments = Object.keys(document.atomicArguments || {}).length;
-        const orderedSets = Object.keys(document.orderedSets || {}).length;
-
         if (statements > 0 && atomicArguments === 0) {
           errors.push({
             code: 'NO_ARGUMENTS',
@@ -754,10 +769,10 @@ trees: {}
           });
         }
 
-        if (atomicArguments > 0 && orderedSets === 0) {
+        if (atomicArguments > 0 && statements === 0) {
           errors.push({
-            code: 'NO_ORDERED_SETS',
-            message: 'Document has atomic arguments but no ordered sets',
+            code: 'NO_STATEMENTS',
+            message: 'Document has atomic arguments but no statements',
             severity: 'warning',
           });
         }

@@ -93,15 +93,15 @@ export class Statement {
   }
 
   getUsageCount(): number {
-    return this.usageCount.value;
+    return this.usageCount.getValue();
   }
 
   getCreatedAt(): number {
-    return this.createdAt.value;
+    return this.createdAt.getValue();
   }
 
   getModifiedAt(): number {
-    return this.modifiedAt.value;
+    return this.modifiedAt.getValue();
   }
 
   updateContent(newContent: string): Result<Statement, ValidationError> {

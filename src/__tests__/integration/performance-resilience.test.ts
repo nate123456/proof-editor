@@ -18,6 +18,7 @@ import {
   DocumentVersion,
   FileSize,
   Position2D,
+  Timestamp,
   Title,
   ZoomLevel,
 } from '../../domain/shared/value-objects/index.js';
@@ -483,7 +484,7 @@ describe('Performance and Resilience Integration Tests', () => {
           metadata: {
             id: docIdResult.value,
             title: titleResult.value,
-            modifiedAt: new Date(),
+            modifiedAt: Timestamp.now(),
             size: sizeResult.value,
             syncStatus: 'synced' as const,
           },
@@ -761,7 +762,7 @@ describe('Performance and Resilience Integration Tests', () => {
           metadata: {
             id: docIdResult.value,
             title: titleResult.value,
-            modifiedAt: new Date(),
+            modifiedAt: Timestamp.now(),
             size: sizeResult.value,
             syncStatus: 'synced' as const,
           },

@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Tree } from '../../entities/Tree';
 import { ValidationError } from '../../shared/result';
-import { nodeIdFactory } from '../factories';
+import { nodeIdFactory } from './factories';
 
 describe('Tree Content Management', () => {
   let mockDateNow: ReturnType<typeof vi.fn>;

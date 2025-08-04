@@ -105,12 +105,9 @@ export class BootstrapController implements IController {
     private readonly documentOrchestration: DocumentOrchestrationService,
     @inject(TOKENS.ProofApplicationService)
     private readonly proofApplication: ProofApplicationService,
-    @inject(TOKENS.IProofDocumentRepository)
-    private readonly repository: IProofDocumentRepository,
-    @inject(TOKENS.IPlatformPort)
-    private readonly platform: IPlatformPort,
-    @inject(TOKENS.IUIPort)
-    private readonly ui: IUIPort,
+    @inject(TOKENS.IProofDocumentRepository) private readonly repository: IProofDocumentRepository,
+    @inject(TOKENS.IPlatformPort) private readonly platform: IPlatformPort,
+    @inject(TOKENS.IUIPort) private readonly ui: IUIPort,
   ) {}
 
   async initialize(): Promise<Result<void, ValidationApplicationError>> {
@@ -235,13 +232,13 @@ export class BootstrapController implements IController {
         );
       }
 
-      const document = await this.repository.findById(documentIdResult.value);
-      if (!document) {
+      const documentResult = await this.repository.findById(documentIdResult.value);
+      if (documentResult.isErr()) {
         return err(new ValidationApplicationError('Document not found'));
       }
 
       // Create bootstrap atomic argument (empty premises and conclusions)
-      const addArgumentResult = document.createAtomicArgument(null, null);
+      const addArgumentResult = documentResult.value.createAtomicArgument(undefined, undefined);
       if (addArgumentResult.isErr()) {
         return err(
           new ValidationApplicationError(
@@ -253,7 +250,7 @@ export class BootstrapController implements IController {
       const bootstrapArgument = addArgumentResult.value;
 
       // Save the updated document
-      const saveResult = await this.repository.save(document);
+      const saveResult = await this.repository.save(documentResult.value);
       if (saveResult.isErr()) {
         return err(
           new ValidationApplicationError(`Failed to save document: ${saveResult.error.message}`),
@@ -393,7 +390,7 @@ export class BootstrapController implements IController {
       }
 
       const populatedArgumentViewDTO: PopulatedArgumentViewDTO = {
-        argumentId: argumentResult.value.id,
+        argumentId: argumentResult.value.id.getValue(),
         premises: command.premiseContents,
         conclusions: command.conclusionContents,
         isComplete: true,

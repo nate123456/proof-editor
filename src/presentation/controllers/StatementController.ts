@@ -79,12 +79,9 @@ export class StatementController implements IController {
     private readonly orchestrationService: CrossContextOrchestrationService,
     @inject(TOKENS.ProofApplicationService)
     private readonly proofApplication: ProofApplicationService,
-    @inject(TOKENS.DocumentQueryService)
-    private readonly documentQuery: DocumentQueryService,
-    @inject(TOKENS.IPlatformPort)
-    private readonly platform: IPlatformPort,
-    @inject(TOKENS.IUIPort)
-    private readonly ui: IUIPort,
+    @inject(TOKENS.DocumentQueryService) private readonly documentQuery: DocumentQueryService,
+    @inject(TOKENS.IPlatformPort) private readonly platform: IPlatformPort,
+    @inject(TOKENS.IUIPort) private readonly ui: IUIPort,
   ) {}
 
   async initialize(): Promise<Result<void, ValidationApplicationError>> {

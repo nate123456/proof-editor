@@ -1,26 +1,47 @@
 import { err, ok, type Result } from 'neverthrow';
 import type { CreateStatementCommand } from '../../../application/commands/statement-commands.js';
 import type { IExportService } from '../../../application/ports/IExportService.js';
-import type { IUIPort } from '../../../application/ports/IUIPort.js';
+import type { IUIPort, QuickPickOptions } from '../../../application/ports/IUIPort.js';
 import type { DocumentDTO } from '../../../application/queries/document-queries.js';
 import type { IDocumentIdService } from '../../../application/services/DocumentIdService.js';
 import type { ProofApplicationService } from '../../../application/services/ProofApplicationService.js';
 import { ValidationError } from '../../../domain/shared/result.js';
+import { EventData } from '../../../domain/shared/value-objects/content.js';
+import { MessageType } from '../../../domain/shared/value-objects/enums.js';
+import {
+  NodeId,
+  StatementId,
+  WebviewId,
+} from '../../../domain/shared/value-objects/identifiers.js';
+import {
+  DialogTitle,
+  NotificationMessage,
+  PlaceholderText,
+} from '../../../domain/shared/value-objects/ui.js';
 import type { BootstrapController } from '../../../presentation/controllers/BootstrapController.js';
 
 /**
  * Handles argument-specific operations for ProofTreePanel
  */
 export class ArgumentOperations {
+  private readonly webviewId: WebviewId;
+
   constructor(
     private readonly proofApplicationService: ProofApplicationService,
     private readonly bootstrapController: BootstrapController,
     private readonly exportService: IExportService,
     private readonly documentIdService: IDocumentIdService,
     private readonly uiPort: IUIPort,
-    private readonly panelId: string,
+    panelId: string,
     private readonly documentUri: string,
-  ) {}
+  ) {
+    // Create WebviewId from panelId string
+    const webviewIdResult = WebviewId.create(panelId);
+    if (webviewIdResult.isErr()) {
+      throw new Error(`Invalid panel ID: ${webviewIdResult.error.message}`);
+    }
+    this.webviewId = webviewIdResult.value;
+  }
 
   /**
    * Extract document ID from URI
@@ -40,20 +61,31 @@ export class ArgumentOperations {
   ): Promise<Result<{ argumentId: string }, ValidationError>> {
     const documentId = this.extractDocumentIdFromUri();
     if (!documentId) {
-      this.uiPort.showError('Could not determine document ID');
+      const errorMsg = NotificationMessage.create('Could not determine document ID');
+      if (errorMsg.isOk()) {
+        this.uiPort.showError(errorMsg.value);
+      }
       return err(new ValidationError('Could not determine document ID'));
     }
 
     // First create an empty bootstrap argument
     const createResult = await this.bootstrapController.createBootstrapArgument(documentId);
     if (createResult.isErr()) {
-      this.uiPort.showError(createResult.error.message);
-      return createResult;
+      const notificationResult = NotificationMessage.create(createResult.error.message);
+      if (notificationResult.isOk()) {
+        this.uiPort.showError(notificationResult.value);
+      }
+      return err(new ValidationError(createResult.error.message));
     }
 
     const argumentId = createResult.value.data?.argumentId;
     if (!argumentId) {
-      this.uiPort.showError('Failed to get argument ID from created argument');
+      const notificationResult = NotificationMessage.create(
+        'Failed to get argument ID from created argument',
+      );
+      if (notificationResult.isOk()) {
+        this.uiPort.showError(notificationResult.value);
+      }
       return err(new ValidationError('Failed to get argument ID from created argument'));
     }
 
@@ -67,15 +99,23 @@ export class ArgumentOperations {
     );
 
     if (result.isErr()) {
-      this.uiPort.showError(result.error.message);
-      return result;
+      const notificationResult = NotificationMessage.create(result.error.message);
+      if (notificationResult.isOk()) {
+        this.uiPort.showError(notificationResult.value);
+      }
+      return err(new ValidationError(result.error.message));
     }
 
     // Notify webview of success
-    this.uiPort.postMessageToWebview(this.panelId, {
-      type: 'argumentCreated',
+    const eventData = EventData.create({
       argumentId: result.value.data?.argumentId,
     });
+    if (eventData.isOk()) {
+      this.uiPort.postMessageToWebview(this.webviewId, {
+        type: MessageType.ARGUMENT_CREATED,
+        data: eventData.value,
+      });
+    }
 
     return result.map(() => ({ argumentId }));
   }
@@ -89,7 +129,10 @@ export class ArgumentOperations {
   ): Promise<Result<{ statementId: string; content: string }, ValidationError>> {
     const documentId = this.extractDocumentIdFromUri();
     if (!documentId) {
-      this.uiPort.showError('Could not determine document ID');
+      const errorMsg = NotificationMessage.create('Could not determine document ID');
+      if (errorMsg.isOk()) {
+        this.uiPort.showError(errorMsg.value);
+      }
       return err(new ValidationError('Could not determine document ID'));
     }
 
@@ -103,24 +146,34 @@ export class ArgumentOperations {
     const result = await this.proofApplicationService.createStatement(command);
 
     if (result.isErr()) {
-      this.uiPort.showError(result.error.message);
-      return result;
+      const notificationResult = NotificationMessage.create(result.error.message);
+      if (notificationResult.isOk()) {
+        this.uiPort.showError(notificationResult.value);
+      }
+      return err(new ValidationError(result.error.message));
     }
 
     // Notify webview of success
-    this.uiPort.postMessageToWebview(this.panelId, {
-      type: 'statementAdded',
+    const eventData = EventData.create({
       statementType,
       statementId: result.value.id,
       content: result.value.content,
     });
+    if (eventData.isOk()) {
+      this.uiPort.postMessageToWebview(this.webviewId, {
+        type: MessageType.STATEMENT_ADDED,
+        data: eventData.value,
+      });
+    }
 
     // Show success message
-    this.uiPort.showInformation(
-      `${statementType === 'premise' ? 'Premise' : 'Conclusion'} added successfully`,
-    );
+    const successMessage = `${statementType === 'premise' ? 'Premise' : 'Conclusion'} added successfully`;
+    const notificationResult = NotificationMessage.create(successMessage);
+    if (notificationResult.isOk()) {
+      this.uiPort.showInformation(notificationResult.value);
+    }
 
-    return result;
+    return ok({ statementId: result.value.id, content: result.value.content });
   }
 
   /**
@@ -132,7 +185,10 @@ export class ArgumentOperations {
   ): Promise<Result<void, ValidationError>> {
     const documentId = this.extractDocumentIdFromUri();
     if (!documentId) {
-      this.uiPort.showError('Could not determine document ID');
+      const errorMsg = NotificationMessage.create('Could not determine document ID');
+      if (errorMsg.isOk()) {
+        this.uiPort.showError(errorMsg.value);
+      }
       return err(new ValidationError('Could not determine document ID'));
     }
 
@@ -143,12 +199,19 @@ export class ArgumentOperations {
     });
 
     if (result.isErr()) {
-      this.uiPort.showError(`Failed to update statement: ${result.error.message}`);
-      return result;
+      const errorMessage = `Failed to update statement: ${result.error.message}`;
+      const notificationResult = NotificationMessage.create(errorMessage);
+      if (notificationResult.isOk()) {
+        this.uiPort.showError(notificationResult.value);
+      }
+      return err(new ValidationError(result.error.message));
     }
 
-    this.uiPort.showInformation('Statement updated successfully');
-    return result;
+    const notificationResult = NotificationMessage.create('Statement updated successfully');
+    if (notificationResult.isOk()) {
+      this.uiPort.showInformation(notificationResult.value);
+    }
+    return ok(undefined);
   }
 
   /**
@@ -161,7 +224,10 @@ export class ArgumentOperations {
   ): Promise<Result<void, ValidationError>> {
     const documentId = this.extractDocumentIdFromUri();
     if (!documentId) {
-      this.uiPort.showError('Could not determine document ID');
+      const errorMsg = NotificationMessage.create('Could not determine document ID');
+      if (errorMsg.isOk()) {
+        this.uiPort.showError(errorMsg.value);
+      }
       return err(new ValidationError('Could not determine document ID'));
     }
 
@@ -174,12 +240,19 @@ export class ArgumentOperations {
     });
 
     if (result.isErr()) {
-      this.uiPort.showError(`Failed to update label: ${result.error.message}`);
-      return result;
+      const errorMessage = `Failed to update label: ${result.error.message}`;
+      const notificationResult = NotificationMessage.create(errorMessage);
+      if (notificationResult.isOk()) {
+        this.uiPort.showError(notificationResult.value);
+      }
+      return err(new ValidationError(result.error.message));
     }
 
-    this.uiPort.showInformation('Label updated successfully');
-    return result;
+    const notificationResult = NotificationMessage.create('Label updated successfully');
+    if (notificationResult.isOk()) {
+      this.uiPort.showInformation(notificationResult.value);
+    }
+    return ok(undefined);
   }
 
   /**
@@ -188,7 +261,10 @@ export class ArgumentOperations {
   async exportProof(): Promise<Result<void, ValidationError>> {
     const documentId = this.extractDocumentIdFromUri();
     if (!documentId) {
-      this.uiPort.showError('Could not determine document ID');
+      const errorMsg = NotificationMessage.create('Could not determine document ID');
+      if (errorMsg.isOk()) {
+        this.uiPort.showError(errorMsg.value);
+      }
       return err(new ValidationError('Could not determine document ID'));
     }
 
@@ -200,10 +276,20 @@ export class ArgumentOperations {
         { label: 'PDF (.pdf)', description: 'Export as printable PDF document' },
         { label: 'SVG (.svg)', description: 'Export as vector graphics diagram' },
       ],
-      {
-        title: 'Select Export Format',
-        placeHolder: 'Choose the format for exporting your proof',
-      },
+      (() => {
+        const titleResult = DialogTitle.create('Select Export Format');
+        const placeholderResult = PlaceholderText.create(
+          'Choose the format for exporting your proof',
+        );
+        const options: QuickPickOptions = {};
+        if (titleResult.isOk()) {
+          options.title = titleResult.value;
+        }
+        if (placeholderResult.isOk()) {
+          options.placeHolder = placeholderResult.value;
+        }
+        return options;
+      })(),
     );
 
     if (formatResult.isErr() || !formatResult.value) {
@@ -220,7 +306,10 @@ export class ArgumentOperations {
 
     const selectedFormat = formatMap[formatResult.value.label];
     if (!selectedFormat) {
-      this.uiPort.showError('Invalid export format selected');
+      const notificationResult = NotificationMessage.create('Invalid export format selected');
+      if (notificationResult.isOk()) {
+        this.uiPort.showError(notificationResult.value);
+      }
       return err(new ValidationError('Invalid export format selected'));
     }
 
@@ -232,20 +321,33 @@ export class ArgumentOperations {
     });
 
     if (exportResult.isErr()) {
-      this.uiPort.showError(`Export failed: ${exportResult.error.message}`);
-      return exportResult;
+      const errorMessage = `Export failed: ${exportResult.error.message}`;
+      const notificationResult = NotificationMessage.create(errorMessage);
+      if (notificationResult.isOk()) {
+        this.uiPort.showError(notificationResult.value);
+      }
+      return err(new ValidationError(exportResult.error.message));
     }
 
     // Show success message
-    this.uiPort.showInformation(`Successfully exported proof to ${exportResult.value.filePath}`);
+    const successMessage = `Successfully exported proof to ${exportResult.value.filePath}`;
+    const notificationResult = NotificationMessage.create(successMessage);
+    if (notificationResult.isOk()) {
+      this.uiPort.showInformation(notificationResult.value);
+    }
 
     // Post export completion message to webview
-    this.uiPort.postMessageToWebview(this.panelId, {
-      type: 'exportCompleted',
+    const eventData = EventData.create({
       format: selectedFormat,
       filePath: exportResult.value.filePath,
       success: exportResult.value.savedSuccessfully,
     });
+    if (eventData.isOk()) {
+      this.uiPort.postMessageToWebview(this.webviewId, {
+        type: MessageType.EXPORT_COMPLETED,
+        data: eventData.value,
+      });
+    }
 
     return exportResult.map(() => undefined);
   }
@@ -260,7 +362,10 @@ export class ArgumentOperations {
   ): Promise<Result<void, ValidationError>> {
     const documentId = this.extractDocumentIdFromUri();
     if (!documentId) {
-      this.uiPort.showError('Could not determine document ID');
+      const errorMsg = NotificationMessage.create('Could not determine document ID');
+      if (errorMsg.isOk()) {
+        this.uiPort.showError(errorMsg.value);
+      }
       return err(new ValidationError('Could not determine document ID'));
     }
 
@@ -273,15 +378,18 @@ export class ArgumentOperations {
     });
 
     if (branchResult.isErr()) {
-      this.uiPort.showError(`Failed to create branch: ${branchResult.error.message}`);
-      return branchResult;
+      const errorMessage = `Failed to create branch: ${branchResult.error.message}`;
+      const notificationResult = NotificationMessage.create(errorMessage);
+      if (notificationResult.isOk()) {
+        this.uiPort.showError(notificationResult.value);
+      }
+      return err(new ValidationError(branchResult.error.message));
     }
 
     const newArgument = branchResult.value;
 
     // Notify webview of successful branch creation
-    this.uiPort.postMessageToWebview(this.panelId, {
-      type: 'branchCreated',
+    const eventData = EventData.create({
       newArgumentId: newArgument.id,
       sourceArgumentId,
       selectedText,
@@ -289,10 +397,18 @@ export class ArgumentOperations {
       premises: newArgument.premiseIds,
       conclusions: newArgument.conclusionIds,
     });
+    if (eventData.isOk()) {
+      this.uiPort.postMessageToWebview(this.webviewId, {
+        type: MessageType.BRANCH_CREATED,
+        data: eventData.value,
+      });
+    }
 
-    this.uiPort.showInformation(
-      `Successfully created ${position === 'conclusion' ? 'forward' : 'backward'} branch`,
-    );
+    const successMessage = `Successfully created ${position === 'conclusion' ? 'forward' : 'backward'} branch`;
+    const notificationResult = NotificationMessage.create(successMessage);
+    if (notificationResult.isOk()) {
+      this.uiPort.showInformation(notificationResult.value);
+    }
 
     return branchResult.map(() => undefined);
   }
@@ -302,11 +418,24 @@ export class ArgumentOperations {
    */
   findArgumentsContainingStatement(document: DocumentDTO, statementId: string): string[] {
     const argumentIds: string[] = [];
+
     for (const [argumentId, argument] of Object.entries(document.atomicArguments)) {
-      if (
-        argument.premiseIds.includes(statementId) ||
-        argument.conclusionIds.includes(statementId)
-      ) {
+      // Create StatementId from the string parameter
+      const statementIdResult = StatementId.create(statementId);
+      if (statementIdResult.isErr()) {
+        continue;
+      }
+
+      // Check if the argument contains this statement
+      const containsPremise = argument.premiseIds.some((id) => {
+        return id.getValue() === statementIdResult.value.getValue();
+      });
+
+      const containsConclusion = argument.conclusionIds.some((id) => {
+        return id.getValue() === statementIdResult.value.getValue();
+      });
+
+      if (containsPremise || containsConclusion) {
         argumentIds.push(argumentId);
       }
     }
@@ -320,8 +449,18 @@ export class ArgumentOperations {
     // For now, we'll use a simple heuristic based on tree root nodes
     // In a real implementation, this would involve traversing the tree structure
     for (const [treeId, tree] of Object.entries(document.trees)) {
+      // Create NodeId from the string parameter
+      const nodeIdResult = NodeId.create(nodeId);
+      if (nodeIdResult.isErr()) {
+        continue;
+      }
+
       // Check if this node is one of the root nodes
-      if (tree.rootNodeIds.includes(nodeId)) {
+      const isRootNode = tree.rootNodeIds.some((id) => {
+        return id.getValue() === nodeIdResult.value.getValue();
+      });
+
+      if (isRootNode) {
         return treeId;
       }
     }

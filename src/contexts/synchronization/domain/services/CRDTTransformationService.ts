@@ -1,7 +1,8 @@
 import { err, ok, type Result } from 'neverthrow';
 import { injectable } from 'tsyringe';
 
-import { Operation, type TransformationComplexity } from '../entities/Operation';
+import { Operation } from '../entities/Operation';
+import type { TransformationComplexity } from './OperationComplexityAnalyzer';
 
 export interface ICRDTTransformationService {
   transformOperation(

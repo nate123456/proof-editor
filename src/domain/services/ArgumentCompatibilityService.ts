@@ -1,5 +1,5 @@
 import type { AtomicArgument } from '../entities/AtomicArgument.js';
-import type { OrderedSet } from '../entities/OrderedSet.js';
+import type { Statement } from '../entities/Statement.js';
 import type { AtomicArgumentId, StatementId } from '../shared/value-objects/index.js';
 
 /**
@@ -9,16 +9,12 @@ import type { AtomicArgumentId, StatementId } from '../shared/value-objects/inde
 export class ArgumentCompatibilityService {
   /**
    * Check if one argument can logically follow another.
-   * Based on OrderedSet relationships and statement compatibility.
+   * Based on statement relationships and compatibility.
    */
-  canConnect(
-    provider: AtomicArgument,
-    consumer: AtomicArgument,
-    orderedSets: Map<string, OrderedSet>,
-  ): CompatibilityResult {
+  canConnect(provider: AtomicArgument, consumer: AtomicArgument): CompatibilityResult {
     // Provider must have conclusions
-    const providerConclusionId = provider.getConclusionSet();
-    if (!providerConclusionId) {
+    const providerConclusions = provider.getConclusions();
+    if (providerConclusions.length === 0) {
       return {
         isCompatible: false,
         reason: 'Provider has no conclusions',
@@ -27,8 +23,8 @@ export class ArgumentCompatibilityService {
     }
 
     // Consumer must have premises
-    const consumerPremiseId = consumer.getPremiseSet();
-    if (!consumerPremiseId) {
+    const consumerPremises = consumer.getPremises();
+    if (consumerPremises.length === 0) {
       return {
         isCompatible: false,
         reason: 'Consumer has no premises',
@@ -36,32 +32,24 @@ export class ArgumentCompatibilityService {
       };
     }
 
-    // Get the actual OrderedSet objects
-    const providerConclusions = orderedSets.get(providerConclusionId.getValue());
-    const consumerPremises = orderedSets.get(consumerPremiseId.getValue());
-
-    if (!providerConclusions || !consumerPremises) {
-      return {
-        isCompatible: false,
-        reason: 'OrderedSet not found in map',
-        compatibilityScore: 0,
-      };
-    }
-
-    // Check for direct identity match (strongest connection)
-    if (providerConclusionId.equals(consumerPremiseId)) {
-      return {
-        isCompatible: true,
-        connectionType: 'identity',
-        sharedOrderedSetId: providerConclusionId,
-        compatibilityScore: 1.0,
-      };
-    }
-
-    // Check for content overlap (weaker connection)
+    // Check for statement overlap
     const overlap = this.calculateStatementOverlap(providerConclusions, consumerPremises);
 
     if (overlap.overlapCount > 0) {
+      // Check for exact match (all consumer premises provided by provider conclusions)
+      const allPremisesProvided = consumerPremises.every((premise) =>
+        providerConclusions.some((conclusion) => conclusion.getId().equals(premise.getId())),
+      );
+
+      if (allPremisesProvided) {
+        return {
+          isCompatible: true,
+          connectionType: 'complete',
+          overlapStatements: overlap.sharedStatements,
+          compatibilityScore: 1.0,
+        };
+      }
+
       return {
         isCompatible: true,
         connectionType: 'partial',
@@ -84,28 +72,23 @@ export class ArgumentCompatibilityService {
   findPremiseProviders(
     consumer: AtomicArgument,
     availableArguments: Map<string, AtomicArgument>,
-    orderedSets: Map<string, OrderedSet>,
   ): PremiseProvider[] {
     const providers: PremiseProvider[] = [];
-    const consumerPremises = consumer.getPremiseSet();
+    const consumerPremises = consumer.getPremises();
 
-    if (!consumerPremises) {
+    if (consumerPremises.length === 0) {
       return providers;
     }
 
     for (const [id, provider] of Array.from(availableArguments.entries())) {
       if (id === consumer.getId().getValue()) continue;
 
-      const compatibility = this.canConnect(provider, consumer, orderedSets);
+      const compatibility = this.canConnect(provider, consumer);
       if (compatibility.isCompatible) {
-        const conclusionSetId = provider.getConclusionSet();
-        const conclusionSet = conclusionSetId
-          ? orderedSets.get(conclusionSetId.getValue())
-          : undefined;
         providers.push({
           providerId: provider.getId(),
           compatibility,
-          providesStatements: conclusionSet?.getStatementIds() || [],
+          providesStatements: provider.getConclusions().map((s) => s.getId()),
         });
       }
     }
@@ -117,25 +100,101 @@ export class ArgumentCompatibilityService {
   }
 
   /**
-   * Analyze statement overlap between OrderedSets.
+   * Find arguments that could use this argument's conclusions.
+   * Returns arguments whose premises could be satisfied by this argument.
+   */
+  findConclusionConsumers(
+    provider: AtomicArgument,
+    availableArguments: Map<string, AtomicArgument>,
+  ): ConclusionConsumer[] {
+    const consumers: ConclusionConsumer[] = [];
+    const providerConclusions = provider.getConclusions();
+
+    if (providerConclusions.length === 0) {
+      return consumers;
+    }
+
+    for (const [id, consumer] of Array.from(availableArguments.entries())) {
+      if (id === provider.getId().getValue()) continue;
+
+      const compatibility = this.canConnect(provider, consumer);
+      if (compatibility.isCompatible) {
+        consumers.push({
+          consumerId: consumer.getId(),
+          compatibility,
+          requiresStatements: consumer.getPremises().map((s) => s.getId()),
+        });
+      }
+    }
+
+    // Sort by compatibility score
+    return consumers.sort(
+      (a, b) => b.compatibility.compatibilityScore - a.compatibility.compatibilityScore,
+    );
+  }
+
+  /**
+   * Analyze statement overlap between two statement arrays.
    * Used for finding partial matches and suggestions.
    */
-  private calculateStatementOverlap(set1: OrderedSet, set2: OrderedSet): StatementOverlap {
-    const ids1 = set1.getStatementIds();
-    const ids2 = set2.getStatementIds();
-
+  private calculateStatementOverlap(
+    statements1: readonly Statement[],
+    statements2: readonly Statement[],
+  ): StatementOverlap {
     const shared: StatementId[] = [];
-    for (const id1 of ids1) {
-      if (ids2.some((id2) => id2.equals(id1))) {
-        shared.push(id1);
+    for (const stmt1 of statements1) {
+      if (statements2.some((stmt2) => stmt2.getId().equals(stmt1.getId()))) {
+        shared.push(stmt1.getId());
       }
     }
 
     return {
       sharedStatements: shared,
       overlapCount: shared.length,
-      overlapRatio: shared.length / Math.max(ids1.length, ids2.length),
+      overlapRatio: shared.length / Math.max(statements1.length, statements2.length),
     };
+  }
+
+  /**
+   * Check if adding a connection would create a cycle.
+   * This is a simple version - a more sophisticated implementation
+   * would track the full dependency graph.
+   */
+  wouldCreateCycle(
+    provider: AtomicArgument,
+    consumer: AtomicArgument,
+    existingConnections: Map<string, Set<string>>,
+  ): boolean {
+    const providerId = provider.getId().getValue();
+    const consumerId = consumer.getId().getValue();
+
+    // Check if consumer already provides to provider (direct cycle)
+    const consumerProvides = existingConnections.get(consumerId);
+    if (consumerProvides?.has(providerId)) {
+      return true;
+    }
+
+    // Check for indirect cycles using DFS
+    const visited = new Set<string>();
+    const stack: string[] = [consumerId];
+
+    while (stack.length > 0) {
+      const current = stack.pop()!;
+      if (visited.has(current)) continue;
+      visited.add(current);
+
+      const provides = existingConnections.get(current);
+      if (provides) {
+        for (const target of provides) {
+          if (target === providerId) {
+            return true; // Found cycle
+          }
+          stack.push(target);
+        }
+      }
+    }
+
+    return false;
   }
 }
 
@@ -143,8 +202,7 @@ export class ArgumentCompatibilityService {
 export interface CompatibilityResult {
   isCompatible: boolean;
   reason?: string;
-  connectionType?: 'identity' | 'partial';
-  sharedOrderedSetId?: import('../shared/value-objects.js').OrderedSetId;
+  connectionType?: 'complete' | 'partial';
   overlapStatements?: StatementId[];
   compatibilityScore: number; // 0-1
 }
@@ -153,6 +211,12 @@ export interface PremiseProvider {
   providerId: AtomicArgumentId;
   compatibility: CompatibilityResult;
   providesStatements: readonly StatementId[];
+}
+
+export interface ConclusionConsumer {
+  consumerId: AtomicArgumentId;
+  compatibility: CompatibilityResult;
+  requiresStatements: readonly StatementId[];
 }
 
 export interface StatementOverlap {
