@@ -525,8 +525,10 @@ describe('AtomicArgument Entity', () => {
 
           const connections = argument1.findConnectionsTo(argument2);
           expect(connections).toHaveLength(1);
-          expect(connections[0].statement).toBe(sharedStatement);
-          expect(connections[0].fromConclusionPosition).toBe(0);
+          if (connections.length > 0) {
+            expect(connections[0]?.statement).toBe(sharedStatement);
+            expect(connections[0]?.fromConclusionPosition).toBe(0);
+          }
         }
       });
 
@@ -578,7 +580,12 @@ describe('AtomicArgument Entity', () => {
 
       it('should reject self-connections', () => {
         const statements = createTestStatements(2);
-        const result = AtomicArgument.create([statements[0]], [statements[1]]);
+        const statement0 = statements[0];
+        const statement1 = statements[1];
+        if (!statement0 || !statement1) {
+          throw new Error('Failed to create test statements');
+        }
+        const result = AtomicArgument.create([statement0], [statement1]);
         expect(result.isOk()).toBe(true);
 
         if (result.isOk()) {

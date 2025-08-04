@@ -5,7 +5,7 @@ import type { AtomicArgument } from '../../entities/AtomicArgument.js';
 import type { OrderedSet } from '../../entities/OrderedSet.js';
 import { Statement } from '../../entities/Statement.js';
 import { StatementFlowService } from '../../services/StatementFlowService.js';
-import type { AtomicArgumentId, OrderedSetId } from '../../shared/value-objects/index.js';
+import type { AtomicArgumentId } from '../../shared/value-objects/index.js';
 import {
   createTestStatements,
   statementContentFactory,
@@ -48,12 +48,12 @@ describe('StatementFlowService', () => {
 
       it('should create statements with different content using factory', () => {
         const content = statementContentFactory.build();
-        const result = service.createStatementFromContent(content);
+        const result = service.createStatementFromContent(content.getValue());
 
         expect(result.isOk()).toBe(true);
         if (result.isOk()) {
           customExpect(result.value).toBeValidStatement();
-          expect(result.value.getContent()).toBe(content);
+          expect(result.value.getContent()).toBe(content.getValue());
         }
       });
 
@@ -218,24 +218,12 @@ describe('StatementFlowService', () => {
         expect(orderedSet.containsStatement(statement.getId())).toBe(true);
       });
 
-      it('should increment statement usage count', () => {
-        const initialUsage = statement.getUsageCount();
+      it('should track statement reference in ordered set', () => {
         const result = service.addStatementToOrderedSet(orderedSet, statement);
 
         expect(result.isOk()).toBe(true);
-        expect(statement.getUsageCount()).toBe(initialUsage + 1);
-      });
-
-      it('should not increment usage on duplicate addition', () => {
-        // Add once
-        service.addStatementToOrderedSet(orderedSet, statement);
-        const usageAfterFirst = statement.getUsageCount();
-
-        // Try to add again (should fail)
-        const result = service.addStatementToOrderedSet(orderedSet, statement);
-
-        expect(result.isErr()).toBe(true);
-        expect(statement.getUsageCount()).toBe(usageAfterFirst);
+        expect(orderedSet.getStatementIds()).toHaveLength(1);
+        expect(orderedSet.getStatementIds()[0]?.equals(statement.getId())).toBe(true);
       });
     });
 
@@ -256,270 +244,67 @@ describe('StatementFlowService', () => {
     });
   });
 
-  describe('removeStatementFromOrderedSet', () => {
-    let orderedSet: OrderedSet;
-    let statement: Statement;
+  describe('createAtomicArgumentFromStatements', () => {
+    let premiseStatements: Statement[];
+    let conclusionStatements: Statement[];
 
     beforeEach(() => {
-      const orderedSetResult = service.createEmptyOrderedSet();
-      const statementResult = service.createStatementFromContent('Test statement');
+      const premise1Result = service.createStatementFromContent('All men are mortal');
+      const premise2Result = service.createStatementFromContent('Socrates is a man');
+      const conclusionResult = service.createStatementFromContent('Socrates is mortal');
 
-      expect(orderedSetResult.isOk() && statementResult.isOk()).toBe(true);
-      if (orderedSetResult.isOk() && statementResult.isOk()) {
-        orderedSet = orderedSetResult.value;
-        statement = statementResult.value;
-        // Add statement first
-        service.addStatementToOrderedSet(orderedSet, statement);
-      }
-    });
-
-    describe('successful removal cases', () => {
-      it('should remove statement from ordered set', () => {
-        const result = service.removeStatementFromOrderedSet(orderedSet, statement);
-
-        expect(result.isOk()).toBe(true);
-        expect(orderedSet.size()).toBe(0);
-        expect(orderedSet.containsStatement(statement.getId())).toBe(false);
-      });
-
-      it('should decrement statement usage count', () => {
-        const initialUsage = statement.getUsageCount();
-        const result = service.removeStatementFromOrderedSet(orderedSet, statement);
-
-        expect(result.isOk()).toBe(true);
-        expect(statement.getUsageCount()).toBe(initialUsage - 1);
-      });
-    });
-
-    describe('error cases', () => {
-      it('should fail when removing non-existent statement', () => {
-        const otherStatementResult = service.createStatementFromContent('Other statement');
-        expect(otherStatementResult.isOk()).toBe(true);
-
-        if (otherStatementResult.isOk()) {
-          const result = service.removeStatementFromOrderedSet(
-            orderedSet,
-            otherStatementResult.value,
-          );
-
-          expect(result.isErr()).toBe(true);
-          if (result.isErr()) {
-            customExpect(result.error).toBeValidationError();
-          }
-        }
-      });
-
-      it('should fail when statement usage count would go negative', () => {
-        // Create statement with zero usage
-        const statementResult = service.createStatementFromContent('Zero usage statement');
-        expect(statementResult.isOk()).toBe(true);
-
-        if (statementResult.isOk()) {
-          const zeroUsageStatement = statementResult.value;
-          expect(zeroUsageStatement.getUsageCount()).toBe(0);
-
-          const result = service.removeStatementFromOrderedSet(orderedSet, zeroUsageStatement);
-
-          expect(result.isErr()).toBe(true);
-          if (result.isErr()) {
-            customExpect(result.error).toBeValidationError();
-          }
-        }
-      });
-    });
-  });
-
-  describe('createAtomicArgumentWithSets', () => {
-    let premiseSet: OrderedSet;
-    let conclusionSet: OrderedSet;
-
-    beforeEach(() => {
-      const premiseResult = service.createEmptyOrderedSet();
-      const conclusionResult = service.createEmptyOrderedSet();
-
-      expect(premiseResult.isOk() && conclusionResult.isOk()).toBe(true);
-      if (premiseResult.isOk() && conclusionResult.isOk()) {
-        premiseSet = premiseResult.value;
-        conclusionSet = conclusionResult.value;
+      expect(premise1Result.isOk() && premise2Result.isOk() && conclusionResult.isOk()).toBe(true);
+      if (premise1Result.isOk() && premise2Result.isOk() && conclusionResult.isOk()) {
+        premiseStatements = [premise1Result.value, premise2Result.value];
+        conclusionStatements = [conclusionResult.value];
       }
     });
 
     describe('successful creation cases', () => {
-      it('should create atomic argument with both sets', () => {
-        const result = service.createAtomicArgumentWithSets(premiseSet, conclusionSet);
+      it('should create atomic argument with statements', () => {
+        const result = service.createAtomicArgumentFromStatements(
+          premiseStatements,
+          conclusionStatements,
+        );
 
         expect(result.isOk()).toBe(true);
         if (result.isOk()) {
           customExpect(result.value).toBeValidAtomicArgument();
-          expect(result.value.getPremiseSet()?.equals(premiseSet.getId())).toBe(true);
-          expect(result.value.getConclusionSet()?.equals(conclusionSet.getId())).toBe(true);
+          expect(result.value.getPremises()).toHaveLength(2);
+          expect(result.value.getConclusions()).toHaveLength(1);
         }
       });
 
-      it('should create atomic argument with premise set only', () => {
-        const result = service.createAtomicArgumentWithSets(premiseSet);
+      it('should create atomic argument with premise statements only', () => {
+        const result = service.createAtomicArgumentFromStatements(premiseStatements, []);
 
         expect(result.isOk()).toBe(true);
         if (result.isOk()) {
           customExpect(result.value).toBeValidAtomicArgument();
-          expect(result.value.getPremiseSet()?.equals(premiseSet.getId())).toBe(true);
-          expect(result.value.getConclusionSet()).toBe(null);
+          expect(result.value.getPremises()).toHaveLength(2);
+          expect(result.value.getConclusions()).toHaveLength(0);
         }
       });
 
-      it('should create atomic argument with conclusion set only', () => {
-        const result = service.createAtomicArgumentWithSets(undefined, conclusionSet);
+      it('should create atomic argument with conclusion statements only', () => {
+        const result = service.createAtomicArgumentFromStatements([], conclusionStatements);
 
         expect(result.isOk()).toBe(true);
         if (result.isOk()) {
           customExpect(result.value).toBeValidAtomicArgument();
-          expect(result.value.getPremiseSet()).toBe(null);
-          expect(result.value.getConclusionSet()?.equals(conclusionSet.getId())).toBe(true);
+          expect(result.value.getPremises()).toHaveLength(0);
+          expect(result.value.getConclusions()).toHaveLength(1);
         }
       });
 
       it('should create empty atomic argument', () => {
-        const result = service.createAtomicArgumentWithSets();
+        const result = service.createAtomicArgumentFromStatements([], []);
 
         expect(result.isOk()).toBe(true);
         if (result.isOk()) {
           customExpect(result.value).toBeValidAtomicArgument();
-          expect(result.value.getPremiseSet()).toBe(null);
-          expect(result.value.getConclusionSet()).toBe(null);
-        }
-      });
-
-      it('should add argument references to ordered sets', () => {
-        const result = service.createAtomicArgumentWithSets(premiseSet, conclusionSet);
-
-        expect(result.isOk()).toBe(true);
-        if (result.isOk()) {
-          const argument = result.value;
-          // Verify references were added
-          expect(
-            premiseSet.getReferencedByAsPremise().some((id) => id.equals(argument.getId())),
-          ).toBe(true);
-          expect(
-            conclusionSet.getReferencedByAsConclusion().some((id) => id.equals(argument.getId())),
-          ).toBe(true);
-        }
-      });
-    });
-  });
-
-  describe('connectAtomicArgumentsBySharedSet', () => {
-    let parentArg: AtomicArgument;
-    let childArg: AtomicArgument;
-    let sharedSet: OrderedSet;
-
-    beforeEach(() => {
-      const sharedSetResult = service.createEmptyOrderedSet();
-      expect(sharedSetResult.isOk()).toBe(true);
-
-      if (sharedSetResult.isOk()) {
-        sharedSet = sharedSetResult.value;
-
-        // Create parent argument with shared set as conclusion
-        const parentResult = service.createAtomicArgumentWithSets(undefined, sharedSet);
-        expect(parentResult.isOk()).toBe(true);
-        if (parentResult.isOk()) {
-          parentArg = parentResult.value;
-        }
-
-        // Create child argument with shared set as premise
-        const childResult = service.createAtomicArgumentWithSets(sharedSet);
-        expect(childResult.isOk()).toBe(true);
-        if (childResult.isOk()) {
-          childArg = childResult.value;
-        }
-      }
-    });
-
-    describe('successful connection cases', () => {
-      it('should validate properly connected arguments', () => {
-        const result = service.connectAtomicArgumentsBySharedSet(parentArg, childArg, sharedSet);
-
-        expect(result.isOk()).toBe(true);
-      });
-    });
-
-    describe('error cases', () => {
-      it('should fail when parent has no conclusion set', () => {
-        const emptyParentResult = service.createAtomicArgumentWithSets();
-        expect(emptyParentResult.isOk()).toBe(true);
-
-        if (emptyParentResult.isOk()) {
-          const emptyParent = emptyParentResult.value;
-          const result = service.connectAtomicArgumentsBySharedSet(
-            emptyParent,
-            childArg,
-            sharedSet,
-          );
-
-          expect(result.isErr()).toBe(true);
-          if (result.isErr()) {
-            customExpect(result.error).toBeValidationError('must have the relevant ordered sets');
-          }
-        }
-      });
-
-      it('should fail when child has no premise set', () => {
-        const emptyChildResult = service.createAtomicArgumentWithSets();
-        expect(emptyChildResult.isOk()).toBe(true);
-
-        if (emptyChildResult.isOk()) {
-          const emptyChild = emptyChildResult.value;
-          const result = service.connectAtomicArgumentsBySharedSet(
-            parentArg,
-            emptyChild,
-            sharedSet,
-          );
-
-          expect(result.isErr()).toBe(true);
-          if (result.isErr()) {
-            customExpect(result.error).toBeValidationError('must have the relevant ordered sets');
-          }
-        }
-      });
-
-      it('should fail when shared set does not match parent conclusion', () => {
-        const otherSetResult = service.createEmptyOrderedSet();
-        expect(otherSetResult.isOk()).toBe(true);
-
-        if (otherSetResult.isOk()) {
-          const otherSet = otherSetResult.value;
-          const result = service.connectAtomicArgumentsBySharedSet(parentArg, childArg, otherSet);
-
-          expect(result.isErr()).toBe(true);
-          if (result.isErr()) {
-            customExpect(result.error).toBeValidationError('must match both argument references');
-          }
-        }
-      });
-
-      it('should fail when shared set does not match child premise', () => {
-        const otherSetResult = service.createEmptyOrderedSet();
-        expect(otherSetResult.isOk()).toBe(true);
-
-        if (otherSetResult.isOk()) {
-          const otherSet = otherSetResult.value;
-          // Create new child with different premise set
-          const newChildResult = service.createAtomicArgumentWithSets(otherSet);
-          expect(newChildResult.isOk()).toBe(true);
-
-          if (newChildResult.isOk()) {
-            const newChild = newChildResult.value;
-            const result = service.connectAtomicArgumentsBySharedSet(
-              parentArg,
-              newChild,
-              sharedSet,
-            );
-
-            expect(result.isErr()).toBe(true);
-            if (result.isErr()) {
-              customExpect(result.error).toBeValidationError('must match both argument references');
-            }
-          }
+          expect(result.value.getPremises()).toEqual([]);
+          expect(result.value.getConclusions()).toEqual([]);
         }
       });
     });
@@ -527,15 +312,15 @@ describe('StatementFlowService', () => {
 
   describe('createBranchFromArgumentConclusion', () => {
     let parentArg: AtomicArgument;
-    let conclusionSet: OrderedSet;
+    let conclusionStatement: Statement;
 
     beforeEach(() => {
-      const conclusionSetResult = service.createEmptyOrderedSet();
-      expect(conclusionSetResult.isOk()).toBe(true);
+      const conclusionResult = service.createStatementFromContent('Parent conclusion');
+      expect(conclusionResult.isOk()).toBe(true);
 
-      if (conclusionSetResult.isOk()) {
-        conclusionSet = conclusionSetResult.value;
-        const parentResult = service.createAtomicArgumentWithSets(undefined, conclusionSet);
+      if (conclusionResult.isOk()) {
+        conclusionStatement = conclusionResult.value;
+        const parentResult = service.createAtomicArgumentFromStatements([], [conclusionStatement]);
         expect(parentResult.isOk()).toBe(true);
         if (parentResult.isOk()) {
           parentArg = parentResult.value;
@@ -545,56 +330,51 @@ describe('StatementFlowService', () => {
 
     describe('successful branching cases', () => {
       it('should create branch from parent conclusion', () => {
-        const result = service.createBranchFromArgumentConclusion(parentArg, conclusionSet);
+        const result = service.createBranchFromArgumentConclusion(parentArg, 0);
 
         expect(result.isOk()).toBe(true);
         if (result.isOk()) {
           customExpect(result.value).toBeValidAtomicArgument();
-          // Child should use parent's conclusion as premise
-          expect(result.value.getPremiseSet()?.equals(conclusionSet.getId())).toBe(true);
+          expect(result.value.getPremises()).toHaveLength(1);
+          expect(result.value.getPremises()[0]?.getId().equals(conclusionStatement.getId())).toBe(
+            true,
+          );
         }
       });
 
-      it('should add reference to conclusion set', () => {
-        const result = service.createBranchFromArgumentConclusion(parentArg, conclusionSet);
+      it('should create branch with correct statement reference', () => {
+        const result = service.createBranchFromArgumentConclusion(parentArg);
 
         expect(result.isOk()).toBe(true);
         if (result.isOk()) {
           const childArg = result.value;
-          expect(
-            conclusionSet.getReferencedByAsPremise().some((id) => id.equals(childArg.getId())),
-          ).toBe(true);
+          expect(childArg.getPremises()).toHaveLength(1);
+          expect(childArg.getPremises()[0]?.getId().equals(conclusionStatement.getId())).toBe(true);
         }
       });
     });
 
     describe('error cases', () => {
-      it('should fail when conclusion set does not match parent', () => {
-        const otherSetResult = service.createEmptyOrderedSet();
-        expect(otherSetResult.isOk()).toBe(true);
+      it('should fail when conclusion index is out of bounds', () => {
+        const result = service.createBranchFromArgumentConclusion(parentArg, 1);
 
-        if (otherSetResult.isOk()) {
-          const otherSet = otherSetResult.value;
-          const result = service.createBranchFromArgumentConclusion(parentArg, otherSet);
-
-          expect(result.isErr()).toBe(true);
-          if (result.isErr()) {
-            customExpect(result.error).toBeValidationError('must match parent argument');
-          }
+        expect(result.isErr()).toBe(true);
+        if (result.isErr()) {
+          customExpect(result.error).toBeValidationError('has no conclusion to branch from');
         }
       });
 
-      it('should fail when parent has no conclusion set', () => {
-        const emptyParentResult = service.createAtomicArgumentWithSets();
+      it('should fail when parent has no conclusion', () => {
+        const emptyParentResult = service.createAtomicArgumentFromStatements([], []);
         expect(emptyParentResult.isOk()).toBe(true);
 
         if (emptyParentResult.isOk()) {
           const emptyParent = emptyParentResult.value;
-          const result = service.createBranchFromArgumentConclusion(emptyParent, conclusionSet);
+          const result = service.createBranchFromArgumentConclusion(emptyParent);
 
           expect(result.isErr()).toBe(true);
           if (result.isErr()) {
-            customExpect(result.error).toBeValidationError('must match parent argument');
+            customExpect(result.error).toBeValidationError('has no conclusion to branch from');
           }
         }
       });
@@ -605,22 +385,21 @@ describe('StatementFlowService', () => {
     let argument1: AtomicArgument;
     let argument2: AtomicArgument;
     let argument3: AtomicArgument;
-    let sharedSet: OrderedSet;
     let argumentsMap: Map<AtomicArgumentId, AtomicArgument>;
 
     beforeEach(() => {
-      const sharedSetResult = service.createEmptyOrderedSet();
-      expect(sharedSetResult.isOk()).toBe(true);
+      const sharedStatementResult = service.createStatementFromContent('Shared statement');
+      expect(sharedStatementResult.isOk()).toBe(true);
 
-      if (sharedSetResult.isOk()) {
-        sharedSet = sharedSetResult.value;
+      if (sharedStatementResult.isOk()) {
+        const sharedStatement = sharedStatementResult.value;
 
         // Create connected arguments: arg1 → arg2
-        const arg1Result = service.createAtomicArgumentWithSets(undefined, sharedSet);
-        const arg2Result = service.createAtomicArgumentWithSets(sharedSet);
+        const arg1Result = service.createAtomicArgumentFromStatements([], [sharedStatement]);
+        const arg2Result = service.createAtomicArgumentFromStatements([sharedStatement], []);
 
         // Create unconnected argument
-        const arg3Result = service.createAtomicArgumentWithSets();
+        const arg3Result = service.createAtomicArgumentFromStatements([], []);
 
         expect(arg1Result.isOk() && arg2Result.isOk() && arg3Result.isOk()).toBe(true);
 
@@ -685,18 +464,18 @@ describe('StatementFlowService', () => {
 
     beforeEach(() => {
       // Create chain: arg1 → arg2 → arg3, with arg4 disconnected
-      const set1Result = service.createEmptyOrderedSet();
-      const set2Result = service.createEmptyOrderedSet();
-      expect(set1Result.isOk() && set2Result.isOk()).toBe(true);
+      const statement1Result = service.createStatementFromContent('Statement 1');
+      const statement2Result = service.createStatementFromContent('Statement 2');
+      expect(statement1Result.isOk() && statement2Result.isOk()).toBe(true);
 
-      if (set1Result.isOk() && set2Result.isOk()) {
-        const set1 = set1Result.value;
-        const set2 = set2Result.value;
+      if (statement1Result.isOk() && statement2Result.isOk()) {
+        const statement1 = statement1Result.value;
+        const statement2 = statement2Result.value;
 
-        const arg1Result = service.createAtomicArgumentWithSets(undefined, set1);
-        const arg2Result = service.createAtomicArgumentWithSets(set1, set2);
-        const arg3Result = service.createAtomicArgumentWithSets(set2);
-        const arg4Result = service.createAtomicArgumentWithSets(); // Disconnected
+        const arg1Result = service.createAtomicArgumentFromStatements([], [statement1]);
+        const arg2Result = service.createAtomicArgumentFromStatements([statement1], [statement2]);
+        const arg3Result = service.createAtomicArgumentFromStatements([statement2], []);
+        const arg4Result = service.createAtomicArgumentFromStatements([], []); // Disconnected
 
         expect(
           arg1Result.isOk() && arg2Result.isOk() && arg3Result.isOk() && arg4Result.isOk(),
@@ -759,130 +538,84 @@ describe('StatementFlowService', () => {
   describe('validateStatementFlow', () => {
     let fromArgument: AtomicArgument;
     let toArgument: AtomicArgument;
-    let sharedSet: OrderedSet;
-    let orderedSetsMap: Map<OrderedSetId, OrderedSet>;
+    let sharedStatement: Statement;
 
     beforeEach(() => {
-      const sharedSetResult = service.createEmptyOrderedSet();
-      expect(sharedSetResult.isOk()).toBe(true);
+      const sharedStatementResult = service.createStatementFromContent('Test statement');
+      expect(sharedStatementResult.isOk()).toBe(true);
 
-      if (sharedSetResult.isOk()) {
-        sharedSet = sharedSetResult.value;
+      if (sharedStatementResult.isOk()) {
+        sharedStatement = sharedStatementResult.value;
 
-        // Add some statements to make it non-empty
-        const statementResult = service.createStatementFromContent('Test statement');
-        expect(statementResult.isOk()).toBe(true);
-        if (statementResult.isOk()) {
-          service.addStatementToOrderedSet(sharedSet, statementResult.value);
-        }
-
-        const fromResult = service.createAtomicArgumentWithSets(undefined, sharedSet);
-        const toResult = service.createAtomicArgumentWithSets(sharedSet);
+        const fromResult = service.createAtomicArgumentFromStatements([], [sharedStatement]);
+        const toResult = service.createAtomicArgumentFromStatements([sharedStatement], []);
 
         expect(fromResult.isOk() && toResult.isOk()).toBe(true);
         if (fromResult.isOk() && toResult.isOk()) {
           fromArgument = fromResult.value;
           toArgument = toResult.value;
         }
-
-        orderedSetsMap = new Map([[sharedSet.getId(), sharedSet]]);
       }
     });
 
     describe('successful validation cases', () => {
       it('should validate proper statement flow', () => {
-        const result = service.validateStatementFlow(fromArgument, toArgument, orderedSetsMap);
+        const result = service.validateStatementFlow(fromArgument, toArgument);
 
         expect(result.isOk()).toBe(true);
       });
     });
 
     describe('error cases', () => {
-      it('should fail when from argument has no conclusion set', () => {
-        const emptyFromResult = service.createAtomicArgumentWithSets();
+      it('should fail when from argument has no conclusion', () => {
+        const emptyFromResult = service.createAtomicArgumentFromStatements([], []);
         expect(emptyFromResult.isOk()).toBe(true);
 
         if (emptyFromResult.isOk()) {
           const emptyFrom = emptyFromResult.value;
-          const result = service.validateStatementFlow(emptyFrom, toArgument, orderedSetsMap);
+          const result = service.validateStatementFlow(emptyFrom, toArgument);
 
           expect(result.isErr()).toBe(true);
           if (result.isErr()) {
-            customExpect(result.error).toBeValidationError('must have relevant ordered sets');
+            customExpect(result.error).toBeValidationError('not connected by shared statements');
           }
         }
       });
 
-      it('should fail when to argument has no premise set', () => {
-        const emptyToResult = service.createAtomicArgumentWithSets();
+      it('should fail when to argument has no premise', () => {
+        const emptyToResult = service.createAtomicArgumentFromStatements([], []);
         expect(emptyToResult.isOk()).toBe(true);
 
         if (emptyToResult.isOk()) {
           const emptyTo = emptyToResult.value;
-          const result = service.validateStatementFlow(fromArgument, emptyTo, orderedSetsMap);
+          const result = service.validateStatementFlow(fromArgument, emptyTo);
 
           expect(result.isErr()).toBe(true);
           if (result.isErr()) {
-            customExpect(result.error).toBeValidationError('must have relevant ordered sets');
+            customExpect(result.error).toBeValidationError('not connected by shared statements');
           }
         }
       });
 
       it('should fail when arguments are not connected', () => {
-        const otherSetResult = service.createEmptyOrderedSet();
-        expect(otherSetResult.isOk()).toBe(true);
+        const otherStatementResult = service.createStatementFromContent('Other statement');
+        expect(otherStatementResult.isOk()).toBe(true);
 
-        if (otherSetResult.isOk()) {
-          const otherSet = otherSetResult.value;
-          const disconnectedResult = service.createAtomicArgumentWithSets(otherSet);
+        if (otherStatementResult.isOk()) {
+          const otherStatement = otherStatementResult.value;
+          const disconnectedResult = service.createAtomicArgumentFromStatements(
+            [otherStatement],
+            [],
+          );
           expect(disconnectedResult.isOk()).toBe(true);
 
           if (disconnectedResult.isOk()) {
             const disconnected = disconnectedResult.value;
-            const result = service.validateStatementFlow(
-              fromArgument,
-              disconnected,
-              orderedSetsMap,
-            );
+            const result = service.validateStatementFlow(fromArgument, disconnected);
 
             expect(result.isErr()).toBe(true);
             if (result.isErr()) {
-              customExpect(result.error).toBeValidationError('not connected by shared ordered set');
-            }
-          }
-        }
-      });
-
-      it('should fail when shared set is not found in map', () => {
-        const emptyMap = new Map<OrderedSetId, OrderedSet>();
-        const result = service.validateStatementFlow(fromArgument, toArgument, emptyMap);
-
-        expect(result.isErr()).toBe(true);
-        if (result.isErr()) {
-          customExpect(result.error).toBeValidationError('not found');
-        }
-      });
-
-      it('should fail when shared set is empty', () => {
-        const emptySetResult = service.createEmptyOrderedSet();
-        expect(emptySetResult.isOk()).toBe(true);
-
-        if (emptySetResult.isOk()) {
-          const emptySet = emptySetResult.value;
-          const emptyFromResult = service.createAtomicArgumentWithSets(undefined, emptySet);
-          const emptyToResult = service.createAtomicArgumentWithSets(emptySet);
-
-          expect(emptyFromResult.isOk() && emptyToResult.isOk()).toBe(true);
-          if (emptyFromResult.isOk() && emptyToResult.isOk()) {
-            const emptyFrom = emptyFromResult.value;
-            const emptyTo = emptyToResult.value;
-            const emptySetMap = new Map([[emptySet.getId(), emptySet]]);
-
-            const result = service.validateStatementFlow(emptyFrom, emptyTo, emptySetMap);
-
-            expect(result.isErr()).toBe(true);
-            if (result.isErr()) {
-              customExpect(result.error).toBeValidationError('empty ordered set');
+              customExpect(result.error).toBeValidationError('not connected by shared statements');
             }
           }
         }
@@ -896,15 +629,15 @@ describe('StatementFlowService', () => {
     let disconnectedArg: AtomicArgument;
 
     beforeEach(() => {
-      const sharedSetResult = service.createEmptyOrderedSet();
-      expect(sharedSetResult.isOk()).toBe(true);
+      const sharedStatementResult = service.createStatementFromContent('Shared statement');
+      expect(sharedStatementResult.isOk()).toBe(true);
 
-      if (sharedSetResult.isOk()) {
-        const sharedSet = sharedSetResult.value;
+      if (sharedStatementResult.isOk()) {
+        const sharedStatement = sharedStatementResult.value;
 
-        const fromResult = service.createAtomicArgumentWithSets(undefined, sharedSet);
-        const toResult = service.createAtomicArgumentWithSets(sharedSet);
-        const disconnectedResult = service.createAtomicArgumentWithSets();
+        const fromResult = service.createAtomicArgumentFromStatements([], [sharedStatement]);
+        const toResult = service.createAtomicArgumentFromStatements([sharedStatement], []);
+        const disconnectedResult = service.createAtomicArgumentFromStatements([], []);
 
         expect(fromResult.isOk() && toResult.isOk() && disconnectedResult.isOk()).toBe(true);
         if (fromResult.isOk() && toResult.isOk() && disconnectedResult.isOk()) {
@@ -929,7 +662,7 @@ describe('StatementFlowService', () => {
       });
 
       it('should return false when from argument has no conclusion', () => {
-        const emptyFromResult = service.createAtomicArgumentWithSets();
+        const emptyFromResult = service.createAtomicArgumentFromStatements([], []);
         expect(emptyFromResult.isOk()).toBe(true);
 
         if (emptyFromResult.isOk()) {
@@ -941,7 +674,7 @@ describe('StatementFlowService', () => {
       });
 
       it('should return false when to argument has no premise', () => {
-        const emptyToResult = service.createAtomicArgumentWithSets();
+        const emptyToResult = service.createAtomicArgumentFromStatements([], []);
         expect(emptyToResult.isOk()).toBe(true);
 
         if (emptyToResult.isOk()) {
@@ -963,18 +696,18 @@ describe('StatementFlowService', () => {
 
     beforeEach(() => {
       // Create chain: arg1 → arg2 → arg3
-      const set1Result = service.createEmptyOrderedSet();
-      const set2Result = service.createEmptyOrderedSet();
-      expect(set1Result.isOk() && set2Result.isOk()).toBe(true);
+      const statement1Result = service.createStatementFromContent('Statement 1');
+      const statement2Result = service.createStatementFromContent('Statement 2');
+      expect(statement1Result.isOk() && statement2Result.isOk()).toBe(true);
 
-      if (set1Result.isOk() && set2Result.isOk()) {
-        const set1 = set1Result.value;
-        const set2 = set2Result.value;
+      if (statement1Result.isOk() && statement2Result.isOk()) {
+        const statement1 = statement1Result.value;
+        const statement2 = statement2Result.value;
 
-        const arg1Result = service.createAtomicArgumentWithSets(undefined, set1);
-        const arg2Result = service.createAtomicArgumentWithSets(set1, set2);
-        const arg3Result = service.createAtomicArgumentWithSets(set2);
-        const disconnectedResult = service.createAtomicArgumentWithSets();
+        const arg1Result = service.createAtomicArgumentFromStatements([], [statement1]);
+        const arg2Result = service.createAtomicArgumentFromStatements([statement1], [statement2]);
+        const arg3Result = service.createAtomicArgumentFromStatements([statement2], []);
+        const disconnectedResult = service.createAtomicArgumentFromStatements([], []);
 
         expect(
           arg1Result.isOk() && arg2Result.isOk() && arg3Result.isOk() && disconnectedResult.isOk(),
@@ -1054,25 +787,39 @@ describe('StatementFlowService', () => {
     describe('complex flow patterns', () => {
       it('should handle multiple possible paths', () => {
         // Create diamond pattern: arg1 → arg2a, arg2b → arg3
-        const set1Result = service.createEmptyOrderedSet();
-        const set2aResult = service.createEmptyOrderedSet();
-        const set2bResult = service.createEmptyOrderedSet();
-        const set3Result = service.createEmptyOrderedSet();
+        const statement1Result = service.createStatementFromContent('Statement 1');
+        const statement2aResult = service.createStatementFromContent('Statement 2a');
+        const statement2bResult = service.createStatementFromContent('Statement 2b');
+        const statement3Result = service.createStatementFromContent('Statement 3');
 
         expect(
-          set1Result.isOk() && set2aResult.isOk() && set2bResult.isOk() && set3Result.isOk(),
+          statement1Result.isOk() &&
+            statement2aResult.isOk() &&
+            statement2bResult.isOk() &&
+            statement3Result.isOk(),
         ).toBe(true);
 
-        if (set1Result.isOk() && set2aResult.isOk() && set2bResult.isOk() && set3Result.isOk()) {
-          const set1 = set1Result.value;
-          const set2a = set2aResult.value;
-          const set2b = set2bResult.value;
-          const set3 = set3Result.value;
+        if (
+          statement1Result.isOk() &&
+          statement2aResult.isOk() &&
+          statement2bResult.isOk() &&
+          statement3Result.isOk()
+        ) {
+          const statement1 = statement1Result.value;
+          const statement2a = statement2aResult.value;
+          const statement2b = statement2bResult.value;
+          const statement3 = statement3Result.value;
 
-          const startResult = service.createAtomicArgumentWithSets(undefined, set1);
-          const branch2aResult = service.createAtomicArgumentWithSets(set1, set2a);
-          const branch2bResult = service.createAtomicArgumentWithSets(set1, set2b);
-          const endResult = service.createAtomicArgumentWithSets(set2a, set3); // Only connect through 2a
+          const startResult = service.createAtomicArgumentFromStatements([], [statement1]);
+          const branch2aResult = service.createAtomicArgumentFromStatements(
+            [statement1],
+            [statement2a],
+          );
+          const branch2bResult = service.createAtomicArgumentFromStatements(
+            [statement1],
+            [statement2b],
+          );
+          const endResult = service.createAtomicArgumentFromStatements([statement2a], [statement3]); // Only connect through 2a
 
           expect(
             startResult.isOk() &&
@@ -1133,38 +880,27 @@ describe('StatementFlowService', () => {
           })
           .filter((s): s is Statement => s !== null);
 
-        // Create ordered sets
-        const premiseSetResult = service.createOrderedSetFromStatements(premiseStatements);
-        const conclusionSetResult = service.createOrderedSetFromStatements(conclusionStatements);
+        // Create atomic argument
+        const argumentResult = service.createAtomicArgumentFromStatements(
+          premiseStatements,
+          conclusionStatements,
+        );
+        expect(argumentResult.isOk()).toBe(true);
 
-        expect(premiseSetResult.isOk() && conclusionSetResult.isOk()).toBe(true);
+        if (argumentResult.isOk()) {
+          const argument = argumentResult.value;
+          customExpect(argument).toBeValidAtomicArgument();
 
-        if (premiseSetResult.isOk() && conclusionSetResult.isOk()) {
-          const premiseSet = premiseSetResult.value;
-          const conclusionSet = conclusionSetResult.value;
+          // Create branch
+          const branchResult = service.createBranchFromArgumentConclusion(argument, 0);
+          expect(branchResult.isOk()).toBe(true);
 
-          // Create atomic argument
-          const argumentResult = service.createAtomicArgumentWithSets(premiseSet, conclusionSet);
-          expect(argumentResult.isOk()).toBe(true);
+          if (branchResult.isOk()) {
+            const branch = branchResult.value;
+            customExpect(branch).toBeValidAtomicArgument();
 
-          if (argumentResult.isOk()) {
-            const argument = argumentResult.value;
-            customExpect(argument).toBeValidAtomicArgument();
-
-            // Create branch
-            const branchResult = service.createBranchFromArgumentConclusion(
-              argument,
-              conclusionSet,
-            );
-            expect(branchResult.isOk()).toBe(true);
-
-            if (branchResult.isOk()) {
-              const branch = branchResult.value;
-              customExpect(branch).toBeValidAtomicArgument();
-
-              // Verify connection
-              expect(service.canStatementsFlowBetween(argument, branch)).toBe(true);
-            }
+            // Verify connection
+            expect(service.canStatementsFlowBetween(argument, branch)).toBe(true);
           }
         }
       });
@@ -1181,22 +917,16 @@ describe('StatementFlowService', () => {
 
               if (statementResult.isOk()) {
                 const statement = statementResult.value;
-                const orderedSetResult = service.createOrderedSetFromStatements([statement]);
-                expect(orderedSetResult.isOk()).toBe(true);
+                const argumentResult = service.createAtomicArgumentFromStatements(
+                  [statement],
+                  [statement],
+                );
+                expect(argumentResult.isOk()).toBe(true);
 
-                if (orderedSetResult.isOk()) {
-                  const orderedSet = orderedSetResult.value;
-                  const argumentResult = service.createAtomicArgumentWithSets(
-                    orderedSet,
-                    orderedSet,
-                  );
-                  expect(argumentResult.isOk()).toBe(true);
-
-                  if (argumentResult.isOk()) {
-                    const argument = argumentResult.value;
-                    // Argument should maintain consistent identity
-                    expect(argument.getId().equals(argument.getId())).toBe(true);
-                  }
+                if (argumentResult.isOk()) {
+                  const argument = argumentResult.value;
+                  // Argument should maintain consistent identity
+                  expect(argument.getId().equals(argument.getId())).toBe(true);
                 }
               }
             },

@@ -13,13 +13,21 @@ import fc from 'fast-check';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AtomicArgument } from '../../entities/AtomicArgument.js';
-import { orderedSetIdFactory } from '../factories/index.js';
+import { Statement } from '../../entities/Statement.js';
+import { SideLabel, SideLabels } from '../../shared/value-objects/index.js';
+import { statementFactory } from '../factories/index.js';
 import { expect as customExpect } from '../test-setup.js';
-import {
-  FIXED_TIMESTAMP,
-  orderedSetIdArbitrary,
-  validSideLabelsArbitrary,
-} from './atomic-argument-test-utils.js';
+import { FIXED_TIMESTAMP, validSideLabelsArbitrary } from './atomic-argument-test-utils.js';
+
+// Create arbitrary for statements
+const statementArbitrary = fc.oneof(fc.constant(null), fc.constant(statementFactory.build()));
+
+const statementsArrayArbitrary = fc
+  .array(fc.constant(null), {
+    minLength: 0,
+    maxLength: 3,
+  })
+  .map((nulls) => nulls.map(() => statementFactory.build()));
 
 describe('Property-Based Testing', () => {
   let mockDateNow: ReturnType<typeof vi.fn>;
@@ -36,31 +44,20 @@ describe('Property-Based Testing', () => {
     it('should maintain invariants across state transitions', () => {
       fc.assert(
         fc.property(
-          fc.option(orderedSetIdArbitrary),
-          fc.option(orderedSetIdArbitrary),
-          fc
-            .array(
-              fc.oneof(
-                fc.constant('setPremise'),
-                fc.constant('setConclusion'),
-                fc.constant('updateLabels'),
-                fc.constant('clearPremise'),
-                fc.constant('clearConclusion'),
-              ),
-              { maxLength: 10 },
-            )
-            .filter((operations) => {
-              // Ensure we don't have only single "setPremise" operations that could cause issues
-              if (operations.length === 1 && operations[0] === 'setPremise') {
-                return false;
-              }
-              return true;
-            }),
-          (initialPremise, initialConclusion, operations) => {
-            const result = AtomicArgument.create(
-              initialPremise === null ? undefined : initialPremise,
-              initialConclusion === null ? undefined : initialConclusion,
-            );
+          statementsArrayArbitrary,
+          statementsArrayArbitrary,
+          fc.array(
+            fc.oneof(
+              fc.constant('addPremise'),
+              fc.constant('addConclusion'),
+              fc.constant('updateLabels'),
+              fc.constant('removePremise'),
+              fc.constant('removeConclusion'),
+            ),
+            { maxLength: 10 },
+          ),
+          (initialPremises, initialConclusions, operations) => {
+            const result = AtomicArgument.create(initialPremises, initialConclusions);
             expect(result.isOk()).toBe(true);
 
             if (result.isOk()) {
@@ -70,20 +67,24 @@ describe('Property-Based Testing', () => {
 
               for (const operation of operations) {
                 switch (operation) {
-                  case 'setPremise':
-                    argument.setPremiseSetRef(orderedSetIdFactory.build());
+                  case 'addPremise':
+                    argument.addPremise(statementFactory.build());
                     break;
-                  case 'setConclusion':
-                    argument.setConclusionSetRef(orderedSetIdFactory.build());
+                  case 'addConclusion':
+                    argument.addConclusion(statementFactory.build());
                     break;
                   case 'updateLabels':
                     argument.updateSideLabels({ left: 'Test', right: 'Updated' });
                     break;
-                  case 'clearPremise':
-                    argument.setPremiseSetRef(null);
+                  case 'removePremise':
+                    if (argument.getPremiseCount() > 0) {
+                      argument.removePremiseAt(0);
+                    }
                     break;
-                  case 'clearConclusion':
-                    argument.setConclusionSetRef(null);
+                  case 'removeConclusion':
+                    if (argument.getConclusionCount() > 0) {
+                      argument.removeConclusionAt(0);
+                    }
                     break;
                 }
               }
@@ -115,23 +116,29 @@ describe('Property-Based Testing', () => {
     it('should maintain connection consistency properties', () => {
       fc.assert(
         fc.property(
-          orderedSetIdArbitrary,
-          orderedSetIdArbitrary,
-          orderedSetIdArbitrary,
-          (sharedSet, otherSet1, otherSet2) => {
-            const argument1 = AtomicArgument.createComplete(otherSet1, sharedSet);
-            const argument2 = AtomicArgument.createComplete(sharedSet, otherSet2);
+          fc.constant(statementFactory.build()),
+          fc.constant(statementFactory.build()),
+          fc.constant(statementFactory.build()),
+          (sharedStatement, otherStatement1, otherStatement2) => {
+            const argument1Result = AtomicArgument.create([otherStatement1], [sharedStatement]);
+            const argument2Result = AtomicArgument.create([sharedStatement], [otherStatement2]);
 
-            // Connection properties
-            expect(argument1.canConnectToPremiseOf(argument2)).toBe(true);
-            expect(argument2.canConnectToConclusionOf(argument1)).toBe(true);
-            expect(argument1.isDirectlyConnectedTo(argument2)).toBe(true);
-            expect(argument2.isDirectlyConnectedTo(argument1)).toBe(true);
-            expect(argument1.sharesOrderedSetWith(argument2)).toBe(true);
+            expect(argument1Result.isOk()).toBe(true);
+            expect(argument2Result.isOk()).toBe(true);
 
-            // Safety validation
-            const validationResult = argument1.validateConnectionSafety(argument2);
-            expect(validationResult.isOk()).toBe(true);
+            if (argument1Result.isOk() && argument2Result.isOk()) {
+              const argument1 = argument1Result.value;
+              const argument2 = argument2Result.value;
+
+              // Connection properties
+              expect(argument1.isDirectlyConnectedTo(argument2)).toBe(true);
+              expect(argument2.isDirectlyConnectedTo(argument1)).toBe(true);
+              expect(argument1.sharesStatementWith(argument2)).toBe(true);
+
+              // Safety validation
+              const validationResult = argument1.validateConnectionSafety(argument2);
+              expect(validationResult.isOk()).toBe(true);
+            }
           },
         ),
       );
@@ -142,8 +149,8 @@ describe('Property-Based Testing', () => {
         fc.property(
           fc.array(
             fc.oneof(
-              fc.constant('setPremise'),
-              fc.constant('setConclusion'),
+              fc.constant('addPremise'),
+              fc.constant('addConclusion'),
               fc.constant('updateLabels'),
             ),
             { minLength: 1, maxLength: 5 },
@@ -166,11 +173,11 @@ describe('Property-Based Testing', () => {
                 mockDateNow.mockReturnValue(newTimestamp);
 
                 switch (op) {
-                  case 'setPremise':
-                    argument.setPremiseSetRef(orderedSetIdFactory.build());
+                  case 'addPremise':
+                    argument.addPremise(statementFactory.build());
                     break;
-                  case 'setConclusion':
-                    argument.setConclusionSetRef(orderedSetIdFactory.build());
+                  case 'addConclusion':
+                    argument.addConclusion(statementFactory.build());
                     break;
                   case 'updateLabels':
                     argument.updateSideLabels({ left: `Label ${index}` });
@@ -182,7 +189,11 @@ describe('Property-Based Testing', () => {
 
               // Timestamps should be monotonically increasing
               for (let i = 1; i < timestamps.length; i++) {
-                expect(timestamps[i]).toBeGreaterThanOrEqual(timestamps[i - 1]);
+                const current = timestamps[i];
+                const previous = timestamps[i - 1];
+                if (current !== undefined && previous !== undefined) {
+                  expect(current).toBeGreaterThanOrEqual(previous);
+                }
               }
             }
           },
@@ -198,7 +209,7 @@ describe('Property-Based Testing', () => {
           validSideLabelsArbitrary,
           fc.array(validSideLabelsArbitrary, { maxLength: 5 }),
           (initialLabels, updateSequence) => {
-            const result = AtomicArgument.create(undefined, undefined, initialLabels);
+            const result = AtomicArgument.create([], [], initialLabels);
             expect(result.isOk()).toBe(true);
 
             if (result.isOk()) {
@@ -206,7 +217,7 @@ describe('Property-Based Testing', () => {
 
               // Apply update sequence
               updateSequence.forEach((labels) => {
-                const updateResult = argument.updateSideLabels(labels);
+                const updateResult = argument.updateSideLabels(labels.toStrings());
                 expect(updateResult.isOk()).toBe(true);
               });
 
@@ -256,11 +267,25 @@ describe('Property-Based Testing', () => {
             { maxLength: 10 },
           ),
           (initialLeft, initialRight, updates) => {
-            const initialLabels: any = {};
-            if (initialLeft !== null) initialLabels.left = initialLeft;
-            if (initialRight !== null) initialLabels.right = initialRight;
+            let leftLabel: SideLabel | undefined;
+            let rightLabel: SideLabel | undefined;
 
-            const result = AtomicArgument.create(undefined, undefined, initialLabels);
+            if (initialLeft !== null) {
+              const leftResult = SideLabel.create(initialLeft);
+              if (leftResult.isOk()) {
+                leftLabel = leftResult.value;
+              }
+            }
+
+            if (initialRight !== null) {
+              const rightResult = SideLabel.create(initialRight);
+              if (rightResult.isOk()) {
+                rightLabel = rightResult.value;
+              }
+            }
+
+            const sideLabels = SideLabels.create(leftLabel, rightLabel);
+            const result = AtomicArgument.create([], [], sideLabels);
             expect(result.isOk()).toBe(true);
 
             if (result.isOk()) {
@@ -296,8 +321,10 @@ describe('Property-Based Testing', () => {
         fc.property(
           fc.array(
             fc.record({
-              premise: fc.option(orderedSetIdArbitrary),
-              conclusion: fc.option(orderedSetIdArbitrary),
+              addPremises: fc.nat({ max: 3 }),
+              addConclusions: fc.nat({ max: 3 }),
+              removePremises: fc.nat({ max: 2 }),
+              removeConclusions: fc.nat({ max: 2 }),
             }),
             { minLength: 1, maxLength: 20 },
           ),
@@ -308,23 +335,40 @@ describe('Property-Based Testing', () => {
             if (result.isOk()) {
               const argument = result.value;
 
-              transitions.forEach(({ premise, conclusion }) => {
-                if (premise !== null) {
-                  argument.setPremiseSetRef(premise);
-                }
-                if (conclusion !== null) {
-                  argument.setConclusionSetRef(conclusion);
-                }
+              transitions.forEach(
+                ({ addPremises, addConclusions, removePremises, removeConclusions }) => {
+                  // Add premises
+                  for (let i = 0; i < addPremises; i++) {
+                    argument.addPremise(statementFactory.build());
+                  }
 
-                // Verify state consistency after each transition
-                customExpect(argument).toBeValidAtomicArgument();
+                  // Add conclusions
+                  for (let i = 0; i < addConclusions; i++) {
+                    argument.addConclusion(statementFactory.build());
+                  }
 
-                const isBootstrap = !argument.getPremiseSet() && !argument.getConclusionSet();
-                expect(argument.isBootstrapArgument()).toBe(isBootstrap);
+                  // Remove premises (if any exist)
+                  for (let i = 0; i < removePremises && argument.getPremiseCount() > 0; i++) {
+                    argument.removePremiseAt(0);
+                  }
 
-                const isComplete = !!argument.getPremiseSet() && !!argument.getConclusionSet();
-                expect(argument.isComplete()).toBe(isComplete);
-              });
+                  // Remove conclusions (if any exist)
+                  for (let i = 0; i < removeConclusions && argument.getConclusionCount() > 0; i++) {
+                    argument.removeConclusionAt(0);
+                  }
+
+                  // Verify state consistency after each transition
+                  customExpect(argument).toBeValidAtomicArgument();
+
+                  const isBootstrap =
+                    argument.getPremiseCount() === 0 && argument.getConclusionCount() === 0;
+                  expect(argument.isBootstrapArgument()).toBe(isBootstrap);
+
+                  const isComplete =
+                    argument.getPremiseCount() > 0 && argument.getConclusionCount() > 0;
+                  expect(argument.isComplete()).toBe(isComplete);
+                },
+              );
             }
           },
         ),
@@ -333,43 +377,54 @@ describe('Property-Based Testing', () => {
 
     it('should maintain branching consistency', () => {
       fc.assert(
-        fc.property(orderedSetIdArbitrary, orderedSetIdArbitrary, (premiseRef, conclusionRef) => {
-          const parent = AtomicArgument.createComplete(premiseRef, conclusionRef);
+        fc.property(
+          statementsArrayArbitrary.filter((arr) => arr.length > 0),
+          statementsArrayArbitrary.filter((arr) => arr.length > 0),
+          (premises, conclusions) => {
+            const parentResult = AtomicArgument.create(premises, conclusions);
+            expect(parentResult.isOk()).toBe(true);
 
-          // Branch from conclusion
-          const childResult = parent.createBranchFromConclusion();
-          expect(childResult.isOk()).toBe(true);
+            if (parentResult.isOk()) {
+              const parent = parentResult.value;
 
-          if (childResult.isOk()) {
-            const child = childResult.value;
+              // Branch from conclusion
+              const childResult = parent.createBranchFromConclusion(0);
+              expect(childResult.isOk()).toBe(true);
 
-            // Verify branching properties
-            expect(child.getPremiseSet()).toBe(parent.getConclusionSet());
-            expect(child.getConclusionSet()).toBeNull();
-            expect(parent.canConnectToPremiseOf(child)).toBe(true);
-            expect(child.canConnectToConclusionOf(parent)).toBe(true);
+              if (childResult.isOk()) {
+                const child = childResult.value;
 
-            // Complete the child
-            child.setConclusionSetRef(orderedSetIdFactory.build());
-            expect(child.isComplete()).toBe(true);
+                // Verify branching properties
+                expect(child.getPremises()).toHaveLength(1);
+                expect(child.getPremises()[0]).toBe(parent.getConclusions()[0]);
+                expect(child.getConclusions()).toHaveLength(0);
+                expect(parent.isDirectlyConnectedTo(child)).toBe(true);
+                expect(child.isDirectlyConnectedTo(parent)).toBe(true);
 
-            // Connection should still be valid
-            expect(parent.canConnectToPremiseOf(child)).toBe(true);
-          }
+                // Complete the child
+                child.addConclusion(statementFactory.build());
+                expect(child.isComplete()).toBe(true);
 
-          // Branch to premise
-          const parentResult = parent.createBranchToPremise();
-          expect(parentResult.isOk()).toBe(true);
+                // Connection should still be valid
+                expect(parent.isDirectlyConnectedTo(child)).toBe(true);
+              }
 
-          if (parentResult.isOk()) {
-            const newParent = parentResult.value;
+              // Branch to premise
+              const parentOfParentResult = parent.createBranchToPremise(0);
+              expect(parentOfParentResult.isOk()).toBe(true);
 
-            // Verify branching properties
-            expect(newParent.getConclusionSet()).toBe(parent.getPremiseSet());
-            expect(newParent.getPremiseSet()).toBeNull();
-            expect(newParent.canConnectToPremiseOf(parent)).toBe(true);
-          }
-        }),
+              if (parentOfParentResult.isOk()) {
+                const newParent = parentOfParentResult.value;
+
+                // Verify branching properties
+                expect(newParent.getConclusions()).toHaveLength(1);
+                expect(newParent.getConclusions()[0]).toBe(parent.getPremises()[0]);
+                expect(newParent.getPremises()).toHaveLength(0);
+                expect(newParent.isDirectlyConnectedTo(parent)).toBe(true);
+              }
+            }
+          },
+        ),
       );
     });
   });

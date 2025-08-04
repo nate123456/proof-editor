@@ -157,10 +157,10 @@ describe('ProofTreePanel Message Handling', () => {
     mockVisualizationService = {
       generateVisualization: vi.fn().mockReturnValue(
         ok({
-          documentId: 'test-doc',
-          version: 1,
+          documentId: 'test-doc' as any,
+          version: 1 as any,
           trees: [],
-          totalDimensions: { width: 400, height: 200 },
+          totalDimensions: { width: 400, height: 200 } as any,
           isEmpty: true,
         }),
       ) as any,
@@ -904,10 +904,10 @@ describe('ProofTreePanel Message Handling', () => {
       // Let's test it through a message that triggers refresh
       vi.mocked(mockVisualizationService.generateVisualization).mockReturnValue(
         ok({
-          documentId: 'test-doc-id',
-          version: 1,
+          documentId: 'test-doc-id' as any,
+          version: 1 as any,
           trees: [],
-          totalDimensions: { width: 800, height: 600 },
+          totalDimensions: { width: 800, height: 600 } as any,
           isEmpty: false,
         }),
       );

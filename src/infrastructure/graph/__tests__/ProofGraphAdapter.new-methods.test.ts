@@ -14,20 +14,50 @@ describe('ProofGraphAdapter - New Interface Methods', () => {
     mockNodeRepository = {
       findById: vi.fn(),
       save: vi.fn(),
-      findAll: vi.fn(),
-      findByIds: vi.fn(),
-      exists: vi.fn(),
+      findByTree: vi.fn(),
       delete: vi.fn(),
     } as INodeRepository;
 
     mockArgumentRepository = {
+      // Base repository methods
       findById: vi.fn(),
       save: vi.fn(),
       findAll: vi.fn(),
       findByIds: vi.fn(),
       exists: vi.fn(),
       delete: vi.fn(),
-    } as IAtomicArgumentRepository;
+      clear: vi.fn(),
+      count: vi.fn(),
+      transaction: vi.fn(),
+
+      // Query repository methods
+      findByStatementReference: vi.fn(),
+      findArgumentsByPremiseCount: vi.fn(),
+      findArgumentsUsingStatement: vi.fn(),
+      findArgumentsByComplexity: vi.fn(),
+      findArgumentsWithConclusion: vi.fn(),
+      findArgumentsByValidationStatus: vi.fn(),
+      findArgumentChains: vi.fn(),
+      findCircularDependencies: vi.fn(),
+      findMostReferencedArguments: vi.fn(),
+      findOrphanedArguments: vi.fn(),
+
+      // Advanced query methods
+      findByPredicate: vi.fn(),
+      findOneByPredicate: vi.fn(),
+      existsByPredicate: vi.fn(),
+      countByPredicate: vi.fn(),
+
+      // Specification methods
+      findBySatisfying: vi.fn(),
+      findOneSatisfying: vi.fn(),
+
+      // Command repository methods
+      bulkSave: vi.fn(),
+      bulkDelete: vi.fn(),
+      deleteWhere: vi.fn(),
+      updateWhere: vi.fn(),
+    } as unknown as IAtomicArgumentRepository;
 
     adapter = new ProofGraphAdapter(mockNodeRepository, mockArgumentRepository);
   });

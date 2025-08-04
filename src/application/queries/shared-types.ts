@@ -15,6 +15,11 @@ import {
   type TreeId,
 } from '../../domain/shared/value-objects/index.js';
 
+export interface OrderedSetDTO {
+  id: string;
+  statementIds: string[];
+}
+
 export interface AtomicArgumentDTO {
   id: AtomicArgumentId;
   premiseIds: StatementId[];

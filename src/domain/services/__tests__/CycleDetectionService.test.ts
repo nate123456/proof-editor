@@ -424,8 +424,8 @@ describe('CycleDetectionService', () => {
     // Create a mock argument that would cause AtomicArgumentId.create() to fail
     const mockArgument = {
       getId: () => ({ getValue: () => 'invalid-id-format' }),
-      getPremiseSet: () => null,
-      getConclusionSet: () => null,
+      getPremises: () => [],
+      getConclusions: () => [],
     } as unknown as AtomicArgument;
 
     const argumentMap = new Map([['invalid-id-format', mockArgument]]);

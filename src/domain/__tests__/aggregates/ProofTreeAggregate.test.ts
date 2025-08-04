@@ -29,7 +29,10 @@ describe('ProofTreeAggregate', () => {
       expect(customPosition.isOk()).toBe(true);
 
       if (customPosition.isOk()) {
-        const layout = { offset: customPosition.value, scale: 1.5 };
+        const layout = {
+          offset: { x: customPosition.value.getX(), y: customPosition.value.getY() },
+          scale: 1.5,
+        };
         const treeResult = ProofTreeAggregate.createNew(layout);
 
         expect(treeResult.isOk()).toBe(true);

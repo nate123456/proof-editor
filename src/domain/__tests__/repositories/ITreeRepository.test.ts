@@ -14,8 +14,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Tree } from '../../entities/Tree';
 import { RepositoryError } from '../../errors/DomainErrors';
 import type { ITreeRepository } from '../../repositories/ITreeRepository';
-import { DocumentId, PhysicalProperties, Position2D, TreeId } from '../../shared/value-objects';
-import { treeIdFactory } from './factories';
+import { DocumentId, PhysicalProperties, TreeId } from '../../shared/value-objects';
+import { TreePosition } from '../../value-objects/TreePosition';
+import { treeIdFactory } from '../factories/index.js';
 
 // Mock implementation of ITreeRepository for testing
 class MockTreeRepository implements ITreeRepository {
@@ -64,14 +65,25 @@ class MockTreeRepository implements ITreeRepository {
     }
   }
 
-  async findById(id: TreeId): Promise<Tree | null> {
-    const tree = this.trees.get(id.getValue());
-    return Promise.resolve(tree ?? null);
+  async findById(id: TreeId): Promise<Result<Tree, RepositoryError>> {
+    try {
+      const tree = this.trees.get(id.getValue());
+      if (!tree) {
+        return Promise.resolve(err(new RepositoryError('Tree not found')));
+      }
+      return Promise.resolve(ok(tree));
+    } catch (error) {
+      return Promise.resolve(err(new RepositoryError('Failed to find tree', error as Error)));
+    }
   }
 
-  async findByDocument(documentId: DocumentId): Promise<Tree[]> {
-    const treesSet = this.documentIndex.get(documentId.getValue());
-    return Promise.resolve(treesSet ? Array.from(treesSet) : []);
+  async findByDocument(documentId: DocumentId): Promise<Result<Tree[], RepositoryError>> {
+    try {
+      const treesSet = this.documentIndex.get(documentId.getValue());
+      return Promise.resolve(ok(treesSet ? Array.from(treesSet) : []));
+    } catch (error) {
+      return Promise.resolve(err(new RepositoryError('Failed to find trees', error as Error)));
+    }
   }
 
   async delete(id: TreeId): Promise<Result<void, RepositoryError>> {
@@ -158,9 +170,9 @@ describe('ITreeRepository', () => {
 
   // Helper function to create test tree
   const createTestTree = (documentId: DocumentId, name = 'Test Tree', offset = { x: 0, y: 0 }) => {
-    const positionResult = Position2D.create(offset.x, offset.y);
+    const positionResult = TreePosition.create(offset.x, offset.y);
 
-    if (!positionResult.isOk()) throw new Error('Position2D creation failed');
+    if (!positionResult.isOk()) throw new Error('TreePosition creation failed');
 
     const position = positionResult.value;
     const treeResult = Tree.create(documentId.getValue(), position);
@@ -191,9 +203,9 @@ describe('ITreeRepository', () => {
       await repository.save(tree);
 
       // Update position
-      const newPositionResult = Position2D.create(100, 200);
+      const newPositionResult = TreePosition.create(100, 200);
 
-      if (!newPositionResult.isOk()) throw new Error('Position2D creation failed');
+      if (!newPositionResult.isOk()) throw new Error('TreePosition creation failed');
 
       const newPosition = newPositionResult.value;
       tree.moveTo(newPosition);
@@ -204,9 +216,12 @@ describe('ITreeRepository', () => {
       expect(updateResult.isOk()).toBe(true);
       expect(repository.size()).toBe(1);
 
-      const found = await repository.findById(tree.getId());
-      expect(found?.getPosition().getX()).toBe(100);
-      expect(found?.getPosition().getY()).toBe(200);
+      const foundResult = await repository.findById(tree.getId());
+      expect(foundResult.isOk()).toBe(true);
+      if (foundResult.isOk()) {
+        expect(foundResult.value.getPosition().getX()).toBe(100);
+        expect(foundResult.value.getPosition().getY()).toBe(200);
+      }
     });
 
     it('should index trees by document', async () => {
@@ -310,15 +325,19 @@ describe('ITreeRepository', () => {
         expect(result.isOk()).toBe(true);
       }
 
-      const allTrees = await repository.findByDocument(documentId);
-      expect(allTrees.length).toBe(positions.length);
+      const allTreesResult = await repository.findByDocument(documentId);
+      expect(allTreesResult.isOk()).toBe(true);
+      if (allTreesResult.isOk()) {
+        const allTrees = allTreesResult.value;
+        expect(allTrees.length).toBe(positions.length);
 
-      // Verify positions are preserved
-      const savedPositions = allTrees.map((t) => ({
-        x: t.getPosition().getX(),
-        y: t.getPosition().getY(),
-      }));
-      expect(savedPositions).toEqual(expect.arrayContaining(positions));
+        // Verify positions are preserved
+        const savedPositions = allTrees.map((t: Tree) => ({
+          x: t.getPosition().getX(),
+          y: t.getPosition().getY(),
+        }));
+        expect(savedPositions).toEqual(expect.arrayContaining(positions));
+      }
     });
   });
 
@@ -328,12 +347,14 @@ describe('ITreeRepository', () => {
       const tree = createTestTree(documentId);
       await repository.save(tree);
 
-      const found = await repository.findById(tree.getId());
+      const foundResult = await repository.findById(tree.getId());
 
-      expect(found).not.toBeNull();
-      expect(found?.getId().equals(tree.getId())).toBe(true);
-      expect(found?.getTitle()).toBe(tree.getTitle());
-      expect(found?.getDocumentId()).toBe(documentId.getValue());
+      expect(foundResult.isOk()).toBe(true);
+      if (foundResult.isOk()) {
+        expect(foundResult.value.getId().equals(tree.getId())).toBe(true);
+        expect(foundResult.value.getTitle()).toBe(tree.getTitle());
+        expect(foundResult.value.getDocumentId()).toBe(documentId.getValue());
+      }
     });
 
     it('should return null for non-existent ID', async () => {
@@ -352,9 +373,11 @@ describe('ITreeRepository', () => {
       }
 
       for (const tree of trees) {
-        const found = await repository.findById(tree.getId());
-        expect(found).not.toBeNull();
-        expect(found?.getId().equals(tree.getId())).toBe(true);
+        const foundResult = await repository.findById(tree.getId());
+        expect(foundResult.isOk()).toBe(true);
+        if (foundResult.isOk()) {
+          expect(foundResult.value.getId().equals(tree.getId())).toBe(true);
+        }
       }
     });
 
@@ -365,11 +388,13 @@ describe('ITreeRepository', () => {
 
       await repository.save(tree);
 
-      const found = await repository.findById(tree.getId());
-      expect(found).not.toBeNull();
-      expect(found?.getTitle()).toBe('My Special Tree');
-      expect(found?.getPosition().getX()).toBe(123);
-      expect(found?.getPosition().getY()).toBe(456);
+      const foundResult = await repository.findById(tree.getId());
+      expect(foundResult.isOk()).toBe(true);
+      if (foundResult.isOk()) {
+        expect(foundResult.value.getTitle()).toBe('My Special Tree');
+        expect(foundResult.value.getPosition().getX()).toBe(123);
+        expect(foundResult.value.getPosition().getY()).toBe(456);
+      }
       // Metadata check not applicable
     });
   });
@@ -377,10 +402,13 @@ describe('ITreeRepository', () => {
   describe('findByDocument', () => {
     it('should return empty array for document with no trees', async () => {
       const documentId = createDocumentId();
-      const trees = await repository.findByDocument(documentId);
+      const treesResult = await repository.findByDocument(documentId);
 
-      expect(trees).toEqual([]);
-      expect(trees.length).toBe(0);
+      expect(treesResult.isOk()).toBe(true);
+      if (treesResult.isOk()) {
+        expect(treesResult.value).toEqual([]);
+        expect(treesResult.value.length).toBe(0);
+      }
     });
 
     it('should find all trees in a document', async () => {
@@ -394,13 +422,16 @@ describe('ITreeRepository', () => {
         await repository.save(tree);
       }
 
-      const found = await repository.findByDocument(documentId);
+      const foundResult = await repository.findByDocument(documentId);
 
-      expect(found.length).toBe(count);
+      expect(foundResult.isOk()).toBe(true);
+      if (foundResult.isOk()) {
+        expect(foundResult.value.length).toBe(count);
 
-      const foundIds = found.map((t) => t.getId().getValue()).sort();
-      const expectedIds = trees.map((t) => t.getId().getValue()).sort();
-      expect(foundIds).toEqual(expectedIds);
+        const foundIds = foundResult.value.map((t) => t.getId().getValue()).sort();
+        const expectedIds = trees.map((t) => t.getId().getValue()).sort();
+        expect(foundIds).toEqual(expectedIds);
+      }
     });
 
     it('should separate trees by document', async () => {
@@ -415,18 +446,23 @@ describe('ITreeRepository', () => {
         await repository.save(tree);
       }
 
-      const foundDoc1 = await repository.findByDocument(doc1);
-      const foundDoc2 = await repository.findByDocument(doc2);
+      const foundDoc1Result = await repository.findByDocument(doc1);
+      const foundDoc2Result = await repository.findByDocument(doc2);
 
-      expect(foundDoc1.length).toBe(3);
-      expect(foundDoc2.length).toBe(2);
+      expect(foundDoc1Result.isOk()).toBe(true);
+      expect(foundDoc2Result.isOk()).toBe(true);
 
-      // Ensure no cross-contamination
-      const doc1Names = foundDoc1.map((t) => t.getTitle() ?? '');
-      const doc2Names = foundDoc2.map((t) => t.getTitle() ?? '');
+      if (foundDoc1Result.isOk() && foundDoc2Result.isOk()) {
+        expect(foundDoc1Result.value.length).toBe(3);
+        expect(foundDoc2Result.value.length).toBe(2);
 
-      expect(doc1Names.every((name) => name.startsWith('Doc1'))).toBe(true);
-      expect(doc2Names.every((name) => name.startsWith('Doc2'))).toBe(true);
+        // Ensure no cross-contamination
+        const doc1Names = foundDoc1Result.value.map((t) => t.getTitle() ?? '');
+        const doc2Names = foundDoc2Result.value.map((t) => t.getTitle() ?? '');
+
+        expect(doc1Names.every((name) => name.startsWith('Doc1'))).toBe(true);
+        expect(doc2Names.every((name) => name.startsWith('Doc2'))).toBe(true);
+      }
     });
 
     it('should return trees in consistent order', async () => {
@@ -437,13 +473,18 @@ describe('ITreeRepository', () => {
         await repository.save(tree);
       }
 
-      const found1 = await repository.findByDocument(documentId);
-      const found2 = await repository.findByDocument(documentId);
+      const found1Result = await repository.findByDocument(documentId);
+      const found2Result = await repository.findByDocument(documentId);
 
-      const ids1 = found1.map((t) => t.getId().getValue());
-      const ids2 = found2.map((t) => t.getId().getValue());
+      expect(found1Result.isOk()).toBe(true);
+      expect(found2Result.isOk()).toBe(true);
 
-      expect(ids1).toEqual(ids2);
+      if (found1Result.isOk() && found2Result.isOk()) {
+        const ids1 = found1Result.value.map((t) => t.getId().getValue());
+        const ids2 = found2Result.value.map((t) => t.getId().getValue());
+
+        expect(ids1).toEqual(ids2);
+      }
     });
   });
 
@@ -458,8 +499,11 @@ describe('ITreeRepository', () => {
       expect(result.isOk()).toBe(true);
       expect(repository.size()).toBe(0);
 
-      const found = await repository.findById(tree.getId());
-      expect(found).toBeNull();
+      const foundResult = await repository.findById(tree.getId());
+      expect(foundResult.isErr()).toBe(true);
+      if (foundResult.isErr()) {
+        expect(foundResult.error.message).toContain('not found');
+      }
     });
 
     it('should reject deleting tree with nodes', async () => {
@@ -471,7 +515,7 @@ describe('ITreeRepository', () => {
       const treeResult = Tree.reconstruct(
         treeId,
         documentId.getValue(),
-        Position2D.origin(),
+        TreePosition.origin(),
         PhysicalProperties.default(),
         [],
         Date.now(),
@@ -499,8 +543,11 @@ describe('ITreeRepository', () => {
 
       await repository.delete(tree.getId());
 
-      const byDocument = await repository.findByDocument(documentId);
-      expect(byDocument).toHaveLength(0);
+      const byDocumentResult = await repository.findByDocument(documentId);
+      expect(byDocumentResult.isOk()).toBe(true);
+      if (byDocumentResult.isOk()) {
+        expect(byDocumentResult.value).toHaveLength(0);
+      }
     });
 
     it('should return error for non-existent tree', async () => {
@@ -550,18 +597,22 @@ describe('ITreeRepository', () => {
         await repository.delete(tree3.getId());
       }
 
-      const remaining = await repository.findByDocument(documentId);
-      expect(remaining.length).toBe(3);
+      const remainingResult = await repository.findByDocument(documentId);
+      expect(remainingResult.isOk()).toBe(true);
+      if (remainingResult.isOk()) {
+        const remaining = remainingResult.value;
+        expect(remaining.length).toBe(3);
 
-      const remainingIds = remaining.map((t) => t.getId().getValue());
-      const tree0 = trees[0];
-      const tree2 = trees[2];
-      const tree4 = trees[4];
-      if (tree0) expect(remainingIds).toContain(tree0.getId().getValue());
-      if (tree2) expect(remainingIds).toContain(tree2.getId().getValue());
-      if (tree4) expect(remainingIds).toContain(tree4.getId().getValue());
-      if (tree1) expect(remainingIds).not.toContain(tree1.getId().getValue());
-      if (tree3) expect(remainingIds).not.toContain(tree3.getId().getValue());
+        const remainingIds = remaining.map((t: Tree) => t.getId().getValue());
+        const tree0 = trees[0];
+        const tree2 = trees[2];
+        const tree4 = trees[4];
+        if (tree0) expect(remainingIds).toContain(tree0.getId().getValue());
+        if (tree2) expect(remainingIds).toContain(tree2.getId().getValue());
+        if (tree4) expect(remainingIds).toContain(tree4.getId().getValue());
+        if (tree1) expect(remainingIds).not.toContain(tree1.getId().getValue());
+        if (tree3) expect(remainingIds).not.toContain(tree3.getId().getValue());
+      }
     });
   });
 
@@ -586,12 +637,12 @@ describe('ITreeRepository', () => {
         return Promise.resolve(err(new RepositoryError('Unknown tree')));
       });
       vi.mocked(mockRepository.findById).mockImplementation(async (id) => {
-        if (id.equals(tree.getId())) return Promise.resolve(tree);
-        return Promise.resolve(null);
+        if (id.equals(tree.getId())) return Promise.resolve(ok(tree));
+        return Promise.resolve(err(new RepositoryError('Tree not found')));
       });
       vi.mocked(mockRepository.findByDocument).mockImplementation(async (id) => {
-        if (id.equals(documentId)) return Promise.resolve([tree]);
-        return Promise.resolve([]);
+        if (id.equals(documentId)) return Promise.resolve(ok([tree]));
+        return Promise.resolve(ok([]));
       });
       vi.mocked(mockRepository.delete).mockImplementation(async (id) => {
         if (id.equals(tree.getId())) return Promise.resolve(err(new RepositoryError('Has nodes')));
@@ -619,20 +670,28 @@ describe('ITreeRepository', () => {
       const trees = Array.from({ length: 3 }, (_, i) => createTestTree(documentId, `Tree ${i}`));
 
       vi.mocked(mockRepository.findByDocument).mockImplementation(async (id) => {
-        if (id.equals(documentId)) return Promise.resolve(trees);
-        return Promise.resolve([]);
+        if (id.equals(documentId)) return Promise.resolve(ok(trees));
+        return Promise.resolve(ok([]));
       });
 
       vi.mocked(mockRepository.findById).mockImplementation(async (id) => {
-        return Promise.resolve(trees.find((tree) => tree.getId().equals(id)) ?? null);
+        const tree = trees.find((tree) => tree.getId().equals(id));
+        if (tree) return Promise.resolve(ok(tree));
+        return Promise.resolve(err(new RepositoryError('Tree not found')));
       });
 
-      const byDocument = await mockRepository.findByDocument(documentId);
-      expect(byDocument.length).toBe(3);
+      const byDocumentResult = await mockRepository.findByDocument(documentId);
+      expect(byDocumentResult.isOk()).toBe(true);
+      if (byDocumentResult.isOk()) {
+        expect(byDocumentResult.value.length).toBe(3);
+      }
 
       for (const tree of trees) {
-        const found = await mockRepository.findById(tree.getId());
-        expect(found).toBe(tree);
+        const foundResult = await mockRepository.findById(tree.getId());
+        expect(foundResult.isOk()).toBe(true);
+        if (foundResult.isOk()) {
+          expect(foundResult.value).toBe(tree);
+        }
       }
     });
   });
@@ -646,9 +705,11 @@ describe('ITreeRepository', () => {
       const saveResult = await repository.save(tree);
       expect(saveResult.isOk()).toBe(true);
 
-      const found = await repository.findById(tree.getId());
-      expect(found).not.toBeNull();
-      expect(found?.getTitle()).toBe(longName);
+      const foundResult = await repository.findById(tree.getId());
+      expect(foundResult.isOk()).toBe(true);
+      if (foundResult.isOk()) {
+        expect(foundResult.value.getTitle()).toBe(longName);
+      }
     });
 
     it('should handle trees at extreme spatial positions', async () => {
@@ -666,8 +727,11 @@ describe('ITreeRepository', () => {
         expect(result.isOk()).toBe(true);
       }
 
-      const allTrees = await repository.findByDocument(documentId);
-      expect(allTrees.length).toBe(extremePositions.length);
+      const allTreesResult = await repository.findByDocument(documentId);
+      expect(allTreesResult.isOk()).toBe(true);
+      if (allTreesResult.isOk()) {
+        expect(allTreesResult.value.length).toBe(extremePositions.length);
+      }
     });
 
     it('should maintain consistency under concurrent-like operations', async () => {
@@ -689,9 +753,12 @@ describe('ITreeRepository', () => {
         }
       }
 
-      const remaining = await repository.findByDocument(documentId);
-      expect(remaining.length).toBeGreaterThan(0);
-      expect(remaining.length).toBeLessThan(trees.length);
+      const remainingResult = await repository.findByDocument(documentId);
+      expect(remainingResult.isOk()).toBe(true);
+      if (remainingResult.isOk()) {
+        expect(remainingResult.value.length).toBeGreaterThan(0);
+        expect(remainingResult.value.length).toBeLessThan(trees.length);
+      }
     });
 
     it('should handle large number of trees per document', async () => {
@@ -707,8 +774,11 @@ describe('ITreeRepository', () => {
         expect(result.isOk()).toBe(true);
       }
 
-      const found = await repository.findByDocument(documentId);
-      expect(found.length).toBe(treeCount);
+      const foundResult = await repository.findByDocument(documentId);
+      expect(foundResult.isOk()).toBe(true);
+      if (foundResult.isOk()) {
+        expect(foundResult.value.length).toBe(treeCount);
+      }
     });
 
     it('should handle trees with complex metadata', async () => {
@@ -723,8 +793,8 @@ describe('ITreeRepository', () => {
       const saveResult = await repository.save(tree);
       expect(saveResult.isOk()).toBe(true);
 
-      const found = await repository.findById(tree.getId());
-      expect(found).not.toBeNull();
+      const foundResult = await repository.findById(tree.getId());
+      expect(foundResult.isOk()).toBe(true);
       // Metadata check not applicable
     });
   });

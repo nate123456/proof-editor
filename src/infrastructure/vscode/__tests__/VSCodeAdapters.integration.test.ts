@@ -1,9 +1,23 @@
 import { err, ok } from 'neverthrow';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import type { IFileSystemPort } from '../../../application/ports/IFileSystemPort.js';
-import type { IPlatformPort } from '../../../application/ports/IPlatformPort.js';
-import type { IUIPort } from '../../../application/ports/IUIPort.js';
-import { NotificationMessage } from '../../../domain/shared/value-objects/index.js';
+import type { IPlatformPort, PlatformError } from '../../../application/ports/IPlatformPort.js';
+import type { IUIPort, UIError } from '../../../application/ports/IUIPort.js';
+import {
+  ErrorCode,
+  ErrorMessage,
+  NotificationMessage,
+} from '../../../domain/shared/value-objects/index.js';
+import {
+  createTestArchitecture,
+  createTestDialogPrompt,
+  createTestDimensions,
+  createTestFileSize,
+  createTestFontFamily,
+  createTestFontSize,
+  createTestMessageLength,
+  createTestPlatformVersion,
+} from '../../__tests__/test-helpers.js';
 // We'll import ApplicationContainer dynamically in the test
 import { TOKENS } from '../../di/tokens.js';
 
@@ -76,7 +90,7 @@ describe('VSCode Adapters Integration', () => {
         canAccessArbitraryPaths: true,
         supportsOfflineStorage: true,
         persistence: 'permanent' as const,
-        maxFileSize: 10 * 1024 * 1024,
+        maxFileSize: createTestFileSize(10 * 1024 * 1024),
       }),
       readFile: vi.fn().mockResolvedValue(ok('file content')),
       writeFile: vi.fn().mockResolvedValue(ok(undefined)),
@@ -99,7 +113,7 @@ describe('VSCode Adapters Integration', () => {
         supportsStatusBar: true,
         supportsWebviews: true,
         supportsThemes: true,
-        maxMessageLength: 1000,
+        maxMessageLength: createTestMessageLength(1000),
       }),
       showInputBox: vi.fn().mockResolvedValue(ok('test input')),
       showQuickPick: vi.fn().mockResolvedValue(ok('test selection')),
@@ -125,7 +139,11 @@ describe('VSCode Adapters Integration', () => {
       getTheme: () => ({
         kind: 'light' as const,
         colors: { 'editor.background': '#ffffff' },
-        fonts: { default: 'Arial', monospace: 'Courier', size: 12 },
+        fonts: {
+          default: createTestFontFamily('Arial'),
+          monospace: createTestFontFamily('Courier'),
+          size: createTestFontSize(12),
+        },
       }),
       onThemeChange: vi.fn().mockReturnValue({ dispose: vi.fn() }),
       writeFile: vi.fn().mockResolvedValue(ok(undefined)),
@@ -134,9 +152,9 @@ describe('VSCode Adapters Integration', () => {
     const mockPlatformPort: IPlatformPort = {
       getPlatformInfo: () => ({
         type: 'vscode' as const,
-        version: '1.74.0',
+        version: createTestPlatformVersion('1.74.0'),
         os: 'linux' as const,
-        arch: 'x64',
+        arch: createTestArchitecture('x64'),
         isDebug: false,
       }),
       getInputCapabilities: () => ({
@@ -147,8 +165,7 @@ describe('VSCode Adapters Integration', () => {
         primaryInput: 'keyboard' as const,
       }),
       getDisplayCapabilities: () => ({
-        screenWidth: 1920,
-        screenHeight: 1080,
+        screenDimensions: createTestDimensions(1920, 1080),
         devicePixelRatio: 1,
         colorDepth: 24,
         isHighContrast: false,
@@ -217,7 +234,8 @@ describe('VSCode Adapters Integration', () => {
       expect(capabilities.supportsStatusBar).toBe(true);
       expect(capabilities.supportsWebviews).toBe(true);
       expect(capabilities.supportsThemes).toBe(true);
-      expect(typeof capabilities.maxMessageLength).toBe('number');
+      expect(capabilities.maxMessageLength).toBeDefined();
+      expect(typeof capabilities.maxMessageLength?.getValue()).toBe('number');
     });
 
     test('platform adapter has correct platform info', () => {
@@ -225,9 +243,9 @@ describe('VSCode Adapters Integration', () => {
       const platformInfo = platformPort.getPlatformInfo();
 
       expect(platformInfo.type).toBe('vscode');
-      expect(platformInfo.version).toBe('1.74.0');
+      expect(platformInfo.version.getValue()).toBe('1.74.0');
       expect(platformInfo.os).toMatch(/windows|macos|linux/);
-      expect(typeof platformInfo.arch).toBe('string');
+      expect(typeof platformInfo.arch.getValue()).toBe('string');
       expect(typeof platformInfo.isDebug).toBe('boolean');
     });
 
@@ -249,7 +267,8 @@ describe('VSCode Adapters Integration', () => {
       expect(capabilities.canAccessArbitraryPaths).toBe(true);
       expect(capabilities.supportsOfflineStorage).toBe(true);
       expect(capabilities.persistence).toBe('permanent');
-      expect(typeof capabilities.maxFileSize).toBe('number');
+      expect(capabilities.maxFileSize).toBeDefined();
+      expect(typeof capabilities.maxFileSize?.getValue()).toBe('number');
     });
   });
 
@@ -283,23 +302,31 @@ describe('VSCode Adapters Integration', () => {
       const uiPort = container.resolve(TOKENS.IUIPort) as IUIPort;
 
       // Mock our adapters to return errors for testing
-      vi.mocked(platformPort.copyToClipboard).mockResolvedValue(
-        err({ code: 'PLATFORM_ERROR', message: 'Test error' }),
-      );
-      vi.mocked(uiPort.showInputBox).mockResolvedValue(
-        err({ code: 'PLATFORM_ERROR', message: 'UI error' }),
-      );
+      const errorCode = ErrorCode.create('PLATFORM_ERROR');
+      const errorMessage = ErrorMessage.create('Test error');
+      if (errorCode.isOk() && errorMessage.isOk()) {
+        vi.mocked(platformPort.copyToClipboard).mockResolvedValue(
+          err({ code: errorCode.value, message: errorMessage.value } as PlatformError),
+        );
+      }
+      const uiErrorCode = ErrorCode.create('PLATFORM_ERROR');
+      const uiErrorMessage = ErrorMessage.create('UI error');
+      if (uiErrorCode.isOk() && uiErrorMessage.isOk()) {
+        vi.mocked(uiPort.showInputBox).mockResolvedValue(
+          err({ code: uiErrorCode.value, message: uiErrorMessage.value } as UIError),
+        );
+      }
 
       const clipboardResult = await platformPort.copyToClipboard('test');
       expect(clipboardResult.isErr()).toBe(true);
       if (clipboardResult.isErr()) {
-        expect(clipboardResult.error.code).toBe('PLATFORM_ERROR');
+        expect(clipboardResult.error.code.getValue()).toBe('PLATFORM_ERROR');
       }
 
-      const inputResult = await uiPort.showInputBox({ prompt: 'test' });
+      const inputResult = await uiPort.showInputBox({ prompt: createTestDialogPrompt('test') });
       expect(inputResult.isErr()).toBe(true);
       if (inputResult.isErr()) {
-        expect(inputResult.error.code).toBe('PLATFORM_ERROR');
+        expect(inputResult.error.code.getValue()).toBe('PLATFORM_ERROR');
       }
     });
   });
@@ -392,16 +419,20 @@ describe('VSCode Adapters Integration', () => {
       const uiPort = container.resolve(TOKENS.IUIPort) as IUIPort;
 
       // Mock our adapter to return errors
-      vi.mocked(uiPort.showInputBox).mockResolvedValue(
-        err({ code: 'PLATFORM_ERROR', message: 'VS Code API Error' }),
-      );
+      const apiErrorCode = ErrorCode.create('PLATFORM_ERROR');
+      const apiErrorMessage = ErrorMessage.create('VS Code API Error');
+      if (apiErrorCode.isOk() && apiErrorMessage.isOk()) {
+        vi.mocked(uiPort.showInputBox).mockResolvedValue(
+          err({ code: apiErrorCode.value, message: apiErrorMessage.value } as UIError),
+        );
+      }
 
-      const result = await uiPort.showInputBox({ prompt: 'test' });
+      const result = await uiPort.showInputBox({ prompt: createTestDialogPrompt('test') });
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.code).toBe('PLATFORM_ERROR');
-        expect(result.error.message).toBe('VS Code API Error');
+        expect(result.error.code.getValue()).toBe('PLATFORM_ERROR');
+        expect(result.error.message.getValue()).toBe('VS Code API Error');
       }
     });
 
@@ -409,15 +440,22 @@ describe('VSCode Adapters Integration', () => {
       const platformPort = container.resolve(TOKENS.IPlatformPort) as IPlatformPort;
 
       // Mock our adapter to return context errors
-      vi.mocked(platformPort.getStorageValue).mockResolvedValue(
-        err({ code: 'PLATFORM_ERROR', message: 'Context error' }),
-      );
+      const contextErrorCode = ErrorCode.create('PLATFORM_ERROR');
+      const contextErrorMessage = ErrorMessage.create('Context error');
+      if (contextErrorCode.isOk() && contextErrorMessage.isOk()) {
+        vi.mocked(platformPort.getStorageValue).mockResolvedValue(
+          err({
+            code: contextErrorCode.value,
+            message: contextErrorMessage.value,
+          } as PlatformError),
+        );
+      }
 
       const result = await platformPort.getStorageValue('test-key');
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.code).toBe('PLATFORM_ERROR');
+        expect(result.error.code.getValue()).toBe('PLATFORM_ERROR');
       }
     });
   });

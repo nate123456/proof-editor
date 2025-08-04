@@ -11,6 +11,7 @@ declare const PackageIdBrand: unique symbol;
 declare const ProofIdBrand: unique symbol;
 declare const ProofTreeIdBrand: unique symbol;
 declare const ProofDocumentIdBrand: unique symbol;
+declare const OrderedSetIdBrand: unique symbol;
 
 type BrandedStatementId = string & { readonly [StatementIdBrand]: never };
 type BrandedAtomicArgumentId = string & { readonly [AtomicArgumentIdBrand]: never };
@@ -21,6 +22,7 @@ type BrandedPackageId = string & { readonly [PackageIdBrand]: never };
 type BrandedProofId = string & { readonly [ProofIdBrand]: never };
 type BrandedProofTreeId = string & { readonly [ProofTreeIdBrand]: never };
 type BrandedProofDocumentId = string & { readonly [ProofDocumentIdBrand]: never };
+type BrandedOrderedSetId = string & { readonly [OrderedSetIdBrand]: never };
 
 export class StatementId extends ValueObject<BrandedStatementId> {
   private constructor(value: string) {
@@ -161,6 +163,10 @@ export class DocumentId extends ValueObject<BrandedDocumentId> {
   static fromString(value: string): Result<DocumentId, ValidationError> {
     return DocumentId.create(value);
   }
+
+  static generate(): DocumentId {
+    return new DocumentId(randomUUID());
+  }
 }
 
 export class PackageId extends ValueObject<BrandedPackageId> {
@@ -184,6 +190,10 @@ export class PackageId extends ValueObject<BrandedPackageId> {
 
   static fromString(value: string): Result<PackageId, ValidationError> {
     return PackageId.create(value);
+  }
+
+  static generate(): PackageId {
+    return new PackageId(randomUUID());
   }
 }
 
@@ -313,6 +323,34 @@ export class WebviewId extends ValueObject<string> {
 
   static fromString(value: string): Result<WebviewId, ValidationError> {
     return WebviewId.create(value);
+  }
+}
+
+export class OrderedSetId extends ValueObject<BrandedOrderedSetId> {
+  private constructor(value: string) {
+    super(value as BrandedOrderedSetId);
+  }
+
+  static create(value: string): Result<OrderedSetId, ValidationError> {
+    if (!value || value.trim().length === 0) {
+      return err(new ValidationError('OrderedSetId cannot be empty', { field: 'value', value }));
+    }
+
+    if (value.length > 255) {
+      return err(
+        new ValidationError('OrderedSetId cannot exceed 255 characters', { field: 'value', value }),
+      );
+    }
+
+    return ok(new OrderedSetId(value.trim()));
+  }
+
+  static fromString(value: string): Result<OrderedSetId, ValidationError> {
+    return OrderedSetId.create(value);
+  }
+
+  static generate(): Result<OrderedSetId, ValidationError> {
+    return OrderedSetId.create(randomUUID());
   }
 }
 

@@ -67,6 +67,7 @@ describe('ProofTreePanel Enhanced Integration Tests', () => {
         modifiedAt: '2023-01-01T00:00:00Z',
       },
     },
+    orderedSets: {},
     atomicArguments: {
       arg1: {
         id: AtomicArgumentId.fromString('arg-1').unwrapOr(null as any),

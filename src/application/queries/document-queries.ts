@@ -13,6 +13,7 @@ export interface DocumentDTO {
   createdAt: string;
   modifiedAt: string;
   statements: Record<string, StatementDTO>;
+  orderedSets: Record<string, OrderedSetDTO>;
   atomicArguments: Record<string, AtomicArgumentDTO>;
   trees: Record<string, TreeDTO>;
   stats?: DocumentStatsDTO;
@@ -35,7 +36,12 @@ export interface DocumentStatsDTO {
   };
 }
 
-import type { AtomicArgumentDTO, TreeDTO, ValidationErrorDTO } from './shared-types.js';
+import type {
+  AtomicArgumentDTO,
+  OrderedSetDTO,
+  TreeDTO,
+  ValidationErrorDTO,
+} from './shared-types.js';
 import type { StatementDTO } from './statement-queries.js';
 
 // Validation queries

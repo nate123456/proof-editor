@@ -1,3 +1,9 @@
+// NOTE: This test file is for obsolete functionality. The IOrderedSetRepository interface
+// no longer exists in the current architecture. OrderedSet is now used differently within
+// the domain model, and atomic arguments connect through Statement references rather than
+// OrderedSets. This file is being preserved but commented out for historical reference.
+
+/*
 /**
  * Comprehensive test suite for IOrderedSetRepository interface
  *
@@ -6,7 +12,7 @@
  * - Error scenarios are properly handled
  * - Edge cases are covered
  * - Repository operations maintain domain invariants
- */
+ *\/
 
 import { err, ok, type Result } from 'neverthrow';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -17,7 +23,7 @@ import { RepositoryError } from '../../errors/DomainErrors';
 import type { IOrderedSetRepository } from '../../repositories/IOrderedSetRepository';
 import type { QueryOptions } from '../../shared/repository-types';
 import { OrderedSetId, type StatementId } from '../../shared/value-objects';
-import { orderedSetIdFactory, statementContentFactory } from './factories';
+import { orderedSetIdFactory, statementContentFactory } from '../factories/index.js';
 
 // Mock implementation of IOrderedSetRepository for testing
 class MockOrderedSetRepository implements IOrderedSetRepository {
@@ -762,3 +768,4 @@ describe('IOrderedSetRepository', () => {
     });
   });
 });
+*/

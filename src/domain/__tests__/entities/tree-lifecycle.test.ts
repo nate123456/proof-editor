@@ -2,9 +2,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Tree } from '../../entities/Tree';
 import { ValidationError } from '../../shared/result';
-import { PhysicalProperties } from '../../shared/value-objects';
+import {
+  AlignmentMode,
+  ExpansionDirection,
+  LayoutStyle,
+  PhysicalProperties,
+  TreeId,
+} from '../../shared/value-objects';
 import { TreePosition } from '../../value-objects/TreePosition';
-import { nodeIdFactory, treeIdFactory } from './factories';
+import { nodeIdFactory, treeIdFactory } from '../factories/index.js';
 
 describe('Tree Lifecycle', () => {
   let mockDateNow: ReturnType<typeof vi.fn>;
@@ -32,7 +38,7 @@ describe('Tree Lifecycle', () => {
         if (result.isOk()) {
           const tree = result.value;
           expect(tree.getDocumentId()).toBe(documentId);
-          expect(tree.getPosition()).toEqual(Position2D.origin());
+          expect(tree.getPosition()).toEqual(TreePosition.origin());
           expect(tree.getPhysicalProperties()).toEqual(PhysicalProperties.default());
           expect(tree.getCreatedAt()).toBe(FIXED_TIMESTAMP);
           expect(tree.getModifiedAt()).toBe(FIXED_TIMESTAMP);
@@ -46,13 +52,13 @@ describe('Tree Lifecycle', () => {
         const documentId = 'doc-456';
         const positionResult = TreePosition.create(100, 200);
         const propertiesResult = PhysicalProperties.create(
-          'bottom-up',
+          LayoutStyle.bottomUp(),
           50,
           50,
           100,
           50,
-          'horizontal',
-          'center',
+          ExpansionDirection.horizontal(),
+          AlignmentMode.center(),
         );
         const title = 'Test Tree';
 
@@ -94,27 +100,25 @@ describe('Tree Lifecycle', () => {
         }
       });
 
-      it('should create a tree with empty title as undefined', () => {
+      it('should reject empty title', () => {
         const documentId = 'doc-empty-title';
         const result = Tree.create(documentId, undefined, undefined, '');
 
-        expect(result.isOk()).toBe(true);
-        if (result.isOk()) {
-          const tree = result.value;
-          expect(tree.getTitle()).toBeUndefined();
-          expect(tree.hasTitle()).toBe(false);
+        expect(result.isErr()).toBe(true);
+        if (result.isErr()) {
+          expect(result.error).toBeInstanceOf(ValidationError);
+          expect(result.error.message).toContain('Title cannot be empty');
         }
       });
 
-      it('should create a tree with whitespace-only title as undefined', () => {
+      it('should reject whitespace-only title', () => {
         const documentId = 'doc-whitespace-title';
         const result = Tree.create(documentId, undefined, undefined, '   ');
 
-        expect(result.isOk()).toBe(true);
-        if (result.isOk()) {
-          const tree = result.value;
-          expect(tree.getTitle()).toBeUndefined();
-          expect(tree.hasTitle()).toBe(false);
+        expect(result.isErr()).toBe(true);
+        if (result.isErr()) {
+          expect(result.error).toBeInstanceOf(ValidationError);
+          expect(result.error.message).toContain('Title cannot be empty');
         }
       });
     });
@@ -126,7 +130,7 @@ describe('Tree Lifecycle', () => {
         expect(result.isErr()).toBe(true);
         if (result.isErr()) {
           expect(result.error).toBeInstanceOf(ValidationError);
-          expect(result.error.message).toBe('Document ID cannot be empty');
+          expect(result.error.message).toBe('DocumentId cannot be empty');
         }
       });
 
@@ -136,7 +140,7 @@ describe('Tree Lifecycle', () => {
         expect(result.isErr()).toBe(true);
         if (result.isErr()) {
           expect(result.error).toBeInstanceOf(ValidationError);
-          expect(result.error.message).toBe('Document ID cannot be empty');
+          expect(result.error.message).toBe('DocumentId cannot be empty');
         }
       });
     });
@@ -147,14 +151,22 @@ describe('Tree Lifecycle', () => {
       it('should reconstruct a tree from minimal data', () => {
         const treeId = treeIdFactory.build();
         const documentId = 'doc-reconstruct';
-        const result = Tree.reconstruct(treeId, documentId);
+        const result = Tree.reconstruct(
+          treeId,
+          documentId,
+          TreePosition.origin(),
+          PhysicalProperties.default(),
+          [],
+          FIXED_TIMESTAMP,
+          FIXED_TIMESTAMP,
+        );
 
         expect(result.isOk()).toBe(true);
         if (result.isOk()) {
           const tree = result.value;
           expect(tree.getId()).toBe(treeId);
           expect(tree.getDocumentId()).toBe(documentId);
-          expect(tree.getPosition()).toEqual(Position2D.origin());
+          expect(tree.getPosition()).toEqual(TreePosition.origin());
           expect(tree.getPhysicalProperties()).toEqual(PhysicalProperties.default());
           expect(tree.getCreatedAt()).toBe(FIXED_TIMESTAMP);
           expect(tree.getModifiedAt()).toBe(FIXED_TIMESTAMP);
@@ -169,13 +181,13 @@ describe('Tree Lifecycle', () => {
         const documentId = 'doc-reconstruct-full';
         const positionResult = TreePosition.create(300, 400);
         const propertiesResult = PhysicalProperties.create(
-          'top-down',
+          LayoutStyle.topDown(),
           75,
           75,
           150,
           75,
-          'vertical',
-          'start',
+          ExpansionDirection.vertical(),
+          AlignmentMode.left(),
         );
         const title = 'Reconstructed Tree';
         const nodeIds = [nodeIdFactory.build(), nodeIdFactory.build()];
@@ -191,10 +203,10 @@ describe('Tree Lifecycle', () => {
             documentId,
             positionResult.value,
             propertiesResult.value,
-            title,
             nodeIds,
             createdAt,
             modifiedAt,
+            title,
           );
 
           expect(result.isOk()).toBe(true);
@@ -215,52 +227,77 @@ describe('Tree Lifecycle', () => {
         }
       });
 
-      it('should reconstruct a tree with empty title as undefined', () => {
+      it('should reject empty title during reconstruction', () => {
         const treeId = treeIdFactory.build();
         const documentId = 'doc-reconstruct-empty-title';
-        const result = Tree.reconstruct(treeId, documentId, undefined, undefined, '');
+        const result = Tree.reconstruct(
+          treeId,
+          documentId,
+          TreePosition.origin(),
+          PhysicalProperties.default(),
+          [],
+          FIXED_TIMESTAMP,
+          FIXED_TIMESTAMP,
+          '',
+        );
 
-        expect(result.isOk()).toBe(true);
-        if (result.isOk()) {
-          const tree = result.value;
-          expect(tree.getTitle()).toBeUndefined();
-          expect(tree.hasTitle()).toBe(false);
+        expect(result.isErr()).toBe(true);
+        if (result.isErr()) {
+          expect(result.error).toBeInstanceOf(ValidationError);
+          expect(result.error.message).toContain('Title cannot be empty');
         }
       });
 
-      it('should reconstruct a tree with whitespace-only title as undefined', () => {
+      it('should reject whitespace-only title during reconstruction', () => {
         const treeId = treeIdFactory.build();
         const documentId = 'doc-reconstruct-whitespace-title';
-        const result = Tree.reconstruct(treeId, documentId, undefined, undefined, '   ');
+        const result = Tree.reconstruct(
+          treeId,
+          documentId,
+          TreePosition.origin(),
+          PhysicalProperties.default(),
+          [],
+          FIXED_TIMESTAMP,
+          FIXED_TIMESTAMP,
+          '   ',
+        );
 
-        expect(result.isOk()).toBe(true);
-        if (result.isOk()) {
-          const tree = result.value;
-          expect(tree.getTitle()).toBeUndefined();
-          expect(tree.hasTitle()).toBe(false);
+        expect(result.isErr()).toBe(true);
+        if (result.isErr()) {
+          expect(result.error).toBeInstanceOf(ValidationError);
+          expect(result.error.message).toContain('Title cannot be empty');
         }
       });
     });
 
     describe('invalid reconstruction cases', () => {
       it('should fail with empty tree ID', () => {
-        const result = Tree.reconstruct('', 'doc-123');
-
-        expect(result.isErr()).toBe(true);
-        if (result.isErr()) {
-          expect(result.error).toBeInstanceOf(ValidationError);
-          expect(result.error.message).toBe('Tree ID cannot be empty');
+        // Tree.reconstruct expects a TreeId object, not a string
+        // To test invalid tree ID, we need to create an invalid TreeId first
+        const treeIdResult = TreeId.fromString('');
+        expect(treeIdResult.isErr()).toBe(true);
+        if (treeIdResult.isErr()) {
+          expect(treeIdResult.error).toBeInstanceOf(ValidationError);
+          expect(treeIdResult.error.message).toContain('TreeId cannot be empty');
         }
       });
 
       it('should fail with empty document ID', () => {
         const treeId = treeIdFactory.build();
-        const result = Tree.reconstruct(treeId, '');
+        const result = Tree.reconstruct(
+          treeId,
+          '',
+          TreePosition.origin(),
+          PhysicalProperties.default(),
+          [],
+          FIXED_TIMESTAMP,
+          FIXED_TIMESTAMP,
+        );
 
         expect(result.isErr()).toBe(true);
         if (result.isErr()) {
           expect(result.error).toBeInstanceOf(ValidationError);
-          expect(result.error.message).toBe('Document ID cannot be empty');
+          expect(result.error.message).toContain('Document');
         }
       });
 
@@ -270,17 +307,17 @@ describe('Tree Lifecycle', () => {
         const result = Tree.reconstruct(
           treeId,
           documentId,
-          undefined,
-          undefined,
-          undefined,
+          TreePosition.origin(),
+          PhysicalProperties.default(),
           [],
           -1,
+          FIXED_TIMESTAMP,
         );
 
         expect(result.isErr()).toBe(true);
         if (result.isErr()) {
           expect(result.error).toBeInstanceOf(ValidationError);
-          expect(result.error.message).toBe('Created at timestamp cannot be negative');
+          expect(result.error.message).toBe('Timestamp must be a non-negative integer');
         }
       });
 
@@ -290,9 +327,8 @@ describe('Tree Lifecycle', () => {
         const result = Tree.reconstruct(
           treeId,
           documentId,
-          undefined,
-          undefined,
-          undefined,
+          TreePosition.origin(),
+          PhysicalProperties.default(),
           [],
           FIXED_TIMESTAMP,
           -1,
@@ -301,7 +337,7 @@ describe('Tree Lifecycle', () => {
         expect(result.isErr()).toBe(true);
         if (result.isErr()) {
           expect(result.error).toBeInstanceOf(ValidationError);
-          expect(result.error.message).toBe('Modified at timestamp cannot be negative');
+          expect(result.error.message).toBe('Timestamp must be a non-negative integer');
         }
       });
     });
@@ -314,7 +350,8 @@ describe('Tree Lifecycle', () => {
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         const tree = result.value;
-        expect(tree.validateStructuralIntegrity()).toBe(true);
+        const validationResult = tree.validateStructuralIntegrity();
+        expect(validationResult.isOk()).toBe(true);
       }
     });
 

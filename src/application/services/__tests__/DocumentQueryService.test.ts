@@ -406,6 +406,7 @@ function createMockProofDocument(id: string): ProofDocument {
 function createMockParserProofDocument(): ParserProofDocument {
   return {
     statements: new Map(),
+    orderedSets: new Map(),
     atomicArguments: new Map(),
     trees: new Map(),
     nodes: new Map(),
@@ -419,14 +420,14 @@ function createComplexMockParserProofDocument(): ParserProofDocument {
     getId: () => ({ getValue: () => 's1' }),
   };
 
-  const mockOrderedSet = {
+  const _mockOrderedSet = {
     getStatementIds: () => [{ getValue: () => 's1' }],
     getId: () => ({ getValue: () => 'os1' }),
   };
 
   const mockArgument = {
-    getPremiseSet: () => ({ getValue: () => 'os1' }),
-    getConclusionSet: () => null,
+    getPremises: () => [], // Returns Statement[]
+    getConclusions: () => [], // Returns Statement[]
     getSideLabels: () => ({ left: 'Test Rule' }),
     getId: () => ({ getValue: () => 'arg1' }),
   };
@@ -441,6 +442,7 @@ function createComplexMockParserProofDocument(): ParserProofDocument {
 
   return {
     statements: new Map([['s1', mockStatement as any]]),
+    orderedSets: new Map(),
     atomicArguments: new Map([['arg1', mockArgument as any]]),
     trees: new Map([['tree1', mockTree as any]]),
     nodes: new Map(),
@@ -450,6 +452,7 @@ function createComplexMockParserProofDocument(): ParserProofDocument {
 function createEmptyMockParserProofDocument(): ParserProofDocument {
   return {
     statements: new Map(),
+    orderedSets: new Map(),
     atomicArguments: new Map(),
     trees: new Map(),
     nodes: new Map(),

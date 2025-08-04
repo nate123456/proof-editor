@@ -2,14 +2,10 @@ import { describe, expect, it } from 'vitest';
 
 import { AtomicArgument } from '../../domain/entities/AtomicArgument.js';
 import { Node } from '../../domain/entities/Node.js';
-import { OrderedSet } from '../../domain/entities/OrderedSet.js';
 import { Statement } from '../../domain/entities/Statement.js';
 import { Tree } from '../../domain/entities/Tree.js';
-import {
-  AtomicArgumentId,
-  Position2D,
-  StatementId,
-} from '../../domain/shared/value-objects/index.js';
+import { AtomicArgumentId, StatementId } from '../../domain/shared/value-objects/index.js';
+import { TreePosition } from '../../domain/value-objects/TreePosition.js';
 import type { NodeSpec, ParsedYAMLStructure, ProofDocument } from '../ProofDocument.js';
 
 describe('ProofDocument', () => {
@@ -24,19 +20,14 @@ describe('ProofDocument', () => {
       const statementIdResult = StatementId.create('s1');
       expect(statementIdResult.isOk()).toBe(true);
       if (!statementIdResult.isOk()) throw new Error('Failed to create statement ID');
-      const statementIds = [statementIdResult.value];
-
-      const orderedSetResult = OrderedSet.create(statementIds);
-      expect(orderedSetResult.isOk()).toBe(true);
-      if (!orderedSetResult.isOk()) throw new Error('Failed to create ordered set');
-      const orderedSet = orderedSetResult.value;
+      const _statementIds = [statementIdResult.value];
 
       const atomicArgResult = AtomicArgument.create();
       expect(atomicArgResult.isOk()).toBe(true);
       if (!atomicArgResult.isOk()) throw new Error('Failed to create atomic argument');
       const atomicArg = atomicArgResult.value;
 
-      const positionResult = Position2D.create(100, 200);
+      const positionResult = TreePosition.create(100, 200);
       expect(positionResult.isOk()).toBe(true);
       if (!positionResult.isOk()) throw new Error('Failed to create position');
       const position = positionResult.value;
@@ -57,7 +48,7 @@ describe('ProofDocument', () => {
       // Create ProofDocument
       const document: ProofDocument = {
         statements: new Map([['s1', statement]]),
-        orderedSets: new Map([['os1', orderedSet]]),
+        orderedSets: new Map(),
         atomicArguments: new Map([['arg1', atomicArg]]),
         trees: new Map([['tree1', tree]]),
         nodes: new Map([['n1', node]]),
@@ -67,10 +58,6 @@ describe('ProofDocument', () => {
       expect(document.statements.size).toBe(1);
       expect(document.statements.has('s1')).toBe(true);
       expect(document.statements.get('s1')).toBe(statement);
-
-      expect(document.orderedSets.size).toBe(1);
-      expect(document.orderedSets.has('os1')).toBe(true);
-      expect(document.orderedSets.get('os1')).toBe(orderedSet);
 
       expect(document.atomicArguments.size).toBe(1);
       expect(document.atomicArguments.has('arg1')).toBe(true);
@@ -95,7 +82,6 @@ describe('ProofDocument', () => {
       };
 
       expect(document.statements.size).toBe(0);
-      expect(document.orderedSets.size).toBe(0);
       expect(document.atomicArguments.size).toBe(0);
       expect(document.trees.size).toBe(0);
       expect(document.nodes.size).toBe(0);

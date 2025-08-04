@@ -1,5 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
-import { mock } from 'vitest-mock-extended';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AtomicArgument } from '../../../domain/entities/AtomicArgument.js';
 import type { Node } from '../../../domain/entities/Node.js';
 import type { Statement } from '../../../domain/entities/Statement.js';
@@ -22,133 +21,125 @@ describe('ProofGraphAdapter', () => {
   let mockTree: Tree;
 
   function createMockStatement(id: string): Statement {
-    const statement = mock<Statement>();
     const idResult = StatementId.create(id);
     if (idResult.isErr()) throw new Error(`Invalid statement ID: ${id}`);
-    statement.getId.mockReturnValue(idResult.value);
-    return statement;
+
+    return {
+      getId: vi.fn().mockReturnValue(idResult.value),
+      getContent: vi.fn().mockReturnValue('test content'),
+      equals: vi.fn().mockImplementation((other: Statement) => other.getId().getValue() === id),
+    } as unknown as Statement;
   }
 
   function createMockArgument(premises: Statement[], conclusions: Statement[]): AtomicArgument {
-    const arg = mock<AtomicArgument>();
-    arg.getPremises.mockReturnValue(premises);
-    arg.getConclusions.mockReturnValue(conclusions);
+    const argId = AtomicArgumentId.create(`arg-${Date.now()}-${Math.random()}`);
+    if (argId.isErr()) throw new Error('Failed to create argument ID');
 
-    // Setup findConnectionsTo method
-    arg.findConnectionsTo.mockImplementation((other) => {
-      const connections = [];
-      for (let i = 0; i < conclusions.length; i++) {
-        for (let j = 0; j < other.getPremises().length; j++) {
-          const otherPremise = other.getPremises()[j];
-          if (otherPremise && conclusions[i] === otherPremise) {
-            connections.push({
-              statement: conclusions[i],
-              fromConclusionPosition: i,
-            });
-          }
-        }
-      }
-      return connections;
-    });
-
-    return arg;
+    return {
+      getId: vi.fn().mockReturnValue(argId.value),
+      getPremises: vi.fn().mockReturnValue(premises),
+      getConclusions: vi.fn().mockReturnValue(conclusions),
+      getPremiseCount: vi.fn().mockReturnValue(premises.length),
+      getConclusionCount: vi.fn().mockReturnValue(conclusions.length),
+      getPremiseAt: vi.fn().mockImplementation((index: number) => premises[index]),
+      getConclusionAt: vi.fn().mockImplementation((index: number) => conclusions[index]),
+      equals: vi.fn().mockReturnValue(false),
+      setConclusionAt: vi.fn().mockReturnValue({ isOk: () => true }),
+      setPremiseAt: vi.fn().mockReturnValue({ isOk: () => true }),
+    } as unknown as AtomicArgument;
   }
 
   beforeEach(() => {
-    mockNodeRepository = mock<INodeRepository>();
-    mockArgumentRepository = mock<IAtomicArgumentRepository>();
+    mockNodeRepository = {
+      findById: vi.fn(),
+      save: vi.fn(),
+      delete: vi.fn(),
+      findByTreeId: vi.fn(),
+    } as unknown as INodeRepository;
+
+    mockArgumentRepository = {
+      findById: vi.fn(),
+      save: vi.fn(),
+      delete: vi.fn(),
+      findByIds: vi.fn(),
+    } as unknown as IAtomicArgumentRepository;
+
     adapter = new ProofGraphAdapter(mockNodeRepository, mockArgumentRepository);
 
     // Setup mock tree
-    mockTree = mock<Tree>();
     const treeIdResult = TreeId.create('tree1');
     if (treeIdResult.isErr()) throw new Error('Invalid tree ID');
-    mockTree.getId.mockReturnValue(treeIdResult.value);
 
     const nodeIds = ['node1', 'node2', 'node3'].map((id) => {
       const result = NodeId.create(id);
       if (result.isErr()) throw new Error(`Invalid node ID: ${id}`);
       return result.value;
     });
-    mockTree.getNodeIds.mockReturnValue(nodeIds);
+
+    mockTree = {
+      getId: vi.fn().mockReturnValue(treeIdResult.value),
+      getNodeIds: vi.fn().mockReturnValue(nodeIds),
+    } as unknown as Tree;
   });
 
   describe('buildGraphFromTree', () => {
     it('should build graph from tree with nodes and edges', async () => {
       // Arrange
-      const node1 = mock<Node>();
-      const node2 = mock<Node>();
-      const node3 = mock<Node>();
+      const node1ArgId = AtomicArgumentId.create('arg1');
+      const node2ArgId = AtomicArgumentId.create('arg2');
+      const node3ArgId = AtomicArgumentId.create('arg3');
+      if (node1ArgId.isErr() || node2ArgId.isErr() || node3ArgId.isErr()) {
+        throw new Error('Failed to create argument IDs');
+      }
 
-      node1.getArgumentId.mockReturnValue(
-        (() => {
-          const r = AtomicArgumentId.create('arg1');
-          if (r.isErr()) throw new Error('Invalid ID');
-          return r.value;
-        })(),
-      );
-      node1.isRoot.mockReturnValue(true);
-      node1.isChild.mockReturnValue(false);
+      const node1 = {
+        getArgumentId: vi.fn().mockReturnValue(node1ArgId.value),
+        isRoot: vi.fn().mockReturnValue(true),
+        isChild: vi.fn().mockReturnValue(false),
+        getParentNodeId: vi.fn().mockReturnValue(undefined),
+        getAttachment: vi.fn().mockReturnValue(undefined),
+      } as unknown as Node;
 
-      node2.getArgumentId.mockReturnValue(
-        (() => {
-          const r = AtomicArgumentId.create('arg2');
-          if (r.isErr()) throw new Error('Invalid ID');
-          return r.value;
-        })(),
-      );
-      node2.isRoot.mockReturnValue(false);
-      node2.isChild.mockReturnValue(true);
-      node2.getParentNodeId.mockReturnValue(
-        (() => {
-          const r = NodeId.create('node1');
-          if (r.isErr()) throw new Error('Invalid ID');
-          return r.value;
-        })(),
-      );
+      const parentNodeId1 = NodeId.create('node1');
+      if (parentNodeId1.isErr()) throw new Error('Invalid parent ID');
 
-      node3.getArgumentId.mockReturnValue(
-        (() => {
-          const r = AtomicArgumentId.create('arg3');
-          if (r.isErr()) throw new Error('Invalid ID');
-          return r.value;
-        })(),
-      );
-      node3.isRoot.mockReturnValue(false);
-      node3.isChild.mockReturnValue(true);
-      node3.getParentNodeId.mockReturnValue(
-        (() => {
-          const r = NodeId.create('node1');
-          if (r.isErr()) throw new Error('Invalid ID');
-          return r.value;
-        })(),
-      );
+      const node2 = {
+        getArgumentId: vi.fn().mockReturnValue(node2ArgId.value),
+        isRoot: vi.fn().mockReturnValue(false),
+        isChild: vi.fn().mockReturnValue(true),
+        getParentNodeId: vi.fn().mockReturnValue(parentNodeId1.value),
+        getAttachment: vi.fn(),
+      } as unknown as Node;
 
-      const mockAttachment = mock<Attachment>();
-      mockAttachment.getPremisePosition.mockReturnValue(0);
-      mockAttachment.getFromPosition.mockReturnValue(undefined);
-      mockAttachment.getParentNodeId.mockReturnValue(
-        (() => {
-          const r = NodeId.create('node1');
-          if (r.isErr()) throw new Error('Invalid ID');
-          return r.value;
-        })(),
-      );
-      mockAttachment.hasMultipleConclusionSource.mockReturnValue(false);
-      mockAttachment.equals.mockReturnValue(false);
-      node2.getAttachment.mockReturnValue(mockAttachment);
-      node3.getAttachment.mockReturnValue(mockAttachment);
+      const node3 = {
+        getArgumentId: vi.fn().mockReturnValue(node3ArgId.value),
+        isRoot: vi.fn().mockReturnValue(false),
+        isChild: vi.fn().mockReturnValue(true),
+        getParentNodeId: vi.fn().mockReturnValue(parentNodeId1.value),
+        getAttachment: vi.fn(),
+      } as unknown as Node;
 
-      mockNodeRepository.findById.mockImplementation(async (nodeId: NodeId) => {
+      const mockAttachment = {
+        getPremisePosition: vi.fn().mockReturnValue(0),
+        getFromPosition: vi.fn().mockReturnValue(undefined),
+        getParentNodeId: vi.fn().mockReturnValue(parentNodeId1.value),
+        hasMultipleConclusionSource: vi.fn().mockReturnValue(false),
+        equals: vi.fn().mockReturnValue(false),
+      } as unknown as Attachment;
+
+      (node2.getAttachment as ReturnType<typeof vi.fn>).mockReturnValue(mockAttachment);
+      (node3.getAttachment as ReturnType<typeof vi.fn>).mockReturnValue(mockAttachment);
+
+      vi.mocked(mockNodeRepository.findById).mockImplementation(async (nodeId: NodeId) => {
         switch (nodeId.getValue()) {
           case 'node1':
-            return node1;
+            return { isOk: () => true, isErr: () => false, value: node1 } as any;
           case 'node2':
-            return node2;
+            return { isOk: () => true, isErr: () => false, value: node2 } as any;
           case 'node3':
-            return node3;
+            return { isOk: () => true, isErr: () => false, value: node3 } as any;
           default:
-            return null;
+            return { isOk: () => false, isErr: () => true, error: new Error('Not found') } as any;
         }
       });
 
@@ -161,18 +152,20 @@ describe('ProofGraphAdapter', () => {
       const arg2 = createMockArgument([statement1], [statement2]);
       const arg3 = createMockArgument([statement1], [statement3]);
 
-      mockArgumentRepository.findById.mockImplementation(async (argId: AtomicArgumentId) => {
-        switch (argId.getValue()) {
-          case 'arg1':
-            return arg1;
-          case 'arg2':
-            return arg2;
-          case 'arg3':
-            return arg3;
-          default:
-            return null;
-        }
-      });
+      vi.mocked(mockArgumentRepository.findById).mockImplementation(
+        async (argId: AtomicArgumentId) => {
+          switch (argId.getValue()) {
+            case 'arg1':
+              return { isOk: () => true, isErr: () => false, value: arg1 } as any;
+            case 'arg2':
+              return { isOk: () => true, isErr: () => false, value: arg2 } as any;
+            case 'arg3':
+              return { isOk: () => true, isErr: () => false, value: arg3 } as any;
+            default:
+              return { isOk: () => false, isErr: () => true, error: new Error('Not found') } as any;
+          }
+        },
+      );
 
       // Act
       const result = await adapter.buildGraphFromTree(mockTree);
@@ -185,96 +178,102 @@ describe('ProofGraphAdapter', () => {
 
     it('should handle missing nodes gracefully', async () => {
       // Arrange
-      mockNodeRepository.findById.mockResolvedValue(null);
+      vi.mocked(mockNodeRepository.findById).mockResolvedValue({
+        isOk: () => false,
+        isErr: () => true,
+        error: new Error('Not found'),
+      } as any);
 
       // Act
       const result = await adapter.buildGraphFromTree(mockTree);
 
       // Assert
       expect(result.isErr()).toBe(true);
-      expect(result.error?.message).toContain('Node node1 not found');
+      if (result.isErr()) {
+        expect(result.error.message).toContain('Node node1 not found');
+      }
     });
 
     it('should handle missing arguments gracefully', async () => {
       // Arrange
-      const node1 = mock<Node>();
-      node1.getArgumentId.mockReturnValue(
-        (() => {
-          const r = AtomicArgumentId.create('arg1');
-          if (r.isErr()) throw new Error('Invalid ID');
-          return r.value;
-        })(),
-      );
-      node1.isRoot.mockReturnValue(true);
-      node1.isChild.mockReturnValue(false);
+      const argId = AtomicArgumentId.create('arg1');
+      if (argId.isErr()) throw new Error('Invalid ID');
 
-      mockNodeRepository.findById.mockResolvedValue(node1);
-      mockArgumentRepository.findById.mockResolvedValue(null);
+      const node1 = {
+        getArgumentId: vi.fn().mockReturnValue(argId.value),
+        isRoot: vi.fn().mockReturnValue(true),
+        isChild: vi.fn().mockReturnValue(false),
+        getParentNodeId: vi.fn().mockReturnValue(undefined),
+        getAttachment: vi.fn().mockReturnValue(undefined),
+      } as unknown as Node;
+
+      vi.mocked(mockNodeRepository.findById).mockResolvedValue({
+        isOk: () => true,
+        isErr: () => false,
+        value: node1,
+      } as any);
+
+      vi.mocked(mockArgumentRepository.findById).mockResolvedValue({
+        isOk: () => false,
+        isErr: () => true,
+        error: new Error('Not found'),
+      } as any);
 
       // Act
       const result = await adapter.buildGraphFromTree(mockTree);
 
       // Assert
       expect(result.isErr()).toBe(true);
-      expect(result.error?.message).toContain('Argument arg1 not found');
+      if (result.isErr()) {
+        expect(result.error.message).toContain('Argument arg1 not found');
+      }
     });
   });
 
   describe('findPath', () => {
     beforeEach(async () => {
       // Setup a simple linear graph for path testing
-      const node1 = mock<Node>();
-      const node2 = mock<Node>();
+      const arg1Id = AtomicArgumentId.create('arg1');
+      const arg2Id = AtomicArgumentId.create('arg2');
+      if (arg1Id.isErr() || arg2Id.isErr()) throw new Error('Invalid argument IDs');
 
-      node1.getArgumentId.mockReturnValue(
-        (() => {
-          const r = AtomicArgumentId.create('arg1');
-          if (r.isErr()) throw new Error('Invalid ID');
-          return r.value;
-        })(),
-      );
-      node1.isRoot.mockReturnValue(true);
-      node1.isChild.mockReturnValue(false);
+      const node1 = {
+        getArgumentId: vi.fn().mockReturnValue(arg1Id.value),
+        isRoot: vi.fn().mockReturnValue(true),
+        isChild: vi.fn().mockReturnValue(false),
+        getParentNodeId: vi.fn().mockReturnValue(undefined),
+        getAttachment: vi.fn().mockReturnValue(undefined),
+      } as unknown as Node;
 
-      node2.getArgumentId.mockReturnValue(
-        (() => {
-          const r = AtomicArgumentId.create('arg2');
-          if (r.isErr()) throw new Error('Invalid ID');
-          return r.value;
-        })(),
-      );
-      node2.isRoot.mockReturnValue(false);
-      node2.isChild.mockReturnValue(true);
-      node2.getParentNodeId.mockReturnValue(
-        (() => {
-          const r = NodeId.create('node1');
-          if (r.isErr()) throw new Error('Invalid ID');
-          return r.value;
-        })(),
-      );
+      const parentNodeId = NodeId.create('node1');
+      if (parentNodeId.isErr()) throw new Error('Invalid parent ID');
 
-      const mockAttachment = mock<Attachment>();
-      mockAttachment.getPremisePosition.mockReturnValue(0);
-      mockAttachment.getFromPosition.mockReturnValue(undefined);
-      mockAttachment.getParentNodeId.mockReturnValue(
-        (() => {
-          const r = NodeId.create('node1');
-          if (r.isErr()) throw new Error('Invalid ID');
-          return r.value;
-        })(),
-      );
-      mockAttachment.hasMultipleConclusionSource.mockReturnValue(false);
-      mockAttachment.equals.mockReturnValue(false);
-      node2.getAttachment.mockReturnValue(mockAttachment);
+      const node2 = {
+        getArgumentId: vi.fn().mockReturnValue(arg2Id.value),
+        isRoot: vi.fn().mockReturnValue(false),
+        isChild: vi.fn().mockReturnValue(true),
+        getParentNodeId: vi.fn().mockReturnValue(parentNodeId.value),
+        getAttachment: vi.fn(),
+      } as unknown as Node;
 
-      mockNodeRepository.findById.mockImplementation(async (nodeId: NodeId) => {
+      const mockAttachment = {
+        getPremisePosition: vi.fn().mockReturnValue(0),
+        getFromPosition: vi.fn().mockReturnValue(undefined),
+        getParentNodeId: vi.fn().mockReturnValue(parentNodeId.value),
+        hasMultipleConclusionSource: vi.fn().mockReturnValue(false),
+        equals: vi.fn().mockReturnValue(false),
+      } as unknown as Attachment;
+
+      (node2.getAttachment as ReturnType<typeof vi.fn>).mockReturnValue(mockAttachment);
+
+      vi.mocked(mockNodeRepository.findById).mockImplementation(async (nodeId: NodeId) => {
         switch (nodeId.getValue()) {
           case 'node1':
-            return node1;
+            return { isOk: () => true, isErr: () => false, value: node1 } as any;
           case 'node2':
-            return node2;
+            return { isOk: () => true, isErr: () => false, value: node2 } as any;
           default:
-            return null;
+            return { isOk: () => false, isErr: () => true, error: new Error('Not found') } as any;
         }
       });
 
@@ -284,16 +283,18 @@ describe('ProofGraphAdapter', () => {
       const arg1 = createMockArgument([], [statement1]);
       const arg2 = createMockArgument([statement1], []);
 
-      mockArgumentRepository.findById.mockImplementation(async (argId: AtomicArgumentId) => {
-        switch (argId.getValue()) {
-          case 'arg1':
-            return arg1;
-          case 'arg2':
-            return arg2;
-          default:
-            return null;
-        }
-      });
+      vi.mocked(mockArgumentRepository.findById).mockImplementation(
+        async (argId: AtomicArgumentId) => {
+          switch (argId.getValue()) {
+            case 'arg1':
+              return { isOk: () => true, isErr: () => false, value: arg1 } as any;
+            case 'arg2':
+              return { isOk: () => true, isErr: () => false, value: arg2 } as any;
+            default:
+              return { isOk: () => false, isErr: () => true, error: new Error('Not found') } as any;
+          }
+        },
+      );
 
       await adapter.buildGraphFromTree(mockTree);
     });
@@ -326,8 +327,18 @@ describe('ProofGraphAdapter', () => {
 
     it('should return empty array for disconnected nodes', () => {
       // Arrange
-      const fromNodeId = NodeId.create('nonexistent1').value;
-      const toNodeId = NodeId.create('nonexistent2').value;
+      const fromNodeIdResult = NodeId.create('nonexistent1');
+      const toNodeIdResult = NodeId.create('nonexistent2');
+
+      expect(fromNodeIdResult.isOk()).toBe(true);
+      expect(toNodeIdResult.isOk()).toBe(true);
+
+      if (!fromNodeIdResult.isOk() || !toNodeIdResult.isOk()) {
+        throw new Error('Failed to create test node IDs');
+      }
+
+      const fromNodeId = fromNodeIdResult.value;
+      const toNodeId = toNodeIdResult.value;
 
       // Act
       const pathResult = adapter.findPath(fromNodeId, toNodeId);
@@ -361,79 +372,64 @@ describe('ProofGraphAdapter', () => {
   describe('getSubtree', () => {
     beforeEach(async () => {
       // Setup a tree structure for subtree testing
-      const node1 = mock<Node>();
-      const node2 = mock<Node>();
-      const node3 = mock<Node>();
+      const arg1Id = AtomicArgumentId.create('arg1');
+      const arg2Id = AtomicArgumentId.create('arg2');
+      const arg3Id = AtomicArgumentId.create('arg3');
+      if (arg1Id.isErr() || arg2Id.isErr() || arg3Id.isErr()) {
+        throw new Error('Failed to create argument IDs');
+      }
 
-      node1.getArgumentId.mockReturnValue(
-        (() => {
-          const r = AtomicArgumentId.create('arg1');
-          if (r.isErr()) throw new Error('Invalid ID');
-          return r.value;
-        })(),
-      );
-      node1.isRoot.mockReturnValue(true);
-      node1.isChild.mockReturnValue(false);
+      const node1 = {
+        getArgumentId: vi.fn().mockReturnValue(arg1Id.value),
+        isRoot: vi.fn().mockReturnValue(true),
+        isChild: vi.fn().mockReturnValue(false),
+        getParentNodeId: vi.fn().mockReturnValue(undefined),
+        getAttachment: vi.fn().mockReturnValue(undefined),
+      } as unknown as Node;
 
-      node2.getArgumentId.mockReturnValue(
-        (() => {
-          const r = AtomicArgumentId.create('arg2');
-          if (r.isErr()) throw new Error('Invalid ID');
-          return r.value;
-        })(),
-      );
-      node2.isRoot.mockReturnValue(false);
-      node2.isChild.mockReturnValue(true);
-      node2.getParentNodeId.mockReturnValue(
-        (() => {
-          const r = NodeId.create('node1');
-          if (r.isErr()) throw new Error('Invalid ID');
-          return r.value;
-        })(),
-      );
+      const parentNodeId1 = NodeId.create('node1');
+      if (parentNodeId1.isErr()) throw new Error('Invalid parent ID');
 
-      node3.getArgumentId.mockReturnValue(
-        (() => {
-          const r = AtomicArgumentId.create('arg3');
-          if (r.isErr()) throw new Error('Invalid ID');
-          return r.value;
-        })(),
-      );
-      node3.isRoot.mockReturnValue(false);
-      node3.isChild.mockReturnValue(true);
-      node3.getParentNodeId.mockReturnValue(
-        (() => {
-          const r = NodeId.create('node2');
-          if (r.isErr()) throw new Error('Invalid ID');
-          return r.value;
-        })(),
-      );
+      const node2 = {
+        getArgumentId: vi.fn().mockReturnValue(arg2Id.value),
+        isRoot: vi.fn().mockReturnValue(false),
+        isChild: vi.fn().mockReturnValue(true),
+        getParentNodeId: vi.fn().mockReturnValue(parentNodeId1.value),
+        getAttachment: vi.fn(),
+      } as unknown as Node;
 
-      const mockAttachment = mock<Attachment>();
-      mockAttachment.getPremisePosition.mockReturnValue(0);
-      mockAttachment.getFromPosition.mockReturnValue(undefined);
-      mockAttachment.getParentNodeId.mockReturnValue(
-        (() => {
-          const r = NodeId.create('node1');
-          if (r.isErr()) throw new Error('Invalid ID');
-          return r.value;
-        })(),
-      );
-      mockAttachment.hasMultipleConclusionSource.mockReturnValue(false);
-      mockAttachment.equals.mockReturnValue(false);
-      node2.getAttachment.mockReturnValue(mockAttachment);
-      node3.getAttachment.mockReturnValue(mockAttachment);
+      const parentNodeId2 = NodeId.create('node2');
+      if (parentNodeId2.isErr()) throw new Error('Invalid parent ID');
 
-      mockNodeRepository.findById.mockImplementation(async (nodeId: NodeId) => {
+      const node3 = {
+        getArgumentId: vi.fn().mockReturnValue(arg3Id.value),
+        isRoot: vi.fn().mockReturnValue(false),
+        isChild: vi.fn().mockReturnValue(true),
+        getParentNodeId: vi.fn().mockReturnValue(parentNodeId2.value),
+        getAttachment: vi.fn(),
+      } as unknown as Node;
+
+      const mockAttachment = {
+        getPremisePosition: vi.fn().mockReturnValue(0),
+        getFromPosition: vi.fn().mockReturnValue(undefined),
+        getParentNodeId: vi.fn().mockReturnValue(parentNodeId1.value),
+        hasMultipleConclusionSource: vi.fn().mockReturnValue(false),
+        equals: vi.fn().mockReturnValue(false),
+      } as unknown as Attachment;
+
+      (node2.getAttachment as ReturnType<typeof vi.fn>).mockReturnValue(mockAttachment);
+      (node3.getAttachment as ReturnType<typeof vi.fn>).mockReturnValue(mockAttachment);
+
+      vi.mocked(mockNodeRepository.findById).mockImplementation(async (nodeId: NodeId) => {
         switch (nodeId.getValue()) {
           case 'node1':
-            return node1;
+            return { isOk: () => true, isErr: () => false, value: node1 } as any;
           case 'node2':
-            return node2;
+            return { isOk: () => true, isErr: () => false, value: node2 } as any;
           case 'node3':
-            return node3;
+            return { isOk: () => true, isErr: () => false, value: node3 } as any;
           default:
-            return null;
+            return { isOk: () => false, isErr: () => true, error: new Error('Not found') } as any;
         }
       });
 
@@ -445,18 +441,20 @@ describe('ProofGraphAdapter', () => {
       const arg2 = createMockArgument([statement1], [statement2]);
       const arg3 = createMockArgument([statement2], []);
 
-      mockArgumentRepository.findById.mockImplementation(async (argId: AtomicArgumentId) => {
-        switch (argId.getValue()) {
-          case 'arg1':
-            return arg1;
-          case 'arg2':
-            return arg2;
-          case 'arg3':
-            return arg3;
-          default:
-            return null;
-        }
-      });
+      vi.mocked(mockArgumentRepository.findById).mockImplementation(
+        async (argId: AtomicArgumentId) => {
+          switch (argId.getValue()) {
+            case 'arg1':
+              return { isOk: () => true, isErr: () => false, value: arg1 } as any;
+            case 'arg2':
+              return { isOk: () => true, isErr: () => false, value: arg2 } as any;
+            case 'arg3':
+              return { isOk: () => true, isErr: () => false, value: arg3 } as any;
+            default:
+              return { isOk: () => false, isErr: () => true, error: new Error('Not found') } as any;
+          }
+        },
+      );
 
       await adapter.buildGraphFromTree(mockTree);
     });
@@ -502,9 +500,10 @@ describe('ProofGraphAdapter', () => {
         expect(subtree.size).toBeLessThanOrEqual(2);
         expect(subtree.has('node1')).toBe(true);
 
-        for (const [_nodeId, { depth }] of subtree) {
+        // Use Array.from to iterate over Map entries
+        Array.from(subtree.entries()).forEach(([_nodeId, { depth }]) => {
           expect(depth).toBeLessThanOrEqual(maxDepth);
-        }
+        });
       }
     });
 
@@ -534,66 +533,49 @@ describe('ProofGraphAdapter', () => {
   describe('hasCycles', () => {
     it('should detect cycles in parent-child relationships', async () => {
       // Arrange - create a cyclic structure
-      const node1 = mock<Node>();
-      const node2 = mock<Node>();
+      const arg1Id = AtomicArgumentId.create('arg1');
+      const arg2Id = AtomicArgumentId.create('arg2');
+      if (arg1Id.isErr() || arg2Id.isErr()) throw new Error('Invalid argument IDs');
 
-      node1.getArgumentId.mockReturnValue(
-        (() => {
-          const r = AtomicArgumentId.create('arg1');
-          if (r.isErr()) throw new Error('Invalid ID');
-          return r.value;
-        })(),
-      );
-      node1.isRoot.mockReturnValue(false);
-      node1.isChild.mockReturnValue(true);
-      node1.getParentNodeId.mockReturnValue(
-        (() => {
-          const r = NodeId.create('node2');
-          if (r.isErr()) throw new Error('Invalid ID');
-          return r.value;
-        })(),
-      );
+      const parentNodeId1 = NodeId.create('node2');
+      const parentNodeId2 = NodeId.create('node1');
+      if (parentNodeId1.isErr() || parentNodeId2.isErr()) throw new Error('Invalid parent IDs');
 
-      node2.getArgumentId.mockReturnValue(
-        (() => {
-          const r = AtomicArgumentId.create('arg2');
-          if (r.isErr()) throw new Error('Invalid ID');
-          return r.value;
-        })(),
-      );
-      node2.isRoot.mockReturnValue(false);
-      node2.isChild.mockReturnValue(true);
-      node2.getParentNodeId.mockReturnValue(
-        (() => {
-          const r = NodeId.create('node1');
-          if (r.isErr()) throw new Error('Invalid ID');
-          return r.value;
-        })(),
-      );
+      const node1 = {
+        getArgumentId: vi.fn().mockReturnValue(arg1Id.value),
+        isRoot: vi.fn().mockReturnValue(false),
+        isChild: vi.fn().mockReturnValue(true),
+        getParentNodeId: vi.fn().mockReturnValue(parentNodeId1.value),
+        getAttachment: vi.fn(),
+      } as unknown as Node;
 
-      const mockAttachment = mock<Attachment>();
-      mockAttachment.getPremisePosition.mockReturnValue(0);
-      mockAttachment.getFromPosition.mockReturnValue(undefined);
-      mockAttachment.getParentNodeId.mockReturnValue(
-        (() => {
-          const r = NodeId.create('node1');
-          if (r.isErr()) throw new Error('Invalid ID');
-          return r.value;
-        })(),
-      );
-      mockAttachment.hasMultipleConclusionSource.mockReturnValue(false);
-      mockAttachment.equals.mockReturnValue(false);
-      node1.getAttachment.mockReturnValue(mockAttachment);
-      node2.getAttachment.mockReturnValue(mockAttachment);
+      const node2 = {
+        getArgumentId: vi.fn().mockReturnValue(arg2Id.value),
+        isRoot: vi.fn().mockReturnValue(false),
+        isChild: vi.fn().mockReturnValue(true),
+        getParentNodeId: vi.fn().mockReturnValue(parentNodeId2.value),
+        getAttachment: vi.fn(),
+      } as unknown as Node;
 
-      mockNodeRepository.findById.mockImplementation(async (nodeId: NodeId) => {
+      const mockAttachment = {
+        getPremisePosition: vi.fn().mockReturnValue(0),
+        getFromPosition: vi.fn().mockReturnValue(undefined),
+        getParentNodeId: vi.fn().mockReturnValue(parentNodeId2.value),
+        hasMultipleConclusionSource: vi.fn().mockReturnValue(false),
+        equals: vi.fn().mockReturnValue(false),
+      } as unknown as Attachment;
+
+      (node1.getAttachment as ReturnType<typeof vi.fn>).mockReturnValue(mockAttachment);
+      (node2.getAttachment as ReturnType<typeof vi.fn>).mockReturnValue(mockAttachment);
+
+      vi.mocked(mockNodeRepository.findById).mockImplementation(async (nodeId: NodeId) => {
         switch (nodeId.getValue()) {
           case 'node1':
-            return node1;
+            return { isOk: () => true, isErr: () => false, value: node1 } as any;
           case 'node2':
-            return node2;
+            return { isOk: () => true, isErr: () => false, value: node2 } as any;
           default:
-            return null;
+            return { isOk: () => false, isErr: () => true, error: new Error('Not found') } as any;
         }
       });
 
@@ -604,18 +586,20 @@ describe('ProofGraphAdapter', () => {
       const arg1 = createMockArgument([statement1], [statement2]);
       const arg2 = createMockArgument([statement2], [statement1]);
 
-      mockArgumentRepository.findById.mockImplementation(async (argId: AtomicArgumentId) => {
-        switch (argId.getValue()) {
-          case 'arg1':
-            return arg1;
-          case 'arg2':
-            return arg2;
-          default:
-            return null;
-        }
-      });
+      vi.mocked(mockArgumentRepository.findById).mockImplementation(
+        async (argId: AtomicArgumentId) => {
+          switch (argId.getValue()) {
+            case 'arg1':
+              return { isOk: () => true, isErr: () => false, value: arg1 } as any;
+            case 'arg2':
+              return { isOk: () => true, isErr: () => false, value: arg2 } as any;
+            default:
+              return { isOk: () => false, isErr: () => true, error: new Error('Not found') } as any;
+          }
+        },
+      );
 
-      mockTree.getNodeIds.mockReturnValue([
+      (mockTree.getNodeIds as ReturnType<typeof vi.fn>).mockReturnValue([
         (() => {
           const r = NodeId.create('node1');
           if (r.isErr()) throw new Error('Invalid ID');
@@ -648,58 +632,47 @@ describe('ProofGraphAdapter', () => {
 
     it('should not detect cycles in acyclic structures', async () => {
       // Arrange - use the default linear structure
-      const node1 = mock<Node>();
-      const node2 = mock<Node>();
+      const arg1Id = AtomicArgumentId.create('arg1');
+      const arg2Id = AtomicArgumentId.create('arg2');
+      if (arg1Id.isErr() || arg2Id.isErr()) throw new Error('Invalid argument IDs');
 
-      node1.getArgumentId.mockReturnValue(
-        (() => {
-          const r = AtomicArgumentId.create('arg1');
-          if (r.isErr()) throw new Error('Invalid ID');
-          return r.value;
-        })(),
-      );
-      node1.isRoot.mockReturnValue(true);
-      node1.isChild.mockReturnValue(false);
+      const parentNodeId = NodeId.create('node1');
+      if (parentNodeId.isErr()) throw new Error('Invalid parent ID');
 
-      node2.getArgumentId.mockReturnValue(
-        (() => {
-          const r = AtomicArgumentId.create('arg2');
-          if (r.isErr()) throw new Error('Invalid ID');
-          return r.value;
-        })(),
-      );
-      node2.isRoot.mockReturnValue(false);
-      node2.isChild.mockReturnValue(true);
-      node2.getParentNodeId.mockReturnValue(
-        (() => {
-          const r = NodeId.create('node1');
-          if (r.isErr()) throw new Error('Invalid ID');
-          return r.value;
-        })(),
-      );
+      const node1 = {
+        getArgumentId: vi.fn().mockReturnValue(arg1Id.value),
+        isRoot: vi.fn().mockReturnValue(true),
+        isChild: vi.fn().mockReturnValue(false),
+        getParentNodeId: vi.fn().mockReturnValue(undefined),
+        getAttachment: vi.fn().mockReturnValue(undefined),
+      } as unknown as Node;
 
-      const mockAttachment = mock<Attachment>();
-      mockAttachment.getPremisePosition.mockReturnValue(0);
-      mockAttachment.getFromPosition.mockReturnValue(undefined);
-      mockAttachment.getParentNodeId.mockReturnValue(
-        (() => {
-          const r = NodeId.create('node1');
-          if (r.isErr()) throw new Error('Invalid ID');
-          return r.value;
-        })(),
-      );
-      mockAttachment.hasMultipleConclusionSource.mockReturnValue(false);
-      mockAttachment.equals.mockReturnValue(false);
-      node2.getAttachment.mockReturnValue(mockAttachment);
+      const node2 = {
+        getArgumentId: vi.fn().mockReturnValue(arg2Id.value),
+        isRoot: vi.fn().mockReturnValue(false),
+        isChild: vi.fn().mockReturnValue(true),
+        getParentNodeId: vi.fn().mockReturnValue(parentNodeId.value),
+        getAttachment: vi.fn(),
+      } as unknown as Node;
 
-      mockNodeRepository.findById.mockImplementation(async (nodeId: NodeId) => {
+      const mockAttachment = {
+        getPremisePosition: vi.fn().mockReturnValue(0),
+        getFromPosition: vi.fn().mockReturnValue(undefined),
+        getParentNodeId: vi.fn().mockReturnValue(parentNodeId.value),
+        hasMultipleConclusionSource: vi.fn().mockReturnValue(false),
+        equals: vi.fn().mockReturnValue(false),
+      } as unknown as Attachment;
+
+      (node2.getAttachment as ReturnType<typeof vi.fn>).mockReturnValue(mockAttachment);
+
+      vi.mocked(mockNodeRepository.findById).mockImplementation(async (nodeId: NodeId) => {
         switch (nodeId.getValue()) {
           case 'node1':
-            return node1;
+            return { isOk: () => true, isErr: () => false, value: node1 } as any;
           case 'node2':
-            return node2;
+            return { isOk: () => true, isErr: () => false, value: node2 } as any;
           default:
-            return null;
+            return { isOk: () => false, isErr: () => true, error: new Error('Not found') } as any;
         }
       });
 
@@ -709,18 +682,20 @@ describe('ProofGraphAdapter', () => {
       const arg1 = createMockArgument([], [statement1]);
       const arg2 = createMockArgument([statement1], []);
 
-      mockArgumentRepository.findById.mockImplementation(async (argId: AtomicArgumentId) => {
-        switch (argId.getValue()) {
-          case 'arg1':
-            return arg1;
-          case 'arg2':
-            return arg2;
-          default:
-            return null;
-        }
-      });
+      vi.mocked(mockArgumentRepository.findById).mockImplementation(
+        async (argId: AtomicArgumentId) => {
+          switch (argId.getValue()) {
+            case 'arg1':
+              return { isOk: () => true, isErr: () => false, value: arg1 } as any;
+            case 'arg2':
+              return { isOk: () => true, isErr: () => false, value: arg2 } as any;
+            default:
+              return { isOk: () => false, isErr: () => true, error: new Error('Not found') } as any;
+          }
+        },
+      );
 
-      mockTree.getNodeIds.mockReturnValue([
+      (mockTree.getNodeIds as ReturnType<typeof vi.fn>).mockReturnValue([
         (() => {
           const r = NodeId.create('node1');
           if (r.isErr()) throw new Error('Invalid ID');
@@ -755,79 +730,61 @@ describe('ProofGraphAdapter', () => {
   describe('getTreeMetrics', () => {
     beforeEach(async () => {
       // Setup a tree structure for metrics testing
-      const node1 = mock<Node>();
-      const node2 = mock<Node>();
-      const node3 = mock<Node>();
+      const arg1Id = AtomicArgumentId.create('arg1');
+      const arg2Id = AtomicArgumentId.create('arg2');
+      const arg3Id = AtomicArgumentId.create('arg3');
+      if (arg1Id.isErr() || arg2Id.isErr() || arg3Id.isErr()) {
+        throw new Error('Failed to create argument IDs');
+      }
 
-      node1.getArgumentId.mockReturnValue(
-        (() => {
-          const r = AtomicArgumentId.create('arg1');
-          if (r.isErr()) throw new Error('Invalid ID');
-          return r.value;
-        })(),
-      );
-      node1.isRoot.mockReturnValue(true);
-      node1.isChild.mockReturnValue(false);
+      const parentNodeId = NodeId.create('node1');
+      if (parentNodeId.isErr()) throw new Error('Invalid parent ID');
 
-      node2.getArgumentId.mockReturnValue(
-        (() => {
-          const r = AtomicArgumentId.create('arg2');
-          if (r.isErr()) throw new Error('Invalid ID');
-          return r.value;
-        })(),
-      );
-      node2.isRoot.mockReturnValue(false);
-      node2.isChild.mockReturnValue(true);
-      node2.getParentNodeId.mockReturnValue(
-        (() => {
-          const r = NodeId.create('node1');
-          if (r.isErr()) throw new Error('Invalid ID');
-          return r.value;
-        })(),
-      );
+      const node1 = {
+        getArgumentId: vi.fn().mockReturnValue(arg1Id.value),
+        isRoot: vi.fn().mockReturnValue(true),
+        isChild: vi.fn().mockReturnValue(false),
+        getParentNodeId: vi.fn().mockReturnValue(undefined),
+        getAttachment: vi.fn().mockReturnValue(undefined),
+      } as unknown as Node;
 
-      node3.getArgumentId.mockReturnValue(
-        (() => {
-          const r = AtomicArgumentId.create('arg3');
-          if (r.isErr()) throw new Error('Invalid ID');
-          return r.value;
-        })(),
-      );
-      node3.isRoot.mockReturnValue(false);
-      node3.isChild.mockReturnValue(true);
-      node3.getParentNodeId.mockReturnValue(
-        (() => {
-          const r = NodeId.create('node1');
-          if (r.isErr()) throw new Error('Invalid ID');
-          return r.value;
-        })(),
-      );
+      const node2 = {
+        getArgumentId: vi.fn().mockReturnValue(arg2Id.value),
+        isRoot: vi.fn().mockReturnValue(false),
+        isChild: vi.fn().mockReturnValue(true),
+        getParentNodeId: vi.fn().mockReturnValue(parentNodeId.value),
+        getAttachment: vi.fn(),
+      } as unknown as Node;
 
-      const mockAttachment = mock<Attachment>();
-      mockAttachment.getPremisePosition.mockReturnValue(0);
-      mockAttachment.getFromPosition.mockReturnValue(undefined);
-      mockAttachment.getParentNodeId.mockReturnValue(
-        (() => {
-          const r = NodeId.create('node1');
-          if (r.isErr()) throw new Error('Invalid ID');
-          return r.value;
-        })(),
-      );
-      mockAttachment.hasMultipleConclusionSource.mockReturnValue(false);
-      mockAttachment.equals.mockReturnValue(false);
-      node2.getAttachment.mockReturnValue(mockAttachment);
-      node3.getAttachment.mockReturnValue(mockAttachment);
+      const node3 = {
+        getArgumentId: vi.fn().mockReturnValue(arg3Id.value),
+        isRoot: vi.fn().mockReturnValue(false),
+        isChild: vi.fn().mockReturnValue(true),
+        getParentNodeId: vi.fn().mockReturnValue(parentNodeId.value),
+        getAttachment: vi.fn(),
+      } as unknown as Node;
 
-      mockNodeRepository.findById.mockImplementation(async (nodeId: NodeId) => {
+      const mockAttachment = {
+        getPremisePosition: vi.fn().mockReturnValue(0),
+        getFromPosition: vi.fn().mockReturnValue(undefined),
+        getParentNodeId: vi.fn().mockReturnValue(parentNodeId.value),
+        hasMultipleConclusionSource: vi.fn().mockReturnValue(false),
+        equals: vi.fn().mockReturnValue(false),
+      } as unknown as Attachment;
+
+      (node2.getAttachment as ReturnType<typeof vi.fn>).mockReturnValue(mockAttachment);
+      (node3.getAttachment as ReturnType<typeof vi.fn>).mockReturnValue(mockAttachment);
+
+      vi.mocked(mockNodeRepository.findById).mockImplementation(async (nodeId: NodeId) => {
         switch (nodeId.getValue()) {
           case 'node1':
-            return node1;
+            return { isOk: () => true, isErr: () => false, value: node1 } as any;
           case 'node2':
-            return node2;
+            return { isOk: () => true, isErr: () => false, value: node2 } as any;
           case 'node3':
-            return node3;
+            return { isOk: () => true, isErr: () => false, value: node3 } as any;
           default:
-            return null;
+            return { isOk: () => false, isErr: () => true, error: new Error('Not found') } as any;
         }
       });
 
@@ -838,18 +795,20 @@ describe('ProofGraphAdapter', () => {
       const arg2 = createMockArgument([statement1], []);
       const arg3 = createMockArgument([statement1], []);
 
-      mockArgumentRepository.findById.mockImplementation(async (argId: AtomicArgumentId) => {
-        switch (argId.getValue()) {
-          case 'arg1':
-            return arg1;
-          case 'arg2':
-            return arg2;
-          case 'arg3':
-            return arg3;
-          default:
-            return null;
-        }
-      });
+      vi.mocked(mockArgumentRepository.findById).mockImplementation(
+        async (argId: AtomicArgumentId) => {
+          switch (argId.getValue()) {
+            case 'arg1':
+              return { isOk: () => true, isErr: () => false, value: arg1 } as any;
+            case 'arg2':
+              return { isOk: () => true, isErr: () => false, value: arg2 } as any;
+            case 'arg3':
+              return { isOk: () => true, isErr: () => false, value: arg3 } as any;
+            default:
+              return { isOk: () => false, isErr: () => true, error: new Error('Not found') } as any;
+          }
+        },
+      );
 
       await adapter.buildGraphFromTree(mockTree);
     });
@@ -900,50 +859,43 @@ describe('ProofGraphAdapter', () => {
   describe('new interface methods', () => {
     describe('findPaths', () => {
       it('should find paths for multiple node pairs', async () => {
-        const node1 = mock<Node>();
-        const node2 = mock<Node>();
+        const arg1Id = AtomicArgumentId.create('arg1');
+        const arg2Id = AtomicArgumentId.create('arg2');
+        if (arg1Id.isErr() || arg2Id.isErr()) throw new Error('Invalid argument IDs');
 
-        node1.getArgumentId.mockReturnValue(
-          (() => {
-            const r = AtomicArgumentId.create('arg1');
-            if (r.isErr()) throw new Error('Invalid ID');
-            return r.value;
-          })(),
-        );
-        node1.isRoot.mockReturnValue(true);
-        node1.isChild.mockReturnValue(false);
+        const parentNodeId = NodeId.create('node1');
+        if (parentNodeId.isErr()) throw new Error('Invalid parent ID');
 
-        node2.getArgumentId.mockReturnValue(
-          (() => {
-            const r = AtomicArgumentId.create('arg2');
-            if (r.isErr()) throw new Error('Invalid ID');
-            return r.value;
-          })(),
-        );
-        node2.isRoot.mockReturnValue(false);
-        node2.isChild.mockReturnValue(true);
-        node2.getParentNodeId.mockReturnValue(
-          (() => {
-            const r = NodeId.create('node1');
-            if (r.isErr()) throw new Error('Invalid ID');
-            return r.value;
-          })(),
-        );
+        const node1 = {
+          getArgumentId: vi.fn().mockReturnValue(arg1Id.value),
+          isRoot: vi.fn().mockReturnValue(true),
+          isChild: vi.fn().mockReturnValue(false),
+          getParentNodeId: vi.fn().mockReturnValue(undefined),
+          getAttachment: vi.fn().mockReturnValue(undefined),
+        } as unknown as Node;
+
+        const node2 = {
+          getArgumentId: vi.fn().mockReturnValue(arg2Id.value),
+          isRoot: vi.fn().mockReturnValue(false),
+          isChild: vi.fn().mockReturnValue(true),
+          getParentNodeId: vi.fn().mockReturnValue(parentNodeId.value),
+          getAttachment: vi.fn(),
+        } as unknown as Node;
 
         const mockAttachment = {
           getPremisePosition: () => 0,
           getFromPosition: () => undefined,
         };
-        node2.getAttachment.mockReturnValue(mockAttachment);
+        (node2.getAttachment as ReturnType<typeof vi.fn>).mockReturnValue(mockAttachment);
 
-        mockNodeRepository.findById.mockImplementation(async (nodeId: NodeId) => {
+        vi.mocked(mockNodeRepository.findById).mockImplementation(async (nodeId: NodeId) => {
           switch (nodeId.getValue()) {
             case 'node1':
-              return node1;
+              return { isOk: () => true, isErr: () => false, value: node1 } as any;
             case 'node2':
-              return node2;
+              return { isOk: () => true, isErr: () => false, value: node2 } as any;
             default:
-              return null;
+              return { isOk: () => false, isErr: () => true, error: new Error('Not found') } as any;
           }
         });
 
@@ -951,18 +903,24 @@ describe('ProofGraphAdapter', () => {
         const arg1 = createMockArgument([], [statement1]);
         const arg2 = createMockArgument([statement1], []);
 
-        mockArgumentRepository.findById.mockImplementation(async (argId: AtomicArgumentId) => {
-          switch (argId.getValue()) {
-            case 'arg1':
-              return arg1;
-            case 'arg2':
-              return arg2;
-            default:
-              return null;
-          }
-        });
+        vi.mocked(mockArgumentRepository.findById).mockImplementation(
+          async (argId: AtomicArgumentId) => {
+            switch (argId.getValue()) {
+              case 'arg1':
+                return { isOk: () => true, isErr: () => false, value: arg1 } as any;
+              case 'arg2':
+                return { isOk: () => true, isErr: () => false, value: arg2 } as any;
+              default:
+                return {
+                  isOk: () => false,
+                  isErr: () => true,
+                  error: new Error('Not found'),
+                } as any;
+            }
+          },
+        );
 
-        mockTree.getNodeIds.mockReturnValue([
+        (mockTree.getNodeIds as ReturnType<typeof vi.fn>).mockReturnValue([
           (() => {
             const r = NodeId.create('node1');
             if (r.isErr()) throw new Error('Invalid ID');
@@ -1016,50 +974,43 @@ describe('ProofGraphAdapter', () => {
 
     describe('areNodesConnectedBatch', () => {
       it('should check connectivity for multiple node pairs', async () => {
-        const node1 = mock<Node>();
-        const node2 = mock<Node>();
+        const arg1Id = AtomicArgumentId.create('arg1');
+        const arg2Id = AtomicArgumentId.create('arg2');
+        if (arg1Id.isErr() || arg2Id.isErr()) throw new Error('Invalid argument IDs');
 
-        node1.getArgumentId.mockReturnValue(
-          (() => {
-            const r = AtomicArgumentId.create('arg1');
-            if (r.isErr()) throw new Error('Invalid ID');
-            return r.value;
-          })(),
-        );
-        node1.isRoot.mockReturnValue(true);
-        node1.isChild.mockReturnValue(false);
+        const parentNodeId = NodeId.create('node1');
+        if (parentNodeId.isErr()) throw new Error('Invalid parent ID');
 
-        node2.getArgumentId.mockReturnValue(
-          (() => {
-            const r = AtomicArgumentId.create('arg2');
-            if (r.isErr()) throw new Error('Invalid ID');
-            return r.value;
-          })(),
-        );
-        node2.isRoot.mockReturnValue(false);
-        node2.isChild.mockReturnValue(true);
-        node2.getParentNodeId.mockReturnValue(
-          (() => {
-            const r = NodeId.create('node1');
-            if (r.isErr()) throw new Error('Invalid ID');
-            return r.value;
-          })(),
-        );
+        const node1 = {
+          getArgumentId: vi.fn().mockReturnValue(arg1Id.value),
+          isRoot: vi.fn().mockReturnValue(true),
+          isChild: vi.fn().mockReturnValue(false),
+          getParentNodeId: vi.fn().mockReturnValue(undefined),
+          getAttachment: vi.fn().mockReturnValue(undefined),
+        } as unknown as Node;
+
+        const node2 = {
+          getArgumentId: vi.fn().mockReturnValue(arg2Id.value),
+          isRoot: vi.fn().mockReturnValue(false),
+          isChild: vi.fn().mockReturnValue(true),
+          getParentNodeId: vi.fn().mockReturnValue(parentNodeId.value),
+          getAttachment: vi.fn(),
+        } as unknown as Node;
 
         const mockAttachment = {
           getPremisePosition: () => 0,
           getFromPosition: () => undefined,
         };
-        node2.getAttachment.mockReturnValue(mockAttachment);
+        (node2.getAttachment as ReturnType<typeof vi.fn>).mockReturnValue(mockAttachment);
 
-        mockNodeRepository.findById.mockImplementation(async (nodeId: NodeId) => {
+        vi.mocked(mockNodeRepository.findById).mockImplementation(async (nodeId: NodeId) => {
           switch (nodeId.getValue()) {
             case 'node1':
-              return node1;
+              return { isOk: () => true, isErr: () => false, value: node1 } as any;
             case 'node2':
-              return node2;
+              return { isOk: () => true, isErr: () => false, value: node2 } as any;
             default:
-              return null;
+              return { isOk: () => false, isErr: () => true, error: new Error('Not found') } as any;
           }
         });
 
@@ -1067,18 +1018,24 @@ describe('ProofGraphAdapter', () => {
         const arg1 = createMockArgument([], [statement1]);
         const arg2 = createMockArgument([statement1], []);
 
-        mockArgumentRepository.findById.mockImplementation(async (argId: AtomicArgumentId) => {
-          switch (argId.getValue()) {
-            case 'arg1':
-              return arg1;
-            case 'arg2':
-              return arg2;
-            default:
-              return null;
-          }
-        });
+        vi.mocked(mockArgumentRepository.findById).mockImplementation(
+          async (argId: AtomicArgumentId) => {
+            switch (argId.getValue()) {
+              case 'arg1':
+                return { isOk: () => true, isErr: () => false, value: arg1 } as any;
+              case 'arg2':
+                return { isOk: () => true, isErr: () => false, value: arg2 } as any;
+              default:
+                return {
+                  isOk: () => false,
+                  isErr: () => true,
+                  error: new Error('Not found'),
+                } as any;
+            }
+          },
+        );
 
-        mockTree.getNodeIds.mockReturnValue([
+        (mockTree.getNodeIds as ReturnType<typeof vi.fn>).mockReturnValue([
           (() => {
             const r = NodeId.create('node1');
             if (r.isErr()) throw new Error('Invalid ID');

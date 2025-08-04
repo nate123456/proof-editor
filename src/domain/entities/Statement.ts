@@ -181,4 +181,8 @@ export class Statement {
   ): Statement {
     return new Statement(id, content, createdAt, modifiedAt, usageCount);
   }
+
+  isReferencedInOrderedSets(): boolean {
+    return this.usageCount.getValue() > 0;
+  }
 }

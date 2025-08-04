@@ -11,6 +11,14 @@ import {
   TreeId,
 } from '../../../domain/shared/value-objects/index.js';
 import type { ProofVisualizationConfig, TreeRenderDTO } from '../../dtos/view-dtos.js';
+import {
+  createTestAtomicArgumentId,
+  createTestDimensions,
+  createTestNodeCount,
+  createTestNodeId,
+  createTestPosition2D,
+  createTestTreeId,
+} from '../../queries/__tests__/shared/branded-type-helpers.js';
 import type { DocumentDTO } from '../../queries/document-queries.js';
 import { ProofVisualizationService } from '../ProofVisualizationService.js';
 import type { TreeLayoutService } from '../TreeLayoutService.js';
@@ -66,10 +74,10 @@ describe('ProofVisualizationService - Enhanced Coverage', () => {
       const largeTrees: Record<string, any> = {};
       for (let i = 0; i < 100; i++) {
         largeTrees[`tree${i}`] = {
-          id: `tree${i}`,
-          position: { x: i * 100, y: 0 },
-          nodeCount: 10,
-          rootNodeIds: ['n1'],
+          id: createTestTreeId(`tree${i}`),
+          position: createTestPosition2D(i * 100, 0),
+          nodeCount: createTestNodeCount(10),
+          rootNodeIds: [createTestNodeId('n1')],
         };
       }
 
@@ -132,7 +140,8 @@ describe('ProofVisualizationService - Enhanced Coverage', () => {
           })(),
           position: (() => {
             const r = Position2D.create(i * 100, 0);
-            return r.isOk() ? r.value : undefined;
+            if (!r.isOk()) throw new Error('Failed to create Position2D');
+            return r.value;
           })(),
           nodeCount: (() => {
             const r = NodeCount.create(50);
@@ -345,11 +354,13 @@ describe('ProofVisualizationService - Enhanced Coverage', () => {
             })(),
             position: (() => {
               const r = Position2D.create(100, 100);
-              return r.isOk() ? r.value : undefined;
+              if (!r.isOk()) throw new Error('Failed to create Position2D');
+              return r.value;
             })(),
             bounds: (() => {
               const r = Dimensions.create(200, 200);
-              return r.isOk() ? r.value : undefined;
+              if (!r.isOk()) throw new Error('Failed to create Dimensions');
+              return r.value;
             })(),
             nodeCount: (() => {
               const r = NodeCount.create(5);
@@ -369,11 +380,13 @@ describe('ProofVisualizationService - Enhanced Coverage', () => {
             })(),
             position: (() => {
               const r = Position2D.create(700, 500);
-              return r.isOk() ? r.value : undefined;
+              if (!r.isOk()) throw new Error('Failed to create Position2D');
+              return r.value;
             })(), // Partially outside viewport
             bounds: (() => {
               const r = Dimensions.create(200, 200);
-              return r.isOk() ? r.value : undefined;
+              if (!r.isOk()) throw new Error('Failed to create Dimensions');
+              return r.value;
             })(),
             nodeCount: (() => {
               const r = NodeCount.create(3);
@@ -393,11 +406,13 @@ describe('ProofVisualizationService - Enhanced Coverage', () => {
             })(),
             position: (() => {
               const r = Position2D.create(1000, 1000);
-              return r.isOk() ? r.value : undefined;
+              if (!r.isOk()) throw new Error('Failed to create Position2D');
+              return r.value;
             })(), // Completely outside viewport
             bounds: (() => {
               const r = Dimensions.create(200, 200);
-              return r.isOk() ? r.value : undefined;
+              if (!r.isOk()) throw new Error('Failed to create Dimensions');
+              return r.value;
             })(),
             nodeCount: (() => {
               const r = NodeCount.create(2);
@@ -417,11 +432,13 @@ describe('ProofVisualizationService - Enhanced Coverage', () => {
             })(),
             position: (() => {
               const r = Position2D.create(800, 600);
-              return r.isOk() ? r.value : undefined;
+              if (!r.isOk()) throw new Error('Failed to create Position2D');
+              return r.value;
             })(), // Exactly at edge
             bounds: (() => {
               const r = Dimensions.create(1, 1);
-              return r.isOk() ? r.value : undefined;
+              if (!r.isOk()) throw new Error('Failed to create Dimensions');
+              return r.value;
             })(),
             nodeCount: (() => {
               const r = NodeCount.create(1);
@@ -590,14 +607,14 @@ describe('ProofVisualizationService - Enhanced Coverage', () => {
             nodes: [],
             connections: [
               {
-                fromNodeId: 'n1',
-                toNodeId: 'n2',
+                fromNodeId: createTestNodeId('n1'),
+                toNodeId: createTestNodeId('n2'),
                 fromPosition: 0,
                 toPosition: 0,
                 coordinates: { startX: 0, startY: 0, endX: 100, endY: 100 },
               },
             ],
-            dimensions: { width: 400, height: 200 },
+            dimensions: createTestDimensions(400, 200),
           },
         }),
       ];
@@ -665,9 +682,9 @@ describe('ProofVisualizationService - Enhanced Coverage', () => {
     test('handles trees with identical bounds', () => {
       const document = createDocumentDTO();
       const mockTrees: TreeRenderDTO[] = [
-        createTreeRenderDTO('tree1', { bounds: { width: 400, height: 200 } }),
-        createTreeRenderDTO('tree2', { bounds: { width: 400, height: 200 } }),
-        createTreeRenderDTO('tree3', { bounds: { width: 400, height: 200 } }),
+        createTreeRenderDTO('tree1', { bounds: createTestDimensions(400, 200) }),
+        createTreeRenderDTO('tree2', { bounds: createTestDimensions(400, 200) }),
+        createTreeRenderDTO('tree3', { bounds: createTestDimensions(400, 200) }),
       ];
 
       vi.mocked(mockLayoutService.calculateDocumentLayout).mockReturnValue(ok(mockTrees));
@@ -685,9 +702,9 @@ describe('ProofVisualizationService - Enhanced Coverage', () => {
     test('handles trees with extreme size variations', () => {
       const document = createDocumentDTO();
       const mockTrees: TreeRenderDTO[] = [
-        createTreeRenderDTO('tiny', { bounds: { width: 10, height: 5 } }),
-        createTreeRenderDTO('huge', { bounds: { width: 5000, height: 3000 } }),
-        createTreeRenderDTO('medium', { bounds: { width: 300, height: 150 } }),
+        createTreeRenderDTO('tiny', { bounds: createTestDimensions(10, 5) }),
+        createTreeRenderDTO('huge', { bounds: createTestDimensions(5000, 3000) }),
+        createTreeRenderDTO('medium', { bounds: createTestDimensions(300, 150) }),
       ];
 
       vi.mocked(mockLayoutService.calculateDocumentLayout).mockReturnValue(ok(mockTrees));
@@ -705,8 +722,8 @@ describe('ProofVisualizationService - Enhanced Coverage', () => {
     test('handles zero-dimension trees', () => {
       const document = createDocumentDTO();
       const mockTrees: TreeRenderDTO[] = [
-        createTreeRenderDTO('zero', { bounds: { width: 0, height: 0 } }),
-        createTreeRenderDTO('normal', { bounds: { width: 400, height: 200 } }),
+        createTreeRenderDTO('zero', { bounds: createTestDimensions(1, 1) }), // zero dimensions not allowed
+        createTreeRenderDTO('normal', { bounds: createTestDimensions(400, 200) }),
       ];
 
       vi.mocked(mockLayoutService.calculateDocumentLayout).mockReturnValue(ok(mockTrees));
@@ -726,21 +743,21 @@ describe('ProofVisualizationService - Enhanced Coverage', () => {
       const document = createDocumentDTO({
         trees: {
           multiRoot: {
-            id: 'multiRoot',
-            position: { x: 0, y: 0 },
-            nodeCount: 10,
-            rootNodeIds: ['r1', 'r2', 'r3'], // Multiple roots
+            id: createTestTreeId('multiRoot'),
+            position: createTestPosition2D(0, 0),
+            nodeCount: createTestNodeCount(10),
+            rootNodeIds: [createTestNodeId('r1'), createTestNodeId('r2'), createTestNodeId('r3')], // Multiple roots
           },
           singleRoot: {
-            id: 'singleRoot',
-            position: { x: 100, y: 0 },
-            nodeCount: 5,
-            rootNodeIds: ['r1'], // Single root
+            id: createTestTreeId('singleRoot'),
+            position: createTestPosition2D(100, 0),
+            nodeCount: createTestNodeCount(5),
+            rootNodeIds: [createTestNodeId('r1')], // Single root
           },
           noRoots: {
-            id: 'noRoots',
-            position: { x: 200, y: 0 },
-            nodeCount: 3,
+            id: createTestTreeId('noRoots'),
+            position: createTestPosition2D(200, 0),
+            nodeCount: createTestNodeCount(3),
             rootNodeIds: [], // No roots (edge case)
           },
         },
@@ -763,22 +780,22 @@ describe('ProofVisualizationService - Enhanced Coverage', () => {
       const document = createDocumentDTO({
         trees: {
           empty1: {
-            id: 'empty1',
-            position: { x: 0, y: 0 },
-            nodeCount: 0,
+            id: createTestTreeId('empty1'),
+            position: createTestPosition2D(0, 0),
+            nodeCount: createTestNodeCount(0),
             rootNodeIds: [],
           },
           empty2: {
-            id: 'empty2',
-            position: { x: 100, y: 0 },
-            nodeCount: 0,
+            id: createTestTreeId('empty2'),
+            position: createTestPosition2D(100, 0),
+            nodeCount: createTestNodeCount(0),
             rootNodeIds: [],
           },
           withNodes: {
-            id: 'withNodes',
-            position: { x: 200, y: 0 },
-            nodeCount: 5,
-            rootNodeIds: ['r1'],
+            id: createTestTreeId('withNodes'),
+            position: createTestPosition2D(200, 0),
+            nodeCount: createTestNodeCount(5),
+            rootNodeIds: [createTestNodeId('r1')],
           },
         },
       });
@@ -817,10 +834,10 @@ describe('ProofVisualizationService - Enhanced Coverage', () => {
       const document = createDocumentDTO({
         trees: {
           massiveTree: {
-            id: 'massiveTree',
-            position: { x: 0, y: 0 },
-            nodeCount: 1000,
-            rootNodeIds: ['r1'],
+            id: createTestTreeId('massiveTree'),
+            position: createTestPosition2D(0, 0),
+            nodeCount: createTestNodeCount(1000),
+            rootNodeIds: [createTestNodeId('r1')],
           },
         },
       });
@@ -842,12 +859,16 @@ describe('ProofVisualizationService - Enhanced Coverage', () => {
 
       // Modify nested objects
       config1.layout.nodeWidth = 999;
-      config1.performance.maxTreesRendered = 777;
+      config1.performance.maxTreesRendered = (() => {
+        const r = MaxTreeCount.create(777);
+        if (!r.isOk()) throw new Error('Failed to create MaxTreeCount');
+        return r.value;
+      })();
       config1.visual.showConnectionLabels = true;
 
       // Should not affect other instances
       expect(config2.layout.nodeWidth).toBe(220);
-      expect(config2.performance.maxTreesRendered).toBe(50);
+      expect(config2.performance.maxTreesRendered.getValue()).toBe(50);
       expect(config2.visual.showConnectionLabels).toBe(false);
     });
 
@@ -863,8 +884,16 @@ describe('ProofVisualizationService - Enhanced Coverage', () => {
         },
         performance: {
           enableVirtualization: false,
-          maxTreesRendered: 50,
-          maxNodesPerTree: 1000,
+          maxTreesRendered: (() => {
+            const r = MaxTreeCount.create(50);
+            if (!r.isOk()) throw new Error('Failed to create MaxTreeCount');
+            return r.value;
+          })(),
+          maxNodesPerTree: (() => {
+            const r = MaxNodeCount.create(1000);
+            if (!r.isOk()) throw new Error('Failed to create MaxNodeCount');
+            return r.value;
+          })(),
         },
         // Visual config not provided - should use all defaults
       };
@@ -898,8 +927,16 @@ describe('ProofVisualizationService - Enhanced Coverage', () => {
           canvasMargin: 50,
         },
         performance: {
-          maxTreesRendered: 100,
-          maxNodesPerTree: 1000,
+          maxTreesRendered: (() => {
+            const r = MaxTreeCount.create(100);
+            if (!r.isOk()) throw new Error('Failed to create MaxTreeCount');
+            return r.value;
+          })(),
+          maxNodesPerTree: (() => {
+            const r = MaxNodeCount.create(1000);
+            if (!r.isOk()) throw new Error('Failed to create MaxNodeCount');
+            return r.value;
+          })(),
           enableVirtualization: true,
         },
       });
@@ -907,8 +944,8 @@ describe('ProofVisualizationService - Enhanced Coverage', () => {
       expect(config.layout.nodeWidth).toBe(400);
       expect(config.layout.nodeHeight).toBe(200);
       expect(config.layout.verticalSpacing).toBe(180); // From config override
-      expect(config.performance.maxTreesRendered).toBe(100);
-      expect(config.performance.maxNodesPerTree).toBe(1000); // From config override
+      expect(config.performance.maxTreesRendered.getValue()).toBe(100);
+      expect(config.performance.maxNodesPerTree.getValue()).toBe(1000); // From config override
       expect(config.visual.showConnectionLabels).toBe(false); // Default preserved
     });
   });
@@ -922,6 +959,7 @@ function createDocumentDTO(overrides: Partial<DocumentDTO> = {}): DocumentDTO {
     createdAt: new Date().toISOString(),
     modifiedAt: new Date().toISOString(),
     statements: {},
+    orderedSets: {},
     atomicArguments: {},
     trees: {
       tree1: {
@@ -931,7 +969,8 @@ function createDocumentDTO(overrides: Partial<DocumentDTO> = {}): DocumentDTO {
         })(),
         position: (() => {
           const r = Position2D.create(100, 100);
-          return r.isOk() ? r.value : undefined;
+          if (!r.isOk()) throw new Error('Failed to create Position2D');
+          return r.value;
         })(),
         nodeCount: (() => {
           const r = NodeCount.create(2);
@@ -951,23 +990,31 @@ function createDocumentDTO(overrides: Partial<DocumentDTO> = {}): DocumentDTO {
 
 function createTreeRenderDTO(id: string, overrides: Partial<TreeRenderDTO> = {}): TreeRenderDTO {
   return {
-    id,
-    position: { x: 0, y: 0 },
+    id: (() => {
+      const r = TreeId.create(id);
+      if (!r.isOk()) throw new Error('Failed to create TreeId');
+      return r.value;
+    })(),
+    position: createTestPosition2D(0, 0),
     layout: {
       nodes: [
         {
-          id: 'n1',
-          position: { x: 100, y: 100 },
-          dimensions: { width: 200, height: 80 },
-          argument: { id: 'arg1', premiseIds: null, conclusionIds: null },
+          id: createTestNodeId('n1'),
+          position: createTestPosition2D(100, 100),
+          dimensions: createTestDimensions(200, 80),
+          argument: {
+            id: createTestAtomicArgumentId('arg1'),
+            premiseIds: [],
+            conclusionIds: [],
+          },
           premises: [],
           conclusions: [],
         },
       ],
       connections: [],
-      dimensions: { width: 400, height: 200 },
+      dimensions: createTestDimensions(400, 200),
     },
-    bounds: { width: 400, height: 200 },
+    bounds: createTestDimensions(400, 200),
     ...overrides,
   };
 }

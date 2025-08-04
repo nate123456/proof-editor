@@ -7,11 +7,17 @@
 
 import { beforeEach, describe, expect, it } from 'vitest';
 import { ValidationError } from '../../../domain/shared/result.js';
+import { ErrorSeverity } from '../../../domain/shared/value-objects/index.js';
 import type { DocumentStatsDTO, GetValidationReportQuery } from '../document-queries.js';
+import type { ValidationErrorDTO } from '../shared-types.js';
 import {
   createMockDocumentService,
   createProblematicDocumentStats,
+  createTestAtomicArgumentId,
   createTestDocumentStats,
+  createTestErrorCode,
+  createTestErrorMessage,
+  createTestTreeId,
 } from './shared/document-test-utilities.js';
 
 describe('GetValidationReportQuery Execution', () => {
@@ -68,19 +74,19 @@ describe('GetValidationReportQuery Execution', () => {
         isValid: false,
         errors: [
           {
-            code: 'CUSTOM_VALIDATION_FAILED',
-            message: 'Custom logic validation rule violated',
-            severity: 'error',
+            code: createTestErrorCode('CUSTOM_VALIDATION_FAILED'),
+            message: createTestErrorMessage('Custom logic validation rule violated'),
+            severity: ErrorSeverity.ERROR,
             location: {
-              argumentId: 'arg_custom_1',
+              argumentId: createTestAtomicArgumentId('arg_custom_1'),
             },
           },
           {
-            code: 'SEMANTIC_INCONSISTENCY',
-            message: 'Semantic inconsistency detected by custom script',
-            severity: 'warning',
+            code: createTestErrorCode('SEMANTIC_INCONSISTENCY'),
+            message: createTestErrorMessage('Semantic inconsistency detected by custom script'),
+            severity: ErrorSeverity.WARNING,
             location: {
-              treeId: 'tree_logic_1',
+              treeId: createTestTreeId('tree_logic_1'),
             },
           },
         ],
@@ -93,8 +99,8 @@ describe('GetValidationReportQuery Execution', () => {
 
     expect(result.validationStatus.isValid).toBe(false);
     expect(result.validationStatus.errors).toHaveLength(2);
-    expect(result.validationStatus.errors[0]?.code).toBe('CUSTOM_VALIDATION_FAILED');
-    expect(result.validationStatus.errors[1]?.code).toBe('SEMANTIC_INCONSISTENCY');
+    expect(result.validationStatus.errors[0]?.code.getValue()).toBe('CUSTOM_VALIDATION_FAILED');
+    expect(result.validationStatus.errors[1]?.code.getValue()).toBe('SEMANTIC_INCONSISTENCY');
     expect(result.cyclesDetected[0]?.severity).toBe('high');
   });
 
@@ -114,10 +120,12 @@ describe('GetValidationReportQuery Execution', () => {
     expect(result.cyclesDetected).toHaveLength(2);
     expect(result.validationStatus.errors).toHaveLength(3);
 
-    const errorSeverities = result.validationStatus.errors.map((e: any) => e.severity);
-    expect(errorSeverities).toContain('error');
-    expect(errorSeverities).toContain('warning');
-    expect(errorSeverities).toContain('info');
+    const errorSeverities = result.validationStatus.errors.map(
+      (e: ValidationErrorDTO) => e.severity,
+    );
+    expect(errorSeverities).toContain(ErrorSeverity.ERROR);
+    expect(errorSeverities).toContain(ErrorSeverity.WARNING);
+    expect(errorSeverities).toContain(ErrorSeverity.INFO);
   });
 
   it('should handle document corruption errors', async () => {
@@ -149,14 +157,14 @@ describe('GetValidationReportQuery Execution', () => {
         isValid: true,
         errors: [
           {
-            code: 'PERFORMANCE_WARNING',
-            message: 'Large document may impact performance',
-            severity: 'info',
+            code: createTestErrorCode('PERFORMANCE_WARNING'),
+            message: createTestErrorMessage('Large document may impact performance'),
+            severity: ErrorSeverity.INFO,
           },
           {
-            code: 'MEMORY_USAGE_HIGH',
-            message: 'Document size exceeds recommended limits',
-            severity: 'warning',
+            code: createTestErrorCode('MEMORY_USAGE_HIGH'),
+            message: createTestErrorMessage('Document size exceeds recommended limits'),
+            severity: ErrorSeverity.WARNING,
           },
         ],
       },
@@ -169,8 +177,16 @@ describe('GetValidationReportQuery Execution', () => {
     expect(result.statementCount).toBe(10000);
     expect(result.validationStatus.isValid).toBe(true);
     expect(result.validationStatus.errors).toHaveLength(2);
-    expect(result.validationStatus.errors.some((e) => e.code === 'PERFORMANCE_WARNING')).toBe(true);
-    expect(result.validationStatus.errors.some((e) => e.code === 'MEMORY_USAGE_HIGH')).toBe(true);
+    expect(
+      result.validationStatus.errors.some(
+        (e: ValidationErrorDTO) => e.code.getValue() === 'PERFORMANCE_WARNING',
+      ),
+    ).toBe(true);
+    expect(
+      result.validationStatus.errors.some(
+        (e: ValidationErrorDTO) => e.code.getValue() === 'MEMORY_USAGE_HIGH',
+      ),
+    ).toBe(true);
   });
 
   it('should detect multiple validation issues in complex documents', async () => {
@@ -204,24 +220,24 @@ describe('GetValidationReportQuery Execution', () => {
         isValid: false,
         errors: [
           {
-            code: 'MULTIPLE_CYCLES',
-            message: 'Multiple circular dependencies detected',
-            severity: 'error',
+            code: createTestErrorCode('MULTIPLE_CYCLES'),
+            message: createTestErrorMessage('Multiple circular dependencies detected'),
+            severity: ErrorSeverity.ERROR,
           },
           {
-            code: 'EXCESSIVE_UNUSED_STATEMENTS',
-            message: '15 unused statements found',
-            severity: 'warning',
+            code: createTestErrorCode('EXCESSIVE_UNUSED_STATEMENTS'),
+            message: createTestErrorMessage('15 unused statements found'),
+            severity: ErrorSeverity.WARNING,
           },
           {
-            code: 'UNCONNECTED_ARGUMENTS',
-            message: '8 arguments not connected to any tree',
-            severity: 'warning',
+            code: createTestErrorCode('UNCONNECTED_ARGUMENTS'),
+            message: createTestErrorMessage('8 arguments not connected to any tree'),
+            severity: ErrorSeverity.WARNING,
           },
           {
-            code: 'STRUCTURAL_COMPLEXITY',
-            message: 'Document structure is overly complex',
-            severity: 'info',
+            code: createTestErrorCode('STRUCTURAL_COMPLEXITY'),
+            message: createTestErrorMessage('Document structure is overly complex'),
+            severity: ErrorSeverity.INFO,
           },
         ],
       },
@@ -235,9 +251,15 @@ describe('GetValidationReportQuery Execution', () => {
     expect(result.validationStatus.errors).toHaveLength(4);
     expect(result.validationStatus.isValid).toBe(false);
 
-    const highSeverityCycles = result.cyclesDetected.filter((c) => c.severity === 'high');
-    const mediumSeverityCycles = result.cyclesDetected.filter((c) => c.severity === 'medium');
-    const lowSeverityCycles = result.cyclesDetected.filter((c) => c.severity === 'low');
+    const highSeverityCycles = result.cyclesDetected.filter(
+      (c: { path: string[]; severity: 'low' | 'medium' | 'high' }) => c.severity === 'high',
+    );
+    const mediumSeverityCycles = result.cyclesDetected.filter(
+      (c: { path: string[]; severity: 'low' | 'medium' | 'high' }) => c.severity === 'medium',
+    );
+    const lowSeverityCycles = result.cyclesDetected.filter(
+      (c: { path: string[]; severity: 'low' | 'medium' | 'high' }) => c.severity === 'low',
+    );
 
     expect(highSeverityCycles).toHaveLength(1);
     expect(mediumSeverityCycles).toHaveLength(1);

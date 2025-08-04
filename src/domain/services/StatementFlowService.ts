@@ -1,14 +1,11 @@
 import { err, ok, type Result } from 'neverthrow';
 import { AtomicArgument } from '../entities/AtomicArgument.js';
+import { OrderedSet } from '../entities/OrderedSet.js';
 import { Statement } from '../entities/Statement.js';
 import type {
   IProofTransactionService,
   TransactionError,
 } from '../interfaces/IProofTransaction.js';
-import {
-  type ConnectionRequest,
-  CreateConnectionOperation,
-} from '../operations/ConnectionOperations.js';
 import {
   CreateStatementOperation,
   type CreateStatementRequest,
@@ -241,5 +238,41 @@ export class StatementFlowService {
 
       return ok(argumentResult.value);
     });
+  }
+
+  createOrderedSetFromStatements(statements: Statement[]): Result<OrderedSet, ValidationError> {
+    const statementIds = statements.map((s) => s.getId());
+    return OrderedSet.create(statementIds);
+  }
+
+  createEmptyOrderedSet(): Result<OrderedSet, ValidationError> {
+    return OrderedSet.createEmpty();
+  }
+
+  createAtomicArgumentWithSets(
+    premiseSet?: OrderedSet,
+    conclusionSet?: OrderedSet,
+  ): Result<AtomicArgument, ValidationError> {
+    const premiseStatementIds = premiseSet?.getStatementIds() || [];
+    const conclusionStatementIds = conclusionSet?.getStatementIds() || [];
+
+    // Create statements from IDs
+    const premiseStatements: Statement[] = [];
+    const conclusionStatements: Statement[] = [];
+
+    // For now, we'll need to have the statements passed in or retrieved somehow
+    // This is a limitation of the current design - OrderedSet only stores IDs
+    return err(
+      new ValidationError(
+        'createAtomicArgumentWithSets needs refactoring to handle statement retrieval',
+      ),
+    );
+  }
+
+  addStatementToOrderedSet(
+    orderedSet: OrderedSet,
+    statement: Statement,
+  ): Result<void, ValidationError> {
+    return orderedSet.addStatement(statement.getId());
   }
 }

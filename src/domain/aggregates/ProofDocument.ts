@@ -386,4 +386,21 @@ export class ProofDocument extends AggregateRoot {
       new Map(this.atomicArguments),
     );
   }
+
+  // Public query methods
+  getAllStatements(): Statement[] {
+    return Array.from(this.statements.values());
+  }
+
+  getAllAtomicArguments(): AtomicArgument[] {
+    return Array.from(this.atomicArguments.values());
+  }
+
+  getId(): ProofDocumentId {
+    return this.id;
+  }
+
+  getAllOrderedSets(): any[] {
+    return [];
+  }
 }

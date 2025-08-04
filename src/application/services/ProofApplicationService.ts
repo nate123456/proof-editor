@@ -449,7 +449,7 @@ export class ProofApplicationService {
     if (documentResult.isErr()) {
       return err(new ValidationError(`Document not found: ${documentResult.error.message}`));
     }
-    const document = documentResult.value;
+    const _document = documentResult.value;
 
     // Parse tree ID
     const treeIdResult = TreeId.create(command.treeId);

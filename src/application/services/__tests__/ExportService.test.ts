@@ -61,6 +61,7 @@ describe('ExportService', () => {
         modifiedAt: '2023-01-01T00:00:00.000Z',
       },
     },
+    orderedSets: {},
     atomicArguments: {
       arg1: {
         id: (() => {
@@ -254,7 +255,7 @@ trees:
         documentId: docIdResult.isOk() ? docIdResult.value : ('test-doc-id' as any),
         version: versionResult.isOk() ? versionResult.value : (1 as any),
         trees: [],
-        totalDimensions: dimensionsResult.isOk() ? dimensionsResult.value : undefined,
+        totalDimensions: dimensionsResult.isOk() ? dimensionsResult.value : ({} as any),
         isEmpty: false,
       };
 
@@ -328,7 +329,7 @@ trees:
         documentId: docIdResult.isOk() ? docIdResult.value : ('test-doc-id' as any),
         version: versionResult.isOk() ? versionResult.value : (1 as any),
         trees: [],
-        totalDimensions: dimensionsResult.isOk() ? dimensionsResult.value : undefined,
+        totalDimensions: dimensionsResult.isOk() ? dimensionsResult.value : ({} as any),
         isEmpty: false,
       };
 

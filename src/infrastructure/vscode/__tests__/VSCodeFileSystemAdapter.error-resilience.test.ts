@@ -15,6 +15,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as vscode from 'vscode';
 import type { StoredDocument } from '../../../application/ports/IFileSystemPort.js';
+import {
+  createTestDocumentContent,
+  createTestDocumentId,
+  createTestDocumentVersion,
+  createTestFilePath,
+  createTestFileSize,
+  createTestTimestamp,
+  createTestTitle,
+} from '../../__tests__/test-helpers.js';
 import { VSCodeFileSystemAdapter } from '../VSCodeFileSystemAdapter.js';
 
 // Mock VS Code module with comprehensive error injection capabilities
@@ -66,6 +75,9 @@ vi.mock('vscode', () => {
         delete: vi.fn(),
         readDirectory: vi.fn(),
         createDirectory: vi.fn(),
+        rename: vi.fn(),
+        copy: vi.fn(),
+        isWritableFileSystem: vi.fn().mockReturnValue(true),
       },
       createFileSystemWatcher: vi.fn(),
       workspaceFolders: undefined, // Start with undefined workspace
@@ -97,10 +109,13 @@ describe('VSCodeFileSystemAdapter Error Resilience', () => {
         delete: vi.fn(),
         readDirectory: vi.fn(),
         createDirectory: vi.fn(),
+        rename: vi.fn(),
+        copy: vi.fn(),
+        isWritableFileSystem: vi.fn().mockReturnValue(true),
       },
       createFileSystemWatcher: vi.fn(),
       workspaceFolders: undefined,
-    };
+    } as any;
 
     mockVscode.Uri = {
       file: vi.fn().mockImplementation((path: string) => ({
@@ -115,7 +130,20 @@ describe('VSCodeFileSystemAdapter Error Resilience', () => {
         fsPath: `${base.fsPath}/${segments.join('/')}`,
         toString: () => `file://${base.fsPath}/${segments.join('/')}`,
       })),
-    };
+      parse: vi.fn().mockImplementation((uri: string) => ({
+        scheme: 'file',
+        path: uri,
+        fsPath: uri,
+        toString: () => uri,
+      })),
+      from: vi.fn().mockImplementation((components) => ({
+        scheme: components.scheme || 'file',
+        path: components.path || '',
+        fsPath: components.path || '',
+        toString: () => `${components.scheme || 'file'}://${components.path || ''}`,
+      })),
+      prototype: {},
+    } as any;
 
     mockGlobalState = {
       get: vi.fn().mockReturnValue({}),
@@ -220,12 +248,12 @@ describe('VSCodeFileSystemAdapter Error Resilience', () => {
       // Simulate VS Code API unavailability
       (vscode.workspace as any).fs = undefined;
 
-      const result = await adapter.readFile('/test/file.txt');
+      const result = await adapter.readFile(createTestFilePath('/test/file.txt'));
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.code).toBe('UNKNOWN');
-        expect(result.error.message).toContain('workspace.fs');
+        expect(result.error.code.getValue()).toBe('UNKNOWN');
+        expect(result.error.message.getValue()).toContain('workspace.fs');
       }
     });
 
@@ -233,11 +261,11 @@ describe('VSCodeFileSystemAdapter Error Resilience', () => {
       // Simulate complete workspace unavailability
       (vscode as any).workspace = undefined;
 
-      const result = await adapter.readFile('/test/file.txt');
+      const result = await adapter.readFile(createTestFilePath('/test/file.txt'));
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.code).toBe('UNKNOWN');
+        expect(result.error.code.getValue()).toBe('UNKNOWN');
       }
     });
 
@@ -247,12 +275,12 @@ describe('VSCodeFileSystemAdapter Error Resilience', () => {
       (vscode.Uri as any).file = undefined;
 
       try {
-        const result = await adapter.readFile('/test/file.txt');
+        const result = await adapter.readFile(createTestFilePath('/test/file.txt'));
 
         expect(result.isErr()).toBe(true);
         if (result.isErr()) {
-          expect(result.error.code).toBe('UNKNOWN');
-          expect(result.error.message).toContain('Uri.file is not available');
+          expect(result.error.code.getValue()).toBe('UNKNOWN');
+          expect(result.error.message.getValue()).toContain('Uri.file is not available');
         }
       } finally {
         // Restore Uri.file
@@ -270,12 +298,12 @@ describe('VSCodeFileSystemAdapter Error Resilience', () => {
       (vscode.workspace.fs as any).readFile = mockReadFile;
 
       try {
-        const result = await adapter.readFile('/test/file.txt');
+        const result = await adapter.readFile(createTestFilePath('/test/file.txt'));
 
         expect(result.isErr()).toBe(true);
         if (result.isErr()) {
-          expect(result.error.code).toBe('UNKNOWN');
-          expect(result.error.message).toBe('Method not implemented');
+          expect(result.error.code.getValue()).toBe('UNKNOWN');
+          expect(result.error.message.getValue()).toBe('Method not implemented');
         }
       } finally {
         // Restore original method
@@ -291,11 +319,11 @@ describe('VSCodeFileSystemAdapter Error Resilience', () => {
       (vscode.workspace.fs as any).readFile = mockReadFile;
 
       try {
-        const result = await adapter.readFile('/test/file.txt');
+        const result = await adapter.readFile(createTestFilePath('/test/file.txt'));
 
         expect(result.isErr()).toBe(true);
         if (result.isErr()) {
-          expect(result.error.code).toBe('UNKNOWN');
+          expect(result.error.code.getValue()).toBe('UNKNOWN');
         }
       } finally {
         // Restore original method
@@ -316,11 +344,11 @@ describe('VSCodeFileSystemAdapter Error Resilience', () => {
         new Error('The filename or extension is too long'),
       );
 
-      const result = await adapter.readFile(longPath);
+      const result = await adapter.readFile(createTestFilePath(longPath));
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.code).toBe('UNKNOWN');
+        expect(result.error.code.getValue()).toBe('UNKNOWN');
       }
     });
 
@@ -331,11 +359,11 @@ describe('VSCodeFileSystemAdapter Error Resilience', () => {
         throw new Error('Invalid character in path');
       });
 
-      const result = await adapter.readFile(specialPath);
+      const result = await adapter.readFile(createTestFilePath(specialPath));
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.code).toBe('UNKNOWN');
+        expect(result.error.code.getValue()).toBe('UNKNOWN');
       }
     });
 
@@ -346,11 +374,14 @@ describe('VSCodeFileSystemAdapter Error Resilience', () => {
 
       vi.mocked(vscode.workspace.fs.writeFile).mockRejectedValue(error);
 
-      const result = await adapter.writeFile('/test/file.txt', 'content');
+      const result = await adapter.writeFile(
+        createTestFilePath('/test/file.txt'),
+        createTestDocumentContent('content'),
+      );
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.code).toBe('DISK_FULL');
+        expect(result.error.code.getValue()).toBe('DISK_FULL');
       }
     });
 
@@ -359,7 +390,7 @@ describe('VSCodeFileSystemAdapter Error Resilience', () => {
       const corruptedData = new Uint8Array([0xff, 0xfe, 0xfd, 0xfc]);
       vi.mocked(vscode.workspace.fs.readFile).mockResolvedValue(corruptedData);
 
-      const result = await adapter.readFile('/test/corrupted.txt');
+      const result = await adapter.readFile(createTestFilePath('/test/corrupted.txt'));
 
       // Should still succeed but with replacement characters
       expect(result.isOk()).toBe(true);
@@ -372,12 +403,12 @@ describe('VSCodeFileSystemAdapter Error Resilience', () => {
         });
       });
 
-      const result = await adapter.readFile('/network/file.txt');
+      const result = await adapter.readFile(createTestFilePath('/network/file.txt'));
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.code).toBe('UNKNOWN');
-        expect(result.error.message).toContain('Network timeout');
+        expect(result.error.code.getValue()).toBe('UNKNOWN');
+        expect(result.error.message.getValue()).toContain('Network timeout');
       }
     });
 
@@ -392,14 +423,14 @@ describe('VSCodeFileSystemAdapter Error Resilience', () => {
       });
 
       // First read succeeds
-      const result1 = await adapter.readFile('/test/file.txt');
+      const result1 = await adapter.readFile(createTestFilePath('/test/file.txt'));
       expect(result1.isOk()).toBe(true);
 
       // Second read fails because file was deleted
-      const result2 = await adapter.readFile('/test/file.txt');
+      const result2 = await adapter.readFile(createTestFilePath('/test/file.txt'));
       expect(result2.isErr()).toBe(true);
       if (result2.isErr()) {
-        expect(result2.error.code).toBe('NOT_FOUND');
+        expect(result2.error.code.getValue()).toBe('NOT_FOUND');
       }
     });
 
@@ -409,22 +440,24 @@ describe('VSCodeFileSystemAdapter Error Resilience', () => {
 
       vi.mocked(vscode.workspace.fs.readFile).mockResolvedValue(largeBuffer);
 
-      const result = await adapter.readFile('/test/large.txt');
+      const result = await adapter.readFile(createTestFilePath('/test/large.txt'));
 
-      expect(result.isOk()).toBe(true);
-      if (result.isOk()) {
-        expect(result.value.length).toBe(200 * 1024 * 1024);
+      // DocumentContent has a 50MB limit, so this should fail
+      expect(result.isErr()).toBe(true);
+      if (result.isErr()) {
+        expect(result.error.code.getValue()).toBe('VALIDATION_ERROR');
+        expect(result.error.message.getValue()).toContain('exceed 50MB');
       }
     });
 
     it('should handle zero-byte files', async () => {
       vi.mocked(vscode.workspace.fs.readFile).mockResolvedValue(new Uint8Array(0));
 
-      const result = await adapter.readFile('/test/empty.txt');
+      const result = await adapter.readFile(createTestFilePath('/test/empty.txt'));
 
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
-        expect(result.value).toBe('');
+        expect(result.value.getValue()).toBe('');
       }
     });
   });
@@ -438,11 +471,14 @@ describe('VSCodeFileSystemAdapter Error Resilience', () => {
       const error = vscode.FileSystemError.NoPermissions('File is read-only');
       vi.mocked(vscode.workspace.fs.writeFile).mockRejectedValue(error);
 
-      const result = await adapter.writeFile('/readonly/file.txt', 'content');
+      const result = await adapter.writeFile(
+        createTestFilePath('/readonly/file.txt'),
+        createTestDocumentContent('content'),
+      );
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.code).toBe('PERMISSION_DENIED');
+        expect(result.error.code.getValue()).toBe('PERMISSION_DENIED');
       }
     });
 
@@ -450,11 +486,11 @@ describe('VSCodeFileSystemAdapter Error Resilience', () => {
       const error = vscode.FileSystemError.NoPermissions('Permission denied');
       vi.mocked(vscode.workspace.fs.createDirectory).mockRejectedValue(error);
 
-      const result = await adapter.createDirectory('/restricted/newdir');
+      const result = await adapter.createDirectory(createTestFilePath('/restricted/newdir'));
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.code).toBe('PERMISSION_DENIED');
+        expect(result.error.code.getValue()).toBe('PERMISSION_DENIED');
       }
     });
 
@@ -462,12 +498,12 @@ describe('VSCodeFileSystemAdapter Error Resilience', () => {
       const error = new Error('File is locked by another process');
       vi.mocked(vscode.workspace.fs.readFile).mockRejectedValue(error);
 
-      const result = await adapter.readFile('/test/locked.txt');
+      const result = await adapter.readFile(createTestFilePath('/test/locked.txt'));
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.code).toBe('UNKNOWN');
-        expect(result.error.message).toContain('locked by another process');
+        expect(result.error.code.getValue()).toBe('UNKNOWN');
+        expect(result.error.message.getValue()).toContain('locked by another process');
       }
     });
 
@@ -475,12 +511,12 @@ describe('VSCodeFileSystemAdapter Error Resilience', () => {
       const error = new Error('Authentication required');
       vi.mocked(vscode.workspace.fs.readFile).mockRejectedValue(error);
 
-      const result = await adapter.readFile('//server/share/file.txt');
+      const result = await adapter.readFile(createTestFilePath('//server/share/file.txt'));
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.code).toBe('UNKNOWN');
-        expect(result.error.message).toContain('Authentication required');
+        expect(result.error.code.getValue()).toBe('UNKNOWN');
+        expect(result.error.message.getValue()).toContain('Authentication required');
       }
     });
 
@@ -488,12 +524,15 @@ describe('VSCodeFileSystemAdapter Error Resilience', () => {
       const error = new Error('Operation blocked by security policy');
       vi.mocked(vscode.workspace.fs.writeFile).mockRejectedValue(error);
 
-      const result = await adapter.writeFile('/external/file.txt', 'content');
+      const result = await adapter.writeFile(
+        createTestFilePath('/external/file.txt'),
+        createTestDocumentContent('content'),
+      );
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.code).toBe('UNKNOWN');
-        expect(result.error.message).toContain('blocked by security policy');
+        expect(result.error.code.getValue()).toBe('UNKNOWN');
+        expect(result.error.message.getValue()).toContain('blocked by security policy');
       }
     });
 
@@ -501,12 +540,15 @@ describe('VSCodeFileSystemAdapter Error Resilience', () => {
       const error = new Error('Read-only file system');
       vi.mocked(vscode.workspace.fs.writeFile).mockRejectedValue(error);
 
-      const result = await adapter.writeFile('/readonly-fs/file.txt', 'content');
+      const result = await adapter.writeFile(
+        createTestFilePath('/readonly-fs/file.txt'),
+        createTestDocumentContent('content'),
+      );
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.code).toBe('UNKNOWN');
-        expect(result.error.message).toContain('Read-only file system');
+        expect(result.error.code.getValue()).toBe('UNKNOWN');
+        expect(result.error.message.getValue()).toContain('Read-only file system');
       }
     });
   });
@@ -520,12 +562,12 @@ describe('VSCodeFileSystemAdapter Error Resilience', () => {
       const error = new Error('Cannot allocate memory');
       vi.mocked(vscode.workspace.fs.readFile).mockRejectedValue(error);
 
-      const result = await adapter.readFile('/test/huge-file.txt');
+      const result = await adapter.readFile(createTestFilePath('/test/huge-file.txt'));
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.code).toBe('UNKNOWN');
-        expect(result.error.message).toContain('Cannot allocate memory');
+        expect(result.error.code.getValue()).toBe('UNKNOWN');
+        expect(result.error.message.getValue()).toContain('Cannot allocate memory');
       }
     });
 
@@ -533,12 +575,12 @@ describe('VSCodeFileSystemAdapter Error Resilience', () => {
       const error = new Error('Too many open files');
       vi.mocked(vscode.workspace.fs.readFile).mockRejectedValue(error);
 
-      const result = await adapter.readFile('/test/file.txt');
+      const result = await adapter.readFile(createTestFilePath('/test/file.txt'));
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.code).toBe('UNKNOWN');
-        expect(result.error.message).toContain('Too many open files');
+        expect(result.error.code.getValue()).toBe('UNKNOWN');
+        expect(result.error.message.getValue()).toContain('Too many open files');
       }
     });
 
@@ -551,7 +593,7 @@ describe('VSCodeFileSystemAdapter Error Resilience', () => {
       });
 
       const startTime = Date.now();
-      const result = await adapter.readDirectory('/test/dir');
+      const result = await adapter.readDirectory(createTestFilePath('/test/dir'));
       const duration = Date.now() - startTime;
 
       expect(result.isOk()).toBe(true);
@@ -568,12 +610,15 @@ describe('VSCodeFileSystemAdapter Error Resilience', () => {
         return Promise.resolve();
       });
 
-      const result = await adapter.writeFile('/test/file.txt', 'content');
+      const result = await adapter.writeFile(
+        createTestFilePath('/test/file.txt'),
+        createTestDocumentContent('content'),
+      );
 
       // Should fail gracefully without retrying
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.code).toBe('UNKNOWN');
+        expect(result.error.code.getValue()).toBe('UNKNOWN');
       }
     });
   });
@@ -588,16 +633,25 @@ describe('VSCodeFileSystemAdapter Error Resilience', () => {
       vi.mocked(vscode.workspace.fs.writeFile).mockRejectedValue(error);
 
       const results = await Promise.all([
-        adapter.writeFile('/test/file.txt', 'content1'),
-        adapter.writeFile('/test/file.txt', 'content2'),
-        adapter.writeFile('/test/file.txt', 'content3'),
+        adapter.writeFile(
+          createTestFilePath('/test/file.txt'),
+          createTestDocumentContent('content1'),
+        ),
+        adapter.writeFile(
+          createTestFilePath('/test/file.txt'),
+          createTestDocumentContent('content2'),
+        ),
+        adapter.writeFile(
+          createTestFilePath('/test/file.txt'),
+          createTestDocumentContent('content3'),
+        ),
       ]);
 
       // All should fail due to locking
       results.forEach((result) => {
         expect(result.isErr()).toBe(true);
         if (result.isErr()) {
-          expect(result.error.code).toBe('UNKNOWN');
+          expect(result.error.code.getValue()).toBe('UNKNOWN');
         }
       });
     });
@@ -613,7 +667,7 @@ describe('VSCodeFileSystemAdapter Error Resilience', () => {
       vi.mocked(vscode.workspace.createFileSystemWatcher).mockReturnValue(mockWatcher as any);
 
       const callback = vi.fn();
-      const disposable = adapter.watch('/test/dir', callback);
+      const disposable = adapter.watch(createTestFilePath('/test/dir'), callback);
 
       // Simulate rapid events
       const createHandler = mockWatcher.onDidCreate.mock.calls[0]?.[0];
@@ -634,7 +688,7 @@ describe('VSCodeFileSystemAdapter Error Resilience', () => {
 
     it('should handle context disposal during async operations', async () => {
       // Start an async operation
-      const slowOperation = adapter.readFile('/test/slow-file.txt');
+      const slowOperation = adapter.readFile(createTestFilePath('/test/slow-file.txt'));
 
       // Dispose context during operation
       mockGlobalState.update = vi.fn().mockRejectedValue(new Error('Context disposed'));
@@ -652,14 +706,14 @@ describe('VSCodeFileSystemAdapter Error Resilience', () => {
 
     it('should handle global state corruption during document storage', async () => {
       const testDoc: StoredDocument = {
-        id: 'test-doc',
-        content: 'test content',
-        version: 1,
+        id: createTestDocumentId('test-doc'),
+        content: createTestDocumentContent('test content'),
+        version: createTestDocumentVersion(1),
         metadata: {
-          id: 'test-doc',
-          title: 'Test Document',
-          modifiedAt: new Date(),
-          size: 12,
+          id: createTestDocumentId('test-doc'),
+          title: createTestTitle('Test Document'),
+          modifiedAt: createTestTimestamp(new Date()),
+          size: createTestFileSize(12),
         },
       };
 
@@ -669,20 +723,20 @@ describe('VSCodeFileSystemAdapter Error Resilience', () => {
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.code).toBe('QUOTA_EXCEEDED');
+        expect(result.error.code.getValue()).toBe('QUOTA_EXCEEDED');
       }
     });
 
     it('should handle quota exceeded during document storage', async () => {
       const testDoc: StoredDocument = {
-        id: 'large-doc',
-        content: 'x'.repeat(10 * 1024 * 1024), // 10MB
-        version: 1,
+        id: createTestDocumentId('large-doc'),
+        content: createTestDocumentContent('x'.repeat(10 * 1024 * 1024)), // 10MB
+        version: createTestDocumentVersion(1),
         metadata: {
-          id: 'large-doc',
-          title: 'Large Document',
-          modifiedAt: new Date(),
-          size: 10 * 1024 * 1024,
+          id: createTestDocumentId('large-doc'),
+          title: createTestTitle('Large Document'),
+          modifiedAt: createTestTimestamp(new Date()),
+          size: createTestFileSize(10 * 1024 * 1024),
         },
       };
 
@@ -692,7 +746,7 @@ describe('VSCodeFileSystemAdapter Error Resilience', () => {
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.code).toBe('QUOTA_EXCEEDED');
+        expect(result.error.code.getValue()).toBe('QUOTA_EXCEEDED');
       }
     });
 
@@ -701,7 +755,7 @@ describe('VSCodeFileSystemAdapter Error Resilience', () => {
         'corrupted-doc': null, // Corrupted entry
       });
 
-      const result = await adapter.getStoredDocument('corrupted-doc');
+      const result = await adapter.getStoredDocument(createTestDocumentId('corrupted-doc'));
 
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
@@ -749,7 +803,7 @@ describe('VSCodeFileSystemAdapter Error Resilience', () => {
       vi.mocked(vscode.workspace.createFileSystemWatcher).mockReturnValue(mockWatcher as any);
 
       const callback = vi.fn();
-      const disposable = adapter.watch('/test/dir', callback);
+      const disposable = adapter.watch(createTestFilePath('/test/dir'), callback);
 
       // Disposal should not throw even if watcher disposal fails
       expect(() => {
@@ -780,11 +834,11 @@ describe('VSCodeFileSystemAdapter Error Resilience', () => {
       const adapter = new VSCodeFileSystemAdapter(mockContext);
 
       // Should be able to retrieve good document
-      const goodResult = await adapter.getStoredDocument('good-doc');
+      const goodResult = await adapter.getStoredDocument(createTestDocumentId('good-doc'));
       expect(goodResult.isOk()).toBe(true);
 
       // Should handle bad document gracefully
-      const badResult = await adapter.getStoredDocument('bad-doc');
+      const badResult = await adapter.getStoredDocument(createTestDocumentId('bad-doc'));
       expect(badResult.isOk()).toBe(true);
     });
 
@@ -799,14 +853,14 @@ describe('VSCodeFileSystemAdapter Error Resilience', () => {
       });
 
       const testDoc: StoredDocument = {
-        id: 'atomic-doc',
-        content: 'content',
-        version: 1,
+        id: createTestDocumentId('atomic-doc'),
+        content: createTestDocumentContent('content'),
+        version: createTestDocumentVersion(1),
         metadata: {
-          id: 'atomic-doc',
-          title: 'Atomic Document',
-          modifiedAt: new Date(),
-          size: 7,
+          id: createTestDocumentId('atomic-doc'),
+          title: createTestTitle('Atomic Document'),
+          modifiedAt: createTestTimestamp(new Date()),
+          size: createTestFileSize(7),
         },
       };
 

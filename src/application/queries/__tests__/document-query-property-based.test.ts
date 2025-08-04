@@ -7,6 +7,7 @@
 
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
+import { ErrorSeverity } from '../../../domain/shared/value-objects/index.js';
 import type {
   AnalyzeProofStructureQuery,
   DocumentDTO,
@@ -15,6 +16,8 @@ import type {
   GetDocumentStateQuery,
   GetValidationReportQuery,
 } from '../document-queries.js';
+import type { ValidationErrorDTO } from '../shared-types.js';
+import { createTestErrorCode, createTestErrorMessage } from './shared/branded-type-helpers.js';
 
 describe('Property-based Document Query Tests', () => {
   describe('GetDocumentQuery properties', () => {
@@ -172,9 +175,11 @@ describe('Property-based Document Query Tests', () => {
             version: fc.nat(),
             createdAt: fc
               .date({ min: new Date('2000-01-01'), max: new Date('2100-12-31') })
+              .filter((d) => !Number.isNaN(d.getTime()))
               .map((d) => d.toISOString()),
             modifiedAt: fc
               .date({ min: new Date('2000-01-01'), max: new Date('2100-12-31') })
+              .filter((d) => !Number.isNaN(d.getTime()))
               .map((d) => d.toISOString()),
             statements: fc.dictionary(
               fc.string(),
@@ -184,9 +189,11 @@ describe('Property-based Document Query Tests', () => {
                 usageCount: fc.nat(),
                 createdAt: fc
                   .date({ min: new Date('2000-01-01'), max: new Date('2100-12-31') })
+                  .filter((d) => !Number.isNaN(d.getTime()))
                   .map((d) => d.toISOString()),
                 modifiedAt: fc
                   .date({ min: new Date('2000-01-01'), max: new Date('2100-12-31') })
+                  .filter((d) => !Number.isNaN(d.getTime()))
                   .map((d) => d.toISOString()),
               }),
               { maxKeys: 100 },
@@ -264,11 +271,25 @@ describe('Property-based Document Query Tests', () => {
             validationStatus: fc.record({
               isValid: fc.boolean(),
               errors: fc.array(
-                fc.record({
-                  code: fc.string(),
-                  message: fc.string(),
-                  severity: fc.constantFrom('error', 'warning', 'info'),
-                }),
+                fc
+                  .record({
+                    code: fc
+                      .stringMatching(/^[A-Z][A-Z0-9_]*$/)
+                      .filter((s) => s.length >= 1 && s.length <= 50),
+                    message: fc
+                      .string({ minLength: 1, maxLength: 200 })
+                      .filter((s) => s.trim().length > 0),
+                    severity: fc.constantFrom(
+                      ErrorSeverity.ERROR,
+                      ErrorSeverity.WARNING,
+                      ErrorSeverity.INFO,
+                    ),
+                  })
+                  .map((err) => ({
+                    code: createTestErrorCode(err.code),
+                    message: createTestErrorMessage(err.message),
+                    severity: err.severity,
+                  })),
               ),
             }),
           }),
@@ -314,7 +335,9 @@ describe('Property-based Document Query Tests', () => {
     it('should ensure cycle paths are closed loops', () => {
       fc.assert(
         fc.property(fc.array(fc.string(), { minLength: 2, maxLength: 10 }), (pathNodes) => {
-          const closedPath = [...pathNodes, pathNodes[0]];
+          const firstNode = pathNodes[0];
+          if (!firstNode) return; // Skip if array is empty (shouldn't happen with minLength: 2)
+          const closedPath = [...pathNodes, firstNode];
           const stats: DocumentStatsDTO = {
             statementCount: 10,
             argumentCount: 5,
@@ -335,8 +358,9 @@ describe('Property-based Document Query Tests', () => {
           };
 
           const cycle = stats.cyclesDetected[0];
-          expect(cycle.path[0]).toBe(cycle.path[cycle.path.length - 1]);
-          expect(cycle.path.length).toBeGreaterThan(2);
+          expect(cycle).toBeDefined();
+          expect(cycle?.path[0]).toBe(cycle?.path[cycle.path.length - 1]);
+          expect(cycle?.path.length).toBeGreaterThan(2);
         }),
       );
     });

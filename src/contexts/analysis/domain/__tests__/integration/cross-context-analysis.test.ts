@@ -821,16 +821,18 @@ describe('Cross-Context Analysis Integration', () => {
       });
 
       const validStatements = statements.filter((stmt) => stmt.isOk()).map((stmt) => stmt.value);
+      const argumentsList = [];
 
       if (validStatements.length === 5) {
         // Create argument chain
-        const argumentsList = [];
 
         // First argument: Humans mortal + Socrates human → Socrates mortal
         const statement0 = validStatements[0];
         const statement1 = validStatements[1];
         const statement2 = validStatements[2];
-        if (!statement0 || !statement1 || !statement2) {
+        const statement3 = validStatements[3];
+        const statement4 = validStatements[4];
+        if (!statement0 || !statement1 || !statement2 || !statement3 || !statement4) {
           throw new Error('Expected statements not available');
         }
         const arg1 = statementFlowService.createAtomicArgumentFromStatements(
@@ -840,20 +842,15 @@ describe('Cross-Context Analysis Integration', () => {
         if (arg1.isOk()) {
           argumentsList.push(arg1.value);
         }
-      }
 
-      // Second argument: Socrates mortal + Mortals finite → Socrates finite
-      const statement3 = validStatements[3];
-      const statement4 = validStatements[4];
-      if (!statement3 || !statement4) {
-        throw new Error('Expected statements not available');
-      }
-      const arg2 = statementFlowService.createAtomicArgumentFromStatements(
-        [statement2, statement3],
-        [statement4],
-      );
-      if (arg2.isOk()) {
-        argumentsList.push(arg2.value);
+        // Second argument: Socrates mortal + Mortals finite → Socrates finite
+        const arg2 = statementFlowService.createAtomicArgumentFromStatements(
+          [statement2, statement3],
+          [statement4],
+        );
+        if (arg2.isOk()) {
+          argumentsList.push(arg2.value);
+        }
       }
 
       if (argumentsList.length === 2) {

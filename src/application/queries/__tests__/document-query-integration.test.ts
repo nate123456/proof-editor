@@ -25,6 +25,15 @@ import type {
   GetValidationReportQuery,
 } from '../document-queries.js';
 import {
+  createTestAtomicArgumentId,
+  createTestErrorCode,
+  createTestErrorMessage,
+  createTestNodeId,
+  createTestStatementId,
+  createTestTreeId,
+  unwrapResult,
+} from './shared/branded-type-helpers.js';
+import {
   createTestDocumentDTO,
   createTestDocumentStats,
 } from './shared/document-test-utilities.js';
@@ -58,17 +67,17 @@ describe('Document Query Integration Scenarios', () => {
       },
       atomicArguments: {
         arg_1: {
-          id: AtomicArgumentId.fromString('arg_1').value,
-          premiseIds: [StatementId.fromString('stmt_1').value],
+          id: createTestAtomicArgumentId('arg_1'),
+          premiseIds: [createTestStatementId('stmt_1')],
           conclusionIds: [],
         },
       },
       trees: {
         tree_1: {
-          id: TreeId.create('tree_1').value,
-          position: Position2D.create(0, 0).value,
-          nodeCount: NodeCount.create(1).value,
-          rootNodeIds: [NodeId.create('node_1').value],
+          id: createTestTreeId('tree_1'),
+          position: unwrapResult(Position2D.create(0, 0)),
+          nodeCount: unwrapResult(NodeCount.create(1)),
+          rootNodeIds: [createTestNodeId('node_1')],
         },
       },
       stats: createTestDocumentStats({
@@ -177,25 +186,21 @@ describe('Document Query Integration Scenarios', () => {
           isValid: false,
           errors: [
             {
-              code: ErrorCode.create('CIRCULAR_DEPENDENCY').isOk()
-                ? ErrorCode.create('CIRCULAR_DEPENDENCY').value.value
-                : 'CIRCULAR_DEPENDENCY',
-              message: ErrorMessage.create('High severity circular dependency detected').value,
+              code: createTestErrorCode('CIRCULAR_DEPENDENCY'),
+              message: createTestErrorMessage('High severity circular dependency detected'),
               severity: ErrorSeverity.ERROR,
-              location: { argumentId: AtomicArgumentId.fromString('arg_cycle_1').value },
+              location: {
+                argumentId: createTestAtomicArgumentId('arg_cycle_1'),
+              },
             },
             {
-              code: ErrorCode.create('ORPHANED_STATEMENTS').isOk()
-                ? ErrorCode.create('ORPHANED_STATEMENTS').value.value
-                : 'ORPHANED_STATEMENTS',
-              message: ErrorMessage.create('Multiple statements not used in any arguments').value,
+              code: createTestErrorCode('ORPHANED_STATEMENTS'),
+              message: createTestErrorMessage('Multiple statements not used in any arguments'),
               severity: ErrorSeverity.WARNING,
             },
             {
-              code: ErrorCode.create('ISOLATED_ARGUMENTS').isOk()
-                ? ErrorCode.create('ISOLATED_ARGUMENTS').value.value
-                : 'ISOLATED_ARGUMENTS',
-              message: ErrorMessage.create('Arguments not connected to proof structure').value,
+              code: createTestErrorCode('ISOLATED_ARGUMENTS'),
+              message: createTestErrorMessage('Arguments not connected to proof structure'),
               severity: ErrorSeverity.WARNING,
             },
           ],
@@ -338,10 +343,8 @@ describe('Document Query Integration Scenarios', () => {
           isValid: false,
           errors: [
             {
-              code: ErrorCode.create('NEW_CYCLE_INTRODUCED').isOk()
-                ? ErrorCode.create('NEW_CYCLE_INTRODUCED').value.value
-                : 'NEW_CYCLE_INTRODUCED',
-              message: ErrorMessage.create('Modification introduced circular dependency').value,
+              code: createTestErrorCode('NEW_CYCLE_INTRODUCED'),
+              message: createTestErrorMessage('Modification introduced circular dependency'),
               severity: ErrorSeverity.ERROR,
             },
           ],

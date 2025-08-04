@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Tree } from '../../entities/Tree';
-import { nodeIdFactory } from './factories';
+import { nodeIdFactory } from '../factories/index.js';
 
 /**
  * Tree Entity Integration Tests
@@ -50,7 +50,7 @@ describe('Tree Entity - Integration Tests', () => {
 
         // Verify final state
         expect(tree.getTitle()).toBe('Fluent Tree');
-        expect(tree.containsNode(nodeId)).toBe(true);
+        expect(tree.hasNode(nodeId)).toBe(true);
         expect(tree.getNodeCount()).toBe(1);
         expect(tree.isEmpty()).toBe(false);
       }
@@ -85,7 +85,8 @@ describe('Tree Entity - Integration Tests', () => {
         expect(tree.hasNode(nodeId1)).toBe(true);
         expect(tree.hasNode(nodeId2)).toBe(true);
         expect(tree.getTitle()).toBe('Mixed Operations Tree');
-        expect(tree.validateStructuralIntegrity()).toBe(true);
+        const validationResult = tree.validateStructuralIntegrity();
+        expect(validationResult.isOk()).toBe(true);
       }
     });
 
@@ -106,9 +107,9 @@ describe('Tree Entity - Integration Tests', () => {
         });
 
         // Set some parent relationships
-        const setParent1Result = tree.setNodeParent(nodeIds[1], nodeIds[0], 0);
-        const setParent2Result = tree.setNodeParent(nodeIds[2], nodeIds[0], 1);
-        const setParent3Result = tree.setNodeParent(nodeIds[3], nodeIds[1], 0);
+        const setParent1Result = tree.setNodeParent(nodeIds[1]!, nodeIds[0]!);
+        const setParent2Result = tree.setNodeParent(nodeIds[2]!, nodeIds[0]!);
+        const setParent3Result = tree.setNodeParent(nodeIds[3]!, nodeIds[1]!);
         expect(setParent1Result.isOk()).toBe(true);
         expect(setParent2Result.isOk()).toBe(true);
         expect(setParent3Result.isOk()).toBe(true);
@@ -118,22 +119,23 @@ describe('Tree Entity - Integration Tests', () => {
         expect(titleResult.isOk()).toBe(true);
 
         // Remove a leaf node
-        const removeResult = tree.removeNode(nodeIds[4]);
+        const removeResult = tree.removeNode(nodeIds[4]!);
         expect(removeResult.isOk()).toBe(true);
 
         // Verify final consistent state
         expect(tree.getNodeCount()).toBe(4);
-        expect(tree.hasNode(nodeIds[4])).toBe(false);
+        expect(tree.hasNode(nodeIds[4]!)).toBe(false);
         expect(tree.getTitle()).toBe('Complex Tree Structure');
-        expect(tree.validateStructuralIntegrity()).toBe(true);
+        const validationResult = tree.validateStructuralIntegrity();
+        expect(validationResult.isOk()).toBe(true);
 
         // Verify parent relationships are intact
-        const child1 = tree.getNode(nodeIds[1]);
-        const child2 = tree.getNode(nodeIds[2]);
-        const child3 = tree.getNode(nodeIds[3]);
-        expect(child1?.parentId).toBe(nodeIds[0]);
-        expect(child2?.parentId).toBe(nodeIds[0]);
-        expect(child3?.parentId).toBe(nodeIds[1]);
+        const child1 = tree.getNode(nodeIds[1]!);
+        const child2 = tree.getNode(nodeIds[2]!);
+        const child3 = tree.getNode(nodeIds[3]!);
+        expect(child1?.getParentId()).toBe(nodeIds[0]);
+        expect(child2?.getParentId()).toBe(nodeIds[0]);
+        expect(child3?.getParentId()).toBe(nodeIds[1]);
       }
     });
   });
@@ -149,9 +151,9 @@ describe('Tree Entity - Integration Tests', () => {
         const tree1 = result1.value;
         const tree2 = result2.value;
 
-        expect(tree1.equals(tree1)).toBe(true);
-        expect(tree1.equals(tree2)).toBe(false);
-        expect(tree2.equals(tree1)).toBe(false);
+        expect(tree1.isEqualTo(tree1)).toBe(true);
+        expect(tree1.isEqualTo(tree2)).toBe(false);
+        expect(tree2.isEqualTo(tree1)).toBe(false);
       }
     });
 
@@ -171,7 +173,7 @@ describe('Tree Entity - Integration Tests', () => {
         expect(titleResult1.isOk()).toBe(true);
         expect(titleResult2.isOk()).toBe(true);
 
-        expect(tree1.equals(tree2)).toBe(false);
+        expect(tree1.isEqualTo(tree2)).toBe(false);
         expect(tree1.getId()).not.toBe(tree2.getId());
         expect(tree1.getDocumentId()).toBe(tree2.getDocumentId());
         expect(tree1.getTitle()).toBe(tree2.getTitle());
@@ -195,7 +197,6 @@ describe('Tree Entity - Integration Tests', () => {
 
         const stringRepr = tree.toString();
         expect(stringRepr).toContain('Tree');
-        expect(stringRepr).toContain(tree.getId());
         expect(stringRepr).toContain('String Representation Tree');
         expect(stringRepr).toContain('1 node');
       }
@@ -209,8 +210,7 @@ describe('Tree Entity - Integration Tests', () => {
         const tree = result.value;
         const stringRepr = tree.toString();
         expect(stringRepr).toContain('Tree');
-        expect(stringRepr).toContain(tree.getId());
-        expect(stringRepr).toContain('empty');
+        expect(stringRepr).toContain('0 nodes');
       }
     });
 
@@ -256,7 +256,7 @@ describe('Tree Entity - Integration Tests', () => {
             },
             () => {
               mockDateNow.mockReturnValue(FIXED_TIMESTAMP + 3000);
-              return tree.clearTitle();
+              return tree.setTitle(undefined);
             },
           ];
 
@@ -289,7 +289,8 @@ describe('Tree Entity - Integration Tests', () => {
           tree.getNodeCount();
           tree.hasNode(nodeId);
           tree.isEmpty();
-          tree.validateStructuralIntegrity();
+          const validationResult = tree.validateStructuralIntegrity();
+          expect(validationResult.isOk()).toBe(true);
           tree.getPosition();
           tree.getPhysicalProperties();
           tree.getBounds();

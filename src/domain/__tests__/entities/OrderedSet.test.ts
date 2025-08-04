@@ -4,7 +4,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { OrderedSet } from '../../entities/OrderedSet';
 import { ValidationError } from '../../shared/result.js';
 import type { AtomicArgumentId, StatementId } from '../../shared/value-objects';
-import { atomicArgumentIdFactory, orderedSetIdFactory, statementIdFactory } from './factories';
+import {
+  atomicArgumentIdFactory,
+  orderedSetIdFactory,
+  statementIdFactory,
+} from '../factories/index.js';
 
 describe('OrderedSet Entity', () => {
   let mockDateNow: ReturnType<typeof vi.fn>;

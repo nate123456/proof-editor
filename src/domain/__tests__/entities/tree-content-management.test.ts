@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Tree } from '../../entities/Tree';
 import { ValidationError } from '../../shared/result';
-import { nodeIdFactory } from './factories';
+import { nodeIdFactory } from '../factories/index.js';
 
 describe('Tree Content Management', () => {
   let mockDateNow: ReturnType<typeof vi.fn>;
@@ -58,7 +58,7 @@ describe('Tree Content Management', () => {
       expect(setResult.isOk()).toBe(true);
       expect(tree.hasTitle()).toBe(true);
 
-      const clearResult = tree.clearTitle();
+      const clearResult = tree.setTitle(undefined);
       expect(clearResult.isOk()).toBe(true);
       expect(tree.getTitle()).toBeUndefined();
       expect(tree.hasTitle()).toBe(false);
@@ -81,32 +81,42 @@ describe('Tree Content Management', () => {
       const originalModifiedAt = tree.getModifiedAt();
       mockDateNow.mockReturnValue(FIXED_TIMESTAMP + 2000);
 
-      const clearResult = tree.clearTitle();
+      const clearResult = tree.setTitle(undefined);
       expect(clearResult.isOk()).toBe(true);
       expect(tree.getModifiedAt()).toBe(FIXED_TIMESTAMP + 2000);
       expect(tree.getModifiedAt()).not.toBe(originalModifiedAt);
     });
 
-    it('should handle empty string as clearing title', () => {
+    it('should reject empty string as invalid title', () => {
       const setResult = tree.setTitle('Some Title');
       expect(setResult.isOk()).toBe(true);
       expect(tree.hasTitle()).toBe(true);
 
       const clearResult = tree.setTitle('');
-      expect(clearResult.isOk()).toBe(true);
-      expect(tree.getTitle()).toBeUndefined();
-      expect(tree.hasTitle()).toBe(false);
+      expect(clearResult.isErr()).toBe(true);
+      if (clearResult.isErr()) {
+        expect(clearResult.error).toBeInstanceOf(ValidationError);
+        expect(clearResult.error.message).toContain('Title cannot be empty');
+      }
+      // Title should remain unchanged
+      expect(tree.getTitle()).toBe('Some Title');
+      expect(tree.hasTitle()).toBe(true);
     });
 
-    it('should handle whitespace-only string as clearing title', () => {
+    it('should reject whitespace-only string as invalid title', () => {
       const setResult = tree.setTitle('Some Title');
       expect(setResult.isOk()).toBe(true);
       expect(tree.hasTitle()).toBe(true);
 
       const clearResult = tree.setTitle('   ');
-      expect(clearResult.isOk()).toBe(true);
-      expect(tree.getTitle()).toBeUndefined();
-      expect(tree.hasTitle()).toBe(false);
+      expect(clearResult.isErr()).toBe(true);
+      if (clearResult.isErr()) {
+        expect(clearResult.error).toBeInstanceOf(ValidationError);
+        expect(clearResult.error.message).toContain('Title cannot be empty');
+      }
+      // Title should remain unchanged
+      expect(tree.getTitle()).toBe('Some Title');
+      expect(tree.hasTitle()).toBe(true);
     });
   });
 
@@ -155,7 +165,7 @@ describe('Tree Content Management', () => {
         expect(result2.isErr()).toBe(true);
         if (result2.isErr()) {
           expect(result2.error).toBeInstanceOf(ValidationError);
-          expect(result2.error.message).toBe('Node ID already exists in tree');
+          expect(result2.error.message).toBe('Node already exists in tree');
         }
         expect(tree.getNodeCount()).toBe(1);
       });
@@ -192,7 +202,7 @@ describe('Tree Content Management', () => {
         expect(result.isErr()).toBe(true);
         if (result.isErr()) {
           expect(result.error).toBeInstanceOf(ValidationError);
-          expect(result.error.message).toBe('Node ID does not exist in tree');
+          expect(result.error.message).toBe('Node not found in tree');
         }
       });
 
@@ -281,23 +291,24 @@ describe('Tree Content Management', () => {
         expect(nodeIds).toHaveLength(3);
       });
 
-      it('should return immutable array', () => {
+      it('should return a new array instance each time', () => {
         const nodeId = nodeIdFactory.build();
         const addResult = tree.addNode(nodeId);
         expect(addResult.isOk()).toBe(true);
 
-        const nodeIds = tree.getNodeIds();
-        const originalLength = nodeIds.length;
+        const nodeIds1 = tree.getNodeIds();
+        const nodeIds2 = tree.getNodeIds();
 
-        // Verify that the returned array is readonly (immutable)
-        // TypeScript prevents push at compile time, but we can verify at runtime
-        expect(() => {
-          (nodeIds as any).push(nodeIdFactory.build());
-        }).toThrow();
+        // Each call should return a new array instance
+        expect(nodeIds1).not.toBe(nodeIds2);
+        expect(nodeIds1).toEqual(nodeIds2);
+
+        // Modifying the returned array should not affect the tree
+        const originalLength = nodeIds1.length;
+        (nodeIds1 as any).push(nodeIdFactory.build());
 
         // Tree should be unchanged
         expect(tree.getNodeIds()).toHaveLength(originalLength);
-        expect(tree.getNodeIds()).not.toBe(nodeIds);
       });
     });
 

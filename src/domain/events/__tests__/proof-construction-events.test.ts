@@ -1,11 +1,20 @@
 import { describe, expect, it } from 'vitest';
-
-import type {
-  AtomicArgumentId,
+import {
+  atomicArgumentIdFactory,
+  nodeIdFactory,
+  statementIdFactory,
+  treeIdFactory,
+} from '../../__tests__/factories/index.js';
+import {
+  AlignmentMode,
+  type AtomicArgumentId,
+  BranchType,
   DocumentId,
-  NodeId,
-  OrderedSetId,
-  TreeId,
+  ExpansionDirection,
+  LayoutStyle,
+  type NodeId,
+  type StatementId,
+  type TreeId,
 } from '../../shared/value-objects/index.js';
 import {
   type ArgumentModification,
@@ -19,6 +28,7 @@ import {
   NodeRemovedFromTree,
   ProofTreeCreated,
   type SideLabels,
+  type StructuralChange,
   type TreeModification,
   type TreePhysicalProperties,
   TreePhysicalPropertiesChanged,
@@ -27,11 +37,15 @@ import {
   TreeStructureModified,
 } from '../proof-construction-events.js';
 
-const mockAtomicArgumentId = { getValue: () => 'arg-123' } as AtomicArgumentId;
-const mockDocumentId = { getValue: () => 'doc-123' } as DocumentId;
-const mockNodeId = { getValue: () => 'node-123' } as NodeId;
-const mockOrderedSetId = { getValue: () => 'set-123' } as OrderedSetId;
-const mockTreeId = { getValue: () => 'tree-123' } as TreeId;
+const mockAtomicArgumentId = atomicArgumentIdFactory.build();
+const documentIdResult = DocumentId.fromString('doc-123');
+if (documentIdResult.isErr()) {
+  throw new Error('Failed to create mock DocumentId');
+}
+const mockDocumentId = documentIdResult.value;
+const mockNodeId = nodeIdFactory.build();
+const mockStatementId = statementIdFactory.build();
+const mockTreeId = treeIdFactory.build();
 
 describe('AtomicArgumentCreated', () => {
   const mockSideLabels: SideLabels = {
@@ -39,38 +53,41 @@ describe('AtomicArgumentCreated', () => {
     right: 'Classical Logic',
   };
 
+  const mockPremiseIds = [statementIdFactory.build(), statementIdFactory.build()];
+  const mockConclusionIds = [statementIdFactory.build()];
+
   it('should create event with all properties', () => {
     const event = new AtomicArgumentCreated(
       mockAtomicArgumentId,
-      mockOrderedSetId,
-      mockOrderedSetId,
+      mockPremiseIds,
+      mockConclusionIds,
       mockSideLabels,
       'test-user',
     );
 
     expect(event.eventType).toBe('AtomicArgumentCreated');
-    expect(event.aggregateId).toBe('arg-123');
+    expect(event.aggregateId).toBe(mockAtomicArgumentId.getValue());
     expect(event.aggregateType).toBe('AtomicArgument');
     expect(event.argumentId).toBe(mockAtomicArgumentId);
-    expect(event.premiseSetId).toBe(mockOrderedSetId);
-    expect(event.conclusionSetId).toBe(mockOrderedSetId);
+    expect(event.premiseIds).toEqual(mockPremiseIds);
+    expect(event.conclusionIds).toEqual(mockConclusionIds);
     expect(event.sideLabels).toBe(mockSideLabels);
     expect(event.createdBy).toBe('test-user');
   });
 
-  it('should create event with null premise and conclusion sets', () => {
-    const event = new AtomicArgumentCreated(mockAtomicArgumentId, null, null, null, 'test-user');
+  it('should create event with empty premise and conclusion arrays', () => {
+    const event = new AtomicArgumentCreated(mockAtomicArgumentId, [], [], null, 'test-user');
 
-    expect(event.premiseSetId).toBeNull();
-    expect(event.conclusionSetId).toBeNull();
+    expect(event.premiseIds).toEqual([]);
+    expect(event.conclusionIds).toEqual([]);
     expect(event.sideLabels).toBeNull();
   });
 
   it('should serialize event data correctly', () => {
     const event = new AtomicArgumentCreated(
       mockAtomicArgumentId,
-      mockOrderedSetId,
-      null,
+      mockPremiseIds,
+      [],
       mockSideLabels,
       'test-user',
     );
@@ -78,9 +95,9 @@ describe('AtomicArgumentCreated', () => {
     const data = event.eventData;
 
     expect(data).toEqual({
-      argumentId: 'arg-123',
-      premiseIds: 'set-123',
-      conclusionIds: null,
+      argumentId: mockAtomicArgumentId.getValue(),
+      premiseIds: mockPremiseIds.map((id) => id.getValue()),
+      conclusionIds: [],
       sideLabels: mockSideLabels,
       createdBy: 'test-user',
     });
@@ -89,8 +106,8 @@ describe('AtomicArgumentCreated', () => {
   it('should create valid event record', () => {
     const event = new AtomicArgumentCreated(
       mockAtomicArgumentId,
-      mockOrderedSetId,
-      mockOrderedSetId,
+      mockPremiseIds,
+      mockConclusionIds,
       mockSideLabels,
       'test-user',
     );
@@ -98,7 +115,7 @@ describe('AtomicArgumentCreated', () => {
     const record = event.toEventRecord();
 
     expect(record.eventType).toBe('AtomicArgumentCreated');
-    expect(record.aggregateId).toBe('arg-123');
+    expect(record.aggregateId).toBe(mockAtomicArgumentId.getValue());
     expect(record.aggregateType).toBe('AtomicArgument');
     expect(record.eventVersion).toBe(1);
     expect(record.eventData).toEqual(event.eventData);
@@ -111,14 +128,14 @@ describe('AtomicArgumentModified', () => {
     type: 'premise_modified',
     previousValue: 'All men are mortal',
     newValue: 'All humans are mortal',
-    details: { statementId: 'stmt-123' },
+    details: { statementId: mockStatementId.getValue() },
   };
 
   it('should create event with correct properties', () => {
     const event = new AtomicArgumentModified(mockAtomicArgumentId, mockModification, 'test-user');
 
     expect(event.eventType).toBe('AtomicArgumentModified');
-    expect(event.aggregateId).toBe('arg-123');
+    expect(event.aggregateId).toBe(mockAtomicArgumentId.getValue());
     expect(event.aggregateType).toBe('AtomicArgument');
     expect(event.argumentId).toBe(mockAtomicArgumentId);
     expect(event.changes).toBe(mockModification);
@@ -131,7 +148,7 @@ describe('AtomicArgumentModified', () => {
     const data = event.eventData;
 
     expect(data).toEqual({
-      argumentId: 'arg-123',
+      argumentId: mockAtomicArgumentId.getValue(),
       changes: mockModification,
       modifiedBy: 'test-user',
     });
@@ -173,7 +190,7 @@ describe('AtomicArgumentDeleted', () => {
     const event = new AtomicArgumentDeleted(mockAtomicArgumentId, 'test-user', mockCascadeEffects);
 
     expect(event.eventType).toBe('AtomicArgumentDeleted');
-    expect(event.aggregateId).toBe('arg-123');
+    expect(event.aggregateId).toBe(mockAtomicArgumentId.getValue());
     expect(event.aggregateType).toBe('AtomicArgument');
     expect(event.argumentId).toBe(mockAtomicArgumentId);
     expect(event.deletedBy).toBe('test-user');
@@ -186,7 +203,7 @@ describe('AtomicArgumentDeleted', () => {
     const data = event.eventData;
 
     expect(data).toEqual({
-      argumentId: 'arg-123',
+      argumentId: mockAtomicArgumentId.getValue(),
       deletedBy: 'test-user',
       cascadeEffects: mockCascadeEffects,
     });
@@ -207,13 +224,13 @@ describe('ProofTreeCreated', () => {
   };
 
   const mockPhysicalProperties: TreePhysicalProperties = {
-    layoutStyle: 'bottom-up',
+    layoutStyle: LayoutStyle.bottomUp(),
     spacingX: 50,
     spacingY: 30,
     minWidth: 200,
     minHeight: 150,
-    expansionDirection: 'vertical',
-    alignmentMode: 'center',
+    expansionDirection: ExpansionDirection.vertical(),
+    alignmentMode: AlignmentMode.center(),
   };
 
   it('should create event with correct properties', () => {
@@ -226,7 +243,7 @@ describe('ProofTreeCreated', () => {
     );
 
     expect(event.eventType).toBe('ProofTreeCreated');
-    expect(event.aggregateId).toBe('tree-123');
+    expect(event.aggregateId).toBe(mockTreeId.getValue());
     expect(event.aggregateType).toBe('ProofTree');
     expect(event.treeId).toBe(mockTreeId);
     expect(event.documentId).toBe(mockDocumentId);
@@ -247,8 +264,8 @@ describe('ProofTreeCreated', () => {
     const data = event.eventData;
 
     expect(data).toEqual({
-      treeId: 'tree-123',
-      documentId: 'doc-123',
+      treeId: mockTreeId.getValue(),
+      documentId: mockDocumentId.getValue(),
       position: mockPosition,
       physicalProperties: mockPhysicalProperties,
       createdBy: 'test-user',
@@ -257,7 +274,7 @@ describe('ProofTreeCreated', () => {
 });
 
 describe('NodeAddedToTree', () => {
-  const mockParentNodeId = { getValue: () => 'parent-node-123' } as NodeId;
+  const mockParentNodeId = nodeIdFactory.build();
 
   it('should create event with parent node', () => {
     const event = new NodeAddedToTree(
@@ -271,7 +288,7 @@ describe('NodeAddedToTree', () => {
     );
 
     expect(event.eventType).toBe('NodeAddedToTree');
-    expect(event.aggregateId).toBe('tree-123');
+    expect(event.aggregateId).toBe(mockTreeId.getValue());
     expect(event.aggregateType).toBe('ProofTree');
     expect(event.treeId).toBe(mockTreeId);
     expect(event.nodeId).toBe(mockNodeId);
@@ -311,10 +328,10 @@ describe('NodeAddedToTree', () => {
     const data = event.eventData;
 
     expect(data).toEqual({
-      treeId: 'tree-123',
-      nodeId: 'node-123',
-      argumentId: 'arg-123',
-      parentNodeId: 'parent-node-123',
+      treeId: mockTreeId.getValue(),
+      nodeId: mockNodeId.getValue(),
+      argumentId: mockAtomicArgumentId.getValue(),
+      parentNodeId: mockParentNodeId.getValue(),
       premisePosition: 2,
       fromPosition: 1,
       addedBy: 'test-user',
@@ -336,7 +353,7 @@ describe('NodeRemovedFromTree', () => {
     const event = new NodeRemovedFromTree(mockTreeId, mockNodeId, 'test-user', mockCascadeEffects);
 
     expect(event.eventType).toBe('NodeRemovedFromTree');
-    expect(event.aggregateId).toBe('tree-123');
+    expect(event.aggregateId).toBe(mockTreeId.getValue());
     expect(event.aggregateType).toBe('ProofTree');
     expect(event.treeId).toBe(mockTreeId);
     expect(event.nodeId).toBe(mockNodeId);
@@ -350,8 +367,8 @@ describe('NodeRemovedFromTree', () => {
     const data = event.eventData;
 
     expect(data).toEqual({
-      treeId: 'tree-123',
-      nodeId: 'node-123',
+      treeId: mockTreeId.getValue(),
+      nodeId: mockNodeId.getValue(),
       removedBy: 'test-user',
       cascadeEffects: mockCascadeEffects,
     });
@@ -359,16 +376,17 @@ describe('NodeRemovedFromTree', () => {
 });
 
 describe('TreeStructureModified', () => {
+  const mockParentNodeId = nodeIdFactory.build();
   const mockModification: TreeModification = {
     type: 'structure_reorganized',
     changes: [
       {
         nodeId: mockNodeId,
         previousParent: null,
-        newParent: mockNodeId,
+        newParent: mockParentNodeId,
         previousPosition: 0,
         newPosition: 1,
-      },
+      } as StructuralChange,
     ],
     reason: 'User reorganized proof structure',
   };
@@ -377,7 +395,7 @@ describe('TreeStructureModified', () => {
     const event = new TreeStructureModified(mockTreeId, mockModification, 'test-user');
 
     expect(event.eventType).toBe('TreeStructureModified');
-    expect(event.aggregateId).toBe('tree-123');
+    expect(event.aggregateId).toBe(mockTreeId.getValue());
     expect(event.aggregateType).toBe('ProofTree');
     expect(event.treeId).toBe(mockTreeId);
     expect(event.modification).toBe(mockModification);
@@ -390,7 +408,7 @@ describe('TreeStructureModified', () => {
     const data = event.eventData;
 
     expect(data).toEqual({
-      treeId: 'tree-123',
+      treeId: mockTreeId.getValue(),
       modification: mockModification,
       modifiedBy: 'test-user',
     });
@@ -410,7 +428,7 @@ describe('TreePositionChanged', () => {
     );
 
     expect(event.eventType).toBe('TreePositionChanged');
-    expect(event.aggregateId).toBe('tree-123');
+    expect(event.aggregateId).toBe(mockTreeId.getValue());
     expect(event.aggregateType).toBe('ProofTree');
     expect(event.treeId).toBe(mockTreeId);
     expect(event.previousPosition).toBe(mockPreviousPosition);
@@ -429,7 +447,7 @@ describe('TreePositionChanged', () => {
     const data = event.eventData;
 
     expect(data).toEqual({
-      treeId: 'tree-123',
+      treeId: mockTreeId.getValue(),
       previousPosition: mockPreviousPosition,
       newPosition: mockNewPosition,
       movedBy: 'test-user',
@@ -439,23 +457,23 @@ describe('TreePositionChanged', () => {
 
 describe('TreePhysicalPropertiesChanged', () => {
   const mockPreviousProperties: TreePhysicalProperties = {
-    layoutStyle: 'top-down',
+    layoutStyle: LayoutStyle.topDown(),
     spacingX: 40,
     spacingY: 25,
     minWidth: 150,
     minHeight: 100,
-    expansionDirection: 'horizontal',
-    alignmentMode: 'left',
+    expansionDirection: ExpansionDirection.horizontal(),
+    alignmentMode: AlignmentMode.left(),
   };
 
   const mockNewProperties: TreePhysicalProperties = {
-    layoutStyle: 'bottom-up',
+    layoutStyle: LayoutStyle.bottomUp(),
     spacingX: 60,
     spacingY: 35,
     minWidth: 200,
     minHeight: 150,
-    expansionDirection: 'vertical',
-    alignmentMode: 'center',
+    expansionDirection: ExpansionDirection.vertical(),
+    alignmentMode: AlignmentMode.center(),
   };
 
   it('should create event with correct properties', () => {
@@ -467,7 +485,7 @@ describe('TreePhysicalPropertiesChanged', () => {
     );
 
     expect(event.eventType).toBe('TreePhysicalPropertiesChanged');
-    expect(event.aggregateId).toBe('tree-123');
+    expect(event.aggregateId).toBe(mockTreeId.getValue());
     expect(event.aggregateType).toBe('ProofTree');
     expect(event.treeId).toBe(mockTreeId);
     expect(event.previousProperties).toBe(mockPreviousProperties);
@@ -486,7 +504,7 @@ describe('TreePhysicalPropertiesChanged', () => {
     const data = event.eventData;
 
     expect(data).toEqual({
-      treeId: 'tree-123',
+      treeId: mockTreeId.getValue(),
       previousProperties: mockPreviousProperties,
       newProperties: mockNewProperties,
       changedBy: 'test-user',
@@ -495,25 +513,25 @@ describe('TreePhysicalPropertiesChanged', () => {
 });
 
 describe('BranchCreated', () => {
-  const mockParentNodeId = { getValue: () => 'parent-node-123' } as NodeId;
-  const mockNewNodeId = { getValue: () => 'new-node-123' } as NodeId;
+  const mockParentNodeId = nodeIdFactory.build();
+  const mockNewNodeId = nodeIdFactory.build();
 
   it('should create event with correct properties', () => {
     const event = new BranchCreated(
       mockTreeId,
       mockParentNodeId,
       mockNewNodeId,
-      'from_conclusion',
+      BranchType.fromConclusion(),
       'test-user',
     );
 
     expect(event.eventType).toBe('BranchCreated');
-    expect(event.aggregateId).toBe('tree-123');
+    expect(event.aggregateId).toBe(mockTreeId.getValue());
     expect(event.aggregateType).toBe('ProofTree');
     expect(event.treeId).toBe(mockTreeId);
     expect(event.parentNodeId).toBe(mockParentNodeId);
     expect(event.newNodeId).toBe(mockNewNodeId);
-    expect(event.branchType).toBe('from_conclusion');
+    expect(event.branchType).toEqual(BranchType.fromConclusion());
     expect(event.createdBy).toBe('test-user');
   });
 
@@ -522,17 +540,17 @@ describe('BranchCreated', () => {
       mockTreeId,
       mockParentNodeId,
       mockNewNodeId,
-      'from_selected_text',
+      BranchType.fromSelectedText(),
       'test-user',
     );
 
     const data = event.eventData;
 
     expect(data).toEqual({
-      treeId: 'tree-123',
-      parentNodeId: 'parent-node-123',
-      newNodeId: 'new-node-123',
-      branchType: 'from_selected_text',
+      treeId: mockTreeId.getValue(),
+      parentNodeId: mockParentNodeId.getValue(),
+      newNodeId: mockNewNodeId.getValue(),
+      branchType: BranchType.fromSelectedText(),
       createdBy: 'test-user',
     });
   });
@@ -542,11 +560,11 @@ describe('BranchCreated', () => {
       mockTreeId,
       mockParentNodeId,
       mockNewNodeId,
-      'independent',
+      BranchType.independent(),
       'test-user',
     );
 
-    expect(event.branchType).toBe('independent');
-    expect(event.eventData.branchType).toBe('independent');
+    expect(event.branchType).toEqual(BranchType.independent());
+    expect(event.eventData.branchType).toEqual(BranchType.independent());
   });
 });

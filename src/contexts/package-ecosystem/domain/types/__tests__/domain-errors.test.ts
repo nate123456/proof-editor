@@ -1,11 +1,12 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 
+import { DomainError } from '../../../../../domain/errors/DomainErrors.js';
 import {
   DependencyResolutionError,
-  DomainError,
   InvalidPackageVersionError,
   PackageConflictError,
+  PackageError,
   PackageInstallationError,
   PackageNotFoundError,
   PackageSourceUnavailableError,
@@ -14,9 +15,13 @@ import {
 } from '../domain-errors.js';
 
 describe('Package Ecosystem Domain Errors', () => {
-  describe('DomainError base class', () => {
-    class TestDomainError extends DomainError {
-      readonly code = 'TEST_ERROR';
+  describe('PackageError base class', () => {
+    class TestDomainError extends PackageError {
+      override readonly name: string = 'TestDomainError';
+
+      getCode(): string {
+        return 'TEST_ERROR';
+      }
     }
 
     it('should create error with message', () => {
@@ -24,7 +29,7 @@ describe('Package Ecosystem Domain Errors', () => {
 
       expect(error.message).toBe('Test error message');
       expect(error.name).toBe('TestDomainError');
-      expect(error.code).toBe('TEST_ERROR');
+      expect(error.getCode()).toBe('TEST_ERROR');
       expect(error.context).toBeUndefined();
     });
 
@@ -34,7 +39,7 @@ describe('Package Ecosystem Domain Errors', () => {
 
       expect(error.message).toBe('Test error message');
       expect(error.name).toBe('TestDomainError');
-      expect(error.code).toBe('TEST_ERROR');
+      expect(error.getCode()).toBe('TEST_ERROR');
       expect(error.context).toEqual(context);
     });
 
@@ -42,14 +47,14 @@ describe('Package Ecosystem Domain Errors', () => {
       const error = new TestDomainError('Test error');
 
       expect(error).toBeInstanceOf(Error);
-      expect(error).toBeInstanceOf(DomainError);
+      expect(error).toBeInstanceOf(PackageError);
     });
 
     it('should have correct prototype chain', () => {
       const error = new TestDomainError('Test error');
 
       expect(Object.getPrototypeOf(error)).toBe(TestDomainError.prototype);
-      expect(Object.getPrototypeOf(TestDomainError.prototype)).toBe(DomainError.prototype);
+      expect(Object.getPrototypeOf(TestDomainError.prototype)).toBe(PackageError.prototype);
       expect(Object.getPrototypeOf(DomainError.prototype)).toBe(Error.prototype);
     });
 
@@ -72,10 +77,10 @@ describe('Package Ecosystem Domain Errors', () => {
     it('should extend DomainError with correct properties', () => {
       const error = new PackageValidationError('Package validation failed');
 
-      expect(error).toBeInstanceOf(DomainError);
+      expect(error).toBeInstanceOf(PackageError);
       expect(error).toBeInstanceOf(PackageValidationError);
       expect(error.name).toBe('PackageValidationError');
-      expect(error.code).toBe('PACKAGE_VALIDATION_ERROR');
+      expect(error.getCode()).toBe('PACKAGE_VALIDATION_ERROR');
       expect(error.message).toBe('Package validation failed');
     });
 
@@ -88,7 +93,7 @@ describe('Package Ecosystem Domain Errors', () => {
       const error = new PackageValidationError('Validation failed', context);
 
       expect(error.context).toEqual(context);
-      expect(error.code).toBe('PACKAGE_VALIDATION_ERROR');
+      expect(error.getCode()).toBe('PACKAGE_VALIDATION_ERROR');
     });
 
     it('should be throwable and catchable', () => {
@@ -106,10 +111,10 @@ describe('Package Ecosystem Domain Errors', () => {
     it('should extend DomainError with correct properties', () => {
       const error = new PackageNotFoundError('Package not found');
 
-      expect(error).toBeInstanceOf(DomainError);
+      expect(error).toBeInstanceOf(PackageError);
       expect(error).toBeInstanceOf(PackageNotFoundError);
       expect(error.name).toBe('PackageNotFoundError');
-      expect(error.code).toBe('PACKAGE_NOT_FOUND');
+      expect(error.getCode()).toBe('PACKAGE_NOT_FOUND');
       expect(error.message).toBe('Package not found');
     });
 
@@ -123,7 +128,7 @@ describe('Package Ecosystem Domain Errors', () => {
       const error = new PackageNotFoundError('Package not found in any repository', context);
 
       expect(error.context).toEqual(context);
-      expect(error.code).toBe('PACKAGE_NOT_FOUND');
+      expect(error.getCode()).toBe('PACKAGE_NOT_FOUND');
     });
 
     it('should handle different package identifier formats', () => {
@@ -136,7 +141,7 @@ describe('Package Ecosystem Domain Errors', () => {
       contexts.forEach((context) => {
         const error = new PackageNotFoundError('Package not found', context);
         expect(error.context).toEqual(context);
-        expect(error.code).toBe('PACKAGE_NOT_FOUND');
+        expect(error.getCode()).toBe('PACKAGE_NOT_FOUND');
       });
     });
   });
@@ -145,10 +150,10 @@ describe('Package Ecosystem Domain Errors', () => {
     it('should extend DomainError with correct properties', () => {
       const error = new PackageInstallationError('Installation failed');
 
-      expect(error).toBeInstanceOf(DomainError);
+      expect(error).toBeInstanceOf(PackageError);
       expect(error).toBeInstanceOf(PackageInstallationError);
       expect(error.name).toBe('PackageInstallationError');
-      expect(error.code).toBe('PACKAGE_INSTALLATION_ERROR');
+      expect(error.getCode()).toBe('PACKAGE_INSTALLATION_ERROR');
       expect(error.message).toBe('Installation failed');
     });
 
@@ -166,7 +171,7 @@ describe('Package Ecosystem Domain Errors', () => {
       );
 
       expect(error.context).toEqual(context);
-      expect(error.code).toBe('PACKAGE_INSTALLATION_ERROR');
+      expect(error.getCode()).toBe('PACKAGE_INSTALLATION_ERROR');
     });
 
     it('should handle different installation failure scenarios', () => {
@@ -180,7 +185,7 @@ describe('Package Ecosystem Domain Errors', () => {
       scenarios.forEach((context) => {
         const error = new PackageInstallationError('Installation failed', context);
         expect(error.context).toEqual(context);
-        expect(error.code).toBe('PACKAGE_INSTALLATION_ERROR');
+        expect(error.getCode()).toBe('PACKAGE_INSTALLATION_ERROR');
       });
     });
   });
@@ -189,10 +194,10 @@ describe('Package Ecosystem Domain Errors', () => {
     it('should extend DomainError with correct properties', () => {
       const error = new DependencyResolutionError('Dependency resolution failed');
 
-      expect(error).toBeInstanceOf(DomainError);
+      expect(error).toBeInstanceOf(PackageError);
       expect(error).toBeInstanceOf(DependencyResolutionError);
       expect(error.name).toBe('DependencyResolutionError');
-      expect(error.code).toBe('DEPENDENCY_RESOLUTION_ERROR');
+      expect(error.getCode()).toBe('DEPENDENCY_RESOLUTION_ERROR');
       expect(error.message).toBe('Dependency resolution failed');
     });
 
@@ -209,7 +214,7 @@ describe('Package Ecosystem Domain Errors', () => {
       const error = new DependencyResolutionError('Cannot resolve version conflicts', context);
 
       expect(error.context).toEqual(context);
-      expect(error.code).toBe('DEPENDENCY_RESOLUTION_ERROR');
+      expect(error.getCode()).toBe('DEPENDENCY_RESOLUTION_ERROR');
     });
 
     it('should handle circular dependency scenarios', () => {
@@ -230,10 +235,10 @@ describe('Package Ecosystem Domain Errors', () => {
     it('should extend DomainError with correct properties', () => {
       const error = new PackageConflictError('Package conflict detected');
 
-      expect(error).toBeInstanceOf(DomainError);
+      expect(error).toBeInstanceOf(PackageError);
       expect(error).toBeInstanceOf(PackageConflictError);
       expect(error.name).toBe('PackageConflictError');
-      expect(error.code).toBe('PACKAGE_CONFLICT_ERROR');
+      expect(error.getCode()).toBe('PACKAGE_CONFLICT_ERROR');
       expect(error.message).toBe('Package conflict detected');
     });
 
@@ -248,7 +253,7 @@ describe('Package Ecosystem Domain Errors', () => {
       const error = new PackageConflictError('Version conflict between packages', context);
 
       expect(error.context).toEqual(context);
-      expect(error.code).toBe('PACKAGE_CONFLICT_ERROR');
+      expect(error.getCode()).toBe('PACKAGE_CONFLICT_ERROR');
     });
 
     it('should handle different conflict types', () => {
@@ -271,10 +276,10 @@ describe('Package Ecosystem Domain Errors', () => {
     it('should extend DomainError with correct properties', () => {
       const error = new InvalidPackageVersionError('Invalid package version');
 
-      expect(error).toBeInstanceOf(DomainError);
+      expect(error).toBeInstanceOf(PackageError);
       expect(error).toBeInstanceOf(InvalidPackageVersionError);
       expect(error.name).toBe('InvalidPackageVersionError');
-      expect(error.code).toBe('INVALID_PACKAGE_VERSION');
+      expect(error.getCode()).toBe('INVALID_PACKAGE_VERSION');
       expect(error.message).toBe('Invalid package version');
     });
 
@@ -291,7 +296,7 @@ describe('Package Ecosystem Domain Errors', () => {
       );
 
       expect(error.context).toEqual(context);
-      expect(error.code).toBe('INVALID_PACKAGE_VERSION');
+      expect(error.getCode()).toBe('INVALID_PACKAGE_VERSION');
     });
 
     it('should handle different version validation scenarios', () => {
@@ -315,10 +320,10 @@ describe('Package Ecosystem Domain Errors', () => {
     it('should extend DomainError with correct properties', () => {
       const error = new PackageSourceUnavailableError('Package source unavailable');
 
-      expect(error).toBeInstanceOf(DomainError);
+      expect(error).toBeInstanceOf(PackageError);
       expect(error).toBeInstanceOf(PackageSourceUnavailableError);
       expect(error.name).toBe('PackageSourceUnavailableError');
-      expect(error.code).toBe('PACKAGE_SOURCE_UNAVAILABLE');
+      expect(error.getCode()).toBe('PACKAGE_SOURCE_UNAVAILABLE');
       expect(error.message).toBe('Package source unavailable');
     });
 
@@ -337,7 +342,7 @@ describe('Package Ecosystem Domain Errors', () => {
       );
 
       expect(error.context).toEqual(context);
-      expect(error.code).toBe('PACKAGE_SOURCE_UNAVAILABLE');
+      expect(error.getCode()).toBe('PACKAGE_SOURCE_UNAVAILABLE');
     });
 
     it('should handle different source types', () => {
@@ -366,10 +371,10 @@ describe('Package Ecosystem Domain Errors', () => {
     it('should extend DomainError with correct properties', () => {
       const error = new SDKComplianceError('SDK compliance violation');
 
-      expect(error).toBeInstanceOf(DomainError);
+      expect(error).toBeInstanceOf(PackageError);
       expect(error).toBeInstanceOf(SDKComplianceError);
       expect(error.name).toBe('SDKComplianceError');
-      expect(error.code).toBe('SDK_COMPLIANCE_ERROR');
+      expect(error.getCode()).toBe('SDK_COMPLIANCE_ERROR');
       expect(error.message).toBe('SDK compliance violation');
     });
 
@@ -388,7 +393,7 @@ describe('Package Ecosystem Domain Errors', () => {
       );
 
       expect(error.context).toEqual(context);
-      expect(error.code).toBe('SDK_COMPLIANCE_ERROR');
+      expect(error.getCode()).toBe('SDK_COMPLIANCE_ERROR');
     });
 
     it('should handle different compliance violations', () => {
@@ -433,8 +438,8 @@ describe('Package Ecosystem Domain Errors', () => {
 
       errors.forEach((error) => {
         expect(error).toBeInstanceOf(Error);
-        expect(error).toBeInstanceOf(DomainError);
-        expect(error.code).toBeTruthy();
+        expect(error).toBeInstanceOf(PackageError);
+        expect(error.getCode()).toBeTruthy();
         expect(error.message).toBeTruthy();
       });
     });
@@ -449,7 +454,7 @@ describe('Package Ecosystem Domain Errors', () => {
     });
 
     it('should allow error handling by base type', () => {
-      const errors: DomainError[] = [
+      const errors: PackageError[] = [
         new PackageValidationError('Validation failed'),
         new PackageNotFoundError('Package not found'),
         new PackageInstallationError('Installation failed'),
@@ -461,9 +466,9 @@ describe('Package Ecosystem Domain Errors', () => {
       ];
 
       errors.forEach((error) => {
-        expect(error).toBeInstanceOf(DomainError);
+        expect(error).toBeInstanceOf(PackageError);
         expect(error).toBeInstanceOf(Error);
-        expect(error.code).toBeTruthy();
+        expect(error.getCode()).toBeTruthy();
         expect(error.message).toBeTruthy();
       });
     });
@@ -501,7 +506,7 @@ describe('Package Ecosystem Domain Errors', () => {
         new SDKComplianceError('test'),
       ];
 
-      const codes = errors.map((error) => error.code);
+      const codes = errors.map((error) => error.getCode());
       const uniqueCodes = new Set(codes);
 
       expect(uniqueCodes.size).toBe(codes.length);
@@ -523,7 +528,7 @@ describe('Package Ecosystem Domain Errors', () => {
       ];
 
       errorInstances.forEach(({ error, expected }) => {
-        expect(error.code).toBe(expected);
+        expect(error.getCode()).toBe(expected);
       });
     });
   });
@@ -645,7 +650,7 @@ describe('Package Ecosystem Domain Errors', () => {
       const serialized = JSON.stringify({
         name: error.name,
         message: error.message,
-        code: error.code,
+        code: error.getCode(),
         context: error.context,
       });
 
@@ -685,7 +690,7 @@ describe('Package Ecosystem Domain Errors', () => {
       validationContexts.forEach((context) => {
         const error = new PackageValidationError('Context-specific validation failed', context);
         expect(error.context).toEqual(context);
-        expect(error.code).toBe('PACKAGE_VALIDATION_ERROR');
+        expect(error.getCode()).toBe('PACKAGE_VALIDATION_ERROR');
       });
     });
 
@@ -713,7 +718,7 @@ describe('Package Ecosystem Domain Errors', () => {
       installationContexts.forEach((context) => {
         const error = new PackageInstallationError('Context-specific installation failed', context);
         expect(error.context).toEqual(context);
-        expect(error.code).toBe('PACKAGE_INSTALLATION_ERROR');
+        expect(error.getCode()).toBe('PACKAGE_INSTALLATION_ERROR');
       });
     });
 
@@ -745,7 +750,7 @@ describe('Package Ecosystem Domain Errors', () => {
       complianceContexts.forEach((context) => {
         const error = new SDKComplianceError('Context-specific compliance violation', context);
         expect(error.context).toEqual(context);
-        expect(error.code).toBe('SDK_COMPLIANCE_ERROR');
+        expect(error.getCode()).toBe('SDK_COMPLIANCE_ERROR');
       });
     });
   });
@@ -817,7 +822,7 @@ describe('Package Ecosystem Domain Errors', () => {
           packageId: op.packageId,
           operation: op.operation,
           error: op.error.message,
-          errorCode: op.error.code,
+          errorCode: op.error.getCode(),
           context: op.error.context,
         })),
       };
@@ -839,7 +844,7 @@ describe('Package Ecosystem Domain Errors', () => {
 
       expect(error.message).toBe('');
       expect(error.name).toBe('PackageValidationError');
-      expect(error.code).toBe('PACKAGE_VALIDATION_ERROR');
+      expect(error.getCode()).toBe('PACKAGE_VALIDATION_ERROR');
     });
 
     it('should handle null and undefined context', () => {
@@ -964,7 +969,7 @@ describe('Package Ecosystem Domain Errors', () => {
 
       errors.forEach((error) => {
         expect(error).toBeInstanceOf(PackageValidationError);
-        expect(error.code).toBe('PACKAGE_VALIDATION_ERROR');
+        expect(error.getCode()).toBe('PACKAGE_VALIDATION_ERROR');
         expect(error.name).toBe('PackageValidationError');
       });
     });
@@ -984,7 +989,7 @@ describe('Package Ecosystem Domain Errors', () => {
 
       errors.forEach((error) => {
         expect(error).toBeInstanceOf(PackageInstallationError);
-        expect(error.code).toBe('PACKAGE_INSTALLATION_ERROR');
+        expect(error.getCode()).toBe('PACKAGE_INSTALLATION_ERROR');
         expect(error.context?.phase).toBeTruthy();
       });
     });
@@ -1134,9 +1139,9 @@ describe('Package Ecosystem Domain Errors', () => {
         fc.property(fc.string(), (message) => {
           const error = new PackageValidationError(message);
           expect(error.message).toBe(message);
-          expect(error.code).toBe('PACKAGE_VALIDATION_ERROR');
+          expect(error.getCode()).toBe('PACKAGE_VALIDATION_ERROR');
           expect(error.name).toBe('PackageValidationError');
-          expect(error).toBeInstanceOf(DomainError);
+          expect(error).toBeInstanceOf(PackageError);
         }),
         { numRuns: 50 }, // Reduced from default 100
       );
@@ -1157,7 +1162,7 @@ describe('Package Ecosystem Domain Errors', () => {
             const error = new PackageInstallationError(message, context);
             expect(error.message).toBe(message);
             expect(error.context).toEqual(context);
-            expect(error.code).toBe('PACKAGE_INSTALLATION_ERROR');
+            expect(error.getCode()).toBe('PACKAGE_INSTALLATION_ERROR');
           },
         ),
         { numRuns: 30 }, // Reduced for performance
@@ -1184,9 +1189,9 @@ describe('Package Ecosystem Domain Errors', () => {
           (message, errorType, context) => {
             const error = new errorType.constructor(message, context);
             expect(error.message).toBe(message);
-            expect(error.code).toBe(errorType.code);
+            expect(error.getCode()).toBe(errorType.code);
             expect(error.context).toBe(context);
-            expect(error).toBeInstanceOf(DomainError);
+            expect(error).toBeInstanceOf(PackageError);
             expect(error).toBeInstanceOf(Error);
           },
         ),
@@ -1215,7 +1220,7 @@ describe('Package Ecosystem Domain Errors', () => {
             const error = new InvalidPackageVersionError('Invalid version', context);
             expect(error.context?.packageName).toBe(packageName);
             expect(error.context?.version).toBe(version);
-            expect(error.code).toBe('INVALID_PACKAGE_VERSION');
+            expect(error.getCode()).toBe('INVALID_PACKAGE_VERSION');
           },
         ),
         { numRuns: 25 }, // Reduced and simplified
@@ -1238,7 +1243,7 @@ describe('Package Ecosystem Domain Errors', () => {
             const error = new DependencyResolutionError(message, deepContext);
             expect(error.message).toBe(message);
             expect(error.context).toEqual(deepContext);
-            expect(error.code).toBe('DEPENDENCY_RESOLUTION_ERROR');
+            expect(error.getCode()).toBe('DEPENDENCY_RESOLUTION_ERROR');
           },
         ),
         { numRuns: 20 }, // Reduced and simplified structure
@@ -1276,7 +1281,7 @@ describe('Package Ecosystem Domain Errors', () => {
         const error = new PackageValidationError('Validation failed', context);
         expect(error.context?.packageName).toBeTruthy();
         expect(error.context?.validationStage).toBeTruthy();
-        expect(error.code).toBe('PACKAGE_VALIDATION_ERROR');
+        expect(error.getCode()).toBe('PACKAGE_VALIDATION_ERROR');
       });
     });
 
@@ -1305,7 +1310,7 @@ describe('Package Ecosystem Domain Errors', () => {
         expect(error.context?.packageName).toBeTruthy();
         expect(error.context?.installationPhase).toBeTruthy();
         expect(error.context?.targetDirectory).toBeTruthy();
-        expect(error.code).toBe('PACKAGE_INSTALLATION_ERROR');
+        expect(error.getCode()).toBe('PACKAGE_INSTALLATION_ERROR');
       });
     });
 
@@ -1339,7 +1344,7 @@ describe('Package Ecosystem Domain Errors', () => {
         expect(error.context?.rootPackage).toBeTruthy();
         expect(error.context?.dependencyChain).toBeInstanceOf(Array);
         expect(error.context?.resolutionAlgorithm).toBeTruthy();
-        expect(error.code).toBe('DEPENDENCY_RESOLUTION_ERROR');
+        expect(error.getCode()).toBe('DEPENDENCY_RESOLUTION_ERROR');
       });
     });
 
@@ -1385,7 +1390,7 @@ describe('Package Ecosystem Domain Errors', () => {
         expect(error.context?.sdkVersion).toBeTruthy();
         expect(error.context?.packageVersion).toBeTruthy();
         expect(error.context?.complianceChecks).toBeTruthy();
-        expect(error.code).toBe('SDK_COMPLIANCE_ERROR');
+        expect(error.getCode()).toBe('SDK_COMPLIANCE_ERROR');
       });
     });
 
@@ -1426,7 +1431,7 @@ describe('Package Ecosystem Domain Errors', () => {
         expect(error.context?.packageName).toBeTruthy();
         expect(error.context?.sourceType).toBeTruthy();
         expect(error.context?.registryUrl).toBeTruthy();
-        expect(error.code).toBe('PACKAGE_SOURCE_UNAVAILABLE');
+        expect(error.getCode()).toBe('PACKAGE_SOURCE_UNAVAILABLE');
       });
     });
   });

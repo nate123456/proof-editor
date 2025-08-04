@@ -38,13 +38,7 @@ describe('GetDocumentQuery Execution', () => {
     const proofIdResult = ProofId.fromString(query.documentId);
     if (proofIdResult.isErr()) throw proofIdResult.error;
 
-    const proofAggregate = ProofAggregate.reconstruct(
-      proofIdResult.value,
-      new Map(),
-      new Map(),
-      new Map(),
-      1,
-    );
+    const proofAggregate = ProofAggregate.reconstruct(proofIdResult.value, new Map(), new Map(), 1);
     if (proofAggregate.isErr()) throw proofAggregate.error;
 
     const statements = [statementFactory.build(), statementFactory.build()];
@@ -155,13 +149,7 @@ describe('GetDocumentQuery Execution', () => {
           modifiedAt: '',
         },
       },
-      atomicArguments: {
-        arg_1: {
-          id: 'arg_1',
-          premiseIds: 'set_1',
-          conclusionIds: 'set_2',
-        },
-      },
+      atomicArguments: {},
     });
 
     documentService.getDocument

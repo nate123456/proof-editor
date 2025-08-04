@@ -9,7 +9,6 @@ import {
   DocumentVersion,
   ErrorCode,
   ErrorMessage,
-  FileName,
   FilePath,
   FileSize,
   FontFamily,
@@ -204,7 +203,7 @@ function createMockUIPort(): IUIPort {
       return panel;
     },
 
-    postMessageToWebview(panelId: any) {
+    postMessageToWebview(_panelId: any) {
       // Mock message posting - no actual webview in tests
       // panelId is used to identify which panel to send to
     },

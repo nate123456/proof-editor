@@ -11,6 +11,11 @@
 import fc from 'fast-check';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { treeFactory } from '../../../domain/__tests__/factories/index.js';
+import {
+  createTestAtomicArgumentId,
+  createTestSideLabel,
+  createTestStatementId,
+} from '../../../domain/__tests__/value-object-test-helpers.js';
 import { treeToDTO } from '../../mappers/TreeMapper.js';
 import type {
   GetTreeQuery,
@@ -210,12 +215,12 @@ describe('Tree Query Performance', () => {
           argumentId: `arg_${i}`,
           isRoot: i === 0,
           argument: {
-            id: `arg_${i}`,
-            premiseIds: `premise_set_${i}`,
-            conclusionIds: `conclusion_set_${i}`,
+            id: createTestAtomicArgumentId(`arg_${i}`),
+            premiseIds: [createTestStatementId(`premise_${i}`)],
+            conclusionIds: [createTestStatementId(`conclusion_${i}`)],
             sideLabels: {
-              left: `Rule ${i}`,
-              right: `Reference ${i}`,
+              left: createTestSideLabel(`Rule ${i}`),
+              right: createTestSideLabel(`Reference ${i}`),
             },
           },
         })),
@@ -239,7 +244,7 @@ describe('Tree Query Performance', () => {
 
       // Assert
       expect(result.nodes).toHaveLength(25);
-      expect(result.nodes.every((node) => node.argument !== undefined)).toBe(true);
+      expect(result.nodes.every((node: TreeNodeDTO) => node.argument !== undefined)).toBe(true);
       expect(endTime - startTime).toBeLessThan(2000); // Should complete within 2 seconds
     });
   });

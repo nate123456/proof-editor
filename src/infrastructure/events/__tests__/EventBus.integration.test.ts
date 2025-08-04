@@ -1,3 +1,4 @@
+import { err } from 'neverthrow';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { ConnectionTracker } from '../../../application/event-handlers/ConnectionTracker.js';
 import {
@@ -8,6 +9,7 @@ import type { IUIPort } from '../../../application/ports/IUIPort.js';
 import { ProofDocument } from '../../../domain/aggregates/ProofDocument.js';
 import type { DomainEvent } from '../../../domain/events/base-event.js';
 import type { StatementCreated } from '../../../domain/events/proof-document-events.js';
+import { ValidationError } from '../../../domain/shared/result.js';
 import { StatementContent } from '../../../domain/shared/value-objects/index.js';
 import {
   MockTreeViewRenderer,
@@ -51,20 +53,21 @@ describe('EventBus Integration - Complete Event Flow', () => {
     treeController = new ProofTreeController(mockUIPort, eventBus, mockRenderer);
 
     // Wire up event handlers
-    eventBus.subscribe('OrderedSetBecameShared', (event) => {
-      connectionTracker.handle(event as OrderedSetBecameShared);
-      return Promise.resolve();
-    });
+    // TODO: OrderedSetBecameShared and OrderedSetCreated events need to be defined
+    // eventBus.subscribe('OrderedSetBecameShared', (event) => {
+    //   connectionTracker.handle(event as OrderedSetBecameShared);
+    //   return Promise.resolve();
+    // });
 
     eventBus.subscribe('StatementCreated', (event) => {
       usageEventHandler.handle(event as StatementCreated);
       return Promise.resolve();
     });
 
-    eventBus.subscribe('OrderedSetCreated', (event) => {
-      usageEventHandler.handle(event as OrderedSetCreated);
-      return Promise.resolve();
-    });
+    // eventBus.subscribe('OrderedSetCreated', (event) => {
+    //   usageEventHandler.handle(event as OrderedSetCreated);
+    //   return Promise.resolve();
+    // });
   });
 
   test('complete aggregate event flow - domain to presentation', async () => {
@@ -109,9 +112,15 @@ describe('EventBus Integration - Complete Event Flow', () => {
     const content1 = StatementContent.create('All men are mortal');
     const content2 = StatementContent.create('Socrates is a man');
     const content3 = StatementContent.create('Socrates is mortal');
-    const stmt1Result = content1.isOk() ? document.createStatement(content1.value) : null;
-    const stmt2Result = content2.isOk() ? document.createStatement(content2.value) : null;
-    const stmt3Result = content3.isOk() ? document.createStatement(content3.value) : null;
+    const stmt1Result = content1.isOk()
+      ? document.createStatement(content1.value)
+      : err(new ValidationError('Invalid content'));
+    const stmt2Result = content2.isOk()
+      ? document.createStatement(content2.value)
+      : err(new ValidationError('Invalid content'));
+    const stmt3Result = content3.isOk()
+      ? document.createStatement(content3.value)
+      : err(new ValidationError('Invalid content'));
 
     expect(stmt1Result.isOk()).toBe(true);
     expect(stmt2Result.isOk()).toBe(true);
@@ -167,8 +176,12 @@ describe('EventBus Integration - Complete Event Flow', () => {
     const document = ProofDocument.create();
     const content1 = StatementContent.create('Premise statement');
     const content2 = StatementContent.create('Conclusion statement');
-    const stmt1Result = content1.isOk() ? document.createStatement(content1.value) : null;
-    const stmt2Result = content2.isOk() ? document.createStatement(content2.value) : null;
+    const stmt1Result = content1.isOk()
+      ? document.createStatement(content1.value)
+      : err(new ValidationError('Invalid content'));
+    const stmt2Result = content2.isOk()
+      ? document.createStatement(content2.value)
+      : err(new ValidationError('Invalid content'));
 
     expect(stmt1Result.isOk()).toBe(true);
     expect(stmt2Result.isOk()).toBe(true);
@@ -327,14 +340,18 @@ describe('EventBus Integration - Complete Event Flow', () => {
   test('complete CQRS flow - write operations trigger read model updates', async () => {
     // Start with empty read models
     expect(usageTracker.getUsageStats().totalStatements).toBe(0);
-    expect(connectionTracker.getConnectionStats().totalConnections).toBe(0);
+    expect(connectionTracker.getConnectionStats().totalConnectedArguments).toBe(0);
 
     // Execute write operations (domain commands)
     const document = ProofDocument.create();
     const content1 = StatementContent.create('Write model statement 1');
     const content2 = StatementContent.create('Write model statement 2');
-    const stmt1Result = content1.isOk() ? document.createStatement(content1.value) : null;
-    const stmt2Result = content2.isOk() ? document.createStatement(content2.value) : null;
+    const stmt1Result = content1.isOk()
+      ? document.createStatement(content1.value)
+      : err(new ValidationError('Invalid content'));
+    const stmt2Result = content2.isOk()
+      ? document.createStatement(content2.value)
+      : err(new ValidationError('Invalid content'));
     expect(stmt1Result.isOk()).toBe(true);
     expect(stmt2Result.isOk()).toBe(true);
     if (!stmt1Result.isOk() || !stmt2Result.isOk()) {
@@ -365,11 +382,17 @@ describe('EventBus Integration - Complete Event Flow', () => {
     expect(usageStats.unusedStatements).toBe(1); // stmt2 is unused
 
     // Verify connection tracker shows both arguments using the same statement
-    const argsUsingStmt1 = connectionTracker.getArgumentsUsingStatement(
-      stmt1Result.value.getId().getValue(),
-    );
-    expect(argsUsingStmt1).toHaveLength(2); // Both arguments use stmt1
-    expect(argsUsingStmt1.map((a) => a.argumentId)).toContain(arg1Result.value.getId().getValue());
-    expect(argsUsingStmt1.map((a) => a.argumentId)).toContain(arg2Result.value.getId().getValue());
+    if (stmt1Result.isOk() && arg1Result.isOk() && arg2Result.isOk()) {
+      const argsUsingStmt1 = connectionTracker.getArgumentsUsingStatement(
+        stmt1Result.value.getId().getValue(),
+      );
+      expect(argsUsingStmt1).toHaveLength(2); // Both arguments use stmt1
+      expect(argsUsingStmt1.map((a) => a.argumentId)).toContain(
+        arg1Result.value.getId().getValue(),
+      );
+      expect(argsUsingStmt1.map((a) => a.argumentId)).toContain(
+        arg2Result.value.getId().getValue(),
+      );
+    }
   });
 });

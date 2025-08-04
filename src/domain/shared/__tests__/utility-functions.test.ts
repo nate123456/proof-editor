@@ -6,12 +6,13 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  LayoutStyle,
   PhysicalProperties,
   Position2D,
   StatementId,
   Timestamp,
   Version,
-} from '../value-objects.js';
+} from '../value-objects/index.js';
 
 describe('Utility Functions', () => {
   describe('randomUUID generation', () => {
@@ -287,8 +288,13 @@ describe('Utility Functions', () => {
       ];
 
       spacingTestCases.forEach(({ spacingX, spacingY, expected }) => {
-        const result = PhysicalProperties.create('bottom-up', spacingX, spacingY);
-        expect(result.isOk()).toBe(expected);
+        const layoutResult = LayoutStyle.create('bottom-up');
+        expect(layoutResult.isOk()).toBe(true);
+
+        if (layoutResult.isOk()) {
+          const result = PhysicalProperties.create(layoutResult.value, spacingX, spacingY);
+          expect(result.isOk()).toBe(expected);
+        }
       });
     });
 
@@ -306,8 +312,13 @@ describe('Utility Functions', () => {
       ];
 
       dimensionTestCases.forEach(({ minWidth, minHeight, expected }) => {
-        const result = PhysicalProperties.create('bottom-up', 50, 40, minWidth, minHeight);
-        expect(result.isOk()).toBe(expected);
+        const layoutResult = LayoutStyle.create('bottom-up');
+        expect(layoutResult.isOk()).toBe(true);
+
+        if (layoutResult.isOk()) {
+          const result = PhysicalProperties.create(layoutResult.value, 50, 40, minWidth, minHeight);
+          expect(result.isOk()).toBe(expected);
+        }
       });
     });
 

@@ -8,10 +8,11 @@ import { TreeStructureService } from '../../services/TreeStructureService.js';
 import { ValidationError } from '../../shared/result.js';
 import {
   Attachment,
+  LayoutStyle,
   type NodeId,
   PhysicalProperties,
-  Position2D,
 } from '../../shared/value-objects/index.js';
+import { TreePosition } from '../../value-objects/TreePosition.js';
 import {
   atomicArgumentFactory,
   atomicArgumentIdFactory,
@@ -54,7 +55,7 @@ describe('TreeStructureService', () => {
           const { tree, rootNode } = result.value;
 
           expect(tree.getDocumentId()).toBe(documentId);
-          expect(tree.getPosition()).toEqual(Position2D.origin());
+          expect(tree.getPosition()).toEqual(TreePosition.origin());
           expect(tree.getPhysicalProperties()).toEqual(PhysicalProperties.default());
           expect(tree.getTitle()).toBeUndefined();
           expect(tree.hasNode(rootNode.getId())).toBe(true);
@@ -66,8 +67,8 @@ describe('TreeStructureService', () => {
 
       it('should create tree with all parameters specified', () => {
         const documentId = 'full-document';
-        const positionResult = Position2D.create(100, 200);
-        const propertiesResult = PhysicalProperties.create('bottom-up', 300, 400);
+        const positionResult = TreePosition.create(100, 200);
+        const propertiesResult = PhysicalProperties.create(LayoutStyle.bottomUp(), 300, 400);
         const title = 'Test Tree Title';
 
         expect(positionResult.isOk()).toBe(true);

@@ -34,12 +34,9 @@ const validSideLabelsArbitrary = fc
     return SideLabels.create(left, right);
   });
 
-const orderedSetIdArbitrary = fc.constant(null).map(() => orderedSetIdFactory.build());
+const statementArbitrary = fc.constant(null).map(() => statementFactory.build());
 
-const statementArrayArbitrary = fc.array(
-  fc.constant(null).map(() => statementFactory.build()),
-  { minLength: 0, maxLength: 5 },
-);
+const statementArrayArbitrary = fc.array(statementArbitrary, { minLength: 0, maxLength: 5 });
 
 describe('AtomicArgument Lifecycle', () => {
   let mockDateNow: ReturnType<typeof vi.fn>;
@@ -76,7 +73,7 @@ describe('AtomicArgument Lifecycle', () => {
 
       it('should create argument with premise set only', () => {
         const premises = [statementFactory.build()];
-        const result = AtomicArgument.create(premises);
+        const result = AtomicArgument.create(premises, []);
 
         expect(result.isOk()).toBe(true);
         if (result.isOk()) {
@@ -144,7 +141,7 @@ describe('AtomicArgument Lifecycle', () => {
         expect(result.isOk()).toBe(true);
         if (result.isOk()) {
           const argument = result.value;
-          expect(argument.getSideLabels()).toEqual(sideLabels);
+          expect(argument.getSideLabels()).toEqual({ left: 'Modus Ponens', right: 'Rule 1' });
           expect(argument.hasSideLabels()).toBe(true);
           expect(argument.hasLeftSideLabel()).toBe(true);
           expect(argument.hasRightSideLabel()).toBe(true);
@@ -260,7 +257,7 @@ describe('AtomicArgument Lifecycle', () => {
         expect(result.isOk()).toBe(true);
         if (result.isOk()) {
           const argument = result.value;
-          expect(argument.getId()).toBe(id);
+          expect(argument.getId().equals(id)).toBe(true);
           expect(argument.getPremises()).toEqual(premises);
           expect(argument.getConclusions()).toEqual(conclusions);
           expect(argument.getCreatedAt()).toBe(createdAt);
@@ -269,9 +266,9 @@ describe('AtomicArgument Lifecycle', () => {
         }
       });
 
-      it('should reconstruct with null references', () => {
+      it('should reconstruct with empty arrays', () => {
         const id = atomicArgumentIdFactory.build();
-        const result = AtomicArgument.reconstruct(id, null, null, FIXED_TIMESTAMP, FIXED_TIMESTAMP);
+        const result = AtomicArgument.reconstruct(id, [], [], FIXED_TIMESTAMP, FIXED_TIMESTAMP);
 
         expect(result.isOk()).toBe(true);
         if (result.isOk()) {
@@ -284,32 +281,43 @@ describe('AtomicArgument Lifecycle', () => {
       it('should handle property-based reconstruction', () => {
         fc.assert(
           fc.property(
-            fc.option(orderedSetIdArbitrary),
-            fc.option(orderedSetIdArbitrary),
+            fc.array(statementArbitrary, { maxLength: 3 }),
+            fc.array(statementArbitrary, { maxLength: 3 }),
             fc.nat(),
             fc.nat(),
             validSideLabelsArbitrary,
-            (premiseRef, conclusionRef, createdAtBase, modifiedAtOffset, sideLabels) => {
+            (premises, conclusions, createdAtBase, modifiedAtOffset, sideLabels) => {
               // Ensure modifiedAt >= createdAt by using createdAt as base and adding offset
               const createdAt = createdAtBase;
               const modifiedAt = createdAt + modifiedAtOffset;
 
               const id = atomicArgumentIdFactory.build();
+              const sideLabelsValue: { left?: string; right?: string } = {};
+              const leftValue = sideLabels.getLeft()?.getValue();
+              const rightValue = sideLabels.getRight()?.getValue();
+
+              if (leftValue !== undefined) {
+                sideLabelsValue.left = leftValue;
+              }
+              if (rightValue !== undefined) {
+                sideLabelsValue.right = rightValue;
+              }
+
               const result = AtomicArgument.reconstruct(
                 id,
-                premiseRef === null ? null : premiseRef,
-                conclusionRef === null ? null : conclusionRef,
+                premises,
+                conclusions,
                 createdAt,
                 modifiedAt,
-                sideLabels,
+                sideLabelsValue,
               );
 
               expect(result.isOk()).toBe(true);
               if (result.isOk()) {
                 const argument = result.value;
-                expect(argument.getId()).toBe(id);
-                expect(argument.getPremises()).toBe(premiseRef ?? null);
-                expect(argument.getConclusions()).toBe(conclusionRef ?? null);
+                expect(argument.getId().equals(id)).toBe(true);
+                expect(argument.getPremises()).toEqual(premises);
+                expect(argument.getConclusions()).toEqual(conclusions);
                 expect(argument.getCreatedAt()).toBe(createdAt);
                 expect(argument.getModifiedAt()).toBe(modifiedAt);
               }
@@ -325,7 +333,7 @@ describe('AtomicArgument Lifecycle', () => {
         const futureTime = FIXED_TIMESTAMP + 1000;
         const pastTime = FIXED_TIMESTAMP - 1000;
 
-        const result = AtomicArgument.reconstruct(id, null, null, futureTime, pastTime);
+        const result = AtomicArgument.reconstruct(id, [], [], futureTime, pastTime);
 
         expect(result.isErr()).toBe(true);
         if (result.isErr()) {
@@ -336,12 +344,12 @@ describe('AtomicArgument Lifecycle', () => {
 
       it('should fail reconstruction with negative timestamps', () => {
         const id = atomicArgumentIdFactory.build();
-        const result = AtomicArgument.reconstruct(id, null, null, -1, -1);
+        const result = AtomicArgument.reconstruct(id, [], [], -1, -1);
 
         expect(result.isErr()).toBe(true);
         if (result.isErr()) {
           expect(result.error).toBeInstanceOf(ValidationError);
-          expect(result.error.message).toContain('timestamp');
+          expect(result.error.message).toContain('Timestamp');
         }
       });
     });
@@ -356,15 +364,14 @@ describe('AtomicArgument Lifecycle', () => {
         if (result.isOk()) {
           const argument = result.value;
           expect(argument.isBootstrapArgument()).toBe(true);
-          expect(argument.canPopulate()).toBe(true);
           expect(argument.isEmpty()).toBe(true);
           expect(argument.isComplete()).toBe(false);
         }
       });
 
       it('should validate partial arguments', () => {
-        const premiseSetRef = orderedSetIdFactory.build();
-        const result = AtomicArgument.create(premiseSetRef);
+        const premises = [statementFactory.build()];
+        const result = AtomicArgument.create(premises, []);
 
         expect(result.isOk()).toBe(true);
         if (result.isOk()) {
@@ -376,9 +383,9 @@ describe('AtomicArgument Lifecycle', () => {
       });
 
       it('should validate complete arguments', () => {
-        const premiseSetRef = orderedSetIdFactory.build();
-        const conclusionSetRef = orderedSetIdFactory.build();
-        const result = AtomicArgument.create(premiseSetRef, conclusionSetRef);
+        const premises = [statementFactory.build()];
+        const conclusions = [statementFactory.build()];
+        const result = AtomicArgument.create(premises, conclusions);
 
         expect(result.isOk()).toBe(true);
         if (result.isOk()) {
@@ -490,8 +497,8 @@ describe('AtomicArgument Lifecycle', () => {
       });
 
       it('should provide meaningful string representation for partial arguments', () => {
-        const premiseSetRef = orderedSetIdFactory.build();
-        const result = AtomicArgument.create(premiseSetRef);
+        const premises = [statementFactory.build()];
+        const result = AtomicArgument.create(premises, []);
 
         expect(result.isOk()).toBe(true);
         if (result.isOk()) {
@@ -499,14 +506,13 @@ describe('AtomicArgument Lifecycle', () => {
           const str = argument.toString();
           expect(str).toContain('AtomicArgument');
           expect(str).toContain('premise');
-          expect(str).toContain(premiseSetRef.toString());
         }
       });
 
       it('should provide meaningful string representation for complete arguments', () => {
-        const premiseSetRef = orderedSetIdFactory.build();
-        const conclusionSetRef = orderedSetIdFactory.build();
-        const result = AtomicArgument.create(premiseSetRef, conclusionSetRef);
+        const premises = [statementFactory.build()];
+        const conclusions = [statementFactory.build()];
+        const result = AtomicArgument.create(premises, conclusions);
 
         expect(result.isOk()).toBe(true);
         if (result.isOk()) {
@@ -515,14 +521,19 @@ describe('AtomicArgument Lifecycle', () => {
           expect(str).toContain('AtomicArgument');
           expect(str).toContain('premise');
           expect(str).toContain('conclusion');
-          expect(str).toContain(premiseSetRef.toString());
-          expect(str).toContain(conclusionSetRef.toString());
         }
       });
 
       it('should include side labels in string representation', () => {
-        const sideLabels: SideLabels = { left: 'MP', right: 'Rule1' };
-        const result = AtomicArgument.create(undefined, undefined, sideLabels);
+        const leftLabel = SideLabel.create('MP');
+        const rightLabel = SideLabel.create('Rule1');
+
+        expect(leftLabel.isOk()).toBe(true);
+        expect(rightLabel.isOk()).toBe(true);
+        if (!leftLabel.isOk() || !rightLabel.isOk()) return;
+
+        const sideLabels = SideLabels.create(leftLabel.value, rightLabel.value);
+        const result = AtomicArgument.create([], [], sideLabels);
 
         expect(result.isOk()).toBe(true);
         if (result.isOk()) {

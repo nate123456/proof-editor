@@ -6,7 +6,6 @@ import {
   DocumentId,
   MaxNodeCount,
   MaxTreeCount,
-  Position2D,
   Version,
 } from '../../domain/shared/value-objects/index.js';
 import { TOKENS } from '../../infrastructure/di/tokens.js';
@@ -161,7 +160,7 @@ export class ProofVisualizationService {
       if (tree.nodeCount.getValue() > config.performance.maxNodesPerTree.getValue()) {
         return err(
           new ValidationError(
-            `Tree ${treeId} contains ${tree.nodeCount} nodes, exceeding maximum of ${config.performance.maxNodesPerTree.getValue()}.`,
+            `Tree ${treeId} contains ${tree.nodeCount.getValue()} nodes, exceeding maximum of ${config.performance.maxNodesPerTree.getValue()}.`,
           ),
         );
       }

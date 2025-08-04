@@ -354,6 +354,7 @@ export class DocumentQueryService {
       createdAt: new Date().toISOString(),
       modifiedAt: new Date().toISOString(),
       statements: statementDTOs,
+      orderedSets: {}, // TODO: Implement OrderedSet parsing when supported
       atomicArguments: atomicArgumentDTOs,
       trees: treeDTOs,
     };
@@ -437,7 +438,7 @@ export class DocumentQueryService {
       }
 
       // OrderedSets are not directly accessible - would need to be extracted from arguments
-      const orderedSets = new Map();
+      const _orderedSets = new Map();
 
       // Reconstruct the ProofAggregate
       const aggregateResult = ProofAggregate.reconstruct(

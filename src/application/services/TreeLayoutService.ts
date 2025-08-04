@@ -3,7 +3,6 @@ import { injectable } from 'tsyringe';
 import { ValidationError } from '../../domain/shared/result.js';
 import {
   Dimensions,
-  NodeCount,
   NodeId,
   Position2D,
   type StatementId,
@@ -293,8 +292,8 @@ export class TreeLayoutService {
   }
 
   private getStatementsForOrderedSet(
-    orderedSetId: string | null,
-    document: DocumentDTO,
+    _orderedSetId: string | null,
+    _document: DocumentDTO,
   ): StatementDTO[] {
     // This method appears to be unused and references a non-existent property
     // Returning empty array for now

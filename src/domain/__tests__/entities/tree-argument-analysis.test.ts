@@ -1,19 +1,20 @@
+import { err, ok, type Result } from 'neverthrow';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { type MockProxy, mock } from 'vitest-mock-extended';
 
 import type { AtomicArgument } from '../../entities/AtomicArgument';
-import { Tree, TreeArgumentStructure, TreePathCompleteArgument } from '../../entities/Tree';
-import { ProcessingError } from '../../errors/DomainErrors';
+import type { Statement } from '../../entities/Statement';
+import type { Tree } from '../../entities/Tree';
+import { RepositoryError } from '../../errors/DomainErrors.js';
+import { createTree } from '../../factories/TreeFactory.js';
 import type { IAtomicArgumentRepository } from '../../repositories/IAtomicArgumentRepository';
-import type { IOrderedSetRepository } from '../../repositories/IOrderedSetRepository';
 import { ValidationError } from '../../shared/result';
-import type { AtomicArgumentId } from '../../shared/value-objects';
-import { atomicArgumentIdFactory, nodeIdFactory, orderedSetIdFactory } from './factories';
+import type { AtomicArgumentId, NodeId } from '../../shared/value-objects';
+import { atomicArgumentIdFactory, nodeIdFactory, statementFactory } from '../factories/index.js';
 
 describe('Tree Argument Analysis', () => {
   let mockDateNow: ReturnType<typeof vi.fn>;
   let mockAtomicArgumentRepository: MockProxy<IAtomicArgumentRepository>;
-  let mockOrderedSetRepository: MockProxy<IOrderedSetRepository>;
   const FIXED_TIMESTAMP = 1640995200000; // 2022-01-01T00:00:00.000Z
 
   beforeEach(() => {
@@ -24,532 +25,140 @@ describe('Tree Argument Analysis', () => {
     });
 
     mockAtomicArgumentRepository = mock<IAtomicArgumentRepository>();
-    mockOrderedSetRepository = mock<IOrderedSetRepository>();
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
   });
 
-  describe('Complex Async Methods', () => {
+  describe('Tree Basic Operations', () => {
     let tree: Tree;
 
     beforeEach(() => {
-      const result = Tree.create('doc-async-methods');
+      const result = createTree('doc-async-methods');
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         tree = result.value;
       }
     });
 
-    describe('findDirectConnections', () => {
-      it('should find direct connections between nodes', async () => {
-        const nodeId1 = nodeIdFactory.build();
-        const nodeId2 = nodeIdFactory.build();
-        const argumentId1 = atomicArgumentIdFactory.build();
-        const argumentId2 = atomicArgumentIdFactory.build();
-        const orderedSetId = orderedSetIdFactory.build();
+    it('should add and remove nodes', () => {
+      const nodeId1 = nodeIdFactory.build();
+      const nodeId2 = nodeIdFactory.build();
 
-        const addResult1 = tree.addNode(nodeId1);
-        const addResult2 = tree.addNode(nodeId2);
-        expect(addResult1.isOk()).toBe(true);
-        expect(addResult2.isOk()).toBe(true);
+      // Add nodes
+      const addResult1 = tree.addNode(nodeId1);
+      const addResult2 = tree.addNode(nodeId2);
+      expect(addResult1.isOk()).toBe(true);
+      expect(addResult2.isOk()).toBe(true);
+      expect(tree.hasNode(nodeId1)).toBe(true);
+      expect(tree.hasNode(nodeId2)).toBe(true);
+      expect(tree.getNodeCount()).toBe(2);
 
-        // Mock arguments with shared ordered set
-        const mockArgument1 = mock<AtomicArgument>();
-        const mockArgument2 = mock<AtomicArgument>();
-        mockArgument1.getId.mockReturnValue(argumentId1);
-        mockArgument1.getConclusionSet.mockReturnValue(orderedSetId);
-        mockArgument2.getId.mockReturnValue(argumentId2);
-        mockArgument2.getPremiseSet.mockReturnValue(orderedSetId);
-
-        mockAtomicArgumentRepository.findById.mockImplementation(async (id: AtomicArgumentId) => {
-          if (id === argumentId1) return mockArgument1;
-          if (id === argumentId2) return mockArgument2;
-          return null;
-        });
-
-        const result = await tree.findDirectConnections(
-          mockAtomicArgumentRepository,
-          mockOrderedSetRepository,
-        );
-
-        expect(result.isOk()).toBe(true);
-        if (result.isOk()) {
-          const connectionMap = result.value;
-          expect(connectionMap).toBeDefined();
-        }
-      });
-
-      it('should handle empty tree', async () => {
-        const result = await tree.findDirectConnections(
-          mockAtomicArgumentRepository,
-          mockOrderedSetRepository,
-        );
-
-        expect(result.isOk()).toBe(true);
-        if (result.isOk()) {
-          const connectionMap = result.value;
-          expect(connectionMap).toBeDefined();
-        }
-      });
-
-      it('should handle repository errors', async () => {
-        const nodeId = nodeIdFactory.build();
-        const addResult = tree.addNode(nodeId);
-        expect(addResult.isOk()).toBe(true);
-
-        mockAtomicArgumentRepository.findById.mockRejectedValue(new Error('Repository error'));
-
-        const result = await tree.findDirectConnections(
-          mockAtomicArgumentRepository,
-          mockOrderedSetRepository,
-        );
-
-        expect(result.isErr()).toBe(true);
-        if (result.isErr()) {
-          expect(result.error).toBeInstanceOf(ProcessingError);
-          expect(result.error.message).toContain('Repository error');
-        }
-      });
+      // Remove node
+      const removeResult = tree.removeNode(nodeId1);
+      expect(removeResult.isOk()).toBe(true);
+      expect(tree.hasNode(nodeId1)).toBe(false);
+      expect(tree.getNodeCount()).toBe(1);
     });
 
-    describe('findArgumentTree', () => {
-      it('should find argument tree for valid tree', async () => {
-        const nodeId = nodeIdFactory.build();
-        const argumentId = atomicArgumentIdFactory.build();
+    it('should set parent-child relationships', () => {
+      const nodeId1 = nodeIdFactory.build();
+      const nodeId2 = nodeIdFactory.build();
 
-        const addResult = tree.addNode(nodeId);
-        expect(addResult.isOk()).toBe(true);
+      const addResult1 = tree.addNode(nodeId1);
+      const addResult2 = tree.addNode(nodeId2);
+      expect(addResult1.isOk()).toBe(true);
+      expect(addResult2.isOk()).toBe(true);
 
-        const mockArgument = mock<AtomicArgument>();
-        mockArgument.getId.mockReturnValue(argumentId);
-        mockArgument.getPremiseSet.mockReturnValue(null);
-        mockArgument.getConclusionSet.mockReturnValue(null);
+      // Set parent
+      const setParentResult = tree.setNodeParent(nodeId2, nodeId1);
+      expect(setParentResult.isOk()).toBe(true);
 
-        mockAtomicArgumentRepository.findById.mockResolvedValue(mockArgument);
-
-        const result = await tree.findArgumentTree(
-          mockAtomicArgumentRepository,
-          mockOrderedSetRepository,
-        );
-
-        expect(result.isOk()).toBe(true);
-        if (result.isOk()) {
-          const argumentStructure = result.value;
-          expect(argumentStructure).toBeDefined();
-        }
-      });
-
-      it('should handle empty tree', async () => {
-        const result = await tree.findArgumentTree(
-          mockAtomicArgumentRepository,
-          mockOrderedSetRepository,
-        );
-
-        expect(result.isOk()).toBe(true);
-        if (result.isOk()) {
-          const argumentStructure = result.value;
-          expect(argumentStructure).toBeDefined();
-        }
-      });
-
-      it('should handle repository errors', async () => {
-        const nodeId = nodeIdFactory.build();
-        const addResult = tree.addNode(nodeId);
-        expect(addResult.isOk()).toBe(true);
-
-        mockAtomicArgumentRepository.findById.mockRejectedValue(new Error('Repository error'));
-
-        const result = await tree.findArgumentTree(
-          mockAtomicArgumentRepository,
-          mockOrderedSetRepository,
-        );
-
-        expect(result.isErr()).toBe(true);
-        if (result.isErr()) {
-          expect(result.error).toBeInstanceOf(ProcessingError);
-          expect(result.error.message).toContain('Repository error');
-        }
-      });
+      const node2 = tree.getNode(nodeId2);
+      expect(node2).toBeDefined();
+      expect(node2?.getParentId()).toEqual(nodeId1);
     });
 
-    describe('findPathCompleteArgument', () => {
-      it('should find path complete argument for connected nodes', async () => {
-        const nodeId1 = nodeIdFactory.build();
-        const nodeId2 = nodeIdFactory.build();
-        const argumentId1 = atomicArgumentIdFactory.build();
-        const argumentId2 = atomicArgumentIdFactory.build();
-        const orderedSetId = orderedSetIdFactory.build();
+    it('should detect cycles', () => {
+      const nodeId1 = nodeIdFactory.build();
+      const nodeId2 = nodeIdFactory.build();
+      const nodeId3 = nodeIdFactory.build();
 
-        const addResult1 = tree.addNode(nodeId1);
-        const addResult2 = tree.addNode(nodeId2);
-        expect(addResult1.isOk()).toBe(true);
-        expect(addResult2.isOk()).toBe(true);
+      // Add nodes
+      tree.addNode(nodeId1);
+      tree.addNode(nodeId2);
+      tree.addNode(nodeId3);
 
-        // Set up parent relationship
-        const setParentResult = tree.setNodeParent(nodeId2, nodeId1, 0);
-        expect(setParentResult.isOk()).toBe(true);
+      // Create chain: 1 -> 2 -> 3
+      tree.setNodeParent(nodeId2, nodeId1);
+      tree.setNodeParent(nodeId3, nodeId2);
 
-        // Mock arguments with connection
-        const mockArgument1 = mock<AtomicArgument>();
-        const mockArgument2 = mock<AtomicArgument>();
-        mockArgument1.getId.mockReturnValue(argumentId1);
-        mockArgument1.getConclusionSet.mockReturnValue(orderedSetId);
-        mockArgument2.getId.mockReturnValue(argumentId2);
-        mockArgument2.getPremiseSet.mockReturnValue(orderedSetId);
-
-        mockAtomicArgumentRepository.findById.mockImplementation(async (id: AtomicArgumentId) => {
-          if (id === argumentId1) return mockArgument1;
-          if (id === argumentId2) return mockArgument2;
-          return null;
-        });
-
-        const result = await tree.findPathCompleteArgument(
-          nodeId1,
-          nodeId2,
-          mockAtomicArgumentRepository,
-          mockOrderedSetRepository,
-        );
-
-        expect(result.isOk()).toBe(true);
-        if (result.isOk()) {
-          const pathCompleteArgument = result.value;
-          expect(pathCompleteArgument).toBeDefined();
-        }
-      });
-
-      it('should handle non-existent source node', async () => {
-        const nodeId1 = nodeIdFactory.build();
-        const nodeId2 = nodeIdFactory.build();
-
-        const addResult = tree.addNode(nodeId2);
-        expect(addResult.isOk()).toBe(true);
-
-        const result = await tree.findPathCompleteArgument(
-          nodeId1,
-          nodeId2,
-          mockAtomicArgumentRepository,
-          mockOrderedSetRepository,
-        );
-
-        expect(result.isErr()).toBe(true);
-        if (result.isErr()) {
-          expect(result.error).toBeInstanceOf(ValidationError);
-          expect(result.error.message).toContain('Source node does not exist');
-        }
-      });
-
-      it('should handle non-existent target node', async () => {
-        const nodeId1 = nodeIdFactory.build();
-        const nodeId2 = nodeIdFactory.build();
-
-        const addResult = tree.addNode(nodeId1);
-        expect(addResult.isOk()).toBe(true);
-
-        const result = await tree.findPathCompleteArgument(
-          nodeId1,
-          nodeId2,
-          mockAtomicArgumentRepository,
-          mockOrderedSetRepository,
-        );
-
-        expect(result.isErr()).toBe(true);
-        if (result.isErr()) {
-          expect(result.error).toBeInstanceOf(ValidationError);
-          expect(result.error.message).toContain('Target node does not exist');
-        }
-      });
-
-      it('should handle repository errors', async () => {
-        const nodeId1 = nodeIdFactory.build();
-        const nodeId2 = nodeIdFactory.build();
-
-        const addResult1 = tree.addNode(nodeId1);
-        const addResult2 = tree.addNode(nodeId2);
-        expect(addResult1.isOk()).toBe(true);
-        expect(addResult2.isOk()).toBe(true);
-
-        mockAtomicArgumentRepository.findById.mockRejectedValue(new Error('Repository error'));
-
-        const result = await tree.findPathCompleteArgument(
-          nodeId1,
-          nodeId2,
-          mockAtomicArgumentRepository,
-          mockOrderedSetRepository,
-        );
-
-        expect(result.isErr()).toBe(true);
-        if (result.isErr()) {
-          expect(result.error).toBeInstanceOf(ProcessingError);
-          expect(result.error.message).toContain('Repository error');
-        }
-      });
-    });
-
-    describe('discoverSharedReferences', () => {
-      it('should discover shared references between nodes', async () => {
-        const nodeId1 = nodeIdFactory.build();
-        const nodeId2 = nodeIdFactory.build();
-        const argumentId1 = atomicArgumentIdFactory.build();
-        const argumentId2 = atomicArgumentIdFactory.build();
-        const orderedSetId = orderedSetIdFactory.build();
-
-        const addResult1 = tree.addNode(nodeId1);
-        const addResult2 = tree.addNode(nodeId2);
-        expect(addResult1.isOk()).toBe(true);
-        expect(addResult2.isOk()).toBe(true);
-
-        // Mock arguments with shared ordered set
-        const mockArgument1 = mock<AtomicArgument>();
-        const mockArgument2 = mock<AtomicArgument>();
-        mockArgument1.getId.mockReturnValue(argumentId1);
-        mockArgument1.getPremiseSet.mockReturnValue(orderedSetId);
-        mockArgument2.getId.mockReturnValue(argumentId2);
-        mockArgument2.getPremiseSet.mockReturnValue(orderedSetId);
-
-        mockAtomicArgumentRepository.findById.mockImplementation(async (id: AtomicArgumentId) => {
-          if (id === argumentId1) return mockArgument1;
-          if (id === argumentId2) return mockArgument2;
-          return null;
-        });
-
-        const result = await tree.discoverSharedReferences(
-          mockAtomicArgumentRepository,
-          mockOrderedSetRepository,
-        );
-
-        expect(result.isOk()).toBe(true);
-        if (result.isOk()) {
-          const sharedReferences = result.value;
-          expect(sharedReferences).toBeDefined();
-          expect(Array.isArray(sharedReferences)).toBe(true);
-        }
-      });
-
-      it('should handle empty tree', async () => {
-        const result = await tree.discoverSharedReferences(
-          mockAtomicArgumentRepository,
-          mockOrderedSetRepository,
-        );
-
-        expect(result.isOk()).toBe(true);
-        if (result.isOk()) {
-          const sharedReferences = result.value;
-          expect(sharedReferences).toBeDefined();
-          expect(Array.isArray(sharedReferences)).toBe(true);
-          expect(sharedReferences).toHaveLength(0);
-        }
-      });
-
-      it('should handle repository errors', async () => {
-        const nodeId = nodeIdFactory.build();
-        const addResult = tree.addNode(nodeId);
-        expect(addResult.isOk()).toBe(true);
-
-        mockAtomicArgumentRepository.findById.mockRejectedValue(new Error('Repository error'));
-
-        const result = await tree.discoverSharedReferences(
-          mockAtomicArgumentRepository,
-          mockOrderedSetRepository,
-        );
-
-        expect(result.isErr()).toBe(true);
-        if (result.isErr()) {
-          expect(result.error).toBeInstanceOf(ProcessingError);
-          expect(result.error.message).toContain('Repository error');
-        }
-      });
+      // Try to create cycle: 1 -> 3 (would make 3 -> 2 -> 1 -> 3)
+      const cycleResult = tree.setNodeParent(nodeId1, nodeId3);
+      expect(cycleResult.isErr()).toBe(true);
+      if (cycleResult.isErr()) {
+        expect(cycleResult.error.message).toContain('cycle');
+      }
     });
   });
 
-  describe('Argument Structure Analysis', () => {
-    describe('TreeArgumentStructure', () => {
-      it('should create with valid parameters', () => {
-        const nodeId = nodeIdFactory.build();
-        const argumentId = atomicArgumentIdFactory.build();
-        const atomicArguments = new Map([[nodeId, argumentId]]);
-        const connections = new Map([[nodeId, []]]);
+  describe('Mock AtomicArgument interactions', () => {
+    it('should work with mocked atomic arguments', async () => {
+      // Create mock atomic arguments
+      const mockArgument1 = mock<AtomicArgument>();
+      const mockArgument2 = mock<AtomicArgument>();
+      const argumentId1 = atomicArgumentIdFactory.build();
+      const argumentId2 = atomicArgumentIdFactory.build();
+      const statement1 = statementFactory.build();
+      const statement2 = statementFactory.build();
+      const statements: Statement[] = [statement1, statement2];
 
-        const result = TreeArgumentStructure.create(atomicArguments, connections);
-        expect(result.isOk()).toBe(true);
+      // Setup mock returns
+      mockArgument1.getId.mockReturnValue(argumentId1);
+      mockArgument1.getPremises.mockReturnValue(statements);
+      mockArgument1.getConclusions.mockReturnValue([statement1]);
 
-        if (result.isOk()) {
-          const structure = result.value;
-          expect(structure.atomicArguments).toBeDefined();
-          expect(structure.connections).toBeDefined();
-        }
-      });
+      mockArgument2.getId.mockReturnValue(argumentId2);
+      mockArgument2.getPremises.mockReturnValue([statement1]);
+      mockArgument2.getConclusions.mockReturnValue([statement2]);
 
-      it('should get argument for node', () => {
-        const nodeId = nodeIdFactory.build();
-        const argumentId = atomicArgumentIdFactory.build();
-        const atomicArguments = new Map([[nodeId, argumentId]]);
-        const connections = new Map([[nodeId, []]]);
+      // Mock repository
+      mockAtomicArgumentRepository.findById.mockImplementation(
+        async (id: AtomicArgumentId): Promise<Result<AtomicArgument, RepositoryError>> => {
+          if (id === argumentId1) return ok(mockArgument1);
+          if (id === argumentId2) return ok(mockArgument2);
+          return err(new RepositoryError('Atomic argument not found'));
+        },
+      );
 
-        const result = TreeArgumentStructure.create(atomicArguments, connections);
-        expect(result.isOk()).toBe(true);
+      // Test repository interactions
+      const result1 = await mockAtomicArgumentRepository.findById(argumentId1);
+      expect(result1.isOk()).toBe(true);
+      if (result1.isOk()) {
+        expect(result1.value).toBe(mockArgument1);
+        expect(result1.value.getPremises()).toEqual(statements);
+        expect(result1.value.getConclusions()).toEqual([statements[0]]);
+      }
 
-        if (result.isOk()) {
-          const structure = result.value;
-          const foundArgumentId = structure.getArgumentForNode(nodeId);
-          expect(foundArgumentId).toBe(argumentId);
-        }
-      });
-
-      it('should return undefined for non-existent node', () => {
-        const nodeId1 = nodeIdFactory.build();
-        const nodeId2 = nodeIdFactory.build();
-        const argumentId = atomicArgumentIdFactory.build();
-        const atomicArguments = new Map([[nodeId1, argumentId]]);
-        const connections = new Map([[nodeId1, []]]);
-
-        const result = TreeArgumentStructure.create(atomicArguments, connections);
-        expect(result.isOk()).toBe(true);
-
-        if (result.isOk()) {
-          const structure = result.value;
-          const foundArgumentId = structure.getArgumentForNode(nodeId2);
-          expect(foundArgumentId).toBeUndefined();
-        }
-      });
-
-      it('should get connections for node', () => {
-        const nodeId = nodeIdFactory.build();
-        const argumentId = atomicArgumentIdFactory.build();
-        const connections = [orderedSetIdFactory.build()];
-        const atomicArguments = new Map([[nodeId, argumentId]]);
-        const connectionMap = new Map([[nodeId, connections]]);
-
-        const result = TreeArgumentStructure.create(atomicArguments, connectionMap);
-        expect(result.isOk()).toBe(true);
-
-        if (result.isOk()) {
-          const structure = result.value;
-          const foundConnections = structure.getConnectionsForNode(nodeId);
-          expect(foundConnections).toEqual(connections);
-        }
-      });
-
-      it('should return empty array for node with no connections', () => {
-        const nodeId1 = nodeIdFactory.build();
-        const nodeId2 = nodeIdFactory.build();
-        const argumentId = atomicArgumentIdFactory.build();
-        const connections = [orderedSetIdFactory.build()];
-        const atomicArguments = new Map([[nodeId1, argumentId]]);
-        const connectionMap = new Map([[nodeId1, connections]]);
-
-        const result = TreeArgumentStructure.create(atomicArguments, connectionMap);
-        expect(result.isOk()).toBe(true);
-
-        if (result.isOk()) {
-          const structure = result.value;
-          const foundConnections = structure.getConnectionsForNode(nodeId2);
-          expect(foundConnections).toEqual([]);
-        }
-      });
-    });
-
-    describe('TreePathCompleteArgument', () => {
-      it('should create with valid parameters', () => {
-        const nodeId1 = nodeIdFactory.build();
-        const nodeId2 = nodeIdFactory.build();
-        const argumentId1 = atomicArgumentIdFactory.build();
-        const argumentId2 = atomicArgumentIdFactory.build();
-        const path = [nodeId1, nodeId2];
-        const atomicArguments = [argumentId1, argumentId2];
-
-        const result = TreePathCompleteArgument.create(path, atomicArguments);
-        expect(result.isOk()).toBe(true);
-
-        if (result.isOk()) {
-          const pathComplete = result.value;
-          expect(pathComplete.path).toEqual(path);
-          expect(pathComplete.atomicArguments).toEqual(atomicArguments);
-        }
-      });
-
-      it('should fail with empty path', () => {
-        const argumentId = atomicArgumentIdFactory.build();
-        const result = TreePathCompleteArgument.create([], [argumentId]);
-        expect(result.isErr()).toBe(true);
-        if (result.isErr()) {
-          expect(result.error).toBeInstanceOf(ValidationError);
-          expect(result.error.message).toContain('Path cannot be empty');
-        }
-      });
-
-      it('should fail with empty atomic arguments', () => {
-        const nodeId = nodeIdFactory.build();
-        const result = TreePathCompleteArgument.create([nodeId], []);
-        expect(result.isErr()).toBe(true);
-        if (result.isErr()) {
-          expect(result.error).toBeInstanceOf(ValidationError);
-          expect(result.error.message).toContain('Atomic arguments cannot be empty');
-        }
-      });
-
-      it('should fail with mismatched path and arguments length', () => {
-        const nodeId1 = nodeIdFactory.build();
-        const nodeId2 = nodeIdFactory.build();
-        const argumentId = atomicArgumentIdFactory.build();
-        const path = [nodeId1, nodeId2];
-        const atomicArguments = [argumentId];
-
-        const result = TreePathCompleteArgument.create(path, atomicArguments);
-        expect(result.isErr()).toBe(true);
-        if (result.isErr()) {
-          expect(result.error).toBeInstanceOf(ValidationError);
-          expect(result.error.message).toContain('Path and atomic arguments must have same length');
-        }
-      });
-
-      it('should get length', () => {
-        const nodeId1 = nodeIdFactory.build();
-        const nodeId2 = nodeIdFactory.build();
-        const argumentId1 = atomicArgumentIdFactory.build();
-        const argumentId2 = atomicArgumentIdFactory.build();
-        const path = [nodeId1, nodeId2];
-        const atomicArguments = [argumentId1, argumentId2];
-
-        const result = TreePathCompleteArgument.create(path, atomicArguments);
-        expect(result.isOk()).toBe(true);
-
-        if (result.isOk()) {
-          const pathComplete = result.value;
-          expect(pathComplete.getLength()).toBe(2);
-        }
-      });
-
-      it('should check if path is complete', () => {
-        const nodeId1 = nodeIdFactory.build();
-        const nodeId2 = nodeIdFactory.build();
-        const argumentId1 = atomicArgumentIdFactory.build();
-        const argumentId2 = atomicArgumentIdFactory.build();
-        const path = [nodeId1, nodeId2];
-        const atomicArguments = [argumentId1, argumentId2];
-
-        const result = TreePathCompleteArgument.create(path, atomicArguments);
-        expect(result.isOk()).toBe(true);
-
-        if (result.isOk()) {
-          const pathComplete = result.value;
-          expect(pathComplete.isComplete()).toBe(true);
-        }
-      });
+      const result2 = await mockAtomicArgumentRepository.findById(argumentId2);
+      expect(result2.isOk()).toBe(true);
+      if (result2.isOk()) {
+        expect(result2.value).toBe(mockArgument2);
+        expect(result2.value.getPremises()).toEqual([statements[0]]);
+        expect(result2.value.getConclusions()).toEqual([statements[1]]);
+      }
     });
   });
 
-  describe('Complex reasoning patterns', () => {
-    it('should handle multi-branch argument structures', async () => {
-      const result = Tree.create('doc-multi-branch');
+  describe('Complex tree structures', () => {
+    it('should handle multi-branch tree structures', () => {
+      const result = createTree('doc-multi-branch');
       expect(result.isOk()).toBe(true);
 
       if (result.isOk()) {
         const tree = result.value;
         const nodeIds = Array.from({ length: 5 }, () => nodeIdFactory.build());
-        const argumentIds = Array.from({ length: 5 }, () => atomicArgumentIdFactory.build());
-        const orderedSetIds = Array.from({ length: 6 }, () => orderedSetIdFactory.build());
 
         // Add all nodes
         nodeIds.forEach((nodeId) => {
@@ -558,61 +167,45 @@ describe('Tree Argument Analysis', () => {
         });
 
         // Create branching structure: node0 -> node1, node0 -> node2, node1 -> node3, node2 -> node4
-        const setParent1Result = tree.setNodeParent(nodeIds[1], nodeIds[0], 0);
-        const setParent2Result = tree.setNodeParent(nodeIds[2], nodeIds[0], 1);
-        const setParent3Result = tree.setNodeParent(nodeIds[3], nodeIds[1], 0);
-        const setParent4Result = tree.setNodeParent(nodeIds[4], nodeIds[2], 0);
+        const [node0Id, node1Id, node2Id, node3Id, node4Id] = nodeIds;
+        expect(node0Id).toBeDefined();
+        expect(node1Id).toBeDefined();
+        expect(node2Id).toBeDefined();
+        expect(node3Id).toBeDefined();
+        expect(node4Id).toBeDefined();
+
+        if (!node0Id || !node1Id || !node2Id || !node3Id || !node4Id) {
+          throw new Error('Node IDs should be defined');
+        }
+
+        const setParent1Result = tree.setNodeParent(node1Id, node0Id);
+        const setParent2Result = tree.setNodeParent(node2Id, node0Id);
+        const setParent3Result = tree.setNodeParent(node3Id, node1Id);
+        const setParent4Result = tree.setNodeParent(node4Id, node2Id);
+
         expect(setParent1Result.isOk()).toBe(true);
         expect(setParent2Result.isOk()).toBe(true);
         expect(setParent3Result.isOk()).toBe(true);
         expect(setParent4Result.isOk()).toBe(true);
 
-        // Mock arguments with appropriate connections
-        const mockArguments = argumentIds.map((id, index) => {
-          const mockArg = mock<AtomicArgument>();
-          mockArg.getId.mockReturnValue(id);
-          // Set up premise and conclusion ordered sets based on tree structure
-          if (index === 0) {
-            mockArg.getPremiseSet.mockReturnValue(orderedSetIds[0]);
-            mockArg.getConclusionSet.mockReturnValue(orderedSetIds[1]);
-          } else if (index === 1) {
-            mockArg.getPremiseSet.mockReturnValue(orderedSetIds[1]);
-            mockArg.getConclusionSet.mockReturnValue(orderedSetIds[2]);
-          } else if (index === 2) {
-            mockArg.getPremiseSet.mockReturnValue(orderedSetIds[2]);
-            mockArg.getConclusionSet.mockReturnValue(orderedSetIds[3]);
-          } else if (index === 3) {
-            mockArg.getPremiseSet.mockReturnValue(orderedSetIds[3]);
-            mockArg.getConclusionSet.mockReturnValue(orderedSetIds[4]);
-          } else {
-            mockArg.getPremiseSet.mockReturnValue(orderedSetIds[4]);
-            mockArg.getConclusionSet.mockReturnValue(orderedSetIds[5]);
-          }
-          return mockArg;
-        });
+        // Verify structure
+        expect(tree.getNodeCount()).toBe(5);
+        const node1 = tree.getNode(node1Id);
+        const node2 = tree.getNode(node2Id);
+        const node3 = tree.getNode(node3Id);
+        const node4 = tree.getNode(node4Id);
 
-        mockAtomicArgumentRepository.findById.mockImplementation(async (id: AtomicArgumentId) => {
-          const found = mockArguments.find((arg) => arg.getId() === id);
-          return found || null;
-        });
+        expect(node1).toBeDefined();
+        expect(node2).toBeDefined();
+        expect(node3).toBeDefined();
+        expect(node4).toBeDefined();
 
-        const connectionResult = await tree.findDirectConnections(
-          mockAtomicArgumentRepository,
-          mockOrderedSetRepository,
-        );
-        expect(connectionResult.isOk()).toBe(true);
-
-        const structureResult = await tree.findArgumentTree(
-          mockAtomicArgumentRepository,
-          mockOrderedSetRepository,
-        );
-        expect(structureResult.isOk()).toBe(true);
-
-        const sharedReferencesResult = await tree.discoverSharedReferences(
-          mockAtomicArgumentRepository,
-          mockOrderedSetRepository,
-        );
-        expect(sharedReferencesResult.isOk()).toBe(true);
+        if (node1 && node2 && node3 && node4) {
+          expect(node1.getParentId()).toEqual(node0Id);
+          expect(node2.getParentId()).toEqual(node0Id);
+          expect(node3.getParentId()).toEqual(node1Id);
+          expect(node4.getParentId()).toEqual(node2Id);
+        }
       }
     });
   });

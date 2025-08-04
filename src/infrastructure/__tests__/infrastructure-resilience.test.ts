@@ -8,10 +8,13 @@ import type { IFileSystemPort } from '../../application/ports/IFileSystemPort.js
 import type { IPlatformPort } from '../../application/ports/IPlatformPort.js';
 import type { IUIPort } from '../../application/ports/IUIPort.js';
 import type { IViewStatePort } from '../../application/ports/IViewStatePort.js';
+import { DomainEvent } from '../../domain/events/base-event.js';
 import { ValidationError } from '../../domain/shared/result.js';
+import { MessageType } from '../../domain/shared/value-objects/enums.js';
 import {
   DialogTitle,
   DocumentContent,
+  EventData,
   FilePath,
   NotificationMessage,
   ViewType,
@@ -23,6 +26,18 @@ import { VSCodeFileSystemAdapter } from '../vscode/VSCodeFileSystemAdapter.js';
 import { VSCodePlatformAdapter } from '../vscode/VSCodePlatformAdapter.js';
 import { VSCodeUIAdapter } from '../vscode/VSCodeUIAdapter.js';
 import { VSCodeViewStateAdapter } from '../vscode/VSCodeViewStateAdapter.js';
+
+// Mock event class for testing
+class TestEvent extends DomainEvent {
+  constructor(
+    public readonly eventType: string,
+    aggregateId: string,
+    aggregateType: string,
+    public readonly eventData: Record<string, unknown> = {},
+  ) {
+    super(aggregateId, aggregateType);
+  }
+}
 
 /**
  * Infrastructure Resilience Tests
@@ -343,10 +358,13 @@ describe('Infrastructure Resilience and Error Recovery', () => {
         throw new Error('Failed to create WebviewId');
       }
 
-      adapter.postMessageToWebview(idResult.value, {
-        type: 'test',
-        data: 'test',
-      });
+      const eventDataResult = EventData.create({ content: 'test' });
+      if (eventDataResult.isOk()) {
+        adapter.postMessageToWebview(idResult.value, {
+          type: MessageType.UPDATE_TREE,
+          data: eventDataResult.value,
+        });
+      }
     });
 
     it('should handle UI blocking scenarios gracefully', async () => {
@@ -471,7 +489,7 @@ describe('Infrastructure Resilience and Error Recovery', () => {
       });
 
       // Publish event
-      await eventBus.publish([]);
+      await eventBus.publish([new TestEvent('test-event', 'test-aggregate', 'TestAggregate')]);
 
       expect(goodHandlerCallCount).toBe(2);
       expect(errorHandlerCallCount).toBe(2);
@@ -505,26 +523,26 @@ describe('Infrastructure Resilience and Error Recovery', () => {
       eventBus.subscribe('event-a', async () => {
         eventACount++;
         if (eventACount < 3) {
-          await eventBus.publish([]);
+          await eventBus.publish([new TestEvent('event-b', 'test-aggregate', 'TestAggregate')]);
         }
       });
 
       eventBus.subscribe('event-b', async () => {
         eventBCount++;
         if (eventBCount < 3) {
-          await eventBus.publish([]);
+          await eventBus.publish([new TestEvent('event-c', 'test-aggregate', 'TestAggregate')]);
         }
       });
 
       eventBus.subscribe('event-c', async () => {
         eventCCount++;
         if (eventCCount < 3) {
-          await eventBus.publish([]);
+          await eventBus.publish([new TestEvent('event-a', 'test-aggregate', 'TestAggregate')]);
         }
       });
 
       // Start the circular chain
-      await eventBus.publish([]);
+      await eventBus.publish([new TestEvent('event-a', 'test-aggregate', 'TestAggregate')]);
 
       // Should eventually stop due to our count limits
       expect(eventACount).toBeLessThan(5);
@@ -698,7 +716,9 @@ describe('Infrastructure Resilience and Error Recovery', () => {
       const startTime = performance.now();
 
       // Publish many events rapidly
-      const promises = Array.from({ length: 1000 }, (_, _i) => eventBus.publish([]));
+      const promises = Array.from({ length: 1000 }, (_, _i) =>
+        eventBus.publish([new TestEvent('high-freq-event', 'test-aggregate', 'TestAggregate')]),
+      );
 
       await Promise.all(promises);
 

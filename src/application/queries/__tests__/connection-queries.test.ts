@@ -58,8 +58,9 @@ describe('Connection Query Execution Tests', () => {
 
       const argument1 = atomicArgumentFactory.build();
       const argument2 = atomicArgumentFactory.build();
+      const orderedSetId = orderedSetIdFactory.build();
       const sharedOrderedSet = {
-        getId: () => ({ getValue: () => orderedSetIdFactory.build() }),
+        getId: () => ({ getValue: () => orderedSetId.getValue() }),
       };
 
       mockRepositories.argumentRepository.findByProofId.mockResolvedValue([argument1, argument2]);
@@ -96,8 +97,9 @@ describe('Connection Query Execution Tests', () => {
       };
 
       const connectedArgument = atomicArgumentFactory.build();
+      const orderedSetId = orderedSetIdFactory.build();
       const sharedOrderedSet = {
-        getId: () => ({ getValue: () => orderedSetIdFactory.build() }),
+        getId: () => ({ getValue: () => orderedSetId.getValue() }),
       };
 
       const expectedConnections: ConnectionDTO[] = [
@@ -124,8 +126,9 @@ describe('Connection Query Execution Tests', () => {
 
     it('should find connections for specific ordered set', async () => {
       // Arrange
+      const orderedSetId = orderedSetIdFactory.build();
       const targetOrderedSet = {
-        getId: () => ({ getValue: () => orderedSetIdFactory.build() }),
+        getId: () => ({ getValue: () => orderedSetId.getValue() }),
       };
       const query: FindConnectionsQuery = {
         documentId: 'doc_orderedset',

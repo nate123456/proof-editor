@@ -14,6 +14,7 @@
 
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
+import { createTestSideLabel } from '../../../domain/__tests__/value-object-test-helpers.js';
 import type {
   FindPathBetweenNodesQuery,
   GetSubtreeQuery,
@@ -27,6 +28,10 @@ import type {
   TreeNodeDTO,
   TreeStructureDTO,
 } from '../tree-queries.js';
+import {
+  createTestAtomicArgumentId,
+  createTestStatementIds,
+} from './shared/branded-type-helpers.js';
 
 describe('Tree Query DTO Validation Tests', () => {
   describe('GetTreeQuery', () => {
@@ -821,12 +826,12 @@ describe('Tree Query DTO Validation Tests', () => {
         argumentId: 'arg_with_details',
         isRoot: true,
         argument: {
-          id: 'arg_with_details',
-          premiseIds: ['stmt_1', 'stmt_2'],
-          conclusionIds: ['stmt_3'],
+          id: createTestAtomicArgumentId('arg_with_details'),
+          premiseIds: createTestStatementIds('stmt_1', 'stmt_2'),
+          conclusionIds: createTestStatementIds('stmt_3'),
           sideLabels: {
-            left: 'Rule Name',
-            right: 'Reference',
+            left: createTestSideLabel('Rule Name'),
+            right: createTestSideLabel('Reference'),
           },
         },
       };

@@ -566,7 +566,7 @@ export class PathCompletenessService implements IPathCompletenessService {
    * This identifies "bridge" arguments that connect disconnected components.
    */
   async findRequiredBridgeArguments(
-    argumentSet: AtomicArgumentId[],
+    _argumentSet: AtomicArgumentId[],
   ): Promise<Result<AtomicArgumentId[], ProcessingError>> {
     // For now, return empty array
     // A full implementation would analyze the graph structure

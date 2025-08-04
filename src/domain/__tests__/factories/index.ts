@@ -19,6 +19,7 @@ import {
   ExpansionDirection,
   LayoutStyle,
   NodeId,
+  OrderedSetId,
   PhysicalProperties,
   Position2D,
   ProofDocumentId,
@@ -119,9 +120,12 @@ export const sideLabelFactory = Factory.define<SideLabel>(() => {
 });
 
 // Factory for creating OrderedSetId value objects
-// Note: OrderedSetId doesn't exist in the codebase, using string as placeholder
-export const orderedSetIdFactory = Factory.define<string>(() => {
-  return faker.string.uuid();
+export const orderedSetIdFactory = Factory.define<OrderedSetId>(() => {
+  const result = OrderedSetId.fromString(faker.string.uuid());
+  if (result.isErr()) {
+    throw result.error;
+  }
+  return result.value;
 });
 
 // Test data configurations for different scenarios

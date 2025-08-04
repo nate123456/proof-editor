@@ -20,6 +20,23 @@ import {
   TreeId,
 } from '../../../../domain/shared/value-objects/index.js';
 import type { DocumentDTO, DocumentStatsDTO } from '../../document-queries.js';
+import {
+  createTestAtomicArgumentId,
+  createTestErrorCode,
+  createTestErrorMessage,
+  createTestNodeId,
+  createTestStatementId,
+  createTestTreeId,
+  unwrapResult,
+} from './branded-type-helpers.js';
+
+// Re-export commonly used helpers from branded-type-helpers
+export {
+  createTestAtomicArgumentId,
+  createTestErrorCode,
+  createTestErrorMessage,
+  createTestTreeId,
+} from './branded-type-helpers.js';
 
 // Mock repository interfaces
 export interface MockDocumentRepositories {
@@ -68,6 +85,7 @@ export function createTestDocumentDTO(overrides?: Partial<DocumentDTO>): Documen
     createdAt: '2023-01-01T00:00:00.000Z',
     modifiedAt: '2023-01-01T00:00:00.000Z',
     statements: {},
+    orderedSets: {},
     atomicArguments: {},
     trees: {},
     ...overrides,
@@ -111,19 +129,25 @@ export function createComplexDocumentDTO(documentId: string): DocumentDTO {
         },
       ]),
     ),
+    orderedSets: Object.fromEntries(
+      Array.from({ length: 5 }, (_, i) => [
+        `os_${i}`,
+        {
+          id: `os_${i}`,
+          statementIds: [`stmt_${i}`, `stmt_${i + 1}`],
+        },
+      ]),
+    ),
     atomicArguments: Object.fromEntries(
       Array.from({ length: 5 }, (_, i) => [
         `arg_${i}`,
         {
-          id: AtomicArgumentId.fromString(`arg_${i}`).value,
-          premiseIds: [
-            StatementId.fromString(`stmt_${i}`).value,
-            StatementId.fromString(`stmt_${i + 1}`).value,
-          ],
-          conclusionIds: [StatementId.fromString(`stmt_conclusion_${i}`).value],
+          id: createTestAtomicArgumentId(`arg_${i}`),
+          premiseIds: [createTestStatementId(`stmt_${i}`), createTestStatementId(`stmt_${i + 1}`)],
+          conclusionIds: [createTestStatementId(`stmt_conclusion_${i}`)],
           sideLabels: {
-            left: SideLabel.create(`Rule ${i}`).value,
-            right: SideLabel.create(`Reference ${i}`).value,
+            left: unwrapResult(SideLabel.create(`Rule ${i}`)),
+            right: unwrapResult(SideLabel.create(`Reference ${i}`)),
           },
         },
       ]),
@@ -132,14 +156,23 @@ export function createComplexDocumentDTO(documentId: string): DocumentDTO {
       Array.from({ length: 3 }, (_, i) => [
         `tree_${i}`,
         {
-          id: TreeId.create(`tree_${i}`).value,
-          position: Position2D.create(i * 100, i * 200).value,
-          bounds: Dimensions.create(800, 600).value,
-          nodeCount: NodeCount.create(5 + i).value,
-          rootNodeIds: [NodeId.create(`node_root_${i}`).value],
+          id: createTestTreeId(`tree_${i}`),
+          position: unwrapResult(Position2D.create(i * 100, i * 200)),
+          bounds: unwrapResult(Dimensions.create(800, 600)),
+          nodeCount: unwrapResult(NodeCount.create(5 + i)),
+          rootNodeIds: [createTestNodeId(`node_root_${i}`)],
         },
       ]),
     ),
+  };
+}
+
+// Helper function to create validation error DTOs
+function createValidationError(code: string, message: string, severity: ErrorSeverity): any {
+  return {
+    code: createTestErrorCode(code),
+    message: createTestErrorMessage(message),
+    severity,
   };
 }
 
@@ -165,27 +198,21 @@ export function createProblematicDocumentStats(): DocumentStatsDTO {
     validationStatus: {
       isValid: false,
       errors: [
-        {
-          code: ErrorCode.create('MULTIPLE_CYCLES').isOk()
-            ? ErrorCode.create('MULTIPLE_CYCLES').value.value
-            : 'MULTIPLE_CYCLES',
-          message: ErrorMessage.create('Multiple circular dependencies detected').value,
-          severity: ErrorSeverity.ERROR,
-        },
-        {
-          code: ErrorCode.create('EXCESSIVE_UNUSED_STATEMENTS').isOk()
-            ? ErrorCode.create('EXCESSIVE_UNUSED_STATEMENTS').value.value
-            : 'EXCESSIVE_UNUSED_STATEMENTS',
-          message: ErrorMessage.create('20 unused statements found - consider cleanup').value,
-          severity: ErrorSeverity.WARNING,
-        },
-        {
-          code: ErrorCode.create('PERFORMANCE_WARNING').isOk()
-            ? ErrorCode.create('PERFORMANCE_WARNING').value.value
-            : 'PERFORMANCE_WARNING',
-          message: ErrorMessage.create('Document size may impact performance').value,
-          severity: ErrorSeverity.INFO,
-        },
+        createValidationError(
+          'MULTIPLE_CYCLES',
+          'Multiple circular dependencies detected',
+          ErrorSeverity.ERROR,
+        ),
+        createValidationError(
+          'EXCESSIVE_UNUSED_STATEMENTS',
+          '20 unused statements found - consider cleanup',
+          ErrorSeverity.WARNING,
+        ),
+        createValidationError(
+          'PERFORMANCE_WARNING',
+          'Document size may impact performance',
+          ErrorSeverity.INFO,
+        ),
       ],
     },
   };

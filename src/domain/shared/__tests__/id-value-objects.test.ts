@@ -15,7 +15,7 @@ import {
   PackageId,
   StatementId,
   TreeId,
-} from '../value-objects.js';
+} from '../value-objects/index.js';
 
 // Property-based test generators
 const validStringArbitrary = fc
@@ -175,11 +175,18 @@ describe('Simple ID Value Objects', () => {
       });
 
       it('should generate unique IDs', () => {
-        const id1 = OrderedSetId.generate();
-        const id2 = OrderedSetId.generate();
+        const result1 = OrderedSetId.generate();
+        const result2 = OrderedSetId.generate();
 
-        expect(id1.equals(id2)).toBe(false);
-        expect(id1.getValue()).not.toBe(id2.getValue());
+        expect(result1.isOk()).toBe(true);
+        expect(result2.isOk()).toBe(true);
+
+        if (result1.isOk() && result2.isOk()) {
+          const id1 = result1.value;
+          const id2 = result2.value;
+          expect(id1.equals(id2)).toBe(false);
+          expect(id1.getValue()).not.toBe(id2.getValue());
+        }
       });
     });
   });

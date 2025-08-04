@@ -1,14 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  NodeId,
+  Position2D,
+  TreeId,
+  ZoomLevel,
+} from '../../../domain/shared/value-objects/index.js';
 import type { ViewStateChangeEvent } from '../../dtos/view-dtos.js';
 import type { ViewStateManager } from '../ViewStateManager.js';
 import { ViewStateObserver } from '../ViewStateObserver.js';
 
 describe('ViewStateObserver', () => {
   let viewStateObserver: ViewStateObserver;
-  let mockViewStateManager: ReturnType<typeof vi.mocked<ViewStateManager>>;
+  let mockViewStateManager: ViewStateManager;
 
   beforeEach(() => {
-    mockViewStateManager = vi.mocked<ViewStateManager>({
+    mockViewStateManager = {
       subscribeToChanges: vi.fn(),
       getSelectionState: vi.fn(),
       updateSelectionState: vi.fn(),
@@ -19,7 +25,7 @@ describe('ViewStateObserver', () => {
       getThemeState: vi.fn(),
       updateThemeState: vi.fn(),
       clearAllState: vi.fn(),
-    } as unknown as ViewStateManager);
+    } as unknown as ViewStateManager;
     viewStateObserver = new ViewStateObserver(mockViewStateManager);
   });
 
@@ -33,7 +39,9 @@ describe('ViewStateObserver', () => {
       // Arrange
       const callback = vi.fn();
       const mockDisposable = { dispose: vi.fn() };
-      mockViewStateManager.subscribeToChanges.mockReturnValue(mockDisposable);
+      (mockViewStateManager.subscribeToChanges as ReturnType<typeof vi.fn>).mockReturnValue(
+        mockDisposable,
+      );
 
       // Act
       const result = viewStateObserver.subscribeToSelectionChanges('test-observer', callback);
@@ -50,25 +58,39 @@ describe('ViewStateObserver', () => {
       const mockDisposable = { dispose: vi.fn() };
       let capturedCallback: ((event: ViewStateChangeEvent) => void) | undefined;
 
-      mockViewStateManager.subscribeToChanges.mockImplementation((cb) => {
-        capturedCallback = cb;
-        return mockDisposable;
-      });
+      (mockViewStateManager.subscribeToChanges as ReturnType<typeof vi.fn>).mockImplementation(
+        (cb) => {
+          capturedCallback = cb;
+          return mockDisposable;
+        },
+      );
 
       viewStateObserver.subscribeToSelectionChanges('test-observer', callback);
 
       // Act - send selection change event
+      const nodeId = NodeId.create('node1');
       const selectionEvent: ViewStateChangeEvent = {
         type: 'selection-changed',
-        newState: { selectedNodes: ['node1'], selectedStatements: [], selectedTrees: [] },
+        newState: {
+          selectedNodes: nodeId.isOk() ? [nodeId.value] : [],
+          selectedStatements: [],
+          selectedTrees: [],
+        },
         timestamp: Date.now(),
       };
       capturedCallback?.(selectionEvent);
 
       // Act - send viewport change event (should be filtered out)
+      const zoomLevel = ZoomLevel.create(1.5);
+      const panPosition = Position2D.create(0, 0);
+      const centerPosition = Position2D.create(0, 0);
       const viewportEvent: ViewStateChangeEvent = {
         type: 'viewport-changed',
-        newState: { zoom: 1.5, pan: { x: 0, y: 0 }, center: { x: 0, y: 0 } },
+        newState: {
+          zoom: zoomLevel.isOk() ? zoomLevel.value : ZoomLevel.normal(),
+          pan: panPosition.isOk() ? panPosition.value : Position2D.origin(),
+          center: centerPosition.isOk() ? centerPosition.value : Position2D.origin(),
+        },
         timestamp: Date.now(),
       };
       capturedCallback?.(viewportEvent);
@@ -84,7 +106,9 @@ describe('ViewStateObserver', () => {
       // Arrange
       const callback = vi.fn();
       const mockDisposable = { dispose: vi.fn() };
-      mockViewStateManager.subscribeToChanges.mockReturnValue(mockDisposable);
+      (mockViewStateManager.subscribeToChanges as ReturnType<typeof vi.fn>).mockReturnValue(
+        mockDisposable,
+      );
 
       // Act
       const result = viewStateObserver.subscribeToViewportChanges('test-observer', callback);
@@ -100,7 +124,9 @@ describe('ViewStateObserver', () => {
       // Arrange
       const callback = vi.fn();
       const mockDisposable = { dispose: vi.fn() };
-      mockViewStateManager.subscribeToChanges.mockReturnValue(mockDisposable);
+      (mockViewStateManager.subscribeToChanges as ReturnType<typeof vi.fn>).mockReturnValue(
+        mockDisposable,
+      );
 
       // Act
       const result = viewStateObserver.subscribeToAllChanges('test-observer', callback);
@@ -116,10 +142,12 @@ describe('ViewStateObserver', () => {
       const mockDisposable = { dispose: vi.fn() };
       let capturedCallback: ((event: ViewStateChangeEvent) => void) | undefined;
 
-      mockViewStateManager.subscribeToChanges.mockImplementation((cb) => {
-        capturedCallback = cb;
-        return mockDisposable;
-      });
+      (mockViewStateManager.subscribeToChanges as ReturnType<typeof vi.fn>).mockImplementation(
+        (cb) => {
+          capturedCallback = cb;
+          return mockDisposable;
+        },
+      );
 
       viewStateObserver.subscribeToAllChanges('test-observer', callback);
 
@@ -132,7 +160,11 @@ describe('ViewStateObserver', () => {
         },
         {
           type: 'viewport-changed',
-          newState: { zoom: 1.0, pan: { x: 0, y: 0 }, center: { x: 0, y: 0 } },
+          newState: {
+            zoom: ZoomLevel.normal(),
+            pan: Position2D.origin(),
+            center: Position2D.origin(),
+          },
           timestamp: Date.now(),
         },
         {
@@ -163,7 +195,9 @@ describe('ViewStateObserver', () => {
       const callback1 = vi.fn();
       const callback2 = vi.fn();
       const mockDisposable = { dispose: vi.fn() };
-      mockViewStateManager.subscribeToChanges.mockReturnValue(mockDisposable);
+      (mockViewStateManager.subscribeToChanges as ReturnType<typeof vi.fn>).mockReturnValue(
+        mockDisposable,
+      );
 
       // Act
       const result1 = viewStateObserver.subscribeToAllChanges('duplicate-id', callback1);
@@ -181,7 +215,9 @@ describe('ViewStateObserver', () => {
       // Arrange
       const callback = vi.fn();
       const mockDisposable = { dispose: vi.fn() };
-      mockViewStateManager.subscribeToChanges.mockReturnValue(mockDisposable);
+      (mockViewStateManager.subscribeToChanges as ReturnType<typeof vi.fn>).mockReturnValue(
+        mockDisposable,
+      );
 
       viewStateObserver.subscribeToAllChanges('test-observer', callback);
 
@@ -206,7 +242,7 @@ describe('ViewStateObserver', () => {
       // Arrange
       const mockDisposable1 = { dispose: vi.fn() };
       const mockDisposable2 = { dispose: vi.fn() };
-      mockViewStateManager.subscribeToChanges
+      (mockViewStateManager.subscribeToChanges as ReturnType<typeof vi.fn>)
         .mockReturnValueOnce(mockDisposable1)
         .mockReturnValueOnce(mockDisposable2);
 
@@ -228,7 +264,9 @@ describe('ViewStateObserver', () => {
     it('should track active observer count correctly', async () => {
       // Arrange
       const mockDisposable = { dispose: vi.fn() };
-      mockViewStateManager.subscribeToChanges.mockReturnValue(mockDisposable);
+      (mockViewStateManager.subscribeToChanges as ReturnType<typeof vi.fn>).mockReturnValue(
+        mockDisposable,
+      );
 
       // Act & Assert
       expect(viewStateObserver.getActiveObserverCount()).toBe(0);
@@ -246,7 +284,9 @@ describe('ViewStateObserver', () => {
     it('should check observer active status correctly', async () => {
       // Arrange
       const mockDisposable = { dispose: vi.fn() };
-      mockViewStateManager.subscribeToChanges.mockReturnValue(mockDisposable);
+      (mockViewStateManager.subscribeToChanges as ReturnType<typeof vi.fn>).mockReturnValue(
+        mockDisposable,
+      );
 
       // Act & Assert
       expect(viewStateObserver.isObserverActive('test-observer')).toBe(false);
@@ -288,7 +328,9 @@ describe('ViewStateObserver', () => {
       // Arrange
       const callback = vi.fn();
       const mockDisposable = { dispose: vi.fn() };
-      mockViewStateManager.subscribeToChanges.mockReturnValue(mockDisposable);
+      (mockViewStateManager.subscribeToChanges as ReturnType<typeof vi.fn>).mockReturnValue(
+        mockDisposable,
+      );
 
       const subscriptionResult = viewStateObserver.subscribeToAllChanges('test-observer', callback);
       expect(subscriptionResult.isOk()).toBe(true);
@@ -307,9 +349,11 @@ describe('ViewStateObserver', () => {
   describe('Error Handling', () => {
     it('should handle ViewStateManager subscription errors', async () => {
       // Arrange
-      mockViewStateManager.subscribeToChanges.mockImplementation(() => {
-        throw new Error('Subscription failed');
-      });
+      (mockViewStateManager.subscribeToChanges as ReturnType<typeof vi.fn>).mockImplementation(
+        () => {
+          throw new Error('Subscription failed');
+        },
+      );
 
       // Act
       const result = viewStateObserver.subscribeToAllChanges('test-observer', vi.fn());

@@ -1160,7 +1160,7 @@ describe('Port Performance and Resilience', () => {
       expect(nullStorageResult.isOk()).toBe(true);
 
       // Test extremely long inputs
-      const longPath = '/test/' + 'a'.repeat(100) + '.txt';
+      const longPath = `/test/${'a'.repeat(100)}.txt`;
       const longPathResult = await fileSystemPort.exists(createFilePath(longPath));
       expect(longPathResult.isOk()).toBe(true);
 
@@ -1204,7 +1204,7 @@ describe('Port Performance and Resilience', () => {
 
       const codeValues = platformErrorCodes
         .filter((code) => code !== null)
-        .map((code) => code!.getValue());
+        .map((code) => code?.getValue());
       expect(
         codeValues.some((codeValue) =>
           ['NOT_SUPPORTED', 'PERMISSION_DENIED', 'PLATFORM_ERROR'].includes(codeValue),

@@ -18,6 +18,9 @@ describe('ProofFileParser', () => {
       const yamlContent = loadFixture('valid-simple.yaml');
       const result = parser.parseProofFile(yamlContent);
 
+      if (result.isErr()) {
+        console.error('Parse errors:', result.error.getAllErrors());
+      }
       expect(result.isOk()).toBe(true);
       if (result.isErr()) return;
 

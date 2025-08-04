@@ -56,6 +56,7 @@ describe('StatementController', () => {
         'stmt-unused': createMockStatement('stmt-unused', 'Unused statement', 0),
       },
       // OrderedSets are handled internally by the domain layer
+      orderedSets: {},
       atomicArguments: {},
       trees: {},
     };

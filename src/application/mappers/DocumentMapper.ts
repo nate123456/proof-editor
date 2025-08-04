@@ -48,6 +48,7 @@ export function documentToDTO(
     createdAt: new Date().toISOString(), // ProofAggregate doesn't track timestamps currently
     modifiedAt: new Date().toISOString(), // ProofAggregate doesn't track timestamps currently
     statements: statementDTOs,
+    orderedSets: {}, // TODO: Implement OrderedSet mapping when domain model supports it
     atomicArguments: atomicArgumentDTOs,
     trees: treeDTOs,
   };

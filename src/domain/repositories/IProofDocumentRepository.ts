@@ -18,8 +18,8 @@ export interface IProofDocumentCommandRepository
 export interface IProofDocumentRepository
   extends IRepository<ProofDocument, ProofDocumentId>,
     IProofDocumentCommandRepository {
-  findByDateRange(from: Date, to: Date): Promise<ProofDocument[]>;
-  count(): Promise<number>;
+  findByDateRange(from: Date, to: Date): Promise<Result<ProofDocument[], RepositoryError>>;
+  count(): Promise<Result<number, RepositoryError>>;
 }
 
 /**

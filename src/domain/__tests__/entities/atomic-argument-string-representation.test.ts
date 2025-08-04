@@ -12,29 +12,25 @@
 import { describe, expect, it } from 'vitest';
 
 import { AtomicArgument, type SideLabels } from '../../entities/AtomicArgument.js';
-import { OrderedSetId } from '../../shared/value-objects/index.js';
-import { orderedSetIdFactory } from '../factories/index.js';
+import { statementFactory } from '../factories/index.js';
 
 describe('String Representation', () => {
   describe('toString method', () => {
     it('should represent complete arguments', () => {
-      const premiseRefResult = OrderedSetId.fromString('premise-set-1');
-      const conclusionRefResult = OrderedSetId.fromString('conclusion-set-1');
+      const premise = statementFactory.build();
+      const conclusion = statementFactory.build();
 
-      expect(premiseRefResult.isOk()).toBe(true);
-      expect(conclusionRefResult.isOk()).toBe(true);
+      const result = AtomicArgument.create([premise], [conclusion]);
+      expect(result.isOk()).toBe(true);
 
-      if (!premiseRefResult.isOk() || !conclusionRefResult.isOk()) return;
+      if (result.isOk()) {
+        const argument = result.value;
+        const stringRep = argument.toString();
 
-      const argument = AtomicArgument.createComplete(
-        premiseRefResult.value,
-        conclusionRefResult.value,
-      );
-      const stringRep = argument.toString();
-
-      expect(stringRep).toContain('premise-set-1');
-      expect(stringRep).toContain('conclusion-set-1');
-      expect(stringRep).toContain('→');
+        expect(stringRep).toContain('premises(1)');
+        expect(stringRep).toContain('conclusions(1)');
+        expect(stringRep).toContain('→');
+      }
     });
 
     it('should represent empty arguments', () => {
@@ -51,76 +47,74 @@ describe('String Representation', () => {
     });
 
     it('should represent partial arguments with premise only', () => {
-      const premiseRefResult = OrderedSetId.fromString('premise-only');
-      expect(premiseRefResult.isOk()).toBe(true);
-      if (!premiseRefResult.isOk()) return;
-
-      const premiseRef = premiseRefResult.value;
-      const result = AtomicArgument.create(premiseRef);
+      const premise = statementFactory.build();
+      const result = AtomicArgument.create([premise], []);
       expect(result.isOk()).toBe(true);
 
       if (result.isOk()) {
         const argument = result.value;
         const stringRep = argument.toString();
 
-        expect(stringRep).toContain('premise-only');
-        expect(stringRep).toContain('empty');
+        expect(stringRep).toContain('premises(1)');
+        expect(stringRep).toContain('conclusions(0)');
         expect(stringRep).toContain('→');
       }
     });
 
     it('should represent partial arguments with conclusion only', () => {
-      const conclusionRefResult = OrderedSetId.fromString('conclusion-only');
-      expect(conclusionRefResult.isOk()).toBe(true);
-      if (!conclusionRefResult.isOk()) return;
-
-      const conclusionRef = conclusionRefResult.value;
-      const result = AtomicArgument.create(undefined, conclusionRef);
+      const conclusion = statementFactory.build();
+      const result = AtomicArgument.create([], [conclusion]);
       expect(result.isOk()).toBe(true);
 
       if (result.isOk()) {
         const argument = result.value;
         const stringRep = argument.toString();
 
-        expect(stringRep).toContain('empty');
-        expect(stringRep).toContain('conclusion-only');
+        expect(stringRep).toContain('premises(0)');
+        expect(stringRep).toContain('conclusions(1)');
         expect(stringRep).toContain('→');
       }
     });
 
     it('should include side labels in string representation', () => {
-      const sideLabels: SideLabels = { left: 'Modus Ponens', right: 'MP' };
-      const argument = AtomicArgument.createComplete(
-        orderedSetIdFactory.build(),
-        orderedSetIdFactory.build(),
-        sideLabels,
-      );
+      const premise = statementFactory.build();
+      const conclusion = statementFactory.build();
+      const result = AtomicArgument.create([premise], [conclusion]);
+      expect(result.isOk()).toBe(true);
 
-      const stringRep = argument.toString();
+      if (result.isOk()) {
+        const argument = result.value;
+        const updateResult = argument.updateSideLabels({ left: 'Modus Ponens', right: 'MP' });
+        expect(updateResult.isOk()).toBe(true);
 
-      // Should include side labels in the representation
-      expect(stringRep).toContain('Modus Ponens');
-      expect(stringRep).toContain('MP');
+        const stringRep = argument.toString();
+
+        // Should include side labels in the representation
+        expect(stringRep).toContain('Modus Ponens');
+        expect(stringRep).toContain('MP');
+      }
     });
 
     it('should handle single side label correctly', () => {
-      const leftOnlyLabels: SideLabels = { left: 'Left Label Only' };
-      const rightOnlyLabels: SideLabels = { right: 'Right Label Only' };
+      const premise = statementFactory.build();
+      const conclusion = statementFactory.build();
 
-      const leftArg = AtomicArgument.createComplete(
-        orderedSetIdFactory.build(),
-        orderedSetIdFactory.build(),
-        leftOnlyLabels,
-      );
+      const leftResult = AtomicArgument.create([premise], [conclusion]);
+      const rightResult = AtomicArgument.create([premise], [conclusion]);
 
-      const rightArg = AtomicArgument.createComplete(
-        orderedSetIdFactory.build(),
-        orderedSetIdFactory.build(),
-        rightOnlyLabels,
-      );
+      expect(leftResult.isOk()).toBe(true);
+      expect(rightResult.isOk()).toBe(true);
 
-      expect(leftArg.toString()).toContain('Left Label Only');
-      expect(rightArg.toString()).toContain('Right Label Only');
+      if (leftResult.isOk() && rightResult.isOk()) {
+        const leftArg = leftResult.value;
+        const rightArg = rightResult.value;
+
+        leftArg.updateSideLabels({ left: 'Left Label Only' });
+        rightArg.updateSideLabels({ right: 'Right Label Only' });
+
+        expect(leftArg.toString()).toContain('Left Label Only');
+        expect(rightArg.toString()).toContain('Right Label Only');
+      }
     });
 
     it('should produce consistent format for bootstrap arguments', () => {
@@ -145,51 +139,56 @@ describe('String Representation', () => {
       }
     });
 
-    it('should handle special characters in IDs correctly', () => {
-      const specialIdResult = OrderedSetId.fromString('special-chars-!@#$%');
-      expect(specialIdResult.isOk()).toBe(true);
-      if (!specialIdResult.isOk()) return;
+    it('should handle arguments with multiple statements', () => {
+      const premises = [statementFactory.build(), statementFactory.build()];
+      const conclusions = [
+        statementFactory.build(),
+        statementFactory.build(),
+        statementFactory.build(),
+      ];
 
-      const result = AtomicArgument.create(specialIdResult.value);
+      const result = AtomicArgument.create(premises, conclusions);
       expect(result.isOk()).toBe(true);
 
       if (result.isOk()) {
         const argument = result.value;
         const stringRep = argument.toString();
 
-        // Should preserve special characters
-        expect(stringRep).toContain('special-chars-!@#$%');
+        // Should show correct counts
+        expect(stringRep).toContain('premises(2)');
+        expect(stringRep).toContain('conclusions(3)');
       }
     });
 
-    it('should format long IDs appropriately', () => {
-      const longId = 'very-long-ordered-set-id-that-might-need-special-handling-in-display';
-      const longIdResult = OrderedSetId.fromString(longId);
-      expect(longIdResult.isOk()).toBe(true);
-      if (!longIdResult.isOk()) return;
+    it('should include argument ID in string representation', () => {
+      const premise = statementFactory.build();
+      const conclusion = statementFactory.build();
 
-      const argument = AtomicArgument.createComplete(
-        longIdResult.value,
-        orderedSetIdFactory.build(),
-      );
+      const result = AtomicArgument.create([premise], [conclusion]);
+      expect(result.isOk()).toBe(true);
 
-      const stringRep = argument.toString();
+      if (result.isOk()) {
+        const argument = result.value;
+        const stringRep = argument.toString();
+        const argId = argument.getId().getValue();
 
-      // Should include the full ID
-      expect(stringRep).toContain(longId);
-      expect(stringRep).toContain('→');
+        // Should include the argument ID
+        expect(stringRep).toContain(`AtomicArgument(${argId})`);
+        expect(stringRep).toContain('→');
+      }
     });
 
     it('should maintain consistent arrow formatting', () => {
       const testCases = [
         AtomicArgument.createBootstrap(),
-        AtomicArgument.create(orderedSetIdFactory.build()),
-        AtomicArgument.create(undefined, orderedSetIdFactory.build()),
-        AtomicArgument.createComplete(orderedSetIdFactory.build(), orderedSetIdFactory.build()),
+        AtomicArgument.create([statementFactory.build()], []),
+        AtomicArgument.create([], [statementFactory.build()]),
+        AtomicArgument.create([statementFactory.build()], [statementFactory.build()]),
       ];
 
-      testCases.forEach((arg) => {
-        const strRep = 'isOk' in arg && arg.isOk() ? arg.value.toString() : arg.toString();
+      testCases.forEach((argOrResult) => {
+        const arg = 'isOk' in argOrResult && argOrResult.isOk() ? argOrResult.value : argOrResult;
+        const strRep = arg.toString();
 
         // All should contain exactly one arrow
         const arrowCount = (strRep.match(/→/g) || []).length;

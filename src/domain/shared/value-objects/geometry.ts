@@ -643,13 +643,13 @@ export class PhysicalProperties {
 
   equals(other: PhysicalProperties): boolean {
     return (
-      this.layoutStyle === other.layoutStyle &&
+      this.layoutStyle.equals(other.layoutStyle) &&
       this.spacingX === other.spacingX &&
       this.spacingY === other.spacingY &&
       this.minWidth === other.minWidth &&
       this.minHeight === other.minHeight &&
-      this.expansionDirection === other.expansionDirection &&
-      this.alignmentMode === other.alignmentMode
+      this.expansionDirection.equals(other.expansionDirection) &&
+      this.alignmentMode.equals(other.alignmentMode)
     );
   }
 

@@ -10,7 +10,6 @@ import type { DocumentQueryService } from '../../application/services/DocumentQu
 import type { ProofApplicationService } from '../../application/services/ProofApplicationService.js';
 import type { ProofVisualizationService } from '../../application/services/ProofVisualizationService.js';
 import type { ViewStateManager } from '../../application/services/ViewStateManager.js';
-import { MessageType } from '../../domain/shared/value-objects/enums.js';
 import { WebviewId } from '../../domain/shared/value-objects/identifiers.js';
 import type { YAMLSerializer } from '../../infrastructure/repositories/yaml/YAMLSerializer.js';
 import type { BootstrapController } from '../../presentation/controllers/BootstrapController.js';
@@ -575,10 +574,10 @@ describe('ProofTreePanel - Panel-Level Accessibility', () => {
       }
 
       await messageHandler({
-        type: 'createArgument',
+        type: 'createArgument' as any,
         premises: [],
         conclusions: ['Test conclusion'],
-      });
+      } as any);
 
       expect(services.mockUIPort.showError).toHaveBeenCalledWith(
         'At least one premise is required',

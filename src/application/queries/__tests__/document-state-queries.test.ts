@@ -8,13 +8,16 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { treeFactory } from '../../../domain/__tests__/factories/index.js';
 import { ProofAggregate } from '../../../domain/aggregates/ProofAggregate.js';
-import { ProofId } from '../../../domain/shared/value-objects/index.js';
+import { ErrorSeverity, ProofId } from '../../../domain/shared/value-objects/index.js';
 import { documentToDTO } from '../../mappers/DocumentMapper.js';
 import type { DocumentDTO, GetDocumentStateQuery } from '../document-queries.js';
 import {
   createMockDocumentService,
+  createTestAtomicArgumentId,
   createTestDocumentDTO,
   createTestDocumentStats,
+  createTestErrorCode,
+  createTestErrorMessage,
 } from './shared/document-test-utilities.js';
 
 describe('GetDocumentStateQuery Execution', () => {
@@ -33,13 +36,7 @@ describe('GetDocumentStateQuery Execution', () => {
     const proofIdResult = ProofId.fromString(query.documentId);
     if (proofIdResult.isErr()) throw proofIdResult.error;
 
-    const proofAggregate = ProofAggregate.reconstruct(
-      proofIdResult.value,
-      new Map(),
-      new Map(),
-      new Map(),
-      1,
-    );
+    const proofAggregate = ProofAggregate.reconstruct(proofIdResult.value, new Map(), new Map(), 1);
     if (proofAggregate.isErr()) throw proofAggregate.error;
 
     const trees = [treeFactory.build()];
@@ -81,17 +78,17 @@ describe('GetDocumentStateQuery Execution', () => {
           isValid: false,
           errors: [
             {
-              code: 'CIRCULAR_DEPENDENCY',
-              message: 'Circular dependency detected in argument chain',
-              severity: 'error',
+              code: createTestErrorCode('CIRCULAR_DEPENDENCY'),
+              message: createTestErrorMessage('Circular dependency detected in argument chain'),
+              severity: ErrorSeverity.ERROR,
               location: {
-                argumentId: 'arg_A',
+                argumentId: createTestAtomicArgumentId('arg_A'),
               },
             },
             {
-              code: 'ORPHANED_STATEMENTS',
-              message: 'Found 2 unused statements',
-              severity: 'warning',
+              code: createTestErrorCode('ORPHANED_STATEMENTS'),
+              message: createTestErrorMessage('Found 2 unused statements'),
+              severity: ErrorSeverity.WARNING,
             },
           ],
         },
@@ -195,9 +192,9 @@ describe('GetDocumentStateQuery Execution', () => {
           isValid: false,
           errors: [
             {
-              code: 'MULTIPLE_CYCLES',
-              message: '3 circular dependencies detected',
-              severity: 'error',
+              code: createTestErrorCode('MULTIPLE_CYCLES'),
+              message: createTestErrorMessage('3 circular dependencies detected'),
+              severity: ErrorSeverity.ERROR,
             },
           ],
         },

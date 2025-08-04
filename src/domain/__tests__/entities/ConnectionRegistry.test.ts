@@ -1,40 +1,40 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { ConnectionRegistry } from '../../entities/ConnectionRegistry.js';
-import { AtomicArgumentId, OrderedSetId } from '../../shared/value-objects/index.js';
+import { AtomicArgumentId, ConnectionType, StatementId } from '../../shared/value-objects/index.js';
 
 describe('ConnectionRegistry', () => {
   let registry: ConnectionRegistry;
   let arg1Id: AtomicArgumentId;
   let arg2Id: AtomicArgumentId;
   let arg3Id: AtomicArgumentId;
-  let orderedSet1Id: OrderedSetId;
-  let orderedSet2Id: OrderedSetId;
+  let statementId1: StatementId;
+  let statementId2: StatementId;
 
   beforeEach(() => {
     registry = new ConnectionRegistry();
     arg1Id = AtomicArgumentId.generate();
     arg2Id = AtomicArgumentId.generate();
     arg3Id = AtomicArgumentId.generate();
-    orderedSet1Id = OrderedSetId.generate();
-    orderedSet2Id = OrderedSetId.generate();
+    statementId1 = StatementId.generate();
+    statementId2 = StatementId.generate();
   });
 
   describe('registerConnection', () => {
     it('should register a new connection successfully', () => {
-      registry.registerConnection(arg1Id, arg2Id, orderedSet1Id, 'provides');
+      registry.registerConnection(arg1Id, arg2Id, statementId1, ConnectionType.PROVIDES);
 
       const connections = registry.findConnectionsFrom(arg1Id);
       expect(connections).toHaveLength(1);
       expect(connections[0]?.from).toEqual(arg1Id);
       expect(connections[0]?.to).toEqual(arg2Id);
-      expect(connections[0]?.via).toEqual(orderedSet1Id);
+      expect(connections[0]?.via).toEqual(statementId1);
       expect(connections[0]?.type).toBe('provides');
     });
 
     it('should register multiple connections from same argument', () => {
-      registry.registerConnection(arg1Id, arg2Id, orderedSet1Id, 'provides');
-      registry.registerConnection(arg1Id, arg3Id, orderedSet2Id, 'consumes');
+      registry.registerConnection(arg1Id, arg2Id, statementId1, ConnectionType.PROVIDES);
+      registry.registerConnection(arg1Id, arg3Id, statementId2, ConnectionType.CONSUMES);
 
       const connections = registry.findConnectionsFrom(arg1Id);
       expect(connections).toHaveLength(2);
@@ -45,27 +45,27 @@ describe('ConnectionRegistry', () => {
       expect(connection1).toBeDefined();
       expect(connection2).toBeDefined();
       expect(connection1?.type).toBe('provides');
-      expect(connection2?.type).toBe('consumes');
+      expect(connection2?.type).toBe(ConnectionType.CONSUMES);
     });
 
     it('should handle provides connection type', () => {
-      registry.registerConnection(arg1Id, arg2Id, orderedSet1Id, 'provides');
+      registry.registerConnection(arg1Id, arg2Id, statementId1, ConnectionType.PROVIDES);
 
       const connections = registry.findConnectionsFrom(arg1Id);
       expect(connections[0]?.type).toBe('provides');
     });
 
     it('should handle consumes connection type', () => {
-      registry.registerConnection(arg1Id, arg2Id, orderedSet1Id, 'consumes');
+      registry.registerConnection(arg1Id, arg2Id, statementId1, ConnectionType.CONSUMES);
 
       const connections = registry.findConnectionsFrom(arg1Id);
-      expect(connections[0]?.type).toBe('consumes');
+      expect(connections[0]?.type).toBe(ConnectionType.CONSUMES);
     });
 
     it('should create connection list for new argument', () => {
       expect(registry.findConnectionsFrom(arg1Id)).toHaveLength(0);
 
-      registry.registerConnection(arg1Id, arg2Id, orderedSet1Id, 'provides');
+      registry.registerConnection(arg1Id, arg2Id, statementId1, ConnectionType.PROVIDES);
 
       expect(registry.findConnectionsFrom(arg1Id)).toHaveLength(1);
     });
@@ -78,16 +78,16 @@ describe('ConnectionRegistry', () => {
     });
 
     it('should return all connections from a specific argument', () => {
-      registry.registerConnection(arg1Id, arg2Id, orderedSet1Id, 'provides');
-      registry.registerConnection(arg1Id, arg3Id, orderedSet2Id, 'consumes');
+      registry.registerConnection(arg1Id, arg2Id, statementId1, ConnectionType.PROVIDES);
+      registry.registerConnection(arg1Id, arg3Id, statementId2, ConnectionType.CONSUMES);
 
       const connections = registry.findConnectionsFrom(arg1Id);
       expect(connections).toHaveLength(2);
     });
 
     it('should not return connections from other arguments', () => {
-      registry.registerConnection(arg1Id, arg2Id, orderedSet1Id, 'provides');
-      registry.registerConnection(arg2Id, arg3Id, orderedSet2Id, 'consumes');
+      registry.registerConnection(arg1Id, arg2Id, statementId1, ConnectionType.PROVIDES);
+      registry.registerConnection(arg2Id, arg3Id, statementId2, ConnectionType.CONSUMES);
 
       const connectionsFromArg1 = registry.findConnectionsFrom(arg1Id);
       expect(connectionsFromArg1).toHaveLength(1);
@@ -102,8 +102,8 @@ describe('ConnectionRegistry', () => {
     });
 
     it('should return all connections to a specific argument', () => {
-      registry.registerConnection(arg1Id, arg3Id, orderedSet1Id, 'provides');
-      registry.registerConnection(arg2Id, arg3Id, orderedSet2Id, 'consumes');
+      registry.registerConnection(arg1Id, arg3Id, statementId1, ConnectionType.PROVIDES);
+      registry.registerConnection(arg2Id, arg3Id, statementId2, ConnectionType.CONSUMES);
 
       const connections = registry.findConnectionsTo(arg3Id);
       expect(connections).toHaveLength(2);
@@ -116,8 +116,8 @@ describe('ConnectionRegistry', () => {
     });
 
     it('should not return connections to other arguments', () => {
-      registry.registerConnection(arg1Id, arg2Id, orderedSet1Id, 'provides');
-      registry.registerConnection(arg1Id, arg3Id, orderedSet2Id, 'consumes');
+      registry.registerConnection(arg1Id, arg2Id, statementId1, ConnectionType.PROVIDES);
+      registry.registerConnection(arg1Id, arg3Id, statementId2, ConnectionType.CONSUMES);
 
       const connectionsToArg2 = registry.findConnectionsTo(arg2Id);
       expect(connectionsToArg2).toHaveLength(1);
@@ -125,36 +125,36 @@ describe('ConnectionRegistry', () => {
     });
   });
 
-  describe('areDirectlyConnected', () => {
+  describe('isDirectlyConnected', () => {
     it('should return true for directly connected arguments (forward direction)', () => {
-      registry.registerConnection(arg1Id, arg2Id, orderedSet1Id, 'provides');
+      registry.registerConnection(arg1Id, arg2Id, statementId1, ConnectionType.PROVIDES);
 
-      expect(registry.areDirectlyConnected(arg1Id, arg2Id)).toBe(true);
+      expect(registry.isDirectlyConnected(arg1Id, arg2Id)).toBe(true);
     });
 
     it('should return true for directly connected arguments (reverse direction)', () => {
-      registry.registerConnection(arg1Id, arg2Id, orderedSet1Id, 'provides');
+      registry.registerConnection(arg1Id, arg2Id, statementId1, ConnectionType.PROVIDES);
 
-      expect(registry.areDirectlyConnected(arg2Id, arg1Id)).toBe(true);
+      expect(registry.isDirectlyConnected(arg2Id, arg1Id)).toBe(true);
     });
 
     it('should return false for not connected arguments', () => {
-      registry.registerConnection(arg1Id, arg2Id, orderedSet1Id, 'provides');
+      registry.registerConnection(arg1Id, arg2Id, statementId1, ConnectionType.PROVIDES);
 
-      expect(registry.areDirectlyConnected(arg1Id, arg3Id)).toBe(false);
-      expect(registry.areDirectlyConnected(arg3Id, arg1Id)).toBe(false);
+      expect(registry.isDirectlyConnected(arg1Id, arg3Id)).toBe(false);
+      expect(registry.isDirectlyConnected(arg3Id, arg1Id)).toBe(false);
     });
 
     it('should return false for empty registry', () => {
-      expect(registry.areDirectlyConnected(arg1Id, arg2Id)).toBe(false);
+      expect(registry.isDirectlyConnected(arg1Id, arg2Id)).toBe(false);
     });
 
     it('should handle bidirectional connections correctly', () => {
-      registry.registerConnection(arg1Id, arg2Id, orderedSet1Id, 'provides');
-      registry.registerConnection(arg2Id, arg1Id, orderedSet2Id, 'consumes');
+      registry.registerConnection(arg1Id, arg2Id, statementId1, ConnectionType.PROVIDES);
+      registry.registerConnection(arg2Id, arg1Id, statementId2, ConnectionType.CONSUMES);
 
-      expect(registry.areDirectlyConnected(arg1Id, arg2Id)).toBe(true);
-      expect(registry.areDirectlyConnected(arg2Id, arg1Id)).toBe(true);
+      expect(registry.isDirectlyConnected(arg1Id, arg2Id)).toBe(true);
+      expect(registry.isDirectlyConnected(arg2Id, arg1Id)).toBe(true);
     });
   });
 
@@ -164,20 +164,20 @@ describe('ConnectionRegistry', () => {
     });
 
     it('should return true for argument with outgoing connections', () => {
-      registry.registerConnection(arg1Id, arg2Id, orderedSet1Id, 'provides');
+      registry.registerConnection(arg1Id, arg2Id, statementId1, ConnectionType.PROVIDES);
 
       expect(registry.hasConnections(arg1Id)).toBe(true);
     });
 
     it('should return true for argument with incoming connections', () => {
-      registry.registerConnection(arg1Id, arg2Id, orderedSet1Id, 'provides');
+      registry.registerConnection(arg1Id, arg2Id, statementId1, ConnectionType.PROVIDES);
 
       expect(registry.hasConnections(arg2Id)).toBe(true);
     });
 
     it('should return true for argument with both incoming and outgoing connections', () => {
-      registry.registerConnection(arg1Id, arg2Id, orderedSet1Id, 'provides');
-      registry.registerConnection(arg2Id, arg3Id, orderedSet2Id, 'consumes');
+      registry.registerConnection(arg1Id, arg2Id, statementId1, ConnectionType.PROVIDES);
+      registry.registerConnection(arg2Id, arg3Id, statementId2, ConnectionType.CONSUMES);
 
       expect(registry.hasConnections(arg2Id)).toBe(true);
     });
@@ -185,9 +185,9 @@ describe('ConnectionRegistry', () => {
 
   describe('removeConnectionsFor', () => {
     beforeEach(() => {
-      registry.registerConnection(arg1Id, arg2Id, orderedSet1Id, 'provides');
-      registry.registerConnection(arg2Id, arg3Id, orderedSet2Id, 'consumes');
-      registry.registerConnection(arg1Id, arg3Id, orderedSet1Id, 'provides');
+      registry.registerConnection(arg1Id, arg2Id, statementId1, ConnectionType.PROVIDES);
+      registry.registerConnection(arg2Id, arg3Id, statementId2, ConnectionType.CONSUMES);
+      registry.registerConnection(arg1Id, arg3Id, statementId1, ConnectionType.PROVIDES);
     });
 
     it('should remove all outgoing connections for an argument', () => {
@@ -249,8 +249,8 @@ describe('ConnectionRegistry', () => {
     });
 
     it('should return connected component for connected arguments', () => {
-      registry.registerConnection(arg1Id, arg2Id, orderedSet1Id, 'provides');
-      registry.registerConnection(arg2Id, arg3Id, orderedSet2Id, 'consumes');
+      registry.registerConnection(arg1Id, arg2Id, statementId1, ConnectionType.PROVIDES);
+      registry.registerConnection(arg2Id, arg3Id, statementId2, ConnectionType.CONSUMES);
 
       const result = registry.getConnectedComponent(arg1Id);
 
@@ -266,9 +266,9 @@ describe('ConnectionRegistry', () => {
     });
 
     it('should handle cyclic connections without infinite loop', () => {
-      registry.registerConnection(arg1Id, arg2Id, orderedSet1Id, 'provides');
-      registry.registerConnection(arg2Id, arg3Id, orderedSet2Id, 'consumes');
-      registry.registerConnection(arg3Id, arg1Id, orderedSet1Id, 'provides');
+      registry.registerConnection(arg1Id, arg2Id, statementId1, ConnectionType.PROVIDES);
+      registry.registerConnection(arg2Id, arg3Id, statementId2, ConnectionType.CONSUMES);
+      registry.registerConnection(arg3Id, arg1Id, statementId1, ConnectionType.PROVIDES);
 
       const result = registry.getConnectedComponent(arg1Id);
 
@@ -279,8 +279,8 @@ describe('ConnectionRegistry', () => {
     });
 
     it('should return same component regardless of starting argument', () => {
-      registry.registerConnection(arg1Id, arg2Id, orderedSet1Id, 'provides');
-      registry.registerConnection(arg2Id, arg3Id, orderedSet2Id, 'consumes');
+      registry.registerConnection(arg1Id, arg2Id, statementId1, ConnectionType.PROVIDES);
+      registry.registerConnection(arg2Id, arg3Id, statementId2, ConnectionType.CONSUMES);
 
       const componentFromArg1 = registry.getConnectedComponent(arg1Id);
       const componentFromArg2 = registry.getConnectedComponent(arg2Id);
@@ -298,8 +298,8 @@ describe('ConnectionRegistry', () => {
     });
 
     it('should handle bidirectional connections', () => {
-      registry.registerConnection(arg1Id, arg2Id, orderedSet1Id, 'provides');
-      registry.registerConnection(arg2Id, arg1Id, orderedSet2Id, 'consumes');
+      registry.registerConnection(arg1Id, arg2Id, statementId1, ConnectionType.PROVIDES);
+      registry.registerConnection(arg2Id, arg1Id, statementId2, ConnectionType.CONSUMES);
 
       const result = registry.getConnectedComponent(arg1Id);
 
@@ -321,8 +321,8 @@ describe('ConnectionRegistry', () => {
 
   describe('clear', () => {
     it('should remove all connections', () => {
-      registry.registerConnection(arg1Id, arg2Id, orderedSet1Id, 'provides');
-      registry.registerConnection(arg2Id, arg3Id, orderedSet2Id, 'consumes');
+      registry.registerConnection(arg1Id, arg2Id, statementId1, ConnectionType.PROVIDES);
+      registry.registerConnection(arg2Id, arg3Id, statementId2, ConnectionType.CONSUMES);
 
       registry.clear();
 
@@ -334,10 +334,10 @@ describe('ConnectionRegistry', () => {
     });
 
     it('should allow new connections after clear', () => {
-      registry.registerConnection(arg1Id, arg2Id, orderedSet1Id, 'provides');
+      registry.registerConnection(arg1Id, arg2Id, statementId1, ConnectionType.PROVIDES);
       registry.clear();
 
-      registry.registerConnection(arg2Id, arg3Id, orderedSet2Id, 'consumes');
+      registry.registerConnection(arg2Id, arg3Id, statementId2, ConnectionType.CONSUMES);
 
       expect(registry.findConnectionsFrom(arg2Id)).toHaveLength(1);
       expect(registry.getConnectionCount()).toBe(1);
@@ -350,22 +350,22 @@ describe('ConnectionRegistry', () => {
     });
 
     it('should return correct count for single connection', () => {
-      registry.registerConnection(arg1Id, arg2Id, orderedSet1Id, 'provides');
+      registry.registerConnection(arg1Id, arg2Id, statementId1, ConnectionType.PROVIDES);
 
       expect(registry.getConnectionCount()).toBe(1);
     });
 
     it('should return correct count for multiple connections', () => {
-      registry.registerConnection(arg1Id, arg2Id, orderedSet1Id, 'provides');
-      registry.registerConnection(arg2Id, arg3Id, orderedSet2Id, 'consumes');
-      registry.registerConnection(arg1Id, arg3Id, orderedSet1Id, 'provides');
+      registry.registerConnection(arg1Id, arg2Id, statementId1, ConnectionType.PROVIDES);
+      registry.registerConnection(arg2Id, arg3Id, statementId2, ConnectionType.CONSUMES);
+      registry.registerConnection(arg1Id, arg3Id, statementId1, ConnectionType.PROVIDES);
 
       expect(registry.getConnectionCount()).toBe(3);
     });
 
     it('should update count correctly after removing connections', () => {
-      registry.registerConnection(arg1Id, arg2Id, orderedSet1Id, 'provides');
-      registry.registerConnection(arg2Id, arg3Id, orderedSet2Id, 'consumes');
+      registry.registerConnection(arg1Id, arg2Id, statementId1, ConnectionType.PROVIDES);
+      registry.registerConnection(arg2Id, arg3Id, statementId2, ConnectionType.CONSUMES);
 
       expect(registry.getConnectionCount()).toBe(2);
 
@@ -375,8 +375,8 @@ describe('ConnectionRegistry', () => {
     });
 
     it('should return zero after clear', () => {
-      registry.registerConnection(arg1Id, arg2Id, orderedSet1Id, 'provides');
-      registry.registerConnection(arg2Id, arg3Id, orderedSet2Id, 'consumes');
+      registry.registerConnection(arg1Id, arg2Id, statementId1, ConnectionType.PROVIDES);
+      registry.registerConnection(arg2Id, arg3Id, statementId2, ConnectionType.CONSUMES);
 
       registry.clear();
 
@@ -388,13 +388,13 @@ describe('ConnectionRegistry', () => {
     it('should handle complex connection network', () => {
       // Create a diamond-shaped connection pattern
       const arg4Id = AtomicArgumentId.generate();
-      const orderedSet3Id = OrderedSetId.generate();
-      const orderedSet4Id = OrderedSetId.generate();
+      const statementId3 = StatementId.generate();
+      const statementId4 = StatementId.generate();
 
-      registry.registerConnection(arg1Id, arg2Id, orderedSet1Id, 'provides');
-      registry.registerConnection(arg1Id, arg3Id, orderedSet2Id, 'provides');
-      registry.registerConnection(arg2Id, arg4Id, orderedSet3Id, 'consumes');
-      registry.registerConnection(arg3Id, arg4Id, orderedSet4Id, 'consumes');
+      registry.registerConnection(arg1Id, arg2Id, statementId1, ConnectionType.PROVIDES);
+      registry.registerConnection(arg1Id, arg3Id, statementId2, ConnectionType.PROVIDES);
+      registry.registerConnection(arg2Id, arg4Id, statementId3, ConnectionType.CONSUMES);
+      registry.registerConnection(arg3Id, arg4Id, statementId4, ConnectionType.CONSUMES);
 
       const component = registry.getConnectedComponent(arg1Id);
       expect(component.isOk()).toBe(true);
@@ -402,18 +402,18 @@ describe('ConnectionRegistry', () => {
         expect(component.value).toHaveLength(4);
       }
 
-      expect(registry.areDirectlyConnected(arg1Id, arg2Id)).toBe(true);
-      expect(registry.areDirectlyConnected(arg1Id, arg3Id)).toBe(true);
-      expect(registry.areDirectlyConnected(arg2Id, arg4Id)).toBe(true);
-      expect(registry.areDirectlyConnected(arg3Id, arg4Id)).toBe(true);
-      expect(registry.areDirectlyConnected(arg1Id, arg4Id)).toBe(false);
+      expect(registry.isDirectlyConnected(arg1Id, arg2Id)).toBe(true);
+      expect(registry.isDirectlyConnected(arg1Id, arg3Id)).toBe(true);
+      expect(registry.isDirectlyConnected(arg2Id, arg4Id)).toBe(true);
+      expect(registry.isDirectlyConnected(arg3Id, arg4Id)).toBe(true);
+      expect(registry.isDirectlyConnected(arg1Id, arg4Id)).toBe(false);
 
       expect(registry.getConnectionCount()).toBe(4);
     });
 
     it('should handle same arguments with different ordered sets', () => {
-      registry.registerConnection(arg1Id, arg2Id, orderedSet1Id, 'provides');
-      registry.registerConnection(arg1Id, arg2Id, orderedSet2Id, 'consumes');
+      registry.registerConnection(arg1Id, arg2Id, statementId1, ConnectionType.PROVIDES);
+      registry.registerConnection(arg1Id, arg2Id, statementId2, ConnectionType.CONSUMES);
 
       const connections = registry.findConnectionsFrom(arg1Id);
       expect(connections).toHaveLength(2);
@@ -423,9 +423,9 @@ describe('ConnectionRegistry', () => {
     it('should maintain connection integrity during partial removal', () => {
       const arg4Id = AtomicArgumentId.generate();
 
-      registry.registerConnection(arg1Id, arg2Id, orderedSet1Id, 'provides');
-      registry.registerConnection(arg2Id, arg3Id, orderedSet2Id, 'consumes');
-      registry.registerConnection(arg3Id, arg4Id, orderedSet1Id, 'provides');
+      registry.registerConnection(arg1Id, arg2Id, statementId1, ConnectionType.PROVIDES);
+      registry.registerConnection(arg2Id, arg3Id, statementId2, ConnectionType.CONSUMES);
+      registry.registerConnection(arg3Id, arg4Id, statementId1, ConnectionType.PROVIDES);
 
       // Remove middle argument
       registry.removeConnectionsFor(arg2Id);

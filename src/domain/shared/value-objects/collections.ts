@@ -93,7 +93,10 @@ export class StatementCollection {
       return false;
     }
 
-    return this.statements.every((statement, index) => statement.equals(other.statements[index]));
+    return this.statements.every((statement, index) => {
+      const otherStatement = other.statements[index];
+      return otherStatement !== undefined && statement.equals(otherStatement);
+    });
   }
 }
 
@@ -162,7 +165,10 @@ export class ArgumentIdCollection {
       return false;
     }
 
-    return this.argumentIds.every((id, index) => id.equals(other.argumentIds[index]));
+    return this.argumentIds.every((id, index) => {
+      const otherId = other.argumentIds[index];
+      return otherId !== undefined && id.equals(otherId);
+    });
   }
 }
 
@@ -597,11 +603,11 @@ export class ArgumentPath {
     return this.argumentIds.some((id) => id.equals(argumentId));
   }
 
-  getFirst(): AtomicArgumentId {
+  getFirst(): AtomicArgumentId | undefined {
     return this.argumentIds[0];
   }
 
-  getLast(): AtomicArgumentId {
+  getLast(): AtomicArgumentId | undefined {
     return this.argumentIds[this.argumentIds.length - 1];
   }
 
@@ -626,7 +632,10 @@ export class ArgumentPath {
       return false;
     }
 
-    return this.argumentIds.every((id, index) => id.equals(other.argumentIds[index]));
+    return this.argumentIds.every((id, index) => {
+      const otherId = other.argumentIds[index];
+      return otherId !== undefined && id.equals(otherId);
+    });
   }
 
   toString(): string {

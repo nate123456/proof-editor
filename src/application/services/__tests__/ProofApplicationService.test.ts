@@ -1,5 +1,6 @@
 import { err, ok } from 'neverthrow';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
+import { createTestStatementContent } from '../../../domain/__tests__/value-object-test-helpers.js';
 import { ProofDocument } from '../../../domain/aggregates/ProofDocument.js';
 import { RepositoryError } from '../../../domain/errors/DomainErrors.js';
 import type { DomainEvent } from '../../../domain/events/base-event.js';
@@ -132,21 +133,13 @@ describe('ProofApplicationService Event Integration', () => {
         () =>
           service.createStatement({
             documentId: validDocumentId,
-            content: (() => {
-              const result = StatementContent.create('test');
-              if (result.isErr()) throw new Error('Failed to create content');
-              return result.value;
-            })(),
+            content: 'test',
           }),
         () =>
           service.updateStatement({
             documentId: validDocumentId,
             statementId: 'stmt1',
-            content: (() => {
-              const result = StatementContent.create('test');
-              if (result.isErr()) throw new Error('Failed to create content');
-              return result.value;
-            })(),
+            content: 'test',
           }),
         () => service.deleteStatement({ documentId: validDocumentId, statementId: 'stmt1' }),
         () =>
@@ -184,7 +177,9 @@ describe('ProofApplicationService Event Integration', () => {
       const documentId = 'test-doc';
 
       // Create test statement and argument for operations that need them
-      const statementResult = document.createStatement('Test statement');
+      const statementResult = document.createStatement(
+        createTestStatementContent('Test statement'),
+      );
       const argumentResult = document.createAtomicArgument([], []);
       expect(statementResult.isOk()).toBe(true);
       expect(argumentResult.isOk()).toBe(true);
@@ -201,21 +196,13 @@ describe('ProofApplicationService Event Integration', () => {
         () =>
           service.createStatement({
             documentId,
-            content: (() => {
-              const result = StatementContent.create('new statement');
-              if (result.isErr()) throw new Error('Failed to create content');
-              return result.value;
-            })(),
+            content: 'new statement',
           }),
         () =>
           service.updateStatement({
             documentId,
             statementId,
-            content: (() => {
-              const result = StatementContent.create('updated');
-              if (result.isErr()) throw new Error('Failed to create content');
-              return result.value;
-            })(),
+            content: 'updated',
           }),
         () => service.deleteStatement({ documentId, statementId }),
         () =>
@@ -427,9 +414,9 @@ describe('ProofApplicationService Event Integration', () => {
       const documentResult = ProofDocument.createBootstrap(docIdResult.value);
       if (documentResult.isErr()) throw new Error('Failed to create test document');
       const document = documentResult.value;
-      const contentResult = StatementContent.create('Original content');
-      if (contentResult.isErr()) throw new Error('Failed to create content');
-      const statementResult = document.createStatement(contentResult.value);
+      const originalContent = StatementContent.create('Original content');
+      if (originalContent.isErr()) throw new Error('Failed to create content');
+      const statementResult = document.createStatement(originalContent.value);
       expect(statementResult.isOk()).toBe(true);
       if (!statementResult.isOk()) return;
 
@@ -460,7 +447,7 @@ describe('ProofApplicationService Event Integration', () => {
     test('handles domain operation failure in deleteStatement', async () => {
       // Arrange
       const document = createTestProofDocument();
-      const statementResult = document.createStatement('To be deleted');
+      const statementResult = document.createStatement(createTestStatementContent('To be deleted'));
       expect(statementResult.isOk()).toBe(true);
       if (!statementResult.isOk()) return;
 
@@ -504,11 +491,9 @@ describe('ProofApplicationService Event Integration', () => {
       );
 
       // Act
-      const contentResult = StatementContent.create('Valid content');
-      if (contentResult.isErr()) throw new Error('Failed to create content');
       const result = await service.createStatement({
         documentId,
-        content: contentResult.value,
+        content: 'Valid content',
       });
 
       // Assert
@@ -523,9 +508,9 @@ describe('ProofApplicationService Event Integration', () => {
     test('publishes events after successful update', async () => {
       // Arrange
       const document = createTestProofDocument();
-      const contentResult = StatementContent.create('Original content');
-      if (contentResult.isErr()) throw new Error('Failed to create content');
-      const statementResult = document.createStatement(contentResult.value);
+      const originalContent = StatementContent.create('Original content');
+      if (originalContent.isErr()) throw new Error('Failed to create content');
+      const statementResult = document.createStatement(originalContent.value);
       expect(statementResult.isOk()).toBe(true);
       if (!statementResult.isOk()) return;
 
@@ -545,12 +530,10 @@ describe('ProofApplicationService Event Integration', () => {
       });
 
       // Act
-      const contentResult = StatementContent.create('Updated content');
-      if (contentResult.isErr()) throw new Error('Failed to create content');
       const result = await service.updateStatement({
         documentId,
         statementId,
-        content: contentResult.value,
+        content: 'Updated content',
       });
 
       // Assert
@@ -566,7 +549,9 @@ describe('ProofApplicationService Event Integration', () => {
     test('returns error if statement is in use', async () => {
       // Arrange
       const document = createTestProofDocument();
-      const statementResult = document.createStatement('Used statement');
+      const statementResult = document.createStatement(
+        createTestStatementContent('Used statement'),
+      );
       expect(statementResult.isOk()).toBe(true);
       if (!statementResult.isOk()) return;
 
@@ -586,12 +571,10 @@ describe('ProofApplicationService Event Integration', () => {
       vi.mocked(mockRepository.findById).mockResolvedValue(ok(document));
 
       // Act
-      const contentResult = StatementContent.create('Updated content');
-      if (contentResult.isErr()) throw new Error('Failed to create content');
       const result = await service.updateStatement({
         documentId,
         statementId,
-        content: contentResult.value,
+        content: 'Updated content',
       });
 
       // Assert
@@ -606,7 +589,7 @@ describe('ProofApplicationService Event Integration', () => {
     test('publishes events after successful deletion', async () => {
       // Arrange
       const document = createTestProofDocument();
-      const statementResult = document.createStatement('To be deleted');
+      const statementResult = document.createStatement(createTestStatementContent('To be deleted'));
       expect(statementResult.isOk()).toBe(true);
       if (!statementResult.isOk()) return;
 
@@ -643,7 +626,9 @@ describe('ProofApplicationService Event Integration', () => {
     test('returns error if statement is in use', async () => {
       // Arrange
       const document = createTestProofDocument();
-      const statementResult = document.createStatement('Used statement');
+      const statementResult = document.createStatement(
+        createTestStatementContent('Used statement'),
+      );
       expect(statementResult.isOk()).toBe(true);
       if (!statementResult.isOk()) return;
 
@@ -715,8 +700,8 @@ describe('ProofApplicationService Event Integration', () => {
     test('creates OrderedSets and argument with statements', async () => {
       // Arrange
       const document = createTestProofDocument();
-      const statement1Result = document.createStatement('Premise 1');
-      const statement2Result = document.createStatement('Conclusion 1');
+      const statement1Result = document.createStatement(createTestStatementContent('Premise 1'));
+      const statement2Result = document.createStatement(createTestStatementContent('Conclusion 1'));
       expect(statement1Result.isOk()).toBe(true);
       expect(statement2Result.isOk()).toBe(true);
       if (!statement1Result.isOk() || !statement2Result.isOk())
@@ -843,7 +828,9 @@ describe('ProofApplicationService Event Integration', () => {
     test('returns error if premise OrderedSet creation fails', async () => {
       // Arrange
       const document = createTestProofDocument();
-      const statementResult = document.createStatement('Test statement');
+      const statementResult = document.createStatement(
+        createTestStatementContent('Test statement'),
+      );
       expect(statementResult.isOk()).toBe(true);
       if (!statementResult.isOk()) return;
 
@@ -874,7 +861,9 @@ describe('ProofApplicationService Event Integration', () => {
     test('returns error if conclusion OrderedSet creation fails', async () => {
       // Arrange
       const document = createTestProofDocument();
-      const statementResult = document.createStatement('Test statement');
+      const statementResult = document.createStatement(
+        createTestStatementContent('Test statement'),
+      );
       expect(statementResult.isOk()).toBe(true);
       if (!statementResult.isOk()) return;
 
@@ -1009,7 +998,7 @@ describe('ProofApplicationService Event Integration', () => {
       expect(argumentResult.isOk()).toBe(true);
       if (!argumentResult.isOk()) return;
 
-      const statement1Result = document.createStatement('New premise');
+      const statement1Result = document.createStatement(createTestStatementContent('New premise'));
       expect(statement1Result.isOk()).toBe(true);
       if (!statement1Result.isOk()) return;
 

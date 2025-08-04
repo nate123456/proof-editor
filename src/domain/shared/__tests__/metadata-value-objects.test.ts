@@ -13,7 +13,7 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 
-import { Attachment, NodeId, Timestamp, Version } from '../value-objects.js';
+import { Attachment, NodeId, Timestamp, Version } from '../value-objects/index.js';
 
 describe('Metadata Value Objects', () => {
   describe('Version', () => {

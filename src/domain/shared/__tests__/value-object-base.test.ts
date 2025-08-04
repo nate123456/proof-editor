@@ -13,11 +13,21 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 
-import { OrderedSetId, Position2D, StatementId, ValueObject, Version } from '../value-objects.js';
+import {
+  OrderedSetId,
+  Position2D,
+  StatementId,
+  ValueObject,
+  Version,
+} from '../value-objects/index.js';
 
 describe('ValueObject Base Class', () => {
   // Create a concrete implementation for testing
-  class TestValueObject extends ValueObject<string> {}
+  class TestValueObject extends ValueObject<string> {
+    constructor(value: string) {
+      super(value);
+    }
+  }
 
   describe('equals method', () => {
     it('should return true for same values', () => {

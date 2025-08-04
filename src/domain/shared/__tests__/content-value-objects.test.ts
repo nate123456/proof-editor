@@ -6,7 +6,7 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 
-import { StatementContent, Timestamp, Version } from '../value-objects.js';
+import { StatementContent, Timestamp, Version } from '../value-objects/index.js';
 
 const emptyOrWhitespaceArbitrary = fc.oneof(
   fc.constant(''),

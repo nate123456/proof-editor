@@ -12,6 +12,7 @@ import {
   orderedSetIdFactory,
   statementFactory,
 } from '../../../domain/__tests__/factories/index.js';
+import { OrderedSet } from '../../../domain/entities/OrderedSet.js';
 import { Statement } from '../../../domain/entities/Statement.js';
 import { StatementId } from '../../../domain/shared/value-objects/index.js';
 import { statementToDTO } from '../../mappers/StatementMapper.js';
@@ -112,10 +113,12 @@ describe('Statement Query Execution Tests', () => {
       };
 
       const statement = statementFactory.build();
-      const orderedSets = [
-        orderedSetFactory.transient({ statementIds: [statement.getId()] }).build(),
-        orderedSetFactory.transient({ statementIds: [statement.getId()] }).build(),
-      ];
+      const orderedSetResult1 = OrderedSet.create([statement.getId()]);
+      const orderedSetResult2 = OrderedSet.create([statement.getId()]);
+      const orderedSets =
+        orderedSetResult1.isOk() && orderedSetResult2.isOk()
+          ? [orderedSetResult1.value, orderedSetResult2.value]
+          : [];
 
       mockRepositories.statementRepository.findById.mockResolvedValue(statement);
       mockRepositories.orderedSetRepository.findByStatementId.mockResolvedValue(orderedSets);
@@ -318,12 +321,14 @@ describe('Statement Query Execution Tests', () => {
       };
 
       const statement = statementFactory.build();
+      const orderedSetId1 = orderedSetIdFactory.build();
       const orderedSet1 = {
-        getId: () => ({ getValue: () => orderedSetIdFactory.build() }),
+        getId: () => ({ getValue: () => orderedSetId1.getValue() }),
         statementIds: [statement.getId()],
       };
+      const orderedSetId2 = orderedSetIdFactory.build();
       const orderedSet2 = {
-        getId: () => ({ getValue: () => orderedSetIdFactory.build() }),
+        getId: () => ({ getValue: () => orderedSetId2.getValue() }),
         statementIds: [statement.getId()],
       };
 

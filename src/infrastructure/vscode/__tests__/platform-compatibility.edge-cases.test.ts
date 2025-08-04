@@ -18,6 +18,21 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as vscode from 'vscode';
 import type { StoredDocument } from '../../../application/ports/IFileSystemPort.js';
 import { NotificationMessage } from '../../../domain/shared/value-objects/index.js';
+import {
+  createTestActionLabel,
+  createTestDialogPrompt,
+  createTestDialogTitle,
+  createTestDocumentContent,
+  createTestDocumentId,
+  createTestDocumentVersion,
+  createTestErrorMessage,
+  createTestFilePath,
+  createTestFileSize,
+  createTestTimestamp,
+  createTestTitle,
+  createTestViewType,
+  createTestWebviewId,
+} from '../../__tests__/test-helpers.js';
 import { VSCodeFileSystemAdapter } from '../VSCodeFileSystemAdapter.js';
 import { VSCodeUIAdapter } from '../VSCodeUIAdapter.js';
 
@@ -71,10 +86,13 @@ vi.mock('vscode', () => {
         delete: vi.fn(),
         readDirectory: vi.fn(),
         createDirectory: vi.fn(),
+        rename: vi.fn(),
+        copy: vi.fn(),
+        isWritableFileSystem: vi.fn().mockReturnValue(true),
       },
       createFileSystemWatcher: vi.fn(),
       workspaceFolders: undefined,
-    },
+    } as any,
     window: {
       showInputBox: vi.fn(),
       showQuickPick: vi.fn(),
@@ -135,10 +153,13 @@ describe('Platform Compatibility Edge Cases', () => {
         delete: vi.fn(),
         readDirectory: vi.fn(),
         createDirectory: vi.fn(),
+        rename: vi.fn(),
+        copy: vi.fn(),
+        isWritableFileSystem: vi.fn().mockReturnValue(true),
       },
       createFileSystemWatcher: vi.fn(),
       workspaceFolders: undefined,
-    };
+    } as any;
 
     mockVscode.window = {
       showInputBox: vi.fn(),
@@ -153,7 +174,7 @@ describe('Platform Compatibility Edge Cases', () => {
       createWebviewPanel: vi.fn(),
       activeColorTheme: { kind: 1 },
       onDidChangeActiveColorTheme: vi.fn(),
-    };
+    } as any;
 
     mockVscode.Uri = {
       file: vi.fn().mockImplementation((path: string) => ({
@@ -169,7 +190,9 @@ describe('Platform Compatibility Edge Cases', () => {
         toString: () => `file://${base.fsPath}/${segments.join('/')}`,
       })),
       parse: vi.fn(),
-    };
+      from: vi.fn(),
+      prototype: {},
+    } as any;
 
     mockGlobalState = {
       get: vi.fn().mockReturnValue({}),
@@ -206,13 +229,13 @@ describe('Platform Compatibility Edge Cases', () => {
       });
 
       const result = await uiAdapter.showInputBox({
-        title: 'New Feature', // This might not exist in 1.74.0
-        prompt: 'Enter value',
+        title: createTestDialogTitle('New Feature'), // This might not exist in 1.74.0
+        prompt: createTestDialogPrompt('Enter value'),
       });
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.message).toContain('not supported in VS Code 1.74.0');
+        expect(result.error.message.getValue()).toContain('not supported in VS Code 1.74.0');
       }
     });
 
@@ -224,11 +247,14 @@ describe('Platform Compatibility Edge Cases', () => {
         throw new Error('API changed in insider build');
       });
 
-      const result = await fileSystemAdapter.writeFile('/test/file.txt', 'content');
+      const result = await fileSystemAdapter.writeFile(
+        createTestFilePath('/test/file.txt'),
+        createTestDocumentContent('content'),
+      );
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.message).toContain('API changed in insider build');
+        expect(result.error.message.getValue()).toContain('API changed in insider build');
       }
     });
 
@@ -272,11 +298,11 @@ describe('Platform Compatibility Edge Cases', () => {
       (vscode.window as any).showErrorMessage = mockShowErrorMessage;
 
       try {
-        const fsResult = await fileSystemAdapter.readFile('/test/file.txt');
+        const fsResult = await fileSystemAdapter.readFile(createTestFilePath('/test/file.txt'));
 
         expect(fsResult.isErr()).toBe(true);
         if (fsResult.isErr()) {
-          expect(fsResult.error.message).toContain('Extension host crashed');
+          expect(fsResult.error.message.getValue()).toContain('Extension host crashed');
         }
 
         expect(() => {
@@ -302,15 +328,18 @@ describe('Platform Compatibility Edge Cases', () => {
         new Error('File dialogs restricted in untrusted workspace'),
       );
 
-      const writeResult = await fileSystemAdapter.writeFile('/untrusted/file.txt', 'content');
-      const dialogResult = await uiAdapter.showSaveDialog({ title: 'Save' });
+      const writeResult = await fileSystemAdapter.writeFile(
+        createTestFilePath('/untrusted/file.txt'),
+        createTestDocumentContent('content'),
+      );
+      const dialogResult = await uiAdapter.showSaveDialog({ title: createTestDialogTitle('Save') });
 
       expect(writeResult.isErr()).toBe(true);
       expect(dialogResult.isErr()).toBe(true);
 
       if (writeResult.isErr() && dialogResult.isErr()) {
-        expect(writeResult.error.message).toContain('untrusted workspace');
-        expect(dialogResult.error.message).toContain('untrusted workspace');
+        expect(writeResult.error.message.getValue()).toContain('untrusted workspace');
+        expect(dialogResult.error.message.getValue()).toContain('untrusted workspace');
       }
     });
   });
@@ -327,11 +356,11 @@ describe('Platform Compatibility Edge Cases', () => {
         throw new Error('The specified path, file name, or both are too long');
       });
 
-      const result = await fileSystemAdapter.readFile(longPath);
+      const result = await fileSystemAdapter.readFile(createTestFilePath(longPath));
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.message).toContain('too long');
+        expect(result.error.message.getValue()).toContain('too long');
       }
     });
 
@@ -348,11 +377,14 @@ describe('Platform Compatibility Edge Cases', () => {
       (vscode.workspace.fs as any).writeFile = mockWriteFile;
 
       try {
-        const result = await fileSystemAdapter.writeFile('C:\\locked\\file.txt', 'content');
+        const result = await fileSystemAdapter.writeFile(
+          createTestFilePath('C:\\locked\\file.txt'),
+          createTestDocumentContent('content'),
+        );
 
         expect(result.isErr()).toBe(true);
         if (result.isErr()) {
-          expect(result.error.message).toContain('being used by another process');
+          expect(result.error.message.getValue()).toContain('being used by another process');
         }
       } finally {
         // Restore original method
@@ -367,14 +399,14 @@ describe('Platform Compatibility Edge Cases', () => {
         .mockRejectedValue(new Error('Registry access denied by Windows security policy'));
 
       const testDoc: StoredDocument = {
-        id: 'registry-doc',
-        content: 'content',
-        version: 1,
+        id: createTestDocumentId('registry-doc'),
+        content: createTestDocumentContent('content'),
+        version: createTestDocumentVersion(1),
         metadata: {
-          id: 'registry-doc',
-          title: 'Registry Doc',
-          modifiedAt: new Date(),
-          size: 7,
+          id: createTestDocumentId('registry-doc'),
+          title: createTestTitle('Registry Doc'),
+          modifiedAt: createTestTimestamp(new Date()),
+          size: createTestFileSize(7),
         },
       };
 
@@ -382,7 +414,7 @@ describe('Platform Compatibility Edge Cases', () => {
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.message).toContain('Registry access denied');
+        expect(result.error.message.getValue()).toContain('Registry access denied');
       }
     });
 
@@ -397,11 +429,13 @@ describe('Platform Compatibility Edge Cases', () => {
       (vscode.workspace.fs as any).readFile = mockReadFile;
 
       try {
-        const result = await fileSystemAdapter.readFile('C:\\suspicious\\file.exe');
+        const result = await fileSystemAdapter.readFile(
+          createTestFilePath('C:\\suspicious\\file.exe'),
+        );
 
         expect(result.isErr()).toBe(true);
         if (result.isErr()) {
-          expect(result.error.message).toContain('File scanning by Windows Defender');
+          expect(result.error.message.getValue()).toContain('File scanning by Windows Defender');
         }
       } finally {
         // Restore original method
@@ -416,11 +450,13 @@ describe('Platform Compatibility Edge Cases', () => {
       (vscode.workspace.fs as any).stat = mockStat;
 
       try {
-        const result = await fileSystemAdapter.exists('\\\\server\\share\\file.txt');
+        const result = await fileSystemAdapter.exists(
+          createTestFilePath('\\\\server\\share\\file.txt'),
+        );
 
         expect(result.isErr()).toBe(true);
         if (result.isErr()) {
-          expect(result.error.message).toContain('Network path not found');
+          expect(result.error.message.getValue()).toContain('Network path not found');
         }
       } finally {
         // Restore original method
@@ -439,11 +475,13 @@ describe('Platform Compatibility Edge Cases', () => {
         new Error('Operation not permitted by App Sandbox'),
       );
 
-      const result = await fileSystemAdapter.createDirectory('/System/Library/test');
+      const result = await fileSystemAdapter.createDirectory(
+        createTestFilePath('/System/Library/test'),
+      );
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.message).toContain('App Sandbox');
+        expect(result.error.message.getValue()).toContain('App Sandbox');
       }
     });
 
@@ -475,11 +513,14 @@ describe('Platform Compatibility Edge Cases', () => {
         new Error('Operation not permitted due to System Integrity Protection'),
       );
 
-      const result = await fileSystemAdapter.writeFile('/System/test.txt', 'content');
+      const result = await fileSystemAdapter.writeFile(
+        createTestFilePath('/System/test.txt'),
+        createTestDocumentContent('content'),
+      );
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.message).toContain('System Integrity Protection');
+        expect(result.error.message.getValue()).toContain('System Integrity Protection');
       }
     });
 
@@ -488,11 +529,13 @@ describe('Platform Compatibility Edge Cases', () => {
         new Error('Finder service unavailable'),
       );
 
-      const result = await uiAdapter.showOpenDialog({ title: 'Open with Finder' });
+      const result = await uiAdapter.showOpenDialog({
+        title: createTestDialogTitle('Open with Finder'),
+      });
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.message).toContain('Finder service unavailable');
+        expect(result.error.message.getValue()).toContain('Finder service unavailable');
       }
     });
   });
@@ -507,11 +550,14 @@ describe('Platform Compatibility Edge Cases', () => {
         new Error('Permission denied (uid/gid mismatch)'),
       );
 
-      const result = await fileSystemAdapter.writeFile('/var/log/app.log', 'content');
+      const result = await fileSystemAdapter.writeFile(
+        createTestFilePath('/var/log/app.log'),
+        createTestDocumentContent('content'),
+      );
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.message).toContain('Permission denied');
+        expect(result.error.message.getValue()).toContain('Permission denied');
       }
     });
 
@@ -522,9 +568,9 @@ describe('Platform Compatibility Edge Cases', () => {
 
       expect(() => {
         uiAdapter.createWebviewPanel({
-          id: 'test-panel',
-          title: 'Test',
-          viewType: 'test',
+          id: createTestWebviewId('test-panel'),
+          title: createTestTitle('Test'),
+          viewType: createTestViewType('test'),
         });
       }).toThrow('DISPLAY environment variable not set');
     });
@@ -534,11 +580,11 @@ describe('Platform Compatibility Edge Cases', () => {
         new Error('Transport endpoint is not connected'),
       );
 
-      const result = await fileSystemAdapter.readDirectory('/mnt/network');
+      const result = await fileSystemAdapter.readDirectory(createTestFilePath('/mnt/network'));
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.message).toContain('Transport endpoint is not connected');
+        expect(result.error.message.getValue()).toContain('Transport endpoint is not connected');
       }
     });
 
@@ -547,11 +593,11 @@ describe('Platform Compatibility Edge Cases', () => {
         new Error('SELinux policy violation'),
       );
 
-      const result = await fileSystemAdapter.createDirectory('/tmp/restricted');
+      const result = await fileSystemAdapter.createDirectory(createTestFilePath('/tmp/restricted'));
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.message).toContain('SELinux policy violation');
+        expect(result.error.message.getValue()).toContain('SELinux policy violation');
       }
     });
 
@@ -560,11 +606,11 @@ describe('Platform Compatibility Edge Cases', () => {
         new Error('AppArmor profile denies access'),
       );
 
-      const result = await fileSystemAdapter.readFile('/etc/apparmor.d/test');
+      const result = await fileSystemAdapter.readFile(createTestFilePath('/etc/apparmor.d/test'));
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.message).toContain('AppArmor profile denies');
+        expect(result.error.message.getValue()).toContain('AppArmor profile denies');
       }
     });
   });
@@ -579,11 +625,13 @@ describe('Platform Compatibility Edge Cases', () => {
         new Error('Proxy authentication required'),
       );
 
-      const result = await fileSystemAdapter.readFile('https://external.api.com/config.json');
+      const result = await fileSystemAdapter.readFile(
+        createTestFilePath('https://external.api.com/config.json'),
+      );
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.message).toContain('Proxy authentication required');
+        expect(result.error.message.getValue()).toContain('Proxy authentication required');
       }
     });
 
@@ -598,7 +646,7 @@ describe('Platform Compatibility Edge Cases', () => {
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.message).toContain('blocked by corporate policy');
+        expect(result.error.message.getValue()).toContain('blocked by corporate policy');
       }
     });
 
@@ -609,13 +657,13 @@ describe('Platform Compatibility Edge Cases', () => {
 
       const sensitiveContent = 'SSN: 123-45-6789, Credit Card: 4111-1111-1111-1111';
       const result = await fileSystemAdapter.writeFile(
-        '/corporate/sensitive.txt',
-        sensitiveContent,
+        createTestFilePath('/corporate/sensitive.txt'),
+        createTestDocumentContent(sensitiveContent),
       );
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.message).toContain('blocked by DLP policy');
+        expect(result.error.message.getValue()).toContain('blocked by DLP policy');
       }
     });
 
@@ -625,14 +673,14 @@ describe('Platform Compatibility Edge Cases', () => {
         .mockRejectedValue(new Error('Storage access restricted by device management policy'));
 
       const testDoc: StoredDocument = {
-        id: 'corporate-doc',
-        content: 'corporate data',
-        version: 1,
+        id: createTestDocumentId('corporate-doc'),
+        content: createTestDocumentContent('corporate data'),
+        version: createTestDocumentVersion(1),
         metadata: {
-          id: 'corporate-doc',
-          title: 'Corporate Doc',
-          modifiedAt: new Date(),
-          size: 13,
+          id: createTestDocumentId('corporate-doc'),
+          title: createTestTitle('Corporate Doc'),
+          modifiedAt: createTestTimestamp(new Date()),
+          size: createTestFileSize(13),
         },
       };
 
@@ -640,7 +688,7 @@ describe('Platform Compatibility Edge Cases', () => {
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.message).toContain('device management policy');
+        expect(result.error.message.getValue()).toContain('device management policy');
       }
     });
 
@@ -672,14 +720,14 @@ describe('Platform Compatibility Edge Cases', () => {
       });
 
       const testDoc: StoredDocument = {
-        id: 'shared-doc',
-        content: 'content',
-        version: 1,
+        id: createTestDocumentId('shared-doc'),
+        content: createTestDocumentContent('content'),
+        version: createTestDocumentVersion(1),
         metadata: {
-          id: 'shared-doc',
-          title: 'Shared Doc',
-          modifiedAt: new Date(),
-          size: 7,
+          id: createTestDocumentId('shared-doc'),
+          title: createTestTitle('Shared Doc'),
+          modifiedAt: createTestTimestamp(new Date()),
+          size: createTestFileSize(7),
         },
       };
 
@@ -700,11 +748,11 @@ describe('Platform Compatibility Edge Cases', () => {
       (vscode.workspace as any).workspaceFolders = [{ uri: { fsPath: '/workspace2' } }];
 
       // Start operation that will fail due to workspace change
-      const result = await fileSystemAdapter.readFile('/workspace1/file.txt');
+      const result = await fileSystemAdapter.readFile(createTestFilePath('/workspace1/file.txt'));
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.message).toContain('Workspace changed during operation');
+        expect(result.error.message.getValue()).toContain('Workspace changed during operation');
       }
     });
 
@@ -728,7 +776,7 @@ describe('Platform Compatibility Edge Cases', () => {
       } as any);
 
       const startTime = Date.now();
-      const result = await fileSystemAdapter.readDirectory('/large/directory');
+      const result = await fileSystemAdapter.readDirectory(createTestFilePath('/large/directory'));
       const duration = Date.now() - startTime;
 
       expect(result.isOk()).toBe(true);
@@ -757,11 +805,14 @@ describe('Platform Compatibility Edge Cases', () => {
       (vscode.workspace as any).workspaceFolders = undefined;
 
       // Start file operation that will fail due to workspace close
-      const result = await fileSystemAdapter.writeFile('/workspace/file.txt', 'content');
+      const result = await fileSystemAdapter.writeFile(
+        createTestFilePath('/workspace/file.txt'),
+        createTestDocumentContent('content'),
+      );
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.message).toContain('Workspace closed');
+        expect(result.error.message.getValue()).toContain('Workspace closed');
       }
     });
   });
@@ -776,7 +827,7 @@ describe('Platform Compatibility Edge Cases', () => {
         new Error('Cannot allocate memory for UI operation'),
       );
 
-      const fsResult = await fileSystemAdapter.readFile('/large/file.bin');
+      const fsResult = await fileSystemAdapter.readFile(createTestFilePath('/large/file.bin'));
       const uiResult = await uiAdapter.showQuickPick([
         { label: 'Large Option 1', description: 'x'.repeat(10000) },
         { label: 'Large Option 2', description: 'y'.repeat(10000) },
@@ -798,7 +849,7 @@ describe('Platform Compatibility Edge Cases', () => {
       });
 
       const startTime = Date.now();
-      const result = await fileSystemAdapter.exists('/test/file.txt');
+      const result = await fileSystemAdapter.exists(createTestFilePath('/test/file.txt'));
       const duration = Date.now() - startTime;
 
       expect(result.isOk()).toBe(true);
@@ -812,7 +863,7 @@ describe('Platform Compatibility Edge Cases', () => {
       });
 
       expect(() => {
-        fileSystemAdapter.watch('/test/dir', () => {
+        fileSystemAdapter.watch(createTestFilePath('/test/dir'), () => {
           // Empty watcher callback for test
         });
       }).toThrow('disabled in battery saver mode');
@@ -830,14 +881,14 @@ describe('Platform Compatibility Edge Cases', () => {
       });
 
       // First attempts fail
-      const result1 = await fileSystemAdapter.readFile('/network/file.txt');
+      const result1 = await fileSystemAdapter.readFile(createTestFilePath('/network/file.txt'));
       expect(result1.isErr()).toBe(true);
 
-      const result2 = await fileSystemAdapter.readFile('/network/file.txt');
+      const result2 = await fileSystemAdapter.readFile(createTestFilePath('/network/file.txt'));
       expect(result2.isErr()).toBe(true);
 
       // Third attempt succeeds
-      const result3 = await fileSystemAdapter.readFile('/network/file.txt');
+      const result3 = await fileSystemAdapter.readFile(createTestFilePath('/network/file.txt'));
       expect(result3.isOk()).toBe(true);
     });
 
@@ -851,15 +902,18 @@ describe('Platform Compatibility Edge Cases', () => {
         new Error('File system busy with other extension operations'),
       );
 
-      const uiResult = await uiAdapter.showInputBox({ prompt: 'Test' });
-      const fsResult = await fileSystemAdapter.writeFile('/contested/file.txt', 'content');
+      const uiResult = await uiAdapter.showInputBox({ prompt: createTestDialogPrompt('Test') });
+      const fsResult = await fileSystemAdapter.writeFile(
+        createTestFilePath('/contested/file.txt'),
+        createTestDocumentContent('content'),
+      );
 
       expect(uiResult.isErr()).toBe(true);
       expect(fsResult.isErr()).toBe(true);
 
       if (uiResult.isErr() && fsResult.isErr()) {
-        expect(uiResult.error.message).toContain('blocked by another extension');
-        expect(fsResult.error.message).toContain('busy with other extension');
+        expect(uiResult.error.message.getValue()).toContain('blocked by another extension');
+        expect(fsResult.error.message.getValue()).toContain('busy with other extension');
       }
     });
   });
@@ -881,11 +935,11 @@ describe('Platform Compatibility Edge Cases', () => {
         new Error('File access restricted in production mode'),
       );
 
-      const result = await fileSystemAdapter.readFile('/system/config.json');
+      const result = await fileSystemAdapter.readFile(createTestFilePath('/system/config.json'));
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.message).toContain('restricted in production mode');
+        expect(result.error.message.getValue()).toContain('restricted in production mode');
       }
     });
 

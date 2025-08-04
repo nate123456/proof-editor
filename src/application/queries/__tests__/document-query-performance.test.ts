@@ -20,6 +20,17 @@ import {
 } from '../../../domain/shared/value-objects/index.js';
 import type { DocumentDTO, GetDocumentStateQuery } from '../document-queries.js';
 import {
+  createTestAtomicArgumentId,
+  createTestDimensions,
+  createTestErrorCode,
+  createTestErrorMessage,
+  createTestNodeCount,
+  createTestNodeId,
+  createTestPosition2D,
+  createTestStatementId,
+  createTestTreeId,
+} from './shared/branded-type-helpers.js';
+import {
   createMockDocumentService,
   createTestDocumentDTO,
   createTestDocumentStats,
@@ -59,12 +70,12 @@ describe('Document Query Performance', () => {
         Array.from({ length: 5000 }, (_, i) => [
           `arg_${i}`,
           {
-            id: AtomicArgumentId.fromString(`arg_${i}`).value,
+            id: createTestAtomicArgumentId(`arg_${i}`),
             premiseIds: [
-              StatementId.fromString(`stmt_${i}`).value,
-              StatementId.fromString(`stmt_${i + 1}`).value,
+              createTestStatementId(`stmt_${i}`),
+              createTestStatementId(`stmt_${i + 1}`),
             ],
-            conclusionIds: [StatementId.fromString(`stmt_${i + 2}`).value],
+            conclusionIds: [createTestStatementId(`stmt_${i + 2}`)],
           },
         ]),
       ),
@@ -72,10 +83,10 @@ describe('Document Query Performance', () => {
         Array.from({ length: 50 }, (_, i) => [
           `tree_${i}`,
           {
-            id: TreeId.create(`tree_${i}`).value,
-            position: Position2D.create(i * 100, i * 100).value,
-            nodeCount: NodeCount.create(100).value,
-            rootNodeIds: Array.from({ length: 5 }, (_, j) => NodeId.create(`node_${i}_${j}`).value),
+            id: createTestTreeId(`tree_${i}`),
+            position: createTestPosition2D(i * 100, i * 100),
+            nodeCount: createTestNodeCount(100),
+            rootNodeIds: Array.from({ length: 5 }, (_, j) => createTestNodeId(`node_${i}_${j}`)),
           },
         ]),
       ),
@@ -95,7 +106,7 @@ describe('Document Query Performance', () => {
 
     expect(result.stats?.statementCount).toBe(10000);
     expect(Object.keys(result.statements)).toHaveLength(10000);
-    expect(Object.keys(result.orderedSets)).toHaveLength(5000);
+    expect(Object.keys(result.orderedSets || {})).toHaveLength(0); // No orderedSets created in this test
     expect(Object.keys(result.atomicArguments)).toHaveLength(5000);
     expect(Object.keys(result.trees)).toHaveLength(50);
     expect(endTime - startTime).toBeLessThan(1000);
@@ -113,11 +124,11 @@ describe('Document Query Performance', () => {
         Array.from({ length: 10 }, (_, i) => [
           `tree_${i}`,
           {
-            id: TreeId.create(`tree_${i}`).value,
-            position: Position2D.create(0, i * 1000).value,
-            nodeCount: NodeCount.create(1000).value,
-            rootNodeIds: [NodeId.create(`root_${i}`).value],
-            bounds: Dimensions.create(5000, 10000).value,
+            id: createTestTreeId(`tree_${i}`),
+            position: createTestPosition2D(0, i * 1000),
+            nodeCount: createTestNodeCount(1000),
+            rootNodeIds: [createTestNodeId(`root_${i}`)],
+            bounds: createTestDimensions(5000, 10000),
           },
         ]),
       ),
@@ -130,10 +141,8 @@ describe('Document Query Performance', () => {
           isValid: true,
           errors: [
             {
-              code: ErrorCode.create('DEEP_NESTING').isOk()
-                ? ErrorCode.create('DEEP_NESTING').value.value
-                : 'DEEP_NESTING',
-              message: ErrorMessage.create('Tree depth exceeds recommended limits').value,
+              code: createTestErrorCode('DEEP_NESTING'),
+              message: createTestErrorMessage('Tree depth exceeds recommended limits'),
               severity: ErrorSeverity.WARNING,
             },
           ],
@@ -148,7 +157,7 @@ describe('Document Query Performance', () => {
     expect(result.trees).toBeDefined();
     expect(Object.keys(result.trees)).toHaveLength(10);
     expect(result.stats?.validationStatus.errors).toHaveLength(1);
-    expect(result.stats?.validationStatus.errors[0]?.code).toBe('DEEP_NESTING');
+    expect(result.stats?.validationStatus.errors[0]?.code.getValue()).toBe('DEEP_NESTING');
   });
 
   it('should handle concurrent document queries', async () => {
@@ -306,7 +315,7 @@ describe('Document Query Performance', () => {
       const endTime = Date.now();
 
       timings.push(endTime - startTime);
-      expect(Object.keys(result.statements)).toHaveLength(chunkSizes[i]);
+      expect(Object.keys(result.statements)).toHaveLength(chunkSizes[i] ?? 0);
     }
 
     expect(timings).toHaveLength(4);

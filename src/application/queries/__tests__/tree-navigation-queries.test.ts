@@ -8,12 +8,18 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createTestSideLabel } from '../../../domain/__tests__/value-object-test-helpers.js';
 import type {
   FindPathBetweenNodesQuery,
   GetSubtreeQuery,
+  NodeConnectionDTO,
   TreeNodeDTO,
   TreeStructureDTO,
 } from '../tree-queries.js';
+import {
+  createTestAtomicArgumentId,
+  createTestStatementIds,
+} from './shared/branded-type-helpers.js';
 
 interface MockTreeRepositories {
   proofRepository: any;
@@ -279,12 +285,12 @@ describe('Tree Navigation Queries', () => {
           argumentId: 'arg_start',
           isRoot: false,
           argument: {
-            id: 'arg_start',
-            premiseIds: 'set_start_premise',
-            conclusionIds: 'set_start_conclusion',
+            id: createTestAtomicArgumentId('arg_start'),
+            premiseIds: createTestStatementIds('set_start_premise'),
+            conclusionIds: createTestStatementIds('set_start_conclusion'),
             sideLabels: {
-              left: 'Start Rule',
-              right: 'Ref Start',
+              left: createTestSideLabel('Start Rule'),
+              right: createTestSideLabel('Ref Start'),
             },
           },
         },
@@ -293,12 +299,12 @@ describe('Tree Navigation Queries', () => {
           argumentId: 'arg_end',
           isRoot: true,
           argument: {
-            id: 'arg_end',
-            premiseIds: 'set_end_premise',
-            conclusionIds: 'set_end_conclusion',
+            id: createTestAtomicArgumentId('arg_end'),
+            premiseIds: createTestStatementIds('set_end_premise'),
+            conclusionIds: createTestStatementIds('set_end_conclusion'),
             sideLabels: {
-              left: 'End Rule',
-              right: 'Ref End',
+              left: createTestSideLabel('End Rule'),
+              right: createTestSideLabel('Ref End'),
             },
           },
         },
@@ -611,7 +617,7 @@ describe('Tree Navigation Queries', () => {
 
       // Verify branching structure
       const rootConnections = result.connections.filter(
-        (conn) => conn.toNodeId === 'node_branching_root',
+        (conn: NodeConnectionDTO) => conn.toNodeId === 'node_branching_root',
       );
       expect(rootConnections).toHaveLength(2);
     });
@@ -633,12 +639,12 @@ describe('Tree Navigation Queries', () => {
             argumentId: 'arg_detailed_root',
             isRoot: true,
             argument: {
-              id: 'arg_detailed_root',
-              premiseIds: 'set_detailed_premise',
-              conclusionIds: 'set_detailed_conclusion',
+              id: createTestAtomicArgumentId('arg_detailed_root'),
+              premiseIds: createTestStatementIds('set_detailed_premise'),
+              conclusionIds: createTestStatementIds('set_detailed_conclusion'),
               sideLabels: {
-                left: 'Main Theorem',
-                right: 'Theorem 1',
+                left: createTestSideLabel('Main Theorem'),
+                right: createTestSideLabel('Theorem 1'),
               },
             },
           },
@@ -647,12 +653,12 @@ describe('Tree Navigation Queries', () => {
             argumentId: 'arg_detailed_child',
             isRoot: false,
             argument: {
-              id: 'arg_detailed_child',
-              premiseIds: 'set_child_premise',
-              conclusionIds: 'set_child_conclusion',
+              id: createTestAtomicArgumentId('arg_detailed_child'),
+              premiseIds: createTestStatementIds('set_child_premise'),
+              conclusionIds: createTestStatementIds('set_child_conclusion'),
               sideLabels: {
-                left: 'Supporting Lemma',
-                right: 'Lemma 2',
+                left: createTestSideLabel('Supporting Lemma'),
+                right: createTestSideLabel('Lemma 2'),
               },
             },
           },

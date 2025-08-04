@@ -723,8 +723,8 @@ function createMockParsedProofDocument(): import('../../../parser/ProofDocument.
   };
 
   const mockAtomicArgument = {
-    getPremiseSet: () => null,
-    getConclusionSet: () => ({ getValue: () => 'os1' }),
+    getPremises: () => [],
+    getConclusions: () => [{ getId: () => ({ getValue: () => 's1' }) }],
     getSideLabels: () => undefined,
     getId: () => ({ getValue: () => 'arg1' }),
   };
@@ -794,8 +794,11 @@ function createComplexMockParsedProofDocument(): import('../../../parser/ProofDo
     [
       'arg1',
       {
-        getPremiseSet: () => ({ getValue: () => 'os1' }),
-        getConclusionSet: () => ({ getValue: () => 'os2' }),
+        getPremises: () => [{ getId: () => ({ getValue: () => 's1' }) }],
+        getConclusions: () => [
+          { getId: () => ({ getValue: () => 's2' }) },
+          { getId: () => ({ getValue: () => 's3' }) },
+        ],
         getSideLabels: (): undefined => undefined,
         getId: () => ({ getValue: () => 'arg1' }),
       },
@@ -803,8 +806,11 @@ function createComplexMockParsedProofDocument(): import('../../../parser/ProofDo
     [
       'arg2',
       {
-        getPremiseSet: () => ({ getValue: () => 'os2' }),
-        getConclusionSet: () => null,
+        getPremises: () => [
+          { getId: () => ({ getValue: () => 's2' }) },
+          { getId: () => ({ getValue: () => 's3' }) },
+        ],
+        getConclusions: () => [],
         getSideLabels: (): undefined => undefined,
         getId: () => ({ getValue: () => 'arg2' }),
       },
@@ -840,8 +846,8 @@ function createMockParsedProofDocumentWithSideLabels(): import('../../../parser/
   };
 
   const mockAtomicArgument = {
-    getPremiseSet: () => null,
-    getConclusionSet: () => ({ getValue: () => 'os1' }),
+    getPremises: () => [],
+    getConclusions: () => [{ getId: () => ({ getValue: () => 's1' }) }],
     getSideLabels: () => ({
       left: 'Modus Ponens',
       right: 'Inference Rule',

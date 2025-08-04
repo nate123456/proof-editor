@@ -2,11 +2,11 @@ import { vi } from 'vitest';
 
 // Mock JSDOM implementation for testing
 export interface MockJSDOM {
-  window: Window & typeof globalThis;
+  window: any;
 }
 
 export class MockJSDOMImpl implements MockJSDOM {
-  window: Window & typeof globalThis;
+  window: any;
   private elements = new Map<string, any>();
   private html: string;
 

@@ -54,10 +54,18 @@ describe('View State DTOs', () => {
   describe('SelectionState', () => {
     it('should create valid selection state with factory function', () => {
       // Act
+      const nodeId1Result = NodeId.create('node1');
+      const nodeId2Result = NodeId.create('node2');
+      const treeIdResult = TreeId.create('tree1');
+
+      if (nodeId1Result.isErr() || nodeId2Result.isErr() || treeIdResult.isErr()) {
+        throw new Error('Failed to create test IDs');
+      }
+
       const state = createSelectionState(
-        [NodeId.create('node1').unwrapOr(null)!, NodeId.create('node2').unwrapOr(null)!],
+        [nodeId1Result.value, nodeId2Result.value],
         ['stmt1'],
-        [TreeId.create('tree1').unwrapOr(null)!],
+        [treeIdResult.value],
       );
 
       // Assert
@@ -78,13 +86,18 @@ describe('View State DTOs', () => {
 
     it('should validate valid selection state', () => {
       // Arrange
+      const nodeId1Result = NodeId.create('node1');
+      const nodeId2Result = NodeId.create('node2');
+      const treeIdResult = TreeId.create('tree1');
+
+      if (nodeId1Result.isErr() || nodeId2Result.isErr() || treeIdResult.isErr()) {
+        throw new Error('Failed to create test IDs');
+      }
+
       const state: SelectionState = {
-        selectedNodes: [
-          NodeId.create('node1').unwrapOr(null)!,
-          NodeId.create('node2').unwrapOr(null)!,
-        ],
+        selectedNodes: [nodeId1Result.value, nodeId2Result.value],
         selectedStatements: ['stmt1'],
-        selectedTrees: [TreeId.create('tree1').unwrapOr(null)!],
+        selectedTrees: [treeIdResult.value],
       };
 
       // Act

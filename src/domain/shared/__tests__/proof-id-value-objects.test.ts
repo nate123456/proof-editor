@@ -7,7 +7,7 @@ import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 
 import { ValidationError } from '../result.js';
-import { ProofDocumentId, ProofId, ProofTreeId } from '../value-objects.js';
+import { ProofDocumentId, ProofId, ProofTreeId } from '../value-objects/index.js';
 
 // Property-based test generators
 const validStringArbitrary = fc

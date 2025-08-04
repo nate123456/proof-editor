@@ -12,6 +12,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AtomicArgument, type SideLabels } from '../../entities/AtomicArgument.js';
+import { createTestSideLabel, createTestSideLabels } from '../value-object-test-helpers.js';
 import { FIXED_TIMESTAMP } from './atomic-argument-test-utils.js';
 
 describe('Side Labels Management', () => {
@@ -32,7 +33,10 @@ describe('Side Labels Management', () => {
 
       if (result.isOk()) {
         const argument = result.value;
-        const newLabels: SideLabels = { left: 'New Left', right: 'New Right' };
+        const newLabels = {
+          left: 'New Left',
+          right: 'New Right',
+        };
 
         mockDateNow.mockReturnValue(FIXED_TIMESTAMP + 1000);
         const updateResult = argument.updateSideLabels(newLabels);
@@ -52,7 +56,7 @@ describe('Side Labels Management', () => {
 
       if (result.isOk()) {
         const argument = result.value;
-        const partialLabels: SideLabels = { left: 'Only Left' };
+        const partialLabels = { left: 'Only Left' };
 
         const updateResult = argument.updateSideLabels(partialLabels);
 
@@ -65,7 +69,10 @@ describe('Side Labels Management', () => {
     });
 
     it('should clear side labels', () => {
-      const sideLabels: SideLabels = { left: 'Clear Me', right: 'Me Too' };
+      const sideLabels = createTestSideLabels({
+        left: 'Clear Me',
+        right: 'Me Too',
+      });
       const result = AtomicArgument.create(undefined, undefined, sideLabels);
       expect(result.isOk()).toBe(true);
 
@@ -80,7 +87,10 @@ describe('Side Labels Management', () => {
     });
 
     it('should not update modification time for identical labels', () => {
-      const sideLabels: SideLabels = { left: 'Same', right: 'Labels' };
+      const sideLabels = createTestSideLabels({
+        left: 'Same',
+        right: 'Labels',
+      });
       const result = AtomicArgument.create(undefined, undefined, sideLabels);
       expect(result.isOk()).toBe(true);
 
@@ -89,7 +99,10 @@ describe('Side Labels Management', () => {
         const originalModified = argument.getModifiedAt();
 
         mockDateNow.mockReturnValue(FIXED_TIMESTAMP + 1000);
-        const updateResult = argument.updateSideLabels(sideLabels);
+        const updateResult = argument.updateSideLabels({
+          left: 'Same',
+          right: 'Labels',
+        });
 
         expect(updateResult.isOk()).toBe(true);
         expect(argument.getModifiedAt()).toBe(originalModified); // Should not change
@@ -97,13 +110,16 @@ describe('Side Labels Management', () => {
     });
 
     it('should replace existing labels completely', () => {
-      const initialLabels: SideLabels = { left: 'Initial Left', right: 'Initial Right' };
+      const initialLabels = createTestSideLabels({
+        left: 'Initial Left',
+        right: 'Initial Right',
+      });
       const result = AtomicArgument.create(undefined, undefined, initialLabels);
       expect(result.isOk()).toBe(true);
 
       if (result.isOk()) {
         const argument = result.value;
-        const newLabels: SideLabels = { left: 'New Left' }; // No right label
+        const newLabels = { left: 'New Left' }; // No right label
 
         const updateResult = argument.updateSideLabels(newLabels);
 
@@ -135,7 +151,7 @@ describe('Side Labels Management', () => {
     });
 
     it('should clear left side label', () => {
-      const sideLabels: SideLabels = { left: 'Remove Me' };
+      const sideLabels = createTestSideLabels({ left: 'Remove Me' });
       const result = AtomicArgument.create(undefined, undefined, sideLabels);
       expect(result.isOk()).toBe(true);
 
@@ -165,7 +181,7 @@ describe('Side Labels Management', () => {
     });
 
     it('should clear right side label', () => {
-      const sideLabels: SideLabels = { right: 'Remove Me' };
+      const sideLabels = createTestSideLabels({ right: 'Remove Me' });
       const result = AtomicArgument.create(undefined, undefined, sideLabels);
       expect(result.isOk()).toBe(true);
 
@@ -180,7 +196,10 @@ describe('Side Labels Management', () => {
     });
 
     it('should preserve other label when updating one', () => {
-      const sideLabels: SideLabels = { left: 'Keep Me', right: 'Update Me' };
+      const sideLabels = createTestSideLabels({
+        left: 'Keep Me',
+        right: 'Update Me',
+      });
       const result = AtomicArgument.create(undefined, undefined, sideLabels);
       expect(result.isOk()).toBe(true);
 
@@ -227,7 +246,10 @@ describe('Side Labels Management', () => {
     });
 
     it('should handle whitespace-only labels in detection', () => {
-      const sideLabels: SideLabels = { left: '', right: '   ' };
+      const sideLabels = createTestSideLabels({
+        left: '',
+        right: '   ',
+      });
       const result = AtomicArgument.create(undefined, undefined, sideLabels);
       expect(result.isOk()).toBe(true);
 
@@ -255,16 +277,20 @@ describe('Side Labels Management', () => {
     });
 
     it('should handle special characters in labels', () => {
-      const specialLabels: SideLabels = {
+      const specialLabels = createTestSideLabels({
         left: '~!@#$%^&*()_+{}[]:";<>?,./\u2019',
         right: 'éñüäöß',
-      };
+      });
       const result = AtomicArgument.create(undefined, undefined, specialLabels);
       expect(result.isOk()).toBe(true);
 
       if (result.isOk()) {
         const argument = result.value;
-        expect(argument.getSideLabels()).toEqual(specialLabels);
+        const sideLabels = argument.getSideLabels();
+        expect(sideLabels).toEqual({
+          left: '~!@#$%^&*()_+{}[]:";<>?,./\u2019',
+          right: 'éñüäöß',
+        });
         expect(argument.hasSideLabels()).toBe(true);
       }
     });

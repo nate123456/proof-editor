@@ -4,6 +4,7 @@ import { inject, injectable } from 'tsyringe';
 
 import { AtomicArgument, SideLabels } from '../domain/entities/AtomicArgument.js';
 import { Node } from '../domain/entities/Node.js';
+import { OrderedSet } from '../domain/entities/OrderedSet.js';
 import { Statement } from '../domain/entities/Statement.js';
 import { Tree } from '../domain/entities/Tree.js';
 import type { ValidationError } from '../domain/shared/result.js';
@@ -65,6 +66,7 @@ export class ProofFileParser {
     // Phase 3: Create domain objects in dependency order
     const document: ProofDocument = {
       statements: new Map(),
+      orderedSets: new Map(),
       atomicArguments: new Map(),
       trees: new Map(),
       nodes: new Map(),
@@ -82,11 +84,24 @@ export class ProofFileParser {
       }
     }
 
-    // Phase 3b: Create AtomicArguments (depends on Statements)
+    // Phase 3b: Create OrderedSets (depends on Statements)
+    if (structure.orderedSets) {
+      const orderedSetsResult = this.createOrderedSets(structure.orderedSets, document.statements);
+      if (orderedSetsResult.isErr()) {
+        errors.push(...orderedSetsResult.error);
+      } else {
+        orderedSetsResult.value.forEach((orderedSet, id) => {
+          document.orderedSets.set(id, orderedSet);
+        });
+      }
+    }
+
+    // Phase 3c: Create AtomicArguments (depends on Statements and OrderedSets)
     if (structure.atomicArguments) {
       const atomicArgumentsResult = this.createAtomicArguments(
         structure.atomicArguments,
         document.statements,
+        document.orderedSets,
       );
       if (atomicArgumentsResult.isErr()) {
         errors.push(...atomicArgumentsResult.error);
@@ -97,7 +112,7 @@ export class ProofFileParser {
       }
     }
 
-    // Phase 3c: Create Arguments from new format (depends on Statements)
+    // Phase 3d: Create Arguments from new format (depends on Statements)
     if (structure.arguments) {
       const argumentsResult = this.createArguments(structure.arguments, document.statements);
       if (argumentsResult.isErr()) {
@@ -109,7 +124,7 @@ export class ProofFileParser {
       }
     }
 
-    // Phase 3d: Create Trees and Nodes (depends on Arguments)
+    // Phase 3e: Create Trees and Nodes (depends on Arguments)
     if (structure.trees) {
       const treesResult = this.createTreesAndNodes(structure.trees, document.atomicArguments);
       if (treesResult.isErr()) {
@@ -159,12 +174,67 @@ export class ProofFileParser {
     return errors.length > 0 ? err(errors) : ok(statements);
   }
 
+  private createOrderedSets(
+    orderedSetsData: Record<string, string[]>,
+    statements: Map<string, Statement>,
+  ): Result<Map<string, OrderedSet>, ParseError[]> {
+    const errors: ParseError[] = [];
+    const orderedSets = new Map<string, OrderedSet>();
+
+    for (const [id, statementIdStrings] of Object.entries(orderedSetsData)) {
+      const statementIds: StatementId[] = [];
+
+      // Validate and collect statement IDs
+      for (const statementIdStr of statementIdStrings) {
+        if (!statements.has(statementIdStr)) {
+          errors.push({
+            type: ParseErrorType.MISSING_REFERENCE,
+            message: `Statement '${statementIdStr}' referenced in ordered set '${id}' but not defined in statements section`,
+            section: 'orderedSets',
+            reference: id,
+          });
+          continue;
+        }
+
+        const statementIdResult = StatementId.create(statementIdStr);
+        if (statementIdResult.isErr()) {
+          errors.push({
+            type: ParseErrorType.INVALID_ORDERED_SET,
+            message: `Invalid statement ID '${statementIdStr}' in orderedSet '${id}': ${statementIdResult.error.message}`,
+            section: 'orderedSets',
+            reference: id,
+          });
+          continue;
+        }
+
+        statementIds.push(statementIdResult.value);
+      }
+
+      // Create OrderedSet
+      const orderedSetResult = OrderedSet.create(statementIds);
+      if (orderedSetResult.isErr()) {
+        errors.push({
+          type: ParseErrorType.INVALID_ORDERED_SET,
+          message: `Failed to create orderedSet '${id}': ${orderedSetResult.error.message}`,
+          section: 'orderedSets',
+          reference: id,
+        });
+        continue;
+      }
+
+      orderedSets.set(id, orderedSetResult.value);
+    }
+
+    return errors.length > 0 ? err(errors) : ok(orderedSets);
+  }
+
   private createAtomicArguments(
     atomicArgumentsData: Record<
       string,
-      { premises?: string[]; conclusions?: string[]; sideLabel?: string }
+      { premises?: string; conclusions?: string; sideLabel?: string }
     >,
     statements: Map<string, Statement>,
+    orderedSets: Map<string, OrderedSet>,
   ): Result<Map<string, AtomicArgument>, ParseError[]> {
     const errors: ParseError[] = [];
     const atomicArguments = new Map<string, AtomicArgument>();
@@ -173,40 +243,44 @@ export class ProofFileParser {
       const premiseStatements: Statement[] = [];
       const conclusionStatements: Statement[] = [];
 
-      // Validate and collect premise statements
+      // Validate and collect premise statements from orderedSet
       if (argSpec.premises) {
-        for (const statementId of argSpec.premises) {
-          if (!statements.has(statementId)) {
-            errors.push({
-              type: ParseErrorType.MISSING_REFERENCE,
-              message: `Statement '${statementId}' referenced as premise in argument '${id}' but not defined in statements section`,
-              section: 'atomicArguments',
-              reference: id,
-            });
-            continue;
-          }
-          const statement = statements.get(statementId);
-          if (statement) {
-            premiseStatements.push(statement);
+        const premiseOrderedSet = orderedSets.get(argSpec.premises);
+        if (!premiseOrderedSet) {
+          errors.push({
+            type: ParseErrorType.MISSING_REFERENCE,
+            message: `OrderedSet '${argSpec.premises}' referenced as premises in argument '${id}' but not defined in orderedSets section`,
+            section: 'atomicArguments',
+            reference: id,
+          });
+        } else {
+          // Get statements from the ordered set
+          for (const statementId of premiseOrderedSet.items) {
+            const statement = statements.get(statementId.toString());
+            if (statement) {
+              premiseStatements.push(statement);
+            }
           }
         }
       }
 
-      // Validate and collect conclusion statements
+      // Validate and collect conclusion statements from orderedSet
       if (argSpec.conclusions) {
-        for (const statementId of argSpec.conclusions) {
-          if (!statements.has(statementId)) {
-            errors.push({
-              type: ParseErrorType.MISSING_REFERENCE,
-              message: `Statement '${statementId}' referenced as conclusion in argument '${id}' but not defined in statements section`,
-              section: 'atomicArguments',
-              reference: id,
-            });
-            continue;
-          }
-          const statement = statements.get(statementId);
-          if (statement) {
-            conclusionStatements.push(statement);
+        const conclusionOrderedSet = orderedSets.get(argSpec.conclusions);
+        if (!conclusionOrderedSet) {
+          errors.push({
+            type: ParseErrorType.MISSING_REFERENCE,
+            message: `OrderedSet '${argSpec.conclusions}' referenced as conclusions in argument '${id}' but not defined in orderedSets section`,
+            section: 'atomicArguments',
+            reference: id,
+          });
+        } else {
+          // Get statements from the ordered set
+          for (const statementId of conclusionOrderedSet.items) {
+            const statement = statements.get(statementId.toString());
+            if (statement) {
+              conclusionStatements.push(statement);
+            }
           }
         }
       }

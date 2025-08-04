@@ -337,7 +337,7 @@ export class OperationFactory implements IOperationFactory {
       operationType,
       targetPath,
       payload: { content },
-      vectorClock,
+      ...(vectorClock !== undefined && { vectorClock }),
     };
 
     return this.createOperation(request);
@@ -356,7 +356,7 @@ export class OperationFactory implements IOperationFactory {
       operationType,
       targetPath,
       payload: { premises, conclusions },
-      vectorClock,
+      ...(vectorClock !== undefined && { vectorClock }),
     };
 
     return this.createOperation(request);
@@ -373,7 +373,7 @@ export class OperationFactory implements IOperationFactory {
       operationType: 'UPDATE_TREE_POSITION',
       targetPath,
       payload: position,
-      vectorClock,
+      ...(vectorClock !== undefined && { vectorClock }),
     };
 
     return this.createOperation(request);
@@ -392,7 +392,7 @@ export class OperationFactory implements IOperationFactory {
       operationType,
       targetPath,
       payload: { sourceId, targetId },
-      vectorClock,
+      ...(vectorClock !== undefined && { vectorClock }),
     };
 
     return this.createOperation(request);

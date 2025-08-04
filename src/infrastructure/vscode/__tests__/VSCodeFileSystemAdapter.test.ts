@@ -21,6 +21,15 @@ import {
   Timestamp,
   Title,
 } from '../../../domain/shared/value-objects/index.js';
+import {
+  createTestDocumentContent,
+  createTestDocumentId,
+  createTestDocumentVersion,
+  createTestFilePath,
+  createTestFileSize,
+  createTestTimestamp,
+  createTestTitle,
+} from '../../__tests__/test-helpers.js';
 import { VSCodeFileSystemAdapter } from '../VSCodeFileSystemAdapter.js';
 
 // Mock VS Code module
@@ -117,14 +126,14 @@ describe('VSCodeFileSystemAdapter', () => {
     it('should load existing stored documents from global state', () => {
       const existingDocs = {
         doc1: {
-          id: DocumentId.create('doc1'),
-          content: DocumentContent.create('test content'),
-          version: DocumentVersion.create(1),
+          id: createTestDocumentId('doc1'),
+          content: createTestDocumentContent('test content'),
+          version: createTestDocumentVersion(1),
           metadata: {
-            id: DocumentId.create('doc1'),
-            title: Title.create('Test Document'),
-            modifiedAt: Timestamp.create(new Date('2023-01-01T00:00:00.000Z')),
-            size: FileSize.create(12),
+            id: createTestDocumentId('doc1'),
+            title: createTestTitle('Test Document'),
+            modifiedAt: createTestTimestamp(new Date('2023-01-01T00:00:00.000Z')),
+            size: createTestFileSize(12),
           },
         },
       };
@@ -145,7 +154,7 @@ describe('VSCodeFileSystemAdapter', () => {
 
       vi.mocked(vscode.workspace.fs.readFile).mockResolvedValue(encodedContent);
 
-      const result = await adapter.readFile(testPath);
+      const result = await adapter.readFile(createTestFilePath(testPath));
 
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
@@ -165,7 +174,7 @@ describe('VSCodeFileSystemAdapter', () => {
 
       vi.mocked(vscode.workspace.fs.readFile).mockRejectedValue(error);
 
-      const result = await adapter.readFile(testPath);
+      const result = await adapter.readFile(createTestFilePath(testPath));
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
@@ -180,7 +189,7 @@ describe('VSCodeFileSystemAdapter', () => {
 
       vi.mocked(vscode.workspace.fs.readFile).mockRejectedValue(error);
 
-      const result = await adapter.readFile(testPath);
+      const result = await adapter.readFile(createTestFilePath(testPath));
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
@@ -195,7 +204,7 @@ describe('VSCodeFileSystemAdapter', () => {
 
       vi.mocked(vscode.workspace.fs.readFile).mockRejectedValue(error);
 
-      const result = await adapter.readFile(testPath);
+      const result = await adapter.readFile(createTestFilePath(testPath));
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
@@ -211,7 +220,7 @@ describe('VSCodeFileSystemAdapter', () => {
 
       vi.mocked(vscode.workspace.fs.readFile).mockResolvedValue(encodedContent);
 
-      const result = await adapter.readFile(testPath);
+      const result = await adapter.readFile(createTestFilePath(testPath));
 
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
@@ -227,7 +236,10 @@ describe('VSCodeFileSystemAdapter', () => {
 
       vi.mocked(vscode.workspace.fs.writeFile).mockResolvedValue(undefined);
 
-      const result = await adapter.writeFile(testPath, testContent);
+      const result = await adapter.writeFile(
+        createTestFilePath(testPath),
+        createTestDocumentContent(testContent),
+      );
 
       expect(result.isOk()).toBe(true);
       expect(vscode.Uri.file).toHaveBeenCalledWith(testPath);
@@ -244,7 +256,10 @@ describe('VSCodeFileSystemAdapter', () => {
 
       vi.mocked(vscode.workspace.fs.writeFile).mockRejectedValue(error);
 
-      const result = await adapter.writeFile(testPath, testContent);
+      const result = await adapter.writeFile(
+        createTestFilePath(testPath),
+        createTestDocumentContent(testContent),
+      );
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
@@ -261,7 +276,10 @@ describe('VSCodeFileSystemAdapter', () => {
 
       vi.mocked(vscode.workspace.fs.writeFile).mockRejectedValue(error);
 
-      const result = await adapter.writeFile(testPath, testContent);
+      const result = await adapter.writeFile(
+        createTestFilePath(testPath),
+        createTestDocumentContent(testContent),
+      );
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
@@ -275,7 +293,10 @@ describe('VSCodeFileSystemAdapter', () => {
 
       vi.mocked(vscode.workspace.fs.writeFile).mockResolvedValue(undefined);
 
-      const result = await adapter.writeFile(testPath, testContent);
+      const result = await adapter.writeFile(
+        createTestFilePath(testPath),
+        createTestDocumentContent(testContent),
+      );
 
       expect(result.isOk()).toBe(true);
 
@@ -294,7 +315,7 @@ describe('VSCodeFileSystemAdapter', () => {
 
       vi.mocked(vscode.workspace.fs.stat).mockResolvedValue(mockStat as any);
 
-      const result = await adapter.exists(testPath);
+      const result = await adapter.exists(createTestFilePath(testPath));
 
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
@@ -308,7 +329,7 @@ describe('VSCodeFileSystemAdapter', () => {
 
       vi.mocked(vscode.workspace.fs.stat).mockRejectedValue(error);
 
-      const result = await adapter.exists(testPath);
+      const result = await adapter.exists(createTestFilePath(testPath));
 
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
@@ -322,7 +343,7 @@ describe('VSCodeFileSystemAdapter', () => {
 
       vi.mocked(vscode.workspace.fs.stat).mockRejectedValue(error);
 
-      const result = await adapter.exists(testPath);
+      const result = await adapter.exists(createTestFilePath(testPath));
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
@@ -337,7 +358,7 @@ describe('VSCodeFileSystemAdapter', () => {
 
       vi.mocked(vscode.workspace.fs.delete).mockResolvedValue(undefined);
 
-      const result = await adapter.delete(testPath);
+      const result = await adapter.delete(createTestFilePath(testPath));
 
       expect(result.isOk()).toBe(true);
       expect(vscode.workspace.fs.delete).toHaveBeenCalledWith(
@@ -352,7 +373,7 @@ describe('VSCodeFileSystemAdapter', () => {
 
       vi.mocked(vscode.workspace.fs.delete).mockRejectedValue(error);
 
-      const result = await adapter.delete(testPath);
+      const result = await adapter.delete(createTestFilePath(testPath));
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
@@ -382,7 +403,7 @@ describe('VSCodeFileSystemAdapter', () => {
         return mockStats[index] as any;
       });
 
-      const result = await adapter.readDirectory(testPath);
+      const result = await adapter.readDirectory(createTestFilePath(testPath));
 
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
@@ -407,7 +428,7 @@ describe('VSCodeFileSystemAdapter', () => {
 
       vi.mocked(vscode.workspace.fs.readDirectory).mockRejectedValue(error);
 
-      const result = await adapter.readDirectory(testPath);
+      const result = await adapter.readDirectory(createTestFilePath(testPath));
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
@@ -422,7 +443,7 @@ describe('VSCodeFileSystemAdapter', () => {
 
       vi.mocked(vscode.workspace.fs.createDirectory).mockResolvedValue(undefined);
 
-      const result = await adapter.createDirectory(testPath);
+      const result = await adapter.createDirectory(createTestFilePath(testPath));
 
       expect(result.isOk()).toBe(true);
       expect(vscode.workspace.fs.createDirectory).toHaveBeenCalledWith(
@@ -436,7 +457,7 @@ describe('VSCodeFileSystemAdapter', () => {
 
       vi.mocked(vscode.workspace.fs.createDirectory).mockRejectedValue(error);
 
-      const result = await adapter.createDirectory(testPath);
+      const result = await adapter.createDirectory(createTestFilePath(testPath));
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
@@ -458,7 +479,7 @@ describe('VSCodeFileSystemAdapter', () => {
       vi.mocked(vscode.workspace.createFileSystemWatcher).mockReturnValue(mockWatcher as any);
 
       const eventCallback = vi.fn();
-      const disposable = adapter.watch(testPath, eventCallback);
+      const disposable = adapter.watch(createTestFilePath(testPath), eventCallback);
 
       expect(vscode.workspace.createFileSystemWatcher).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -489,7 +510,7 @@ describe('VSCodeFileSystemAdapter', () => {
       vi.mocked(vscode.workspace.createFileSystemWatcher).mockReturnValue(mockWatcher as any);
 
       const eventCallback = vi.fn();
-      adapter.watch(testPath, eventCallback);
+      adapter.watch(createTestFilePath(testPath), eventCallback);
 
       // Simulate create event
       const createHandler = mockWatcher.onDidCreate.mock.calls[0]?.[0];
@@ -514,7 +535,7 @@ describe('VSCodeFileSystemAdapter', () => {
       vi.mocked(vscode.workspace.createFileSystemWatcher).mockReturnValue(mockWatcher as any);
 
       const eventCallback = vi.fn();
-      adapter.watch(testPath, eventCallback);
+      adapter.watch(createTestFilePath(testPath), eventCallback);
 
       // Simulate change event
       const changeHandler = mockWatcher.onDidChange.mock.calls[0]?.[0];
@@ -539,7 +560,7 @@ describe('VSCodeFileSystemAdapter', () => {
       vi.mocked(vscode.workspace.createFileSystemWatcher).mockReturnValue(mockWatcher as any);
 
       const eventCallback = vi.fn();
-      adapter.watch(testPath, eventCallback);
+      adapter.watch(createTestFilePath(testPath), eventCallback);
 
       // Simulate delete event
       const deleteHandler = mockWatcher.onDidDelete.mock.calls[0]?.[0];
@@ -556,21 +577,21 @@ describe('VSCodeFileSystemAdapter', () => {
   describe('stored document management', () => {
     it('should get stored document', async () => {
       const testDoc: StoredDocument = {
-        id: DocumentId.create('test-doc'),
-        content: DocumentContent.create('test content'),
-        version: DocumentVersion.create(1),
+        id: createTestDocumentId('test-doc'),
+        content: createTestDocumentContent('test content'),
+        version: createTestDocumentVersion(1),
         metadata: {
-          id: DocumentId.create('test-doc'),
-          title: Title.create('Test Document'),
-          modifiedAt: Timestamp.create(new Date('2023-01-01')),
-          size: FileSize.create(12),
+          id: createTestDocumentId('test-doc'),
+          title: createTestTitle('Test Document'),
+          modifiedAt: createTestTimestamp(new Date('2023-01-01')),
+          size: createTestFileSize(12),
         },
       };
 
       // Mock the stored documents
       (adapter as any).storedDocuments.set('test-doc', testDoc);
 
-      const result = await adapter.getStoredDocument('test-doc');
+      const result = await adapter.getStoredDocument(createTestDocumentId('test-doc'));
 
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
@@ -579,7 +600,7 @@ describe('VSCodeFileSystemAdapter', () => {
     });
 
     it('should return null for non-existent stored document', async () => {
-      const result = await adapter.getStoredDocument('nonexistent');
+      const result = await adapter.getStoredDocument(createTestDocumentId('nonexistent'));
 
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
@@ -589,14 +610,14 @@ describe('VSCodeFileSystemAdapter', () => {
 
     it('should store document and save to global state', async () => {
       const testDoc: StoredDocument = {
-        id: DocumentId.create('new-doc'),
-        content: DocumentContent.create('new content'),
-        version: DocumentVersion.create(1),
+        id: createTestDocumentId('new-doc'),
+        content: createTestDocumentContent('new content'),
+        version: createTestDocumentVersion(1),
         metadata: {
-          id: DocumentId.create('new-doc'),
-          title: Title.create('New Document'),
-          modifiedAt: Timestamp.create(new Date('2023-01-01')),
-          size: FileSize.create(11),
+          id: createTestDocumentId('new-doc'),
+          title: createTestTitle('New Document'),
+          modifiedAt: createTestTimestamp(new Date('2023-01-01')),
+          size: createTestFileSize(11),
         },
       };
 
@@ -613,21 +634,21 @@ describe('VSCodeFileSystemAdapter', () => {
 
     it('should delete stored document and update global state', async () => {
       const testDoc: StoredDocument = {
-        id: DocumentId.create('to-delete'),
-        content: DocumentContent.create('content'),
-        version: DocumentVersion.create(1),
+        id: createTestDocumentId('to-delete'),
+        content: createTestDocumentContent('content'),
+        version: createTestDocumentVersion(1),
         metadata: {
-          id: DocumentId.create('to-delete'),
-          title: Title.create('Document to Delete'),
-          modifiedAt: Timestamp.create(new Date('2023-01-01')),
-          size: FileSize.create(7),
+          id: createTestDocumentId('to-delete'),
+          title: createTestTitle('Document to Delete'),
+          modifiedAt: createTestTimestamp(new Date('2023-01-01')),
+          size: createTestFileSize(7),
         },
       };
 
       // Store document first
       (adapter as any).storedDocuments.set('to-delete', testDoc);
 
-      const result = await adapter.deleteStoredDocument('to-delete');
+      const result = await adapter.deleteStoredDocument(createTestDocumentId('to-delete'));
 
       expect(result.isOk()).toBe(true);
       expect(mockGlobalState.update).toHaveBeenCalledWith('proof-editor.offline-documents', {});
@@ -636,32 +657,32 @@ describe('VSCodeFileSystemAdapter', () => {
     it('should list stored documents metadata', async () => {
       const testDocs: StoredDocument[] = [
         {
-          id: DocumentId.create('doc1'),
-          content: DocumentContent.create('content1'),
-          version: DocumentVersion.create(1),
+          id: createTestDocumentId('doc1'),
+          content: createTestDocumentContent('content1'),
+          version: createTestDocumentVersion(1),
           metadata: {
-            id: DocumentId.create('doc1'),
-            title: Title.create('Doc 1'),
-            modifiedAt: Timestamp.create(new Date('2023-01-01')),
-            size: FileSize.create(8),
+            id: createTestDocumentId('doc1'),
+            title: createTestTitle('Doc 1'),
+            modifiedAt: createTestTimestamp(new Date('2023-01-01')),
+            size: createTestFileSize(8),
           },
         },
         {
-          id: DocumentId.create('doc2'),
-          content: DocumentContent.create('content2'),
-          version: DocumentVersion.create(1),
+          id: createTestDocumentId('doc2'),
+          content: createTestDocumentContent('content2'),
+          version: createTestDocumentVersion(1),
           metadata: {
-            id: DocumentId.create('doc2'),
-            title: Title.create('Doc 2'),
-            modifiedAt: Timestamp.create(new Date('2023-01-02')),
-            size: FileSize.create(8),
+            id: createTestDocumentId('doc2'),
+            title: createTestTitle('Doc 2'),
+            modifiedAt: createTestTimestamp(new Date('2023-01-02')),
+            size: createTestFileSize(8),
           },
         },
       ];
 
       // Store documents
       testDocs.forEach((doc) => {
-        (adapter as any).storedDocuments.set(doc.id.value, doc);
+        (adapter as any).storedDocuments.set(doc.id.getValue(), doc);
       });
 
       const result = await adapter.listStoredDocuments();
@@ -677,14 +698,14 @@ describe('VSCodeFileSystemAdapter', () => {
 
     it('should handle storage errors gracefully', async () => {
       const testDoc: StoredDocument = {
-        id: DocumentId.create('error-doc'),
-        content: DocumentContent.create('content'),
-        version: DocumentVersion.create(1),
+        id: createTestDocumentId('error-doc'),
+        content: createTestDocumentContent('content'),
+        version: createTestDocumentVersion(1),
         metadata: {
-          id: DocumentId.create('error-doc'),
-          title: Title.create('Error Document'),
-          modifiedAt: Timestamp.create(new Date('2023-01-01')),
-          size: FileSize.create(7),
+          id: createTestDocumentId('error-doc'),
+          title: createTestTitle('Error Document'),
+          modifiedAt: createTestTimestamp(new Date('2023-01-01')),
+          size: createTestFileSize(7),
         },
       };
 
@@ -720,7 +741,7 @@ describe('VSCodeFileSystemAdapter', () => {
 
       vi.mocked(vscode.workspace.fs.readFile).mockRejectedValue(error);
 
-      const result = await adapter.readFile(testPath);
+      const result = await adapter.readFile(createTestFilePath(testPath));
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
@@ -734,7 +755,7 @@ describe('VSCodeFileSystemAdapter', () => {
 
       vi.mocked(vscode.workspace.fs.readFile).mockRejectedValue(error);
 
-      const result = await adapter.readFile(testPath);
+      const result = await adapter.readFile(createTestFilePath(testPath));
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
@@ -748,7 +769,7 @@ describe('VSCodeFileSystemAdapter', () => {
 
       vi.mocked(vscode.workspace.fs.readFile).mockRejectedValue(error);
 
-      const result = await adapter.readFile(testPath);
+      const result = await adapter.readFile(createTestFilePath(testPath));
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
@@ -763,7 +784,7 @@ describe('VSCodeFileSystemAdapter', () => {
 
       vi.mocked(vscode.workspace.fs.readFile).mockRejectedValue(error);
 
-      const result = await adapter.readFile(testPath);
+      const result = await adapter.readFile(createTestFilePath(testPath));
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {

@@ -1,4 +1,5 @@
 import fc from 'fast-check';
+import { ok } from 'neverthrow';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { type MockProxy, mock } from 'vitest-mock-extended';
 
@@ -6,14 +7,15 @@ import type { AtomicArgument } from '../../entities/AtomicArgument';
 import { Tree } from '../../entities/Tree';
 import { ProcessingError } from '../../errors/DomainErrors';
 import type { IAtomicArgumentRepository } from '../../repositories/IAtomicArgumentRepository';
-import type { IOrderedSetRepository } from '../../repositories/IOrderedSetRepository';
-import { type AtomicArgumentId, NodeId, Position2D } from '../../shared/value-objects';
-import { atomicArgumentIdFactory, nodeIdFactory, orderedSetIdFactory } from './factories';
+import type { IStatementRepository } from '../../repositories/IStatementRepository';
+import { type AtomicArgumentId, NodeId } from '../../shared/value-objects';
+import { TreePosition } from '../../value-objects/TreePosition';
+import { atomicArgumentIdFactory, nodeIdFactory, orderedSetIdFactory } from '../factories/index.js';
 
 describe('Tree Performance and Edge Cases', () => {
   let mockDateNow: ReturnType<typeof vi.fn>;
   let mockAtomicArgumentRepository: MockProxy<IAtomicArgumentRepository>;
-  let mockOrderedSetRepository: MockProxy<IOrderedSetRepository>;
+  let mockStatementRepository: MockProxy<IStatementRepository>;
   const FIXED_TIMESTAMP = 1640995200000; // 2022-01-01T00:00:00.000Z
 
   beforeEach(() => {
@@ -24,7 +26,7 @@ describe('Tree Performance and Edge Cases', () => {
     });
 
     mockAtomicArgumentRepository = mock<IAtomicArgumentRepository>();
-    mockOrderedSetRepository = mock<IOrderedSetRepository>();
+    mockStatementRepository = mock<IStatementRepository>();
   });
 
   afterEach(() => {
@@ -54,15 +56,19 @@ describe('Tree Performance and Edge Cases', () => {
 
         // Create a chain structure
         for (let i = 1; i < nodeIds.length; i++) {
-          const setParentResult = tree.setNodeParent(nodeIds[i], nodeIds[i - 1], 0);
-          expect(setParentResult.isOk()).toBe(true);
+          const childId = nodeIds[i];
+          const parentId = nodeIds[i - 1];
+          if (childId && parentId) {
+            const setParentResult = tree.setNodeParent(childId, parentId);
+            expect(setParentResult.isOk()).toBe(true);
+          }
         }
 
         const startTime = performance.now();
         const isValid = tree.validateStructuralIntegrity();
         const endTime = performance.now();
 
-        expect(isValid).toBe(true);
+        expect(isValid.isOk()).toBe(true);
         expect(endTime - startTime).toBeLessThan(100); // Should complete in under 100ms
       });
 
@@ -76,25 +82,49 @@ describe('Tree Performance and Edge Cases', () => {
         });
 
         // Create complex structure with multiple children per parent
-        const setParent1Result = tree.setNodeParent(nodeIds[1], nodeIds[0], 0);
-        const setParent2Result = tree.setNodeParent(nodeIds[2], nodeIds[0], 1);
-        const setParent3Result = tree.setNodeParent(nodeIds[3], nodeIds[0], 2);
-        const setParent4Result = tree.setNodeParent(nodeIds[4], nodeIds[1], 0);
-        const setParent5Result = tree.setNodeParent(nodeIds[5], nodeIds[1], 1);
-        const setParent6Result = tree.setNodeParent(nodeIds[6], nodeIds[2], 0);
-        const setParent7Result = tree.setNodeParent(nodeIds[7], nodeIds[3], 0);
-        const setParent8Result = tree.setNodeParent(nodeIds[8], nodeIds[4], 0);
-        const setParent9Result = tree.setNodeParent(nodeIds[9], nodeIds[5], 0);
+        const node0 = nodeIds[0];
+        const node1 = nodeIds[1];
+        const node2 = nodeIds[2];
+        const node3 = nodeIds[3];
+        const node4 = nodeIds[4];
+        const node5 = nodeIds[5];
+        const node6 = nodeIds[6];
+        const node7 = nodeIds[7];
+        const node8 = nodeIds[8];
+        const node9 = nodeIds[9];
 
-        expect(setParent1Result.isOk()).toBe(true);
-        expect(setParent2Result.isOk()).toBe(true);
-        expect(setParent3Result.isOk()).toBe(true);
-        expect(setParent4Result.isOk()).toBe(true);
-        expect(setParent5Result.isOk()).toBe(true);
-        expect(setParent6Result.isOk()).toBe(true);
-        expect(setParent7Result.isOk()).toBe(true);
-        expect(setParent8Result.isOk()).toBe(true);
-        expect(setParent9Result.isOk()).toBe(true);
+        if (
+          node0 &&
+          node1 &&
+          node2 &&
+          node3 &&
+          node4 &&
+          node5 &&
+          node6 &&
+          node7 &&
+          node8 &&
+          node9
+        ) {
+          const setParent1Result = tree.setNodeParent(node1, node0);
+          const setParent2Result = tree.setNodeParent(node2, node0);
+          const setParent3Result = tree.setNodeParent(node3, node0);
+          const setParent4Result = tree.setNodeParent(node4, node1);
+          const setParent5Result = tree.setNodeParent(node5, node1);
+          const setParent6Result = tree.setNodeParent(node6, node2);
+          const setParent7Result = tree.setNodeParent(node7, node3);
+          const setParent8Result = tree.setNodeParent(node8, node4);
+          const setParent9Result = tree.setNodeParent(node9, node5);
+
+          expect(setParent1Result.isOk()).toBe(true);
+          expect(setParent2Result.isOk()).toBe(true);
+          expect(setParent3Result.isOk()).toBe(true);
+          expect(setParent4Result.isOk()).toBe(true);
+          expect(setParent5Result.isOk()).toBe(true);
+          expect(setParent6Result.isOk()).toBe(true);
+          expect(setParent7Result.isOk()).toBe(true);
+          expect(setParent8Result.isOk()).toBe(true);
+          expect(setParent9Result.isOk()).toBe(true);
+        }
 
         const validateResult = tree.validateStructuralIntegrity();
         expect(validateResult.isOk()).toBe(true);
@@ -112,7 +142,7 @@ describe('Tree Performance and Edge Cases', () => {
           const addChildResult = tree.addNode(childId);
           expect(addChildResult.isOk()).toBe(true);
 
-          const setParentResult = tree.setNodeParent(childId, parentId, index);
+          const setParentResult = tree.setNodeParent(childId, parentId);
           expect(setParentResult.isOk()).toBe(true);
         });
 
@@ -121,104 +151,71 @@ describe('Tree Performance and Edge Cases', () => {
       });
     });
 
-    describe('uncovered line coverage for complex async methods', () => {
-      it('should handle findDirectConnections with missing arguments', async () => {
+    describe('node and parent management', () => {
+      it('should handle node operations with mocked arguments', async () => {
         const nodeId = nodeIdFactory.build();
         const addResult = tree.addNode(nodeId);
         expect(addResult.isOk()).toBe(true);
-
-        // Mock repository to return null for missing arguments
-        mockAtomicArgumentRepository.findById.mockResolvedValue(null);
-
-        const result = await tree.findDirectConnections(
-          mockAtomicArgumentRepository,
-          mockOrderedSetRepository,
-        );
-
-        expect(result.isOk()).toBe(true);
-        if (result.isOk()) {
-          const connectionMap = result.value;
-          expect(connectionMap).toBeDefined();
-        }
-      });
-
-      it('should handle findArgumentTree with partial argument data', async () => {
-        const nodeId1 = nodeIdFactory.build();
-        const nodeId2 = nodeIdFactory.build();
-        const argumentId1 = atomicArgumentIdFactory.build();
-
-        const addResult1 = tree.addNode(nodeId1);
-        const addResult2 = tree.addNode(nodeId2);
-        expect(addResult1.isOk()).toBe(true);
-        expect(addResult2.isOk()).toBe(true);
 
         const mockArgument = mock<AtomicArgument>();
-        mockArgument.getId.mockReturnValue(argumentId1);
-        mockArgument.getPremiseSet.mockReturnValue(null);
-        mockArgument.getConclusionSet.mockReturnValue(null);
+        mockArgument.getId.mockReturnValue(atomicArgumentIdFactory.build());
+        mockArgument.getPremises.mockReturnValue([]);
+        mockArgument.getConclusions.mockReturnValue([]);
 
-        mockAtomicArgumentRepository.findById.mockImplementation(async (id: AtomicArgumentId) => {
-          if (id === argumentId1) return mockArgument;
-          return null;
-        });
+        // Mock repository to return the argument
+        mockAtomicArgumentRepository.findById.mockResolvedValue(ok(mockArgument));
 
-        const result = await tree.findArgumentTree(
-          mockAtomicArgumentRepository,
-          mockOrderedSetRepository,
-        );
-
-        expect(result.isOk()).toBe(true);
-        if (result.isOk()) {
-          const argumentStructure = result.value;
-          expect(argumentStructure).toBeDefined();
-        }
+        // Verify node was added
+        expect(tree.hasNode(nodeId)).toBe(true);
+        expect(tree.getNodeCount()).toBe(1);
       });
 
-      it('should handle findPathCompleteArgument with disconnected nodes', async () => {
+      it('should handle multiple nodes with parent relationships', () => {
         const nodeId1 = nodeIdFactory.build();
         const nodeId2 = nodeIdFactory.build();
-        const argumentId1 = atomicArgumentIdFactory.build();
-        const argumentId2 = atomicArgumentIdFactory.build();
+        const nodeId3 = nodeIdFactory.build();
 
         const addResult1 = tree.addNode(nodeId1);
         const addResult2 = tree.addNode(nodeId2);
+        const addResult3 = tree.addNode(nodeId3);
         expect(addResult1.isOk()).toBe(true);
         expect(addResult2.isOk()).toBe(true);
+        expect(addResult3.isOk()).toBe(true);
 
-        // Mock arguments with no connections
-        const mockArgument1 = mock<AtomicArgument>();
-        const mockArgument2 = mock<AtomicArgument>();
-        mockArgument1.getId.mockReturnValue(argumentId1);
-        mockArgument1.getPremiseSet.mockReturnValue(null);
-        mockArgument1.getConclusionSet.mockReturnValue(null);
-        mockArgument2.getId.mockReturnValue(argumentId2);
-        mockArgument2.getPremiseSet.mockReturnValue(null);
-        mockArgument2.getConclusionSet.mockReturnValue(null);
+        // Set up parent relationships
+        const setParentResult1 = tree.setNodeParent(nodeId2, nodeId1);
+        const setParentResult2 = tree.setNodeParent(nodeId3, nodeId2);
+        expect(setParentResult1.isOk()).toBe(true);
+        expect(setParentResult2.isOk()).toBe(true);
 
-        mockAtomicArgumentRepository.findById.mockImplementation(async (id: AtomicArgumentId) => {
-          if (id === argumentId1) return mockArgument1;
-          if (id === argumentId2) return mockArgument2;
-          return null;
-        });
+        // Verify relationships
+        expect(tree.getNode(nodeId2)?.getParentId()).toEqual(nodeId1);
+        expect(tree.getNode(nodeId3)?.getParentId()).toEqual(nodeId2);
+      });
 
-        const result = await tree.findPathCompleteArgument(
-          nodeId1,
-          nodeId2,
-          mockAtomicArgumentRepository,
-          mockOrderedSetRepository,
-        );
+      it('should prevent cycle creation', () => {
+        const nodeId1 = nodeIdFactory.build();
+        const nodeId2 = nodeIdFactory.build();
+        const nodeId3 = nodeIdFactory.build();
 
-        expect(result.isOk()).toBe(true);
-        if (result.isOk()) {
-          const pathCompleteArgument = result.value;
-          expect(pathCompleteArgument).toBeDefined();
+        tree.addNode(nodeId1);
+        tree.addNode(nodeId2);
+        tree.addNode(nodeId3);
+
+        // Create chain: 1 -> 2 -> 3
+        tree.setNodeParent(nodeId2, nodeId1);
+        tree.setNodeParent(nodeId3, nodeId2);
+
+        // Try to create cycle: 1 -> 3 (would make cycle)
+        const cycleResult = tree.setNodeParent(nodeId1, nodeId3);
+        expect(cycleResult.isErr()).toBe(true);
+        if (cycleResult.isErr()) {
+          expect(cycleResult.error.message).toContain('cycle');
         }
       });
 
-      it('should handle discoverSharedReferences with complex argument structures', async () => {
+      it('should handle large tree structures', () => {
         const nodeIds = Array.from({ length: 10 }, () => nodeIdFactory.build());
-        const argumentIds = Array.from({ length: 10 }, () => atomicArgumentIdFactory.build());
-        const orderedSetIds = Array.from({ length: 5 }, () => orderedSetIdFactory.build());
 
         // Add all nodes
         nodeIds.forEach((nodeId) => {
@@ -226,132 +223,20 @@ describe('Tree Performance and Edge Cases', () => {
           expect(addResult.isOk()).toBe(true);
         });
 
-        // Mock arguments with various shared ordered sets
-        const mockArguments = argumentIds.map((id, index) => {
-          const mockArg = mock<AtomicArgument>();
-          mockArg.getId.mockReturnValue(id);
-          // Create overlapping ordered set references
-          const sharedOrderedSet = orderedSetIds[index % orderedSetIds.length];
-          mockArg.getPremiseSet.mockReturnValue(sharedOrderedSet);
-          mockArg.getConclusionSet.mockReturnValue(sharedOrderedSet);
-          return mockArg;
-        });
-
-        mockAtomicArgumentRepository.findById.mockImplementation(async (id: AtomicArgumentId) => {
-          const found = mockArguments.find((arg) => arg.getId() === id);
-          return found || null;
-        });
-
-        const result = await tree.discoverSharedReferences(
-          mockAtomicArgumentRepository,
-          mockOrderedSetRepository,
-        );
-
-        expect(result.isOk()).toBe(true);
-        if (result.isOk()) {
-          const sharedReferences = result.value;
-          expect(sharedReferences).toBeDefined();
-          expect(Array.isArray(sharedReferences)).toBe(true);
+        // Create a tree structure
+        for (let i = 1; i < nodeIds.length; i++) {
+          const parentIndex = Math.floor((i - 1) / 2);
+          const childId = nodeIds[i];
+          const parentId = nodeIds[parentIndex];
+          if (childId && parentId) {
+            const setParentResult = tree.setNodeParent(childId, parentId);
+            expect(setParentResult.isOk()).toBe(true);
+          }
         }
-      });
 
-      it('should handle validateConnectionIntegrity with large trees', async () => {
-        const nodeIds = Array.from({ length: 50 }, () => nodeIdFactory.build());
-        const argumentIds = Array.from({ length: 50 }, () => atomicArgumentIdFactory.build());
-
-        // Add all nodes
-        nodeIds.forEach((nodeId) => {
-          const addResult = tree.addNode(nodeId);
-          expect(addResult.isOk()).toBe(true);
-        });
-
-        // Mock arguments
-        const mockArguments = argumentIds.map((id) => {
-          const mockArg = mock<AtomicArgument>();
-          mockArg.getId.mockReturnValue(id);
-          mockArg.getPremiseSet.mockReturnValue(null);
-          mockArg.getConclusionSet.mockReturnValue(null);
-          return mockArg;
-        });
-
-        mockAtomicArgumentRepository.findById.mockImplementation(async (id: AtomicArgumentId) => {
-          const found = mockArguments.find((arg) => arg.getId() === id);
-          return found || null;
-        });
-
-        const startTime = performance.now();
-        const result = await tree.validateConnectionIntegrity(
-          mockAtomicArgumentRepository,
-          mockOrderedSetRepository,
-        );
-        const endTime = performance.now();
-
-        expect(result.isOk()).toBe(true);
-        expect(endTime - startTime).toBeLessThan(1000); // Should complete in under 1 second
-      });
-    });
-
-    describe('Repository error handling', () => {
-      it('should handle repository timeout errors', async () => {
-        const nodeId = nodeIdFactory.build();
-        const addResult = tree.addNode(nodeId);
-        expect(addResult.isOk()).toBe(true);
-
-        mockAtomicArgumentRepository.findById.mockRejectedValue(new Error('Timeout'));
-
-        const result = await tree.findDirectConnections(
-          mockAtomicArgumentRepository,
-          mockOrderedSetRepository,
-        );
-
-        expect(result.isErr()).toBe(true);
-        if (result.isErr()) {
-          expect(result.error).toBeInstanceOf(ProcessingError);
-          expect(result.error.message).toContain('Timeout');
-        }
-      });
-
-      it('should handle repository connection errors', async () => {
-        const nodeId = nodeIdFactory.build();
-        const addResult = tree.addNode(nodeId);
-        expect(addResult.isOk()).toBe(true);
-
-        mockOrderedSetRepository.findById.mockRejectedValue(new Error('Connection failed'));
-
-        const result = await tree.discoverSharedReferences(
-          mockAtomicArgumentRepository,
-          mockOrderedSetRepository,
-        );
-
-        expect(result.isErr()).toBe(true);
-        if (result.isErr()) {
-          expect(result.error).toBeInstanceOf(ProcessingError);
-          expect(result.error.message).toContain('Connection failed');
-        }
-      });
-
-      it('should handle repository authentication errors', async () => {
-        const nodeId1 = nodeIdFactory.build();
-        const nodeId2 = nodeIdFactory.build();
-        const addResult1 = tree.addNode(nodeId1);
-        const addResult2 = tree.addNode(nodeId2);
-        expect(addResult1.isOk()).toBe(true);
-        expect(addResult2.isOk()).toBe(true);
-
-        mockAtomicArgumentRepository.findById.mockRejectedValue(new Error('Authentication failed'));
-
-        const result = await tree.findPathCompleteArgument(
-          nodeId1,
-          nodeId2,
-          mockAtomicArgumentRepository,
-          mockOrderedSetRepository,
-        );
-
-        expect(result.isErr()).toBe(true);
-        if (result.isErr()) {
-          expect(result.error).toBeInstanceOf(ProcessingError);
-          expect(result.error.message).toContain('Authentication failed');
-        }
+        expect(tree.getNodeCount()).toBe(10);
+        const validateResult = tree.validateStructuralIntegrity();
+        expect(validateResult.isOk()).toBe(true);
       });
     });
   });
@@ -388,7 +273,9 @@ describe('Tree Performance and Edge Cases', () => {
 
                 // Remove some nodes
                 const validIndices = removalIndices.filter((i) => i < nodeIds.length);
-                const nodesToRemove = validIndices.map((i) => nodeIds[i]);
+                const nodesToRemove = validIndices
+                  .map((i) => nodeIds[i])
+                  .filter((id): id is NodeId => id !== undefined);
                 const uniqueNodesToRemove = [...new Set(nodesToRemove)];
 
                 uniqueNodesToRemove.forEach((nodeId) => {
@@ -423,15 +310,18 @@ describe('Tree Performance and Edge Cases', () => {
                 const tree = result.value;
 
                 for (const [x, y] of positions) {
-                  const positionResult = Position2D.create(x, y);
-                  expect(positionResult.isOk()).toBe(true);
+                  const treePositionResult = TreePosition.create(x, y);
+                  expect(treePositionResult.isOk()).toBe(true);
 
-                  if (positionResult.isOk()) {
-                    const moveResult = tree.moveTo(positionResult.value);
+                  if (treePositionResult.isOk()) {
+                    const moveResult = tree.moveTo(treePositionResult.value);
                     expect(moveResult.isOk()).toBe(true);
-                    expect(tree.getPosition()).toEqual(positionResult.value);
+                    expect(tree.getPosition()).toEqual(treePositionResult.value);
                     expect(
-                      tree.isAtPosition(positionResult.value.getX(), positionResult.value.getY()),
+                      tree.isAtPosition(
+                        treePositionResult.value.getX(),
+                        treePositionResult.value.getY(),
+                      ),
                     ).toBe(true);
                   }
                 }
@@ -518,14 +408,14 @@ describe('Tree Performance and Edge Cases', () => {
                   ) {
                     const childId = nodeIds[childIndex];
                     const parentId = nodeIds[parentIndex];
+                    if (childId && parentId) {
+                      if (!tree.wouldCreateCycle(childId, parentId)) {
+                        const setParentResult = tree.setNodeParent(childId, parentId);
+                        expect(setParentResult.isOk()).toBe(true);
 
-                    if (!tree.wouldCreateCycle(childId, parentId)) {
-                      const setParentResult = tree.setNodeParent(childId, parentId, position);
-                      expect(setParentResult.isOk()).toBe(true);
-
-                      const childNode = tree.getNode(childId);
-                      expect(childNode?.parentId).toBe(parentId);
-                      expect(childNode?.parentPosition).toBe(position);
+                        const childNode = tree.getNode(childId);
+                        expect(childNode?.getParentId()).toBe(parentId);
+                      }
                     }
                   }
                 }
@@ -564,7 +454,7 @@ describe('Tree Performance and Edge Cases', () => {
         // Benchmark node lookup
         const lookupStartTime = performance.now();
         nodeIds.forEach((nodeId) => {
-          expect(tree.containsNode(nodeId)).toBe(true);
+          expect(tree.hasNode(nodeId)).toBe(true);
         });
         const lookupEndTime = performance.now();
 
@@ -590,7 +480,7 @@ describe('Tree Performance and Edge Cases', () => {
         const positions = Array.from({ length: operationCount }, () => {
           const x = Math.floor(Math.random() * 10000);
           const y = Math.floor(Math.random() * 10000);
-          return Position2D.create(x, y);
+          return TreePosition.create(x, y);
         })
           .filter((r) => r.isOk())
           .map((r) => r.value);

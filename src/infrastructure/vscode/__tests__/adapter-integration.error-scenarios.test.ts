@@ -14,6 +14,19 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as vscode from 'vscode';
 import type { StoredDocument } from '../../../application/ports/IFileSystemPort.js';
 import { NotificationMessage } from '../../../domain/shared/value-objects/index.js';
+import {
+  createTestActionLabel,
+  createTestDialogPrompt,
+  createTestDialogTitle,
+  createTestDocumentContent,
+  createTestDocumentId,
+  createTestDocumentVersion,
+  createTestErrorMessage,
+  createTestFilePath,
+  createTestFileSize,
+  createTestTimestamp,
+  createTestTitle,
+} from '../../__tests__/test-helpers.js';
 import { VSCodeFileSystemAdapter } from '../VSCodeFileSystemAdapter.js';
 import { VSCodeUIAdapter } from '../VSCodeUIAdapter.js';
 
@@ -134,20 +147,20 @@ describe('Adapter Integration Error Scenarios', () => {
       vi.mocked(vscode.window.showInputBox).mockRejectedValue(new Error('UI unavailable'));
 
       const testDoc: StoredDocument = {
-        id: 'test-doc',
-        content: 'content',
-        version: 1,
+        id: createTestDocumentId('test-doc'),
+        content: createTestDocumentContent('content'),
+        version: createTestDocumentVersion(1),
         metadata: {
-          id: 'test-doc',
-          title: 'Test',
-          modifiedAt: new Date(),
-          size: 7,
+          id: createTestDocumentId('test-doc'),
+          title: createTestTitle('Test'),
+          modifiedAt: createTestTimestamp(new Date()),
+          size: createTestFileSize(7),
         },
       };
 
       // Both operations should fail due to context corruption
       const fsResult = await fileSystemAdapter.storeDocument(testDoc);
-      const uiResult = await uiAdapter.showInputBox({ prompt: 'Test' });
+      const uiResult = await uiAdapter.showInputBox({ prompt: createTestDialogPrompt('Test') });
 
       expect(fsResult.isErr()).toBe(true);
       expect(uiResult.isErr()).toBe(true);
@@ -162,10 +175,10 @@ describe('Adapter Integration Error Scenarios', () => {
       );
 
       // Start operations on both adapters after context disposal
-      const fsOperation = fileSystemAdapter.readFile('/test/file.txt');
+      const fsOperation = fileSystemAdapter.readFile(createTestFilePath('/test/file.txt'));
       const uiOperation = uiAdapter.showConfirmation({
-        title: 'Confirm',
-        message: 'Continue?',
+        title: createTestDialogTitle('Confirm'),
+        message: createTestErrorMessage('Continue?'),
       });
 
       const [fsResult, uiResult] = await Promise.all([fsOperation, uiOperation]);
@@ -184,11 +197,14 @@ describe('Adapter Integration Error Scenarios', () => {
       );
 
       const confirmResult = await uiAdapter.showConfirmation({
-        title: 'Save File',
-        message: 'Save changes?',
+        title: createTestDialogTitle('Save File'),
+        message: createTestErrorMessage('Save changes?'),
       });
 
-      const writeResult = await fileSystemAdapter.writeFile('/test/file.txt', 'content');
+      const writeResult = await fileSystemAdapter.writeFile(
+        createTestFilePath('/test/file.txt'),
+        createTestDocumentContent('content'),
+      );
 
       expect(confirmResult.isErr()).toBe(true);
       expect(writeResult.isErr()).toBe(true);
@@ -228,7 +244,7 @@ describe('Adapter Integration Error Scenarios', () => {
       vi.mocked(vscode.window.showOpenDialog).mockRejectedValue(new Error('Dialog failed to open'));
 
       const dialogResult = await uiAdapter.showOpenDialog({
-        title: 'Open File',
+        title: createTestDialogTitle('Open File'),
         canSelectFiles: true,
       });
 
@@ -239,7 +255,7 @@ describe('Adapter Integration Error Scenarios', () => {
         vscode.FileSystemError.NoPermissions('Permission denied'),
       );
 
-      const readResult = await fileSystemAdapter.readFile('/selected/file.txt');
+      const readResult = await fileSystemAdapter.readFile(createTestFilePath('/selected/file.txt'));
 
       expect(readResult.isErr()).toBe(true);
       if (readResult.isErr()) {
@@ -263,7 +279,10 @@ describe('Adapter Integration Error Scenarios', () => {
 
       const progressTask = async (progress: any) => {
         progress.report({ message: 'Saving file...', increment: 50 });
-        const result = await fileSystemAdapter.writeFile('/test/file.txt', 'content');
+        const result = await fileSystemAdapter.writeFile(
+          createTestFilePath('/test/file.txt'),
+          createTestDocumentContent('content'),
+        );
         if (result.isErr()) {
           throw new Error(`Save failed: ${result.error.message}`);
         }
@@ -271,7 +290,10 @@ describe('Adapter Integration Error Scenarios', () => {
       };
 
       await expect(
-        uiAdapter.showProgress({ title: 'Saving...', location: 'notification' }, progressTask),
+        uiAdapter.showProgress(
+          { title: createTestDialogTitle('Saving...'), location: 'notification' },
+          progressTask,
+        ),
       ).rejects.toThrow('Save failed: Disk full');
     });
 
@@ -286,7 +308,7 @@ describe('Adapter Integration Error Scenarios', () => {
         throw new Error('Cannot show error message');
       });
 
-      const deleteResult = await fileSystemAdapter.delete('/test/file.txt');
+      const deleteResult = await fileSystemAdapter.delete(createTestFilePath('/test/file.txt'));
 
       expect(deleteResult.isErr()).toBe(true);
       if (deleteResult.isErr()) {
@@ -314,7 +336,7 @@ describe('Adapter Integration Error Scenarios', () => {
       });
 
       expect(() => {
-        fileSystemAdapter.watch('/test/dir', () => {
+        fileSystemAdapter.watch(createTestFilePath('/test/dir'), () => {
           // Empty watcher callback for test
         });
       }).toThrow('Cannot create file watcher');
@@ -349,9 +371,15 @@ describe('Adapter Integration Error Scenarios', () => {
 
       // Try concurrent operations
       const results = await Promise.allSettled([
-        fileSystemAdapter.writeFile('/test/file1.txt', 'content1'),
-        fileSystemAdapter.writeFile('/test/file2.txt', 'content2'),
-        uiAdapter.showSaveDialog({ title: 'Save As' }),
+        fileSystemAdapter.writeFile(
+          createTestFilePath('/test/file1.txt'),
+          createTestDocumentContent('content1'),
+        ),
+        fileSystemAdapter.writeFile(
+          createTestFilePath('/test/file2.txt'),
+          createTestDocumentContent('content2'),
+        ),
+        uiAdapter.showSaveDialog({ title: createTestDialogTitle('Save As') }),
       ]);
 
       // Most operations should fail due to resource contention
@@ -378,7 +406,7 @@ describe('Adapter Integration Error Scenarios', () => {
       vi.mocked(vscode.workspace.fs.readFile).mockRejectedValue(memoryError);
       vi.mocked(vscode.window.showQuickPick).mockRejectedValue(memoryError);
 
-      const fsResult = await fileSystemAdapter.readFile('/large/file.txt');
+      const fsResult = await fileSystemAdapter.readFile(createTestFilePath('/large/file.txt'));
       const uiResult = await uiAdapter.showQuickPick([
         { label: 'Option 1' },
         { label: 'Option 2' },
@@ -409,8 +437,8 @@ describe('Adapter Integration Error Scenarios', () => {
       });
 
       const [uiResult, fsResult] = await Promise.all([
-        uiAdapter.showInputBox({ prompt: 'Enter value' }),
-        fileSystemAdapter.readFile('/test/file.txt'),
+        uiAdapter.showInputBox({ prompt: createTestDialogPrompt('Enter value') }),
+        fileSystemAdapter.readFile(createTestFilePath('/test/file.txt')),
       ]);
 
       expect(uiResult.isOk()).toBe(true);
@@ -435,7 +463,7 @@ describe('Adapter Integration Error Scenarios', () => {
       });
 
       // Primary operation fails
-      const readResult = await fileSystemAdapter.readFile('/config.json');
+      const readResult = await fileSystemAdapter.readFile(createTestFilePath('/config.json'));
       expect(readResult.isErr()).toBe(true);
 
       // Error display also fails
@@ -467,19 +495,22 @@ describe('Adapter Integration Error Scenarios', () => {
       vi.mocked(vscode.window.showWarningMessage).mockResolvedValue(undefined);
 
       const testDoc: StoredDocument = {
-        id: 'recovery-doc',
-        content: 'content',
-        version: 1,
+        id: createTestDocumentId('recovery-doc'),
+        content: createTestDocumentContent('content'),
+        version: createTestDocumentVersion(1),
         metadata: {
-          id: 'recovery-doc',
-          title: 'Recovery Document',
-          modifiedAt: new Date(),
-          size: 7,
+          id: createTestDocumentId('recovery-doc'),
+          title: createTestTitle('Recovery Document'),
+          modifiedAt: createTestTimestamp(new Date()),
+          size: createTestFileSize(7),
         },
       };
 
       // Primary operation fails
-      const writeResult = await fileSystemAdapter.writeFile('/test/file.txt', 'content');
+      const writeResult = await fileSystemAdapter.writeFile(
+        createTestFilePath('/test/file.txt'),
+        createTestDocumentContent('content'),
+      );
       expect(writeResult.isErr()).toBe(true);
 
       // Fallback storage succeeds
@@ -511,20 +542,26 @@ describe('Adapter Integration Error Scenarios', () => {
       vi.mocked(vscode.window.showInformationMessage).mockResolvedValue('Retry' as any);
 
       // Initial attempt fails
-      const firstResult = await fileSystemAdapter.writeFile('/test/file.txt', 'content');
+      const firstResult = await fileSystemAdapter.writeFile(
+        createTestFilePath('/test/file.txt'),
+        createTestDocumentContent('content'),
+      );
       expect(firstResult.isErr()).toBe(true);
 
       // UI asks user to retry
       const userChoice = await uiAdapter.showConfirmation({
-        title: 'Retry',
-        message: 'Operation failed. Retry?',
-        confirmLabel: 'Retry',
+        title: createTestDialogTitle('Retry'),
+        message: createTestErrorMessage('Operation failed. Retry?'),
+        confirmLabel: createTestActionLabel('Retry'),
       });
 
       expect(userChoice.isOk()).toBe(true);
       if (userChoice.isOk() && userChoice.value) {
         // Retry succeeds
-        const retryResult = await fileSystemAdapter.writeFile('/test/file.txt', 'content');
+        const retryResult = await fileSystemAdapter.writeFile(
+          createTestFilePath('/test/file.txt'),
+          createTestDocumentContent('content'),
+        );
         expect(retryResult.isOk()).toBe(true);
       }
     });
@@ -541,8 +578,8 @@ describe('Adapter Integration Error Scenarios', () => {
         throw new Error('showOpenDialog requires VS Code 1.74+');
       });
 
-      const fsResult = await fileSystemAdapter.readFile('/test/file.txt');
-      const uiResult = await uiAdapter.showOpenDialog({ title: 'Open' });
+      const fsResult = await fileSystemAdapter.readFile(createTestFilePath('/test/file.txt'));
+      const uiResult = await uiAdapter.showOpenDialog({ title: createTestDialogTitle('Open') });
 
       expect(fsResult.isErr()).toBe(true);
       expect(uiResult.isErr()).toBe(true);
@@ -563,7 +600,7 @@ describe('Adapter Integration Error Scenarios', () => {
         new Error('Sandbox restricts file dialog access'),
       );
 
-      const fsResult = await fileSystemAdapter.createDirectory('/System/test');
+      const fsResult = await fileSystemAdapter.createDirectory(createTestFilePath('/System/test'));
       const uiResult = await uiAdapter.showSaveDialog({
         defaultUri: '/System/test/file.txt',
       });
@@ -614,7 +651,9 @@ describe('Adapter Integration Error Scenarios', () => {
         throw new Error('UI operations restricted by corporate policy');
       });
 
-      const fsResult = await fileSystemAdapter.readFile('https://external.com/config.json');
+      const fsResult = await fileSystemAdapter.readFile(
+        createTestFilePath('https://external.com/config.json'),
+      );
 
       expect(fsResult.isErr()).toBe(true);
       if (fsResult.isErr()) {

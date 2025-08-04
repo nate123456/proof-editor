@@ -1,4 +1,3 @@
-import { ok } from 'neverthrow';
 import { beforeEach, describe, expect, test } from 'vitest';
 import {
   AtomicArgumentId,
@@ -6,11 +5,9 @@ import {
   NodeCount,
   NodeId,
   Position2D,
-  SideLabel,
   StatementId,
   TreeId,
 } from '../../../domain/shared/value-objects/index.js';
-import type { TreeLayoutConfig } from '../../dtos/view-dtos.js';
 import type { DocumentDTO } from '../../queries/document-queries.js';
 import type { AtomicArgumentDTO, TreeDTO } from '../../queries/shared-types.js';
 import type { StatementDTO } from '../../queries/statement-queries.js';
@@ -49,8 +46,11 @@ describe('TreeLayoutService', () => {
         expect(result.value[0]?.id).toBe('tree1');
         expect(result.value[0]?.layout.nodes).toHaveLength(0);
         expect(result.value[0]?.layout.connections).toHaveLength(0);
-        expect(result.value[0]?.bounds.width).toBe(500); // nodeWidth(220) + horizontalSpacing(280)
-        expect(result.value[0]?.bounds.height).toBe(300); // nodeHeight(120) + verticalSpacing(180)
+        // For empty trees, the bounds are calculated with nodeWidth + horizontalSpacing
+        // Default: nodeWidth(220) + horizontalSpacing(280) = 500
+        expect(result.value[0]?.bounds.getWidth()).toBe(500);
+        // Default: nodeHeight(120) + verticalSpacing(180) = 300
+        expect(result.value[0]?.bounds.getHeight()).toBe(300);
       }
     });
 
@@ -99,7 +99,7 @@ describe('TreeLayoutService', () => {
         // Check that second tree is positioned below first
         const tree1 = result.value[0];
         const tree2 = result.value[1];
-        expect(tree2?.position.y).toBeGreaterThan(tree1?.position.y || 0);
+        expect(tree2?.position.getY()).toBeGreaterThan(tree1?.position.getY() || 0);
       }
     });
 
@@ -110,18 +110,22 @@ describe('TreeLayoutService', () => {
         },
       });
 
-      const customConfig = {
+      const customConfigResult = service.createTypedConfig({
         nodeWidth: 300,
         nodeHeight: 150,
         canvasMargin: 100,
-      };
+      });
 
-      const result = service.calculateDocumentLayout(doc, customConfig);
+      expect(customConfigResult.isOk()).toBe(true);
+      if (!customConfigResult.isOk()) return;
+
+      const result = service.calculateDocumentLayout(doc, customConfigResult.value);
 
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
-        // Verify custom configuration was applied
-        expect(result.value[0]?.bounds.width).toBe(600); // 300 + 100*2 + margins
+        // With custom canvasMargin > 50 (default), width calculation changes
+        // nodeWidth(300) + canvasMargin(100)*2 + 100 = 600
+        expect(result.value[0]?.bounds.getWidth()).toBe(600);
       }
     });
 
@@ -147,47 +151,57 @@ describe('TreeLayoutService', () => {
     test('returns default configuration', () => {
       const config = service.getDefaultConfig();
 
-      expect(config.nodeWidth).toBe(220);
-      expect(config.nodeHeight).toBe(120);
-      expect(config.verticalSpacing).toBe(180);
-      expect(config.horizontalSpacing).toBe(280);
-      expect(config.treeSpacing).toBe(150);
-      expect(config.canvasMargin).toBe(50);
+      expect(config.getNodeWidth().getValue()).toBe(220);
+      expect(config.getNodeHeight().getValue()).toBe(120);
+      expect(config.getVerticalSpacing().getValue()).toBe(180);
+      expect(config.getHorizontalSpacing().getValue()).toBe(280);
+      expect(config.getTreeSpacing().getValue()).toBe(150);
+      expect(config.getCanvasMargin().getValue()).toBe(50);
     });
 
     test('returns independent copy of config', () => {
       const config1 = service.getDefaultConfig();
       const config2 = service.getDefaultConfig();
 
-      config1.nodeWidth = 999;
-      expect(config2.nodeWidth).toBe(220);
+      // Config is immutable, so we can't modify it directly
+      // This test now validates that each call returns a valid config
+      expect(config1).not.toBe(config2); // Different instances
+      expect(config2.getNodeWidth().getValue()).toBe(220);
     });
   });
 
-  describe('createConfig', () => {
+  describe('createTypedConfig', () => {
     test('merges overrides with defaults', () => {
       const overrides = {
         nodeWidth: 300,
         canvasMargin: 100,
       };
 
-      const config = service.createConfig(overrides);
+      const configResult = service.createTypedConfig(overrides);
 
-      expect(config.nodeWidth).toBe(300);
-      expect(config.canvasMargin).toBe(100);
-      expect(config.nodeHeight).toBe(120); // Default unchanged
-      expect(config.verticalSpacing).toBe(180); // Default unchanged
+      expect(configResult.isOk()).toBe(true);
+      if (configResult.isOk()) {
+        const config = configResult.value;
+        expect(config.getNodeWidth().getValue()).toBe(300);
+        expect(config.getCanvasMargin().getValue()).toBe(100);
+        expect(config.getNodeHeight().getValue()).toBe(120); // Default unchanged
+        expect(config.getVerticalSpacing().getValue()).toBe(180); // Default unchanged
+      }
     });
 
     test('returns complete configuration', () => {
-      const config = service.createConfig({});
+      const configResult = service.createTypedConfig({});
 
-      expect(config).toHaveProperty('nodeWidth');
-      expect(config).toHaveProperty('nodeHeight');
-      expect(config).toHaveProperty('verticalSpacing');
-      expect(config).toHaveProperty('horizontalSpacing');
-      expect(config).toHaveProperty('treeSpacing');
-      expect(config).toHaveProperty('canvasMargin');
+      expect(configResult.isOk()).toBe(true);
+      if (configResult.isOk()) {
+        const config = configResult.value;
+        expect(config.getNodeWidth()).toBeDefined();
+        expect(config.getNodeHeight()).toBeDefined();
+        expect(config.getVerticalSpacing()).toBeDefined();
+        expect(config.getHorizontalSpacing()).toBeDefined();
+        expect(config.getTreeSpacing()).toBeDefined();
+        expect(config.getCanvasMargin()).toBeDefined();
+      }
     });
   });
 
@@ -210,7 +224,7 @@ describe('TreeLayoutService', () => {
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         const node = result.value[0]?.layout.nodes[0];
-        expect(node?.position.y).toBe(0); // Root level
+        expect(node?.position.getY()).toBe(0); // Root level
       }
     });
 
@@ -305,6 +319,7 @@ function createDocumentDTO(overrides: Partial<DocumentDTO> = {}): DocumentDTO {
     createdAt: new Date().toISOString(),
     modifiedAt: new Date().toISOString(),
     statements: {},
+    orderedSets: {},
     atomicArguments: {},
     trees: {},
     ...overrides,
@@ -333,12 +348,15 @@ function createTreeDTO(
     throw new Error('Failed to create test TreeDTO');
   }
 
+  // Extract successfully validated node IDs
+  const validNodeIds = nodeIdResults.filter((r) => r.isOk()).map((r) => r.value);
+
   return {
     id: treeIdResult.value,
     position: positionResult.value,
     bounds: dimensionsResult.value,
     nodeCount: nodeCountResult.value,
-    rootNodeIds: nodeIdResults.map((r) => r.value),
+    rootNodeIds: validNodeIds,
   };
 }
 
@@ -371,9 +389,13 @@ function createAtomicArgumentDTO(
     throw new Error('Failed to create test statement IDs');
   }
 
+  // Extract successfully validated statement IDs
+  const validPremiseIds = premiseIdResults.filter((r) => r.isOk()).map((r) => r.value);
+  const validConclusionIds = conclusionIdResults.filter((r) => r.isOk()).map((r) => r.value);
+
   return {
     id: argumentIdResult.value,
-    premiseIds: premiseIdResults.map((r) => r.value),
-    conclusionIds: conclusionIdResults.map((r) => r.value),
+    premiseIds: validPremiseIds,
+    conclusionIds: validConclusionIds,
   };
 }

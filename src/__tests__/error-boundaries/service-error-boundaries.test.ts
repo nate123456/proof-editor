@@ -194,6 +194,7 @@ describe('Service Layer Error Boundaries', () => {
         createdAt: '2025-01-01T00:00:00.000Z',
         modifiedAt: '2025-01-01T00:00:00.000Z',
         statements: {},
+        orderedSets: {},
         atomicArguments: {},
         trees: {},
       });

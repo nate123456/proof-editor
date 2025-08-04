@@ -65,7 +65,7 @@ describe('Statement Entity', () => {
           const statement = result.value;
           expect(statement.getContent()).toBe('[Enter text]');
           expect(statement.hasContent()).toBe(true);
-          expect(statement.getWordCount()).toBe(2); // '[Enter' and 'text]'
+          expect(statement.getContentObject().wordCount).toBe(2); // '[Enter' and 'text]'
           expect(statement.getUsageCount()).toBe(0);
           expect(statement.isReferencedInOrderedSets()).toBe(false);
         }
@@ -133,7 +133,7 @@ describe('Statement Entity', () => {
           expect(statement.getUsageCount()).toBe(0);
           expect(statement.isReferencedInOrderedSets()).toBe(false);
           expect(statement.hasContent()).toBe(true);
-          expect(statement.getWordCount()).toBe(4);
+          expect(statement.getContentObject().wordCount).toBe(4);
         }
       });
 
@@ -437,7 +437,7 @@ describe('Statement Entity', () => {
           expect(result.isOk()).toBe(true);
 
           if (result.isOk()) {
-            expect(result.value.getWordCount()).toBe(expectedCount);
+            expect(result.value.getContentObject().wordCount).toBe(expectedCount);
           }
         });
       });
@@ -494,13 +494,13 @@ describe('Statement Entity', () => {
 
         expect(result.isOk()).toBe(true);
         if (result.isOk()) {
-          const statement = result.value;
+          let statement = result.value;
 
           // Test both increment methods
-          statement.incrementUsage();
+          statement = statement.incrementUsage();
           expect(statement.getUsageCount()).toBe(1);
 
-          statement.incrementUsageCount();
+          statement = statement.incrementUsage();
           expect(statement.getUsageCount()).toBe(2);
         }
       });
@@ -646,7 +646,7 @@ describe('Statement Entity', () => {
           const statement2 = result2.value;
 
           // Content should be equal even if identities differ
-          expect(statement1.contentEquals(statement2)).toBe(true);
+          expect(statement1.hasEqualContent(statement2)).toBe(true);
           expect(statement1.equals(statement2)).toBe(false);
         }
       });
@@ -662,7 +662,7 @@ describe('Statement Entity', () => {
           const statement1 = result1.value;
           const statement2 = result2.value;
 
-          expect(statement1.contentEquals(statement2)).toBe(false);
+          expect(statement1.hasEqualContent(statement2)).toBe(false);
           expect(statement1.equals(statement2)).toBe(false);
         }
       });
@@ -685,7 +685,7 @@ describe('Statement Entity', () => {
         expect(result.isOk()).toBe(true);
         if (result.isOk()) {
           const statement = result.value;
-          expect(statement.contentEquals(statement)).toBe(true);
+          expect(statement.hasEqualContent(statement)).toBe(true);
         }
       });
 
@@ -701,7 +701,9 @@ describe('Statement Entity', () => {
           const statement1 = result1.value;
           const statement2 = result2.value;
 
-          expect(statement1.contentEquals(statement2)).toBe(statement2.contentEquals(statement1));
+          expect(statement1.hasEqualContent(statement2)).toBe(
+            statement2.hasEqualContent(statement1),
+          );
         }
       });
     });
@@ -764,7 +766,7 @@ describe('Statement Entity', () => {
         if (result.isOk()) {
           const statement = result.value;
           expect(statement.getContent()).toBe('a');
-          expect(statement.getWordCount()).toBe(1);
+          expect(statement.getContentObject().wordCount).toBe(1);
           expect(statement.hasContent()).toBe(true);
         }
       });
@@ -913,7 +915,7 @@ describe('Statement Entity', () => {
               expect(statement.getUsageCount()).toBe(expectedUsageCount);
               expect(statement.isReferencedInOrderedSets()).toBe(expectedUsageCount > 0);
               expect(statement.hasContent()).toBe(true);
-              expect(statement.getWordCount()).toBeGreaterThan(0);
+              expect(statement.getContentObject().wordCount).toBeGreaterThan(0);
             }
           },
         ),
@@ -955,21 +957,21 @@ describe('Statement Entity', () => {
       expect(result.isOk()).toBe(true);
 
       if (result.isOk()) {
-        const statement = result.value;
+        let statement = result.value;
 
         expect(statement.getUsageCount()).toBe(0);
 
         // Test incrementUsage
-        statement.incrementUsage();
+        statement = statement.incrementUsage();
         expect(statement.getUsageCount()).toBe(1);
 
         // Test incrementUsageCount (should be the same)
-        statement.incrementUsageCount();
+        statement = statement.incrementUsage();
         expect(statement.getUsageCount()).toBe(2);
 
         // Both methods should have the same effect
-        statement.incrementUsage();
-        statement.incrementUsageCount();
+        statement = statement.incrementUsage();
+        statement = statement.incrementUsage();
         expect(statement.getUsageCount()).toBe(4);
       }
     });
@@ -993,16 +995,16 @@ describe('Statement Entity', () => {
         const statement3 = result3.value;
 
         // Same content should be content equal but not ID equal
-        expect(statement1.contentEquals(statement2)).toBe(true);
+        expect(statement1.hasEqualContent(statement2)).toBe(true);
         expect(statement1.equals(statement2)).toBe(false); // Different IDs
 
         // Different content should not be content equal
-        expect(statement1.contentEquals(statement3)).toBe(false);
+        expect(statement1.hasEqualContent(statement3)).toBe(false);
         expect(statement1.equals(statement3)).toBe(false);
 
         // Statement should equal itself
         expect(statement1.equals(statement1)).toBe(true);
-        expect(statement1.contentEquals(statement1)).toBe(true);
+        expect(statement1.hasEqualContent(statement1)).toBe(true);
       }
     });
 
@@ -1207,12 +1209,12 @@ describe('Statement Entity', () => {
         expect(result.isOk()).toBe(true);
 
         if (result.isOk()) {
-          const statement = result.value;
+          let statement = result.value;
 
           // Test multiple increments
-          statement.incrementUsageCount();
-          statement.incrementUsageCount();
-          statement.incrementUsageCount();
+          statement = statement.incrementUsage();
+          statement = statement.incrementUsage();
+          statement = statement.incrementUsage();
           expect(statement.getUsageCount()).toBe(3);
           expect(statement.isReferencedInOrderedSets()).toBe(true);
 
@@ -1245,11 +1247,11 @@ describe('Statement Entity', () => {
         expect(result.isOk()).toBe(true);
 
         if (result.isOk()) {
-          const statement = result.value;
+          let statement = result.value;
 
           // Test incrementing to large number
           for (let i = 0; i < 1000; i++) {
-            statement.incrementUsageCount();
+            statement = statement.incrementUsage();
           }
           expect(statement.getUsageCount()).toBe(1000);
           expect(statement.isReferencedInOrderedSets()).toBe(true);
@@ -1407,12 +1409,12 @@ describe('Statement Entity', () => {
         expect(result.isOk()).toBe(true);
 
         if (result.isOk()) {
-          const statement = result.value;
+          let statement = result.value;
           const initialModified = statement.getModifiedAt();
 
           // Test increment does not update timestamp
           mockDateNow.mockReturnValue(FIXED_TIMESTAMP + 1000);
-          statement.incrementUsageCount();
+          statement = statement.incrementUsage();
           expect(statement.getModifiedAt()).toBe(initialModified);
 
           // Test decrement does not update timestamp

@@ -495,7 +495,7 @@ describe('ProofTreePanel - Property-Based Testing', () => {
               // INVARIANT: Viewport changes never throw exceptions
               expect(() =>
                 messageHandler({
-                  type: 'viewportChanged',
+                  type: 'viewportChanged' as any,
                   data: { viewport: viewportConfig },
                 } as any),
               ).not.toThrow();
@@ -630,11 +630,11 @@ describe('ProofTreePanel - Property-Based Testing', () => {
               // INVARIANT: Argument creation never throws
               expect(() =>
                 messageHandler({
-                  type: 'createArgument',
+                  type: 'createArgument' as any,
                   premises,
                   conclusions,
                   ruleName,
-                }),
+                } as any),
               ).not.toThrow();
             }
           }
@@ -697,11 +697,11 @@ describe('ProofTreePanel - Property-Based Testing', () => {
                 // INVARIANT: Edge case inputs never crash the system
                 expect(() =>
                   messageHandler({
-                    type: 'createArgument',
+                    type: 'createArgument' as any,
                     premises,
                     conclusions,
                     ruleName,
-                  }),
+                  } as any),
                 ).not.toThrow();
               }
             }
@@ -749,11 +749,11 @@ describe('ProofTreePanel - Property-Based Testing', () => {
               // INVARIANT: Movement operations never throw exceptions
               expect(() =>
                 messageHandler({
-                  type: 'moveNode',
+                  type: 'moveNode' as any,
                   nodeId,
                   deltaX,
                   deltaY,
-                }),
+                } as any),
               ).not.toThrow();
             }
           }
@@ -806,10 +806,10 @@ describe('ProofTreePanel - Property-Based Testing', () => {
                 // INVARIANT: Statement operations never crash
                 expect(() =>
                   messageHandler({
-                    type: 'addStatement',
+                    type: 'addStatement' as any,
                     statementType,
                     content: content,
-                  }),
+                  } as any),
                 ).not.toThrow();
               }
             }
@@ -997,19 +997,19 @@ describe('ProofTreePanel - Property-Based Testing', () => {
 
               if (changeViewState && messageHandler) {
                 await messageHandler({
-                  type: 'viewportChanged',
+                  type: 'viewportChanged' as any,
                   zoom: 1.5,
                   pan: { x: 100, y: 200 },
                   center: { x: 0, y: 0 },
-                });
+                } as any);
               }
 
               if (performOperations && messageHandler) {
                 await messageHandler({
-                  type: 'addStatement',
+                  type: 'addStatement' as any,
                   statementType: 'premise',
                   content: 'Test statement for disposal',
-                });
+                } as any);
               }
 
               // INVARIANT: Disposal always succeeds regardless of panel state

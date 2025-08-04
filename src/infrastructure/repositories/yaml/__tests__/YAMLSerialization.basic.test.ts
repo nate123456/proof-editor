@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { ProofDocument } from '../../../../domain/aggregates/ProofDocument.js';
-import { ProofDocumentId } from '../../../../domain/shared/value-objects.js';
+import { ProofDocumentId } from '../../../../domain/shared/value-objects/index.js';
 import { YAMLDeserializer } from '../YAMLDeserializer.js';
 import { YAMLSerializer } from '../YAMLSerializer.js';
 

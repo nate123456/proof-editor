@@ -392,4 +392,8 @@ export class Tree {
       boundsCalculationService,
     );
   }
+
+  wouldCreateCycle(childNodeId: NodeId, parentNodeId: NodeId): boolean {
+    return this.canCreateCycle(childNodeId, parentNodeId);
+  }
 }

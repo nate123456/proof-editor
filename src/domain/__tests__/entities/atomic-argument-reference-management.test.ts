@@ -1,21 +1,21 @@
 /**
- * Test suite for AtomicArgument OrderedSet reference management
+ * Test suite for AtomicArgument Statement management
  *
  * Focuses on:
- * - Premise set reference manipulation
- * - Conclusion set reference manipulation
- * - Reference state transitions (bootstrap → partial → complete)
+ * - Premise management
+ * - Conclusion management
+ * - State transitions (bootstrap → partial → complete)
  * - Modification timestamp tracking
- * - Reference immutability and identity
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AtomicArgument } from '../../entities/AtomicArgument.js';
-import { orderedSetIdFactory } from '../factories/index.js';
+import { Statement } from '../../entities/Statement.js';
+import { statementFactory } from '../factories/index.js';
 import { FIXED_TIMESTAMP } from './atomic-argument-test-utils.js';
 
-describe('OrderedSet Reference Management', () => {
+describe('Statement Management', () => {
   let mockDateNow: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
@@ -26,155 +26,161 @@ describe('OrderedSet Reference Management', () => {
     mockDateNow.mockRestore();
   });
 
-  describe('premise set manipulation', () => {
-    it('should set premise set reference', () => {
+  describe('premise manipulation', () => {
+    it('should add premises', () => {
       const result = AtomicArgument.create();
       expect(result.isOk()).toBe(true);
 
       if (result.isOk()) {
         const argument = result.value;
-        const premiseSetRef = orderedSetIdFactory.build();
+        const statement = statementFactory.build();
         const originalModified = argument.getModifiedAt();
 
         // Mock time advancement for modification tracking
         mockDateNow.mockReturnValue(FIXED_TIMESTAMP + 1000);
 
-        argument.setPremiseSetRef(premiseSetRef);
+        const addResult = argument.addPremise(statement);
+        expect(addResult.isOk()).toBe(true);
 
-        expect(argument.getPremiseSet()).toBe(premiseSetRef);
+        expect(argument.getPremises()).toHaveLength(1);
+        expect(argument.getPremises()[0]).toBe(statement);
         expect(argument.hasPremiseSet()).toBe(true);
-        expect(argument.hasEmptyPremiseSet()).toBe(false);
+        expect(argument.getPremiseCount()).toBe(1);
         expect(argument.getModifiedAt()).toBe(FIXED_TIMESTAMP + 1000);
         expect(argument.getModifiedAt()).toBeGreaterThan(originalModified);
       }
     });
 
-    it('should clear premise set reference', () => {
-      const premiseSetRef = orderedSetIdFactory.build();
-      const result = AtomicArgument.create(premiseSetRef);
+    it('should get premise at specific index', () => {
+      const statements = [statementFactory.build(), statementFactory.build()];
+      const result = AtomicArgument.create(statements);
       expect(result.isOk()).toBe(true);
 
       if (result.isOk()) {
         const argument = result.value;
+
+        expect(argument.getPremiseAt(0)).toBe(statements[0]);
+        expect(argument.getPremiseAt(1)).toBe(statements[1]);
+        expect(argument.getPremiseAt(2)).toBeUndefined();
+      }
+    });
+
+    it('should set premise at specific position', () => {
+      const statements = [statementFactory.build(), statementFactory.build()];
+      const result = AtomicArgument.create(statements);
+      expect(result.isOk()).toBe(true);
+
+      if (result.isOk()) {
+        const argument = result.value;
+        const newStatement = statementFactory.build();
+
         mockDateNow.mockReturnValue(FIXED_TIMESTAMP + 1000);
+        const setResult = argument.setPremiseAt(1, newStatement);
 
-        argument.setPremiseSetRef(null);
-
-        expect(argument.getPremiseSet()).toBeNull();
-        expect(argument.hasPremiseSet()).toBe(false);
-        expect(argument.hasEmptyPremiseSet()).toBe(true);
+        expect(setResult.isOk()).toBe(true);
+        expect(argument.getPremiseAt(1)).toBe(newStatement);
         expect(argument.getModifiedAt()).toBe(FIXED_TIMESTAMP + 1000);
       }
     });
 
-    it('should not update modification time for same reference', () => {
-      const premiseSetRef = orderedSetIdFactory.build();
-      const result = AtomicArgument.create(premiseSetRef);
-      expect(result.isOk()).toBe(true);
-
-      if (result.isOk()) {
-        const argument = result.value;
-        const originalModified = argument.getModifiedAt();
-
-        mockDateNow.mockReturnValue(FIXED_TIMESTAMP + 1000);
-        argument.setPremiseSetRef(premiseSetRef); // Same reference
-
-        expect(argument.getModifiedAt()).toBe(originalModified); // Should not change
-      }
-    });
-
-    it('should replace existing premise set reference', () => {
-      const firstRef = orderedSetIdFactory.build();
-      const secondRef = orderedSetIdFactory.build();
-      const result = AtomicArgument.create(firstRef);
+    it('should remove premise at specific position', () => {
+      const statements = [statementFactory.build(), statementFactory.build()];
+      const result = AtomicArgument.create(statements);
       expect(result.isOk()).toBe(true);
 
       if (result.isOk()) {
         const argument = result.value;
 
         mockDateNow.mockReturnValue(FIXED_TIMESTAMP + 1000);
-        argument.setPremiseSetRef(secondRef);
+        const removeResult = argument.removePremiseAt(0);
 
-        expect(argument.getPremiseSet()).toBe(secondRef);
-        expect(argument.getPremiseSet()).not.toBe(firstRef);
+        expect(removeResult.isOk()).toBe(true);
+        if (removeResult.isOk()) {
+          expect(removeResult.value).toBe(statements[0]);
+        }
+        expect(argument.getPremiseCount()).toBe(1);
+        expect(argument.getPremiseAt(0)).toBe(statements[1]);
         expect(argument.getModifiedAt()).toBe(FIXED_TIMESTAMP + 1000);
       }
     });
   });
 
-  describe('conclusion set manipulation', () => {
-    it('should set conclusion set reference', () => {
+  describe('conclusion manipulation', () => {
+    it('should add conclusions', () => {
       const result = AtomicArgument.create();
       expect(result.isOk()).toBe(true);
 
       if (result.isOk()) {
         const argument = result.value;
-        const conclusionSetRef = orderedSetIdFactory.build();
+        const statement = statementFactory.build();
 
         mockDateNow.mockReturnValue(FIXED_TIMESTAMP + 1000);
-        argument.setConclusionSetRef(conclusionSetRef);
+        const addResult = argument.addConclusion(statement);
 
-        expect(argument.getConclusionSet()).toBe(conclusionSetRef);
+        expect(addResult.isOk()).toBe(true);
+        expect(argument.getConclusions()).toHaveLength(1);
+        expect(argument.getConclusions()[0]).toBe(statement);
         expect(argument.hasConclusionSet()).toBe(true);
-        expect(argument.hasEmptyConclusionSet()).toBe(false);
+        expect(argument.getConclusionCount()).toBe(1);
         expect(argument.getModifiedAt()).toBe(FIXED_TIMESTAMP + 1000);
       }
     });
 
-    it('should clear conclusion set reference', () => {
-      const conclusionSetRef = orderedSetIdFactory.build();
-      const result = AtomicArgument.create(undefined, conclusionSetRef);
+    it('should get conclusion at specific index', () => {
+      const statements = [statementFactory.build(), statementFactory.build()];
+      const result = AtomicArgument.create([], statements);
       expect(result.isOk()).toBe(true);
 
       if (result.isOk()) {
         const argument = result.value;
 
-        mockDateNow.mockReturnValue(FIXED_TIMESTAMP + 1000);
-        argument.setConclusionSetRef(null);
+        expect(argument.getConclusionAt(0)).toBe(statements[0]);
+        expect(argument.getConclusionAt(1)).toBe(statements[1]);
+        expect(argument.getConclusionAt(2)).toBeUndefined();
+      }
+    });
 
-        expect(argument.getConclusionSet()).toBeNull();
-        expect(argument.hasConclusionSet()).toBe(false);
-        expect(argument.hasEmptyConclusionSet()).toBe(true);
+    it('should set conclusion at specific position', () => {
+      const statements = [statementFactory.build(), statementFactory.build()];
+      const result = AtomicArgument.create([], statements);
+      expect(result.isOk()).toBe(true);
+
+      if (result.isOk()) {
+        const argument = result.value;
+        const newStatement = statementFactory.build();
+
+        mockDateNow.mockReturnValue(FIXED_TIMESTAMP + 1000);
+        const setResult = argument.setConclusionAt(1, newStatement);
+
+        expect(setResult.isOk()).toBe(true);
+        expect(argument.getConclusionAt(1)).toBe(newStatement);
         expect(argument.getModifiedAt()).toBe(FIXED_TIMESTAMP + 1000);
       }
     });
 
-    it('should not update modification time for same reference', () => {
-      const conclusionSetRef = orderedSetIdFactory.build();
-      const result = AtomicArgument.create(undefined, conclusionSetRef);
-      expect(result.isOk()).toBe(true);
-
-      if (result.isOk()) {
-        const argument = result.value;
-        const originalModified = argument.getModifiedAt();
-
-        mockDateNow.mockReturnValue(FIXED_TIMESTAMP + 1000);
-        argument.setConclusionSetRef(conclusionSetRef); // Same reference
-
-        expect(argument.getModifiedAt()).toBe(originalModified); // Should not change
-      }
-    });
-
-    it('should replace existing conclusion set reference', () => {
-      const firstRef = orderedSetIdFactory.build();
-      const secondRef = orderedSetIdFactory.build();
-      const result = AtomicArgument.create(undefined, firstRef);
+    it('should remove conclusion at specific position', () => {
+      const statements = [statementFactory.build(), statementFactory.build()];
+      const result = AtomicArgument.create([], statements);
       expect(result.isOk()).toBe(true);
 
       if (result.isOk()) {
         const argument = result.value;
 
         mockDateNow.mockReturnValue(FIXED_TIMESTAMP + 1000);
-        argument.setConclusionSetRef(secondRef);
+        const removeResult = argument.removeConclusionAt(0);
 
-        expect(argument.getConclusionSet()).toBe(secondRef);
-        expect(argument.getConclusionSet()).not.toBe(firstRef);
+        expect(removeResult.isOk()).toBe(true);
+        if (removeResult.isOk()) {
+          expect(removeResult.value).toBe(statements[0]);
+        }
+        expect(argument.getConclusionCount()).toBe(1);
+        expect(argument.getConclusionAt(0)).toBe(statements[1]);
         expect(argument.getModifiedAt()).toBe(FIXED_TIMESTAMP + 1000);
       }
     });
   });
 
-  describe('reference state transitions', () => {
+  describe('state transitions', () => {
     it('should handle bootstrap → partial → complete transitions', () => {
       const result = AtomicArgument.create();
       expect(result.isOk()).toBe(true);
@@ -187,16 +193,16 @@ describe('OrderedSet Reference Management', () => {
         expect(argument.isEmpty()).toBe(true);
         expect(argument.isComplete()).toBe(false);
 
-        // Add premise set → partial state
-        const premiseSetRef = orderedSetIdFactory.build();
-        argument.setPremiseSetRef(premiseSetRef);
+        // Add premise → partial state
+        const premise = statementFactory.build();
+        argument.addPremise(premise);
         expect(argument.isBootstrapArgument()).toBe(false);
         expect(argument.isEmpty()).toBe(false);
         expect(argument.isComplete()).toBe(false);
 
-        // Add conclusion set → complete state
-        const conclusionSetRef = orderedSetIdFactory.build();
-        argument.setConclusionSetRef(conclusionSetRef);
+        // Add conclusion → complete state
+        const conclusion = statementFactory.build();
+        argument.addConclusion(conclusion);
         expect(argument.isBootstrapArgument()).toBe(false);
         expect(argument.isEmpty()).toBe(false);
         expect(argument.isComplete()).toBe(true);
@@ -204,26 +210,31 @@ describe('OrderedSet Reference Management', () => {
     });
 
     it('should handle complete → partial → bootstrap transitions', () => {
-      const premiseSetRef = orderedSetIdFactory.build();
-      const conclusionSetRef = orderedSetIdFactory.build();
-      const argument = AtomicArgument.createComplete(premiseSetRef, conclusionSetRef);
+      const premises = [statementFactory.build()];
+      const conclusions = [statementFactory.build()];
+      const result = AtomicArgument.create(premises, conclusions);
+      expect(result.isOk()).toBe(true);
 
-      // Complete state
-      expect(argument.isComplete()).toBe(true);
-      expect(argument.isEmpty()).toBe(false);
-      expect(argument.isBootstrapArgument()).toBe(false);
+      if (result.isOk()) {
+        const argument = result.value;
 
-      // Remove premise set → partial state
-      argument.setPremiseSetRef(null);
-      expect(argument.isComplete()).toBe(false);
-      expect(argument.isEmpty()).toBe(false);
-      expect(argument.isBootstrapArgument()).toBe(false);
+        // Complete state
+        expect(argument.isComplete()).toBe(true);
+        expect(argument.isEmpty()).toBe(false);
+        expect(argument.isBootstrapArgument()).toBe(false);
 
-      // Remove conclusion set → bootstrap state
-      argument.setConclusionSetRef(null);
-      expect(argument.isComplete()).toBe(false);
-      expect(argument.isEmpty()).toBe(true);
-      expect(argument.isBootstrapArgument()).toBe(true);
+        // Remove premise → partial state
+        argument.removePremiseAt(0);
+        expect(argument.isComplete()).toBe(false);
+        expect(argument.isEmpty()).toBe(false);
+        expect(argument.isBootstrapArgument()).toBe(false);
+
+        // Remove conclusion → bootstrap state
+        argument.removeConclusionAt(0);
+        expect(argument.isComplete()).toBe(false);
+        expect(argument.isEmpty()).toBe(true);
+        expect(argument.isBootstrapArgument()).toBe(true);
+      }
     });
 
     it('should handle alternate path: conclusion first then premise', () => {
@@ -234,8 +245,8 @@ describe('OrderedSet Reference Management', () => {
         const argument = result.value;
 
         // Add conclusion first
-        const conclusionSetRef = orderedSetIdFactory.build();
-        argument.setConclusionSetRef(conclusionSetRef);
+        const conclusion = statementFactory.build();
+        argument.addConclusion(conclusion);
         expect(argument.isBootstrapArgument()).toBe(false);
         expect(argument.isEmpty()).toBe(false);
         expect(argument.isComplete()).toBe(false);
@@ -243,8 +254,8 @@ describe('OrderedSet Reference Management', () => {
         expect(argument.hasPremiseSet()).toBe(false);
 
         // Add premise to complete
-        const premiseSetRef = orderedSetIdFactory.build();
-        argument.setPremiseSetRef(premiseSetRef);
+        const premise = statementFactory.build();
+        argument.addPremise(premise);
         expect(argument.isComplete()).toBe(true);
         expect(argument.hasConclusionSet()).toBe(true);
         expect(argument.hasPremiseSet()).toBe(true);
@@ -261,19 +272,47 @@ describe('OrderedSet Reference Management', () => {
 
         // First modification
         mockDateNow.mockReturnValue(FIXED_TIMESTAMP + 1000);
-        argument.setPremiseSetRef(orderedSetIdFactory.build());
+        argument.addPremise(statementFactory.build());
         expect(argument.getModifiedAt()).toBe(FIXED_TIMESTAMP + 1000);
         expect(argument.getModifiedAt()).toBeGreaterThan(initialTimestamp);
 
         // Second modification
         mockDateNow.mockReturnValue(FIXED_TIMESTAMP + 2000);
-        argument.setConclusionSetRef(orderedSetIdFactory.build());
+        argument.addConclusion(statementFactory.build());
         expect(argument.getModifiedAt()).toBe(FIXED_TIMESTAMP + 2000);
 
-        // Third modification (clearing)
+        // Third modification (removing)
         mockDateNow.mockReturnValue(FIXED_TIMESTAMP + 3000);
-        argument.setPremiseSetRef(null);
+        argument.removePremiseAt(0);
         expect(argument.getModifiedAt()).toBe(FIXED_TIMESTAMP + 3000);
+      }
+    });
+  });
+
+  describe('legacy compatibility', () => {
+    it('should support hasPremiseSet method', () => {
+      const result = AtomicArgument.create();
+      expect(result.isOk()).toBe(true);
+
+      if (result.isOk()) {
+        const argument = result.value;
+        expect(argument.hasPremiseSet()).toBe(false);
+
+        argument.addPremise(statementFactory.build());
+        expect(argument.hasPremiseSet()).toBe(true);
+      }
+    });
+
+    it('should support hasConclusionSet method', () => {
+      const result = AtomicArgument.create();
+      expect(result.isOk()).toBe(true);
+
+      if (result.isOk()) {
+        const argument = result.value;
+        expect(argument.hasConclusionSet()).toBe(false);
+
+        argument.addConclusion(statementFactory.build());
+        expect(argument.hasConclusionSet()).toBe(true);
       }
     });
   });

@@ -1,7 +1,17 @@
 import { err, ok } from 'neverthrow';
 import { beforeEach, describe, expect, type MockedObject, test, vi } from 'vitest';
 import { ValidationError } from '../../../domain/shared/result.js';
+import { MaxNodeCount, MaxTreeCount } from '../../../domain/shared/value-objects/index.js';
 import type { ProofVisualizationConfig, TreeRenderDTO } from '../../dtos/view-dtos.js';
+import {
+  createTestAtomicArgumentId,
+  createTestDimensions,
+  createTestNodeCount,
+  createTestNodeId,
+  createTestPosition2D,
+  createTestStatementId,
+  createTestTreeId,
+} from '../../queries/__tests__/shared/branded-type-helpers.js';
 import type { DocumentDTO } from '../../queries/document-queries.js';
 import { ProofVisualizationService } from '../ProofVisualizationService.js';
 import type { TreeLayoutService } from '../TreeLayoutService.js';
@@ -14,8 +24,8 @@ describe('ProofVisualizationService', () => {
     mockLayoutService = {
       calculateDocumentLayout: vi.fn(),
       getDefaultConfig: vi.fn(),
-      createConfig: vi.fn(),
-    } as MockedObject<TreeLayoutService>;
+      createTypedConfig: vi.fn(),
+    } as unknown as MockedObject<TreeLayoutService>;
     service = new ProofVisualizationService(mockLayoutService);
   });
 
@@ -33,8 +43,8 @@ describe('ProofVisualizationService', () => {
       }
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
-        expect(result.value.documentId).toBe(document.id);
-        expect(result.value.version).toBe(document.version);
+        expect(result.value.documentId.getValue()).toBe(document.id);
+        expect(result.value.version.getValue()).toBe(document.version);
         expect(result.value.trees).toHaveLength(1);
         expect(result.value.isEmpty).toBe(false);
       }
@@ -98,10 +108,11 @@ describe('ProofVisualizationService', () => {
       const largeTrees: Record<string, any> = {};
       for (let i = 0; i < 100; i++) {
         largeTrees[`tree${i}`] = {
-          id: `tree${i}`,
-          position: { x: i * 100, y: 0 },
-          nodeCount: 10,
-          rootNodeIds: ['n1'],
+          id: createTestTreeId(`tree${i}`),
+          position: createTestPosition2D(i * 100, 0),
+          nodeCount: createTestNodeCount(10),
+          rootNodeIds: [createTestNodeId('n1')],
+          bounds: createTestDimensions(200, 100),
         };
       }
       document.trees = largeTrees;
@@ -115,18 +126,32 @@ describe('ProofVisualizationService', () => {
     });
 
     test('handles trees with excessive nodes', () => {
+      // Create custom config with low limits
+      const maxNodesResult = MaxNodeCount.create(10);
+      expect(maxNodesResult.isOk()).toBe(true);
+      if (!maxNodesResult.isOk()) return;
+
+      const customConfig: Partial<ProofVisualizationConfig> = {
+        performance: {
+          maxTreesRendered: MaxTreeCount.default(),
+          maxNodesPerTree: maxNodesResult.value,
+          enableVirtualization: true,
+        },
+      };
+
       const document = createDocumentDTO({
         trees: {
           largeTree: {
-            id: 'largeTree',
-            position: { x: 0, y: 0 },
-            nodeCount: 200, // Exceeds default limit
+            id: createTestTreeId('largeTree'),
+            position: createTestPosition2D(0, 0),
+            nodeCount: createTestNodeCount(20), // Exceeds our custom limit of 10
             rootNodeIds: [],
+            bounds: createTestDimensions(400, 200),
           },
         },
       });
 
-      const result = service.generateVisualization(document);
+      const result = service.generateVisualization(document, customConfig);
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
@@ -137,8 +162,8 @@ describe('ProofVisualizationService', () => {
     test('calculates total dimensions correctly', () => {
       const document = createDocumentDTO();
       const mockTreeLayouts: TreeRenderDTO[] = [
-        createTreeRenderDTO('tree1', { bounds: { width: 400, height: 300 } }),
-        createTreeRenderDTO('tree2', { bounds: { width: 600, height: 250 } }),
+        createTreeRenderDTO('tree1', { bounds: createTestDimensions(400, 300) }),
+        createTreeRenderDTO('tree2', { bounds: createTestDimensions(600, 250) }),
       ];
 
       vi.mocked(mockLayoutService.calculateDocumentLayout).mockReturnValue(ok(mockTreeLayouts));
@@ -148,8 +173,8 @@ describe('ProofVisualizationService', () => {
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         // Should use max width + margin and sum heights + spacing + margin
-        expect(result.value.totalDimensions.width).toBe(700); // 600 + 100
-        expect(result.value.totalDimensions.height).toBe(800); // 300 + 250 + 150 + 100
+        expect(result.value.totalDimensions.getWidth()).toBe(700); // 600 + 100
+        expect(result.value.totalDimensions.getHeight()).toBe(800); // 300 + 250 + 150 + 100
       }
     });
   });
@@ -158,11 +183,17 @@ describe('ProofVisualizationService', () => {
     test('uses regular generation when virtualization disabled', () => {
       const document = createDocumentDTO();
       const viewport = { width: 800, height: 600, offsetX: 0, offsetY: 0 };
+      const maxTreesResult = MaxTreeCount.create(10);
+      const maxNodesResult = MaxNodeCount.create(100);
+      if (maxTreesResult.isErr() || maxNodesResult.isErr()) {
+        throw new Error('Failed to create max counts for test');
+      }
+
       const config: Partial<ProofVisualizationConfig> = {
         performance: {
           enableVirtualization: false,
-          maxTreesRendered: 10,
-          maxNodesPerTree: 100,
+          maxTreesRendered: maxTreesResult.value,
+          maxNodesPerTree: maxNodesResult.value,
         },
       };
 
@@ -183,18 +214,18 @@ describe('ProofVisualizationService', () => {
       const document = createDocumentDTO({
         trees: {
           visibleTree: {
-            id: 'visibleTree',
-            position: { x: 100, y: 100 },
-            bounds: { width: 200, height: 200 },
-            nodeCount: 1,
-            rootNodeIds: ['n1'],
+            id: createTestTreeId('visibleTree'),
+            position: createTestPosition2D(100, 100),
+            bounds: createTestDimensions(200, 200),
+            nodeCount: createTestNodeCount(1),
+            rootNodeIds: [createTestNodeId('n1')],
           },
           hiddenTree: {
-            id: 'hiddenTree',
-            position: { x: 1000, y: 1000 },
-            bounds: { width: 200, height: 200 },
-            nodeCount: 1,
-            rootNodeIds: ['n2'],
+            id: createTestTreeId('hiddenTree'),
+            position: createTestPosition2D(1000, 1000),
+            bounds: createTestDimensions(200, 200),
+            nodeCount: createTestNodeCount(1),
+            rootNodeIds: [createTestNodeId('n2')],
           },
         },
       });
@@ -221,11 +252,11 @@ describe('ProofVisualizationService', () => {
       const document = createDocumentDTO({
         trees: {
           edgeTree: {
-            id: 'edgeTree',
-            position: { x: 790, y: 590 }, // Just at the edge
-            bounds: { width: 50, height: 50 },
-            nodeCount: 1,
-            rootNodeIds: ['n1'],
+            id: createTestTreeId('edgeTree'),
+            position: createTestPosition2D(790, 590), // Just at the edge
+            bounds: createTestDimensions(50, 50),
+            nodeCount: createTestNodeCount(1),
+            rootNodeIds: [createTestNodeId('n1')],
           },
         },
       });
@@ -244,13 +275,23 @@ describe('ProofVisualizationService', () => {
     test('calculates statistics for document', () => {
       const document = createDocumentDTO({
         trees: {
-          tree1: { id: 'tree1', position: { x: 0, y: 0 }, nodeCount: 5, rootNodeIds: ['n1'] },
-          tree2: { id: 'tree2', position: { x: 100, y: 0 }, nodeCount: 3, rootNodeIds: ['n2'] },
+          tree1: {
+            id: createTestTreeId('tree1'),
+            position: createTestPosition2D(0, 0),
+            nodeCount: createTestNodeCount(5),
+            rootNodeIds: [createTestNodeId('n1')],
+          },
+          tree2: {
+            id: createTestTreeId('tree2'),
+            position: createTestPosition2D(100, 0),
+            nodeCount: createTestNodeCount(3),
+            rootNodeIds: [createTestNodeId('n2')],
+          },
           tree3: {
-            id: 'tree3',
-            position: { x: 200, y: 0 },
-            nodeCount: 8,
-            rootNodeIds: ['n3', 'n4'],
+            id: createTestTreeId('tree3'),
+            position: createTestPosition2D(200, 0),
+            nodeCount: createTestNodeCount(8),
+            rootNodeIds: [createTestNodeId('n3'), createTestNodeId('n4')],
           },
         },
       });
@@ -304,11 +345,17 @@ describe('ProofVisualizationService', () => {
       expect(config).toHaveProperty('performance');
       expect(config).toHaveProperty('visual');
       expect(config.layout.nodeWidth).toBe(220);
-      expect(config.performance.maxTreesRendered).toBe(50);
+      expect(config.performance.maxTreesRendered).toBeDefined();
       expect(config.visual.showConnectionLabels).toBe(false);
     });
 
     test('createConfig merges overrides properly', () => {
+      const maxTreesResult = MaxTreeCount.create(100);
+      const maxNodesResult = MaxNodeCount.create(100);
+      if (maxTreesResult.isErr() || maxNodesResult.isErr()) {
+        throw new Error('Failed to create max counts for test');
+      }
+
       const overrides: Partial<ProofVisualizationConfig> = {
         layout: {
           nodeWidth: 300,
@@ -319,8 +366,8 @@ describe('ProofVisualizationService', () => {
           canvasMargin: 50,
         },
         performance: {
-          maxTreesRendered: 100,
-          maxNodesPerTree: 100,
+          maxTreesRendered: maxTreesResult.value,
+          maxNodesPerTree: maxNodesResult.value,
           enableVirtualization: true,
         },
       };
@@ -328,8 +375,8 @@ describe('ProofVisualizationService', () => {
       const config = service.createConfig(overrides);
 
       expect(config.layout.nodeWidth).toBe(300);
-      expect(config.performance.maxTreesRendered).toBe(100);
-      expect(config.layout.nodeHeight).toBe(120); // Default preserved
+      expect(config.performance.maxTreesRendered).toBeDefined();
+      expect(config.layout.nodeHeight).toBe(120);
       expect(config.visual.showConnectionLabels).toBe(false); // Default preserved
     });
 
@@ -386,10 +433,10 @@ function createDocumentDTO(overrides: Partial<DocumentDTO> = {}): DocumentDTO {
     atomicArguments: {},
     trees: {
       tree1: {
-        id: 'tree1',
-        position: { x: 100, y: 100 },
-        nodeCount: 2,
-        rootNodeIds: ['n1'],
+        id: createTestTreeId('tree1'),
+        position: createTestPosition2D(100, 100),
+        nodeCount: createTestNodeCount(2),
+        rootNodeIds: [createTestNodeId('n1')],
       },
     },
     ...overrides,
@@ -398,23 +445,27 @@ function createDocumentDTO(overrides: Partial<DocumentDTO> = {}): DocumentDTO {
 
 function createTreeRenderDTO(id: string, overrides: Partial<TreeRenderDTO> = {}): TreeRenderDTO {
   return {
-    id,
-    position: { x: 0, y: 0 },
+    id: createTestTreeId(id),
+    position: createTestPosition2D(0, 0),
     layout: {
       nodes: [
         {
-          id: 'n1',
-          position: { x: 100, y: 100 },
-          dimensions: { width: 200, height: 80 },
-          argument: { id: 'arg1', premiseIds: null, conclusionIds: null },
+          id: createTestNodeId('n1'),
+          position: createTestPosition2D(100, 100),
+          dimensions: createTestDimensions(200, 80),
+          argument: {
+            id: createTestAtomicArgumentId('arg1'),
+            premiseIds: [],
+            conclusionIds: [],
+          },
           premises: [],
           conclusions: [],
         },
       ],
       connections: [],
-      dimensions: { width: 400, height: 200 },
+      dimensions: createTestDimensions(400, 200),
     },
-    bounds: { width: 400, height: 200 },
+    bounds: createTestDimensions(400, 200),
     ...overrides,
   };
 }

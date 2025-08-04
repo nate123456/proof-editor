@@ -263,6 +263,7 @@ describe('DocumentMapper', () => {
         createdAt: new Date().toISOString(),
         modifiedAt: new Date().toISOString(),
         statements: {},
+        orderedSets: {},
         atomicArguments: {},
         trees: {},
       };
@@ -304,6 +305,7 @@ describe('DocumentMapper', () => {
             modifiedAt: new Date().toISOString(),
           },
         },
+        orderedSets: {},
         atomicArguments: {},
         trees: {},
       };
@@ -349,6 +351,7 @@ describe('DocumentMapper', () => {
             modifiedAt: new Date().toISOString(),
           },
         },
+        orderedSets: {},
         atomicArguments: {},
         trees: {},
       };
@@ -397,6 +400,7 @@ describe('DocumentMapper', () => {
             modifiedAt: new Date().toISOString(),
           },
         },
+        orderedSets: {},
         atomicArguments: {
           arg1: {
             id: AtomicArgumentId.fromString('arg1').unwrapOr(AtomicArgumentId.generate()),
@@ -457,6 +461,7 @@ describe('DocumentMapper', () => {
             modifiedAt: new Date().toISOString(),
           },
         },
+        orderedSets: {},
         atomicArguments: {},
         trees: {},
       };
@@ -484,6 +489,7 @@ describe('DocumentMapper', () => {
             modifiedAt: new Date().toISOString(),
           },
         },
+        orderedSets: {},
         atomicArguments: {},
         trees: {},
       };
@@ -509,6 +515,7 @@ describe('DocumentMapper', () => {
             modifiedAt: new Date().toISOString(),
           },
         },
+        orderedSets: {},
         atomicArguments: {
           arg1: {
             id: AtomicArgumentId.fromString('arg1').unwrapOr(AtomicArgumentId.generate()),
@@ -543,6 +550,7 @@ describe('DocumentMapper', () => {
             modifiedAt: new Date().toISOString(),
           },
         },
+        orderedSets: {},
         atomicArguments: {
           arg1: {
             id: AtomicArgumentId.fromString('arg1').unwrapOr(AtomicArgumentId.generate()),
@@ -600,6 +608,7 @@ describe('DocumentMapper', () => {
             modifiedAt: new Date().toISOString(),
           },
         },
+        orderedSets: {},
         atomicArguments: {
           arg1: {
             id: AtomicArgumentId.fromString('arg1').unwrapOr(AtomicArgumentId.generate()),
@@ -674,6 +683,7 @@ describe('DocumentMapper', () => {
         createdAt: new Date().toISOString(),
         modifiedAt: new Date().toISOString(),
         statements: {},
+        orderedSets: {},
         atomicArguments: {},
         trees: {
           tree1: {
@@ -701,6 +711,7 @@ describe('DocumentMapper', () => {
         statements: {
           stmt1: null, // This null will cause Object.entries to fail unexpectedly
         },
+        orderedSets: {},
         atomicArguments: {},
         trees: {},
       } as unknown as DocumentDTO;
@@ -732,6 +743,7 @@ describe('DocumentMapper', () => {
             modifiedAt: new Date().toISOString(),
           },
         },
+        orderedSets: {},
         atomicArguments: {
           arg1: {
             id: AtomicArgumentId.fromString('arg1').unwrapOr(AtomicArgumentId.generate()),
@@ -758,6 +770,7 @@ describe('DocumentMapper', () => {
         createdAt: new Date().toISOString(),
         modifiedAt: new Date().toISOString(),
         statements: {},
+        orderedSets: {},
         atomicArguments: {},
         trees: {
           tree1: {
@@ -782,6 +795,7 @@ describe('DocumentMapper', () => {
         createdAt: new Date().toISOString(),
         modifiedAt: new Date().toISOString(),
         statements: {},
+        orderedSets: {},
         atomicArguments: {},
         trees: {
           tree1: {
@@ -810,6 +824,7 @@ describe('DocumentMapper', () => {
         createdAt: new Date().toISOString(),
         modifiedAt: new Date().toISOString(),
         statements: {},
+        orderedSets: {},
         atomicArguments: {},
         trees: {},
       };
@@ -839,6 +854,7 @@ describe('DocumentMapper', () => {
             modifiedAt: new Date().toISOString(),
           },
         },
+        orderedSets: {},
         atomicArguments: {},
         trees: {},
       };
@@ -868,6 +884,7 @@ describe('DocumentMapper', () => {
             modifiedAt: new Date().toISOString(),
           },
         },
+        orderedSets: {},
         atomicArguments: {
           arg1: {
             id: AtomicArgumentId.fromString('arg1').unwrapOr(AtomicArgumentId.generate()),
@@ -909,6 +926,7 @@ describe('DocumentMapper', () => {
             modifiedAt: new Date().toISOString(),
           },
         },
+        orderedSets: {},
         atomicArguments: {
           arg1: {
             id: AtomicArgumentId.fromString('arg1').unwrapOr(AtomicArgumentId.generate()),
@@ -940,6 +958,7 @@ describe('DocumentMapper', () => {
         createdAt: new Date().toISOString(),
         modifiedAt: new Date().toISOString(),
         statements: {},
+        orderedSets: {},
         atomicArguments: {},
         trees: {},
       };
@@ -957,6 +976,7 @@ describe('DocumentMapper', () => {
         createdAt: new Date().toISOString(),
         modifiedAt: new Date().toISOString(),
         statements: {},
+        orderedSets: {},
         atomicArguments: {
           arg1: {
             id: '' as any, // Invalid ID
@@ -991,6 +1011,7 @@ describe('DocumentMapper', () => {
             modifiedAt: new Date().toISOString(),
           },
         },
+        orderedSets: {},
         atomicArguments: {
           arg1: {
             id: AtomicArgumentId.fromString('arg1').unwrapOr(AtomicArgumentId.generate()),
@@ -1039,6 +1060,7 @@ describe('DocumentMapper', () => {
             modifiedAt: new Date().toISOString(),
           },
         },
+        orderedSets: {},
         atomicArguments: {
           arg1: {
             id: AtomicArgumentId.fromString('arg1').unwrapOr(AtomicArgumentId.generate()),

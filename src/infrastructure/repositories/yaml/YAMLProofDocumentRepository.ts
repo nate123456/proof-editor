@@ -176,25 +176,29 @@ export class YAMLProofDocumentRepository implements IProofDocumentRepository {
     return ok(documents);
   }
 
-  async findByDateRange(from: Date, to: Date): Promise<ProofDocument[]> {
-    const _allDocs = await this.findAll();
+  async findByDateRange(from: Date, to: Date): Promise<Result<ProofDocument[], RepositoryError>> {
     const allDocsResult = await this.findAll();
     if (allDocsResult.isErr()) {
-      return [];
+      return err(allDocsResult.error);
     }
 
     // Filter by date range using document creation/modification dates
-    return allDocsResult.value.filter((doc) => {
+    const filtered = allDocsResult.value.filter((doc) => {
       const queryService = doc.createQueryService();
       const createdAt = queryService.getCreatedAt();
       const modifiedAt = queryService.getModifiedAt();
       return (createdAt >= from && createdAt <= to) || (modifiedAt >= from && modifiedAt <= to);
     });
+
+    return ok(filtered);
   }
 
-  async count(): Promise<number> {
+  async count(): Promise<Result<number, RepositoryError>> {
     const allDocsResult = await this.findAll();
-    return allDocsResult.isOk() ? allDocsResult.value.length : 0;
+    if (allDocsResult.isErr()) {
+      return err(allDocsResult.error);
+    }
+    return ok(allDocsResult.value.length);
   }
 
   // Bootstrap-first design support

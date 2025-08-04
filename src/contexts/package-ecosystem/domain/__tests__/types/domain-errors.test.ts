@@ -10,11 +10,12 @@ import fc from 'fast-check';
 import { err, ok } from 'neverthrow';
 import { describe, expect, it } from 'vitest';
 
+import { DomainError } from '../../../../../domain/errors/DomainErrors.js';
 import {
   DependencyResolutionError,
-  DomainError,
   InvalidPackageVersionError,
   PackageConflictError,
+  PackageError,
   PackageInstallationError,
   PackageNotFoundError,
   PackageSourceUnavailableError,
@@ -22,10 +23,12 @@ import {
   SDKComplianceError,
 } from '../../types/domain-errors.js';
 
-describe('DomainError (Abstract Base Class)', () => {
+describe('PackageError (Abstract Base Class)', () => {
   // Create concrete implementation for testing abstract base
-  class TestDomainError extends DomainError {
-    readonly code = 'TEST_ERROR';
+  class TestDomainError extends PackageError {
+    getCode(): string {
+      return 'TEST_ERROR';
+    }
   }
 
   describe('constructor', () => {
@@ -94,7 +97,7 @@ describe('DomainError (Abstract Base Class)', () => {
 
           expect(error.message).toBe(message);
           expect(error.name).toBe('TestDomainError');
-          expect(error.code).toBe('TEST_ERROR');
+          expect(error.getCode()).toBe('TEST_ERROR');
         }),
       );
     });
@@ -125,7 +128,7 @@ describe('PackageValidationError', () => {
   it('should have correct error code', () => {
     const error = new PackageValidationError('Validation failed');
 
-    expect(error.code).toBe('PACKAGE_VALIDATION_ERROR');
+    expect(error.getCode()).toBe('PACKAGE_VALIDATION_ERROR');
   });
 
   it('should extend DomainError', () => {
@@ -177,7 +180,7 @@ describe('PackageNotFoundError', () => {
   it('should have correct error code', () => {
     const error = new PackageNotFoundError('Package not found');
 
-    expect(error.code).toBe('PACKAGE_NOT_FOUND');
+    expect(error.getCode()).toBe('PACKAGE_NOT_FOUND');
   });
 
   it('should extend DomainError', () => {
@@ -223,7 +226,7 @@ describe('PackageInstallationError', () => {
   it('should have correct error code', () => {
     const error = new PackageInstallationError('Installation failed');
 
-    expect(error.code).toBe('PACKAGE_INSTALLATION_ERROR');
+    expect(error.getCode()).toBe('PACKAGE_INSTALLATION_ERROR');
   });
 
   it('should extend DomainError', () => {
@@ -272,7 +275,7 @@ describe('DependencyResolutionError', () => {
   it('should have correct error code', () => {
     const error = new DependencyResolutionError('Dependency resolution failed');
 
-    expect(error.code).toBe('DEPENDENCY_RESOLUTION_ERROR');
+    expect(error.getCode()).toBe('DEPENDENCY_RESOLUTION_ERROR');
   });
 
   it('should extend DomainError', () => {
@@ -318,7 +321,7 @@ describe('PackageConflictError', () => {
   it('should have correct error code', () => {
     const error = new PackageConflictError('Package conflict detected');
 
-    expect(error.code).toBe('PACKAGE_CONFLICT_ERROR');
+    expect(error.getCode()).toBe('PACKAGE_CONFLICT_ERROR');
   });
 
   it('should extend DomainError', () => {
@@ -367,7 +370,7 @@ describe('InvalidPackageVersionError', () => {
   it('should have correct error code', () => {
     const error = new InvalidPackageVersionError('Invalid version');
 
-    expect(error.code).toBe('INVALID_PACKAGE_VERSION');
+    expect(error.getCode()).toBe('INVALID_PACKAGE_VERSION');
   });
 
   it('should extend DomainError', () => {
@@ -419,7 +422,7 @@ describe('InvalidPackageVersionError', () => {
             });
 
             expect(error.context?.providedVersion).toBe(invalidVersion);
-            expect(error.code).toBe('INVALID_PACKAGE_VERSION');
+            expect(error.getCode()).toBe('INVALID_PACKAGE_VERSION');
           },
         ),
       );
@@ -431,7 +434,7 @@ describe('PackageSourceUnavailableError', () => {
   it('should have correct error code', () => {
     const error = new PackageSourceUnavailableError('Source unavailable');
 
-    expect(error.code).toBe('PACKAGE_SOURCE_UNAVAILABLE');
+    expect(error.getCode()).toBe('PACKAGE_SOURCE_UNAVAILABLE');
   });
 
   it('should extend DomainError', () => {
@@ -480,7 +483,7 @@ describe('SDKComplianceError', () => {
   it('should have correct error code', () => {
     const error = new SDKComplianceError('SDK compliance violation');
 
-    expect(error.code).toBe('SDK_COMPLIANCE_ERROR');
+    expect(error.getCode()).toBe('SDK_COMPLIANCE_ERROR');
   });
 
   it('should extend DomainError', () => {
@@ -574,7 +577,7 @@ describe('Error Class Integration Tests', () => {
 
         const error = new ErrorClass(message, context);
 
-        expect(error.code).toBe(code);
+        expect(error.getCode()).toBe(code);
         expect(error.name).toBe(name);
         expect(error.message).toBe(message);
         expect(error.context).toEqual(context);
@@ -590,7 +593,7 @@ describe('Error Class Integration Tests', () => {
 
         const error = new ErrorClass(message);
 
-        expect(error.code).toBe(code);
+        expect(error.getCode()).toBe(code);
         expect(error.name).toBe(name);
         expect(error.message).toBe(message);
         expect(error.context).toBeUndefined();
@@ -630,10 +633,10 @@ describe('Error Class Integration Tests', () => {
             const error = new errorClass.constructor(message, context);
 
             expect(error.message).toBe(message);
-            expect(error.code).toBe(errorClass.code);
+            expect(error.getCode()).toBe(errorClass.code);
             expect(error.name).toBe(errorClass.name);
             expect(error.context).toBe(context);
-            expect(error).toBeInstanceOf(DomainError);
+            expect(error).toBeInstanceOf(PackageError);
           },
         ),
       );
@@ -653,7 +656,7 @@ describe('Error Class Integration Tests', () => {
       expect(result.isOk()).toBe(false);
       if (result.isErr()) {
         expect(result.error).toBe(validationError);
-        expect(result.error.code).toBe('PACKAGE_VALIDATION_ERROR');
+        expect(result.error.getCode()).toBe('PACKAGE_VALIDATION_ERROR');
         expect(result.error.context?.packageName).toBe('test-package');
       }
     });
@@ -668,7 +671,7 @@ describe('Error Class Integration Tests', () => {
       const transformedResult = errorResult.mapErr(
         (error) =>
           new PackageInstallationError(`Installation failed: ${error.message}`, {
-            originalError: error.code,
+            originalError: error.getCode(),
             packageName: error.context?.packageName,
           }),
       );
@@ -676,7 +679,7 @@ describe('Error Class Integration Tests', () => {
       expect(transformedResult.isErr()).toBe(true);
       if (transformedResult.isErr()) {
         expect(transformedResult.error).toBeInstanceOf(PackageInstallationError);
-        expect(transformedResult.error.code).toBe('PACKAGE_INSTALLATION_ERROR');
+        expect(transformedResult.error.getCode()).toBe('PACKAGE_INSTALLATION_ERROR');
         expect(transformedResult.error.message).toBe('Installation failed: Package not found');
         expect(transformedResult.error.context?.originalError).toBe('PACKAGE_NOT_FOUND');
       }
@@ -708,7 +711,7 @@ describe('Error Class Integration Tests', () => {
       errorResults.forEach((result, index) => {
         expect(result.isErr()).toBe(true);
         if (result.isErr()) {
-          expect(result.error.code).toBe(errorClasses[index]?.code);
+          expect(result.error.getCode()).toBe(errorClasses[index]?.code);
           expect(result.error.context?.testContext).toBe('value');
         }
       });

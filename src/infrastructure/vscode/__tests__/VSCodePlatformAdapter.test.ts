@@ -122,8 +122,8 @@ describe('VSCodePlatformAdapter', () => {
     test('returns default display capabilities', () => {
       const caps = adapter.getDisplayCapabilities();
 
-      expect(caps.screenWidth).toBe(1920);
-      expect(caps.screenHeight).toBe(1080);
+      expect(caps.screenDimensions.getWidth()).toBe(1920);
+      expect(caps.screenDimensions.getHeight()).toBe(1080);
       expect(caps.devicePixelRatio).toBe(1);
       expect(caps.colorDepth).toBe(24);
       expect(typeof caps.isHighContrast).toBe('boolean');

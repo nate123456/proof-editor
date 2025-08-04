@@ -36,12 +36,13 @@ export class ProofAggregate {
     const aggregate = new ProofAggregate(ProofId.generate(), statements, argumentsMap);
 
     // Emit creation event
-    aggregate.addDomainEvent(
-      new ProofAggregateCreated(aggregate.id, {
-        initialStatement: initialData.initialStatement,
-        createdAt: Date.now(),
-      }),
-    );
+    const creationEventData: { initialStatement?: string; createdAt: number } = {
+      createdAt: Date.now(),
+    };
+    if (initialData.initialStatement !== undefined) {
+      creationEventData.initialStatement = initialData.initialStatement;
+    }
+    aggregate.addDomainEvent(new ProofAggregateCreated(aggregate.id, creationEventData));
 
     if (initialData.initialStatement !== undefined) {
       const addResult = aggregate.addStatement(initialData.initialStatement);
@@ -233,13 +234,14 @@ export class ProofAggregate {
     const isValid = validationErrors.length === 0;
 
     // Emit domain event
-    this.addDomainEvent(
-      new ProofConsistencyValidated(this.id, {
-        isValid,
-        validationErrors: isValid ? undefined : validationErrors,
-        version: this.version,
-      }),
-    );
+    const eventData: { isValid: boolean; validationErrors?: string[]; version: number } = {
+      isValid,
+      version: this.version,
+    };
+    if (!isValid) {
+      eventData.validationErrors = validationErrors;
+    }
+    this.addDomainEvent(new ProofConsistencyValidated(this.id, eventData));
 
     if (!isValid) {
       return err(new ValidationError(`Invalid aggregate state: ${validationErrors.join(', ')}`));

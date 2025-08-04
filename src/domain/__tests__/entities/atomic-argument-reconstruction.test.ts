@@ -12,28 +12,25 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 
-import { AtomicArgument, type SideLabels } from '../../entities/AtomicArgument.js';
-import { atomicArgumentIdFactory, orderedSetIdFactory } from '../factories/index.js';
-import {
-  FIXED_TIMESTAMP,
-  orderedSetIdArbitrary,
-  validSideLabelsArbitrary,
-} from './atomic-argument-test-utils.js';
+import { AtomicArgument } from '../../entities/AtomicArgument.js';
+import type { Statement } from '../../entities/Statement.js';
+import { atomicArgumentIdFactory, statementFactory } from '../factories/index.js';
+import { FIXED_TIMESTAMP, validSideLabelsArbitrary } from './atomic-argument-test-utils.js';
 
 describe('AtomicArgument Reconstruction', () => {
   describe('valid reconstruction cases', () => {
     it('should reconstruct arguments with all parameters', () => {
       const id = atomicArgumentIdFactory.build();
-      const premiseSetRef = orderedSetIdFactory.build();
-      const conclusionSetRef = orderedSetIdFactory.build();
+      const premises = [statementFactory.build(), statementFactory.build()];
+      const conclusions = [statementFactory.build()];
       const createdAt = FIXED_TIMESTAMP - 1000;
       const modifiedAt = FIXED_TIMESTAMP;
-      const sideLabels: SideLabels = { left: 'Reconstructed', right: 'Test' };
+      const sideLabels = { left: 'Reconstructed', right: 'Test' };
 
       const result = AtomicArgument.reconstruct(
         id,
-        premiseSetRef,
-        conclusionSetRef,
+        premises,
+        conclusions,
         createdAt,
         modifiedAt,
         sideLabels,
@@ -43,17 +40,17 @@ describe('AtomicArgument Reconstruction', () => {
       if (result.isOk()) {
         const argument = result.value;
         expect(argument.getId()).toBe(id);
-        expect(argument.getPremiseSet()).toBe(premiseSetRef);
-        expect(argument.getConclusionSet()).toBe(conclusionSetRef);
+        expect(argument.getPremises()).toEqual(premises);
+        expect(argument.getConclusions()).toEqual(conclusions);
         expect(argument.getCreatedAt()).toBe(createdAt);
         expect(argument.getModifiedAt()).toBe(modifiedAt);
         expect(argument.getSideLabels()).toEqual(sideLabels);
       }
     });
 
-    it('should reconstruct with null references', () => {
+    it('should reconstruct with empty premises and conclusions', () => {
       const id = atomicArgumentIdFactory.build();
-      const result = AtomicArgument.reconstruct(id, null, null, FIXED_TIMESTAMP, FIXED_TIMESTAMP);
+      const result = AtomicArgument.reconstruct(id, [], [], FIXED_TIMESTAMP, FIXED_TIMESTAMP);
 
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
@@ -63,37 +60,37 @@ describe('AtomicArgument Reconstruction', () => {
       }
     });
 
-    it('should reconstruct with premise set only', () => {
+    it('should reconstruct with premises only', () => {
       const id = atomicArgumentIdFactory.build();
-      const premiseSetRef = orderedSetIdFactory.build();
+      const premises = [statementFactory.build()];
       const createdAt = FIXED_TIMESTAMP - 2000;
       const modifiedAt = FIXED_TIMESTAMP - 1000;
 
-      const result = AtomicArgument.reconstruct(id, premiseSetRef, null, createdAt, modifiedAt);
+      const result = AtomicArgument.reconstruct(id, premises, [], createdAt, modifiedAt);
 
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         const argument = result.value;
-        expect(argument.getPremiseSet()).toBe(premiseSetRef);
-        expect(argument.getConclusionSet()).toBeNull();
+        expect(argument.getPremises()).toEqual(premises);
+        expect(argument.getConclusions()).toEqual([]);
         expect(argument.isComplete()).toBe(false);
         expect(argument.hasPremiseSet()).toBe(true);
         expect(argument.hasConclusionSet()).toBe(false);
       }
     });
 
-    it('should reconstruct with conclusion set only', () => {
+    it('should reconstruct with conclusions only', () => {
       const id = atomicArgumentIdFactory.build();
-      const conclusionSetRef = orderedSetIdFactory.build();
+      const conclusions = [statementFactory.build()];
       const timestamp = FIXED_TIMESTAMP;
 
-      const result = AtomicArgument.reconstruct(id, null, conclusionSetRef, timestamp, timestamp);
+      const result = AtomicArgument.reconstruct(id, [], conclusions, timestamp, timestamp);
 
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         const argument = result.value;
-        expect(argument.getPremiseSet()).toBeNull();
-        expect(argument.getConclusionSet()).toBe(conclusionSetRef);
+        expect(argument.getPremises()).toEqual([]);
+        expect(argument.getConclusions()).toEqual(conclusions);
         expect(argument.isComplete()).toBe(false);
         expect(argument.hasPremiseSet()).toBe(false);
         expect(argument.hasConclusionSet()).toBe(true);
@@ -105,7 +102,7 @@ describe('AtomicArgument Reconstruction', () => {
       const createdAt = 1234567890;
       const modifiedAt = 9876543210;
 
-      const result = AtomicArgument.reconstruct(id, null, null, createdAt, modifiedAt);
+      const result = AtomicArgument.reconstruct(id, [], [], createdAt, modifiedAt);
 
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
@@ -115,15 +112,34 @@ describe('AtomicArgument Reconstruction', () => {
       }
     });
 
+    it('should fail when modified timestamp is before created timestamp', () => {
+      const id = atomicArgumentIdFactory.build();
+      const createdAt = FIXED_TIMESTAMP;
+      const modifiedAt = FIXED_TIMESTAMP - 1000; // Before created
+
+      const result = AtomicArgument.reconstruct(id, [], [], createdAt, modifiedAt);
+
+      expect(result.isErr()).toBe(true);
+      if (result.isErr()) {
+        expect(result.error.message).toContain(
+          'modified timestamp cannot be before created timestamp',
+        );
+      }
+    });
+
     it('should handle property-based reconstruction', () => {
       fc.assert(
         fc.property(
-          fc.option(orderedSetIdArbitrary),
-          fc.option(orderedSetIdArbitrary),
+          fc
+            .array(fc.constant(null), { minLength: 0, maxLength: 3 })
+            .map((nulls) => nulls.map(() => statementFactory.build())),
+          fc
+            .array(fc.constant(null), { minLength: 0, maxLength: 3 })
+            .map((nulls) => nulls.map(() => statementFactory.build())),
           fc.integer({ min: Date.now() - 365 * 24 * 60 * 60 * 1000, max: Date.now() }),
           fc.integer({ min: Date.now() - 365 * 24 * 60 * 60 * 1000, max: Date.now() }),
           validSideLabelsArbitrary,
-          (premiseRef, conclusionRef, createdAt, modifiedAt, sideLabels) => {
+          (premises, conclusions, createdAt, modifiedAt, sideLabels) => {
             // Ensure modifiedAt >= createdAt
             const normalizedCreatedAt = Math.min(createdAt, modifiedAt);
             const normalizedModifiedAt = Math.max(createdAt, modifiedAt);
@@ -131,25 +147,73 @@ describe('AtomicArgument Reconstruction', () => {
             const id = atomicArgumentIdFactory.build();
             const result = AtomicArgument.reconstruct(
               id,
-              premiseRef === null ? null : premiseRef,
-              conclusionRef === null ? null : conclusionRef,
+              premises,
+              conclusions,
               normalizedCreatedAt,
               normalizedModifiedAt,
-              sideLabels,
+              sideLabels.toStrings(),
             );
 
             expect(result.isOk()).toBe(true);
             if (result.isOk()) {
               const argument = result.value;
               expect(argument.getId()).toBe(id);
-              expect(argument.getPremiseSet()).toBe(premiseRef ?? null);
-              expect(argument.getConclusionSet()).toBe(conclusionRef ?? null);
+              expect(argument.getPremises()).toEqual(premises);
+              expect(argument.getConclusions()).toEqual(conclusions);
               expect(argument.getCreatedAt()).toBe(normalizedCreatedAt);
               expect(argument.getModifiedAt()).toBe(normalizedModifiedAt);
+
+              // Verify internal state consistency
+              if (premises.length === 0 && conclusions.length === 0) {
+                expect(argument.isBootstrapArgument()).toBe(true);
+              }
+              if (premises.length > 0 && conclusions.length > 0) {
+                expect(argument.isComplete()).toBe(true);
+              }
             }
           },
         ),
       );
+    });
+
+    it('should reconstruct with duplicate statements in premises', () => {
+      const id = atomicArgumentIdFactory.build();
+      const statement = statementFactory.build();
+      const premises = [statement, statement]; // Same statement twice
+      const conclusions = [statementFactory.build()];
+
+      const result = AtomicArgument.reconstruct(
+        id,
+        premises,
+        conclusions,
+        FIXED_TIMESTAMP,
+        FIXED_TIMESTAMP,
+      );
+
+      expect(result.isErr()).toBe(true);
+      if (result.isErr()) {
+        expect(result.error.message).toContain('Duplicate statement');
+      }
+    });
+
+    it('should reconstruct with duplicate statements in conclusions', () => {
+      const id = atomicArgumentIdFactory.build();
+      const premises = [statementFactory.build()];
+      const statement = statementFactory.build();
+      const conclusions = [statement, statement]; // Same statement twice
+
+      const result = AtomicArgument.reconstruct(
+        id,
+        premises,
+        conclusions,
+        FIXED_TIMESTAMP,
+        FIXED_TIMESTAMP,
+      );
+
+      expect(result.isErr()).toBe(true);
+      if (result.isErr()) {
+        expect(result.error.message).toContain('Duplicate statement');
+      }
     });
   });
 });

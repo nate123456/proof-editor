@@ -24,6 +24,13 @@ import type {
   GetDocumentStateQuery,
   GetValidationReportQuery,
 } from '../document-queries.js';
+import {
+  createTestAtomicArgumentId,
+  createTestNodeId,
+  createTestStatementId,
+  createTestTreeId,
+  unwrapResult,
+} from './shared/branded-type-helpers.js';
 
 describe('GetDocumentQuery DTO', () => {
   it('should handle basic document query', () => {
@@ -266,6 +273,7 @@ describe('DocumentDTO Structure', () => {
       createdAt: '2023-01-01T00:00:00.000Z',
       modifiedAt: '2023-01-01T00:00:00.000Z',
       statements: {},
+      orderedSets: {},
       atomicArguments: {},
       trees: {},
     };
@@ -302,27 +310,25 @@ describe('DocumentDTO Structure', () => {
           modifiedAt: '2023-01-01T01:00:00.000Z',
         },
       },
+      orderedSets: {},
       atomicArguments: {
         arg_1: {
-          id: AtomicArgumentId.fromString('arg_1').value,
-          premiseIds: [
-            StatementId.fromString('stmt_1').value,
-            StatementId.fromString('stmt_2').value,
-          ],
+          id: createTestAtomicArgumentId('arg_1'),
+          premiseIds: [createTestStatementId('stmt_1'), createTestStatementId('stmt_2')],
           conclusionIds: [],
           sideLabels: {
-            left: SideLabel.create('Modus Ponens').value,
-            right: SideLabel.create('Classical Logic').value,
+            left: unwrapResult(SideLabel.create('Modus Ponens')),
+            right: unwrapResult(SideLabel.create('Classical Logic')),
           },
         },
       },
       trees: {
         tree_1: {
-          id: TreeId.create('tree_1').value,
-          position: Position2D.create(100, 200).value,
-          bounds: Dimensions.create(500, 300).value,
-          nodeCount: NodeCount.create(3).value,
-          rootNodeIds: [NodeId.create('node_1').value],
+          id: createTestTreeId('tree_1'),
+          position: unwrapResult(Position2D.create(100, 200)),
+          bounds: unwrapResult(Dimensions.create(500, 300)),
+          nodeCount: unwrapResult(NodeCount.create(3)),
+          rootNodeIds: [createTestNodeId('node_1')],
         },
       },
     };
@@ -334,8 +340,10 @@ describe('DocumentDTO Structure', () => {
     expect(Object.keys(document.trees)).toHaveLength(1);
 
     expect(document.statements.stmt_1?.content).toBe('All men are mortal');
-    expect(document.atomicArguments.arg_1?.premiseIds).toEqual(['stmt_1', 'stmt_2']);
-    expect(document.trees.tree_1?.nodeCount).toBe(3);
+    expect(document.atomicArguments.arg_1?.premiseIds).toHaveLength(2);
+    expect(document.atomicArguments.arg_1?.premiseIds[0]?.getValue()).toBe('stmt_1');
+    expect(document.atomicArguments.arg_1?.premiseIds[1]?.getValue()).toBe('stmt_2');
+    expect(document.trees.tree_1?.nodeCount.getValue()).toBe(3);
   });
 
   it('should handle document with zero version', () => {
@@ -345,6 +353,7 @@ describe('DocumentDTO Structure', () => {
       createdAt: '2023-01-01T00:00:00.000Z',
       modifiedAt: '2023-01-01T00:00:00.000Z',
       statements: {},
+      orderedSets: {},
       atomicArguments: {},
       trees: {},
     };
@@ -359,6 +368,7 @@ describe('DocumentDTO Structure', () => {
       createdAt: '2023-01-01T00:00:00.000Z',
       modifiedAt: '2023-01-01T00:00:00.000Z',
       statements: {},
+      orderedSets: {},
       atomicArguments: {},
       trees: {},
     };
@@ -381,6 +391,7 @@ describe('DocumentDTO Structure', () => {
         createdAt: timestamp,
         modifiedAt: timestamp,
         statements: {},
+        orderedSets: {},
         atomicArguments: {},
         trees: {},
       };

@@ -7,13 +7,13 @@ import type {
 } from '../../shared/value-objects/index.js';
 import {
   type FlowValidationResult,
-  OrderedSetShared,
-  OrderedSetUnshared,
   StatementAddedToFlow,
   StatementFlowBroken,
   StatementFlowEstablished,
   StatementFlowValidated,
   StatementRemovedFromFlow,
+  StatementShared,
+  StatementUnshared,
   type ValidationIssue,
 } from '../statement-flow-events.js';
 
@@ -34,8 +34,9 @@ describe('StatementFlowEstablished', () => {
       'flow-aggregate-123',
       mockFromArgumentId,
       mockToArgumentId,
-      mockOrderedSetId,
-      mockStatementIds,
+      mockStatementId,
+      'conclusion',
+      'premise',
     );
 
     expect(event.eventType).toBe('StatementFlowEstablished');
@@ -43,8 +44,9 @@ describe('StatementFlowEstablished', () => {
     expect(event.aggregateType).toBe('StatementFlow');
     expect(event.fromArgumentId).toBe(mockFromArgumentId);
     expect(event.toArgumentId).toBe(mockToArgumentId);
-    expect(event.sharedOrderedSetId).toBe(mockOrderedSetId);
-    expect(event.statementIds).toBe(mockStatementIds);
+    expect(event.sharedStatementId).toBe(mockStatementId);
+    expect(event.fromRole).toBe('conclusion');
+    expect(event.toRole).toBe('premise');
   });
 
   it('should serialize event data correctly', () => {
@@ -52,8 +54,9 @@ describe('StatementFlowEstablished', () => {
       'flow-aggregate-123',
       mockFromArgumentId,
       mockToArgumentId,
-      mockOrderedSetId,
-      mockStatementIds,
+      mockStatementId,
+      'conclusion',
+      'premise',
     );
 
     const data = event.eventData;
@@ -61,8 +64,9 @@ describe('StatementFlowEstablished', () => {
     expect(data).toEqual({
       fromArgumentId: 'from-arg-123',
       toArgumentId: 'to-arg-456',
-      sharedOrderedSetId: 'set-123',
-      statementIds: ['stmt-1', 'stmt-2', 'stmt-3'],
+      sharedStatementId: 'stmt-123',
+      fromRole: 'conclusion',
+      toRole: 'premise',
     });
   });
 
@@ -71,8 +75,9 @@ describe('StatementFlowEstablished', () => {
       'flow-aggregate-123',
       mockFromArgumentId,
       mockToArgumentId,
-      mockOrderedSetId,
-      mockStatementIds,
+      mockStatementId,
+      'conclusion',
+      'premise',
     );
 
     const record = event.toEventRecord();
@@ -85,30 +90,31 @@ describe('StatementFlowEstablished', () => {
     expect(record.metadata).toEqual({});
   });
 
-  it('should handle empty statement list', () => {
+  it('should handle event creation with different roles', () => {
     const event = new StatementFlowEstablished(
       'flow-aggregate-123',
       mockFromArgumentId,
       mockToArgumentId,
-      mockOrderedSetId,
-      [],
+      mockStatementId,
+      'premise',
+      'conclusion',
     );
 
-    expect(event.statementIds).toEqual([]);
-    expect(event.eventData.statementIds).toEqual([]);
+    expect(event.fromRole).toBe('premise');
+    expect(event.toRole).toBe('conclusion');
   });
 });
 
 describe('StatementFlowBroken', () => {
-  const mockPreviousOrderedSetId = { getValue: () => 'old-set-123' } as OrderedSetId;
+  const mockPreviousStatementId = { getValue: () => 'old-stmt-123' } as StatementId;
 
   it('should create event with correct properties', () => {
     const event = new StatementFlowBroken(
       'flow-aggregate-123',
       mockFromArgumentId,
       mockToArgumentId,
-      mockPreviousOrderedSetId,
-      'ordered_set_modified',
+      mockPreviousStatementId,
+      'statement_modified',
     );
 
     expect(event.eventType).toBe('StatementFlowBroken');
@@ -116,8 +122,8 @@ describe('StatementFlowBroken', () => {
     expect(event.aggregateType).toBe('StatementFlow');
     expect(event.fromArgumentId).toBe(mockFromArgumentId);
     expect(event.toArgumentId).toBe(mockToArgumentId);
-    expect(event.previousOrderedSetId).toBe(mockPreviousOrderedSetId);
-    expect(event.reason).toBe('ordered_set_modified');
+    expect(event.previousStatementId).toBe(mockPreviousStatementId);
+    expect(event.reason).toBe('statement_modified');
   });
 
   it('should serialize event data correctly', () => {
@@ -125,7 +131,7 @@ describe('StatementFlowBroken', () => {
       'flow-aggregate-123',
       mockFromArgumentId,
       mockToArgumentId,
-      mockPreviousOrderedSetId,
+      mockPreviousStatementId,
       'argument_deleted',
     );
 
@@ -134,14 +140,14 @@ describe('StatementFlowBroken', () => {
     expect(data).toEqual({
       fromArgumentId: 'from-arg-123',
       toArgumentId: 'to-arg-456',
-      previousOrderedSetId: 'old-set-123',
+      previousStatementId: 'old-stmt-123',
       reason: 'argument_deleted',
     });
   });
 
   it('should handle different break reasons', () => {
     const reasons = [
-      'ordered_set_modified',
+      'statement_modified',
       'argument_deleted',
       'explicit_disconnect',
       'validation_failure',
@@ -152,7 +158,7 @@ describe('StatementFlowBroken', () => {
         'flow-aggregate-123',
         mockFromArgumentId,
         mockToArgumentId,
-        mockPreviousOrderedSetId,
+        mockPreviousStatementId,
         reason as any,
       );
 
@@ -256,7 +262,8 @@ describe('StatementAddedToFlow', () => {
     const event = new StatementAddedToFlow(
       'flow-aggregate-123',
       mockStatementId,
-      mockOrderedSetId,
+      mockFromArgumentId,
+      'premise',
       2,
       mockAffectedArguments,
     );
@@ -265,7 +272,8 @@ describe('StatementAddedToFlow', () => {
     expect(event.aggregateId).toBe('flow-aggregate-123');
     expect(event.aggregateType).toBe('StatementFlow');
     expect(event.statementId).toBe(mockStatementId);
-    expect(event.orderedSetId).toBe(mockOrderedSetId);
+    expect(event.argumentId).toBe(mockFromArgumentId);
+    expect(event.role).toBe('premise');
     expect(event.position).toBe(2);
     expect(event.affectedArguments).toBe(mockAffectedArguments);
   });
@@ -274,7 +282,8 @@ describe('StatementAddedToFlow', () => {
     const event = new StatementAddedToFlow(
       'flow-aggregate-123',
       mockStatementId,
-      mockOrderedSetId,
+      mockFromArgumentId,
+      'premise',
       1,
       mockAffectedArguments,
     );
@@ -283,7 +292,8 @@ describe('StatementAddedToFlow', () => {
 
     expect(data).toEqual({
       statementId: 'stmt-123',
-      orderedSetId: 'set-123',
+      argumentId: 'from-arg-123',
+      role: 'premise',
       position: 1,
       affectedArguments: ['affected-arg-1', 'affected-arg-2'],
     });
@@ -293,7 +303,8 @@ describe('StatementAddedToFlow', () => {
     const event = new StatementAddedToFlow(
       'flow-aggregate-123',
       mockStatementId,
-      mockOrderedSetId,
+      mockFromArgumentId,
+      'premise',
       0,
       [],
     );
@@ -313,7 +324,8 @@ describe('StatementRemovedFromFlow', () => {
     const event = new StatementRemovedFromFlow(
       'flow-aggregate-123',
       mockStatementId,
-      mockOrderedSetId,
+      mockFromArgumentId,
+      'premise',
       3,
       mockAffectedArguments,
     );
@@ -322,7 +334,8 @@ describe('StatementRemovedFromFlow', () => {
     expect(event.aggregateId).toBe('flow-aggregate-123');
     expect(event.aggregateType).toBe('StatementFlow');
     expect(event.statementId).toBe(mockStatementId);
-    expect(event.orderedSetId).toBe(mockOrderedSetId);
+    expect(event.argumentId).toBe(mockFromArgumentId);
+    expect(event.role).toBe('premise');
     expect(event.previousPosition).toBe(3);
     expect(event.affectedArguments).toBe(mockAffectedArguments);
   });
@@ -331,7 +344,8 @@ describe('StatementRemovedFromFlow', () => {
     const event = new StatementRemovedFromFlow(
       'flow-aggregate-123',
       mockStatementId,
-      mockOrderedSetId,
+      mockFromArgumentId,
+      'premise',
       2,
       mockAffectedArguments,
     );
@@ -340,7 +354,8 @@ describe('StatementRemovedFromFlow', () => {
 
     expect(data).toEqual({
       statementId: 'stmt-123',
-      orderedSetId: 'set-123',
+      argumentId: 'from-arg-123',
+      role: 'premise',
       previousPosition: 2,
       affectedArguments: ['affected-arg-1', 'affected-arg-2'],
     });
@@ -350,7 +365,8 @@ describe('StatementRemovedFromFlow', () => {
     const event = new StatementRemovedFromFlow(
       'flow-aggregate-123',
       mockStatementId,
-      mockOrderedSetId,
+      mockFromArgumentId,
+      'premise',
       10,
       mockAffectedArguments,
     );
@@ -359,7 +375,7 @@ describe('StatementRemovedFromFlow', () => {
   });
 });
 
-describe('OrderedSetShared', () => {
+describe('StatementShared', () => {
   const mockSharedBetween = [
     { getValue: () => 'arg-1' } as AtomicArgumentId,
     { getValue: () => 'arg-2' } as AtomicArgumentId,
@@ -367,25 +383,25 @@ describe('OrderedSetShared', () => {
   ];
 
   it('should create event for premise sharing', () => {
-    const event = new OrderedSetShared(
+    const event = new StatementShared(
       'flow-aggregate-123',
-      mockOrderedSetId,
+      mockStatementId,
       mockSharedBetween,
       'premise',
     );
 
-    expect(event.eventType).toBe('OrderedSetShared');
+    expect(event.eventType).toBe('StatementShared');
     expect(event.aggregateId).toBe('flow-aggregate-123');
     expect(event.aggregateType).toBe('StatementFlow');
-    expect(event.orderedSetId).toBe(mockOrderedSetId);
+    expect(event.statementId).toBe(mockStatementId);
     expect(event.sharedBetween).toBe(mockSharedBetween);
     expect(event.shareType).toBe('premise');
   });
 
   it('should create event for conclusion sharing', () => {
-    const event = new OrderedSetShared(
+    const event = new StatementShared(
       'flow-aggregate-123',
-      mockOrderedSetId,
+      mockStatementId,
       mockSharedBetween,
       'conclusion',
     );
@@ -394,9 +410,9 @@ describe('OrderedSetShared', () => {
   });
 
   it('should serialize event data correctly', () => {
-    const event = new OrderedSetShared(
+    const event = new StatementShared(
       'flow-aggregate-123',
-      mockOrderedSetId,
+      mockStatementId,
       mockSharedBetween,
       'premise',
     );
@@ -404,7 +420,7 @@ describe('OrderedSetShared', () => {
     const data = event.eventData;
 
     expect(data).toEqual({
-      orderedSetId: 'set-123',
+      statementId: 'stmt-123',
       sharedBetween: ['arg-1', 'arg-2', 'arg-3'],
       shareType: 'premise',
     });
@@ -412,9 +428,9 @@ describe('OrderedSetShared', () => {
 
   it('should handle sharing between two arguments', () => {
     const twoArguments = [mockFromArgumentId, mockToArgumentId];
-    const event = new OrderedSetShared(
+    const event = new StatementShared(
       'flow-aggregate-123',
-      mockOrderedSetId,
+      mockStatementId,
       twoArguments,
       'conclusion',
     );
@@ -424,76 +440,78 @@ describe('OrderedSetShared', () => {
   });
 });
 
-describe('OrderedSetUnshared', () => {
+describe('StatementUnshared', () => {
   const mockPreviouslySharedBetween = [
     { getValue: () => 'arg-1' } as AtomicArgumentId,
     { getValue: () => 'arg-2' } as AtomicArgumentId,
   ];
 
-  const mockNewOrderedSetIds = [
-    { getValue: () => 'new-set-1' } as OrderedSetId,
-    { getValue: () => 'new-set-2' } as OrderedSetId,
-  ];
-
   it('should create event with correct properties', () => {
-    const event = new OrderedSetUnshared(
+    const event = new StatementUnshared(
       'flow-aggregate-123',
-      mockOrderedSetId,
+      mockStatementId,
       mockPreviouslySharedBetween,
-      mockNewOrderedSetIds,
+      'explicit_disconnect',
     );
 
-    expect(event.eventType).toBe('OrderedSetUnshared');
+    expect(event.eventType).toBe('StatementUnshared');
     expect(event.aggregateId).toBe('flow-aggregate-123');
     expect(event.aggregateType).toBe('StatementFlow');
-    expect(event.orderedSetId).toBe(mockOrderedSetId);
+    expect(event.statementId).toBe(mockStatementId);
     expect(event.previouslySharedBetween).toBe(mockPreviouslySharedBetween);
-    expect(event.newOrderedSetIds).toBe(mockNewOrderedSetIds);
+    expect(event.reason).toBe('explicit_disconnect');
   });
 
   it('should serialize event data correctly', () => {
-    const event = new OrderedSetUnshared(
+    const event = new StatementUnshared(
       'flow-aggregate-123',
-      mockOrderedSetId,
+      mockStatementId,
       mockPreviouslySharedBetween,
-      mockNewOrderedSetIds,
+      'argument_modified',
     );
 
     const data = event.eventData;
 
     expect(data).toEqual({
-      orderedSetId: 'set-123',
+      statementId: 'stmt-123',
       previouslySharedBetween: ['arg-1', 'arg-2'],
-      newOrderedSetIds: ['new-set-1', 'new-set-2'],
+      reason: 'argument_modified',
     });
   });
 
   it('should handle single argument unsharing', () => {
     const singleArgument = [mockFromArgumentId];
-    const singleNewSet = [{ getValue: () => 'single-set' } as OrderedSetId];
 
-    const event = new OrderedSetUnshared(
+    const event = new StatementUnshared(
       'flow-aggregate-123',
-      mockOrderedSetId,
+      mockStatementId,
       singleArgument,
-      singleNewSet,
+      'argument_deleted',
     );
 
     expect(event.previouslySharedBetween).toBe(singleArgument);
-    expect(event.newOrderedSetIds).toBe(singleNewSet);
+    expect(event.reason).toBe('argument_deleted');
     expect(event.eventData.previouslySharedBetween).toEqual(['from-arg-123']);
-    expect(event.eventData.newOrderedSetIds).toEqual(['single-set']);
+    expect(event.eventData.reason).toBe('argument_deleted');
   });
 
-  it('should handle empty new sets list', () => {
-    const event = new OrderedSetUnshared(
-      'flow-aggregate-123',
-      mockOrderedSetId,
-      mockPreviouslySharedBetween,
-      [],
-    );
+  it('should handle different unshare reasons', () => {
+    const reasons: Array<'explicit_disconnect' | 'argument_modified' | 'argument_deleted'> = [
+      'explicit_disconnect',
+      'argument_modified',
+      'argument_deleted',
+    ];
 
-    expect(event.newOrderedSetIds).toEqual([]);
-    expect(event.eventData.newOrderedSetIds).toEqual([]);
+    reasons.forEach((reason) => {
+      const event = new StatementUnshared(
+        'flow-aggregate-123',
+        mockStatementId,
+        mockPreviouslySharedBetween,
+        reason,
+      );
+
+      expect(event.reason).toBe(reason);
+      expect(event.eventData.reason).toBe(reason);
+    });
   });
 });

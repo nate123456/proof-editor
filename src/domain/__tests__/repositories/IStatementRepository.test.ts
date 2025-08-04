@@ -21,7 +21,7 @@ import type {
   UsageMetrics,
 } from '../../shared/repository-types';
 import type { StatementId } from '../../shared/value-objects';
-import { statementContentFactory, statementIdFactory } from './factories';
+import { statementContentFactory, statementIdFactory } from '../factories/index.js';
 
 // Mock implementation of IStatementRepository for testing
 class MockStatementRepository implements IStatementRepository {
@@ -53,18 +53,24 @@ class MockStatementRepository implements IStatementRepository {
     }
   }
 
-  async findById(id: StatementId): Promise<Statement | null> {
+  async findById(id: StatementId): Promise<Result<Statement, RepositoryError>> {
     const statement = this.statements.get(id.getValue());
-    return Promise.resolve(statement ?? null);
+    if (!statement) {
+      return err(new RepositoryError('Statement not found'));
+    }
+    return ok(statement);
   }
 
-  async findByContent(content: string): Promise<Statement | null> {
+  async findByContent(content: string): Promise<Result<Statement, RepositoryError>> {
     const statement = this.contentIndex.get(content);
-    return Promise.resolve(statement ?? null);
+    if (!statement) {
+      return err(new RepositoryError('Statement not found'));
+    }
+    return ok(statement);
   }
 
-  async findAll(): Promise<Statement[]> {
-    return Promise.resolve(Array.from(this.statements.values()));
+  async findAll(): Promise<Result<Statement[], RepositoryError>> {
+    return ok(Array.from(this.statements.values()));
   }
 
   async delete(id: StatementId): Promise<Result<void, RepositoryError>> {
@@ -91,47 +97,54 @@ class MockStatementRepository implements IStatementRepository {
   async findStatementsByPattern(
     pattern: RegExp,
     options?: PatternSearchOptions,
-  ): Promise<Statement[]> {
+  ): Promise<Result<Statement[], RepositoryError>> {
     const allStatements = Array.from(this.statements.values());
     const matches = allStatements.filter((statement) => pattern.test(statement.getContent()));
 
-    return this.applyQueryOptions(matches, options);
+    return ok(this.applyQueryOptions(matches, options));
   }
 
-  async findFrequentlyUsedStatements(options?: QueryOptions): Promise<Statement[]> {
+  async findFrequentlyUsedStatements(
+    options?: QueryOptions,
+  ): Promise<Result<Statement[], RepositoryError>> {
     const allStatements = Array.from(this.statements.values());
     const sortedByUsage = allStatements.sort((a, b) => b.getUsageCount() - a.getUsageCount());
 
-    return this.applyQueryOptions(sortedByUsage, options);
+    return ok(this.applyQueryOptions(sortedByUsage, options));
   }
 
   async findByLogicalStructure(
     structureType: LogicalStructureType,
     options?: QueryOptions,
-  ): Promise<Statement[]> {
+  ): Promise<Result<Statement[], RepositoryError>> {
     const allStatements = Array.from(this.statements.values());
     const matches = allStatements.filter((statement) =>
       this.matchesLogicalStructure(statement, structureType),
     );
 
-    return this.applyQueryOptions(matches, options);
+    return ok(this.applyQueryOptions(matches, options));
   }
 
-  async findStatementsByUsageCount(minUsage: number, options?: QueryOptions): Promise<Statement[]> {
+  async findStatementsByUsageCount(
+    minUsage: number,
+    options?: QueryOptions,
+  ): Promise<Result<Statement[], RepositoryError>> {
     const allStatements = Array.from(this.statements.values());
     const matches = allStatements.filter((statement) => statement.getUsageCount() >= minUsage);
 
-    return this.applyQueryOptions(matches, options);
+    return ok(this.applyQueryOptions(matches, options));
   }
 
   async findRelatedStatements(
     statementId: StatementId,
     options?: QueryOptions,
-  ): Promise<Statement[]> {
+  ): Promise<Result<Statement[], RepositoryError>> {
     const allStatements = Array.from(this.statements.values());
     const targetStatement = this.statements.get(statementId.getValue());
 
-    if (!targetStatement) return [];
+    if (!targetStatement) {
+      return err(new RepositoryError('Target statement not found'));
+    }
 
     const related = allStatements.filter(
       (statement) =>
@@ -139,13 +152,13 @@ class MockStatementRepository implements IStatementRepository {
         this.areStatementsRelated(statement, targetStatement),
     );
 
-    return this.applyQueryOptions(related, options);
+    return ok(this.applyQueryOptions(related, options));
   }
 
   async searchStatementsByKeywords(
     keywords: string[],
     options?: QueryOptions,
-  ): Promise<Statement[]> {
+  ): Promise<Result<Statement[], RepositoryError>> {
     const allStatements = Array.from(this.statements.values());
     const matches = allStatements.filter((statement) =>
       keywords.some((keyword) =>
@@ -153,35 +166,98 @@ class MockStatementRepository implements IStatementRepository {
       ),
     );
 
-    return this.applyQueryOptions(matches, options);
+    return ok(this.applyQueryOptions(matches, options));
   }
 
-  async findStatementsInProof(proofId: string, options?: QueryOptions): Promise<Statement[]> {
+  async findStatementsInProof(
+    proofId: string,
+    options?: QueryOptions,
+  ): Promise<Result<Statement[], RepositoryError>> {
     const allStatements = Array.from(this.statements.values());
     const matches = allStatements.filter((statement) =>
       statement.getContent().includes(`proof:${proofId}`),
     );
 
-    return this.applyQueryOptions(matches, options);
+    return ok(this.applyQueryOptions(matches, options));
   }
 
-  async getStatementUsageMetrics(statementId: StatementId): Promise<UsageMetrics | null> {
+  async getStatementUsageMetrics(
+    statementId: StatementId,
+  ): Promise<Result<UsageMetrics, RepositoryError>> {
     const statement = this.statements.get(statementId.getValue());
 
-    if (!statement) return null;
+    if (!statement) {
+      return err(new RepositoryError('Statement not found'));
+    }
 
-    return {
+    return ok({
       totalUsage: statement.getUsageCount(),
       recentUsage: Math.floor(statement.getUsageCount() / 2),
       lastUsedAt: new Date(),
-    };
+    });
   }
 
-  async findUnusedStatements(options?: QueryOptions): Promise<Statement[]> {
+  async findUnusedStatements(
+    options?: QueryOptions,
+  ): Promise<Result<Statement[], RepositoryError>> {
     const allStatements = Array.from(this.statements.values());
     const unused = allStatements.filter((statement) => statement.getUsageCount() === 0);
 
-    return this.applyQueryOptions(unused, options);
+    return ok(this.applyQueryOptions(unused, options));
+  }
+
+  // Methods from base interfaces
+  async exists(id: StatementId): Promise<Result<boolean, RepositoryError>> {
+    return ok(this.statements.has(id.getValue()));
+  }
+
+  async count(): Promise<Result<number, RepositoryError>> {
+    return ok(this.statements.size);
+  }
+
+  async findByCriteria(criteria: any): Promise<Result<Statement[], RepositoryError>> {
+    return ok([]);
+  }
+
+  async paginate(options: any): Promise<Result<any, RepositoryError>> {
+    return ok({
+      items: [],
+      total: 0,
+      page: 1,
+      pageSize: 10,
+    });
+  }
+
+  async search(query: string, options?: any): Promise<Result<Statement[], RepositoryError>> {
+    const allStatements = Array.from(this.statements.values());
+    const matches = allStatements.filter((statement) =>
+      statement.getContent().toLowerCase().includes(query.toLowerCase()),
+    );
+    return ok(matches);
+  }
+
+  async sort(items: Statement[], options: any): Promise<Result<Statement[], RepositoryError>> {
+    return ok(items);
+  }
+
+  async findBySpecification(spec: any): Promise<Result<Statement[], RepositoryError>> {
+    return ok([]);
+  }
+
+  async countBySpecification(spec: any): Promise<Result<number, RepositoryError>> {
+    return ok(0);
+  }
+
+  async existsBySpecification(spec: any): Promise<Result<boolean, RepositoryError>> {
+    return ok(false);
+  }
+
+  async findWithOptions(options: any): Promise<Result<Statement[], RepositoryError>> {
+    return ok([]);
+  }
+
+  async findByDateRange(start: Date, end: Date): Promise<Result<Statement[], RepositoryError>> {
+    return ok([]);
   }
 
   // Helper methods for mock implementation
@@ -256,7 +332,8 @@ describe('IStatementRepository', () => {
 
   describe('save', () => {
     it('should save a valid statement successfully', async () => {
-      const statementResult = Statement.create(statementContentFactory.build());
+      const content = statementContentFactory.build();
+      const statementResult = Statement.create(content.getValue());
       expect(statementResult.isOk()).toBe(true);
       if (!statementResult.isOk()) throw new Error('Statement creation failed');
 
@@ -268,8 +345,8 @@ describe('IStatementRepository', () => {
     });
 
     it('should update an existing statement', async () => {
-      const content = statementContentFactory.build();
-      const statementResult = Statement.create(content);
+      const contentObj = statementContentFactory.build();
+      const statementResult = Statement.create(contentObj.getValue());
       if (!statementResult.isOk()) throw new Error('Statement creation failed');
       const statement = statementResult.value;
 
@@ -286,7 +363,10 @@ describe('IStatementRepository', () => {
       expect(repository.size()).toBe(1);
 
       const retrieved = await repository.findById(statement.getId());
-      expect(retrieved?.getUsageCount()).toBe(1);
+      expect(retrieved.isOk()).toBe(true);
+      if (retrieved.isOk()) {
+        expect(retrieved.value.getUsageCount()).toBe(1);
+      }
     });
 
     it('should reject saving duplicate content with different ID', async () => {
@@ -342,28 +422,35 @@ describe('IStatementRepository', () => {
 
   describe('findById', () => {
     it('should find existing statement by ID', async () => {
-      const statementResult = Statement.create(statementContentFactory.build());
+      const content = statementContentFactory.build();
+      const statementResult = Statement.create(content.getValue());
       if (!statementResult.isOk()) throw new Error('Statement creation failed');
       const statement = statementResult.value;
       await repository.save(statement);
 
       const found = await repository.findById(statement.getId());
 
-      expect(found).not.toBeNull();
-      expect(found?.getId().equals(statement.getId())).toBe(true);
-      expect(found?.getContent()).toBe(statement.getContent());
+      expect(found.isOk()).toBe(true);
+      if (found.isOk()) {
+        expect(found.value.getId().equals(statement.getId())).toBe(true);
+        expect(found.value.getContent()).toBe(statement.getContent());
+      }
     });
 
     it('should return null for non-existent ID', async () => {
       const randomId = statementIdFactory.build();
       const found = await repository.findById(randomId);
 
-      expect(found).toBeNull();
+      expect(found.isErr()).toBe(true);
+      if (found.isErr()) {
+        expect(found.error.message).toContain('not found');
+      }
     });
 
     it('should handle multiple statements correctly', async () => {
       const statements = Array.from({ length: 5 }, () => {
-        const result = Statement.create(statementContentFactory.build());
+        const content = statementContentFactory.build();
+        const result = Statement.create(content.getValue());
         if (!result.isOk()) throw new Error('Statement creation failed');
         return result.value;
       });
@@ -374,8 +461,10 @@ describe('IStatementRepository', () => {
 
       for (const statement of statements) {
         const found = await repository.findById(statement.getId());
-        expect(found).not.toBeNull();
-        expect(found?.getId().equals(statement.getId())).toBe(true);
+        expect(found.isOk()).toBe(true);
+        if (found.isOk()) {
+          expect(found.value.getId().equals(statement.getId())).toBe(true);
+        }
       }
     });
   });
@@ -390,15 +479,20 @@ describe('IStatementRepository', () => {
 
       const found = await repository.findByContent(content);
 
-      expect(found).not.toBeNull();
-      expect(found?.getContent()).toBe(content);
-      expect(found?.getId().equals(statement.getId())).toBe(true);
+      expect(found.isOk()).toBe(true);
+      if (found.isOk()) {
+        expect(found.value.getContent()).toBe(content);
+        expect(found.value.getId().equals(statement.getId())).toBe(true);
+      }
     });
 
     it('should return null for non-existent content', async () => {
       const found = await repository.findByContent('Non-existent content');
 
-      expect(found).toBeNull();
+      expect(found.isErr()).toBe(true);
+      if (found.isErr()) {
+        expect(found.error.message).toContain('not found');
+      }
     });
 
     it('should be case-sensitive', async () => {
@@ -411,8 +505,8 @@ describe('IStatementRepository', () => {
       const foundLowercase = await repository.findByContent(content.toLowerCase());
       const foundUppercase = await repository.findByContent(content.toUpperCase());
 
-      expect(foundLowercase).toBeNull();
-      expect(foundUppercase).toBeNull();
+      expect(foundLowercase.isErr()).toBe(true);
+      expect(foundUppercase.isErr()).toBe(true);
     });
 
     it('should handle content updates correctly', async () => {
@@ -433,24 +527,30 @@ describe('IStatementRepository', () => {
       const found1 = await repository.findByContent(content1);
       const found2 = await repository.findByContent(content2);
 
-      expect(found1).not.toBeNull();
-      expect(found2).not.toBeNull();
-      expect(found1?.getId().getValue()).not.toBe(found2?.getId().getValue());
+      expect(found1.isOk()).toBe(true);
+      expect(found2.isOk()).toBe(true);
+      if (found1.isOk() && found2.isOk()) {
+        expect(found1.value.getId().getValue()).not.toBe(found2.value.getId().getValue());
+      }
     });
   });
 
   describe('findAll', () => {
     it('should return empty array when no statements exist', async () => {
-      const all = await repository.findAll();
+      const result = await repository.findAll();
 
-      expect(all).toEqual([]);
-      expect(all.length).toBe(0);
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        expect(result.value).toEqual([]);
+        expect(result.value.length).toBe(0);
+      }
     });
 
     it('should return all saved statements', async () => {
       const count = 10;
       const statements = Array.from({ length: count }, () => {
-        const result = Statement.create(statementContentFactory.build());
+        const content = statementContentFactory.build();
+        const result = Statement.create(content.getValue());
         if (!result.isOk()) throw new Error('Statement creation failed');
         return result.value;
       });
@@ -459,18 +559,21 @@ describe('IStatementRepository', () => {
         await repository.save(statement);
       }
 
-      const all = await repository.findAll();
+      const result = await repository.findAll();
 
-      expect(all.length).toBe(count);
-
-      const allIds = all.map((s) => s.getId().getValue()).sort();
-      const expectedIds = statements.map((s) => s.getId().getValue()).sort();
-      expect(allIds).toEqual(expectedIds);
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        expect(result.value.length).toBe(count);
+        const allIds = result.value.map((s) => s.getId().getValue()).sort();
+        const expectedIds = statements.map((s) => s.getId().getValue()).sort();
+        expect(allIds).toEqual(expectedIds);
+      }
     });
 
     it('should return statements in consistent order', async () => {
       const statements = Array.from({ length: 5 }, () => {
-        const result = Statement.create(statementContentFactory.build());
+        const content = statementContentFactory.build();
+        const result = Statement.create(content.getValue());
         if (!result.isOk()) throw new Error('Statement creation failed');
         return result.value;
       });
@@ -479,16 +582,23 @@ describe('IStatementRepository', () => {
         await repository.save(statement);
       }
 
-      const all1 = await repository.findAll();
-      const all2 = await repository.findAll();
+      const result1 = await repository.findAll();
+      const result2 = await repository.findAll();
 
-      expect(all1.map((s) => s.getId().getValue())).toEqual(all2.map((s) => s.getId().getValue()));
+      expect(result1.isOk()).toBe(true);
+      expect(result2.isOk()).toBe(true);
+      if (result1.isOk() && result2.isOk()) {
+        expect(result1.value.map((s) => s.getId().getValue())).toEqual(
+          result2.value.map((s) => s.getId().getValue()),
+        );
+      }
     });
   });
 
   describe('delete', () => {
     it('should delete existing statement with zero usage', async () => {
-      const statementResult = Statement.create(statementContentFactory.build());
+      const content = statementContentFactory.build();
+      const statementResult = Statement.create(content.getValue());
       if (!statementResult.isOk()) throw new Error('Statement creation failed');
       const statement = statementResult.value;
       await repository.save(statement);
@@ -499,11 +609,15 @@ describe('IStatementRepository', () => {
       expect(repository.size()).toBe(0);
 
       const found = await repository.findById(statement.getId());
-      expect(found).toBeNull();
+      expect(found.isErr()).toBe(true);
+      if (found.isErr()) {
+        expect(found.error.message).toContain('not found');
+      }
     });
 
     it('should reject deleting statement that is in use', async () => {
-      const statementResult = Statement.create(statementContentFactory.build());
+      const content = statementContentFactory.build();
+      const statementResult = Statement.create(content.getValue());
       if (!statementResult.isOk()) throw new Error('Statement creation failed');
       const statement = statementResult.value;
       statement.incrementUsage();
@@ -538,8 +652,13 @@ describe('IStatementRepository', () => {
       const foundById = await repository.findById(statement.getId());
       const foundByContent = await repository.findByContent(content);
 
-      expect(foundById).toBeNull();
-      expect(foundByContent).toBeNull();
+      expect(foundById.isErr()).toBe(true);
+      if (foundById.isOk()) throw new Error('Expected error');
+      expect(foundById.error.message).toContain('not found');
+
+      expect(foundByContent.isErr()).toBe(true);
+      if (foundByContent.isOk()) throw new Error('Expected error');
+      expect(foundByContent.error.message).toContain('not found');
     });
 
     it('should handle delete failures with proper error', async () => {
@@ -575,6 +694,8 @@ describe('IStatementRepository', () => {
         findAll: vi.fn(),
         findByContent: vi.fn(),
         delete: vi.fn(),
+        exists: vi.fn(),
+        count: vi.fn(),
         findStatementsByPattern: vi.fn(),
         findFrequentlyUsedStatements: vi.fn(),
         findByLogicalStructure: vi.fn(),
@@ -584,6 +705,11 @@ describe('IStatementRepository', () => {
         findStatementsInProof: vi.fn(),
         getStatementUsageMetrics: vi.fn(),
         findUnusedStatements: vi.fn(),
+        findWithOptions: vi.fn(),
+        findByDateRange: vi.fn(),
+        findBySpecification: vi.fn(),
+        countBySpecification: vi.fn(),
+        existsBySpecification: vi.fn(),
       };
     });
 
@@ -597,13 +723,13 @@ describe('IStatementRepository', () => {
         return Promise.resolve(err(new RepositoryError('Unknown statement')));
       });
       vi.mocked(mockRepository.findById).mockImplementation(async (id) => {
-        if (id.equals(statement.getId())) return Promise.resolve(statement);
-        return Promise.resolve(null);
+        if (id.equals(statement.getId())) return Promise.resolve(ok(statement));
+        return Promise.resolve(err(new RepositoryError('Not found')));
       });
-      vi.mocked(mockRepository.findAll).mockResolvedValue([statement]);
+      vi.mocked(mockRepository.findAll).mockResolvedValue(ok([statement]));
       vi.mocked(mockRepository.findByContent).mockImplementation(async (content) => {
-        if (content === 'Test content') return Promise.resolve(statement);
-        return Promise.resolve(null);
+        if (content === 'Test content') return Promise.resolve(ok(statement));
+        return Promise.resolve(err(new RepositoryError('Not found')));
       });
       vi.mocked(mockRepository.delete).mockImplementation(async (id) => {
         if (id.equals(statement.getId()))
@@ -615,13 +741,22 @@ describe('IStatementRepository', () => {
       expect(saveResult.isOk()).toBe(true);
 
       const found = await mockRepository.findById(statement.getId());
-      expect(found).toBe(statement);
+      expect(found.isOk()).toBe(true);
+      if (found.isOk()) {
+        expect(found.value).toBe(statement);
+      }
 
       const all = await mockRepository.findAll();
-      expect(all).toEqual([statement]);
+      expect(all.isOk()).toBe(true);
+      if (all.isOk()) {
+        expect(all.value).toEqual([statement]);
+      }
 
       const byContent = await mockRepository.findByContent('Test content');
-      expect(byContent).toBe(statement);
+      expect(byContent.isOk()).toBe(true);
+      if (byContent.isOk()) {
+        expect(byContent.value).toBe(statement);
+      }
 
       const deleteResult = await mockRepository.delete(statement.getId());
       expect(deleteResult.isErr()).toBe(true);
@@ -633,12 +768,18 @@ describe('IStatementRepository', () => {
   describe('Edge Cases', () => {
     it('should handle empty string content lookup', async () => {
       const found = await repository.findByContent('');
-      expect(found).toBeNull();
+      expect(found.isErr()).toBe(true);
+      if (found.isErr()) {
+        expect(found.error.message).toContain('not found');
+      }
     });
 
     it('should handle whitespace-only content lookup', async () => {
       const found = await repository.findByContent('   \t\n   ');
-      expect(found).toBeNull();
+      expect(found.isErr()).toBe(true);
+      if (found.isErr()) {
+        expect(found.error.message).toContain('not found');
+      }
     });
 
     it('should handle very long content', async () => {
@@ -651,8 +792,10 @@ describe('IStatementRepository', () => {
       expect(saveResult.isOk()).toBe(true);
 
       const found = await repository.findByContent(longContent);
-      expect(found).not.toBeNull();
-      expect(found?.getContent()).toBe(longContent);
+      expect(found.isOk()).toBe(true);
+      if (found.isOk()) {
+        expect(found.value.getContent()).toBe(longContent);
+      }
     });
 
     it('should maintain consistency under concurrent-like operations', async () => {
@@ -677,9 +820,12 @@ describe('IStatementRepository', () => {
         }
       }
 
-      const all = await repository.findAll();
-      const remainingCount = statements.length - Math.floor(statements.length / 3);
-      expect(all.length).toBeLessThanOrEqual(remainingCount);
+      const result = await repository.findAll();
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        const remainingCount = statements.length - Math.floor(statements.length / 3);
+        expect(result.value.length).toBeLessThanOrEqual(remainingCount);
+      }
     });
   });
 
@@ -709,10 +855,13 @@ describe('IStatementRepository', () => {
         }
 
         const pattern = /mortal/;
-        const matches = await repository.findStatementsByPattern(pattern);
+        const result = await repository.findStatementsByPattern(pattern);
 
-        expect(matches.length).toBe(2);
-        expect(matches.every((s) => s.getContent().includes('mortal'))).toBe(true);
+        expect(result.isOk()).toBe(true);
+        if (result.isOk()) {
+          expect(result.value.length).toBe(2);
+          expect(result.value.every((s) => s.getContent().includes('mortal'))).toBe(true);
+        }
       });
 
       it('should respect query options', async () => {
@@ -727,9 +876,12 @@ describe('IStatementRepository', () => {
         }
 
         const pattern = /test/;
-        const matches = await repository.findStatementsByPattern(pattern, { limit: 3 });
+        const result = await repository.findStatementsByPattern(pattern, { limit: 3 });
 
-        expect(matches.length).toBe(3);
+        expect(result.isOk()).toBe(true);
+        if (result.isOk()) {
+          expect(result.value.length).toBe(3);
+        }
       });
     });
 
@@ -756,15 +908,18 @@ describe('IStatementRepository', () => {
         await repository.save(statement2);
         await repository.save(statement3);
 
-        const frequent = await repository.findFrequentlyUsedStatements();
+        const result = await repository.findFrequentlyUsedStatements();
 
-        expect(frequent.length).toBe(3);
-        const first = frequent[0];
-        const second = frequent[1];
-        const third = frequent[2];
-        if (first) expect(first.getUsageCount()).toBe(3);
-        if (second) expect(second.getUsageCount()).toBe(2);
-        if (third) expect(third.getUsageCount()).toBe(1);
+        expect(result.isOk()).toBe(true);
+        if (result.isOk()) {
+          expect(result.value.length).toBe(3);
+          const first = result.value[0];
+          const second = result.value[1];
+          const third = result.value[2];
+          if (first) expect(first.getUsageCount()).toBe(3);
+          if (second) expect(second.getUsageCount()).toBe(2);
+          if (third) expect(third.getUsageCount()).toBe(1);
+        }
       });
     });
 
@@ -792,16 +947,19 @@ describe('IStatementRepository', () => {
           await repository.save(statement);
         }
 
-        const conditionals = await repository.findByLogicalStructure('conditional');
+        const result = await repository.findByLogicalStructure('conditional');
 
-        expect(conditionals.length).toBe(2);
-        expect(
-          conditionals.every(
-            (s) =>
-              s.getContent().toLowerCase().includes('if') &&
-              s.getContent().toLowerCase().includes('then'),
-          ),
-        ).toBe(true);
+        expect(result.isOk()).toBe(true);
+        if (result.isOk()) {
+          expect(result.value.length).toBe(2);
+          expect(
+            result.value.every(
+              (s) =>
+                s.getContent().toLowerCase().includes('if') &&
+                s.getContent().toLowerCase().includes('then'),
+            ),
+          ).toBe(true);
+        }
       });
 
       it('should find quantified statements', async () => {
@@ -827,9 +985,12 @@ describe('IStatementRepository', () => {
           await repository.save(statement);
         }
 
-        const quantified = await repository.findByLogicalStructure('quantified');
+        const result = await repository.findByLogicalStructure('quantified');
 
-        expect(quantified.length).toBe(2);
+        expect(result.isOk()).toBe(true);
+        if (result.isOk()) {
+          expect(result.value.length).toBe(2);
+        }
       });
     });
 
@@ -854,12 +1015,15 @@ describe('IStatementRepository', () => {
         await repository.save(statement2);
         await repository.save(statement3);
 
-        const frequentlyUsed = await repository.findStatementsByUsageCount(2);
+        const result = await repository.findStatementsByUsageCount(2);
 
-        expect(frequentlyUsed.length).toBe(1);
-        const firstFreq = frequentlyUsed[0];
-        if (firstFreq) {
-          expect(firstFreq.getContent()).toBe('Used multiple times');
+        expect(result.isOk()).toBe(true);
+        if (result.isOk()) {
+          expect(result.value.length).toBe(1);
+          const firstFreq = result.value[0];
+          if (firstFreq) {
+            expect(firstFreq.getContent()).toBe('Used multiple times');
+          }
         }
       });
     });
@@ -893,9 +1057,12 @@ describe('IStatementRepository', () => {
           await repository.save(statement);
         }
 
-        const matches = await repository.searchStatementsByKeywords(['philosopher', 'logic']);
+        const result = await repository.searchStatementsByKeywords(['philosopher', 'logic']);
 
-        expect(matches.length).toBe(3);
+        expect(result.isOk()).toBe(true);
+        if (result.isOk()) {
+          expect(result.value.length).toBe(3);
+        }
       });
 
       it('should be case insensitive', async () => {
@@ -904,12 +1071,15 @@ describe('IStatementRepository', () => {
         const statement = statementResult.value;
         await repository.save(statement);
 
-        const matches = await repository.searchStatementsByKeywords(['philosophy']);
+        const result = await repository.searchStatementsByKeywords(['philosophy']);
 
-        expect(matches.length).toBe(1);
-        const firstMatch = matches[0];
-        if (firstMatch) {
-          expect(firstMatch.getContent()).toBe('PHILOSOPHY is wisdom');
+        expect(result.isOk()).toBe(true);
+        if (result.isOk()) {
+          expect(result.value.length).toBe(1);
+          const firstMatch = result.value[0];
+          if (firstMatch) {
+            expect(firstMatch.getContent()).toBe('PHILOSOPHY is wisdom');
+          }
         }
       });
     });
@@ -923,12 +1093,15 @@ describe('IStatementRepository', () => {
         statement.incrementUsage();
         await repository.save(statement);
 
-        const metrics = await repository.getStatementUsageMetrics(statement.getId());
+        const metricsResult = await repository.getStatementUsageMetrics(statement.getId());
 
-        expect(metrics).not.toBeNull();
-        expect(metrics?.totalUsage).toBe(2);
-        expect(metrics?.recentUsage).toBe(1);
-        expect(metrics?.lastUsedAt).toBeInstanceOf(Date);
+        expect(metricsResult.isOk()).toBe(true);
+        if (metricsResult.isOk()) {
+          const metrics = metricsResult.value;
+          expect(metrics.totalUsage).toBe(2);
+          expect(metrics.recentUsage).toBe(1);
+          expect(metrics.lastUsedAt).toBeInstanceOf(Date);
+        }
       });
 
       it('should return null for non-existent statement', async () => {
@@ -954,12 +1127,15 @@ describe('IStatementRepository', () => {
         await repository.save(statement1);
         await repository.save(statement2);
 
-        const unused = await repository.findUnusedStatements();
+        const result = await repository.findUnusedStatements();
 
-        expect(unused.length).toBe(1);
-        const firstUnused = unused[0];
-        if (firstUnused) {
-          expect(firstUnused.getContent()).toBe('Unused statement');
+        expect(result.isOk()).toBe(true);
+        if (result.isOk()) {
+          expect(result.value.length).toBe(1);
+          const firstUnused = result.value[0];
+          if (firstUnused) {
+            expect(firstUnused.getContent()).toBe('Unused statement');
+          }
         }
       });
     });
@@ -988,12 +1164,15 @@ describe('IStatementRepository', () => {
         await repository.save(related2);
         await repository.save(unrelated);
 
-        const related = await repository.findRelatedStatements(targetStatement.getId());
+        const result = await repository.findRelatedStatements(targetStatement.getId());
 
-        expect(related.length).toBe(1);
-        const firstRelated = related[0];
-        if (firstRelated) {
-          expect(firstRelated.getContent()).toBe('Plato was also a Greek philosopher');
+        expect(result.isOk()).toBe(true);
+        if (result.isOk()) {
+          expect(result.value.length).toBe(1);
+          const firstRelated = result.value[0];
+          if (firstRelated) {
+            expect(firstRelated.getContent()).toBe('Plato was also a Greek philosopher');
+          }
         }
       });
     });

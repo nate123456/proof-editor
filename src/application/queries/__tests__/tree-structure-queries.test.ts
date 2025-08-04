@@ -8,6 +8,10 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  createTestSideLabel,
+  createTestStatementId,
+} from '../../../domain/__tests__/value-object-test-helpers.js';
 import type {
   GetTreeBranchesQuery,
   GetTreeDepthQuery,
@@ -15,6 +19,7 @@ import type {
   TreeNodeDTO,
   TreeStructureDTO,
 } from '../tree-queries.js';
+import { createTestAtomicArgumentId } from './shared/branded-type-helpers.js';
 
 interface MockTreeRepositories {
   proofRepository: any;
@@ -118,12 +123,15 @@ describe('Tree Structure Queries', () => {
             argumentId: 'arg_root',
             isRoot: true,
             argument: {
-              id: 'arg_root',
-              premiseIds: 'set_premise',
-              conclusionIds: 'set_conclusion',
+              id: createTestAtomicArgumentId('arg_root'),
+              premiseIds: [
+                createTestStatementId('stmt_premise1'),
+                createTestStatementId('stmt_premise2'),
+              ],
+              conclusionIds: [createTestStatementId('stmt_conclusion1')],
               sideLabels: {
-                left: 'Modus Ponens',
-                right: 'Rule 1',
+                left: createTestSideLabel('Modus Ponens'),
+                right: createTestSideLabel('Rule 1'),
               },
             },
           },
@@ -140,8 +148,8 @@ describe('Tree Structure Queries', () => {
 
       // Assert
       expect(result.nodes[0]?.argument).toBeDefined();
-      expect(result.nodes[0]?.argument?.id).toBe('arg_root');
-      expect(result.nodes[0]?.argument?.sideLabels?.left).toBe('Modus Ponens');
+      expect(result.nodes[0]?.argument?.id.getValue()).toBe('arg_root');
+      expect(result.nodes[0]?.argument?.sideLabels?.left?.getValue()).toBe('Modus Ponens');
     });
 
     it('should handle empty tree structure', async () => {
@@ -321,8 +329,8 @@ describe('Tree Structure Queries', () => {
       expect(result.depth).toBe(3);
       expect(result.breadth).toBe(2);
 
-      const rootNodes = result.nodes.filter((node) => node.isRoot);
-      const nonRootNodes = result.nodes.filter((node) => !node.isRoot);
+      const rootNodes = result.nodes.filter((node: TreeNodeDTO) => node.isRoot);
+      const nonRootNodes = result.nodes.filter((node: TreeNodeDTO) => !node.isRoot);
       expect(rootNodes).toHaveLength(1);
       expect(nonRootNodes).toHaveLength(3);
 
@@ -579,12 +587,12 @@ describe('Tree Structure Queries', () => {
           argumentId: 'arg_branch_1',
           isRoot: false,
           argument: {
-            id: 'arg_branch_1',
-            premiseIds: 'set_premise_1',
-            conclusionIds: 'set_conclusion_1',
+            id: createTestAtomicArgumentId('arg_branch_1'),
+            premiseIds: [createTestStatementId('stmt_premise_branch1')],
+            conclusionIds: [createTestStatementId('stmt_conclusion_branch1')],
             sideLabels: {
-              left: 'Branch Rule 1',
-              right: 'Ref 1',
+              left: createTestSideLabel('Branch Rule 1'),
+              right: createTestSideLabel('Ref 1'),
             },
           },
         },
@@ -597,8 +605,8 @@ describe('Tree Structure Queries', () => {
 
       // Assert
       expect(result).toHaveLength(1);
-      expect(result[0]?.argument?.id).toBe('arg_branch_1');
-      expect(result[0]?.argument?.sideLabels?.left).toBe('Branch Rule 1');
+      expect(result[0]?.argument?.id.getValue()).toBe('arg_branch_1');
+      expect(result[0]?.argument?.sideLabels?.left?.getValue()).toBe('Branch Rule 1');
     });
 
     it('should handle branches at different levels', async () => {
