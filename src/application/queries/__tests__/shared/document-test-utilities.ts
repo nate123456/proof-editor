@@ -7,17 +7,11 @@
 
 import { vi } from 'vitest';
 import {
-  AtomicArgumentId,
   Dimensions,
-  ErrorCode,
-  ErrorMessage,
   ErrorSeverity,
   NodeCount,
-  NodeId,
   Position2D,
   SideLabel,
-  StatementId,
-  TreeId,
 } from '../../../../domain/shared/value-objects/index.js';
 import type { DocumentDTO, DocumentStatsDTO } from '../../document-queries.js';
 import {

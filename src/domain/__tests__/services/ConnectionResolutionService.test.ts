@@ -104,11 +104,11 @@ describe('ConnectionResolutionService', () => {
         expect(result.value).toHaveLength(1);
         const connection = result.value[0];
         expect(connection).toBeDefined();
-        expect(connection!.connectedArgument).toBe(sourceArg.value);
-        expect(connection!.statement).toBe(statement1.value);
-        expect(connection!.fromPosition).toBe(0);
-        expect(connection!.toPosition).toBe(0);
-        expect(connection!.direction).toBe('incoming');
+        expect(connection?.connectedArgument).toBe(sourceArg.value);
+        expect(connection?.statement).toBe(statement1.value);
+        expect(connection?.fromPosition).toBe(0);
+        expect(connection?.toPosition).toBe(0);
+        expect(connection?.direction).toBe('incoming');
       }
     });
 
@@ -206,11 +206,11 @@ describe('ConnectionResolutionService', () => {
         expect(result.value).toHaveLength(1);
         const connection = result.value[0];
         expect(connection).toBeDefined();
-        expect(connection!.connectedArgument).toBe(targetArg.value);
-        expect(connection!.statement).toBe(statement3.value);
-        expect(connection!.fromPosition).toBe(0);
-        expect(connection!.toPosition).toBe(0);
-        expect(connection!.direction).toBe('outgoing');
+        expect(connection?.connectedArgument).toBe(targetArg.value);
+        expect(connection?.statement).toBe(statement3.value);
+        expect(connection?.fromPosition).toBe(0);
+        expect(connection?.toPosition).toBe(0);
+        expect(connection?.direction).toBe('outgoing');
       }
     });
 
@@ -271,8 +271,8 @@ describe('ConnectionResolutionService', () => {
         const outgoingConnection = result.value.outgoingConnections[0];
         expect(incomingConnection).toBeDefined();
         expect(outgoingConnection).toBeDefined();
-        expect(incomingConnection!.direction).toBe('incoming');
-        expect(outgoingConnection!.direction).toBe('outgoing');
+        expect(incomingConnection?.direction).toBe('incoming');
+        expect(outgoingConnection?.direction).toBe('outgoing');
       }
     });
   });
@@ -514,7 +514,7 @@ describe('ConnectionResolutionService', () => {
     });
 
     it('should not flag bootstrap arguments as isolated', async () => {
-      const bootstrapArg = AtomicArgument.createBootstrap();
+      const _bootstrapArg = AtomicArgument.createBootstrap();
       // Bootstrap arg has no statements, so no mock needed for findArgumentsUsingStatement
 
       // validateArgumentConnections method doesn't exist in the service

@@ -275,7 +275,18 @@ export class VSCodeFileSystemAdapter implements IFileSystemPort {
       this.storedDocuments.clear();
       Object.entries(stored).forEach(([id, doc]) => {
         // Convert stored dates back to Timestamp objects
-        const timestamp = Timestamp.fromDate(new Date(doc.metadata.modifiedAt as any));
+        // Handle both serialized Timestamp objects and raw numbers
+        const modifiedAt = doc.metadata.modifiedAt as unknown;
+        const timestampValue =
+          typeof modifiedAt === 'object' &&
+          modifiedAt !== null &&
+          'value' in modifiedAt &&
+          typeof (modifiedAt as { value: unknown }).value === 'number'
+            ? (modifiedAt as { value: number }).value
+            : typeof modifiedAt === 'number'
+              ? modifiedAt
+              : Date.now();
+        const timestamp = Timestamp.fromDate(new Date(timestampValue));
         doc.metadata.modifiedAt = timestamp;
         this.storedDocuments.set(id, doc);
       });

@@ -276,7 +276,10 @@ export class OrderedSet {
     if (this.statementIds.length !== other.statementIds.length) {
       return false;
     }
-    return this.statementIds.every((id, index) => id.equals(other.statementIds[index]!));
+    return this.statementIds.every((id, index) => {
+      const otherId = other.statementIds[index];
+      return otherId ? id.equals(otherId) : false;
+    });
   }
 
   isSameAs(other: OrderedSet): boolean {

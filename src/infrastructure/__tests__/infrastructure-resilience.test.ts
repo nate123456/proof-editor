@@ -49,10 +49,10 @@ class TestEvent extends DomainEvent {
  * under adverse conditions. Focuses on production reliability.
  */
 describe('Infrastructure Resilience and Error Recovery', () => {
-  let mockFileSystemPort: IFileSystemPort;
-  let mockPlatformPort: IPlatformPort;
+  let _mockFileSystemPort: IFileSystemPort;
+  let _mockPlatformPort: IPlatformPort;
   let mockUIPort: IUIPort;
-  let mockViewStatePort: IViewStatePort;
+  let _mockViewStatePort: IViewStatePort;
   let eventBus: EventBus;
   let _domainEventBus: DomainEventBus;
 
@@ -60,7 +60,7 @@ describe('Infrastructure Resilience and Error Recovery', () => {
     vi.clearAllMocks();
 
     // Setup mocks for failure testing
-    mockFileSystemPort = {
+    _mockFileSystemPort = {
       readFile: vi.fn(),
       writeFile: vi.fn(),
       exists: vi.fn(),
@@ -80,7 +80,7 @@ describe('Infrastructure Resilience and Error Recovery', () => {
       }),
     } as any;
 
-    mockPlatformPort = {
+    _mockPlatformPort = {
       getPlatformInfo: vi.fn(),
       getInputCapabilities: vi.fn(),
       getDisplayCapabilities: vi.fn(),
@@ -124,7 +124,7 @@ describe('Infrastructure Resilience and Error Recovery', () => {
       }),
     } as any;
 
-    mockViewStatePort = {
+    _mockViewStatePort = {
       saveViewState: vi.fn().mockResolvedValue(ok(undefined)),
       loadViewState: vi.fn().mockResolvedValue(ok(null)),
       clearViewState: vi.fn().mockResolvedValue(ok(undefined)),
@@ -272,11 +272,11 @@ describe('Infrastructure Resilience and Error Recovery', () => {
 
   describe('Platform Adapter Resilience', () => {
     let adapter: VSCodePlatformAdapter;
-    let vscode: any;
+    let _vscode: any;
 
     beforeEach(async () => {
       // Get the mocked vscode module
-      vscode = (await import('vscode')).default;
+      _vscode = (await import('vscode')).default;
 
       // Reset all mocks
       vi.clearAllMocks();

@@ -107,9 +107,16 @@ describe('Tree Entity - Integration Tests', () => {
         });
 
         // Set some parent relationships
-        const setParent1Result = tree.setNodeParent(nodeIds[1]!, nodeIds[0]!);
-        const setParent2Result = tree.setNodeParent(nodeIds[2]!, nodeIds[0]!);
-        const setParent3Result = tree.setNodeParent(nodeIds[3]!, nodeIds[1]!);
+        const node0 = nodeIds[0];
+        const node1 = nodeIds[1];
+        const node2 = nodeIds[2];
+        const node3 = nodeIds[3];
+        if (!node0 || !node1 || !node2 || !node3) {
+          throw new Error('Test setup failed: not enough nodes');
+        }
+        const setParent1Result = tree.setNodeParent(node1, node0);
+        const setParent2Result = tree.setNodeParent(node2, node0);
+        const setParent3Result = tree.setNodeParent(node3, node1);
         expect(setParent1Result.isOk()).toBe(true);
         expect(setParent2Result.isOk()).toBe(true);
         expect(setParent3Result.isOk()).toBe(true);
@@ -119,20 +126,24 @@ describe('Tree Entity - Integration Tests', () => {
         expect(titleResult.isOk()).toBe(true);
 
         // Remove a leaf node
-        const removeResult = tree.removeNode(nodeIds[4]!);
+        const node4 = nodeIds[4];
+        if (!node4) {
+          throw new Error('Test setup failed: node4 not found');
+        }
+        const removeResult = tree.removeNode(node4);
         expect(removeResult.isOk()).toBe(true);
 
         // Verify final consistent state
         expect(tree.getNodeCount()).toBe(4);
-        expect(tree.hasNode(nodeIds[4]!)).toBe(false);
+        expect(tree.hasNode(node4)).toBe(false);
         expect(tree.getTitle()).toBe('Complex Tree Structure');
         const validationResult = tree.validateStructuralIntegrity();
         expect(validationResult.isOk()).toBe(true);
 
         // Verify parent relationships are intact
-        const child1 = tree.getNode(nodeIds[1]!);
-        const child2 = tree.getNode(nodeIds[2]!);
-        const child3 = tree.getNode(nodeIds[3]!);
+        const child1 = tree.getNode(node1);
+        const child2 = tree.getNode(node2);
+        const child3 = tree.getNode(node3);
         expect(child1?.getParentId()).toBe(nodeIds[0]);
         expect(child2?.getParentId()).toBe(nodeIds[0]);
         expect(child3?.getParentId()).toBe(nodeIds[1]);

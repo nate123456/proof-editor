@@ -3,6 +3,11 @@
   "displayName": "Proof Editor",
   "description": "Visual formal reasoning tool for constructing logical arguments",
   "version": "0.1.0",
+  "publisher": "proof-editor-dev",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/proof-editor/proof-editor"
+  },
   "type": "module",
   "engines": {
     "vscode": "^1.74.0",
@@ -12,6 +17,15 @@
     "Other"
   ],
   "main": "./out/extension/extension.js",
+  "activationEvents": [
+    "onLanguage:proof",
+    "onCommand:proofEditor.showTree",
+    "onCommand:proofEditor.createBootstrapDocument",
+    "onCommand:proofEditor.createBootstrapArgument",
+    "onCommand:proofEditor.populateEmptyArgument",
+    "onCommand:proofEditor.showBootstrapWorkflow",
+    "onCommand:proofEditor.createEmptyImplicationLine"
+  ],
   "contributes": {
     "languages": [
       {

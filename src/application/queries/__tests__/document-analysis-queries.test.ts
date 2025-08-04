@@ -6,13 +6,7 @@
  */
 
 import { beforeEach, describe, expect, it } from 'vitest';
-import {
-  AtomicArgumentId,
-  ErrorCode,
-  ErrorMessage,
-  ErrorSeverity,
-  TreeId,
-} from '../../../domain/shared/value-objects/index.js';
+import { ErrorSeverity } from '../../../domain/shared/value-objects/index.js';
 import type { AnalyzeProofStructureQuery, DocumentStatsDTO } from '../document-queries.js';
 import type { ValidationErrorDTO } from '../shared-types.js';
 import {

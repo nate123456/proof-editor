@@ -11,11 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AtomicArgument, SideLabels } from '../../entities/AtomicArgument.js';
 import { ValidationError } from '../../shared/result.js';
 import { SideLabel } from '../../shared/value-objects/index.js';
-import {
-  atomicArgumentIdFactory,
-  orderedSetIdFactory,
-  statementFactory,
-} from '../factories/index.js';
+import { atomicArgumentIdFactory, statementFactory } from '../factories/index.js';
 import { expect as customExpect } from '../test-setup.js';
 
 // Property-based test generators for AtomicArgument domain

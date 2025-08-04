@@ -220,7 +220,12 @@ describe('Edge Cases and Error Conditions', () => {
 
         // All timestamps should be unique and increasing
         for (let i = 1; i < timestamps.length; i++) {
-          expect(timestamps[i]!).toBeGreaterThan(timestamps[i - 1]!);
+          const current = timestamps[i];
+          const previous = timestamps[i - 1];
+          if (!current || !previous) {
+            throw new Error('Test setup failed: missing timestamp');
+          }
+          expect(current).toBeGreaterThan(previous);
         }
       }
     });

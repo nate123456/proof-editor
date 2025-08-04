@@ -314,7 +314,7 @@ export class ProofTreeMessageHandler {
       }
 
       // Send statementAdded message to webview
-      if (result.value && result.value.statementId) {
+      if (result.value?.statementId) {
         const contentResult = MessageContent.create(
           JSON.stringify({
             statementType,

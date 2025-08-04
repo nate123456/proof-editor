@@ -19,13 +19,11 @@ import * as vscode from 'vscode';
 import type { StoredDocument } from '../../../application/ports/IFileSystemPort.js';
 import { NotificationMessage } from '../../../domain/shared/value-objects/index.js';
 import {
-  createTestActionLabel,
   createTestDialogPrompt,
   createTestDialogTitle,
   createTestDocumentContent,
   createTestDocumentId,
   createTestDocumentVersion,
-  createTestErrorMessage,
   createTestFilePath,
   createTestFileSize,
   createTestTimestamp,

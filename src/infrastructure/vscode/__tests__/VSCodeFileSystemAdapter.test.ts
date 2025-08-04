@@ -14,14 +14,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as vscode from 'vscode';
 import type { StoredDocument } from '../../../application/ports/IFileSystemPort.js';
 import {
-  DocumentContent,
-  DocumentId,
-  DocumentVersion,
-  FileSize,
-  Timestamp,
-  Title,
-} from '../../../domain/shared/value-objects/index.js';
-import {
   createTestDocumentContent,
   createTestDocumentId,
   createTestDocumentVersion,

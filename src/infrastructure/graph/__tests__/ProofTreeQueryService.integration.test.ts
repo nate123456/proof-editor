@@ -22,7 +22,6 @@ import {
   type AtomicArgumentId,
   Attachment,
   type NodeId,
-  OrderedSetId,
   type TreeId,
 } from '../../../domain/shared/value-objects/index.js';
 
@@ -486,9 +485,9 @@ describe('ProofTreeQueryService Integration with Graphology', () => {
       } else if (nodeIdValue === 'theorem_root') {
         foundNode = nodes.find((n) => n.getArgumentId().getValue() === 'main_theorem');
       } else if (nodeIdValue.startsWith('lemma_')) {
-        foundNode = nodes.find((n) => n.getArgumentId().getValue() === nodeIdValue + '_arg');
+        foundNode = nodes.find((n) => n.getArgumentId().getValue() === `${nodeIdValue}_arg`);
       } else if (nodeIdValue.startsWith('proof_step_')) {
-        foundNode = nodes.find((n) => n.getArgumentId().getValue() === nodeIdValue + '_arg');
+        foundNode = nodes.find((n) => n.getArgumentId().getValue() === `${nodeIdValue}_arg`);
       } else if (nodeIdValue.startsWith('isolated_argument_')) {
         const num = nodeIdValue.split('_')[2];
         foundNode = nodes.find((n) => n.getArgumentId().getValue() === `isolated_${num}`);
@@ -533,42 +532,44 @@ describe('ProofTreeQueryService Integration with Graphology', () => {
       return ok(path);
     });
 
-    mockGraphTraversalService.getSubtree.mockImplementation((rootId: NodeId, maxDepth?: number) => {
-      const nodeIds: NodeId[] = [];
-      const connections: Array<{ from: NodeId; to: NodeId; position: number }> = [];
+    mockGraphTraversalService.getSubtree.mockImplementation(
+      (rootId: NodeId, _maxDepth?: number) => {
+        const nodeIds: NodeId[] = [];
+        const connections: Array<{ from: NodeId; to: NodeId; position: number }> = [];
 
-      // Add some sample data based on the root
-      if (rootId.getValue() === 'theorem_root') {
-        nodeIds.push(createTestNodeId('theorem_root'));
-        nodeIds.push(createTestNodeId('lemma_1'));
-        nodeIds.push(createTestNodeId('lemma_2'));
-        nodeIds.push(createTestNodeId('proof_step_1'));
+        // Add some sample data based on the root
+        if (rootId.getValue() === 'theorem_root') {
+          nodeIds.push(createTestNodeId('theorem_root'));
+          nodeIds.push(createTestNodeId('lemma_1'));
+          nodeIds.push(createTestNodeId('lemma_2'));
+          nodeIds.push(createTestNodeId('proof_step_1'));
 
-        connections.push({
-          from: createTestNodeId('lemma_1'),
-          to: createTestNodeId('theorem_root'),
-          position: 0,
-        });
-        connections.push({
-          from: createTestNodeId('lemma_2'),
-          to: createTestNodeId('theorem_root'),
-          position: 1,
-        });
-      } else if (rootId.getValue() === 'root') {
-        // Large tree scenario
-        for (let i = 0; i < 15; i++) {
-          nodeIds.push(createTestNodeId(`node_${i}`));
+          connections.push({
+            from: createTestNodeId('lemma_1'),
+            to: createTestNodeId('theorem_root'),
+            position: 0,
+          });
+          connections.push({
+            from: createTestNodeId('lemma_2'),
+            to: createTestNodeId('theorem_root'),
+            position: 1,
+          });
+        } else if (rootId.getValue() === 'root') {
+          // Large tree scenario
+          for (let i = 0; i < 15; i++) {
+            nodeIds.push(createTestNodeId(`node_${i}`));
+          }
         }
-      }
 
-      const subtreeMap = new Map<string, { depth: number; node: NodeId }>();
-      nodeIds.forEach((nodeId, index) => {
-        subtreeMap.set(nodeId.getValue(), { depth: Math.floor(index / 3), node: nodeId });
-      });
-      return ok(subtreeMap);
-    });
+        const subtreeMap = new Map<string, { depth: number; node: NodeId }>();
+        nodeIds.forEach((nodeId, index) => {
+          subtreeMap.set(nodeId.getValue(), { depth: Math.floor(index / 3), node: nodeId });
+        });
+        return ok(subtreeMap);
+      },
+    );
 
-    mockGraphTraversalService.getTreeMetrics.mockImplementation((treeId: TreeId) => {
+    mockGraphTraversalService.getTreeMetrics.mockImplementation((_treeId: TreeId) => {
       return ok({
         nodeCount: nodes.length,
         depth: 5,

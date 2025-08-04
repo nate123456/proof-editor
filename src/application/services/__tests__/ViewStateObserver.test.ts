@@ -1,10 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  NodeId,
-  Position2D,
-  TreeId,
-  ZoomLevel,
-} from '../../../domain/shared/value-objects/index.js';
+import { NodeId, Position2D, ZoomLevel } from '../../../domain/shared/value-objects/index.js';
 import type { ViewStateChangeEvent } from '../../dtos/view-dtos.js';
 import type { ViewStateManager } from '../ViewStateManager.js';
 import { ViewStateObserver } from '../ViewStateObserver.js';

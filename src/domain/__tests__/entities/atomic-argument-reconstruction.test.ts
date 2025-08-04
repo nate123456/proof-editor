@@ -13,7 +13,6 @@ import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 
 import { AtomicArgument } from '../../entities/AtomicArgument.js';
-import type { Statement } from '../../entities/Statement.js';
 import { atomicArgumentIdFactory, statementFactory } from '../factories/index.js';
 import { FIXED_TIMESTAMP, validSideLabelsArbitrary } from './atomic-argument-test-utils.js';
 

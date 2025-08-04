@@ -23,11 +23,7 @@ import {
 
 describe('ValueObject Base Class', () => {
   // Create a concrete implementation for testing
-  class TestValueObject extends ValueObject<string> {
-    constructor(value: string) {
-      super(value);
-    }
-  }
+  class TestValueObject extends ValueObject<string> {}
 
   describe('equals method', () => {
     it('should return true for same values', () => {

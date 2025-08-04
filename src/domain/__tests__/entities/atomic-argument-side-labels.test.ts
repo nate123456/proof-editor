@@ -11,8 +11,8 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { AtomicArgument, type SideLabels } from '../../entities/AtomicArgument.js';
-import { createTestSideLabel, createTestSideLabels } from '../value-object-test-helpers.js';
+import { AtomicArgument } from '../../entities/AtomicArgument.js';
+import { createTestSideLabels } from '../value-object-test-helpers.js';
 import { FIXED_TIMESTAMP } from './atomic-argument-test-utils.js';
 
 describe('Side Labels Management', () => {

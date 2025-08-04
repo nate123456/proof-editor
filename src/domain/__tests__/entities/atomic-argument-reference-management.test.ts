@@ -11,7 +11,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AtomicArgument } from '../../entities/AtomicArgument.js';
-import { Statement } from '../../entities/Statement.js';
 import { statementFactory } from '../factories/index.js';
 import { FIXED_TIMESTAMP } from './atomic-argument-test-utils.js';
 

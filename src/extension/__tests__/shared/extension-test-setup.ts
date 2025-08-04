@@ -559,10 +559,18 @@ export function setupExtensionTest(): ExtensionTestContext {
   };
 
   // Event handler storage for testing
-  let onOpenHandler: (doc: TextDocument) => void = () => {};
-  let onChangeHandler: (event: TextDocumentChangeEvent) => void = () => {};
-  let onEditorChangeHandler: (editor: TextEditor | undefined) => void = () => {};
-  let onCloseHandler: (doc: TextDocument) => void = () => {};
+  let onOpenHandler: (doc: TextDocument) => void = () => {
+    // Default no-op handler
+  };
+  let onChangeHandler: (event: TextDocumentChangeEvent) => void = () => {
+    // Default no-op handler
+  };
+  let onEditorChangeHandler: (editor: TextEditor | undefined) => void = () => {
+    // Default no-op handler
+  };
+  let onCloseHandler: (doc: TextDocument) => void = () => {
+    // Default no-op handler
+  };
 
   // Set up VS Code API mocks to capture event handlers
   vi.mocked(vscode.workspace.onDidOpenTextDocument).mockImplementation((handler) => {

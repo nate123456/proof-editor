@@ -6,18 +6,7 @@
  */
 
 import { beforeEach, describe, expect, it } from 'vitest';
-import {
-  AtomicArgumentId,
-  Dimensions,
-  ErrorCode,
-  ErrorMessage,
-  ErrorSeverity,
-  NodeCount,
-  NodeId,
-  Position2D,
-  StatementId,
-  TreeId,
-} from '../../../domain/shared/value-objects/index.js';
+import { ErrorSeverity } from '../../../domain/shared/value-objects/index.js';
 import type { DocumentDTO, GetDocumentStateQuery } from '../document-queries.js';
 import {
   createTestAtomicArgumentId,

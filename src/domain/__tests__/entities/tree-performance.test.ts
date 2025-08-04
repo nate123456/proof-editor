@@ -127,7 +127,7 @@ describe('Tree Performance and Edge Cases', () => {
         expect(addParentResult.isOk()).toBe(true);
 
         // Add children at different positions
-        childIds.forEach((childId, index) => {
+        childIds.forEach((childId, _index) => {
           const addChildResult = tree.addNode(childId);
           expect(addChildResult.isOk()).toBe(true);
 
@@ -390,7 +390,7 @@ describe('Tree Performance and Edge Cases', () => {
                 });
 
                 // Set parent-child relationships with proper bounds checking
-                for (const [childIndex, parentIndex, position] of parentChildRelations) {
+                for (const [childIndex, parentIndex, _position] of parentChildRelations) {
                   if (
                     childIndex < nodeIds.length &&
                     parentIndex < nodeIds.length &&

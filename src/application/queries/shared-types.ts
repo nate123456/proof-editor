@@ -64,7 +64,7 @@ export function isAtomicArgumentDTO(obj: unknown): obj is AtomicArgumentDTO {
     dto.id &&
     typeof dto.id === 'object' &&
     dto.id !== null &&
-    typeof (dto.id as any).getValue === 'function';
+    typeof (dto.id as { getValue?: unknown }).getValue === 'function';
   const hasValidPremiseIds =
     Array.isArray(dto.premiseIds) &&
     dto.premiseIds.every(
@@ -124,7 +124,7 @@ export function isTreeDTO(obj: unknown): obj is TreeDTO {
     dto.id &&
     typeof dto.id === 'object' &&
     dto.id !== null &&
-    typeof (dto.id as any).getValue === 'function';
+    typeof (dto.id as { getValue?: unknown }).getValue === 'function';
   const hasValidPosition = isValidPosition(dto.position);
   const hasValidNodeCount = dto.nodeCount instanceof NodeCount;
   const hasValidRootNodeIds =

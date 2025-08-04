@@ -7,14 +7,10 @@
 
 import { describe, expect, it } from 'vitest';
 import {
-  AtomicArgumentId,
   Dimensions,
   NodeCount,
-  NodeId,
   Position2D,
   SideLabel,
-  StatementId,
-  TreeId,
 } from '../../../domain/shared/value-objects/index.js';
 import type {
   AnalyzeProofStructureQuery,

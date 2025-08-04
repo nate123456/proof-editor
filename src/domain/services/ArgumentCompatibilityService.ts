@@ -179,8 +179,8 @@ export class ArgumentCompatibilityService {
     const stack: string[] = [consumerId];
 
     while (stack.length > 0) {
-      const current = stack.pop()!;
-      if (visited.has(current)) continue;
+      const current = stack.pop();
+      if (!current || visited.has(current)) continue;
       visited.add(current);
 
       const provides = existingConnections.get(current);

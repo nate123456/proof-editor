@@ -687,9 +687,13 @@ describe('DocumentMapper', () => {
         atomicArguments: {},
         trees: {
           tree1: {
-            id: TreeId.create('invalid-tree-id').unwrapOr(TreeId.create('tree1').unwrapOr(null)!),
-            position: Position2D.create(0, 0).unwrapOr(null)!,
-            nodeCount: NodeCount.create(0).unwrapOr(null)!,
+            id: TreeId.create('invalid-tree-id').unwrapOr(
+              TreeId.create('tree1').unwrapOr(
+                TreeId.create('default-tree').unwrapOr(TreeId.generate()),
+              ),
+            ),
+            position: Position2D.create(0, 0).unwrapOr(Position2D.origin()),
+            nodeCount: NodeCount.create(0).unwrapOr(NodeCount.create(1).unwrapOr(NodeCount.zero())),
             rootNodeIds: [],
           },
         },
@@ -774,9 +778,13 @@ describe('DocumentMapper', () => {
         atomicArguments: {},
         trees: {
           tree1: {
-            id: TreeId.create('').unwrapOr(TreeId.create('tree1').unwrapOr(null)!), // Empty tree ID should cause treeToDomain to fail
-            position: Position2D.create(0, 0).unwrapOr(null)!,
-            nodeCount: NodeCount.create(0).unwrapOr(null)!,
+            id: TreeId.create('').unwrapOr(
+              TreeId.create('tree1').unwrapOr(
+                TreeId.create('default-tree').unwrapOr(TreeId.generate()),
+              ),
+            ), // Empty tree ID should cause treeToDomain to fail
+            position: Position2D.create(0, 0).unwrapOr(Position2D.origin()),
+            nodeCount: NodeCount.create(0).unwrapOr(NodeCount.create(1).unwrapOr(NodeCount.zero())),
             rootNodeIds: [],
           },
         },
@@ -799,12 +807,18 @@ describe('DocumentMapper', () => {
         atomicArguments: {},
         trees: {
           tree1: {
-            id: TreeId.create('tree1').unwrapOr(null)!,
-            position: Position2D.create(Number.NaN, 0).unwrapOr(
-              Position2D.create(0, 0).unwrapOr(null)!,
+            id: TreeId.create('tree1').unwrapOr(
+              TreeId.create('default-tree').unwrapOr(TreeId.generate()),
             ),
-            nodeCount: NodeCount.create(1).unwrapOr(null)!,
-            rootNodeIds: [NodeId.create('node1').unwrapOr(null)!],
+            position: Position2D.create(Number.NaN, 0).unwrapOr(
+              Position2D.create(0, 0).unwrapOr(Position2D.origin()),
+            ),
+            nodeCount: NodeCount.create(1).unwrapOr(NodeCount.create(0).unwrapOr(NodeCount.zero())),
+            rootNodeIds: [
+              NodeId.create('node1').unwrapOr(
+                NodeId.create('default-node').unwrapOr(NodeId.generate()),
+              ),
+            ],
           },
         },
       };

@@ -323,29 +323,36 @@ describe('Tree Structural Integrity', () => {
       });
 
       // Create a chain: node0 -> node1 -> node2 -> node3 -> node4
-      const setParent1Result = tree.setNodeParent(nodeIds[1]!, nodeIds[0]!);
-      const setParent2Result = tree.setNodeParent(nodeIds[2]!, nodeIds[1]!);
-      const setParent3Result = tree.setNodeParent(nodeIds[3]!, nodeIds[2]!);
-      const setParent4Result = tree.setNodeParent(nodeIds[4]!, nodeIds[3]!);
+      if (nodeIds.length < 5) {
+        throw new Error('Test setup failed: not enough nodes');
+      }
+      const [node0, node1, node2, node3, node4] = nodeIds;
+      if (!node0 || !node1 || !node2 || !node3 || !node4) {
+        throw new Error('Test setup failed: array destructuring returned undefined');
+      }
+      const setParent1Result = tree.setNodeParent(node1, node0);
+      const setParent2Result = tree.setNodeParent(node2, node1);
+      const setParent3Result = tree.setNodeParent(node3, node2);
+      const setParent4Result = tree.setNodeParent(node4, node3);
       expect(setParent1Result.isOk()).toBe(true);
       expect(setParent2Result.isOk()).toBe(true);
       expect(setParent3Result.isOk()).toBe(true);
       expect(setParent4Result.isOk()).toBe(true);
 
       // Now check if creating node0 -> node4 would create a cycle (it should)
-      expect(tree.canCreateCycle(nodeIds[0]!, nodeIds[4]!)).toBe(true);
+      expect(tree.canCreateCycle(node0, node4)).toBe(true);
 
       // Check if creating node0 -> node2 would create a cycle (it should)
-      expect(tree.canCreateCycle(nodeIds[0]!, nodeIds[2]!)).toBe(true);
+      expect(tree.canCreateCycle(node0, node2)).toBe(true);
 
       // Check if creating node2 -> node0 would create a cycle (it should)
-      expect(tree.canCreateCycle(nodeIds[2]!, nodeIds[0]!)).toBe(true);
+      expect(tree.canCreateCycle(node2, node0)).toBe(true);
 
       // Check a valid relationship that wouldn't create a cycle
       const newNodeId = nodeIdFactory.build();
       const addNewResult = tree.addNode(newNodeId);
       expect(addNewResult.isOk()).toBe(true);
-      expect(tree.canCreateCycle(newNodeId, nodeIds[0]!)).toBe(false);
+      expect(tree.canCreateCycle(newNodeId, node0)).toBe(false);
     });
 
     it('should handle diamond-shaped dependency graphs', () => {
@@ -363,23 +370,30 @@ describe('Tree Structural Integrity', () => {
       });
 
       // Create diamond: node0 -> node1, node0 -> node2, node1 -> node3, node2 -> node3
-      const setParent1Result = tree.setNodeParent(nodeIds[1]!, nodeIds[0]!);
-      const setParent2Result = tree.setNodeParent(nodeIds[2]!, nodeIds[0]!);
-      const setParent3Result = tree.setNodeParent(nodeIds[3]!, nodeIds[1]!);
+      if (nodeIds.length < 4) {
+        throw new Error('Test setup failed: not enough nodes for diamond');
+      }
+      const [diamond0, diamond1, diamond2, diamond3] = nodeIds;
+      if (!diamond0 || !diamond1 || !diamond2 || !diamond3) {
+        throw new Error('Test setup failed: array destructuring returned undefined');
+      }
+      const setParent1Result = tree.setNodeParent(diamond1, diamond0);
+      const setParent2Result = tree.setNodeParent(diamond2, diamond0);
+      const setParent3Result = tree.setNodeParent(diamond3, diamond1);
       // Can't set multiple parents in current implementation - node can only have one parent
       // So we'll update the parent instead
-      const setParent4Result = tree.setNodeParent(nodeIds[3]!, nodeIds[2]!);
+      const setParent4Result = tree.setNodeParent(diamond3, diamond2);
       expect(setParent1Result.isOk()).toBe(true);
       expect(setParent2Result.isOk()).toBe(true);
       expect(setParent3Result.isOk()).toBe(true);
       expect(setParent4Result.isOk()).toBe(true);
 
       // Check cycle detection
-      expect(tree.canCreateCycle(nodeIds[0]!, nodeIds[3]!)).toBe(true);
-      expect(tree.canCreateCycle(nodeIds[1]!, nodeIds[0]!)).toBe(true);
-      expect(tree.canCreateCycle(nodeIds[2]!, nodeIds[0]!)).toBe(true);
-      expect(tree.canCreateCycle(nodeIds[3]!, nodeIds[1]!)).toBe(true);
-      expect(tree.canCreateCycle(nodeIds[3]!, nodeIds[2]!)).toBe(true);
+      expect(tree.canCreateCycle(diamond0, diamond3)).toBe(true);
+      expect(tree.canCreateCycle(diamond1, diamond0)).toBe(true);
+      expect(tree.canCreateCycle(diamond2, diamond0)).toBe(true);
+      expect(tree.canCreateCycle(diamond3, diamond1)).toBe(true);
+      expect(tree.canCreateCycle(diamond3, diamond2)).toBe(true);
     });
   });
 

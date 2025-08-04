@@ -254,12 +254,18 @@ describe('TreeRenderer Interactive Features - Comprehensive Coverage', () => {
 
   describe('Error Handling and Edge Cases', () => {
     it('should handle malformed data gracefully', () => {
+      const docIdResult = DocumentId.fromString('test');
+      if (docIdResult.isErr()) throw new Error('Test setup failed');
       const malformedVisualization: ProofVisualizationDTO = {
-        documentId: DocumentId.fromString('test').unwrapOr(null)!,
+        documentId: docIdResult.value,
         version: Version.create(1).unwrapOr(Version.initial()),
         trees: [
           {
-            id: TreeId.fromString('malformed').unwrapOr(null)!,
+            id: (() => {
+              const result = TreeId.fromString('malformed');
+              if (result.isErr()) throw new Error('Test setup failed');
+              return result.value;
+            })(),
             position: Position2D.create(Number.NaN, undefined as any).unwrapOr(Position2D.origin()),
             layout: {
               nodes: [null as any],
@@ -289,8 +295,10 @@ describe('TreeRenderer Interactive Features - Comprehensive Coverage', () => {
     });
 
     it('should handle empty visualization correctly', () => {
+      const emptyDocIdResult = DocumentId.fromString('empty');
+      if (emptyDocIdResult.isErr()) throw new Error('Test setup failed');
       const emptyVisualization: ProofVisualizationDTO = {
-        documentId: DocumentId.fromString('empty').unwrapOr(null)!,
+        documentId: emptyDocIdResult.value,
         version: Version.create(1).unwrapOr(Version.initial()),
         trees: [],
         totalDimensions: Dimensions.create(0, 0).unwrapOr(Dimensions.fullHD()),
@@ -516,7 +524,11 @@ function createComplexTreeVisualization(): ProofVisualizationDTO {
   return createVisualizationDTO({
     trees: [
       {
-        id: TreeId.fromString('complex-tree').unwrapOr(null)!,
+        id: (() => {
+          const result = TreeId.fromString('complex-tree');
+          if (result.isErr()) throw new Error('Test setup failed');
+          return result.value;
+        })(),
         position: Position2D.create(0, 0).unwrapOr(Position2D.origin()),
         layout: {
           nodes: [parent, child1, child2],
@@ -579,7 +591,11 @@ function createLargeTreeVisualization(nodeCount: number): ProofVisualizationDTO 
   return createVisualizationDTO({
     trees: [
       {
-        id: TreeId.fromString('large-tree').unwrapOr(null)!,
+        id: (() => {
+          const result = TreeId.fromString('large-tree');
+          if (result.isErr()) throw new Error('Test setup failed');
+          return result.value;
+        })(),
         position: Position2D.create(0, 0).unwrapOr(Position2D.origin()),
         layout: {
           nodes,
@@ -626,7 +642,11 @@ function createVisualizationFromPositions(
   return createVisualizationDTO({
     trees: [
       {
-        id: TreeId.fromString('position-test').unwrapOr(null)!,
+        id: (() => {
+          const result = TreeId.fromString('position-test');
+          if (result.isErr()) throw new Error('Test setup failed');
+          return result.value;
+        })(),
         position: Position2D.create(0, 0).unwrapOr(Position2D.origin()),
         layout: {
           nodes,
@@ -643,8 +663,10 @@ function createVisualizationFromPositions(
 function createVisualizationDTO(
   overrides: Partial<ProofVisualizationDTO> = {},
 ): ProofVisualizationDTO {
+  const docIdResult = DocumentId.fromString('test-doc');
+  if (docIdResult.isErr()) throw new Error('Test setup failed');
   return {
-    documentId: DocumentId.fromString('test-doc').unwrapOr(null)!,
+    documentId: docIdResult.value,
     version: Version.create(1).unwrapOr(Version.initial()),
     trees: [],
     totalDimensions: Dimensions.create(400, 300).unwrapOr(Dimensions.fullHD()),
@@ -665,8 +687,10 @@ function createTreeWithNodes(
 ): TreeRenderDTO {
   const nodes = nodeConfigs.map((config) => createNode(config.id, config));
 
+  const treeIdResult = TreeId.fromString('test-tree');
+  if (treeIdResult.isErr()) throw new Error('Test setup failed');
   return {
-    id: TreeId.fromString('test-tree').unwrapOr(null)!,
+    id: treeIdResult.value,
     position: Position2D.create(0, 0).unwrapOr(Position2D.origin()),
     layout: {
       nodes,
@@ -692,8 +716,10 @@ function createTreeWithConnections(): TreeRenderDTO {
 
   const connection = createConnection('node1', 'node2', 0, 0);
 
+  const treeIdResult = TreeId.fromString('connected-tree');
+  if (treeIdResult.isErr()) throw new Error('Test setup failed');
   return {
-    id: TreeId.fromString('connected-tree').unwrapOr(null)!,
+    id: treeIdResult.value,
     position: Position2D.create(0, 0).unwrapOr(Position2D.origin()),
     layout: {
       nodes: [node1, node2],
@@ -714,8 +740,10 @@ function createNode(
     sideLabel?: string;
   } = {},
 ): RenderedNodeDTO {
+  const nodeIdResult = NodeId.fromString(id);
+  if (nodeIdResult.isErr()) throw new Error('Test setup failed');
   const result: RenderedNodeDTO = {
-    id: NodeId.fromString(id).unwrapOr(null)!,
+    id: nodeIdResult.value,
     position: overrides.position
       ? Position2D.create(overrides.position.x, overrides.position.y).unwrapOr(Position2D.origin())
       : Position2D.create(50, 50).unwrapOr(Position2D.origin()),
@@ -730,7 +758,9 @@ function createNode(
   };
 
   if (overrides.sideLabel) {
-    result.sideLabel = SideLabel.create(overrides.sideLabel).unwrapOr(null)!;
+    const sideLabelResult = SideLabel.create(overrides.sideLabel);
+    if (sideLabelResult.isErr()) throw new Error('Test setup failed');
+    result.sideLabel = sideLabelResult.value;
   }
 
   return result;
@@ -747,10 +777,18 @@ function createStatement(id: string, content: string): StatementDTO {
 }
 
 function createArgument(id: string): AtomicArgumentDTO {
+  const argIdResult = AtomicArgumentId.fromString(`arg-${id}`);
+  const premiseIdResult = StatementId.fromString(`premise-${id}`);
+  const conclusionIdResult = StatementId.fromString(`conclusion-${id}`);
+
+  if (argIdResult.isErr() || premiseIdResult.isErr() || conclusionIdResult.isErr()) {
+    throw new Error('Test setup failed: could not create IDs');
+  }
+
   return {
-    id: AtomicArgumentId.fromString(`arg-${id}`).unwrapOr(null)!,
-    premiseIds: [StatementId.fromString(`premise-${id}`).unwrapOr(null)!],
-    conclusionIds: [StatementId.fromString(`conclusion-${id}`).unwrapOr(null)!],
+    id: argIdResult.value,
+    premiseIds: [premiseIdResult.value],
+    conclusionIds: [conclusionIdResult.value],
     sideLabels: {},
   };
 }

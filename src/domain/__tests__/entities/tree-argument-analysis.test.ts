@@ -8,8 +8,7 @@ import type { Tree } from '../../entities/Tree';
 import { RepositoryError } from '../../errors/DomainErrors.js';
 import { createTree } from '../../factories/TreeFactory.js';
 import type { IAtomicArgumentRepository } from '../../repositories/IAtomicArgumentRepository';
-import { ValidationError } from '../../shared/result';
-import type { AtomicArgumentId, NodeId } from '../../shared/value-objects';
+import type { AtomicArgumentId } from '../../shared/value-objects';
 import { atomicArgumentIdFactory, nodeIdFactory, statementFactory } from '../factories/index.js';
 
 describe('Tree Argument Analysis', () => {

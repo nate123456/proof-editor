@@ -46,7 +46,6 @@ import {
   createTestErrorMessage,
   createTestNodeCount,
   createTestNodeId,
-  createTestNodeIds,
   createTestPosition2D,
   createTestStatementId,
   createTestStatementIds,
@@ -708,21 +707,27 @@ describe('property-based testing', () => {
     fc.assert(
       fc.property(
         fc.record({
-          id: fc
-            .string()
-            .map((s) =>
-              AtomicArgumentId.fromString(s).unwrapOr(
-                AtomicArgumentId.fromString('arg_default').unwrapOr(null)!,
-              ),
-            ),
+          id: fc.string().map((s) =>
+            (() => {
+              const result = AtomicArgumentId.fromString(s);
+              if (result.isOk()) return result.value;
+              const defaultResult = AtomicArgumentId.fromString('arg_default');
+              if (defaultResult.isErr()) throw new Error('Test setup failed');
+              return defaultResult.value;
+            })(),
+          ),
           premiseIds: fc.array(
             fc
               .string()
               .filter((s) => s.length > 0)
               .map((s) =>
-                StatementId.fromString(s).unwrapOr(
-                  StatementId.fromString('stmt_default').unwrapOr(null)!,
-                ),
+                (() => {
+                  const result = StatementId.fromString(s);
+                  if (result.isOk()) return result.value;
+                  const defaultResult = StatementId.fromString('stmt_default');
+                  if (defaultResult.isErr()) throw new Error('Test setup failed');
+                  return defaultResult.value;
+                })(),
               ),
           ),
           conclusionIds: fc.array(
@@ -730,9 +735,13 @@ describe('property-based testing', () => {
               .string()
               .filter((s) => s.length > 0)
               .map((s) =>
-                StatementId.fromString(s).unwrapOr(
-                  StatementId.fromString('stmt_default').unwrapOr(null)!,
-                ),
+                (() => {
+                  const result = StatementId.fromString(s);
+                  if (result.isOk()) return result.value;
+                  const defaultResult = StatementId.fromString('stmt_default');
+                  if (defaultResult.isErr()) throw new Error('Test setup failed');
+                  return defaultResult.value;
+                })(),
               ),
           ),
           sideLabels: fc.option(
@@ -834,19 +843,27 @@ describe('property-based testing', () => {
           })();
 
           const argument: AtomicArgumentDTO = {
-            id: AtomicArgumentId.fromString(params.id).unwrapOr(
-              AtomicArgumentId.fromString('arg_default').unwrapOr(null)!,
-            ),
-            premiseIds: params.premiseIds.map((s) =>
-              StatementId.fromString(s).unwrapOr(
-                StatementId.fromString('stmt_default').unwrapOr(null)!,
-              ),
-            ),
-            conclusionIds: params.conclusionIds.map((s) =>
-              StatementId.fromString(s).unwrapOr(
-                StatementId.fromString('stmt_default').unwrapOr(null)!,
-              ),
-            ),
+            id: (() => {
+              const result = AtomicArgumentId.fromString(params.id);
+              if (result.isOk()) return result.value;
+              const defaultResult = AtomicArgumentId.fromString('arg_default');
+              if (defaultResult.isErr()) throw new Error('Test setup failed');
+              return defaultResult.value;
+            })(),
+            premiseIds: params.premiseIds.map((s) => {
+              const result = StatementId.fromString(s);
+              if (result.isOk()) return result.value;
+              const defaultResult = StatementId.fromString('stmt_default');
+              if (defaultResult.isErr()) throw new Error('Test setup failed');
+              return defaultResult.value;
+            }),
+            conclusionIds: params.conclusionIds.map((s) => {
+              const result = StatementId.fromString(s);
+              if (result.isOk()) return result.value;
+              const defaultResult = StatementId.fromString('stmt_default');
+              if (defaultResult.isErr()) throw new Error('Test setup failed');
+              return defaultResult.value;
+            }),
             ...(sideLabels && { sideLabels }),
           };
 
@@ -1609,8 +1626,10 @@ describe('Shared Types Executable Functions', () => {
         if (nodeCountResult.isErr()) throw new Error('Failed to create node count');
         const nodeCount = nodeCountResult.value;
         const rootIds = [NodeId.create('root-1')].filter((r) => r.isOk()).map((r) => r.value);
+        const treeIdResult = TreeId.create('tree-valid');
+        if (treeIdResult.isErr()) throw new Error('Failed to create tree ID');
         const validTree = {
-          id: TreeId.create('tree-valid').unwrapOr(null)!,
+          id: treeIdResult.value,
           position,
           nodeCount,
           rootNodeIds: rootIds,
@@ -1678,11 +1697,11 @@ describe('Shared Types Executable Functions', () => {
 
     describe('Factory function error conditions', () => {
       it('should handle createAtomicArgumentDTO error conditions', () => {
-        const argId = createTestAtomicArgumentId('arg-1');
-        const stmtId1 = createTestStatementId('stmt-1');
-        const stmtId2 = createTestStatementId('stmt-2');
-        const validId = createTestStatementId('valid');
-        const anotherId = createTestStatementId('another');
+        const _argId = createTestAtomicArgumentId('arg-1');
+        const _stmtId1 = createTestStatementId('stmt-1');
+        const _stmtId2 = createTestStatementId('stmt-2');
+        const _validId = createTestStatementId('valid');
+        const _anotherId = createTestStatementId('another');
 
         // Test empty argument ID
         const emptyArgResult = AtomicArgumentId.create('');
@@ -1696,9 +1715,9 @@ describe('Shared Types Executable Functions', () => {
       });
 
       it('should handle createTreeDTO error conditions', () => {
-        const treeId = createTestTreeId('tree-1');
-        const position = createTestPosition2D(0, 0);
-        const nodeCount = createTestNodeCount(0);
+        const _treeId = createTestTreeId('tree-1');
+        const _position = createTestPosition2D(0, 0);
+        const _nodeCount = createTestNodeCount(0);
 
         // Test empty tree ID
         const emptyTreeResult = TreeId.create('');

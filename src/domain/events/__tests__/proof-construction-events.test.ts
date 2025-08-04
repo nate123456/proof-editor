@@ -7,14 +7,10 @@ import {
 } from '../../__tests__/factories/index.js';
 import {
   AlignmentMode,
-  type AtomicArgumentId,
   BranchType,
   DocumentId,
   ExpansionDirection,
   LayoutStyle,
-  type NodeId,
-  type StatementId,
-  type TreeId,
 } from '../../shared/value-objects/index.js';
 import {
   type ArgumentModification,

@@ -13,14 +13,13 @@ import fc from 'fast-check';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AtomicArgument } from '../../entities/AtomicArgument.js';
-import { Statement } from '../../entities/Statement.js';
 import { SideLabel, SideLabels } from '../../shared/value-objects/index.js';
 import { statementFactory } from '../factories/index.js';
 import { expect as customExpect } from '../test-setup.js';
 import { FIXED_TIMESTAMP, validSideLabelsArbitrary } from './atomic-argument-test-utils.js';
 
 // Create arbitrary for statements
-const statementArbitrary = fc.oneof(fc.constant(null), fc.constant(statementFactory.build()));
+const _statementArbitrary = fc.oneof(fc.constant(null), fc.constant(statementFactory.build()));
 
 const statementsArrayArbitrary = fc
   .array(fc.constant(null), {

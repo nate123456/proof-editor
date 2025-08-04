@@ -664,7 +664,7 @@ describe('StatementProcessingService', () => {
         const content = 'New statement';
         const stmtResult = Statement.create(content);
         if (stmtResult.isErr()) throw new Error('Failed to create statement');
-        const newStatement = stmtResult.value;
+        const _newStatement = stmtResult.value;
 
         vi.mocked(mockStatementRepo.findByContent).mockResolvedValue(ok(null as any));
         vi.mocked(mockStatementRepo.save).mockResolvedValue(ok(undefined));

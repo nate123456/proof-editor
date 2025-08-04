@@ -2,6 +2,7 @@ import 'reflect-metadata';
 
 import { ok } from 'neverthrow';
 import { container, type DependencyContainer } from 'tsyringe';
+import type * as vscode from 'vscode';
 // NodeSDKValidator not used - using SDKValidatorAdapter instead
 import { PackageFileSystemAdapter } from '../adapters/PackageFileSystemAdapter.js';
 import { VSCodeFileSystemAdapter } from '../vscode/VSCodeFileSystemAdapter.js';
@@ -294,7 +295,7 @@ export async function registerDomainServices(container: ApplicationContainer): P
   // Register package ecosystem infrastructure interfaces
   container.registerFactory(TOKENS.IFileSystemPort, (c) => {
     // ExtensionContext should be registered by the extension activation
-    const context = c.resolve<any>('ExtensionContext');
+    const context = c.resolve<vscode.ExtensionContext>('ExtensionContext');
     return new VSCodeFileSystemAdapter(context);
   });
   container.registerFactory(
@@ -441,11 +442,53 @@ export async function registerContextServices(container: ApplicationContainer): 
     ),
   ]);
 
+  // Import education services separately
+  const [
+    { LearningHintGenerator },
+    { StepByStepGuidanceProvider },
+    { ProofStrategyAdvisor },
+    { ContentAdaptationService },
+    { PracticeProblemGenerator },
+    { ConceptAnalyzer },
+  ] = await Promise.all([
+    import(
+      '../../contexts/language-intelligence/domain/services/education/LearningHintGenerator.js'
+    ),
+    import(
+      '../../contexts/language-intelligence/domain/services/education/StepByStepGuidanceProvider.js'
+    ),
+    import(
+      '../../contexts/language-intelligence/domain/services/education/ProofStrategyAdvisor.js'
+    ),
+    import(
+      '../../contexts/language-intelligence/domain/services/education/ContentAdaptationService.js'
+    ),
+    import(
+      '../../contexts/language-intelligence/domain/services/education/PracticeProblemGenerator.js'
+    ),
+    import('../../contexts/language-intelligence/domain/services/education/ConceptAnalyzer.js'),
+  ]);
+
+  // Register education services first
+  container.registerSingleton('LearningHintGenerator', LearningHintGenerator);
+  container.registerSingleton('StepByStepGuidanceProvider', StepByStepGuidanceProvider);
+  container.registerSingleton('ProofStrategyAdvisor', ProofStrategyAdvisor);
+  container.registerSingleton('ContentAdaptationService', ContentAdaptationService);
+  container.registerSingleton('PracticeProblemGenerator', PracticeProblemGenerator);
+  container.registerSingleton('ConceptAnalyzer', ConceptAnalyzer);
+
   // Register language intelligence services
   // Create factory function to work around decorator issues
-  container.registerFactory(TOKENS.EducationalFeedbackService, () => {
-    // The service has many dependencies - create them manually or use Reflect.metadata
-    return new (EducationalFeedbackService as any)();
+  container.registerFactory(TOKENS.EducationalFeedbackService, (c) => {
+    // The service has many dependencies - resolve them from container
+    return new EducationalFeedbackService(
+      c.resolve('LearningHintGenerator'),
+      c.resolve('StepByStepGuidanceProvider'),
+      c.resolve('ProofStrategyAdvisor'),
+      c.resolve('ContentAdaptationService'),
+      c.resolve('PracticeProblemGenerator'),
+      c.resolve('ConceptAnalyzer'),
+    );
   });
   container.registerSingleton(TOKENS.LogicValidationService, LogicValidationService);
 

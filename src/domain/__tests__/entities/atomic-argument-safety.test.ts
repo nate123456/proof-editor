@@ -12,7 +12,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { AtomicArgument } from '../../entities/AtomicArgument.js';
-import { orderedSetIdFactory, statementFactory } from '../factories/index.js';
+import { statementFactory } from '../factories/index.js';
 import { expect as customExpect } from '../test-setup.js';
 
 describe('Connection Safety and Validation', () => {

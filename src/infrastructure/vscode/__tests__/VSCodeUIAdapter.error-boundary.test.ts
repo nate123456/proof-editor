@@ -30,11 +30,6 @@ import {
   createActionLabel,
   createDialogPrompt,
   createDialogTitle,
-  createErrorMessage,
-  createFilterName,
-  createNotificationMessage,
-  createViewType,
-  createWebviewId,
   testUIValues,
 } from './ui-test-helpers.js';
 
@@ -468,7 +463,7 @@ describe('VSCodeUIAdapter Error Boundary', () => {
 
       vi.mocked(vscode.window.createWebviewPanel).mockReturnValue(mockPanel as any);
 
-      const panel = adapter.createWebviewPanel({
+      const _panel = adapter.createWebviewPanel({
         id: testUIValues.webviewId.test,
         title: createDialogTitle('Test Panel'),
         viewType: testUIValues.viewType.testView,
@@ -618,9 +613,11 @@ describe('VSCodeUIAdapter Error Boundary', () => {
         }),
       };
 
-      // Mock the promise with then(success, error) format
-      const mockPromise: any = {};
-      mockPromise.then = vi.fn().mockImplementation((successCallback, errorCallback) => {
+      // Create a mock promise that simulates VS Code's behavior
+      const mockThenFunction = vi.fn();
+
+      // Mock implementation that simulates user interaction
+      mockThenFunction.mockImplementation((successCallback, errorCallback) => {
         // Simulate user clicking the action
         try {
           successCallback('Crash');
@@ -630,10 +627,21 @@ describe('VSCodeUIAdapter Error Boundary', () => {
             errorCallback(error);
           }
         }
-        return mockPromise;
+
+        // Return a chainable object
+        return Promise.resolve();
       });
 
-      vi.mocked(vscode.window.showInformationMessage).mockReturnValue(mockPromise as any);
+      // Create mock using Promise constructor to avoid 'then' property issue
+      const mockPromise = Object.create(Promise.prototype);
+      Object.defineProperty(mockPromise, 'then', {
+        value: mockThenFunction,
+        writable: false,
+        enumerable: false,
+        configurable: true,
+      });
+
+      vi.mocked(vscode.window.showInformationMessage).mockReturnValue(mockPromise);
 
       // This should not throw
       expect(() => {
@@ -644,8 +652,8 @@ describe('VSCodeUIAdapter Error Boundary', () => {
       }).not.toThrow();
 
       // Verify the promise chain was set up with both callbacks
-      expect(mockPromise.then).toHaveBeenCalled();
-      expect(mockPromise.then).toHaveBeenCalledWith(
+      expect(mockThenFunction).toHaveBeenCalled();
+      expect(mockThenFunction).toHaveBeenCalledWith(
         expect.any(Function), // success callback
         expect.any(Function), // error callback
       );
@@ -907,7 +915,7 @@ describe('VSCodeUIAdapter Error Boundary', () => {
       const disposable = { dispose: vi.fn() };
       vi.mocked(vscode.window.onDidChangeActiveColorTheme).mockReturnValue(disposable);
 
-      const listener = adapter.onThemeChange(() => {
+      const _listener = adapter.onThemeChange(() => {
         // Empty theme change handler for test
       });
 

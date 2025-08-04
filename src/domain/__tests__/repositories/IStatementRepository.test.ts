@@ -215,11 +215,11 @@ class MockStatementRepository implements IStatementRepository {
     return ok(this.statements.size);
   }
 
-  async findByCriteria(criteria: any): Promise<Result<Statement[], RepositoryError>> {
+  async findByCriteria(_criteria: any): Promise<Result<Statement[], RepositoryError>> {
     return ok([]);
   }
 
-  async paginate(options: any): Promise<Result<any, RepositoryError>> {
+  async paginate(_options: any): Promise<Result<any, RepositoryError>> {
     return ok({
       items: [],
       total: 0,
@@ -228,7 +228,7 @@ class MockStatementRepository implements IStatementRepository {
     });
   }
 
-  async search(query: string, options?: any): Promise<Result<Statement[], RepositoryError>> {
+  async search(query: string, _options?: any): Promise<Result<Statement[], RepositoryError>> {
     const allStatements = Array.from(this.statements.values());
     const matches = allStatements.filter((statement) =>
       statement.getContent().toLowerCase().includes(query.toLowerCase()),
@@ -236,27 +236,27 @@ class MockStatementRepository implements IStatementRepository {
     return ok(matches);
   }
 
-  async sort(items: Statement[], options: any): Promise<Result<Statement[], RepositoryError>> {
+  async sort(items: Statement[], _options: any): Promise<Result<Statement[], RepositoryError>> {
     return ok(items);
   }
 
-  async findBySpecification(spec: any): Promise<Result<Statement[], RepositoryError>> {
+  async findBySpecification(_spec: any): Promise<Result<Statement[], RepositoryError>> {
     return ok([]);
   }
 
-  async countBySpecification(spec: any): Promise<Result<number, RepositoryError>> {
+  async countBySpecification(_spec: any): Promise<Result<number, RepositoryError>> {
     return ok(0);
   }
 
-  async existsBySpecification(spec: any): Promise<Result<boolean, RepositoryError>> {
+  async existsBySpecification(_spec: any): Promise<Result<boolean, RepositoryError>> {
     return ok(false);
   }
 
-  async findWithOptions(options: any): Promise<Result<Statement[], RepositoryError>> {
+  async findWithOptions(_options: any): Promise<Result<Statement[], RepositoryError>> {
     return ok([]);
   }
 
-  async findByDateRange(start: Date, end: Date): Promise<Result<Statement[], RepositoryError>> {
+  async findByDateRange(_start: Date, _end: Date): Promise<Result<Statement[], RepositoryError>> {
     return ok([]);
   }
 

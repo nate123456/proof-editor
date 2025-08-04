@@ -23,7 +23,10 @@ export class StatementUsageTracker {
       const statementId = event.eventData.statementId.getValue();
       this.usageCounts.set(statementId, 0);
       this.statementContent.set(statementId, event.eventData.content.getValue());
-    } catch (_error) {}
+    } catch (_error) {
+      // Silently ignore errors in event handlers to prevent cascading failures
+      // Event handlers should be resilient to malformed data
+    }
   }
 
   /**
@@ -34,7 +37,10 @@ export class StatementUsageTracker {
       const statementId = event.eventData.statementId.getValue();
       this.usageCounts.delete(statementId);
       this.statementContent.delete(statementId);
-    } catch (_error) {}
+    } catch (_error) {
+      // Silently ignore errors in event handlers to prevent cascading failures
+      // Event handlers should be resilient to malformed data
+    }
   }
 
   /**
@@ -52,7 +58,10 @@ export class StatementUsageTracker {
         const current = this.usageCounts.get(id) || 0;
         this.usageCounts.set(id, current + 1);
       }
-    } catch (_error) {}
+    } catch (_error) {
+      // Silently ignore errors in event handlers to prevent cascading failures
+      // Event handlers should be resilient to malformed data
+    }
   }
 
   /**
@@ -69,7 +78,10 @@ export class StatementUsageTracker {
         const current = this.usageCounts.get(id) || 0;
         this.usageCounts.set(id, Math.max(0, current - 1));
       }
-    } catch (_error) {}
+    } catch (_error) {
+      // Silently ignore errors in event handlers to prevent cascading failures
+      // Event handlers should be resilient to malformed data
+    }
   }
 
   /**

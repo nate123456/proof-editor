@@ -16,7 +16,6 @@ import type {
   GetDocumentStateQuery,
   GetValidationReportQuery,
 } from '../document-queries.js';
-import type { ValidationErrorDTO } from '../shared-types.js';
 import { createTestErrorCode, createTestErrorMessage } from './shared/branded-type-helpers.js';
 
 describe('Property-based Document Query Tests', () => {

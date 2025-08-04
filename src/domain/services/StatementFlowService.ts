@@ -253,12 +253,12 @@ export class StatementFlowService {
     premiseSet?: OrderedSet,
     conclusionSet?: OrderedSet,
   ): Result<AtomicArgument, ValidationError> {
-    const premiseStatementIds = premiseSet?.getStatementIds() || [];
-    const conclusionStatementIds = conclusionSet?.getStatementIds() || [];
+    const _premiseStatementIds = premiseSet?.getStatementIds() || [];
+    const _conclusionStatementIds = conclusionSet?.getStatementIds() || [];
 
     // Create statements from IDs
-    const premiseStatements: Statement[] = [];
-    const conclusionStatements: Statement[] = [];
+    const _premiseStatements: Statement[] = [];
+    const _conclusionStatements: Statement[] = [];
 
     // For now, we'll need to have the statements passed in or retrieved somehow
     // This is a limitation of the current design - OrderedSet only stores IDs

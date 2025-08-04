@@ -59,7 +59,7 @@ function createTestNodeId(value: string): NodeId {
   return result.value;
 }
 
-function createTestTreeId(value: string): TreeId {
+function _createTestTreeId(value: string): TreeId {
   const result = TreeId.create(value);
   if (result.isErr()) {
     throw new Error(`Failed to create TreeId with value: ${value}`);
@@ -67,7 +67,7 @@ function createTestTreeId(value: string): TreeId {
   return result.value;
 }
 
-function createTestStatementId(value: string): StatementId {
+function _createTestStatementId(value: string): StatementId {
   const result = StatementId.create(value);
   if (result.isErr()) {
     throw new Error(`Failed to create StatementId with value: ${value}`);
@@ -75,7 +75,7 @@ function createTestStatementId(value: string): StatementId {
   return result.value;
 }
 
-function createTestAtomicArgumentId(value: string): AtomicArgumentId {
+function _createTestAtomicArgumentId(value: string): AtomicArgumentId {
   const result = AtomicArgumentId.create(value);
   if (result.isErr()) {
     throw new Error(`Failed to create AtomicArgumentId with value: ${value}`);
@@ -83,7 +83,7 @@ function createTestAtomicArgumentId(value: string): AtomicArgumentId {
   return result.value;
 }
 
-function createTestDocumentId(value: string): DocumentId {
+function _createTestDocumentId(value: string): DocumentId {
   const result = DocumentId.create(value);
   if (result.isErr()) {
     throw new Error(`Failed to create DocumentId with value: ${value}`);
@@ -91,7 +91,7 @@ function createTestDocumentId(value: string): DocumentId {
   return result.value;
 }
 
-function createTestSideLabel(value: string): SideLabel {
+function _createTestSideLabel(value: string): SideLabel {
   const result = SideLabel.create(value);
   if (result.isErr()) {
     throw new Error(`Failed to create SideLabel with value: ${value}`);
@@ -158,7 +158,11 @@ describe('View State DTOs', () => {
 
     it('should reject selection state with duplicate nodes', () => {
       // Arrange
-      const nodeId = NodeId.create('node1').unwrapOr(null)!;
+      const nodeIdResult = NodeId.create('node1');
+      if (nodeIdResult.isErr()) {
+        throw new Error('Test setup failed: could not create NodeId');
+      }
+      const nodeId = nodeIdResult.value;
       const state: SelectionState = {
         selectedNodes: [nodeId, nodeId], // Duplicate
         selectedStatements: [],
@@ -182,10 +186,15 @@ describe('View State DTOs', () => {
 
     it('should identify valid selection state objects', () => {
       // Arrange
+      const nodeResult = NodeId.create('node1');
+      const treeResult = TreeId.create('tree1');
+      if (nodeResult.isErr() || treeResult.isErr()) {
+        throw new Error('Test setup failed');
+      }
       const validState = {
-        selectedNodes: [NodeId.create('node1').unwrapOr(null)!],
+        selectedNodes: [nodeResult.value],
         selectedStatements: ['stmt1'],
-        selectedTrees: [TreeId.create('tree1').unwrapOr(null)!],
+        selectedTrees: [treeResult.value],
       };
       const invalidState = {
         selectedNodes: ['node1'], // Invalid - should be NodeId objects
@@ -614,21 +623,15 @@ describe('View State DTOs', () => {
   describe('Equality', () => {
     it('should implement structural equality for selection state', () => {
       // Arrange
-      const state1 = createSelectionState(
-        [NodeId.create('node1').unwrapOr(null)!],
-        ['stmt1'],
-        [TreeId.create('tree1').unwrapOr(null)!],
-      );
-      const state2 = createSelectionState(
-        [NodeId.create('node1').unwrapOr(null)!],
-        ['stmt1'],
-        [TreeId.create('tree1').unwrapOr(null)!],
-      );
-      const state3 = createSelectionState(
-        [NodeId.create('node2').unwrapOr(null)!],
-        ['stmt1'],
-        [TreeId.create('tree1').unwrapOr(null)!],
-      );
+      const node1Result = NodeId.create('node1');
+      const node2Result = NodeId.create('node2');
+      const tree1Result = TreeId.create('tree1');
+      if (node1Result.isErr() || node2Result.isErr() || tree1Result.isErr()) {
+        throw new Error('Test setup failed');
+      }
+      const state1 = createSelectionState([node1Result.value], ['stmt1'], [tree1Result.value]);
+      const state2 = createSelectionState([node1Result.value], ['stmt1'], [tree1Result.value]);
+      const state3 = createSelectionState([node2Result.value], ['stmt1'], [tree1Result.value]);
 
       // Act & Assert
       expect(state1).toEqual(state2);
@@ -663,7 +666,7 @@ describe('View State DTOs', () => {
 
       // Act
       const treeRender = createTreeRenderDTO(
-        TreeId.create('tree1').unwrapOr(null)!,
+        _createTestTreeId('tree1'),
         Position2D.create(100, 200).unwrapOr(Position2D.origin()),
         layout,
         Dimensions.create(800, 600).unwrapOr(Dimensions.fullHD()),
@@ -694,9 +697,9 @@ describe('View State DTOs', () => {
     it('should create RenderedNodeDTO with factory function', () => {
       // Arrange
       const mockArgument: AtomicArgumentDTO = {
-        id: AtomicArgumentId.create('arg1').unwrapOr(null)!,
-        premiseIds: [StatementId.create('premise-1').unwrapOr(null)!],
-        conclusionIds: [StatementId.create('conclusion-1').unwrapOr(null)!],
+        id: _createTestAtomicArgumentId('arg1'),
+        premiseIds: [_createTestStatementId('premise-1')],
+        conclusionIds: [_createTestStatementId('conclusion-1')],
       };
       const mockPremises: StatementDTO[] = [
         {
@@ -719,13 +722,13 @@ describe('View State DTOs', () => {
 
       // Act
       const node = createRenderedNodeDTO(
-        NodeId.create('node1').unwrapOr(null)!,
+        createTestNodeId('node1'),
         Position2D.create(50, 100).unwrapOr(Position2D.origin()),
         Dimensions.create(200, 100).unwrapOr(Dimensions.fullHD()),
         mockArgument,
         mockPremises,
         mockConclusions,
-        SideLabel.create('side-label').unwrapOr(null)!,
+        _createTestSideLabel('side-label'),
       );
 
       // Assert
@@ -741,7 +744,7 @@ describe('View State DTOs', () => {
     it('should create RenderedNodeDTO without side label', () => {
       // Arrange
       const mockArgument: AtomicArgumentDTO = {
-        id: AtomicArgumentId.create('arg1').unwrapOr(null)!,
+        id: _createTestAtomicArgumentId('arg1'),
         premiseIds: [],
         conclusionIds: [],
       };
@@ -766,7 +769,7 @@ describe('View State DTOs', () => {
 
       // Act
       const node = createRenderedNodeDTO(
-        NodeId.create('node1').unwrapOr(null)!,
+        createTestNodeId('node1'),
         Position2D.create(50, 100).unwrapOr(Position2D.origin()),
         Dimensions.create(200, 100).unwrapOr(Dimensions.fullHD()),
         mockArgument,
@@ -814,7 +817,7 @@ describe('View State DTOs', () => {
 
       // Act
       const visualization = createProofVisualizationDTO(
-        DocumentId.create('doc1').unwrapOr(null)!,
+        _createTestDocumentId('doc1'),
         Version.create(1).unwrapOr(Version.initial()),
         trees,
         totalDimensions,
@@ -987,7 +990,7 @@ describe('View State DTOs', () => {
 
     it('should reject selection state with duplicate trees', () => {
       // Arrange
-      const treeId = TreeId.create('tree1').unwrapOr(null)!;
+      const treeId = _createTestTreeId('tree1');
       const state: SelectionState = {
         selectedNodes: [],
         selectedStatements: [],

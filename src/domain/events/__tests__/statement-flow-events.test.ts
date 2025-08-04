@@ -19,11 +19,11 @@ import {
 
 const mockFromArgumentId = { getValue: () => 'from-arg-123' } as AtomicArgumentId;
 const mockToArgumentId = { getValue: () => 'to-arg-456' } as AtomicArgumentId;
-const mockOrderedSetId = { getValue: () => 'set-123' } as OrderedSetId;
+const _mockOrderedSetId = { getValue: () => 'set-123' } as OrderedSetId;
 const mockStatementId = { getValue: () => 'stmt-123' } as StatementId;
 
 describe('StatementFlowEstablished', () => {
-  const mockStatementIds = [
+  const _mockStatementIds = [
     { getValue: () => 'stmt-1' } as StatementId,
     { getValue: () => 'stmt-2' } as StatementId,
     { getValue: () => 'stmt-3' } as StatementId,

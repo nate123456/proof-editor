@@ -1,5 +1,6 @@
 import { err, ok, type Result } from 'neverthrow';
 import { AtomicArgument } from '../entities/AtomicArgument.js';
+import type { OrderedSet } from '../entities/OrderedSet.js';
 import { Statement } from '../entities/Statement.js';
 import { AggregateRoot } from '../events/base-event.js';
 import {
@@ -400,7 +401,7 @@ export class ProofDocument extends AggregateRoot {
     return this.id;
   }
 
-  getAllOrderedSets(): any[] {
+  getAllOrderedSets(): OrderedSet[] {
     return [];
   }
 }

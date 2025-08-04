@@ -13,7 +13,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AtomicArgument } from '../../entities/AtomicArgument';
 import { Node } from '../../entities/Node';
-import { OrderedSet } from '../../entities/OrderedSet';
 import { Statement } from '../../entities/Statement';
 import { RepositoryError } from '../../errors/DomainErrors';
 import type { INodeRepository } from '../../repositories/INodeRepository';

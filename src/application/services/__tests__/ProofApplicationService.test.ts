@@ -532,7 +532,9 @@ describe('ProofApplicationService Event Integration', () => {
       });
 
       vi.spyOn(mockDocument, 'getUncommittedEvents').mockReturnValue([updateEvent]);
-      vi.spyOn(mockDocument, 'markEventsAsCommitted').mockImplementation(() => {});
+      vi.spyOn(mockDocument, 'markEventsAsCommitted').mockImplementation(() => {
+        // Mock implementation for marking events as committed
+      });
 
       vi.mocked(mockRepository.findById).mockResolvedValue(ok(mockDocument));
       vi.mocked(mockRepository.save).mockResolvedValue(ok(undefined));
@@ -610,7 +612,9 @@ describe('ProofApplicationService Event Integration', () => {
       });
 
       vi.spyOn(mockDocument, 'getUncommittedEvents').mockReturnValue([deleteEvent]);
-      vi.spyOn(mockDocument, 'markEventsAsCommitted').mockImplementation(() => {});
+      vi.spyOn(mockDocument, 'markEventsAsCommitted').mockImplementation(() => {
+        // Mock implementation for marking events as committed
+      });
 
       vi.mocked(mockRepository.findById).mockResolvedValue(ok(mockDocument));
       vi.mocked(mockRepository.save).mockResolvedValue(ok(undefined));

@@ -233,10 +233,16 @@ metadata:
               `Created empty argument: ${argumentData.argumentId}`,
             );
             if (infoResult.isOk()) {
-              uiPort.showInformation(infoResult.value, {
-                label: ActionLabel.create('Populate Argument').unwrapOr(undefined as any),
-                callback: () => vscode.commands.executeCommand('proofEditor.populateEmptyArgument'),
-              });
+              const labelResult = ActionLabel.create('Populate Argument');
+              if (labelResult.isOk()) {
+                uiPort.showInformation(infoResult.value, {
+                  label: labelResult.value,
+                  callback: () =>
+                    vscode.commands.executeCommand('proofEditor.populateEmptyArgument'),
+                });
+              } else {
+                uiPort.showInformation(infoResult.value);
+              }
             }
           }
         } catch (error) {
@@ -337,10 +343,15 @@ metadata:
 
           const infoResult = NotificationMessage.create('Argument populated successfully!');
           if (infoResult.isOk()) {
-            uiPort.showInformation(infoResult.value, {
-              label: ActionLabel.create('Show Bootstrap Workflow').unwrapOr(undefined as any),
-              callback: () => vscode.commands.executeCommand('proofEditor.showBootstrapWorkflow'),
-            });
+            const labelResult = ActionLabel.create('Show Bootstrap Workflow');
+            if (labelResult.isOk()) {
+              uiPort.showInformation(infoResult.value, {
+                label: labelResult.value,
+                callback: () => vscode.commands.executeCommand('proofEditor.showBootstrapWorkflow'),
+              });
+            } else {
+              uiPort.showInformation(infoResult.value);
+            }
           }
         } catch (error) {
           const errorResult = NotificationMessage.create(
@@ -479,10 +490,16 @@ metadata:
               `Created empty implication line:\n\n${display}\n\n${lineData.userInstructions}`,
             );
             if (infoResult.isOk()) {
-              uiPort.showInformation(infoResult.value, {
-                label: ActionLabel.create('Populate Argument').unwrapOr(undefined as any),
-                callback: () => vscode.commands.executeCommand('proofEditor.populateEmptyArgument'),
-              });
+              const labelResult = ActionLabel.create('Populate Argument');
+              if (labelResult.isOk()) {
+                uiPort.showInformation(infoResult.value, {
+                  label: labelResult.value,
+                  callback: () =>
+                    vscode.commands.executeCommand('proofEditor.populateEmptyArgument'),
+                });
+              } else {
+                uiPort.showInformation(infoResult.value);
+              }
             }
           }
         } catch (error) {

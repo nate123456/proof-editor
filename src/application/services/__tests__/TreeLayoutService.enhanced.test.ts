@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, test } from 'vitest';
-import { ValidationError } from '../../../domain/shared/result.js';
 import {
   AtomicArgumentId,
   Dimensions,

@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Tree } from '../../entities/Tree.js';
-import { ValidationError } from '../../shared/result.js';
 import {
   AlignmentMode,
   ExpansionDirection,

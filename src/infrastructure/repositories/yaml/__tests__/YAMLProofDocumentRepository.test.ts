@@ -2,7 +2,6 @@ import { err, ok } from 'neverthrow';
 import { beforeEach, describe, expect, type MockedObject, test, vi } from 'vitest';
 import type { IFileSystemPort } from '../../../../application/ports/IFileSystemPort.js';
 import { proofDocumentFactory } from '../../../../domain/__tests__/factories/index.js';
-import { RepositoryError } from '../../../../domain/errors/DomainErrors.js';
 import type { IIdentityService } from '../../../../domain/services/IIdentityService.js';
 import {
   DocumentContent,

@@ -268,7 +268,7 @@ describe('ProofConsistencyRules', () => {
       expect(orderedSetResult.isOk()).toBe(true);
 
       if (orderedSetResult.isOk()) {
-        const orderedSet = orderedSetResult.value;
+        const _orderedSet = orderedSetResult.value;
         const argumentResult = AtomicArgument.create([], []);
         expect(argumentResult.isOk()).toBe(true);
 
@@ -298,9 +298,9 @@ describe('ProofConsistencyRules', () => {
       );
 
       if (orderedSet1Result.isOk() && orderedSet2Result.isOk() && orderedSet3Result.isOk()) {
-        const set1 = orderedSet1Result.value;
-        const set2 = orderedSet2Result.value;
-        const set3 = orderedSet3Result.value;
+        const _set1 = orderedSet1Result.value;
+        const _set2 = orderedSet2Result.value;
+        const _set3 = orderedSet3Result.value;
 
         // Create arguments that form a cycle
         const arg1Result = AtomicArgument.create([], []); // A -> B
@@ -334,8 +334,8 @@ describe('ProofConsistencyRules', () => {
       expect(orderedSet1Result.isOk() && orderedSet2Result.isOk()).toBe(true);
 
       if (orderedSet1Result.isOk() && orderedSet2Result.isOk()) {
-        const set1 = orderedSet1Result.value;
-        const set2 = orderedSet2Result.value;
+        const _set1 = orderedSet1Result.value;
+        const _set2 = orderedSet2Result.value;
 
         // Create argument that connects to itself indirectly
         const arg1Result = AtomicArgument.create([], []);
@@ -803,7 +803,7 @@ describe('ProofConsistencyRules', () => {
         expect(orderedSetResult.isOk()).toBe(true);
 
         if (orderedSetResult.isOk()) {
-          const orderedSet = orderedSetResult.value;
+          const _orderedSet = orderedSetResult.value;
           const argumentResult = AtomicArgument.create([], []);
           expect(argumentResult.isOk()).toBe(true);
 
@@ -875,7 +875,7 @@ describe('ProofConsistencyRules', () => {
         expect(orderedSetResult.isOk()).toBe(true);
 
         if (orderedSetResult.isOk()) {
-          const orderedSet = orderedSetResult.value;
+          const _orderedSet = orderedSetResult.value;
           const argumentResult = AtomicArgument.create([statement], [statement]);
           expect(argumentResult.isOk()).toBe(true);
 

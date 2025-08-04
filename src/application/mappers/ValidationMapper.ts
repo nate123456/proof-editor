@@ -21,9 +21,16 @@ export function validationErrorToDTO(error: ValidationError): ValidationErrorDTO
     // Fallback to safe defaults
     const defaultCode = ErrorCode.create('UNKNOWN_ERROR');
     const defaultMessage = ErrorMessage.create('Unknown error');
+
+    // These defaults should always succeed, but if they don't, throw an error
+    // This is a critical system failure that should never happen
+    if (!defaultCode.isOk() || !defaultMessage.isOk()) {
+      throw new Error('Critical system error: Unable to create default error values');
+    }
+
     return {
-      code: defaultCode.isOk() ? defaultCode.value : (null as any),
-      message: defaultMessage.isOk() ? defaultMessage.value : (null as any),
+      code: defaultCode.value,
+      message: defaultMessage.value,
       severity: ErrorSeverity.ERROR,
       ...(location && { location }),
     };

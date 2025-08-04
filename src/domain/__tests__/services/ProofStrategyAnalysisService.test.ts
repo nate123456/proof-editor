@@ -1,8 +1,6 @@
 import fc from 'fast-check';
-import { err, ok } from 'neverthrow';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { ProofStrategyAnalysisService } from '../../services/ProofStrategyAnalysisService.js';
-import { ValidationError } from '../../shared/result.js';
 import { StatementContent } from '../../shared/value-objects/index.js';
 
 describe('ProofStrategyAnalysisService', () => {
@@ -208,7 +206,7 @@ describe('ProofStrategyAnalysisService', () => {
           StatementContent.create('   '),
           StatementContent.create('Another premise'),
         ];
-        const conclusionResult = StatementContent.create('Some conclusion');
+        const _conclusionResult = StatementContent.create('Some conclusion');
 
         expect(premisesResult[1]?.isErr()).toBe(true);
       });
@@ -219,7 +217,7 @@ describe('ProofStrategyAnalysisService', () => {
           StatementContent.create(''),
           StatementContent.create('Another premise'),
         ];
-        const conclusionResult = StatementContent.create('Some conclusion');
+        const _conclusionResult = StatementContent.create('Some conclusion');
 
         expect(premisesResult[1]?.isErr()).toBe(true);
       });

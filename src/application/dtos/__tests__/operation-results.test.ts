@@ -486,10 +486,24 @@ describe('CreateStatementResult', () => {
 
 describe('CreateArgumentResult', () => {
   it('should handle create argument result without created ordered sets', () => {
-    const argumentId = AtomicArgumentId.create('arg_123').unwrapOr(null)!;
-    const premiseId1 = StatementId.create('stmt_1').unwrapOr(null)!;
-    const premiseId2 = StatementId.create('stmt_2').unwrapOr(null)!;
-    const conclusionId = StatementId.create('stmt_3').unwrapOr(null)!;
+    const argumentIdResult = AtomicArgumentId.create('arg_123');
+    const premiseId1Result = StatementId.create('stmt_1');
+    const premiseId2Result = StatementId.create('stmt_2');
+    const conclusionIdResult = StatementId.create('stmt_3');
+
+    if (
+      argumentIdResult.isErr() ||
+      premiseId1Result.isErr() ||
+      premiseId2Result.isErr() ||
+      conclusionIdResult.isErr()
+    ) {
+      throw new Error('Test setup failed');
+    }
+
+    const argumentId = argumentIdResult.value;
+    const premiseId1 = premiseId1Result.value;
+    const premiseId2 = premiseId2Result.value;
+    const conclusionId = conclusionIdResult.value;
     const result: CreateArgumentResult = {
       argumentId: 'arg_123',
       argument: {
@@ -497,8 +511,16 @@ describe('CreateArgumentResult', () => {
         premiseIds: [premiseId1, premiseId2],
         conclusionIds: [conclusionId],
         sideLabels: {
-          left: SideLabel.create('Modus Ponens').unwrapOr(null)!,
-          right: SideLabel.create('Rule 1').unwrapOr(null)!,
+          left: (() => {
+            const result = SideLabel.create('Modus Ponens');
+            if (result.isErr()) throw new Error('Test setup failed');
+            return result.value;
+          })(),
+          right: (() => {
+            const result = SideLabel.create('Rule 1');
+            if (result.isErr()) throw new Error('Test setup failed');
+            return result.value;
+          })(),
         },
       },
     };
@@ -513,7 +535,11 @@ describe('CreateArgumentResult', () => {
   // Test removed - createdOrderedSets property no longer exists in Statement-level paradigm
 
   it('should handle bootstrap argument result', () => {
-    const argumentId = AtomicArgumentId.create('arg_bootstrap').unwrapOr(null)!;
+    const argumentIdResult = AtomicArgumentId.create('arg_bootstrap');
+    if (argumentIdResult.isErr()) {
+      throw new Error('Test setup failed');
+    }
+    const argumentId = argumentIdResult.value;
     const result: CreateArgumentResult = {
       argumentId: 'arg_bootstrap',
       argument: {
@@ -588,8 +614,15 @@ describe('AttachNodeResult', () => {
 
 describe('BranchCreationResult', () => {
   it('should handle branch creation result without new tree', () => {
-    const argNewId = AtomicArgumentId.create('arg_new').unwrapOr(null)!;
-    const sharedStatementId = StatementId.create('stmt_shared').unwrapOr(null)!;
+    const argNewIdResult = AtomicArgumentId.create('arg_new');
+    const sharedStatementIdResult = StatementId.create('stmt_shared');
+
+    if (argNewIdResult.isErr() || sharedStatementIdResult.isErr()) {
+      throw new Error('Test setup failed');
+    }
+
+    const argNewId = argNewIdResult.value;
+    const sharedStatementId = sharedStatementIdResult.value;
     const result: BranchCreationResult = {
       newStatement: {
         id: 'stmt_new',
@@ -601,7 +634,11 @@ describe('BranchCreationResult', () => {
       newArgument: {
         id: argNewId,
         premiseIds: [sharedStatementId],
-        conclusionIds: [StatementId.create('stmt_new').unwrapOr(null)!],
+        conclusionIds: (() => {
+          const result = StatementId.create('stmt_new');
+          if (result.isErr()) throw new Error('Test setup failed');
+          return [result.value];
+        })(),
       },
       connectionPoint: {
         sourceArgumentId: 'arg_source',
@@ -621,8 +658,15 @@ describe('BranchCreationResult', () => {
   });
 
   it('should handle branch creation result with new tree', () => {
-    const argNewId = AtomicArgumentId.create('arg_new').unwrapOr(null)!;
-    const sharedStatementId = StatementId.create('stmt_shared').unwrapOr(null)!;
+    const argNewIdResult = AtomicArgumentId.create('arg_new');
+    const sharedStatementIdResult = StatementId.create('stmt_shared');
+
+    if (argNewIdResult.isErr() || sharedStatementIdResult.isErr()) {
+      throw new Error('Test setup failed');
+    }
+
+    const argNewId = argNewIdResult.value;
+    const sharedStatementId = sharedStatementIdResult.value;
     const result: BranchCreationResult = {
       newStatement: {
         id: 'stmt_new',
@@ -634,7 +678,11 @@ describe('BranchCreationResult', () => {
       newArgument: {
         id: argNewId,
         premiseIds: [sharedStatementId],
-        conclusionIds: [StatementId.create('stmt_new').unwrapOr(null)!],
+        conclusionIds: (() => {
+          const result = StatementId.create('stmt_new');
+          if (result.isErr()) throw new Error('Test setup failed');
+          return [result.value];
+        })(),
       },
       connectionPoint: {
         sourceArgumentId: 'arg_source',
@@ -668,20 +716,48 @@ describe('ValidationResult', () => {
       isValid: false,
       errors: [
         {
-          code: ErrorCode.create('REQUIRED_FIELD').unwrapOr(null)!,
-          message: ErrorMessage.create('Field is required').unwrapOr(null)!,
+          code: (() => {
+            const result = ErrorCode.create('REQUIRED_FIELD');
+            if (result.isErr()) throw new Error('Test setup failed');
+            return result.value;
+          })(),
+          message: (() => {
+            const result = ErrorMessage.create('Field is required');
+            if (result.isErr()) throw new Error('Test setup failed');
+            return result.value;
+          })(),
           severity: ErrorSeverity.ERROR,
           location: {
-            treeId: TreeId.create('tree_123').unwrapOr(null)!,
-            nodeId: NodeId.create('node_456').unwrapOr(null)!,
-            argumentId: AtomicArgumentId.create('arg_789').unwrapOr(null)!,
+            treeId: (() => {
+              const result = TreeId.create('tree_123');
+              if (result.isErr()) throw new Error('Test setup failed');
+              return result.value;
+            })(),
+            nodeId: (() => {
+              const result = NodeId.create('node_456');
+              if (result.isErr()) throw new Error('Test setup failed');
+              return result.value;
+            })(),
+            argumentId: (() => {
+              const result = AtomicArgumentId.create('arg_789');
+              if (result.isErr()) throw new Error('Test setup failed');
+              return result.value;
+            })(),
           },
         },
       ],
       warnings: [
         {
-          code: ErrorCode.create('DEPRECATED_USAGE').unwrapOr(null)!,
-          message: ErrorMessage.create('Usage is deprecated').unwrapOr(null)!,
+          code: (() => {
+            const result = ErrorCode.create('DEPRECATED_USAGE');
+            if (result.isErr()) throw new Error('Test setup failed');
+            return result.value;
+          })(),
+          message: (() => {
+            const result = ErrorMessage.create('Usage is deprecated');
+            if (result.isErr()) throw new Error('Test setup failed');
+            return result.value;
+          })(),
           severity: ErrorSeverity.WARNING,
         },
       ],
@@ -954,14 +1030,20 @@ describe('property-based testing', () => {
 
   it('should handle arbitrary validation results', () => {
     const validationErrorArb = fc.record({
-      code: fc
-        .string({ minLength: 1 })
-        .map((s) => ErrorCode.create(s).unwrapOr(ErrorCode.create('DEFAULT_CODE').unwrapOr(null)!)),
-      message: fc
-        .string({ minLength: 1 })
-        .map((s) =>
-          ErrorMessage.create(s).unwrapOr(ErrorMessage.create('Default message').unwrapOr(null)!),
-        ),
+      code: fc.string({ minLength: 1 }).map((s) => {
+        const result = ErrorCode.create(s);
+        if (result.isOk()) return result.value;
+        const defaultResult = ErrorCode.create('DEFAULT_CODE');
+        if (defaultResult.isErr()) throw new Error('Test setup failed');
+        return defaultResult.value;
+      }),
+      message: fc.string({ minLength: 1 }).map((s) => {
+        const result = ErrorMessage.create(s);
+        if (result.isOk()) return result.value;
+        const defaultResult = ErrorMessage.create('Default message');
+        if (defaultResult.isErr()) throw new Error('Test setup failed');
+        return defaultResult.value;
+      }),
       severity: fc.constantFrom(ErrorSeverity.ERROR, ErrorSeverity.WARNING, ErrorSeverity.INFO),
     });
 
@@ -1093,18 +1175,38 @@ describe('integration scenarios', () => {
       isValid: false,
       errors: [
         {
-          code: ErrorCode.create('MISSING_CONCLUSION').unwrapOr(null)!,
-          message: ErrorMessage.create('Argument missing conclusion').unwrapOr(null)!,
+          code: (() => {
+            const result = ErrorCode.create('MISSING_CONCLUSION');
+            if (result.isErr()) throw new Error('Test setup failed');
+            return result.value;
+          })(),
+          message: (() => {
+            const result = ErrorMessage.create('Argument missing conclusion');
+            if (result.isErr()) throw new Error('Test setup failed');
+            return result.value;
+          })(),
           severity: ErrorSeverity.ERROR,
           location: {
-            argumentId: AtomicArgumentId.create('arg_123').unwrapOr(null)!,
+            argumentId: (() => {
+              const result = AtomicArgumentId.create('arg_123');
+              if (result.isErr()) throw new Error('Test setup failed');
+              return result.value;
+            })(),
           },
         },
       ],
       warnings: [
         {
-          code: ErrorCode.create('UNUSED_STATEMENT').unwrapOr(null)!,
-          message: ErrorMessage.create('Statement not used in any argument').unwrapOr(null)!,
+          code: (() => {
+            const result = ErrorCode.create('UNUSED_STATEMENT');
+            if (result.isErr()) throw new Error('Test setup failed');
+            return result.value;
+          })(),
+          message: (() => {
+            const result = ErrorMessage.create('Statement not used in any argument');
+            if (result.isErr()) throw new Error('Test setup failed');
+            return result.value;
+          })(),
           severity: ErrorSeverity.WARNING,
         },
       ],
@@ -1421,8 +1523,16 @@ describe('Utility Functions Coverage', () => {
         errors: [],
         warnings: [
           {
-            code: ErrorCode.create('WARN1').unwrapOr(null)!,
-            message: ErrorMessage.create('Warning 1').unwrapOr(null)!,
+            code: (() => {
+              const result = ErrorCode.create('WARN1');
+              if (result.isErr()) throw new Error('Test setup failed');
+              return result.value;
+            })(),
+            message: (() => {
+              const result = ErrorMessage.create('Warning 1');
+              if (result.isErr()) throw new Error('Test setup failed');
+              return result.value;
+            })(),
             severity: ErrorSeverity.WARNING,
           },
         ],
@@ -1431,8 +1541,16 @@ describe('Utility Functions Coverage', () => {
         isValid: false,
         errors: [
           {
-            code: ErrorCode.create('ERR1').unwrapOr(null)!,
-            message: ErrorMessage.create('Error 1').unwrapOr(null)!,
+            code: (() => {
+              const result = ErrorCode.create('ERR1');
+              if (result.isErr()) throw new Error('Test setup failed');
+              return result.value;
+            })(),
+            message: (() => {
+              const result = ErrorMessage.create('Error 1');
+              if (result.isErr()) throw new Error('Test setup failed');
+              return result.value;
+            })(),
             severity: ErrorSeverity.ERROR,
           },
         ],
@@ -1481,8 +1599,16 @@ describe('Utility Functions Coverage', () => {
         isValid: false,
         errors: [
           {
-            code: ErrorCode.create('ERR1').unwrapOr(null)!,
-            message: ErrorMessage.create('Error').unwrapOr(null)!,
+            code: (() => {
+              const result = ErrorCode.create('ERR1');
+              if (result.isErr()) throw new Error('Test setup failed');
+              return result.value;
+            })(),
+            message: (() => {
+              const result = ErrorMessage.create('Error');
+              if (result.isErr()) throw new Error('Test setup failed');
+              return result.value;
+            })(),
             severity: ErrorSeverity.ERROR,
           },
         ],
@@ -1652,8 +1778,16 @@ describe('Utility Functions Coverage', () => {
           errors: [],
           warnings: [
             {
-              code: ErrorCode.create('WARN1').unwrapOr(null)!,
-              message: ErrorMessage.create('Warning').unwrapOr(null)!,
+              code: (() => {
+                const result = ErrorCode.create('WARN1');
+                if (result.isErr()) throw new Error('Test setup failed');
+                return result.value;
+              })(),
+              message: (() => {
+                const result = ErrorMessage.create('Warning');
+                if (result.isErr()) throw new Error('Test setup failed');
+                return result.value;
+              })(),
               severity: ErrorSeverity.WARNING,
             },
           ],
@@ -1663,8 +1797,16 @@ describe('Utility Functions Coverage', () => {
           isValid: false,
           errors: [
             {
-              code: ErrorCode.create('ERR1').unwrapOr(null)!,
-              message: ErrorMessage.create('Error').unwrapOr(null)!,
+              code: (() => {
+                const result = ErrorCode.create('ERR1');
+                if (result.isErr()) throw new Error('Test setup failed');
+                return result.value;
+              })(),
+              message: (() => {
+                const result = ErrorMessage.create('Error');
+                if (result.isErr()) throw new Error('Test setup failed');
+                return result.value;
+              })(),
               severity: ErrorSeverity.ERROR,
             },
           ],
@@ -1710,8 +1852,16 @@ describe('Utility Functions Coverage', () => {
           errors: [],
           warnings: [
             {
-              code: ErrorCode.create('WARN').unwrapOr(null)!,
-              message: ErrorMessage.create('Warning').unwrapOr(null)!,
+              code: (() => {
+                const result = ErrorCode.create('WARN');
+                if (result.isErr()) throw new Error('Test setup failed');
+                return result.value;
+              })(),
+              message: (() => {
+                const result = ErrorMessage.create('Warning');
+                if (result.isErr()) throw new Error('Test setup failed');
+                return result.value;
+              })(),
               severity: ErrorSeverity.WARNING,
             },
           ], // Warnings don't count as errors
@@ -1729,8 +1879,16 @@ describe('Utility Functions Coverage', () => {
           isValid: false,
           errors: [
             {
-              code: ErrorCode.create('ERR').unwrapOr(null)!,
-              message: ErrorMessage.create('Error').unwrapOr(null)!,
+              code: (() => {
+                const result = ErrorCode.create('ERR');
+                if (result.isErr()) throw new Error('Test setup failed');
+                return result.value;
+              })(),
+              message: (() => {
+                const result = ErrorMessage.create('Error');
+                if (result.isErr()) throw new Error('Test setup failed');
+                return result.value;
+              })(),
               severity: ErrorSeverity.ERROR,
             },
           ],

@@ -9,7 +9,6 @@ import {
   createTestNodeCount,
   createTestNodeId,
   createTestPosition2D,
-  createTestStatementId,
   createTestTreeId,
 } from '../../queries/__tests__/shared/branded-type-helpers.js';
 import type { DocumentDTO } from '../../queries/document-queries.js';

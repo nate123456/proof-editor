@@ -3,11 +3,7 @@ import { beforeEach, describe, expect, type MockedObject, test, vi } from 'vites
 import type { IFileSystemPort } from '../../../../application/ports/IFileSystemPort.js';
 import { proofDocumentFactory } from '../../../../domain/__tests__/factories/index.js';
 import { ProofDocument } from '../../../../domain/aggregates/ProofDocument.js';
-import {
-  DocumentContent,
-  ProofDocumentId,
-  StatementContent,
-} from '../../../../domain/shared/value-objects/index.js';
+import { DocumentContent, ProofDocumentId } from '../../../../domain/shared/value-objects/index.js';
 import { YAMLDeserializer } from '../YAMLDeserializer.js';
 import { YAMLProofDocumentRepository } from '../YAMLProofDocumentRepository.js';
 import { YAMLSerializer } from '../YAMLSerializer.js';
