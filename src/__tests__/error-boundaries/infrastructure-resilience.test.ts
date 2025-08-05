@@ -114,16 +114,9 @@ describe('Infrastructure Layer Resilience', () => {
     it('should handle YAML serialization failures gracefully', async () => {
       // Arrange - mock ProofDocument that will cause serialization failure
       const problematicDocument = {
-        getVersion: vi.fn(() => {
+        createQueryService: vi.fn(() => {
           throw new Error('Version access failed');
         }),
-        getId: vi.fn(() => ({ getValue: () => 'test-id' })),
-        getCreatedAt: vi.fn(() => new Date()),
-        getModifiedAt: vi.fn(() => new Date()),
-        getStatements: vi.fn(() => new Map()),
-        getOrderedSets: vi.fn(() => new Map()),
-        getAtomicArguments: vi.fn(() => new Map()),
-        getTrees: vi.fn(() => new Map()),
       };
 
       const serializer = new YAMLSerializer();
@@ -184,7 +177,8 @@ describe('Infrastructure Layer Resilience', () => {
       // Assert - failure contained as Result
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.message).toContain('File system unavailable');
+        // The error message is wrapped in a value object
+        expect(result.error.message.getValue()).toContain('File system unavailable');
       }
     });
 
@@ -432,7 +426,8 @@ describe('Infrastructure Layer Resilience', () => {
       // Assert - timeout handled as error
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.message).toContain('timeout');
+        // The error message is wrapped in a value object
+        expect(result.error.message.getValue()).toContain('timeout');
       }
     });
 

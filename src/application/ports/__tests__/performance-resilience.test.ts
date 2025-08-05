@@ -919,8 +919,8 @@ describe('Port Performance and Resilience', () => {
 
       // Platform should adapt capabilities under load
       const capabilities = fileSystemPort.capabilities();
-      expect(typeof capabilities.maxFileSize).toBe('number');
-      expect(capabilities.maxFileSize).toBeGreaterThan(0);
+      expect(typeof capabilities.maxFileSize?.getValue()).toBe('number');
+      expect(capabilities.maxFileSize?.getValue()).toBeGreaterThan(0);
     });
   });
 
@@ -1004,7 +1004,7 @@ describe('Port Performance and Resilience', () => {
 
       // Memory should be constrained
       const capabilities = fileSystemPort.capabilities();
-      expect(capabilities.maxFileSize).toBeLessThan(100 * 1024 * 1024);
+      expect(capabilities.maxFileSize?.getValue()).toBeLessThan(100 * 1024 * 1024);
     });
 
     test('handles resource exhaustion gracefully', async () => {

@@ -59,10 +59,10 @@ describe('VSCodePlatformAdapter', () => {
       const info = adapter.getPlatformInfo();
 
       expect(info.type).toBe('vscode');
-      expect(info.version).toBe('1.74.0');
+      expect(info.version.getValue()).toBe('1.74.0');
       expect(info.os).toMatch(/windows|macos|linux/);
-      expect(typeof info.arch).toBe('string');
-      expect(typeof info.isDebug).toBe('boolean');
+      expect(info.arch.getValue()).toBeTruthy();
+      expect(info.isDebug).toBe(false);
     });
 
     test('detects Windows platform correctly', () => {
@@ -195,8 +195,8 @@ describe('VSCodePlatformAdapter', () => {
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.code).toBe('PLATFORM_ERROR');
-        expect(result.error.message).toBe('Failed to open');
+        expect(result.error.code.getValue()).toBe('PLATFORM_ERROR');
+        expect(result.error.message.getValue()).toBe('Failed to open');
       }
     });
   });
@@ -220,8 +220,8 @@ describe('VSCodePlatformAdapter', () => {
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.code).toBe('PLATFORM_ERROR');
-        expect(result.error.message).toBe('Copy failed');
+        expect(result.error.code.getValue()).toBe('PLATFORM_ERROR');
+        expect(result.error.message.getValue()).toBe('Copy failed');
       }
     });
   });
@@ -259,8 +259,8 @@ describe('VSCodePlatformAdapter', () => {
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.code).toBe('PLATFORM_ERROR');
-        expect(result.error.message).toBe('Read failed');
+        expect(result.error.code.getValue()).toBe('PLATFORM_ERROR');
+        expect(result.error.message.getValue()).toBe('Read failed');
       }
     });
   });
@@ -333,8 +333,8 @@ describe('VSCodePlatformAdapter', () => {
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.code).toBe('PLATFORM_ERROR');
-        expect(result.error.message).toBe('Storage error');
+        expect(result.error.code.getValue()).toBe('PLATFORM_ERROR');
+        expect(result.error.message.getValue()).toBe('Storage error');
       }
     });
 
@@ -354,8 +354,8 @@ describe('VSCodePlatformAdapter', () => {
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.code).toBe('PLATFORM_ERROR');
-        expect(result.error.message).toBe('Update failed');
+        expect(result.error.code.getValue()).toBe('PLATFORM_ERROR');
+        expect(result.error.message.getValue()).toBe('Update failed');
       }
     });
 
@@ -375,8 +375,8 @@ describe('VSCodePlatformAdapter', () => {
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.code).toBe('PLATFORM_ERROR');
-        expect(result.error.message).toBe('Delete failed');
+        expect(result.error.code.getValue()).toBe('PLATFORM_ERROR');
+        expect(result.error.message.getValue()).toBe('Delete failed');
       }
     });
   });
@@ -411,7 +411,7 @@ describe('VSCodePlatformAdapter', () => {
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.message).toBe('Failed to copy to clipboard');
+        expect(result.error.message.getValue()).toBe('Failed to copy to clipboard');
       }
     });
 
@@ -423,7 +423,7 @@ describe('VSCodePlatformAdapter', () => {
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.message).toBe('Failed to open external URL');
+        expect(result.error.message.getValue()).toBe('Failed to open external URL');
       }
     });
 
@@ -434,7 +434,7 @@ describe('VSCodePlatformAdapter', () => {
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.message).toBe('Failed to set storage value');
+        expect(result.error.message.getValue()).toBe('Failed to set storage value');
       }
     });
   });

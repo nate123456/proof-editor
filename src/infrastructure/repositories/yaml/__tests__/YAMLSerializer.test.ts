@@ -88,6 +88,7 @@ describe('YAMLSerializer', () => {
             schemaVersion: '1.0.0',
           },
           statements: {},
+          orderedSets: {},
           atomicArguments: {},
           trees: {},
         }),
@@ -199,10 +200,14 @@ describe('YAMLSerializer', () => {
       expect(result.isOk()).toBe(true);
       expect(yaml.dump).toHaveBeenCalledWith(
         expect.objectContaining({
+          orderedSets: {
+            os1: ['stmt-1'],
+            os2: ['stmt-2'],
+          },
           atomicArguments: {
             'arg-1': {
-              premises: ['stmt-1'],
-              conclusions: ['stmt-2'],
+              premises: 'os1',
+              conclusions: 'os2',
             },
           },
         }),
@@ -243,8 +248,8 @@ describe('YAMLSerializer', () => {
         expect.objectContaining({
           atomicArguments: {
             'arg-1': {
-              premises: [],
-              conclusions: [],
+              premises: null,
+              conclusions: null,
               sideLabels: {
                 left: 'Modus Ponens',
               },
@@ -288,8 +293,8 @@ describe('YAMLSerializer', () => {
         expect.objectContaining({
           atomicArguments: {
             'arg-bootstrap': {
-              premises: [],
-              conclusions: [],
+              premises: null,
+              conclusions: null,
             },
           },
         }),
@@ -382,6 +387,7 @@ describe('YAMLSerializer', () => {
       expect(yaml.dump).toHaveBeenCalledWith(
         expect.objectContaining({
           statements: {},
+          orderedSets: {},
           atomicArguments: {},
           trees: {},
         }),
@@ -407,6 +413,7 @@ describe('YAMLSerializer', () => {
       // Verify that empty collections are explicitly set to {} not undefined
       const yamlCall = (yaml.dump as any).mock.calls[0][0];
       expect(yamlCall.statements).toEqual({});
+      expect(yamlCall.orderedSets).toEqual({});
       expect(yamlCall.atomicArguments).toEqual({});
       expect(yamlCall.trees).toEqual({});
     });
@@ -471,10 +478,13 @@ describe('YAMLSerializer', () => {
             'stmt-1': 'All men are mortal',
             'stmt-2': 'Socrates is a man',
           },
+          orderedSets: {
+            os1: ['stmt-1', 'stmt-2'],
+          },
           atomicArguments: {
             'arg-1': {
-              premises: ['stmt-1', 'stmt-2'],
-              conclusions: [],
+              premises: 'os1',
+              conclusions: null,
               sideLabels: {
                 left: 'Premise Set',
               },

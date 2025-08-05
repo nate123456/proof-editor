@@ -178,7 +178,7 @@ trees:
       const readResult = await adapter.readFile(createFilePath(documentPath));
       expect(readResult.isOk()).toBe(true);
       if (readResult.isOk()) {
-        expect(readResult.value).toBe(validProofContent);
+        expect(readResult.value.getValue()).toBe(validProofContent);
       }
     });
 

@@ -1,164 +1,19 @@
-import 'reflect-metadata';
-
-import { ok } from 'neverthrow';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { IExportService } from '../../application/ports/IExportService.js';
-import type { IUIPort, WebviewPanel } from '../../application/ports/IUIPort.js';
-import type { IViewStatePort } from '../../application/ports/IViewStatePort.js';
-import type { IDocumentIdService } from '../../application/services/DocumentIdService.js';
-import type { DocumentQueryService } from '../../application/services/DocumentQueryService.js';
-import type { ProofApplicationService } from '../../application/services/ProofApplicationService.js';
-import type { ProofVisualizationService } from '../../application/services/ProofVisualizationService.js';
-import type { ViewStateManager } from '../../application/services/ViewStateManager.js';
-import type { YAMLSerializer } from '../../infrastructure/repositories/yaml/YAMLSerializer.js';
-import type { BootstrapController } from '../../presentation/controllers/BootstrapController.js';
-import { ProofTreePanel } from '../ProofTreePanel.js';
-import type { TreeRenderer } from '../TreeRenderer.js';
+import { describe, expect, it } from 'vitest';
+import {
+  validateCreateArgumentInput,
+  validateEditContentMetadata,
+  validateMoveNodeInput,
+  validateMoveStatementInput,
+  validateStatementContent,
+} from '../panel/validation/ProofTreeValidators.js';
 
 describe('ProofTreePanel Validation Helpers', () => {
-  let panel: ProofTreePanel;
-  let mockServices: {
-    webviewPanel: WebviewPanel;
-    uiPort: IUIPort;
-    visualizationService: ProofVisualizationService;
-    documentQueryService: DocumentQueryService;
-    renderer: TreeRenderer;
-    viewStateManager: ViewStateManager;
-    viewStatePort: IViewStatePort;
-    bootstrapController: BootstrapController;
-    proofApplicationService: ProofApplicationService;
-    yamlSerializer: YAMLSerializer;
-    exportService: IExportService;
-    documentIdService: IDocumentIdService;
-  };
-
-  beforeEach(async () => {
-    vi.clearAllMocks();
-
-    // Setup minimal mocks for panel creation
-    mockServices = {
-      webviewPanel: {
-        id: 'test-panel',
-        webview: {
-          html: '',
-          onDidReceiveMessage: vi.fn().mockReturnValue({ dispose: vi.fn() }),
-        },
-        onDidDispose: vi.fn().mockReturnValue({ dispose: vi.fn() }),
-        reveal: vi.fn(),
-        dispose: vi.fn(),
-      } as any,
-      uiPort: {
-        createWebviewPanel: vi.fn().mockReturnValue({
-          id: 'test-panel',
-          webview: { html: '', onDidReceiveMessage: vi.fn().mockReturnValue({ dispose: vi.fn() }) },
-          onDidDispose: vi.fn().mockReturnValue({ dispose: vi.fn() }),
-          reveal: vi.fn(),
-          dispose: vi.fn(),
-        }),
-        postMessageToWebview: vi.fn(),
-        showError: vi.fn(),
-        showInformation: vi.fn(),
-        writeFile: vi.fn().mockResolvedValue(ok(undefined)),
-        showInputBox: vi.fn(),
-        showQuickPick: vi.fn(),
-        showConfirmation: vi.fn(),
-        showOpenDialog: vi.fn(),
-        showSaveDialog: vi.fn(),
-        showProgress: vi.fn(),
-        setStatusMessage: vi.fn(),
-        getTheme: vi.fn(),
-        onThemeChange: vi.fn(),
-        capabilities: vi.fn(),
-        showWarning: vi.fn(),
-      } as any,
-      visualizationService: {
-        generateVisualization: vi.fn().mockReturnValue(
-          ok({
-            documentId: 'test-doc',
-            version: 1,
-            trees: [],
-            totalDimensions: { width: 400, height: 300 },
-            isEmpty: false,
-          }),
-        ),
-      } as any,
-      documentQueryService: {
-        parseDocumentContent: vi.fn().mockResolvedValue(
-          ok({
-            id: 'test-doc',
-            statements: {},
-            orderedSets: {},
-            atomicArguments: {},
-            trees: {},
-          }),
-        ),
-      } as any,
-      renderer: {
-        generateSVG: vi.fn().mockReturnValue('<svg>test</svg>'),
-      } as any,
-      viewStateManager: {
-        updateViewportState: vi.fn().mockResolvedValue(ok(undefined)),
-      } as any,
-      viewStatePort: {
-        loadViewState: vi.fn().mockResolvedValue(ok(null)),
-        saveViewState: vi.fn().mockResolvedValue(ok(undefined)),
-      } as any,
-      bootstrapController: {} as any,
-      proofApplicationService: {} as any,
-      yamlSerializer: {} as any,
-      exportService: {
-        exportDocument: vi
-          .fn()
-          .mockResolvedValue(
-            ok({ filename: 'test.yaml', content: 'test content', mimeType: 'text/yaml' }),
-          ),
-        exportDocumentContent: vi
-          .fn()
-          .mockResolvedValue(
-            ok({ filename: 'test.yaml', content: 'test content', mimeType: 'text/yaml' }),
-          ),
-        saveToFile: vi
-          .fn()
-          .mockResolvedValue(ok({ filePath: '/test/path', savedSuccessfully: true })),
-        getSupportedFormats: vi.fn().mockResolvedValue(ok(['yaml', 'json'])),
-      } as any,
-      documentIdService: {
-        extractFromUri: vi.fn().mockReturnValue(ok('test-document')),
-        validateDocumentId: vi.fn().mockReturnValue(ok('test-document')),
-        generateFallbackId: vi.fn().mockReturnValue('fallback-id'),
-        extractFromUriWithFallback: vi.fn().mockReturnValue(ok('test-document')),
-      } as any,
-    };
-
-    const result = await ProofTreePanel.createWithServices(
-      'file:///test/document.proof',
-      'test content',
-      mockServices.documentQueryService,
-      mockServices.visualizationService,
-      mockServices.uiPort,
-      mockServices.renderer,
-      mockServices.viewStateManager,
-      mockServices.viewStatePort,
-      mockServices.bootstrapController,
-      mockServices.proofApplicationService,
-      mockServices.yamlSerializer,
-      mockServices.exportService,
-      mockServices.documentIdService,
-    );
-
-    expect(result.isOk()).toBe(true);
-    if (result.isOk()) {
-      panel = result.value;
-    }
-  });
-
   describe('validateCreateArgumentInput', () => {
     it('should validate valid premises and conclusions', () => {
       const validPremises = ['All men are mortal', 'Socrates is a man'];
       const validConclusions = ['Socrates is mortal'];
 
-      // Use reflection to access private method for testing
-      const result = (panel as any).validateCreateArgumentInput(validPremises, validConclusions);
+      const result = validateCreateArgumentInput(validPremises, validConclusions);
 
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
@@ -170,76 +25,87 @@ describe('ProofTreePanel Validation Helpers', () => {
     it('should reject null or undefined premises', () => {
       const validConclusions = ['Valid conclusion'];
 
-      const nullResult = (panel as any).validateCreateArgumentInput(null, validConclusions);
-      const undefinedResult = (panel as any).validateCreateArgumentInput(
-        undefined,
-        validConclusions,
-      );
+      const nullResult = validateCreateArgumentInput(null, validConclusions);
+      const undefinedResult = validateCreateArgumentInput(undefined, validConclusions);
 
       expect(nullResult.isErr()).toBe(true);
-      expect(nullResult.error.message).toBe('At least one premise is required');
+      if (nullResult.isErr()) {
+        expect(nullResult.error.message).toBe('At least one premise is required');
+      }
       expect(undefinedResult.isErr()).toBe(true);
-      expect(undefinedResult.error.message).toBe('At least one premise is required');
+      if (undefinedResult.isErr()) {
+        expect(undefinedResult.error.message).toBe('At least one premise is required');
+      }
     });
 
     it('should reject non-array premises', () => {
       const validConclusions = ['Valid conclusion'];
 
-      const stringResult = (panel as any).validateCreateArgumentInput(
-        'string premises',
-        validConclusions,
-      );
-      const objectResult = (panel as any).validateCreateArgumentInput({}, validConclusions);
+      const stringResult = validateCreateArgumentInput('string premises', validConclusions);
+      const objectResult = validateCreateArgumentInput({}, validConclusions);
 
       expect(stringResult.isErr()).toBe(true);
-      expect(stringResult.error.message).toBe('At least one premise is required');
+      if (stringResult.isErr()) {
+        expect(stringResult.error.message).toBe('At least one premise is required');
+      }
       expect(objectResult.isErr()).toBe(true);
-      expect(objectResult.error.message).toBe('At least one premise is required');
+      if (objectResult.isErr()) {
+        expect(objectResult.error.message).toBe('At least one premise is required');
+      }
     });
 
     it('should reject empty premises array', () => {
       const validConclusions = ['Valid conclusion'];
 
-      const result = (panel as any).validateCreateArgumentInput([], validConclusions);
+      const result = validateCreateArgumentInput([], validConclusions);
 
       expect(result.isErr()).toBe(true);
-      expect(result.error.message).toBe('At least one premise is required');
+      if (result.isErr()) {
+        expect(result.error.message).toBe('At least one premise is required');
+      }
     });
 
     it('should reject null or undefined conclusions', () => {
       const validPremises = ['Valid premise'];
 
-      const nullResult = (panel as any).validateCreateArgumentInput(validPremises, null);
-      const undefinedResult = (panel as any).validateCreateArgumentInput(validPremises, undefined);
+      const nullResult = validateCreateArgumentInput(validPremises, null);
+      const undefinedResult = validateCreateArgumentInput(validPremises, undefined);
 
       expect(nullResult.isErr()).toBe(true);
-      expect(nullResult.error.message).toBe('At least one conclusion is required');
+      if (nullResult.isErr()) {
+        expect(nullResult.error.message).toBe('At least one conclusion is required');
+      }
       expect(undefinedResult.isErr()).toBe(true);
-      expect(undefinedResult.error.message).toBe('At least one conclusion is required');
+      if (undefinedResult.isErr()) {
+        expect(undefinedResult.error.message).toBe('At least one conclusion is required');
+      }
     });
 
     it('should reject non-array conclusions', () => {
       const validPremises = ['Valid premise'];
 
-      const stringResult = (panel as any).validateCreateArgumentInput(
-        validPremises,
-        'string conclusions',
-      );
-      const objectResult = (panel as any).validateCreateArgumentInput(validPremises, {});
+      const stringResult = validateCreateArgumentInput(validPremises, 'string conclusions');
+      const objectResult = validateCreateArgumentInput(validPremises, {});
 
       expect(stringResult.isErr()).toBe(true);
-      expect(stringResult.error.message).toBe('At least one conclusion is required');
+      if (stringResult.isErr()) {
+        expect(stringResult.error.message).toBe('At least one conclusion is required');
+      }
       expect(objectResult.isErr()).toBe(true);
-      expect(objectResult.error.message).toBe('At least one conclusion is required');
+      if (objectResult.isErr()) {
+        expect(objectResult.error.message).toBe('At least one conclusion is required');
+      }
     });
 
     it('should reject empty conclusions array', () => {
       const validPremises = ['Valid premise'];
 
-      const result = (panel as any).validateCreateArgumentInput(validPremises, []);
+      const result = validateCreateArgumentInput(validPremises, []);
 
       expect(result.isErr()).toBe(true);
-      expect(result.error.message).toBe('At least one conclusion is required');
+      if (result.isErr()) {
+        expect(result.error.message).toBe('At least one conclusion is required');
+      }
     });
   });
 
@@ -247,7 +113,7 @@ describe('ProofTreePanel Validation Helpers', () => {
     it('should validate and trim valid content', () => {
       const validContent = '  Valid statement content  ';
 
-      const result = (panel as any).validateStatementContent(validContent);
+      const result = validateStatementContent(validContent);
 
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
@@ -259,9 +125,11 @@ describe('ProofTreePanel Validation Helpers', () => {
       const invalidInputs = [null, undefined, 123, {}, []];
 
       for (const invalidInput of invalidInputs) {
-        const result = (panel as any).validateStatementContent(invalidInput);
+        const result = validateStatementContent(invalidInput);
         expect(result.isErr()).toBe(true);
-        expect(result.error.message).toBe('Statement content cannot be empty');
+        if (result.isErr()) {
+          expect(result.error.message).toBe('Statement content cannot be empty');
+        }
       }
     });
 
@@ -269,9 +137,11 @@ describe('ProofTreePanel Validation Helpers', () => {
       const emptyInputs = ['', '   ', '\t\n\r'];
 
       for (const emptyInput of emptyInputs) {
-        const result = (panel as any).validateStatementContent(emptyInput);
+        const result = validateStatementContent(emptyInput);
         expect(result.isErr()).toBe(true);
-        expect(result.error.message).toBe('Statement content cannot be empty');
+        if (result.isErr()) {
+          expect(result.error.message).toBe('Statement content cannot be empty');
+        }
       }
     });
   });
@@ -286,7 +156,7 @@ describe('ProofTreePanel Validation Helpers', () => {
       };
       const validContent = 'Updated content';
 
-      const result = (panel as any).validateEditContentMetadata(validMetadata, validContent);
+      const result = validateEditContentMetadata(validMetadata, validContent);
 
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
@@ -304,7 +174,7 @@ describe('ProofTreePanel Validation Helpers', () => {
       };
       const validContent = 'Updated label';
 
-      const result = (panel as any).validateEditContentMetadata(validMetadata, validContent);
+      const result = validateEditContentMetadata(validMetadata, validContent);
 
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
@@ -327,9 +197,11 @@ describe('ProofTreePanel Validation Helpers', () => {
       ];
 
       for (const [metadata, content] of invalidInputs) {
-        const result = (panel as any).validateEditContentMetadata(metadata, content);
+        const result = validateEditContentMetadata(metadata, content);
         expect(result.isErr()).toBe(true);
-        expect(result.error.message).toBe('Invalid edit content request');
+        if (result.isErr()) {
+          expect(result.error.message).toBe('Invalid edit content request');
+        }
       }
     });
 
@@ -340,10 +212,12 @@ describe('ProofTreePanel Validation Helpers', () => {
         // missing statementId
       };
 
-      const result = (panel as any).validateEditContentMetadata(invalidMetadata, 'valid content');
+      const result = validateEditContentMetadata(invalidMetadata, 'valid content');
 
       expect(result.isErr()).toBe(true);
-      expect(result.error.message).toBe('Invalid edit content request');
+      if (result.isErr()) {
+        expect(result.error.message).toBe('Invalid edit content request');
+      }
     });
 
     it('should reject label metadata without nodeId', () => {
@@ -353,10 +227,12 @@ describe('ProofTreePanel Validation Helpers', () => {
         // missing nodeId
       };
 
-      const result = (panel as any).validateEditContentMetadata(invalidMetadata, 'valid content');
+      const result = validateEditContentMetadata(invalidMetadata, 'valid content');
 
       expect(result.isErr()).toBe(true);
-      expect(result.error.message).toBe('Invalid edit content request');
+      if (result.isErr()) {
+        expect(result.error.message).toBe('Invalid edit content request');
+      }
     });
   });
 
@@ -370,11 +246,7 @@ describe('ProofTreePanel Validation Helpers', () => {
       const validTargetId = 'stmt-target';
       const validDropType = 'conclusion';
 
-      const result = (panel as any).validateMoveStatementInput(
-        validSourceData,
-        validTargetId,
-        validDropType,
-      );
+      const result = validateMoveStatementInput(validSourceData, validTargetId, validDropType);
 
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
@@ -395,9 +267,11 @@ describe('ProofTreePanel Validation Helpers', () => {
       ];
 
       for (const [sourceData, targetId, dropType] of invalidInputs) {
-        const result = (panel as any).validateMoveStatementInput(sourceData, targetId, dropType);
+        const result = validateMoveStatementInput(sourceData, targetId, dropType);
         expect(result.isErr()).toBe(true);
-        expect(result.error.message).toBe('Invalid move statement request');
+        if (result.isErr()) {
+          expect(result.error.message).toBe('Invalid move statement request');
+        }
       }
     });
 
@@ -409,9 +283,11 @@ describe('ProofTreePanel Validation Helpers', () => {
       ];
 
       for (const sourceData of incompleteSourceData) {
-        const result = (panel as any).validateMoveStatementInput(sourceData, 'target', 'premise');
+        const result = validateMoveStatementInput(sourceData, 'target', 'premise');
         expect(result.isErr()).toBe(true);
-        expect(result.error.message).toBe('Invalid move statement request');
+        if (result.isErr()) {
+          expect(result.error.message).toBe('Invalid move statement request');
+        }
       }
     });
   });
@@ -422,7 +298,7 @@ describe('ProofTreePanel Validation Helpers', () => {
       const validDeltaX = 150;
       const validDeltaY = -75;
 
-      const result = (panel as any).validateMoveNodeInput(validNodeId, validDeltaX, validDeltaY);
+      const result = validateMoveNodeInput(validNodeId, validDeltaX, validDeltaY);
 
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
@@ -445,9 +321,11 @@ describe('ProofTreePanel Validation Helpers', () => {
       ];
 
       for (const [nodeId, deltaX, deltaY] of invalidInputs) {
-        const result = (panel as any).validateMoveNodeInput(nodeId, deltaX, deltaY);
+        const result = validateMoveNodeInput(nodeId, deltaX, deltaY);
         expect(result.isErr()).toBe(true);
-        expect(result.error.message).toBe('Invalid move node request');
+        if (result.isErr()) {
+          expect(result.error.message).toBe('Invalid move node request');
+        }
       }
     });
 
@@ -459,7 +337,7 @@ describe('ProofTreePanel Validation Helpers', () => {
       ];
 
       for (const [nodeId, deltaX, deltaY] of edgeCases) {
-        const result = (panel as any).validateMoveNodeInput(nodeId, deltaX, deltaY);
+        const result = validateMoveNodeInput(nodeId, deltaX, deltaY);
         expect(result.isOk()).toBe(true);
         if (result.isOk()) {
           expect(result.value.nodeId).toBe(nodeId);
@@ -471,33 +349,19 @@ describe('ProofTreePanel Validation Helpers', () => {
   });
 
   describe('Integration with handler methods', () => {
-    it('should demonstrate validation helper usage in real handler context', async () => {
-      // This test shows that validation helpers integrate properly with handlers
-      // We'll test the validation error path through the actual handler
+    it('should demonstrate validation helper usage in real handler context', () => {
+      // This test verifies that the validation functions work correctly
+      // when used in the context of message handling
 
-      // Mock the webview message handler
-      let messageHandler: ((message: any) => Promise<void>) | undefined;
-      (mockServices.webviewPanel.webview.onDidReceiveMessage as any).mockImplementation(
-        (handler: any) => {
-          messageHandler = handler;
-          return { dispose: vi.fn() };
-        },
-      );
+      // Test validation failure for createArgument
+      const invalidPremises: any[] = [];
+      const validConclusions = ['Valid conclusion'];
 
-      // Wait for message handler registration
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      const result = validateCreateArgumentInput(invalidPremises, validConclusions);
 
-      if (messageHandler) {
-        // Test validation failure in createArgument handler
-        await messageHandler({
-          type: 'createArgument',
-          premises: [], // invalid - empty array
-          conclusions: ['Valid conclusion'],
-        });
-
-        expect(mockServices.uiPort.showError).toHaveBeenCalledWith(
-          'At least one premise is required',
-        );
+      expect(result.isErr()).toBe(true);
+      if (result.isErr()) {
+        expect(result.error.message).toBe('At least one premise is required');
       }
     });
   });

@@ -573,35 +573,49 @@ export function setupExtensionTest(): ExtensionTestContext {
   };
 
   // Set up VS Code API mocks to capture event handlers
-  vi.mocked(vscode.workspace.onDidOpenTextDocument).mockImplementation((handler) => {
+  (vscode.workspace.onDidOpenTextDocument as any).mockImplementation((handler: any) => {
     onOpenHandler = handler;
     return { dispose: vi.fn() };
   });
 
-  vi.mocked(vscode.workspace.onDidChangeTextDocument).mockImplementation((handler) => {
+  (vscode.workspace.onDidChangeTextDocument as any).mockImplementation((handler: any) => {
     onChangeHandler = handler;
     return { dispose: vi.fn() };
   });
 
-  vi.mocked(vscode.workspace.onDidCloseTextDocument).mockImplementation((handler) => {
+  (vscode.workspace.onDidCloseTextDocument as any).mockImplementation((handler: any) => {
     onCloseHandler = handler;
     return { dispose: vi.fn() };
   });
 
-  vi.mocked(vscode.window.onDidChangeActiveTextEditor).mockImplementation((handler) => {
+  (vscode.window.onDidChangeActiveTextEditor as any).mockImplementation((handler: any) => {
     onEditorChangeHandler = handler;
     return { dispose: vi.fn() };
   });
 
-  vi.mocked(vscode.commands.registerCommand).mockReturnValue({ dispose: vi.fn() });
-  vi.mocked(vscode.window.createWebviewPanel).mockReturnValue(mockWebviewPanel);
-  vi.mocked(vscode.window.showInformationMessage).mockResolvedValue(undefined);
-  vi.mocked(vscode.window.showWarningMessage).mockResolvedValue(undefined);
-  vi.mocked(vscode.window.showInputBox).mockResolvedValue(undefined);
-  vi.mocked(vscode.window.showQuickPick).mockResolvedValue(undefined);
-  vi.mocked(vscode.workspace.openTextDocument).mockResolvedValue(mockTextDocument);
-  vi.mocked(vscode.window.showTextDocument).mockResolvedValue(mockTextEditor);
-  vi.mocked(vscode.commands.executeCommand).mockResolvedValue(undefined);
+  (vscode.commands.registerCommand as any).mockReturnValue({ dispose: vi.fn() });
+  (vscode.window.createWebviewPanel as any).mockReturnValue(mockWebviewPanel);
+  (vscode.window.showInformationMessage as any).mockResolvedValue(undefined);
+  (vscode.window.showWarningMessage as any).mockResolvedValue(undefined);
+  (vscode.window.showInputBox as any).mockResolvedValue(undefined);
+  (vscode.window.showQuickPick as any).mockResolvedValue(undefined);
+  (vscode.workspace.openTextDocument as any).mockResolvedValue(mockTextDocument);
+  (vscode.window.showTextDocument as any).mockResolvedValue(mockTextEditor);
+  (vscode.commands.executeCommand as any).mockResolvedValue(undefined);
+
+  // Reset workspace workspaceFolders property
+  Object.defineProperty(vscode.workspace, 'workspaceFolders', {
+    value: undefined,
+    writable: true,
+    configurable: true,
+  });
+
+  // Reset window activeTextEditor property
+  Object.defineProperty(vscode.window, 'activeTextEditor', {
+    value: undefined,
+    writable: true,
+    configurable: true,
+  });
 
   // Reset validation controller mocks to default behavior
   mockValidationController.validateDocumentImmediate.mockClear();

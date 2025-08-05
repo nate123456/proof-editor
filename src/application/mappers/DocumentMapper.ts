@@ -111,14 +111,14 @@ export function documentFromDTO(
       for (const premiseId of argumentData.premiseIds || []) {
         let found = false;
         for (const [stmtId, stmt] of statements) {
-          if (stmtId.getValue() === premiseId) {
+          if (stmtId.getValue() === premiseId.getValue()) {
             premises.push(stmt);
             found = true;
             break;
           }
         }
         if (!found) {
-          return err(new ValidationError(`Premise statement not found: ${premiseId}`));
+          return err(new ValidationError(`Premise statement not found: ${premiseId.getValue()}`));
         }
       }
 
@@ -126,14 +126,16 @@ export function documentFromDTO(
       for (const conclusionId of argumentData.conclusionIds || []) {
         let found = false;
         for (const [stmtId, stmt] of statements) {
-          if (stmtId.getValue() === conclusionId) {
+          if (stmtId.getValue() === conclusionId.getValue()) {
             conclusions.push(stmt);
             found = true;
             break;
           }
         }
         if (!found) {
-          return err(new ValidationError(`Conclusion statement not found: ${conclusionId}`));
+          return err(
+            new ValidationError(`Conclusion statement not found: ${conclusionId.getValue()}`),
+          );
         }
       }
 

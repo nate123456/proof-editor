@@ -64,22 +64,36 @@ describe('YAMLDeserializer', () => {
       }
 
       expect(yaml.load).toHaveBeenCalledWith(validYamlContent);
-      expect(ProofDocument.reconstruct).toHaveBeenCalledWith({
-        id: 'doc-123',
-        version: 1,
-        createdAt: new Date('2023-01-01T00:00:00.000Z'),
-        modifiedAt: new Date('2023-01-02T00:00:00.000Z'),
-        statements: { 'stmt-1': 'All men are mortal' },
-        orderedSets: { 'set-1': ['stmt-1'] },
-        atomicArguments: {
-          'arg-1': {
-            premises: 'set-1',
-            conclusions: null,
-            sideLabel: 'Test Rule',
-          },
-        },
-        trees: {},
-      });
+
+      // Verify the call to ProofDocument.reconstruct with value objects
+      const reconstructCall = (ProofDocument.reconstruct as any).mock.calls[0][0];
+
+      // Check basic properties
+      expect(reconstructCall.id.getValue()).toBe('doc-123');
+      expect(reconstructCall.version.getValue()).toBe(1);
+      expect(reconstructCall.createdAt).toEqual(new Date('2023-01-01T00:00:00.000Z'));
+      expect(reconstructCall.modifiedAt).toEqual(new Date('2023-01-02T00:00:00.000Z'));
+
+      // Check statements Map
+      expect(reconstructCall.statements).toBeInstanceOf(Map);
+      expect(reconstructCall.statements.size).toBe(1);
+      const stmtEntry = Array.from(reconstructCall.statements.entries())[0];
+      expect(stmtEntry[0].getValue()).toBe('stmt-1');
+      expect(stmtEntry[1].getValue()).toBe('All men are mortal');
+
+      // Check atomic arguments Map
+      expect(reconstructCall.atomicArguments).toBeInstanceOf(Map);
+      expect(reconstructCall.atomicArguments.size).toBe(1);
+      const argEntry = Array.from(reconstructCall.atomicArguments.entries())[0];
+      expect(argEntry[0].getValue()).toBe('arg-1');
+      expect(argEntry[1].premiseIds).toHaveLength(1);
+      expect(argEntry[1].premiseIds[0].getValue()).toBe('stmt-1');
+      expect(argEntry[1].conclusionIds).toHaveLength(0);
+      expect(argEntry[1].sideLabels.left.getValue()).toBe('Test Rule');
+
+      // Check trees Map
+      expect(reconstructCall.trees).toBeInstanceOf(Map);
+      expect(reconstructCall.trees.size).toBe(0);
     });
 
     it('should handle Date objects in metadata', async () => {
@@ -145,14 +159,18 @@ describe('YAMLDeserializer', () => {
 
       // Assert
       expect(result.isOk()).toBe(true);
-      expect(ProofDocument.reconstruct).toHaveBeenCalledWith(
-        expect.objectContaining({
-          statements: {},
-          orderedSets: {},
-          atomicArguments: {},
-          trees: {},
-        }),
-      );
+
+      // Verify the call to ProofDocument.reconstruct with empty Maps
+      const reconstructCall = (ProofDocument.reconstruct as any).mock.calls[0][0];
+
+      expect(reconstructCall.statements).toBeInstanceOf(Map);
+      expect(reconstructCall.statements.size).toBe(0);
+
+      expect(reconstructCall.atomicArguments).toBeInstanceOf(Map);
+      expect(reconstructCall.atomicArguments.size).toBe(0);
+
+      expect(reconstructCall.trees).toBeInstanceOf(Map);
+      expect(reconstructCall.trees.size).toBe(0);
     });
 
     it('should reject unsupported schema version', async () => {
@@ -581,16 +599,40 @@ describe('YAMLDeserializer', () => {
 
       // Assert
       expect(result.isOk()).toBe(true);
-      expect(ProofDocument.reconstruct).toHaveBeenCalledWith({
-        id: 'complex-doc',
-        version: 3,
-        createdAt: new Date('2023-01-01T00:00:00.000Z'),
-        modifiedAt: new Date('2023-01-02T00:00:00.000Z'),
-        statements: complexDocumentData.statements,
-        orderedSets: complexDocumentData.orderedSets,
-        atomicArguments: complexDocumentData.atomicArguments,
-        trees: complexDocumentData.trees,
-      });
+
+      // Verify the complex document reconstruction
+      const reconstructCall = (ProofDocument.reconstruct as any).mock.calls[0][0];
+
+      // Check basic properties
+      expect(reconstructCall.id.getValue()).toBe('complex-doc');
+      expect(reconstructCall.version.getValue()).toBe(3);
+      expect(reconstructCall.createdAt).toEqual(new Date('2023-01-01T00:00:00.000Z'));
+      expect(reconstructCall.modifiedAt).toEqual(new Date('2023-01-02T00:00:00.000Z'));
+
+      // Check statements
+      expect(reconstructCall.statements.size).toBe(3);
+      expect(Array.from(reconstructCall.statements.keys()).map((k) => k.getValue())).toEqual([
+        'stmt-1',
+        'stmt-2',
+        'stmt-3',
+      ]);
+
+      // Check atomic arguments
+      expect(reconstructCall.atomicArguments.size).toBe(1);
+      const argEntry = Array.from(reconstructCall.atomicArguments.entries())[0];
+      expect(argEntry[0].getValue()).toBe('arg-syllogism');
+      expect(argEntry[1].premiseIds).toHaveLength(2);
+      expect(argEntry[1].premiseIds.map((id) => id.getValue())).toEqual(['stmt-1', 'stmt-2']);
+      expect(argEntry[1].conclusionIds).toHaveLength(1);
+      expect(argEntry[1].conclusionIds[0].getValue()).toBe('stmt-3');
+      expect(argEntry[1].sideLabels.left.getValue()).toBe('Modus Ponens');
+
+      // Check trees
+      expect(reconstructCall.trees.size).toBe(1);
+      const treeEntry = Array.from(reconstructCall.trees.entries())[0];
+      expect(treeEntry[0].getValue()).toBe('tree-main');
+      expect(treeEntry[1].offset.getX()).toBe(100);
+      expect(treeEntry[1].offset.getY()).toBe(200);
     });
   });
 });

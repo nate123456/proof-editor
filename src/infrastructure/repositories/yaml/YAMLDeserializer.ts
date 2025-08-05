@@ -35,7 +35,11 @@ interface YAMLDocumentData {
     {
       premises: string | null;
       conclusions: string | null;
-      sideLabel?: string;
+      sideLabel?: string; // Legacy format
+      sideLabels?: {
+        left?: string;
+        right?: string;
+      }; // New format
     }
   >;
   trees: Record<
@@ -183,7 +187,24 @@ export class YAMLDeserializer {
 
       // Convert side labels if present
       const sideLabels: { left?: SideLabel; right?: SideLabel } = {};
-      if (argData.sideLabel) {
+
+      // Handle new format with sideLabels object
+      if (argData.sideLabels) {
+        if (argData.sideLabels.left) {
+          const leftResult = SideLabel.create(argData.sideLabels.left);
+          if (leftResult.isErr()) {
+            return err(leftResult.error);
+          }
+          sideLabels.left = leftResult.value;
+        }
+        if (argData.sideLabels.right) {
+          const rightResult = SideLabel.create(argData.sideLabels.right);
+          if (rightResult.isErr()) {
+            return err(rightResult.error);
+          }
+          sideLabels.right = rightResult.value;
+        }
+      } else if (argData.sideLabel) {
         // Old format had a single sideLabel field
         const labelResult = SideLabel.create(argData.sideLabel);
         if (labelResult.isErr()) {

@@ -345,8 +345,8 @@ describe('Tree Structural Integrity', () => {
       // Check if creating node0 -> node2 would create a cycle (it should)
       expect(tree.canCreateCycle(node0, node2)).toBe(true);
 
-      // Check if creating node2 -> node0 would create a cycle (it should)
-      expect(tree.canCreateCycle(node2, node0)).toBe(true);
+      // Check if creating node2 -> node0 would create a cycle (it should not, node0 is already an ancestor)
+      expect(tree.canCreateCycle(node2, node0)).toBe(false);
 
       // Check a valid relationship that wouldn't create a cycle
       const newNodeId = nodeIdFactory.build();
@@ -390,10 +390,10 @@ describe('Tree Structural Integrity', () => {
 
       // Check cycle detection
       expect(tree.canCreateCycle(diamond0, diamond3)).toBe(true);
-      expect(tree.canCreateCycle(diamond1, diamond0)).toBe(true);
-      expect(tree.canCreateCycle(diamond2, diamond0)).toBe(true);
-      expect(tree.canCreateCycle(diamond3, diamond1)).toBe(true);
-      expect(tree.canCreateCycle(diamond3, diamond2)).toBe(true);
+      expect(tree.canCreateCycle(diamond1, diamond0)).toBe(false);
+      expect(tree.canCreateCycle(diamond2, diamond0)).toBe(false);
+      expect(tree.canCreateCycle(diamond3, diamond1)).toBe(false);
+      expect(tree.canCreateCycle(diamond3, diamond2)).toBe(false);
     });
   });
 

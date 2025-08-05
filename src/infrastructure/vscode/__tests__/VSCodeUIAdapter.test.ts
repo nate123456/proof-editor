@@ -98,8 +98,8 @@ describe('VSCodeUIAdapter', () => {
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.code).toBe('PLATFORM_ERROR');
-        expect(result.error.message).toBe('Input failed');
+        expect(result.error.code.getValue()).toBe('PLATFORM_ERROR');
+        expect(result.error.message.getValue()).toBe('Input failed');
       }
     });
 
@@ -180,7 +180,7 @@ describe('VSCodeUIAdapter', () => {
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.code).toBe('PLATFORM_ERROR');
+        expect(result.error.code.getValue()).toBe('PLATFORM_ERROR');
       }
     });
   });
@@ -448,7 +448,7 @@ describe('VSCodeUIAdapter', () => {
 
       const idResult = WebviewId.create('test-panel');
       const titleResult = DialogTitle.create('Test Panel');
-      const viewTypeResult = ViewType.create('test.view');
+      const viewTypeResult = ViewType.create('testView');
 
       expect(idResult.isOk()).toBe(true);
       expect(titleResult.isOk()).toBe(true);
@@ -464,13 +464,13 @@ describe('VSCodeUIAdapter', () => {
       });
 
       expect(vscode.window.createWebviewPanel).toHaveBeenCalledWith(
-        'test.view',
+        'testView',
         'Test Panel',
         vscode.ViewColumn.One,
-        { enableScripts: true, retainContextWhenHidden: undefined },
+        { enableScripts: true },
       );
 
-      expect(panel.id).toBe('test-panel');
+      expect(panel.id).toEqual(idResult.value);
       expect(panel).toHaveProperty('webview');
       expect(panel).toHaveProperty('onDidDispose');
       expect(panel).toHaveProperty('reveal');
@@ -487,7 +487,7 @@ describe('VSCodeUIAdapter', () => {
       expect(theme.colors).toHaveProperty('foreground');
       expect(theme.fonts).toHaveProperty('default');
       expect(theme.fonts).toHaveProperty('monospace');
-      expect(typeof theme.fonts.size).toBe('number');
+      expect(theme.fonts.size.getValue()).toBe(13);
     });
 
     test('returns dark theme for dark color theme', async () => {
@@ -524,7 +524,7 @@ describe('VSCodeUIAdapter', () => {
       expect(caps.supportsStatusBar).toBe(true);
       expect(caps.supportsWebviews).toBe(true);
       expect(caps.supportsThemes).toBe(true);
-      expect(typeof caps.maxMessageLength).toBe('number');
+      expect(caps.maxMessageLength?.getValue()).toBe(1000);
     });
   });
 

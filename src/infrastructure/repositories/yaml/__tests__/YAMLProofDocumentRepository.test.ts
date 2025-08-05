@@ -65,7 +65,7 @@ metadata:
 statements:
   stmt1: "All men are mortal"
 orderedSets:
-  os1: [stmt1]
+  os1: ["stmt1"]
 atomicArguments:
   arg1:
     premises: os1
@@ -81,6 +81,9 @@ trees: {}
 
       const result = await repository.findById(testId.value);
 
+      if (result.isErr()) {
+        console.error('Error:', result.error.message);
+      }
       expect(result.isOk()).toBe(true);
       if (result.isErr()) return;
       expect(result.value.createQueryService().getId().getValue()).toBe('doc123');
@@ -659,7 +662,7 @@ metadata:
 statements:
   stmt1: "All men are mortal"
 orderedSets:
-  os1: [stmt1]
+  os1: ["stmt1"]
 atomicArguments:
   arg1:
     premises: os1
@@ -669,12 +672,13 @@ trees: {}
 }
 
 function createValidYAMLForDocument(document: any): string {
+  const queryService = document.createQueryService();
   return `
-version: ${document.getVersion()}
+version: ${queryService.getVersion()}
 metadata:
-  id: ${document.getId().getValue()}
-  createdAt: ${document.getCreatedAt().toISOString()}
-  modifiedAt: ${document.getModifiedAt().toISOString()}
+  id: ${queryService.getId().getValue()}
+  createdAt: ${queryService.getCreatedAt().toISOString()}
+  modifiedAt: ${queryService.getModifiedAt().toISOString()}
   schemaVersion: "1.0.0"
 statements: {}
 orderedSets: {}

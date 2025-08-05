@@ -836,11 +836,11 @@ describe('Tree Query DTO Validation Tests', () => {
         },
       };
 
-      expect(node.argument?.id).toBe('arg_with_details');
-      expect(node.argument?.premiseIds).toEqual(['stmt_1', 'stmt_2']);
-      expect(node.argument?.conclusionIds).toEqual(['stmt_3']);
-      expect(node.argument?.sideLabels?.left).toBe('Rule Name');
-      expect(node.argument?.sideLabels?.right).toBe('Reference');
+      expect(node.argument?.id.getValue()).toBe('arg_with_details');
+      expect(node.argument?.premiseIds.map((id) => id.getValue())).toEqual(['stmt_1', 'stmt_2']);
+      expect(node.argument?.conclusionIds.map((id) => id.getValue())).toEqual(['stmt_3']);
+      expect(node.argument?.sideLabels?.left?.getValue()).toBe('Rule Name');
+      expect(node.argument?.sideLabels?.right?.getValue()).toBe('Reference');
     });
 
     it('should handle tree node at origin', () => {

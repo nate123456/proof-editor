@@ -472,7 +472,7 @@ describe('Production Failure Simulation', () => {
       // Assert - cancellation handled as error, not crash
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
-        expect(result.error.message).toContain('Operation cancelled');
+        expect(result.error.message.getValue()).toContain('Operation cancelled');
       }
     });
 

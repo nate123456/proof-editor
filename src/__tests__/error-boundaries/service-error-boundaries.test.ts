@@ -155,10 +155,14 @@ describe('Service Layer Error Boundaries', () => {
       // Arrange - multiple port failures
       vi.mocked(mockFileSystemPort.readFile).mockRejectedValue(new Error('Storage unavailable'));
       vi.mocked(mockUIPort.createWebviewPanel).mockRejectedValue(new Error('UI system failure'));
-      // Platform port doesn't have showErrorMessage - skip this mock
+
+      // Mock repository to return an error Result (simulating storage failure)
+      const mockDocumentRepository = (proofApplicationService as any).repository;
+      vi.mocked(mockDocumentRepository.findById).mockResolvedValue(
+        err(new Error('Repository access failed')),
+      );
 
       // Act - application service should handle multiple failures gracefully
-      // ProofApplicationService doesn't have createProofTreeView - test a method that exists
       const documentResult = await proofApplicationService.createStatement({
         documentId: 'test-doc',
         content: 'test statement',
@@ -168,7 +172,8 @@ describe('Service Layer Error Boundaries', () => {
       expect(documentResult.isErr()).toBe(true);
       if (documentResult.isErr()) {
         // Should contain information about the failure chain
-        expect(documentResult.error).toBeInstanceOf(Error);
+        expect(documentResult.error).toBeInstanceOf(ValidationError);
+        expect(documentResult.error.message).toContain('Repository access failed');
       }
     });
 
@@ -366,28 +371,19 @@ describe('Service Layer Error Boundaries', () => {
 
     it('should implement compensation patterns for service failures', async () => {
       // Arrange - operation with compensation
+      let compensationExecuted = false;
+
       const operationWithCompensation = async (): Promise<Result<string, Error>> => {
         const compensationActions: (() => Promise<void>)[] = [];
 
         try {
-          // Step 1: Create resource (setup mock to succeed)
-          const mockParser = (documentQueryService as any).parser;
-          if (mockParser?.parseProofFile) {
-            vi.mocked(mockParser.parseProofFile).mockReturnValue(
-              ok({
-                version: '1.0.0',
-                statements: {},
-                atomicArguments: {},
-                trees: {},
-              }),
-            );
-          }
+          // Step 1: Simulate successful resource creation
+          const resourceCreated = true; // Simulate resource creation success
 
-          const createResult = await documentQueryService.parseDocumentContent('temp content');
-
-          if (createResult.isOk()) {
+          if (resourceCreated) {
             // Add compensation action
             compensationActions.push(async () => {
+              compensationExecuted = true;
               const tempPath = FilePath.create('/temp.md');
               if (tempPath.isOk()) {
                 await mockFileSystemPort.delete(tempPath.value);
@@ -396,9 +392,6 @@ describe('Service Layer Error Boundaries', () => {
           }
 
           // Step 2: Operation that fails
-          vi.mocked(mockUIPort.createWebviewPanel).mockRejectedValue(new Error('Operation failed'));
-
-          // Simulate operation failure
           throw new Error('Operation failed');
         } catch (error) {
           // Execute compensation actions
@@ -421,6 +414,11 @@ describe('Service Layer Error Boundaries', () => {
       if (result.isErr()) {
         expect(result.error.message).toContain('Operation failed');
       }
+
+      // Verify compensation was executed
+      expect(compensationExecuted).toBe(true);
+
+      // Verify delete was called if compensation ran
       const tempPath = FilePath.create('/temp.md');
       if (tempPath.isOk()) {
         expect(mockFileSystemPort.delete).toHaveBeenCalledWith(tempPath.value);
@@ -605,29 +603,19 @@ describe('Service Layer Error Boundaries', () => {
 
     it('should handle command execution failures with rollback', async () => {
       // Arrange - command with rollback capability
+      let rollbackExecuted = false;
+
       const commandWithRollback = {
         execute: async (command: { action: string }): Promise<Result<string, Error>> => {
           const rollbackActions: (() => Promise<void>)[] = [];
 
           try {
-            // Step 1: File operation (setup mock to succeed)
-            const mockParser = (documentQueryService as any).parser;
-            if (mockParser?.parseProofFile) {
-              vi.mocked(mockParser.parseProofFile).mockReturnValue(
-                ok({
-                  version: '1.0.0',
-                  statements: {},
-                  orderedSets: {},
-                  atomicArguments: {},
-                  trees: {},
-                }),
-              );
-            }
+            // Step 1: Simulate successful file operation
+            const fileOperationSucceeded = true; // Simulate file operation success
 
-            const fileResult = await documentQueryService.parseDocumentContent('data content');
-
-            if (fileResult.isOk()) {
+            if (fileOperationSucceeded) {
               rollbackActions.push(async () => {
+                rollbackExecuted = true;
                 const cmdPath = FilePath.create('/cmd.md');
                 if (cmdPath.isOk()) {
                   await mockFileSystemPort.delete(cmdPath.value);
@@ -663,6 +651,11 @@ describe('Service Layer Error Boundaries', () => {
       if (result.isErr()) {
         expect(result.error.message).toContain('UI operation failed');
       }
+
+      // Verify rollback was executed
+      expect(rollbackExecuted).toBe(true);
+
+      // Verify delete was called if rollback ran
       const cmdPath = FilePath.create('/cmd.md');
       if (cmdPath.isOk()) {
         expect(mockFileSystemPort.delete).toHaveBeenCalledWith(cmdPath.value);

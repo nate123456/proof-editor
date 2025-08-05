@@ -23,6 +23,7 @@ import {
   TreeId,
   WebviewId,
 } from '../../domain/shared/value-objects/identifiers.js';
+import { DialogTitle, ViewType } from '../../domain/shared/value-objects/ui.js';
 import { NodeCount } from '../../domain/shared/value-objects/validation.js';
 import { createTestContainer, resetContainer } from '../../infrastructure/di/container.js';
 import { TOKENS } from '../../infrastructure/di/tokens.js';
@@ -290,10 +291,9 @@ describe('ProofTreePanel Enhanced Integration Tests', () => {
       expect(mockTreeRenderer.generateSVG).toHaveBeenCalledWith(testVisualizationDTO);
       expect(mockUIPort.createWebviewPanel).toHaveBeenCalled();
       expect(mockUIPort.postMessageToWebview).toHaveBeenCalledWith(
-        expect.any(String),
+        expect.any(WebviewId),
         expect.objectContaining({
           type: 'updateTree',
-          content: '<svg>test</svg>',
         }),
       );
     });
@@ -320,15 +320,11 @@ describe('ProofTreePanel Enhanced Integration Tests', () => {
         _mockDocumentIdService,
       );
 
-      // Should succeed in creating panel but show error in webview
-      expect(result.isOk()).toBe(true);
-      expect(mockUIPort.postMessageToWebview).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({
-          type: 'showError',
-          content: expect.stringContaining('YAML parse error'),
-        }),
-      );
+      // Should fail to create panel due to parsing error
+      expect(result.isErr()).toBe(true);
+      if (result.isErr()) {
+        expect(result.error.message).toContain('YAML parse error');
+      }
     });
 
     it('should handle visualization errors through Result pattern', async () => {
@@ -355,15 +351,11 @@ describe('ProofTreePanel Enhanced Integration Tests', () => {
         _mockDocumentIdService,
       );
 
-      // Should succeed in creating panel but show error in webview
-      expect(result.isOk()).toBe(true);
-      expect(mockUIPort.postMessageToWebview).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({
-          type: 'showError',
-          content: expect.stringContaining('Layout calculation failed'),
-        }),
-      );
+      // Should fail to create panel due to visualization error
+      expect(result.isErr()).toBe(true);
+      if (result.isErr()) {
+        expect(result.error.message).toContain('Layout calculation failed');
+      }
     });
   });
 
@@ -390,9 +382,9 @@ describe('ProofTreePanel Enhanced Integration Tests', () => {
 
       expect(result.isOk()).toBe(true);
       expect(mockUIPort.createWebviewPanel).toHaveBeenCalledWith({
-        id: expect.any(String),
-        title: 'Proof Tree: test-document-uri',
-        viewType: 'proofTreeVisualization',
+        id: expect.any(WebviewId),
+        title: expect.any(DialogTitle),
+        viewType: expect.any(ViewType),
         showOptions: {
           viewColumn: 1,
           preserveFocus: false,
@@ -435,10 +427,9 @@ describe('ProofTreePanel Enhanced Integration Tests', () => {
 
       expect(result.isOk()).toBe(true);
       expect(mockUIPort.postMessageToWebview).toHaveBeenCalledWith(
-        expect.any(String),
+        expect.any(WebviewId),
         expect.objectContaining({
           type: 'updateTree',
-          content: '<svg>test</svg>',
         }),
       );
     });

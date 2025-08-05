@@ -217,10 +217,10 @@ trees: {}
       const result = await repository.createBootstrapDocumentWithId(testId.value);
 
       expect(result.isOk()).toBe(true);
-      expect(vi.mocked(mockFileSystem).writeFile).toHaveBeenCalledWith(
-        expect.stringContaining('.proof.yaml'),
-        expect.stringContaining('statements: {}'),
-      );
+
+      const writeCall = vi.mocked(mockFileSystem).writeFile.mock.calls[0];
+      expect(writeCall[0].getValue()).toContain('.proof.yaml');
+      expect(writeCall[1].getValue()).toContain('statements: {}');
     });
 
     test('save and load bootstrap document maintains state', async () => {

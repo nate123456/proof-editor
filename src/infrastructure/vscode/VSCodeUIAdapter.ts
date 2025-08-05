@@ -429,7 +429,7 @@ export class VSCodeUIAdapter implements IUIPort {
     );
 
     return {
-      id: options.id.getValue() as unknown as WebviewId,
+      id: options.id,
       webview: {
         html: '',
         onDidReceiveMessage: (callback: (message: WebviewMessage) => void) => {

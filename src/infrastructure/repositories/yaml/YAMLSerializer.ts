@@ -13,13 +13,14 @@ interface YAMLProofDocument {
     schemaVersion: string;
   };
   statements: Record<string, string>; // id -> content
+  orderedSets: Record<string, string[]>; // id -> statement IDs
   atomicArguments: Record<string, YAMLAtomicArgument>;
   trees: Record<string, YAMLTree>;
 }
 
 interface YAMLAtomicArgument {
-  premises: string[]; // Statement IDs
-  conclusions: string[]; // Statement IDs
+  premises: string | null; // Ordered set ID or null
+  conclusions: string | null; // Ordered set ID or null
   sideLabels?: {
     left?: string;
     right?: string;
@@ -41,6 +42,10 @@ export class YAMLSerializer {
   async serialize(document: ProofDocument): Promise<Result<string, ValidationError>> {
     try {
       const queryService = document.createQueryService();
+
+      // Serialize ordered sets first to get the mapping
+      const { orderedSets, orderedSetMapping } = this.serializeOrderedSets(queryService);
+
       const yamlDoc: YAMLProofDocument = {
         version: queryService.getVersion(),
         metadata: {
@@ -50,7 +55,8 @@ export class YAMLSerializer {
           schemaVersion: this.SCHEMA_VERSION,
         },
         statements: this.serializeStatements(queryService),
-        atomicArguments: this.serializeAtomicArguments(queryService),
+        orderedSets,
+        atomicArguments: this.serializeAtomicArguments(queryService, orderedSetMapping),
         trees: this.serializeTrees(queryService),
       };
 
@@ -58,6 +64,9 @@ export class YAMLSerializer {
       // Empty collections should serialize as empty objects, not undefined
       if (Object.keys(yamlDoc.statements).length === 0) {
         yamlDoc.statements = {};
+      }
+      if (Object.keys(yamlDoc.orderedSets).length === 0) {
+        yamlDoc.orderedSets = {};
       }
       if (Object.keys(yamlDoc.atomicArguments).length === 0) {
         yamlDoc.atomicArguments = {};
@@ -93,15 +102,46 @@ export class YAMLSerializer {
     return statements;
   }
 
+  private serializeOrderedSets(queryService: ProofDocumentQueryService): {
+    orderedSets: Record<string, string[]>;
+    orderedSetMapping: Map<string, string>;
+  } {
+    const orderedSets: Record<string, string[]> = {};
+    const orderedSetMapping = new Map<string, string>();
+    let orderedSetCounter = 1;
+
+    // Get all ordered sets from atomic arguments
+    for (const argument of queryService.getAllAtomicArguments()) {
+      // Process premises
+      const premiseIds = argument.getPremises().map((stmt) => stmt.getId().getValue());
+      if (premiseIds.length > 0) {
+        const orderedSetId = `os${orderedSetCounter++}`;
+        orderedSets[orderedSetId] = premiseIds;
+        orderedSetMapping.set(`${argument.getId().getValue()}-premises`, orderedSetId);
+      }
+
+      // Process conclusions
+      const conclusionIds = argument.getConclusions().map((stmt) => stmt.getId().getValue());
+      if (conclusionIds.length > 0) {
+        const orderedSetId = `os${orderedSetCounter++}`;
+        orderedSets[orderedSetId] = conclusionIds;
+        orderedSetMapping.set(`${argument.getId().getValue()}-conclusions`, orderedSetId);
+      }
+    }
+
+    return { orderedSets, orderedSetMapping };
+  }
+
   private serializeAtomicArguments(
     queryService: ProofDocumentQueryService,
+    orderedSetMapping: Map<string, string>,
   ): Record<string, YAMLAtomicArgument> {
     const args: Record<string, YAMLAtomicArgument> = {};
 
     for (const argument of queryService.getAllAtomicArguments()) {
       const yamlArg: YAMLAtomicArgument = {
-        premises: argument.getPremises().map((stmt) => stmt.getId().getValue()),
-        conclusions: argument.getConclusions().map((stmt) => stmt.getId().getValue()),
+        premises: orderedSetMapping.get(`${argument.getId().getValue()}-premises`) || null,
+        conclusions: orderedSetMapping.get(`${argument.getId().getValue()}-conclusions`) || null,
       };
 
       // Add side labels if present

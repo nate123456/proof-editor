@@ -320,6 +320,7 @@ export class Tree {
     }
 
     this.nodeIds.add(nodeId);
+    this.nodeParentMap.set(nodeId.getValue(), parentNodeId);
     this.modifiedAt = Timestamp.now();
     return ok(undefined);
   }
