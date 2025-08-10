@@ -1,0 +1,9 @@
+nodes - 
+
+0. ID (guid)
+1. content (string)
+2. 
+3. premises (ordered list of node IDs)
+4. description left (list of strings)
+5. description right (list of strings)
+6. metadata - not displayed (json)
