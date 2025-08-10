@@ -30,7 +30,6 @@ out/
 *.vsix
 
 # IDE artifacts
-.vscode/
 !.vscode/launch.json
 !.vscode/tasks.json
 !.vscode/settings.json
@@ -53,4 +52,3 @@ playwright-report/
 
 test-results/
 
-src/webview/__tests__/webview-window.d.ts
