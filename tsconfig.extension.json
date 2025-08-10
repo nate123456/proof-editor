@@ -22,11 +22,6 @@
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true
   },
-  "include": [
-    "src/extension/**/*.ts",
-    "src/webview/**/*.ts",
-    "src/parser/**/*.ts",
-    "src/domain/**/*.ts"
-  ],
-  "exclude": ["node_modules", ".vscode-test", "src/contexts/**", "**/__tests__/**", "**/*.test.ts"]
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", ".vscode-test", "**/__tests__/**", "**/*.test.ts"]
 }

@@ -17,131 +17,8 @@
     "Other"
   ],
   "main": "./out/extension/extension.js",
-  "activationEvents": [
-    "onLanguage:proof",
-    "onCommand:proofEditor.showTree",
-    "onCommand:proofEditor.createBootstrapDocument",
-    "onCommand:proofEditor.createBootstrapArgument",
-    "onCommand:proofEditor.populateEmptyArgument",
-    "onCommand:proofEditor.showBootstrapWorkflow",
-    "onCommand:proofEditor.createEmptyImplicationLine"
-  ],
-  "contributes": {
-    "languages": [
-      {
-        "id": "proof",
-        "aliases": [
-          "Proof",
-          "proof"
-        ],
-        "extensions": [
-          ".proof"
-        ],
-        "configuration": "./language-configuration.json"
-      }
-    ],
-    "grammars": [
-      {
-        "language": "proof",
-        "scopeName": "source.proof",
-        "path": "./syntaxes/proof.tmLanguage.json"
-      }
-    ],
-    "themes": [
-      {
-        "label": "Proof Editor Theme",
-        "uiTheme": "vs",
-        "path": "./themes/proof-theme.json"
-      }
-    ],
-    "commands": [
-      {
-        "command": "proofEditor.showTree",
-        "title": "Show Proof Tree",
-        "category": "Proof Editor"
-      },
-      {
-        "command": "proofEditor.createBootstrapDocument",
-        "title": "Create New Proof Document",
-        "category": "Proof Editor"
-      },
-      {
-        "command": "proofEditor.createBootstrapArgument",
-        "title": "Create First Argument",
-        "category": "Proof Editor"
-      },
-      {
-        "command": "proofEditor.populateEmptyArgument",
-        "title": "Populate Empty Argument",
-        "category": "Proof Editor"
-      },
-      {
-        "command": "proofEditor.showBootstrapWorkflow",
-        "title": "Show Bootstrap Workflow",
-        "category": "Proof Editor"
-      },
-      {
-        "command": "proofEditor.createEmptyImplicationLine",
-        "title": "Create Empty Implication Line",
-        "category": "Proof Editor"
-      }
-    ],
-    "iconThemes": [
-      {
-        "id": "proof-icons",
-        "label": "Proof Editor Icons",
-        "path": "./icons/proof-icon-theme.json"
-      }
-    ],
-    "menus": {
-      "explorer/context": [
-        {
-          "when": "explorerResourceIsFolder",
-          "command": "proofEditor.createBootstrapDocument",
-          "group": "navigation@1"
-        }
-      ],
-      "editor/context": [
-        {
-          "when": "resourceLangId == proof",
-          "command": "proofEditor.createBootstrapArgument",
-          "group": "proof@1"
-        },
-        {
-          "when": "resourceLangId == proof",
-          "command": "proofEditor.populateEmptyArgument",
-          "group": "proof@2"
-        },
-        {
-          "when": "resourceLangId == proof",
-          "command": "proofEditor.showBootstrapWorkflow",
-          "group": "proof@3"
-        }
-      ],
-      "commandPalette": [
-        {
-          "command": "proofEditor.createBootstrapDocument",
-          "when": "true"
-        },
-        {
-          "command": "proofEditor.createBootstrapArgument",
-          "when": "resourceLangId == proof"
-        },
-        {
-          "command": "proofEditor.populateEmptyArgument",
-          "when": "resourceLangId == proof"
-        },
-        {
-          "command": "proofEditor.showBootstrapWorkflow",
-          "when": "resourceLangId == proof"
-        },
-        {
-          "command": "proofEditor.createEmptyImplicationLine",
-          "when": "resourceLangId == proof"
-        }
-      ]
-    }
-  },
+  "activationEvents": [],
+  "contributes": {},
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./tsconfig.extension.json",
@@ -149,72 +26,23 @@
     "build": "tsc --noEmit",
     "dev": "tsc --noEmit --watch",
     "type-check": "tsc --noEmit",
-    "format": "biome format --write .",
-    "format:check": "biome format .",
-    "lint": "biome lint .",
-    "lint:fix": "biome lint --write .",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
     "test": "vitest run --coverage",
     "test:watch": "vitest",
-    "test:ui": "vitest --ui",
-    "test:type-check": "npm run type-check",
-    "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui",
-    "test:e2e:debug": "playwright test --debug",
-    "test:visual": "playwright test tests/e2e/visual/",
-    "test:visual:update": "playwright test tests/e2e/visual/ --update-snapshots",
-    "test:a11y": "playwright test tests/e2e/accessibility/",
-    "test:webview": "playwright test tests/e2e/webview/",
-    "test:all": "npm run test && npm run test:e2e",
-    "pretest": "npm run biome:check:fix",
-    "cleanup": "npm run biome:check:fix && npm run type-check",
-    "deps": "madge --extensions ts --exclude '^node_modules' src",
-    "deps:json": "madge --json --extensions ts --exclude '^node_modules' src",
-    "deps:circular": "madge --circular --extensions ts --exclude '^node_modules' src",
-    "deps:orphans": "madge --orphans --extensions ts --exclude '^node_modules' src",
-    "deps:report": "echo '=== DEPENDENCY ANALYSIS ===' && echo '\n--- Circular Dependencies ---' && npm run deps:circular && echo '\n--- Orphaned Modules ---' && npm run deps:orphans && echo '\n--- Full Dependency Tree ---' && npm run deps",
-    "test:prioritize": "node scripts/prioritize-testing.js",
-    "test:coverage:integration": "node scripts/integration-coverage-report.js",
-    "llm:collect": "node scripts/collect-source-files.js",
-    "llm:analysis": "node scripts/generate-llm-analysis-input.js",
-    "llm:prepare": "npm run llm:analysis && echo '\n✅ LLM analysis input ready!' && echo 'Upload llm-analysis-input.json and llm-analysis-summary.md to your LLM.' && echo 'Choose from prompts: DDD analysis, Security review, Performance audit, or General code analysis'",
-    "llm:prompts": "echo 'Available analysis prompts:' && echo '• scripts/prompts/llm-ddd-analysis-prompt.md - Domain-Driven Design analysis' && echo '• scripts/prompts/general-code-analysis.md - Comprehensive code review' && echo '• scripts/prompts/security-focused-analysis.md - Security vulnerability assessment' && echo '• scripts/prompts/performance-audit.md - Performance optimization review'",
-    "security:audit": "npm audit --audit-level moderate",
-    "security:full": "npm run security:audit && npm run biome:check",
-    "biome:format": "biome format --write .",
-    "biome:format:check": "biome format .",
-    "biome:lint": "biome lint .",
-    "biome:lint:fix": "biome lint --apply .",
-    "biome:check": "biome check .",
-    "biome:check:fix": "biome check --write .",
-    "biome:ci": "biome ci ."
+    "test:ui": "vitest --ui"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.0.6",
     "@faker-js/faker": "^9.8.0",
-    "@playwright/test": "^1.53.2",
     "@types/node": "^22.0.0",
-    "@types/reflect-metadata": "^0.0.5",
     "@types/vscode": "^1.74.0",
     "@vitest/coverage-v8": "^3.2.4",
-    "axe-playwright": "^2.1.0",
     "fast-check": "^4.1.1",
     "fishery": "^2.3.1",
-    "madge": "^8.0.0",
     "typescript": "^5.6.0",
     "vitest": "^3.2.4",
     "vitest-mock-extended": "^3.1.0"
   },
-  "dependencies": {
-    "@types/js-yaml": "^4.0.9",
-    "graphology": "^0.25.4",
-    "graphology-components": "^1.5.3",
-    "graphology-dag": "^0.4.1",
-    "graphology-shortest-path": "^2.0.2",
-    "graphology-traversal": "^0.3.1",
-    "graphology-types": "^0.24.7",
-    "js-yaml": "^4.1.0",
-    "neverthrow": "^8.2.0",
-    "reflect-metadata": "^0.2.2",
-    "tsyringe": "^4.10.0"
-  }
+  "dependencies": {}
 }

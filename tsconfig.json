@@ -40,9 +40,7 @@
     // Path resolution
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"],
-      "@domain/*": ["./src/domain/*"],
-      "@contexts/*": ["./src/contexts/*"]
+      "@/*": ["./src/*"]
     },
 
     // Output configuration (for build tools)
